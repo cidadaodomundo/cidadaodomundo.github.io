@@ -131,7 +131,7 @@ async function gateTry(){const v=document.getElementById('gpw').value;const h=aw
 if(sessionStorage.getItem('cm_del_ok')==='1'||sessionStorage.getItem('cm_owner_ok')==='1')document.getElementById('gate').style.display='none';
 
 const LOJAS=['Todas','Água Verde','São Braz','Ahú'];
-let F=[],SC=[],CANC=[],AVAL=[],NEG=[],DIMS=[],ATR=[],PAG=[],DAYS=[],NAV=[],DI=0,LOJA='Todas',VIEW='diario',PER=7;
+let F=[],SC=[],CANC=[],AVAL=[],NEG=[],DIMS=[],ATR=[],PAG=[],ESCH=[],DAYS=[],NAV=[],DI=0,LOJA='Todas',VIEW='diario',PER=7;
 const $=id=>document.getElementById(id);
 const br=d=>{const[y,m,dd]=d.split('-');return dd+'/'+m};
 const DOWN=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
@@ -157,6 +157,7 @@ async function loadAll(){
       pag('foody_vw_pedido_prazo?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=n_pedido,unidade,turno,entregador,data_hora_pedido,dia_operacional,dt_entregue,t_coleta_min,t_total_min,dt_pronto,dt_despachado,dt_aceite,dt_coletado,rota_km,raio_km,entrega_prometida,t_aceite_min,prazo_prometido_min,atraso_real_min,no_prazo_real,fonte_prazo_real&order=data_hora_pedido.asc'),
       pag('foody_vw_pagamento_dia?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=*&order=dia_operacional.asc')
     ]);
+    try{ESCH=await fj('foody_vw_aderencia?dia_op=gte.'+(new Date(Date.now()-8*864e5)).toISOString().slice(0,10)+'&select=*&order=entrada&limit=1000')}catch(e){ESCH=[]}
     DAYS=[...new Set(F.map(r=>r.dia_operacional))].sort();
     NAV=DAYS.slice(-7);
     DI=NAV.length-1;
@@ -244,6 +245,7 @@ function renderDiario(){
   }
   html+='</div>';
 
+  html+=blocoEscala(D);
   html+='<div class="sec"><h2>🏷 Pedidos sem Código de Coleta</h2><div class="hs">do dia selecionado</div>';
   if(scD.length){
     html+='<table><tr><th>Hora</th><th>Loja</th><th>Turno</th><th>Entregador</th><th>Nº pedido</th></tr>'+scD.map(r=>{
@@ -255,6 +257,23 @@ function renderDiario(){
   $('conteudo').innerHTML=html;
 }
 
+/* ================= ESCALA DO DIA ================= */
+function blocoEscala(D){
+  const rs=ESCH.filter(x=>x.dia_op===D&&fLoja(x));
+  let h='<div class="sec"><h2>\uD83D\uDCC5 Escala do dia \u2014 quem chegou</h2><div class="hs">escala do Jaison \u00D7 check-in do QR no balc\u00E3o</div>';
+  if(!rs.length){h+='<div class="empty">O Jaison ainda n\u00E3o publicou a escala deste dia.</div></div>';return h}
+  const st={'No hor\u00E1rio':'pg','Atrasado':'pw','Muito atrasado':'pb','Faltou':'pb','Sem check-in':'pw'};
+  const nH=rs.filter(x=>x.status==='No hor\u00E1rio').length, fa=rs.filter(x=>x.status==='Faltou').length;
+  h+='<div class="hs" style="margin:-4px 0 8px">'+rs.length+' escalados \u00B7 <b style="color:var(--good)">'+nH+' no hor\u00E1rio</b>'+(fa?' \u00B7 <b style="color:var(--bad)">'+fa+' sem aparecer</b>':'')+'</div>';
+  const hm=x=>{if(!x)return '\u2014';const d=new Date(x);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)};
+  const ord={'Almo\u00E7o':1,'Tarde':2,'Jantar':3,'Madrugada':4};
+  rs.sort((a,b)=>(ord[a.turno]||9)-(ord[b.turno]||9)||String(a.entrada).localeCompare(String(b.entrada)));
+  h+='<table><tr><th>Turno</th><th>Motoboy</th><th>Loja</th><th>Combinado</th><th>Chegou</th><th>Diferen\u00E7a</th><th>Situa\u00E7\u00E3o</th><th>Entregas</th></tr>';
+  rs.forEach(x=>{const d=x.atraso_min==null?'\u2014':(Number(x.atraso_min)>0?'+'+x.atraso_min+' min':x.atraso_min+' min');
+    h+='<tr><td>'+(x.turno||'\u2014')+'</td><td><b>'+x.nome+'</b></td><td>'+String(x.unidade||'').split(' ')[0]+'</td><td>'+String(x.entrada||'').slice(0,5)+'</td><td>'+hm(x.chegada_efetiva)+(x.fonte_chegada==='Foody (1\u00AA coleta)'?' <span class="pill pw">sem QR</span>':'')+'</td>'+
+      '<td style="color:'+(x.atraso_min>5?'var(--bad)':'var(--good)')+'">'+d+'</td><td><span class="pill '+(st[x.status]||'pw')+'">'+x.status+'</span></td><td>'+(x.entregas||0)+'</td></tr>'});
+  h+='</table></div>';return h;
+}
 /* ================= EQUIPE ================= */
 function aggMoto(rows){
   const m={};rows.forEach(r=>{const k=r.nome+'|'+r.unidade;const o=m[k]=m[k]||{n:r.nome,l:r.unidade,d:0,h:0,e:0,ok:0,at:0,sem:0,v:0,g:0,c:0,rec:0,qr:0};
@@ -398,3 +417,4 @@ loadAll();
 </script>
 </body>
 </html>
+
