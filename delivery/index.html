@@ -138,7 +138,7 @@ async function loadAll(){
       fj('ifood_fato_avaliacao?select=id_loja,data_avaliacao,nota,tags,comentario&order=data_avaliacao.desc&limit=1000'),
       fj('ifood_fato_negociacao?select=id_loja,data,motivo,resposta_loja&order=data.desc&limit=500'),
       fj('ifood_dim_loja?select=id_loja,nome,unidade'),
-      fj('foody_fato_pedido?no_prazo=eq.false&select=n_pedido,unidade,turno,entregador,data_hora_pedido,dia_operacional,atraso_min&order=data_hora_pedido.desc&limit=1500')
+      fj('foody_fato_pedido?no_prazo=eq.false&select=n_pedido,unidade,turno,entregador,data_hora_pedido,dia_operacional,atraso_min,entrega_para,dt_entregue,t_coleta_min&order=data_hora_pedido.desc&limit=1500')
     ]);
     DAYS=[...new Set(F.map(r=>r.dia_operacional))].sort();
     NAV=DAYS.slice(-7);
@@ -194,6 +194,8 @@ function renderDiario(){
   const atencao=Object.values(porMoto).map(m=>({...m,p:pctS(m.ok,m.at)})).filter(m=>m.at>=3||(m.p!=null&&m.p<70&&m.e>=5)).sort((a,b)=>b.at-a.at);
   if(atencao.length)acoes.push('🛵 Conversar hoje com: '+atencao.slice(0,4).map(m=>'<b>'+m.n+'</b> ('+m.at+' atrasos em '+m.e+')').join(' · ')+'. Sem bronca: entender o que travou.');
   if(sem>0)acoes.push('🏷 <b>'+sem+' pedido'+(sem>1?'s':'')+' sem Código de Coleta</b> (lista abaixo). Todo pedido do site/balcão sai COM código.');
+  const coletaLenta=atrD.filter(r=>(+r.t_coleta_min||0)>=15);
+  if(coletaLenta.length>=2)acoes.push('📦 <b>'+coletaLenta.length+' pedidos atrasados ficaram 15+ min prontos esperando o motoboy coletar</b> (coluna "Pronto → coleta" na lista). Combinar: enviou o pedido, coleta na hora.');
   cancD.slice(0,3).forEach(c=>acoes.push('🚫 Cancelamento em <b>'+nomeLoja(c.id_loja)+'</b>: '+(c.motivo||'—')+(c.itens_cancelados&&c.itens_cancelados!=='-'?' — '+String(c.itens_cancelados).slice(0,60):'')+'. Conferir sacola/estoque antes de aceitar.'));
   const tagCount={};avalRuim.forEach(r=>(r.tags||[]).forEach(t=>tagCount[t]=(tagCount[t]||0)+1));
   const tagTop=Object.entries(tagCount).sort((a,b)=>b[1]-a[1])[0];
@@ -212,10 +214,11 @@ function renderDiario(){
   }else html+='<div class="empty">Sem entregas nesse dia.</div>';
   if(atrD.length){
     html+='<button class="btnr" style="margin-top:10px" onclick="toggleAtr()">📄 Ver os '+atrD.length+' pedidos atrasados — nº, hora e entregador</button>';
-    html+='<div id="atrlist" style="display:none;margin-top:8px"><table><tr><th>Hora</th><th>Loja</th><th>Turno</th><th>Entregador</th><th>Nº pedido</th><th>Atraso</th></tr>'+atrD.map(r=>{
-      const hp=r.data_hora_pedido?new Date(r.data_hora_pedido):null;
-      const hh=hp?('0'+hp.getHours()).slice(-2)+':'+('0'+hp.getMinutes()).slice(-2):'—';
-      return '<tr><td>'+hh+'</td><td>'+(r.unidade||'—')+'</td><td>'+(r.turno||'—')+'</td><td>'+(r.entregador||'—')+'</td><td><b>'+(r.n_pedido||'—')+'</b></td><td><span class="pill pb">+'+Math.round(r.atraso_min||0)+' min</span></td></tr>'}).join('')+'</table></div>';
+    html+='<div id="atrlist" style="display:none;margin-top:8px"><table><tr><th>Pedido às</th><th>Loja</th><th>Turno</th><th>Entregador</th><th>Nº pedido</th><th>Deveria chegar</th><th>Chegou</th><th>Atraso</th><th>Pronto → coleta</th></tr>'+atrD.map(r=>{
+      const hm=x=>{if(!x)return '—';const d=new Date(x);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)};
+      const cm=r.t_coleta_min==null?null:Math.round(+r.t_coleta_min);
+      const ccls=cm==null?'pw':cm<10?'pg':cm<20?'pw':'pb';
+      return '<tr><td>'+hm(r.data_hora_pedido)+'</td><td>'+(r.unidade||'—')+'</td><td>'+(r.turno||'—')+'</td><td>'+(r.entregador||'—')+'</td><td><b>'+(r.n_pedido||'—')+'</b></td><td>'+hm(r.entrega_para)+'</td><td><b>'+hm(r.dt_entregue)+'</b></td><td><span class="pill pb">+'+Math.round(r.atraso_min||0)+' min</span></td><td>'+(cm==null?'—':'<span class="pill '+ccls+'">'+cm+' min</span>')+'</td></tr>'}).join('')+'</table></div>';
   }
   html+='</div>';
 
