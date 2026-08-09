@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#e6007e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Portal · Cidadão do Mundo</title>
+<link rel="icon" href="https://acconimages.s3.amazonaws.com/merchants/logos/378-1755286245137.png">
+<style>
+  :root{
+    --rosa:#e6007e;
+    --rosa-escuro:#b00061;
+    --fundo:#12121a;
+    --painel:#1c1c28;
+    --painel-2:#242433;
+    --texto:#f2f2f7;
+    --texto-2:#9a9ab0;
+    --borda:#2e2e40;
+    --sidebar-w:250px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:var(--fundo);color:var(--texto);
+    display:flex;overflow:hidden;
+  }
+
+  /* ===== SIDEBAR ===== */
+  aside{
+    width:var(--sidebar-w);min-width:var(--sidebar-w);
+    background:var(--painel);border-right:1px solid var(--borda);
+    display:flex;flex-direction:column;
+    transition:margin-left .25s ease;z-index:30;
+  }
+  aside.fechada{margin-left:calc(var(--sidebar-w) * -1)}
+
+  .marca{
+    display:flex;align-items:center;gap:12px;
+    padding:18px 16px;border-bottom:1px solid var(--borda);
+  }
+  .marca img{
+    width:46px;height:46px;border-radius:12px;object-fit:cover;
+    background:#fff;flex-shrink:0;
+  }
+  .marca .cm-fallback{
+    width:46px;height:46px;border-radius:12px;flex-shrink:0;
+    background:var(--rosa);color:#fff;font-weight:800;font-size:19px;
+    display:none;align-items:center;justify-content:center;letter-spacing:-1px;
+  }
+  .marca h1{font-size:15px;line-height:1.25;font-weight:700}
+  .marca small{color:var(--texto-2);font-size:11px;font-weight:400;display:block}
+
+  nav{flex:1;overflow-y:auto;padding:12px 10px}
+  .nav-titulo{
+    font-size:10px;text-transform:uppercase;letter-spacing:1.5px;
+    color:var(--texto-2);padding:10px 10px 6px;
+  }
+  .nav-item{
+    display:flex;align-items:center;gap:11px;width:100%;
+    padding:11px 12px;margin-bottom:3px;border:none;border-radius:10px;
+    background:transparent;color:var(--texto);cursor:pointer;
+    font-size:14px;text-align:left;font-family:inherit;
+    transition:background .15s;
+  }
+  .nav-item:hover{background:var(--painel-2)}
+  .nav-item.ativo{background:var(--rosa);color:#fff;font-weight:600}
+  .nav-item .icone{font-size:18px;width:24px;text-align:center;flex-shrink:0}
+  .nav-item .info small{display:block;font-size:11px;color:var(--texto-2);font-weight:400;margin-top:1px}
+  .nav-item.ativo .info small{color:rgba(255,255,255,.75)}
+
+  .rodape-sidebar{
+    padding:12px 16px;border-top:1px solid var(--borda);
+    font-size:11px;color:var(--texto-2);
+  }
+
+  /* ===== ÁREA PRINCIPAL ===== */
+  main{flex:1;display:flex;flex-direction:column;min-width:0}
+
+  header{
+    display:flex;align-items:center;gap:12px;
+    padding:10px 16px;background:var(--painel);
+    border-bottom:1px solid var(--borda);min-height:54px;
+  }
+  .btn{
+    border:1px solid var(--borda);background:var(--painel-2);color:var(--texto);
+    border-radius:9px;padding:8px 12px;font-size:14px;cursor:pointer;
+    font-family:inherit;display:inline-flex;align-items:center;gap:6px;
+    transition:background .15s;white-space:nowrap;
+  }
+  .btn:hover{background:var(--borda)}
+  #titulo-modulo{font-size:15px;font-weight:600;flex:1;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  #conteudo{flex:1;position:relative;background:#fff}
+  #conteudo iframe{
+    position:absolute;inset:0;width:100%;height:100%;border:none;
+    display:none;background:#fff;
+  }
+  #conteudo iframe.ativo{display:block}
+
+  /* ===== TELA INICIAL ===== */
+  #home{
+    position:absolute;inset:0;overflow-y:auto;
+    background:var(--fundo);display:none;padding:32px 24px;
+  }
+  #home.ativo{display:block}
+  .home-centro{max-width:860px;margin:0 auto}
+  .home-logo{text-align:center;margin-bottom:8px}
+  .home-logo img{width:110px;height:110px;border-radius:26px;object-fit:cover;background:#fff}
+  #home h2{text-align:center;font-size:24px;margin:14px 0 4px}
+  #home .sub{text-align:center;color:var(--texto-2);font-size:14px;margin-bottom:32px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+  .card{
+    background:var(--painel);border:1px solid var(--borda);border-radius:16px;
+    padding:22px 20px;cursor:pointer;text-align:left;color:var(--texto);
+    font-family:inherit;transition:transform .15s,border-color .15s;
+  }
+  .card:hover{transform:translateY(-3px);border-color:var(--rosa)}
+  .card .icone{font-size:32px;display:block;margin-bottom:12px}
+  .card h3{font-size:16px;margin-bottom:5px}
+  .card p{font-size:13px;color:var(--texto-2);line-height:1.45}
+
+  /* ===== MOBILE ===== */
+  #overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:25}
+  @media (max-width:768px){
+    aside{position:fixed;top:0;bottom:0;left:0;margin-left:calc(var(--sidebar-w) * -1)}
+    aside.aberta-mobile{margin-left:0}
+    #overlay.visivel{display:block}
+    #home{padding:24px 16px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     MÓDULOS — para adicionar um novo, basta acrescentar uma linha:
+     { id:'meu-modulo', nome:'Nome no menu', icone:'📊',
+       desc:'descrição curta', url:'https://...' }
+     ============================================================ -->
+<script>
+const MODULOS = [
+  {
+    id:   'ponto',
+    nome: 'Ponto · Dashboard',
+    icone:'⏱️',
+    desc: 'Jornada e conformidade CLT',
+    url:  'https://fabioikoma.github.io/ponto-dashboard/'
+  },
+  {
+    id:   'gestoras',
+    nome: 'Ponto do Dia · Gestoras',
+    icone:'👥',
+    desc: 'Painel diário das gestoras',
+    url:  'https://fabioikoma.github.io/RELATORIORHCDM/'
+  },
+  // ➕ adicione novos módulos aqui
+];
+const LOGO_URL = 'https://acconimages.s3.amazonaws.com/merchants/logos/378-1755286245137.png';
+</script>
+
+<div id="overlay" onclick="fecharMenuMobile()"></div>
+
+<aside id="sidebar">
+  <div class="marca">
+    <img id="logo-side" alt="Cidadão do Mundo"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+    <div class="cm-fallback">CM</div>
+    <h1>Cidadão do Mundo<small>Portal de Gestão</small></h1>
+  </div>
+  <nav>
+    <div class="nav-titulo">Menu</div>
+    <button class="nav-item" data-alvo="home" onclick="irHome()">
+      <span class="icone">🏠</span><span class="info">Início</span>
+    </button>
+    <div class="nav-titulo">Módulos</div>
+    <div id="lista-modulos"></div>
+  </nav>
+  <div class="rodape-sidebar">Cidadão do Mundo Burgers &amp; Arts<br>Água Verde · Ahú · São Braz · Boqueirão</div>
+</aside>
+
+<main>
+  <header>
+    <button class="btn" onclick="alternarMenu()" title="Mostrar/ocultar menu">☰</button>
+    <span id="titulo-modulo">Início</span>
+    <button class="btn" id="btn-recarregar" onclick="recarregarModulo()" style="display:none" title="Recarregar módulo">↻</button>
+    <button class="btn" id="btn-nova-aba" onclick="abrirNovaAba()" style="display:none" title="Abrir em nova aba">↗</button>
+  </header>
+  <div id="conteudo">
+    <div id="home" class="ativo">
+      <div class="home-centro">
+        <div class="home-logo">
+          <img id="logo-home" alt="Cidadão do Mundo"
+               onerror="this.style.display='none'">
+        </div>
+        <h2>Portal de Gestão</h2>
+        <p class="sub">Escolha um módulo para começar</p>
+        <div class="cards" id="cards-home"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+let moduloAtual = null;
+const iframes = {}; // iframes já criados ficam vivos → trocar de módulo não recarrega
+
+// monta menu e cards
+const nav = document.getElementById('lista-modulos');
+const cards = document.getElementById('cards-home');
+MODULOS.forEach(m => {
+  nav.insertAdjacentHTML('beforeend',
+    `<button class="nav-item" data-alvo="${m.id}" onclick="abrirModulo('${m.id}')">
+       <span class="icone">${m.icone}</span>
+       <span class="info">${m.nome}<small>${m.desc}</small></span>
+     </button>`);
+  cards.insertAdjacentHTML('beforeend',
+    `<button class="card" onclick="abrirModulo('${m.id}')">
+       <span class="icone">${m.icone}</span><h3>${m.nome}</h3><p>${m.desc}</p>
+     </button>`);
+});
+document.getElementById('logo-side').src = LOGO_URL;
+document.getElementById('logo-home').src = LOGO_URL;
+
+function marcarAtivo(id){
+  document.querySelectorAll('.nav-item').forEach(b =>
+    b.classList.toggle('ativo', b.dataset.alvo === id));
+}
+
+function abrirModulo(id){
+  const m = MODULOS.find(x => x.id === id);
+  if(!m) return irHome();
+  if(!iframes[id]){
+    const f = document.createElement('iframe');
+    f.src = m.url; f.id = 'frame-' + id;
+    f.setAttribute('allow','clipboard-write; fullscreen');
+    document.getElementById('conteudo').appendChild(f);
+    iframes[id] = f;
+  }
+  document.getElementById('home').classList.remove('ativo');
+  Object.values(iframes).forEach(f => f.classList.remove('ativo'));
+  iframes[id].classList.add('ativo');
+  moduloAtual = m;
+  document.getElementById('titulo-modulo').textContent = m.icone + ' ' + m.nome;
+  document.getElementById('btn-nova-aba').style.display = '';
+  document.getElementById('btn-recarregar').style.display = '';
+  marcarAtivo(id);
+  location.hash = id;
+  fecharMenuMobile();
+}
+
+function irHome(){
+  moduloAtual = null;
+  document.getElementById('home').classList.add('ativo');
+  Object.values(iframes).forEach(f => f.classList.remove('ativo'));
+  document.getElementById('titulo-modulo').textContent = 'Início';
+  document.getElementById('btn-nova-aba').style.display = 'none';
+  document.getElementById('btn-recarregar').style.display = 'none';
+  marcarAtivo('home');
+  history.replaceState(null,'',location.pathname);
+  fecharMenuMobile();
+}
+
+function abrirNovaAba(){ if(moduloAtual) window.open(moduloAtual.url,'_blank'); }
+function recarregarModulo(){
+  if(moduloAtual && iframes[moduloAtual.id])
+    iframes[moduloAtual.id].src = moduloAtual.url;
+}
+
+function alternarMenu(){
+  const s = document.getElementById('sidebar');
+  if(window.innerWidth <= 768){
+    const abrir = !s.classList.contains('aberta-mobile');
+    s.classList.toggle('aberta-mobile', abrir);
+    document.getElementById('overlay').classList.toggle('visivel', abrir);
+  }else{
+    s.classList.toggle('fechada');
+  }
+}
+function fecharMenuMobile(){
+  if(window.innerWidth <= 768){
+    document.getElementById('sidebar').classList.remove('aberta-mobile');
+    document.getElementById('overlay').classList.remove('visivel');
+  }
+}
+
+// abre direto o módulo do link (ex.: portal/#ponto)
+const hash = location.hash.replace('#','');
+if(hash && MODULOS.some(m => m.id === hash)) abrirModulo(hash);
+else marcarAtivo('home');
+</script>
+</body>
+</html>
