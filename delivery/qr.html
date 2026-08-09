@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#c8102e">
+<link rel="manifest" href="manifest-central.webmanifest">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>QR do dia · Cidadão do Mundo</title>
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--good:#2fae6a;--bad:#e66767;--brand:#c8102e}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px}
+.wrap{max-width:560px;margin:0 auto;padding:16px 14px 40px;text-align:center}
+header{display:flex;align-items:center;gap:12px;border-bottom:2px solid var(--brand);padding-bottom:12px;margin-bottom:14px;text-align:left}
+.dot{width:42px;height:42px;border-radius:10px;background:var(--brand);display:grid;place-items:center;font-weight:800;font-size:16px}
+h1{font-size:18px;font-weight:800}
+.sub{color:var(--text2);font-size:12px;margin-top:2px}
+.tabs{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:12px 0}
+.tab{background:var(--s1);border:1px solid var(--line);border-radius:22px;padding:9px 20px;font-size:15px;font-weight:700;color:var(--text2);cursor:pointer}
+.tab.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.card{background:#fff;border-radius:18px;padding:22px 18px 18px;margin:6px auto 0;max-width:360px}
+.card .loja{color:#111;font-size:22px;font-weight:800}
+.card .data{color:#c8102e;font-size:15px;font-weight:800;margin:2px 0 12px}
+.card img{width:100%;max-width:300px;height:auto;display:block;margin:0 auto;border-radius:8px}
+.card .cap{color:#444;font-size:12.5px;margin-top:10px;line-height:1.4}
+.hint{background:rgba(47,174,106,.10);border:1px solid rgba(47,174,106,.35);border-radius:10px;padding:11px 13px;font-size:12.5px;color:#a9e6c4;margin:14px 0;text-align:left;line-height:1.55}
+.warn{background:rgba(224,169,58,.10);border:1px solid rgba(224,169,58,.35);border-radius:10px;padding:11px 13px;font-size:12.5px;color:#e8c882;margin:14px 0;text-align:left;line-height:1.55}
+.btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+.btn{background:var(--s2);border:1px solid var(--line);color:var(--text2);border-radius:10px;padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer}
+#gate{position:fixed;inset:0;background:var(--s0);z-index:100;display:flex;align-items:center;justify-content:center}
+.gatebox{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:32px 28px;width:330px;text-align:center}
+.gatebox input{width:100%;background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:11px 14px;color:var(--text);font-size:15px;outline:none;margin:14px 0 10px;text-align:center}
+.gatebox button{width:100%;background:var(--brand);border:none;color:#fff;border-radius:10px;padding:11px;font-size:14px;font-weight:800;cursor:pointer}
+.gerr{color:#f08d8d;font-size:12px;min-height:16px;margin-top:8px}
+@media print{body{background:#fff}.tabs,.btns,.hint,.warn,header,#gate{display:none!important}.card{page-break-inside:avoid;box-shadow:none}}
+</style>
+</head>
+<body>
+<div id="gate"><div class="gatebox">
+  <div class="dot" style="margin:0 auto 12px">CM</div>
+  <h1>QR do dia</h1>
+  <div class="sub">Painel da gestão — digite a senha</div>
+  <input type="password" id="gpw" placeholder="Senha" onkeydown="if(event.key==='Enter')gateTry()">
+  <button onclick="gateTry()">Entrar</button>
+  <div class="gerr" id="gerr"></div>
+</div></div>
+
+<div class="wrap">
+<header>
+  <div class="dot">CM</div>
+  <div><h1>📱 QR do dia — Check-in</h1><div class="sub">deixe esta tela no balcão · o QR troca sozinho todo dia</div></div>
+</header>
+
+<div class="tabs" id="lojas"></div>
+<div id="card"></div>
+
+<div class="hint" id="hint"></div>
+
+<div class="btns">
+  <button class="btn" onclick="print()">🖨 Imprimir este QR</button>
+  <button class="btn" onclick="location.reload()">↻ Atualizar</button>
+</div>
+
+<div class="warn">Por que troca todo dia: o QR de hoje leva a data do dia embutida. Um QR de ontem (foto ou impresso antigo) <b>não funciona mais</b> — o check-in recusa e pede o QR de hoje. O ideal é deixar esta tela num tablet/celular no balcão; se preferir imprimir, reimprima a cada manhã.</div>
+</div>
+
+<script>
+const BASE=location.origin+location.pathname.replace(/qr\.html$/,'')+'checkin.html';
+const LOJAS=['Água Verde','São Braz','Ahú'];
+const PASS_HASH='132704a017cc174942929dae49a5de2748d09170a0b16962cad693e88ee57441';
+const OWNER_HASH='d7149f187239f5d99c428c666fa476b7e7808f38226765d5c62ed0ec65e7eaee';
+const $=id=>document.getElementById(id);
+let LOJA='Água Verde';
+async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+async function gateTry(){const v=$('gpw').value;const h=await sha((v||'').trim());
+  if(h===PASS_HASH||h===OWNER_HASH){sessionStorage.setItem('cm_del_ok','1');$('gate').style.display='none';render()}
+  else $('gerr').textContent='Senha incorreta.'}
+if(sessionStorage.getItem('cm_del_ok')==='1'||sessionStorage.getItem('cm_owner_ok')==='1'){$('gate').style.display='none'}
+
+// dia operacional: vai até 4h da manhã (igual ao check-in)
+function diaOp(){const d=new Date(Date.now()-4*3600*1000);
+  return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)}
+// token do dia (precisa bater com o checkin.html)
+function tok(d,loja){var s=d+'|'+loja+'|CDM-QR-2026';var h=5381;for(var i=0;i<s.length;i++){h=((h<<5)+h+s.charCodeAt(i))>>>0}return h.toString(36)}
+const DOWN=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+function dataBonita(d){const p=d.split('-').map(Number);const dt=new Date(Date.UTC(p[0],p[1]-1,p[2]));return DOWN[dt.getUTCDay()]+' · '+d.slice(8,10)+'/'+d.slice(5,7)+'/'+d.slice(0,4)}
+
+function urlCheckin(loja){const d=diaOp();return BASE+'?u='+encodeURIComponent(loja)+'&d='+d+'&k='+tok(d,loja)}
+function render(){
+  $('lojas').innerHTML=LOJAS.map(l=>'<span class="tab '+(LOJA===l?'on':'')+'" onclick="LOJA=\''+l+'\';render()">'+l+'</span>').join('');
+  const d=diaOp(), url=urlCheckin(LOJA);
+  const qr='https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=12&data='+encodeURIComponent(url);
+  $('card').innerHTML='<div class="card"><div class="loja">'+LOJA+'</div><div class="data">'+dataBonita(d)+'</div>'+
+    '<img src="'+qr+'" alt="QR check-in '+LOJA+'">'+
+    '<div class="cap">Motoboy: aponte a câmera. Marque <b>CHEGUEI</b> ao chegar e <b>SAÍ</b> ao terminar.</div></div>';
+  $('hint').innerHTML='✅ QR válido para <b>'+dataBonita(d)+'</b>. Vira sozinho às 4h da manhã (fim do dia operacional).';
+}
+// vira sozinho quando muda o dia operacional
+let _d=diaOp();
+setInterval(()=>{if(diaOp()!==_d){_d=diaOp();render()}},60*1000);
+if($('gate').style.display==='none')render();
+</script>
+</body>
+</html>
