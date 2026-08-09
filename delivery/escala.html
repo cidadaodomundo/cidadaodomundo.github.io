@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#111110">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Escala CDM">
+<title>Escala do Delivery · Cidadão do Mundo</title>
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;
+--good:#2fae6a;--bad:#e66767;--warn:#e0a93a;--brand:#c8102e;--blue:#3987e5}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:14.5px;line-height:1.45}
+.wrap{max-width:860px;margin:0 auto;padding:16px 14px 60px}
+header{display:flex;align-items:center;gap:12px;border-bottom:2px solid var(--brand);padding-bottom:12px;margin-bottom:14px}
+.dot{width:42px;height:42px;border-radius:10px;background:var(--brand);display:grid;place-items:center;font-weight:800;font-size:16px;flex-shrink:0}
+h1{font-size:18px;font-weight:800}
+.sub{color:var(--text2);font-size:12px;margin-top:2px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.tab{background:var(--s1);border:1px solid var(--line);border-radius:22px;padding:7px 15px;font-size:13px;font-weight:700;color:var(--text2);cursor:pointer}
+.tab.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.sec{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:15px 16px;margin-bottom:14px}
+.sec h2{font-size:14px;font-weight:800}
+.sec .hs{font-size:11.5px;color:var(--muted);margin:2px 0 10px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px}
+tr:last-child td{border-bottom:none}
+.btnr{background:var(--s2);border:1px solid var(--line);color:var(--text2);border-radius:8px;padding:6px 12px;font-size:12.5px;cursor:pointer;font-weight:700}
+.btnr:hover{border-color:var(--muted);color:#fff}
+.btnv{background:var(--good);border:none;color:#fff;border-radius:10px;padding:12px 22px;font-size:15px;font-weight:800;cursor:pointer;width:100%;margin-top:12px}
+input[type=time]{background:var(--s2);border:1px solid var(--line);border-radius:8px;color:#fff;padding:6px 8px;font-size:13px;font-family:inherit}
+input[type=text]{background:var(--s2);border:1px solid var(--line);border-radius:8px;color:#fff;padding:7px 10px;font-size:13px;font-family:inherit;width:100%}
+.pill{display:inline-block;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap}
+.pg{background:rgba(47,174,106,.16);color:#5fd396}
+.pw{background:rgba(224,169,58,.16);color:#e0a93a}
+.empty{color:var(--muted);font-size:12.5px;padding:6px 0}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:26px;background:#122419;border:1px solid var(--good);color:#7ee2ae;padding:13px 22px;border-radius:12px;font-weight:800;display:none;z-index:50}
+.toast.err{background:#2a1518;border-color:var(--bad);color:#f5a9a9}
+#gate{position:fixed;inset:0;background:var(--s0);z-index:100;display:flex;align-items:center;justify-content:center}
+.gatebox{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:32px 28px;width:330px;text-align:center}
+.gatebox input{width:100%;background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:11px 14px;color:var(--text);font-size:15px;outline:none;margin:14px 0 10px;text-align:center}
+.gatebox button{width:100%;background:var(--brand);border:none;color:#fff;border-radius:10px;padding:11px;font-size:14px;font-weight:800;cursor:pointer}
+.gerr{color:#f08d8d;font-size:12px;min-height:16px;margin-top:8px}
+.x{color:var(--bad);cursor:pointer;font-weight:800;padding:0 8px}
+</style>
+</head>
+<body>
+<div id="gate"><div class="gatebox">
+  <div class="dot" style="margin:0 auto 12px">CM</div>
+  <h1>Escala do Delivery</h1>
+  <div class="sub">Painel do Jaison — digite a senha</div>
+  <input type="password" id="gpw" placeholder="Senha" onkeydown="if(event.key==='Enter')gateTry()">
+  <button onclick="gateTry()">Entrar</button>
+  <div class="gerr" id="gerr"></div>
+</div></div>
+
+<div class="wrap">
+<header>
+  <div class="dot">CM</div>
+  <div><h1>🗓 Escala do Delivery</h1><div class="sub">Monte a escala do dia — o histórico do Foody sugere quem costuma trabalhar e os horários</div></div>
+</header>
+
+<div class="tabs" id="dias"></div>
+<div class="tabs" id="lojas"></div>
+
+<div class="sec">
+  <h2>💡 Sugestão pelo histórico</h2>
+  <div class="hs" id="sughs">quem trabalhou nas últimas 4 semanas neste dia da semana, com horário típico de 1ª coleta e última entrega</div>
+  <div id="sug"><div class="empty">carregando…</div></div>
+</div>
+
+<div class="sec">
+  <h2>✏️ Escala deste dia</h2>
+  <div class="hs">ajuste os horários e salve — o check-in do QR vai comparar com essa escala</div>
+  <div id="lista"></div>
+  <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+    <input type="text" id="novoNome" placeholder="adicionar outro nome…" style="flex:1;min-width:180px">
+    <button class="btnr" onclick="addManual()">➕ adicionar</button>
+  </div>
+  <button class="btnv" onclick="salvar()">💾 SALVAR ESCALA DESTE DIA</button>
+</div>
+
+<div class="sec">
+  <h2>📅 Semana salva</h2>
+  <div id="semana"><div class="empty">carregando…</div></div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const H={apikey:KEY,Authorization:'Bearer '+KEY};
+const PASS_HASH='132704a017cc174942929dae49a5de2748d09170a0b16962cad693e88ee57441';
+const OWNER_HASH='d7149f187239f5d99c428c666fa476b7e7808f38226765d5c62ed0ec65e7eaee';
+async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+async function gateTry(){const v=document.getElementById('gpw').value;const h=await sha((v||'').trim());
+  if(h===PASS_HASH||h===OWNER_HASH){sessionStorage.setItem('cm_del_ok','1');document.getElementById('gate').style.display='none'}
+  else document.getElementById('gerr').textContent='Senha incorreta.'}
+if(sessionStorage.getItem('cm_del_ok')==='1'||sessionStorage.getItem('cm_owner_ok')==='1')document.getElementById('gate').style.display='none';
+
+const LOJAS=['Água Verde','São Braz','Ahú'];
+const DOWN=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+const $=id=>document.getElementById(id);
+let LOJA='Água Verde',DATA=null,PED=[],ROWS=[];
+const iso=d=>d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
+const br=d=>d.slice(8,10)+'/'+d.slice(5,7);
+const dowOf=d=>{const[y,m,dd]=d.split('-').map(Number);return new Date(Date.UTC(y,m-1,dd)).getUTCDay()};
+const hhmm=x=>{const d=new Date(x);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)};
+function toast(m,e){const t=$('toast');t.textContent=m;t.className='toast'+(e?' err':'');t.style.display='block';setTimeout(()=>t.style.display='none',3200)}
+async function fj(u){const r=await fetch(SB+u,{headers:H});if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
+
+function diasChips(){
+  const hoje=new Date();
+  const ds=[];for(let i=0;i<8;i++){const d=new Date(hoje.getTime()+i*864e5);ds.push(iso(d))}
+  if(!DATA)DATA=ds[0];
+  $('dias').innerHTML=ds.map(d=>'<span class="tab '+(DATA===d?'on':'')+'" onclick="DATA=\''+d+'\';render()">'+DOWN[dowOf(d)].slice(0,3)+' '+br(d)+'</span>').join('');
+  $('lojas').innerHTML=LOJAS.map(l=>'<span class="tab '+(LOJA===l?'on':'')+'" onclick="LOJA=\''+l+'\';render()">'+l+'</span>').join('');
+}
+
+async function carregar(){
+  diasChips();
+  try{
+    const corte=iso(new Date(Date.now()-28*864e5));
+    let all=[],from=0;
+    while(true){const r=await fetch(SB+'foody_fato_pedido?dia_operacional=gte.'+corte+'&select=entregador,unidade,dia_operacional,dt_coletado,dt_entregue&dt_coletado=not.is.null',{headers:{...H,Range:from+'-'+(from+999)}});
+      const p=await r.json();all=all.concat(p);if(p.length<1000)break;from+=1000}
+    PED=all;
+    render();
+  }catch(e){$('sug').innerHTML='<div class="empty">Erro: '+e.message+'</div>'}
+}
+
+function sugestoes(){
+  const w=dowOf(DATA);
+  const dias=[...new Set(PED.filter(p=>p.unidade===LOJA&&dowOf(p.dia_operacional)===w&&p.dia_operacional<DATA).map(p=>p.dia_operacional))].sort().slice(-4);
+  const m={};
+  PED.filter(p=>p.unidade===LOJA&&dias.includes(p.dia_operacional)&&p.entregador).forEach(p=>{
+    const o=m[p.entregador]=m[p.entregador]||{dias:{},ent:0};
+    const d=o.dias[p.dia_operacional]=o.dias[p.dia_operacional]||{prim:null,ult:null};
+    if(!d.prim||p.dt_coletado<d.prim)d.prim=p.dt_coletado;
+    if(p.dt_entregue&&(!d.ult||p.dt_entregue>d.ult))d.ult=p.dt_entregue;
+    o.ent++;
+  });
+  const mediaHora=ts=>{const mins=ts.map(t=>{const d=new Date(t);let h=d.getHours()*60+d.getMinutes();if(d.getHours()<4)h+=1440;return h});
+    const md=mins.sort((a,b)=>a-b)[Math.floor(mins.length/2)];
+    const arred=Math.round(md/30)*30;const h=Math.floor(arred/60)%24,mi=arred%60;
+    return ('0'+h).slice(-2)+':'+('0'+mi).slice(-2)};
+  return Object.keys(m).map(n=>{
+    const ds=Object.values(m[n].dias);
+    return {nome:n,vezes:Object.keys(m[n].dias).length,ent:m[n].ent,
+      entrada:mediaHora(ds.map(d=>d.prim).filter(Boolean)),
+      saida:mediaHora(ds.filter(d=>d.ult).map(d=>d.ult))};
+  }).sort((a,b)=>b.vezes-a.vezes||b.ent-a.ent);
+}
+
+function render(){
+  diasChips();
+  $('sughs').textContent='quem trabalhou nas últimas '+DOWN[dowOf(DATA)]+'s em '+LOJA+' — horário típico de início e fim (mediana, arredondado em 30 min)';
+  const sg=sugestoes();
+  $('sug').innerHTML=sg.length?('<table><tr><th>Nome</th><th>Trabalhou</th><th>Início típico</th><th>Fim típico</th><th></th></tr>'+
+    sg.map((s,i)=>'<tr><td><b>'+s.nome+'</b></td><td>'+s.vezes+' de 4 '+DOWN[dowOf(DATA)].slice(0,3)+'s · '+s.ent+' entregas</td><td>'+s.entrada+'</td><td>'+s.saida+'</td><td><button class="btnr" onclick="addSug('+i+')">➕ usar</button></td></tr>').join('')+
+    '</table><div style="margin-top:10px"><button class="btnr" onclick="addTodos()">➕ adicionar todos à escala</button></div>'):'<div class="empty">Sem histórico deste dia da semana nesta loja.</div>';
+  window.__SG=sg;
+  carregarDia();
+  carregarSemana();
+}
+
+async function carregarDia(){
+  try{
+    const rs=await fj('foody_escala?data=eq.'+DATA+'&unidade=eq.'+encodeURIComponent(LOJA)+'&select=nome,entrada,saida&order=entrada.asc');
+    ROWS=rs.map(r=>({nome:r.nome,entrada:(r.entrada||'').slice(0,5),saida:(r.saida||'').slice(0,5)}));
+    renderLista();
+  }catch(e){$('lista').innerHTML='<div class="empty">Erro: '+e.message+'</div>'}
+}
+function renderLista(){
+  $('lista').innerHTML=ROWS.length?('<table><tr><th>Nome</th><th>Entrada</th><th>Saída</th><th></th></tr>'+
+    ROWS.map((r,i)=>'<tr><td><b>'+r.nome+'</b></td>'+
+      '<td><input type="time" value="'+r.entrada+'" onchange="ROWS['+i+'].entrada=this.value"></td>'+
+      '<td><input type="time" value="'+(r.saida||'')+'" onchange="ROWS['+i+'].saida=this.value"></td>'+
+      '<td><span class="x" onclick="ROWS.splice('+i+',1);renderLista()">✕</span></td></tr>').join('')+'</table>')
+    :'<div class="empty">Ninguém escalado ainda para '+DOWN[dowOf(DATA)]+' '+br(DATA)+' em '+LOJA+'.</div>';
+}
+function addSug(i){const s=window.__SG[i];if(ROWS.some(r=>r.nome===s.nome)){toast(s.nome+' já está na escala',true);return}
+  ROWS.push({nome:s.nome,entrada:s.entrada,saida:s.saida});renderLista()}
+function addTodos(){window.__SG.forEach(s=>{if(!ROWS.some(r=>r.nome===s.nome))ROWS.push({nome:s.nome,entrada:s.entrada,saida:s.saida})});renderLista()}
+function addManual(){const n=$('novoNome').value.trim();if(n.length<2)return;
+  if(ROWS.some(r=>r.nome===n)){toast(n+' já está na escala',true);return}
+  ROWS.push({nome:n,entrada:'18:00',saida:'23:00'});$('novoNome').value='';renderLista()}
+
+async function salvar(){
+  try{
+    const inval=ROWS.filter(r=>!r.entrada);
+    if(inval.length){toast('Preencha a entrada de todos',true);return}
+    await fetch(SB+'foody_escala?data=eq.'+DATA+'&unidade=eq.'+encodeURIComponent(LOJA),{method:'DELETE',headers:H});
+    if(ROWS.length){
+      const r=await fetch(SB+'foody_escala',{method:'POST',
+        headers:{...H,'Content-Type':'application/json',Prefer:'return=minimal'},
+        body:JSON.stringify(ROWS.map(x=>({nome:x.nome,unidade:LOJA,data:DATA,entrada:x.entrada,saida:x.saida||null})))});
+      if(!r.ok)throw new Error('HTTP '+r.status);
+    }
+    toast('💾 Escala de '+DOWN[dowOf(DATA)]+' '+br(DATA)+' ('+LOJA+') salva: '+ROWS.length+' motoboy(s)');
+    carregarSemana();
+  }catch(e){toast('Erro ao salvar: '+e.message,true)}
+}
+
+async function carregarSemana(){
+  try{
+    const hoje=iso(new Date());
+    const rs=await fj('foody_escala?data=gte.'+hoje+'&select=nome,unidade,data,entrada,saida&order=data.asc,unidade.asc,entrada.asc');
+    if(!rs.length){$('semana').innerHTML='<div class="empty">Nenhuma escala salva ainda.</div>';return}
+    const porDia={};rs.forEach(r=>{(porDia[r.data]=porDia[r.data]||[]).push(r)});
+    $('semana').innerHTML=Object.keys(porDia).sort().map(d=>
+      '<div style="margin-bottom:10px"><b>'+DOWN[dowOf(d)]+' '+br(d)+'</b> — '+
+      porDia[d].map(r=>r.nome+' ('+r.unidade.split(' ')[0]+' '+String(r.entrada).slice(0,5)+(r.saida?'–'+String(r.saida).slice(0,5):'')+')').join(' · ')+'</div>').join('');
+  }catch(e){$('semana').innerHTML='<div class="empty">Erro: '+e.message+'</div>'}
+}
+carregar();
+</script>
+</body>
+</html>
