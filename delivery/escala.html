@@ -236,72 +236,55 @@ function kpi(k,cls,v,d){return '<div class="kpi '+(cls||'')+'"><div class="k">'+
 /* ================= 2) MONTAR ESCALA ================= */
 async function viewMont(){
   const ds=dias(8);
-  let h='<div class="tabs">'+ds.map(d=>'<span class="tab '+(DATA===d?'on':'')+'" onclick="DATA=\''+d+'\';ROWS=null;render()">'+DOWN[dowOf(d)].slice(0,3)+' '+br(d)+'</span>').join('')+'</div>';
-  h+='<div class="tabs">'+LOJAS.map(l=>'<span class="tab '+(LOJA===l?'on':'')+'" onclick="LOJA=\''+l+'\';ROWS=null;render()">'+l+'</span>').join('')+'</div>';
-  h+='<div id="montbody"><div class="empty">carregando sugestões…</div></div>';
+  let h='<div class="tabs">'+ds.map(d=>'<span class="tab '+(DATA===d?'on':'')+'" onclick="DATA=\''+d+'\';ROWS=null;PEND={};render()">'+DOWN[dowOf(d)].slice(0,3)+' '+br(d)+'</span>').join('')+'</div>';
+  h+='<div class="tabs">'+LOJAS.map(l=>'<span class="tab '+(LOJA===l?'on':'')+'" onclick="LOJA=\''+l+'\';ROWS=null;PEND={};render()">'+l+'</span>').join('')+'</div>';
+  h+='<div id="montbody"><div class="empty">carregando\u2026</div></div>';
   $('conteudo').innerHTML=h;
-
   try{ NOMES=await rpc('foody_sugere_nomes',{p_dia:DATA}); }catch(e){ NOMES=[] }
-  if(!ROWS)ROWS=ESC.filter(e=>e.data===DATA&&e.unidade===LOJA)
-      .map(e=>({id:e.id,nome:e.nome,turno:e.turno||'Jantar',entrada:hmT(e.entrada),saida:hmT(e.saida)}));
+  if(!ROWS)ROWS=ESC.filter(e=>e.data===DATA&&e.unidade===LOJA).map(e=>({nome:e.nome,turno:e.turno||'Jantar',entrada:hmT(e.entrada),saida:hmT(e.saida)}));
+  ROWS.forEach(r=>{PEND[r.turno+'|'+r.nome]={entrada:r.entrada,saida:r.saida}});
   montBody();
 }
+function sel(t,n){return ROWS.some(r=>r.turno===t&&r.nome===n)}
+function times(t,n){var k=t+'|'+n; if(PEND[k])return PEND[k]; var c=(NOMES.find(x=>x.unidade===LOJA&&x.turno===t&&x.nome===n)||{}); var d=defHora(t); return {entrada:(c.entrada_tipica||d[0]).slice(0,5),saida:(c.saida_tipica||d[1]).slice(0,5)} }
+function setTime(t,n,campo,val){var k=t+'|'+n; PEND[k]=PEND[k]||times(t,n); PEND[k][campo]=val; var r=ROWS.find(r=>r.turno===t&&r.nome===n); if(r)r[campo]=val}
+function toggle(t,n){var i=ROWS.findIndex(r=>r.turno===t&&r.nome===n); if(i>=0){ROWS.splice(i,1)} else {var tm=times(t,n); ROWS.push({nome:n,turno:t,entrada:tm.entrada,saida:tm.saida})} montBody()}
+function preencher(t,n){var cand=NOMES.filter(x=>x.unidade===LOJA&&x.turno===t&&x.dias_sem_rodar<=21); var add=0; for(var c of cand){ if(ROWS.filter(r=>r.turno===t).length>=n)break; if(sel(t,c.nome))continue; var tm=times(t,c.nome); ROWS.push({nome:c.nome,turno:t,entrada:tm.entrada,saida:tm.saida}); add++ } montBody(); toast(add?add+' adicionados no '+t:'sem mais candidatos ativos no '+t, add?0:1)}
 function montBody(){
-  const sug=SUG.filter(s=>s.dia===DATA&&s.unidade===LOJA).sort((a,b)=>TORD[a.turno]-TORD[b.turno]);
-  let h='';
-  // resumo alvo x montado
-  h+='<div class="sec"><h2>🎯 Alvo do dia · '+LOJA+'</h2><div class="hs">o que a previsão do tempo e o histórico pedem</div><table><tr><th>Turno</th><th>Tempo</th><th class="num">Entregas prev.</th><th class="num">Sugerido</th><th class="num">Você montou</th><th></th></tr>';
-  sug.forEach(s=>{
-    const n=ROWS.filter(r=>r.turno===s.turno).length;
-    const ok=n>=s.motoboys_sug;
-    h+='<tr><td><b>'+s.turno+'</b></td><td>'+climaPill(s.clima)+'</td><td class="num">'+s.ent_prev+'</td>'+
-       '<td class="num"><b>'+s.motoboys_sug+'</b></td>'+
-       '<td class="num"><span class="pill '+(ok?'pg':'pw')+'">'+n+'</span></td>'+
-       '<td><button class="btnr" onclick="aplicar(\''+s.turno+'\','+s.motoboys_sug+')">preencher</button></td></tr>';
-  });
-  h+='</table><div class="small" style="margin-top:8px">“preencher” traz automaticamente quem mais trabalhou nesse turno nas últimas semanas, com o horário típico dele.</div></div>';
-
-  // escala montada, agrupada por turno
-  h+='<div class="sec"><h2>✏️ Escala de '+cap(DOWN[dowOf(DATA)])+' '+br(DATA)+' · '+LOJA+'</h2>'+
-     '<div class="hs">o check-in do QR vai comparar a chegada real com o horário combinado aqui</div>';
+  const sugBy={}; SUG.filter(s=>s.dia===DATA&&s.unidade===LOJA).forEach(s=>sugBy[s.turno]=s);
+  const clima=(CLIMA.find(c=>c.dia_op===DATA)||{});
+  let h='<div class="sec" style="padding:12px 14px"><h2>\u270F\uFE0F '+cap(DOWN[dowOf(DATA)])+' '+br(DATA)+' \u00B7 '+LOJA+'</h2>'+
+    '<div class="hs" style="margin:2px 0 0">marque quem vai trabalhar e ajuste os hor\u00E1rios \u00B7 '+wxIcon(clima.wcode_pico,Number(clima.chuva_mm||0))+' '+(clima.clima||'')+'</div></div>';
   TURNOS.forEach(t=>{
-    const rs=ROWS.map((r,i)=>({r:r,i:i})).filter(x=>x.r.turno===t);
-    if(!rs.length)return;
-    h+='<div class="grp">'+t+'</div><table>';
-    rs.forEach(x=>{
-      h+='<tr><td style="width:44%">'+esc(x.r.nome)+'</td>'+
-         '<td><input type="time" value="'+x.r.entrada+'" onchange="ROWS['+x.i+'].entrada=this.value"></td>'+
-         '<td><input type="time" value="'+x.r.saida+'" onchange="ROWS['+x.i+'].saida=this.value"></td>'+
-         '<td style="width:28px"><span class="x" onclick="ROWS.splice('+x.i+',1);montBody()">✕</span></td></tr>';
-    });
-    h+='</table>';
-  });
-  if(!ROWS.length)h+='<div class="empty">ninguém escalado ainda — use “preencher” acima ou adicione manualmente</div>';
-  h+='<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center">'+
-     '<select id="selNome" style="flex:2;min-width:170px"><option value="">escolher motoboy…</option>'+
-     NOMES.filter(n=>n.unidade===LOJA).map(n=>'<option value="'+esc(n.nome)+'|'+(n.entrada_tipica||'')+'|'+(n.saida_tipica||'')+'|'+n.turno+'">'+esc(n.nome)+' — '+n.turno+' ('+n.vezes+'x)</option>').join('')+
-     '<option value="__outro__">➕ outro nome…</option></select>'+
-     '<select id="selTurno" style="min-width:110px">'+TURNOS.map(t=>'<option>'+t+'</option>').join('')+'</select>'+
-     '<button class="btnr" onclick="addSel()">adicionar</button></div>';
-  h+='<button class="btnv" onclick="salvar()">💾 SALVAR ESCALA DESTE DIA</button></div>';
-
-  // quem está sugerido e ainda não entrou
-  const cand=NOMES.filter(n=>n.unidade===LOJA);
-  if(cand.length){
-    h+='<div class="sec"><h2>💡 Quem costuma trabalhar '+DOWN[dowOf(DATA)]+' nesta loja</h2><div class="hs">últimas 9 semanas, mesmo dia da semana</div><table><tr><th>Motoboy</th><th>Turno</th><th class="num">Vezes</th><th class="num">Entr/dia</th><th>Horário típico</th><th class="num">Entr/h</th><th></th></tr>';
-    cand.slice(0,25).forEach(n=>{
-      const ja=ROWS.some(r=>r.nome===n.nome&&r.turno===n.turno);
-      const sumido=n.dias_sem_rodar>21;
-      h+='<tr><td>'+esc(n.nome)+(sumido?' <span class="pill pm">'+n.dias_sem_rodar+'d sem rodar</span>':'')+'</td><td>'+n.turno+'</td>'+
-         '<td class="num">'+n.vezes+'</td><td class="num">'+n.entregas_med+'</td>'+
-         '<td class="small">'+hmT(n.entrada_tipica)+' – '+hmT(n.saida_tipica)+'</td>'+
-         '<td class="num">'+(n.ent_hora||'—')+'</td>'+
-         '<td>'+(ja?'<span class="pill pg">na escala</span>':'<button class="btnr" onclick="addNome(\''+esc(n.nome).replace(/'/g,"\\'")+'\',\''+n.turno+'\',\''+(n.entrada_tipica||'')+'\',\''+(n.saida_tipica||'')+'\')">+</button>')+'</td></tr>';
+    const sg=sugBy[t]; const alvo=sg?sg.motoboys_sug:0;
+    let cand=NOMES.filter(x=>x.unidade===LOJA&&x.turno===t);
+    ROWS.filter(r=>r.turno===t).forEach(r=>{ if(!cand.some(c=>c.nome===r.nome)) cand.push({nome:r.nome,unidade:LOJA,turno:t,vezes:0,dias_sem_rodar:0,entregas_med:'',ent_hora:''}) });
+    if(!cand.length && !alvo) return;
+    cand.sort((a,b)=>(sel(t,b.nome)-sel(t,a.nome))||(b.vezes-a.vezes));
+    const nSel=ROWS.filter(r=>r.turno===t).length;
+    const okcls=nSel>=alvo?'pg':'pw';
+    h+='<div class="sec"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0">'+turnoIcon(t)+' '+t+'</h2>'+
+      '<span class="pill '+okcls+'">'+nSel+(alvo?' / '+alvo+' sugeridos':'')+'</span>'+
+      (sg?'<span class="small" style="margin-left:auto">~'+sg.ent_prev+' entregas previstas</span>':'')+'</div>';
+    if(alvo>nSel)h+='<button class="btnr" style="margin:8px 0" onclick="preencher(\''+t+'\','+alvo+')">\u26A1 preencher os '+alvo+' sugeridos</button>';
+    h+='<table><tr><th style="width:40px"></th><th>Motoboy</th><th>Entrada</th><th>Sa\u00EDda</th><th class="num">hist.</th></tr>';
+    cand.slice(0,20).forEach(c=>{
+      const on=sel(t,c.nome); const tm=times(t,c.nome); const sumido=c.dias_sem_rodar>21;
+      h+='<tr style="'+(on?'':'opacity:.62')+'">'+
+        '<td><input type="checkbox" '+(on?'checked':'')+' style="width:20px;height:20px" onchange="toggle(\''+t+'\',\''+c.nome.replace(/\x27/g,"\\x27")+'\')"></td>'+
+        '<td><b>'+esc(c.nome)+'</b>'+(c.vezes?' <span class="small">'+c.vezes+'x'+(sumido?' \u00B7 '+c.dias_sem_rodar+'d sem rodar':'')+'</span>':'')+'</td>'+
+        '<td><input type="time" value="'+tm.entrada+'" onchange="setTime(\''+t+'\',\''+c.nome.replace(/\x27/g,"\\x27")+'\',\'entrada\',this.value)"></td>'+
+        '<td><input type="time" value="'+tm.saida+'" onchange="setTime(\''+t+'\',\''+c.nome.replace(/\x27/g,"\\x27")+'\',\'saida\',this.value)"></td>'+
+        '<td class="num small">'+(c.ent_hora||'\u2014')+'</td></tr>';
     });
     h+='</table></div>';
-  }
+  });
+  h+='<div class="sec"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="text" id="novoNome" placeholder="outro motoboy (nome igual ao Foody)\u2026" style="flex:2;min-width:150px"><select id="selTurno" style="min-width:110px">'+TURNOS.map(t=>'<option>'+t+'</option>').join('')+'</select><button class="btnr" onclick="addManual()">adicionar</button></div></div>';
+  h+='<button class="btnv" onclick="salvar()">\uD83D\uDCBE SALVAR ESCALA DESTE DIA</button>';
   $('montbody').innerHTML=h;
 }
+function turnoIcon(t){return t==='Almo\u00E7o'?'\u2600\uFE0F':t==='Tarde'?'\uD83C\uDF24':t==='Jantar'?'\uD83C\uDF19':'\uD83C\uDF03'}
+function addManual(){var n=($('novoNome').value||'').trim(); var t=$('selTurno').value; if(!n){toast('digite um nome',1);return} if(sel(t,n)){toast('j\u00E1 est\u00E1 na escala',1);return} var d=defHora(t); ROWS.push({nome:n,turno:t,entrada:d[0],saida:d[1]}); montBody()}
 function defHora(t){return t==='Almoço'?['10:45','15:00']:t==='Tarde'?['15:00','18:00']:t==='Jantar'?['18:30','23:30']:['23:30','03:30']}
 function addNome(nome,turno,ent,sai){
   if(ROWS.some(r=>r.nome===nome&&r.turno===turno)){toast('já está na escala',1);return}
@@ -433,5 +416,6 @@ if(document.getElementById('gate').style.display==='none')loadAll();else loadAll
 </script>
 </body>
 </html>
+
 
 
