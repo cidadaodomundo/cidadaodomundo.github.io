@@ -126,26 +126,35 @@ async function registrar(tipo){
 async function atualizarHoje(){
   try{
     const D=diaOp();
-    [CHK,PED]=await Promise.all([
+    let ESC=[];
+    [CHK,PED,ESC]=await Promise.all([
       fj('foody_checkin?dia_operacional=eq.'+D+'&unidade=eq.'+encodeURIComponent(LOJA)+'&select=nome,tipo,ts&order=ts.asc'),
-      fj('foody_fato_pedido?dia_operacional=eq.'+D+'&unidade=eq.'+encodeURIComponent(LOJA)+'&select=entregador,dt_coletado&dt_coletado=not.is.null&order=dt_coletado.asc&limit=1000')
+      fj('foody_fato_pedido?dia_operacional=eq.'+D+'&unidade=eq.'+encodeURIComponent(LOJA)+'&select=entregador,dt_coletado&dt_coletado=not.is.null&order=dt_coletado.asc&limit=1000'),
+      fj('foody_escala?data=eq.'+D+'&unidade=eq.'+encodeURIComponent(LOJA)+'&select=nome,entrada,saida')
     ]);
+    const esc={};ESC.forEach(e=>esc[e.nome]={entrada:String(e.entrada).slice(0,5),saida:e.saida?String(e.saida).slice(0,5):null});
     const primCol={};PED.forEach(p=>{if(p.entregador&&!primCol[p.entregador])primCol[p.entregador]=p.dt_coletado});
     const porNome={};
     CHK.forEach(c=>{const m=porNome[c.nome]=porNome[c.nome]||{cheg:null,sai:null};
       if(c.tipo==='CHEGADA'&&!m.cheg)m.cheg=c.ts; if(c.tipo==='SAIDA')m.sai=c.ts});
     Object.keys(primCol).forEach(n=>{porNome[n]=porNome[n]||{cheg:null,sai:null}});
+    Object.keys(esc).forEach(n=>{porNome[n]=porNome[n]||{cheg:null,sai:null}});
+    const minOf=t=>{let h=+t.slice(0,2),v=h*60+(+t.slice(3,5));if(h<4)v+=1440;return v};
+    const minTs=x=>{const d=new Date(x);let v=d.getHours()*60+d.getMinutes();if(d.getHours()<4)v+=1440;return v};
+    const agora=minTs(new Date());
     const nomes=Object.keys(porNome).sort();
     if(!nomes.length){$('hoje').innerHTML='<div class="empty">Nenhum registro ainda hoje.</div>';return}
-    $('hoje').innerHTML='<table><tr><th>Nome</th><th>Chegou</th><th>1ª coleta</th><th>Saiu</th><th>Situação</th></tr>'+nomes.map(n=>{
-      const m=porNome[n],pc=primCol[n];
+    $('hoje').innerHTML='<table><tr><th>Nome</th><th>Escala</th><th>Chegou</th><th>1ª coleta</th><th>Saiu</th><th>Situação</th></tr>'+nomes.map(n=>{
+      const m=porNome[n],pc=primCol[n],e=esc[n];
       let sit;
-      if(!m.cheg&&pc)sit='<span class="pill pb">coletou sem check-in</span>';
-      else if(m.cheg&&pc){const dif=Math.round((new Date(pc)-new Date(m.cheg))/60000);
-        sit=dif>=0?'<span class="pill pg">ok · coleta '+dif+' min após chegar</span>':'<span class="pill pw">coleta antes do check-in</span>'}
-      else if(m.cheg)sit='<span class="pill pg">presente</span>';
+      if(e&&m.cheg){const at=minTs(m.cheg)-minOf(e.entrada);
+        sit=at>10?'<span class="pill pw">atrasado '+at+' min</span>':'<span class="pill pg">no horário</span>'}
+      else if(e&&!m.cheg&&pc)sit='<span class="pill pb">coletou sem check-in</span>';
+      else if(e&&!m.cheg)sit=agora>minOf(e.entrada)+30?'<span class="pill pb">FALTOU? sem check-in</span>':'<span class="pill pw">aguardando</span>';
+      else if(!m.cheg&&pc)sit='<span class="pill pb">coletou sem check-in</span>';
+      else if(m.cheg)sit='<span class="pill pg">presente</span> <span class="pill pw">fora da escala</span>';
       else sit='—';
-      return '<tr><td><b>'+n+'</b></td><td>'+(m.cheg?hhmm(m.cheg):'—')+'</td><td>'+(pc?hhmm(pc):'—')+'</td><td>'+(m.sai?hhmm(m.sai):'—')+'</td><td>'+sit+'</td></tr>'}).join('')+'</table>';
+      return '<tr><td><b>'+n+'</b></td><td>'+(e?e.entrada+(e.saida?'–'+e.saida:''):'—')+'</td><td>'+(m.cheg?hhmm(m.cheg):'—')+'</td><td>'+(pc?hhmm(pc):'—')+'</td><td>'+(m.sai?hhmm(m.sai):'—')+'</td><td>'+sit+'</td></tr>'}).join('')+'</table>';
   }catch(e){$('hoje').innerHTML='<div class="empty">Erro: '+e.message+'</div>'}
 }
 setInterval(atualizarHoje,60*1000);
