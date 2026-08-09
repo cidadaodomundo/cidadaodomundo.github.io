@@ -386,7 +386,7 @@ function sortTable(th){
   rows.forEach(r=>table.appendChild(r));
 }
 document.addEventListener('click',e=>{const th=e.target.closest('th');if(th)sortTable(th)});
-setInterval(function(){if(VIEW!=='ifood')loadAll()},45000);
+setInterval(loadAll,15*60*1000);
 loadAll();
 </script>
 <script>
@@ -394,6 +394,18 @@ if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch
 let _ip=null;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();_ip=e;const b=document.getElementById('instalar');if(b)b.style.display='inline-block'});
 function instalarApp(){if(_ip){_ip.prompt();_ip=null}else{alert('Para instalar:\n\nAndroid (Chrome): menu \u22ee \u2192 "Adicionar \u00e0 tela inicial".\niPhone (Safari): bot\u00e3o Compartilhar \u2192 "Adicionar \u00e0 Tela de In\u00edcio".')}}
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+window.addEventListener('load',function(){try{
+ var _b='https://kqvoatdprjwxyadhvtdd.supabase.co';
+ var _c=supabase.createClient(_b, KEY);
+ _c.channel('cm-live')
+  .on('postgres_changes',{event:'*',schema:'public',table:'foody_checkin'},function(){try{if(typeof VIEW==='undefined'||VIEW!=='ifood')loadAll()}catch(e){}})
+  .on('postgres_changes',{event:'*',schema:'public',table:'foody_escala'},function(){try{if(typeof VIEW==='undefined'||VIEW!=='ifood')loadAll()}catch(e){}})
+  .subscribe();
+}catch(e){}});
 </script>
 </body>
 </html>
