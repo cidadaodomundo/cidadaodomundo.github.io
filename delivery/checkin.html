@@ -6,6 +6,8 @@
 <meta name="theme-color" content="#111110">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Check-in CDM">
+<link rel="manifest" href="manifest-checkin.webmanifest">
+<link rel="apple-touch-icon" href="icon.svg">
 <title>Check-in do Delivery · Cidadão do Mundo</title>
 <style>
 :root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;
@@ -49,8 +51,9 @@ tr:last-child td{border-bottom:none}
 <div class="wrap">
 <header>
   <div class="dot">CM</div>
-  <div><h1>🛵 Check-in do Delivery</h1><div class="sub">Chegou na loja? Toque no seu nome e confirme. Saiu do turno? Registre a saída.</div></div>
+  <div style="flex:1"><h1>🛵 Check-in do Delivery</h1><div class="sub">Chegou na loja? Toque no seu nome e confirme. Saiu do turno? Registre a saída.</div></div><button id="instalar" onclick="instalarApp()" style="display:none;background:var(--s2);border:1px solid var(--line);color:var(--text2);border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">📲 Instalar</button>
 </header>
+<div id="qrbanner"></div>
 
 <div class="tabs" id="lojas"></div>
 <div class="lbl">Toque no seu nome</div>
@@ -78,6 +81,12 @@ const LOJAS=['Água Verde','São Braz','Ahú'];
 const $=id=>document.getElementById(id);
 let LOJA=new URLSearchParams(location.search).get('loja')||'Água Verde';
 if(!LOJAS.includes(LOJA))LOJA='Água Verde';
+const _P=new URLSearchParams(location.search);
+const QRU=_P.get('u'), QRD=_P.get('d'), QRK=_P.get('k');
+function tok(d,loja){var s=d+'|'+loja+'|CDM-QR-2026';var h=5381;for(var i=0;i<s.length;i++){h=((h<<5)+h+s.charCodeAt(i))>>>0}return h.toString(36)}
+let QR_OK=false;
+function checaQR(){QR_OK=!!(QRU&&QRD&&QRK&&LOJAS.includes(QRU)&&QRD===diaOp()&&QRK===tok(QRD,QRU));if(QR_OK)LOJA=QRU;return QR_OK}
+
 let NOMES={},SEL=null,F=[],CHK=[],PED=[];
 
 function diaOp(){const d=new Date(Date.now()-4*3600*1000);
@@ -91,6 +100,10 @@ async function fj(u){const r=await fetch(SB+u,{headers:H});if(!r.ok)throw new Er
 
 async function carregar(){
   try{
+    checaQR();
+    const bn=document.getElementById('qrbanner');
+    if(QR_OK){ bn.innerHTML='<div style="background:rgba(47,174,106,.12);border:1px solid rgba(47,174,106,.4);border-radius:10px;padding:10px 12px;font-size:12.5px;color:#7ee2ae;margin-bottom:6px">\u2705 QR de hoje \u00b7 <b>'+LOJA+'</b> \u2014 pode bater seu ponto</div>'; document.getElementById('lojas').style.display='none'; }
+    else { bn.innerHTML='<div style="background:rgba(230,103,103,.12);border:1px solid rgba(230,103,103,.45);border-radius:10px;padding:12px 13px;font-size:13px;color:#f5a9a9;margin-bottom:6px"><b>\uD83D\uDCF5 Escaneie o QR de hoje no balc\u00e3o</b><br>O ponto s\u00f3 conta pelo QR do dia. O QR de ontem n\u00e3o vale mais.</div>'; }
     const corte=new Date(Date.now()-14*864e5).toISOString().slice(0,10);
     F=await fj('foody_fato_fechamento_turno_dia?select=entregador,unidade,dia_operacional,entregas&dia_operacional=gte.'+corte);
     NOMES={};LOJAS.forEach(l=>NOMES[l]=[]);
@@ -111,6 +124,7 @@ function renderNomes(){
 function selecionar(n){SEL=n;renderNomes();$('acao').classList.add('show');window.scrollBy({top:120,behavior:'smooth'})}
 
 async function registrar(tipo){
+  if(!QR_OK){toast('Escaneie o QR de hoje no balc\u00e3o para registrar',true);return}
   if(!SEL){toast('Toque no seu nome primeiro',true);return}
   try{
     const r=await fetch(SB+'foody_checkin',{method:'POST',
@@ -159,6 +173,12 @@ async function atualizarHoje(){
 }
 setInterval(atualizarHoje,60*1000);
 carregar();
+</script>
+<script>
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+let _ip=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();_ip=e;const b=document.getElementById('instalar');if(b)b.style.display='inline-block'});
+function instalarApp(){if(_ip){_ip.prompt();_ip=null}else{alert('Para instalar:\n\nAndroid (Chrome): menu \u22ee \u2192 "Adicionar \u00e0 tela inicial".\niPhone (Safari): bot\u00e3o Compartilhar \u2192 "Adicionar \u00e0 Tela de In\u00edcio".')}}
 </script>
 </body>
 </html>
