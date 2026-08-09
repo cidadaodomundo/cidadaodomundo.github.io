@@ -364,45 +364,10 @@ function renderEquipe(){
 
 /* ================= IFOOD ================= */
 function renderIfood(){
-  const HOJE=NAV[NAV.length-1], ONTEM=NAV[NAV.length-2];
-  const per=[['hoje','Hoje',[HOJE]],['ontem','Ontem',ONTEM?[ONTEM]:[]],['semana','Semana',NAV]];
-  $('barra').innerHTML='<div class="datenav" style="gap:6px">'+per.map(p=>'<button onclick="IPER=\''+p[0]+'\';render()" style="'+(IPER===p[0]?'background:var(--brand);color:#fff':'')+'">'+p[1]+'</button>').join('')+'</div>';
-  const dias=(per.find(p=>p[0]===IPER)||per[2])[2];
-  const rotulo=IPER==='hoje'?('Hoje · '+DOWN[dow(HOJE)]+' '+br(HOJE)):IPER==='ontem'?('Ontem · '+(ONTEM?DOWN[dow(ONTEM)]+' '+br(ONTEM):'—')):'Últimos 7 dias';
-  const aval=AVAL.filter(r=>dias.includes(r.data_avaliacao)&&fLojaI(r));
-  const canc=CANC.filter(r=>dias.includes(r.data)&&fLojaI(r));
-  const neg=NEG.filter(r=>dias.includes(r.data)&&fLojaI(r));
-  const nota=aval.length?aval.reduce((s,r)=>s+r.nota,0)/aval.length:null;
-  const ruins=aval.filter(r=>r.nota<=3);
-  const resp=neg.filter(r=>r.resposta_loja&&r.resposta_loja!=='-'&&!/N[AÃ]O RESPONDEU/i.test(r.resposta_loja)).length;
-  const txResp=neg.length?Math.round(100*resp/neg.length):null;
-  const perdido=canc.reduce((a,r)=>a+Number(r.valor_cancelamento||0),0);
-  const evitados=neg.filter(r=>r.cancelamento_evitado).length;
-  const rsBR=n=>Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  let html='<div class="kpis">'+
-    kpi('Nota média no período',nota?'★ '+nota.toFixed(2):'—',aval.length+' avaliações',nota==null?'var(--muted)':nota>=4.5?'var(--good)':nota>=4?'var(--warn)':'var(--bad)')+
-    kpi('Cancelamentos',canc.length,'R$ '+rsBR(perdido)+' perdidos',canc.length?'var(--bad)':'var(--good)')+
-    kpi('Chamados / negociações',neg.length,evitados+' cancelamentos evitados','var(--warn)')+
-    kpi('Notas baixas (1–3)',ruins.length,'de '+aval.length+' avaliações',ruins.length?'var(--warn)':'var(--good)')+'</div>';
-
-  {const dist=[5,4,3,2,1].map(nn=>({n:nn,c:aval.filter(r=>Number(r.nota)===nn).length}));const tot=aval.length||1;html+='<div class="sec"><h2>⭐ Distribuição de notas</h2><div class="hs">'+aval.length+' avaliações</div><table>'+dist.map(x=>{const p=Math.round(100*x.c/tot);const cor=x.n>=4?'var(--good)':x.n===3?'var(--warn)':'var(--bad)';return '<tr><td style="color:'+cor+';font-weight:700;width:90px">'+'★'.repeat(x.n)+'</td><td style="width:50px">'+x.c+'</td><td style="width:50px;color:var(--muted)">'+p+'%</td><td><div style="background:#232321;border-radius:6px;height:9px;overflow:hidden"><i style="display:block;height:100%;width:'+p+'%;background:'+cor+'"></i></div></td></tr>'}).join('')+'</table></div>';}
-  const tagCount={};ruins.forEach(r=>(r.tags||[]).forEach(t=>tagCount[t]=(tagCount[t]||0)+1));
-  const tags=Object.entries(tagCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  html+='<div class="sec"><h2>⭐ O que os clientes reclamaram</h2><div class="hs">tags das notas baixas — é aqui que a operação melhora</div>';
-  html+=tags.length?('<table>'+tags.map(([t,n])=>'<tr><td>'+(/incompleto|errado|danificado|mal |frio/i.test(t)?'⚠️ ':'')+t+'</td><td>'+n+'×</td></tr>').join('')+'</table>'):'<div class="empty">✅ Nenhuma tag negativa no período.</div>';
-  html+='</div>';
-
-  html+='<div class="sec"><h2>💬 Comentários das notas baixas</h2><div class="hs">usar na conversa do turno, sem expor ninguém</div>';
-  const comRuins=ruins.filter(r=>r.comentario);
-  html+=comRuins.length?('<table><tr><th>Data</th><th>Loja</th><th>Nota</th><th>Comentário</th></tr>'+comRuins.map(r=>'<tr><td>'+br(r.data_avaliacao)+'</td><td>'+nomeLoja(r.id_loja)+'</td><td class="stars">★'+r.nota+'</td><td style="color:var(--text2)">'+r.comentario+'</td></tr>').join('')+'</table>'):'<div class="empty">✅ Nenhum comentário negativo no período.</div>';
-  html+='</div>';
-
-  html+='<div class="sec"><h2>🚫 Cancelamentos ('+rotulo.toLowerCase()+')</h2><div class="hs">cada um derruba o Selo Super — conferir sacola e estoque antes de aceitar</div>';
-  html+=canc.length?('<table><tr><th>Data</th><th>Loja</th><th>Turno</th><th>Motivo</th><th>Itens</th></tr>'+canc.map(c=>'<tr><td>'+br(c.data)+'</td><td>'+nomeLoja(c.id_loja)+'</td><td>'+(c.turno||'—')+'</td><td>'+(c.motivo||'—')+'</td><td style="color:var(--text2)">'+String(c.itens_cancelados||'—').slice(0,70)+'</td></tr>').join('')+'</table>'):'<div class="empty">✅ Nenhum cancelamento no período.</div>';
-  html+='</div>';
-  $('conteudo').innerHTML=html;
+  try{sessionStorage.setItem('cm_owner_ok','1')}catch(e){}
+  $('lojas').innerHTML='';$('barra').innerHTML='';
+  $('conteudo').innerHTML='<iframe src="ifood.html" style="width:100%;height:calc(100vh - 150px);min-height:620px;border:0;border-radius:12px;background:#1a1a19"></iframe>';
 }
-// ordenar tabelas clicando no cabeçalho (alterna ▴/▾)
 function sortTable(th){
   const table=th.closest('table');if(!table)return;
   const headRow=th.parentElement;
