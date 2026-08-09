@@ -241,18 +241,20 @@ function renderEquipe(){
   const sum=k=>rs.reduce((s,r)=>s+(+r[k]||0),0);
   const ent=sum('entregas'),ok=sum('no_prazo'),atr=sum('atrasos'),sem=sum('sem_codigo');
   const pct=pctS(ok,atr);
-  const porMoto={};rs.forEach(r=>{const k=r.entregador+'|'+r.unidade;const m=porMoto[k]=porMoto[k]||{n:r.entregador,l:r.unidade,dias:new Set(),e:0,ok:0,at:0,sem:0};m.dias.add(r.dia_operacional);m.e+=r.entregas;m.ok+=r.no_prazo;m.at+=r.atrasos;m.sem+=(r.sem_codigo||0)});
-  const motos=Object.values(porMoto).map(m=>({...m,d:m.dias.size,p:pctS(m.ok,m.at)})).sort((a,b)=>b.e-a.e);
+  const daily={};rs.forEach(r=>{const k=r.entregador+'|'+r.unidade+'|'+r.dia_operacional;const d=daily[k]=daily[k]||{n:r.entregador,l:r.unidade,h:0,e:0,ok:0,at:0,sem:0,v:0};d.h+=(+r.horas||0);d.e+=r.entregas;d.ok+=r.no_prazo;d.at+=r.atrasos;d.sem+=(r.sem_codigo||0);d.v+=(+r.valor_entregas||0)});
+  const porMoto={};Object.values(daily).forEach(d=>{const k=d.n+'|'+d.l;const m=porMoto[k]=porMoto[k]||{n:d.n,l:d.l,d:0,h:0,e:0,ok:0,at:0,sem:0,v:0,g:0,c:0,rec:0};const g=d.h*20,c=Math.max(0,g-d.v);m.d++;m.h+=d.h;m.e+=d.e;m.ok+=d.ok;m.at+=d.at;m.sem+=d.sem;m.v+=d.v;m.g+=g;m.c+=c;m.rec+=d.v+c});
+  const motos=Object.values(porMoto).map(m=>({...m,p:pctS(m.ok,m.at)})).sort((a,b)=>b.e-a.e);
   let html='<div class="kpis">'+
     kpi('Entregas',ent,motos.length+' motoboys · '+dias.length+' dia(s)','var(--blue)')+
     kpi('% no horário',pct!=null?pct+'%':'—','meta: 90%+',pct==null?'var(--muted)':pct>=90?'var(--good)':pct>=75?'var(--warn)':'var(--bad)')+
     kpi('Atrasos',atr,'','var(--bad)')+
     kpi('Sem código',sem,'','var(--warn)')+'</div>';
-  html+='<div class="sec"><h2>🛵 Por motoboy</h2><div class="hs">desempenho no período — quem entrega mais aparece primeiro</div>';
+  html+='<div class="sec"><h2>🛵 Por motoboy</h2><div class="hs">Garantido = horas × R$ 20/h · Complemento = só quando o garantido do DIA passa do que fez em entregas (nunca negativo) · A receber = entregas + complemento. Estimativa — confira contra o fechamento oficial.</div>';
   if(motos.length){
-    html+='<table><tr><th>Motoboy</th><th>Loja</th><th>Dias</th><th>Entregas</th><th>% no prazo</th><th>Atrasos</th><th>Sem código</th></tr>'+motos.map(m=>{
+    const rM=v=>'R$ '+Math.round(v).toLocaleString('pt-BR');
+    html+='<table><tr><th>Motoboy</th><th>Loja</th><th>Dias</th><th>Horas</th><th>Entregas</th><th>% no prazo</th><th>Atrasos</th><th>Sem código</th><th>Fez (entregas)</th><th>Garantido</th><th>Complemento</th><th>A receber</th></tr>'+motos.map(m=>{
       const cls=m.p==null?'pw':m.p>=90?'pg':m.p>=70?'pw':'pb';
-      return '<tr><td><b>'+m.n+'</b></td><td style="color:var(--text2)">'+m.l+'</td><td>'+m.d+'</td><td>'+m.e+'</td><td><span class="pill '+cls+'">'+(m.p==null?'—':m.p+'%')+'</span></td><td>'+m.at+'</td><td>'+(m.sem>0?'<span class="pill pw">'+m.sem+'</span>':'0')+'</td></tr>'}).join('')+'</table>';
+      return '<tr><td><b>'+m.n+'</b></td><td style="color:var(--text2)">'+m.l+'</td><td>'+m.d+'</td><td>'+m.h.toFixed(1)+'h</td><td>'+m.e+'</td><td><span class="pill '+cls+'">'+(m.p==null?'—':m.p+'%')+'</span></td><td>'+m.at+'</td><td>'+(m.sem>0?'<span class="pill pw">'+m.sem+'</span>':'0')+'</td><td>'+rM(m.v)+'</td><td>'+rM(m.g)+'</td><td>'+(m.c>0?'<span class="pill pw">'+rM(m.c)+'</span>':'R$ 0')+'</td><td><b>'+rM(m.rec)+'</b></td></tr>'}).join('')+'</table>';
   }else html+='<div class="empty">Sem registros no período.</div>';
   html+='</div>';
   $('conteudo').innerHTML=html;
