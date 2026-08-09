@@ -154,7 +154,7 @@ async function loadAll(){
       fj('ifood_fato_avaliacao?select=id_loja,data_avaliacao,nota,tags,comentario&order=data_avaliacao.desc&limit=1000'),
       fj('ifood_fato_negociacao?select=id_loja,data,motivo,resposta_loja&order=data.desc&limit=500'),
       fj('ifood_dim_loja?select=id_loja,nome,unidade'),
-      pag('foody_vw_pedido_prazo?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=n_pedido,unidade,turno,entregador,data_hora_pedido,dia_operacional,dt_entregue,t_coleta_min,t_total_min,dt_pronto,dt_despachado,dt_coletado,rota_km,raio_km,entrega_prometida,prazo_prometido_min,atraso_real_min,no_prazo_real,fonte_prazo_real&order=data_hora_pedido.asc')
+      pag('foody_vw_pedido_prazo?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=n_pedido,unidade,turno,entregador,data_hora_pedido,dia_operacional,dt_entregue,t_coleta_min,t_total_min,dt_pronto,dt_despachado,dt_aceite,dt_coletado,rota_km,raio_km,entrega_prometida,t_aceite_min,prazo_prometido_min,atraso_real_min,no_prazo_real,fonte_prazo_real&order=data_hora_pedido.asc')
     ]);
     DAYS=[...new Set(F.map(r=>r.dia_operacional))].sort();
     NAV=DAYS.slice(-7);
@@ -233,13 +233,13 @@ function renderDiario(){
   }else html+='<div class="empty">Sem entregas nesse dia.</div>';
   if(atrD.length){
     html+='<button class="btnr" style="margin-top:10px" onclick="toggleAtr()">📄 Ver os '+atrD.length+' pedidos atrasados — nº, hora e entregador</button>';
-    html+='<div id="atrlist" style="display:none;margin-top:8px;overflow-x:auto"><table style="min-width:1100px"><tr><th>Pedido às</th><th>Loja</th><th>Entregador</th><th>Nº</th><th>Pronto</th><th>Rota montada</th><th>Coletou</th><th>Espera</th><th>Distância</th><th>Prometido p/ cliente</th><th>Levou</th><th>Chegou</th><th>Atraso real</th></tr>'+atrD.map(r=>{
+    html+='<div id="atrlist" style="display:none;margin-top:8px;overflow-x:auto"><table style="min-width:1220px"><tr><th>Pedido às</th><th>Loja</th><th>Entregador</th><th>Nº</th><th>Pronto</th><th>Rota montada</th><th>Aceitou</th><th>Coletou</th><th>Espera</th><th>Distância</th><th>Prometido p/ cliente</th><th>Levou</th><th>Chegou</th><th>Atraso real</th></tr>'+atrD.map(r=>{
       const hm=x=>{if(!x)return '—';const d=new Date(x);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)};
       const cm=r.t_coleta_min==null?null:Math.round(+r.t_coleta_min);
       const ccls=cm==null?'pw':cm<10?'pg':cm<20?'pw':'pb';
       const km=r.raio_km==null?null:+r.raio_km;
       const pr=hm(r.entrega_prometida)+' <span style="color:var(--muted)">('+r.prazo_prometido_min+'min'+(r.fonte_prazo_real==='iFood (real)'?'':'*')+')</span>', tt=Math.round(+r.t_total_min||0), ar=atrasoReal(r);
-      return '<tr><td>'+hm(r.data_hora_pedido)+'</td><td>'+(r.unidade||'—').split(' ')[0]+'</td><td>'+(r.entregador||'—')+'</td><td><b>'+(r.n_pedido||'—')+'</b></td><td>'+hm(r.dt_pronto)+'</td><td>'+hm(r.dt_despachado)+'</td><td>'+hm(r.dt_coletado)+'</td><td>'+(cm==null?'—':'<span class="pill '+ccls+'">'+cm+' min</span>')+'</td><td>'+(km!=null?km.toFixed(1)+' km':'—')+'</td><td>'+pr+'</td><td>'+tt+' min</td><td><b>'+hm(r.dt_entregue)+'</b></td><td><span class="pill pb">+'+ar+' min</span></td></tr>'}).join('')+'</table></div>';
+      return '<tr><td>'+hm(r.data_hora_pedido)+'</td><td>'+(r.unidade||'—').split(' ')[0]+'</td><td>'+(r.entregador||'—')+'</td><td><b>'+(r.n_pedido||'—')+'</b></td><td>'+hm(r.dt_pronto)+'</td><td>'+hm(r.dt_despachado)+'</td><td>'+hm(r.dt_aceite)+(r.t_aceite_min!=null?' <span style="color:var(--muted)">(+'+Math.round(r.t_aceite_min)+')</span>':'')+'</td><td>'+hm(r.dt_coletado)+'</td><td>'+(cm==null?'—':'<span class="pill '+ccls+'">'+cm+' min</span>')+'</td><td>'+(km!=null?km.toFixed(1)+' km':'—')+'</td><td>'+pr+'</td><td>'+tt+' min</td><td><b>'+hm(r.dt_entregue)+'</b></td><td><span class="pill pb">+'+ar+' min</span></td></tr>'}).join('')+'</table></div>';
   }
   html+='</div>';
 
