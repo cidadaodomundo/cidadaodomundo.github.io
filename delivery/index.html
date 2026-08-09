@@ -131,7 +131,7 @@ async function gateTry(){const v=document.getElementById('gpw').value;const h=aw
 if(sessionStorage.getItem('cm_del_ok')==='1'||sessionStorage.getItem('cm_owner_ok')==='1')document.getElementById('gate').style.display='none';
 
 const LOJAS=['Todas','Água Verde','São Braz','Ahú'];
-let F=[],SC=[],CANC=[],AVAL=[],NEG=[],DIMS=[],ATR=[],DAYS=[],NAV=[],DI=0,LOJA='Todas',VIEW='diario',PER=7;
+let F=[],SC=[],CANC=[],AVAL=[],NEG=[],DIMS=[],ATR=[],PAG=[],DAYS=[],NAV=[],DI=0,LOJA='Todas',VIEW='diario',PER=7;
 const $=id=>document.getElementById(id);
 const br=d=>{const[y,m,dd]=d.split('-');return dd+'/'+m};
 const DOWN=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
@@ -147,14 +147,15 @@ async function pag(base){let all=[],from=0,step=1000;
 async function loadAll(){
   $('conteudo').innerHTML='<div class="loading">Carregando…</div>';
   try{
-    [F,SC,CANC,AVAL,NEG,DIMS,ATR]=await Promise.all([
+    [F,SC,CANC,AVAL,NEG,DIMS,ATR,PAG]=await Promise.all([
       pag('foody_fato_fechamento_turno_dia?select=*&order=dia_operacional.asc'),
       fj('foody_fato_pedido_sem_codigo?select=*&order=hora_pedido.desc&limit=1000'),
       fj('ifood_fato_cancelamento?select=id_loja,data,turno,motivo,itens_cancelados&order=data.desc&limit=500'),
       fj('ifood_fato_avaliacao?select=id_loja,data_avaliacao,nota,tags,comentario&order=data_avaliacao.desc&limit=1000'),
       fj('ifood_fato_negociacao?select=id_loja,data,motivo,resposta_loja&order=data.desc&limit=500'),
       fj('ifood_dim_loja?select=id_loja,nome,unidade'),
-      pag('foody_vw_pedido_prazo?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=n_pedido,unidade,turno,entregador,data_hora_pedido,dia_operacional,dt_entregue,t_coleta_min,t_total_min,dt_pronto,dt_despachado,dt_aceite,dt_coletado,rota_km,raio_km,entrega_prometida,t_aceite_min,prazo_prometido_min,atraso_real_min,no_prazo_real,fonte_prazo_real&order=data_hora_pedido.asc')
+      pag('foody_vw_pedido_prazo?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=n_pedido,unidade,turno,entregador,data_hora_pedido,dia_operacional,dt_entregue,t_coleta_min,t_total_min,dt_pronto,dt_despachado,dt_aceite,dt_coletado,rota_km,raio_km,entrega_prometida,t_aceite_min,prazo_prometido_min,atraso_real_min,no_prazo_real,fonte_prazo_real&order=data_hora_pedido.asc'),
+      pag('foody_vw_pagamento_dia?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=*&order=dia_operacional.asc')
     ]);
     DAYS=[...new Set(F.map(r=>r.dia_operacional))].sort();
     NAV=DAYS.slice(-7);
@@ -256,8 +257,10 @@ function renderDiario(){
 
 /* ================= EQUIPE ================= */
 function aggMoto(rows){
-  const daily={};rows.forEach(r=>{const k=r.entregador+'|'+r.unidade+'|'+r.dia_operacional;const d=daily[k]=daily[k]||{n:r.entregador,l:r.unidade,h:0,e:0,ok:0,at:0,sem:0,v:0};d.h+=(+r.horas||0);d.e+=r.entregas;d.ok+=r.no_prazo;d.at+=r.atrasos;d.sem+=(r.sem_codigo||0);d.v+=(+r.valor_entregas||0)});
-  const m={};Object.values(daily).forEach(d=>{const k=d.n+'|'+d.l;const o=m[k]=m[k]||{n:d.n,l:d.l,d:0,h:0,e:0,ok:0,at:0,sem:0,v:0,g:0,c:0,rec:0};const g=d.h*20,c=Math.max(0,g-d.v);o.d++;o.h+=d.h;o.e+=d.e;o.ok+=d.ok;o.at+=d.at;o.sem+=d.sem;o.v+=d.v;o.g+=g;o.c+=c;o.rec+=d.v+c});
+  const m={};rows.forEach(r=>{const k=r.nome+'|'+r.unidade;const o=m[k]=m[k]||{n:r.nome,l:r.unidade,d:0,h:0,e:0,ok:0,at:0,sem:0,v:0,g:0,c:0,rec:0,qr:0};
+    o.d++;o.h+=(+r.horas||0);o.e+=(+r.entregas||0);o.ok+=(+r.no_prazo||0);o.at+=(+r.atrasos||0);o.sem+=(+r.sem_codigo||0);
+    o.v+=(+r.fez||0);o.g+=(+r.garantido||0);o.c+=(+r.complemento||0);o.rec+=(+r.a_receber||0);
+    if(r.horas_qr!=null)o.qr++;});
   return Object.values(m).map(o=>({...o,p:pctS(o.ok,o.at)}));
 }
 const rM=v=>'R$ '+Math.round(v).toLocaleString('pt-BR');
@@ -267,8 +270,8 @@ function copiarWpp(){
 function renderEquipe(){
   $('barra').innerHTML='<div class="tabs" style="margin:0">'+[['1','Ontem'],['3','3 dias'],['7','7 dias']].map(([n,l])=>'<span class="tab '+(PER===+n?'on':'')+'" onclick="PER='+n+';render()">'+l+'</span>').join('')+'</div>';
   const dias=NAV.slice(-PER);
-  const rs=F.filter(r=>dias.includes(r.dia_operacional)&&fLoja(r));
-  const rsAll=F.filter(r=>dias.includes(r.dia_operacional));
+  const rs=PAG.filter(r=>dias.includes(r.dia_operacional)&&fLoja(r));
+  const rsAll=PAG.filter(r=>dias.includes(r.dia_operacional));
   const motos=aggMoto(rs).sort((a,b)=>b.e-a.e);
   const motosAll=aggMoto(rsAll);
   let ent=0,ok=0,atr=0,sem=0,horas=0,comp=0,rec=0;
@@ -328,11 +331,11 @@ function renderEquipe(){
   wt+='\n_Gerado do painel ao vivo · confira contra o fechamento oficial._';
   window.__WPP=wt;
   html+='<button class="btnr" id="wppbtn" onclick="copiarWpp()" style="margin-bottom:14px">📱 Resumo p/ WhatsApp</button>';
-  html+='<div class="sec"><h2>🛵 Por motoboy</h2><div class="hs">Garantido = horas × R$ 20/h · Complemento = só quando o garantido do DIA passa do que fez em entregas (nunca negativo) · A receber = entregas + complemento. Estimativa — confira contra o fechamento oficial.</div>';
+  html+='<div class="sec"><h2>🛵 Por motoboy</h2><div class="hs">Horas: <b>QR</b> = presença real registrada no balcão (chegada→saída); <b>Foody</b> = tempo de turno do sistema, usado enquanto não houver check-in. Garantido = horas × R$ 20/h · Complemento = só quando o garantido do DIA passa do que fez em entregas (nunca negativo) · A receber = entregas + complemento. Estimativa — confira contra o fechamento oficial.</div>';
   if(motos.length){
     html+='<table><tr><th>Motoboy</th><th>Loja</th><th>Dias</th><th>Horas</th><th>Entregas</th><th>% no prazo</th><th>Atrasos</th><th>Sem código</th><th>Fez (entregas)</th><th>Garantido</th><th>Complemento</th><th>A receber</th></tr>'+motos.map(m=>{
       const cls=m.p==null?'pw':m.p>=90?'pg':m.p>=70?'pw':'pb';
-      return '<tr><td><b>'+m.n+'</b></td><td style="color:var(--text2)">'+m.l+'</td><td>'+m.d+'</td><td>'+m.h.toFixed(1)+'h</td><td>'+m.e+'</td><td><span class="pill '+cls+'">'+(m.p==null?'—':m.p+'%')+'</span></td><td>'+m.at+'</td><td>'+(m.sem>0?'<span class="pill pw">'+m.sem+'</span>':'0')+'</td><td>'+rM(m.v)+'</td><td>'+rM(m.g)+'</td><td>'+(m.c>0?'<span class="pill pw">'+rM(m.c)+'</span>':'R$ 0')+'</td><td><b>'+rM(m.rec)+'</b></td></tr>'}).join('')+'</table>';
+      return '<tr><td><b>'+m.n+'</b></td><td style="color:var(--text2)">'+m.l+'</td><td>'+m.d+'</td><td>'+m.h.toFixed(1)+'h '+(m.qr>0?'<span class="pill pg" title="horas do check-in por QR">QR '+m.qr+'/'+m.d+'</span>':'<span style="color:var(--muted)">Foody</span>')+'</td><td>'+m.e+'</td><td><span class="pill '+cls+'">'+(m.p==null?'—':m.p+'%')+'</span></td><td>'+m.at+'</td><td>'+(m.sem>0?'<span class="pill pw">'+m.sem+'</span>':'0')+'</td><td>'+rM(m.v)+'</td><td>'+rM(m.g)+'</td><td>'+(m.c>0?'<span class="pill pw">'+rM(m.c)+'</span>':'R$ 0')+'</td><td><b>'+rM(m.rec)+'</b></td></tr>'}).join('')+'</table>';
   }else html+='<div class="empty">Sem registros no período.</div>';
   html+='</div>';
   $('conteudo').innerHTML=html;
