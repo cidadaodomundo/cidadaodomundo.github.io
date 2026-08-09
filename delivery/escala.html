@@ -210,7 +210,7 @@ function viewPrev(){
       LOJAS.forEach(l=>{
         const rs=rows.filter(x=>x.unidade===l).sort((a,b)=>TORD[a.turno]-TORD[b.turno]);
         if(!rs.length)return;
-        h+='<div class="loja"><div class="ln">'+l+'</div><table><tr><th>Turno</th><th>Tempo</th><th class="num">Entregas prev.</th><th class="num">Sugerido</th><th class="num">Histórico</th><th>Por quê</th></tr>';
+        h+='<div class="loja"><div class="ln">'+l+'</div><table><tr><th onclick="sortTbl(this)" style="cursor:pointer">Turno \u21C5</th><th>Tempo</th><th class="num" onclick="sortTbl(this)" style="cursor:pointer">Entregas prev. \u21C5</th><th class="num" onclick="sortTbl(this)" style="cursor:pointer">Sugerido \u21C5</th><th class="num" onclick="sortTbl(this)" style="cursor:pointer">Histórico \u21C5</th><th>Por quê</th></tr>';
         rs.forEach(s=>{
           const dif=s.motoboys_sug-Number(s.motoboys_hist||0);
           const cor=dif>=0.5?'#5fd396':dif<=-0.5?'#e0a93a':'var(--text2)';
@@ -267,7 +267,7 @@ function montBody(){
       '<span class="pill '+okcls+'">'+nSel+(alvo?' / '+alvo+' sugeridos':'')+'</span>'+
       (sg?'<span class="small" style="margin-left:auto">~'+sg.ent_prev+' entregas previstas</span>':'')+'</div>';
     if(alvo>nSel)h+='<button class="btnr" style="margin:8px 0" onclick="preencher(\''+t+'\','+alvo+')">\u26A1 preencher os '+alvo+' sugeridos</button>';
-    h+='<table><tr><th style="width:40px"></th><th>Motoboy</th><th>Entrada</th><th>Sa\u00EDda</th><th class="num">hist.</th></tr>';
+    h+='<table><tr><th style="width:40px"></th><th onclick="sortTbl(this)" style="cursor:pointer">Motoboy \u21C5</th><th onclick="sortTbl(this)" style="cursor:pointer">Entrada \u21C5</th><th onclick="sortTbl(this)" style="cursor:pointer">Sa\u00EDda \u21C5</th><th class="num" onclick="sortTbl(this)" style="cursor:pointer">hist. \u21C5</th></tr>';
     cand.slice(0,20).forEach(c=>{
       const on=sel(t,c.nome); const tm=times(t,c.nome); const sumido=c.dias_sem_rodar>21;
       h+='<tr style="'+(on?'':'opacity:.62')+'">'+
@@ -400,6 +400,7 @@ function viewAder(){
 }
 
 /* ordenação de tabela por clique no cabeçalho */
+function sortTbl(th){var table=th.closest('table');if(!table)return;var idx=Array.prototype.indexOf.call(th.parentNode.children,th);th.__d=!th.__d;var dir=th.__d?1:-1;Array.prototype.forEach.call(th.parentNode.children,function(x){x.innerHTML=x.innerHTML.replace(/ [\u25B2\u25BC\u21C5]$/,'')+' \u21C5'});th.innerHTML=th.innerHTML.replace(/ [\u25B2\u25BC\u21C5]$/,'')+(dir>0?' \u25B2':' \u25BC');function val(tr){var c=tr.cells[idx];if(!c)return'';var inp=c.querySelector('input[type=time],input[type=text]');var sv=inp?inp.value:c.innerText;var num=parseFloat(String(sv).replace(':','').replace(/[^0-9,.\-]/g,'').replace(',','.'));return isNaN(num)?String(sv).toLowerCase():num}var rows=Array.prototype.slice.call(table.tBodies[0].rows);rows.sort(function(a,b){var x=val(a),y=val(b);return (typeof x==='number'&&typeof y==='number')?(x-y)*dir:String(x).localeCompare(String(y),'pt-BR')*dir});rows.forEach(function(rr){table.tBodies[0].appendChild(rr)})}
 const SORTD={};
 function sortT(id,col){
   const t=$(id);if(!t)return;
@@ -416,6 +417,7 @@ if(document.getElementById('gate').style.display==='none')loadAll();else loadAll
 </script>
 </body>
 </html>
+
 
 
 
