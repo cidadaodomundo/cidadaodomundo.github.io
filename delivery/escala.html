@@ -395,4 +395,40 @@ function viewAder(){
   h+='</div>';
 
   if(FORA.length){
-    h+='<div class="sec"><h2>❓ Rodou sem estar na escala</h2><div class="hs">apareceu no Foody mas não estava escalado — confira se foi troca de última hora
+    h+='<div class="sec"><h2>❓ Rodou sem estar na escala</h2><div class="hs">apareceu no Foody mas não estava escalado — confira se foi troca de última hora</div><table><tr><th>Dia</th><th>Motoboy</th><th>Loja</th><th class="num">Entregas</th><th>1ª coleta</th></tr>';
+    FORA.slice(0,60).forEach(f=>{h+='<tr><td>'+br(f.dia_op)+'</td><td>'+esc(f.nome)+'</td><td class="small">'+esc(f.unidade)+'</td><td class="num">'+f.entregas+'</td><td>'+hm(f.primeira_coleta)+'</td></tr>'});
+    h+='</table></div>';
+  }
+  $('conteudo').innerHTML=h;
+}
+
+/* ordenação de tabela por clique no cabeçalho */
+function sortTbl(th){var table=th.closest('table');if(!table)return;var idx=Array.prototype.indexOf.call(th.parentNode.children,th);th.__d=!th.__d;var dir=th.__d?1:-1;Array.prototype.forEach.call(th.parentNode.children,function(x){x.innerHTML=x.innerHTML.replace(/ [\u25B2\u25BC\u21C5]$/,'')+' \u21C5'});th.innerHTML=th.innerHTML.replace(/ [\u25B2\u25BC\u21C5]$/,'')+(dir>0?' \u25B2':' \u25BC');function val(tr){var c=tr.cells[idx];if(!c)return'';var inp=c.querySelector('input[type=time],input[type=text]');var sv=inp?inp.value:c.innerText;var num=parseFloat(String(sv).replace(':','').replace(/[^0-9,.\-]/g,'').replace(',','.'));return isNaN(num)?String(sv).toLowerCase():num}var rows=Array.prototype.slice.call(table.tBodies[0].rows).filter(function(rr){return !rr.querySelector('th')});rows.sort(function(a,b){var x=val(a),y=val(b);return (typeof x==='number'&&typeof y==='number')?(x-y)*dir:String(x).localeCompare(String(y),'pt-BR')*dir});rows.forEach(function(rr){table.tBodies[0].appendChild(rr)})}
+const SORTD={};
+function sortT(id,col){
+  const t=$(id);if(!t)return;
+  const rows=[].slice.call(t.rows,1);
+  const k=id+'_'+col;SORTD[k]=!SORTD[k];const dir=SORTD[k]?1:-1;
+  const val=tr=>{const c=tr.cells[col];if(!c)return '';const s=c.innerText.trim();
+    const n=parseFloat(s.replace(/[^0-9,.\-]/g,'').replace(/\./g,'').replace(',','.'));
+    return isNaN(n)?s.toLowerCase():n};
+  rows.sort((a,b)=>{const x=val(a),y=val(b);return (typeof x==='number'&&typeof y==='number')?(x-y)*dir:String(x).localeCompare(String(y),'pt-BR')*dir});
+  rows.forEach(r=>t.tBodies[0].appendChild(r));
+}
+
+if(document.getElementById('gate').style.display==='none')loadAll();else loadAll();
+</script>
+<script>
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+let _ip=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();_ip=e;const b=document.getElementById('instalar');if(b)b.style.display='inline-block'});
+function instalarApp(){if(_ip){_ip.prompt();_ip=null}else{alert('Para instalar:\n\nAndroid (Chrome): menu \u22ee \u2192 "Adicionar \u00e0 tela inicial".\niPhone (Safari): bot\u00e3o Compartilhar \u2192 "Adicionar \u00e0 Tela de In\u00edcio".')}}
+</script>
+</body>
+</html>
+
+
+
+
+
+
