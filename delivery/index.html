@@ -44,7 +44,10 @@ h1{font-size:18px;font-weight:800}
 .sec .hs{font-size:11.5px;color:var(--muted);margin:2px 0 10px}
 table{width:100%;border-collapse:collapse;font-size:12.5px}
 th,td{text-align:left;padding:8px 8px;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+th{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;cursor:pointer;user-select:none}
+th:hover{color:#fff}
+th.sd::after{content:' ▾';color:var(--brand)}
+th.sa::after{content:' ▴';color:var(--brand)}
 tr:last-child td{border-bottom:none}
 .pill{display:inline-block;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap}
 .pg{background:rgba(47,174,106,.16);color:#5fd396}
@@ -285,6 +288,25 @@ function renderIfood(){
   html+='</div>';
   $('conteudo').innerHTML=html;
 }
+// ordenar tabelas clicando no cabeçalho (alterna ▴/▾)
+function sortTable(th){
+  const table=th.closest('table');if(!table)return;
+  const headRow=th.parentElement;
+  const idx=[...headRow.children].indexOf(th);
+  const rows=[...table.querySelectorAll('tr')].slice(1);
+  const key=tr=>{const c=tr.children[idx];const t=(c?c.innerText:'').trim();
+    if(t.includes(':')&&t.length<=5)return t;
+    const n=parseFloat(t.replace('+','').replace('%','').replace(' min','').replace('★','').replace(',','.'));
+    return isNaN(n)?t.toLowerCase():n};
+  const asc=th.dataset.asc!=='1';
+  headRow.querySelectorAll('th').forEach(h=>{h.dataset.asc='';h.classList.remove('sd','sa')});
+  th.dataset.asc=asc?'1':'0';th.classList.add(asc?'sa':'sd');
+  rows.sort((a,b)=>{const x=key(a),y=key(b);
+    const c=(typeof x==='string'||typeof y==='string')?String(x).localeCompare(String(y),'pt'):x-y;
+    return asc?c:-c});
+  rows.forEach(r=>table.appendChild(r));
+}
+document.addEventListener('click',e=>{const th=e.target.closest('th');if(th)sortTable(th)});
 setInterval(loadAll,15*60*1000);
 loadAll();
 </script>
