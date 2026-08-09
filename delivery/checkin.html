@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#111110">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Check-in CDM">
+<title>Check-in do Delivery · Cidadão do Mundo</title>
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;
+--good:#2fae6a;--bad:#e66767;--warn:#e0a93a;--brand:#c8102e}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.45}
+.wrap{max-width:640px;margin:0 auto;padding:16px 14px 50px}
+header{display:flex;align-items:center;gap:12px;border-bottom:2px solid var(--brand);padding-bottom:12px;margin-bottom:14px}
+.dot{width:42px;height:42px;border-radius:10px;background:var(--brand);display:grid;place-items:center;font-weight:800;font-size:16px;flex-shrink:0}
+h1{font-size:18px;font-weight:800}
+.sub{color:var(--text2);font-size:12px;margin-top:2px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px}
+.tab{background:var(--s1);border:1px solid var(--line);border-radius:22px;padding:8px 17px;font-size:14px;font-weight:700;color:var(--text2);cursor:pointer}
+.tab.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin:14px 0 8px}
+.nomes{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.nome{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:15px 10px;font-size:14.5px;font-weight:700;color:var(--text);cursor:pointer;text-align:center}
+.nome.sel{background:#2a1518;border-color:var(--brand)}
+.acao{display:none;gap:10px;margin-top:14px}
+.acao.show{display:grid;grid-template-columns:1fr 1fr}
+.big{border:none;border-radius:14px;padding:22px 10px;font-size:17px;font-weight:800;cursor:pointer;color:#fff}
+.bch{background:var(--good)}
+.bsa{background:var(--bad)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:26px;background:#122419;border:1px solid var(--good);color:#7ee2ae;padding:13px 22px;border-radius:12px;font-weight:800;font-size:15px;display:none;z-index:50}
+.toast.err{background:#2a1518;border-color:var(--bad);color:#f5a9a9}
+.sec{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:14px 15px;margin-top:18px}
+.sec h2{font-size:14px;font-weight:800;margin-bottom:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px}
+tr:last-child td{border-bottom:none}
+.pill{display:inline-block;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap}
+.pg{background:rgba(47,174,106,.16);color:#5fd396}
+.pw{background:rgba(224,169,58,.16);color:#e0a93a}
+.pb{background:rgba(230,103,103,.16);color:#f08d8d}
+.empty{color:var(--muted);font-size:12.5px;padding:6px 0}
+.foot{color:var(--muted);font-size:11px;margin-top:16px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="dot">CM</div>
+  <div><h1>🛵 Check-in do Delivery</h1><div class="sub">Chegou na loja? Toque no seu nome e confirme. Saiu do turno? Registre a saída.</div></div>
+</header>
+
+<div class="tabs" id="lojas"></div>
+<div class="lbl">Toque no seu nome</div>
+<div class="nomes" id="nomes"><div class="empty">carregando nomes…</div></div>
+<div class="acao" id="acao">
+  <button class="big bch" onclick="registrar('CHEGADA')">🟢 CHEGUEI</button>
+  <button class="big bsa" onclick="registrar('SAIDA')">🔴 SAÍ</button>
+</div>
+
+<div class="sec">
+  <h2>📋 Hoje nesta loja</h2>
+  <div id="hoje"><div class="empty">carregando…</div></div>
+</div>
+
+<div class="foot">O horário é registrado automaticamente no momento do toque. Dia operacional vai até 4h da manhã.<br>
+Quem coletar pedido no Foody sem check-in aparece como pendência no painel da gestão.</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const H={apikey:KEY,Authorization:'Bearer '+KEY};
+const LOJAS=['Água Verde','São Braz','Ahú'];
+const $=id=>document.getElementById(id);
+let LOJA=new URLSearchParams(location.search).get('loja')||'Água Verde';
+if(!LOJAS.includes(LOJA))LOJA='Água Verde';
+let NOMES={},SEL=null,F=[],CHK=[],PED=[];
+
+function diaOp(){const d=new Date(Date.now()-4*3600*1000);
+  return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)}
+const hhmm=x=>{const d=new Date(x);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}
+
+function toast(msg,err){const t=$('toast');t.textContent=msg;t.className='toast'+(err?' err':'');t.style.display='block';
+  setTimeout(()=>t.style.display='none',3200)}
+
+async function fj(u){const r=await fetch(SB+u,{headers:H});if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
+
+async function carregar(){
+  try{
+    const corte=new Date(Date.now()-14*864e5).toISOString().slice(0,10);
+    F=await fj('foody_fato_fechamento_turno_dia?select=entregador,unidade,dia_operacional,entregas&dia_operacional=gte.'+corte);
+    NOMES={};LOJAS.forEach(l=>NOMES[l]=[]);
+    const cnt={};
+    F.forEach(r=>{const k=r.unidade+'|'+r.entregador;cnt[k]=(cnt[k]||0)+r.entregas});
+    Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).forEach(k=>{const [u,n]=k.split('|');if(NOMES[u]&&!NOMES[u].includes(n))NOMES[u].push(n)});
+    renderLojas();renderNomes();
+    await atualizarHoje();
+  }catch(e){$('nomes').innerHTML='<div class="empty">Erro ao carregar: '+e.message+'</div>'}
+}
+function renderLojas(){
+  $('lojas').innerHTML=LOJAS.map(l=>'<span class="tab '+(LOJA===l?'on':'')+'" onclick="LOJA=\''+l+'\';SEL=null;$(\'acao\').classList.remove(\'show\');renderLojas();renderNomes();atualizarHoje()">'+l+'</span>').join('');
+}
+function renderNomes(){
+  const ns=NOMES[LOJA]||[];
+  $('nomes').innerHTML=ns.length?ns.map(n=>'<div class="nome'+(SEL===n?' sel':'')+'" onclick="selecionar(\''+n.replace(/'/g,"\\'")+'\')">'+n+'</div>').join(''):'<div class="empty">Nenhum entregador recente nesta loja.</div>';
+}
+function selecionar(n){SEL=n;renderNomes();$('acao').classList.add('show');window.scrollBy({top:120,behavior:'smooth'})}
+
+async function registrar(tipo){
+  if(!SEL){toast('Toque no seu nome primeiro',true);return}
+  try{
+    const r=await fetch(SB+'foody_checkin',{method:'POST',
+      headers:{...H,'Content-Type':'application/json',Prefer:'return=minimal'},
+      body:JSON.stringify({nome:SEL,unidade:LOJA,tipo:tipo,dia_operacional:diaOp()})});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    toast((tipo==='CHEGADA'?'🟢 Chegada':'🔴 Saída')+' registrada — '+SEL+' às '+hhmm(new Date()));
+    SEL=null;$('acao').classList.remove('show');renderNomes();
+    atualizarHoje();
+  }catch(e){toast('Erro ao registrar: '+e.message,true)}
+}
+
+async function atualizarHoje(){
+  try{
+    const D=diaOp();
+    [CHK,PED]=await Promise.all([
+      fj('foody_checkin?dia_operacional=eq.'+D+'&unidade=eq.'+encodeURIComponent(LOJA)+'&select=nome,tipo,ts&order=ts.asc'),
+      fj('foody_fato_pedido?dia_operacional=eq.'+D+'&unidade=eq.'+encodeURIComponent(LOJA)+'&select=entregador,dt_coletado&dt_coletado=not.is.null&order=dt_coletado.asc&limit=1000')
+    ]);
+    const primCol={};PED.forEach(p=>{if(p.entregador&&!primCol[p.entregador])primCol[p.entregador]=p.dt_coletado});
+    const porNome={};
+    CHK.forEach(c=>{const m=porNome[c.nome]=porNome[c.nome]||{cheg:null,sai:null};
+      if(c.tipo==='CHEGADA'&&!m.cheg)m.cheg=c.ts; if(c.tipo==='SAIDA')m.sai=c.ts});
+    Object.keys(primCol).forEach(n=>{porNome[n]=porNome[n]||{cheg:null,sai:null}});
+    const nomes=Object.keys(porNome).sort();
+    if(!nomes.length){$('hoje').innerHTML='<div class="empty">Nenhum registro ainda hoje.</div>';return}
+    $('hoje').innerHTML='<table><tr><th>Nome</th><th>Chegou</th><th>1ª coleta</th><th>Saiu</th><th>Situação</th></tr>'+nomes.map(n=>{
+      const m=porNome[n],pc=primCol[n];
+      let sit;
+      if(!m.cheg&&pc)sit='<span class="pill pb">coletou sem check-in</span>';
+      else if(m.cheg&&pc){const dif=Math.round((new Date(pc)-new Date(m.cheg))/60000);
+        sit=dif>=0?'<span class="pill pg">ok · coleta '+dif+' min após chegar</span>':'<span class="pill pw">coleta antes do check-in</span>'}
+      else if(m.cheg)sit='<span class="pill pg">presente</span>';
+      else sit='—';
+      return '<tr><td><b>'+n+'</b></td><td>'+(m.cheg?hhmm(m.cheg):'—')+'</td><td>'+(pc?hhmm(pc):'—')+'</td><td>'+(m.sai?hhmm(m.sai):'—')+'</td><td>'+sit+'</td></tr>'}).join('')+'</table>';
+  }catch(e){$('hoje').innerHTML='<div class="empty">Erro: '+e.message+'</div>'}
+}
+setInterval(atualizarHoje,60*1000);
+carregar();
+</script>
+</body>
+</html>
