@@ -69,6 +69,20 @@ tr:last-child td{border-bottom:none}
 .gatebox input{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:11px 14px;color:var(--text);font-size:15px;outline:none;margin:14px 0 10px;text-align:center}
 .gatebox button{width:100%;background:var(--brand);border:none;color:#fff;border-radius:10px;padding:11px;font-size:14px;font-weight:800;cursor:pointer}
 .gerr{color:#f08d8d;font-size:12px;min-height:16px;margin-top:8px}
+.splitbar{display:flex;height:26px;border-radius:6px;overflow:hidden;margin-top:6px}
+.splitbar .seg{display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;color:#0c0c0b}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin-top:10px}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:6px}
+.lojagrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.lcard{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.lcard .ln{font-weight:800;font-size:13.5px;margin-bottom:8px;display:flex;align-items:center;gap:7px}
+.lcard .lm{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;color:var(--text2)}
+.lcard .lm b{color:var(--text)}
+.rankgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.rankgrid h4{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:7px}
+.rk{display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--line)}
+.rk .nm{color:var(--text)}
+.comp{color:#f0b95a;font-weight:700}
 @media(max-width:640px){h1{font-size:15.5px}.kpi .v{font-size:19px}.view{padding:8px 12px;font-size:12.5px}}
 </style>
 </head>
@@ -242,24 +256,81 @@ function renderDiario(){
 }
 
 /* ================= EQUIPE ================= */
+function aggMoto(rows){
+  const daily={};rows.forEach(r=>{const k=r.entregador+'|'+r.unidade+'|'+r.dia_operacional;const d=daily[k]=daily[k]||{n:r.entregador,l:r.unidade,h:0,e:0,ok:0,at:0,sem:0,v:0};d.h+=(+r.horas||0);d.e+=r.entregas;d.ok+=r.no_prazo;d.at+=r.atrasos;d.sem+=(r.sem_codigo||0);d.v+=(+r.valor_entregas||0)});
+  const m={};Object.values(daily).forEach(d=>{const k=d.n+'|'+d.l;const o=m[k]=m[k]||{n:d.n,l:d.l,d:0,h:0,e:0,ok:0,at:0,sem:0,v:0,g:0,c:0,rec:0};const g=d.h*20,c=Math.max(0,g-d.v);o.d++;o.h+=d.h;o.e+=d.e;o.ok+=d.ok;o.at+=d.at;o.sem+=d.sem;o.v+=d.v;o.g+=g;o.c+=c;o.rec+=d.v+c});
+  return Object.values(m).map(o=>({...o,p:pctS(o.ok,o.at)}));
+}
+const rM=v=>'R$ '+Math.round(v).toLocaleString('pt-BR');
+function copiarWpp(){
+  const t=window.__WPP||'';navigator.clipboard.writeText(t).then(()=>{const b=document.getElementById('wppbtn');if(b){b.textContent='✓ Copiado!';setTimeout(()=>b.textContent='📱 Resumo p/ WhatsApp',1800)}});
+}
 function renderEquipe(){
   $('barra').innerHTML='<div class="tabs" style="margin:0">'+[['1','Ontem'],['3','3 dias'],['7','7 dias']].map(([n,l])=>'<span class="tab '+(PER===+n?'on':'')+'" onclick="PER='+n+';render()">'+l+'</span>').join('')+'</div>';
   const dias=NAV.slice(-PER);
   const rs=F.filter(r=>dias.includes(r.dia_operacional)&&fLoja(r));
-  const sum=k=>rs.reduce((s,r)=>s+(+r[k]||0),0);
-  const ent=sum('entregas'),ok=sum('no_prazo'),atr=sum('atrasos'),sem=sum('sem_codigo');
+  const rsAll=F.filter(r=>dias.includes(r.dia_operacional));
+  const motos=aggMoto(rs).sort((a,b)=>b.e-a.e);
+  const motosAll=aggMoto(rsAll);
+  let ent=0,ok=0,atr=0,sem=0,horas=0,comp=0,rec=0;
+  motos.forEach(m=>{ent+=m.e;ok+=m.ok;atr+=m.at;sem+=m.sem;horas+=m.h;comp+=m.c;rec+=m.rec});
   const pct=pctS(ok,atr);
-  const daily={};rs.forEach(r=>{const k=r.entregador+'|'+r.unidade+'|'+r.dia_operacional;const d=daily[k]=daily[k]||{n:r.entregador,l:r.unidade,h:0,e:0,ok:0,at:0,sem:0,v:0};d.h+=(+r.horas||0);d.e+=r.entregas;d.ok+=r.no_prazo;d.at+=r.atrasos;d.sem+=(r.sem_codigo||0);d.v+=(+r.valor_entregas||0)});
-  const porMoto={};Object.values(daily).forEach(d=>{const k=d.n+'|'+d.l;const m=porMoto[k]=porMoto[k]||{n:d.n,l:d.l,d:0,h:0,e:0,ok:0,at:0,sem:0,v:0,g:0,c:0,rec:0};const g=d.h*20,c=Math.max(0,g-d.v);m.d++;m.h+=d.h;m.e+=d.e;m.ok+=d.ok;m.at+=d.at;m.sem+=d.sem;m.v+=d.v;m.g+=g;m.c+=c;m.rec+=d.v+c});
-  const motos=Object.values(porMoto).map(m=>({...m,p:pctS(m.ok,m.at)})).sort((a,b)=>b.e-a.e);
   let html='<div class="kpis">'+
     kpi('Entregas',ent,motos.length+' motoboys · '+dias.length+' dia(s)','var(--blue)')+
-    kpi('% no horário',pct!=null?pct+'%':'—','meta: 90%+',pct==null?'var(--muted)':pct>=90?'var(--good)':pct>=75?'var(--warn)':'var(--bad)')+
-    kpi('Atrasos',atr,'','var(--bad)')+
-    kpi('Sem código',sem,'','var(--warn)')+'</div>';
+    kpi('No horário',ok,pct!=null?pct+'% do total':'',pct==null?'var(--muted)':pct>=90?'var(--good)':pct>=75?'var(--warn)':'var(--bad)')+
+    kpi('Atrasadas',atr,pct!=null?(100-pct).toFixed(1)+'% do total':'','var(--bad)')+
+    kpi('Horas',Math.round(horas)+'h','trabalhadas','var(--blue)')+
+    kpi('Complemento',rM(comp),'garantido além das entregas','var(--warn)')+
+    kpi('A pagar',rM(rec),'entregas + complemento','var(--good)')+'</div>';
+  const bs=ok+atr, pok=bs?100*ok/bs:0;
+  html+='<div class="sec"><h2>Entregas: no horário × atrasadas</h2><div class="hs">no período/loja selecionado</div>'+
+    '<div class="splitbar"><div class="seg" style="width:'+pok+'%;background:var(--good)">'+(pok>7?ok:'')+'</div><div class="seg" style="width:'+(100-pok)+'%;background:var(--bad)">'+((100-pok)>7?atr:'')+'</div></div>'+
+    '<div class="legend"><span><i style="background:var(--good)"></i><b>No horário: '+ok+' ('+(pct==null?'—':pct+'%')+')</b></span><span><i style="background:var(--bad)"></i><b>Atrasadas: '+atr+' ('+(pct==null?'—':(100-pct).toFixed(1)+'%')+')</b></span></div></div>';
+  const gLoja={};['Água Verde','Ahú','São Braz'].forEach(l=>gLoja[l]={l,e:0,ok:0,at:0,h:0,rec:0,c:0,sem:0});
+  motosAll.forEach(o=>{const x=gLoja[o.l];if(!x)return;x.e+=o.e;x.ok+=o.ok;x.at+=o.at;x.h+=o.h;x.rec+=o.rec;x.c+=o.c;x.sem+=o.sem});
+  html+='<div class="sec"><h2>🏬 As 3 lojas lado a lado</h2><div class="hs">no período selecionado · ignora o filtro de loja acima</div><div class="lojagrid">'+
+    Object.values(gLoja).map(x=>{const b=x.ok+x.at,p=b?Math.round(1000*x.ok/b)/10:null;const pc=p==null?'pw':p>=90?'pg':p>=60?'pw':'pb';
+      const eph=x.h?(x.e/x.h).toFixed(1):'—';const custo=x.e?('R$ '+(x.rec/x.e).toFixed(2).replace('.',',')):'—';
+      return '<div class="lcard"><div class="ln">'+x.l+'</div>'+
+        '<div class="lm"><span>Entregas</span><b>'+x.e+'</b></div>'+
+        '<div class="lm"><span>No prazo</span><span class="pill '+pc+'">'+(p==null?'—':p+'%')+'</span></div>'+
+        '<div class="lm"><span>Entregas/hora</span><b>'+eph+'</b></div>'+
+        '<div class="lm"><span>Custo/entrega</span><b>'+custo+'</b></div>'+
+        '<div class="lm"><span>A pagar</span><b>'+rM(x.rec)+'</b></div></div>'}).join('')+'</div></div>';
+  const pts=NAV.map(d=>{const rr=F.filter(r=>r.dia_operacional===d&&fLoja(r));let e=0,o2=0,a2=0;rr.forEach(r=>{e+=r.entregas;o2+=r.no_prazo;a2+=r.atrasos});const b2=o2+a2;return {label:DOWN[dow(d)].slice(0,3)+' '+br(d),e,p:b2?100*o2/b2:0,has:rr.length>0}});
+  const bw=52,gap=16,padL=8,padT=16,hh2=170,axB=30,plotH=hh2-padT-axB;
+  const W=Math.max(padL*2+pts.length*(bw+gap),320);
+  const maxE=Math.max(...pts.map(p=>p.e),1);
+  let bars='',lbls='',dots='',line='';const lp=[];
+  pts.forEach((p,i)=>{const x=padL+i*(bw+gap);const bh=Math.round(plotH*p.e/maxE);const by=padT+plotH-bh;
+    bars+='<rect x="'+x+'" y="'+by+'" width="'+bw+'" height="'+bh+'" rx="3" fill="#3987e5" opacity="'+(p.has?.75:.2)+'"/>';
+    if(p.e>0)bars+='<text x="'+(x+bw/2)+'" y="'+(by-4)+'" fill="#c3c2b7" font-size="10" text-anchor="middle">'+p.e+'</text>';
+    lbls+='<text x="'+(x+bw/2)+'" y="'+(hh2-10)+'" fill="#8a897e" font-size="10" text-anchor="middle">'+p.label+'</text>';
+    if(p.has){const cy=padT+plotH-Math.round(plotH*p.p/100);const cx=x+bw/2;lp.push(cx+','+cy);
+      dots+='<circle cx="'+cx+'" cy="'+cy+'" r="3.5" fill="#2fae6a"/><text x="'+cx+'" y="'+(cy-7)+'" fill="#2fae6a" font-size="9.5" font-weight="700" text-anchor="middle">'+Math.round(p.p)+'%</text>'}});
+  if(lp.length>1)line='<polyline points="'+lp.join(' ')+'" fill="none" stroke="#2fae6a" stroke-width="2"/>';
+  html+='<div class="sec"><h2>📈 Evolução no tempo</h2><div class="hs">últimos 7 dias · entregas (barras) e % no prazo (linha verde)'+(LOJA!=='Todas'?' · '+LOJA:'')+'</div><div style="overflow-x:auto"><svg width="'+W+'" height="'+hh2+'" viewBox="0 0 '+W+' '+hh2+'" style="display:block">'+bars+line+dots+lbls+'</svg></div></div>';
+  const elig=motos.filter(o=>o.e>=20);
+  const best=[...elig].sort((a,b)=>(b.p||0)-(a.p||0)).slice(0,3);
+  const worst=[...elig].sort((a,b)=>(a.p||0)-(b.p||0)).slice(0,3);
+  const compTop=[...motos].filter(o=>o.c>0).sort((a,b)=>b.c-a.c).slice(0,3);
+  const scTop=[...motos].filter(o=>o.sem>0).sort((a,b)=>b.sem-a.sem).slice(0,3);
+  const col=(t,arr,f,cls)=>{let h='<div><h4>'+t+'</h4>';if(!arr.length)h+='<div class="empty">—</div>';
+    arr.forEach(o=>{h+='<div class="rk"><span class="nm">'+o.n+'</span><span'+(cls?' class="'+cls+'"':'')+'>'+f(o)+'</span></div>'});return h+'</div>'};
+  html+='<div class="sec"><h2>⭐ Destaques</h2><div class="hs">no período/loja selecionado (mínimo 20 entregas para o ranking de %)</div><div class="rankgrid">'+
+    col('🏆 Melhor % no prazo',best,o=>(o.p==null?'—':o.p+'%'))+
+    col('⚠ Pior % no prazo',worst,o=>(o.p==null?'—':o.p+'%'))+
+    col('💰 Maior complemento',compTop,o=>rM(o.c),'comp')+
+    (scTop.length?col('🚩 Mais sem código',scTop,o=>o.sem+''):col('📦 Mais entregas',[...motos].sort((a,b)=>b.e-a.e).slice(0,3),o=>o.e+''))+'</div></div>';
+  let wt='*Motoboys — '+dias.length+' dia(s)'+(LOJA!=='Todas'?' · '+LOJA:'')+'*\n';
+  wt+='Entregas: '+ent+'  |  No prazo: '+(pct==null?'—':pct+'%')+'\n';
+  wt+='A pagar: '+rM(rec)+'  (complemento '+rM(comp)+')\n\n';
+  Object.values(gLoja).forEach(x=>{if(!x.e)return;const b3=x.ok+x.at,p3=b3?Math.round(1000*x.ok/b3)/10:0;wt+='• '+x.l+': '+x.e+' entregas · '+p3+'% no prazo · '+rM(x.rec)+'\n'});
+  wt+='\n_Gerado do painel ao vivo · confira contra o fechamento oficial._';
+  window.__WPP=wt;
+  html+='<button class="btnr" id="wppbtn" onclick="copiarWpp()" style="margin-bottom:14px">📱 Resumo p/ WhatsApp</button>';
   html+='<div class="sec"><h2>🛵 Por motoboy</h2><div class="hs">Garantido = horas × R$ 20/h · Complemento = só quando o garantido do DIA passa do que fez em entregas (nunca negativo) · A receber = entregas + complemento. Estimativa — confira contra o fechamento oficial.</div>';
   if(motos.length){
-    const rM=v=>'R$ '+Math.round(v).toLocaleString('pt-BR');
     html+='<table><tr><th>Motoboy</th><th>Loja</th><th>Dias</th><th>Horas</th><th>Entregas</th><th>% no prazo</th><th>Atrasos</th><th>Sem código</th><th>Fez (entregas)</th><th>Garantido</th><th>Complemento</th><th>A receber</th></tr>'+motos.map(m=>{
       const cls=m.p==null?'pw':m.p>=90?'pg':m.p>=70?'pw':'pb';
       return '<tr><td><b>'+m.n+'</b></td><td style="color:var(--text2)">'+m.l+'</td><td>'+m.d+'</td><td>'+m.h.toFixed(1)+'h</td><td>'+m.e+'</td><td><span class="pill '+cls+'">'+(m.p==null?'—':m.p+'%')+'</span></td><td>'+m.at+'</td><td>'+(m.sem>0?'<span class="pill pw">'+m.sem+'</span>':'0')+'</td><td>'+rM(m.v)+'</td><td>'+rM(m.g)+'</td><td>'+(m.c>0?'<span class="pill pw">'+rM(m.c)+'</span>':'R$ 0')+'</td><td><b>'+rM(m.rec)+'</b></td></tr>'}).join('')+'</table>';
