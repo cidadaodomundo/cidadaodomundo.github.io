@@ -115,9 +115,11 @@ const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const H={apikey:KEY,Authorization:'Bearer '+KEY};
 const GATE_HASH='052765de61630b6ff12d29470a27786e064d7c8cb4f4c55e4a5bbbfcf624d618';
+const GATE_ALT='6db4bb52b559fe6100a9ce00ff3ad2e9153a28179ddfc2fb394496e7c0edef34';
 async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 async function gateTry(){const v=document.getElementById('gpw').value;
-  if(await sha(v)===GATE_HASH){sessionStorage.setItem('cm_rh_ok','1');document.getElementById('gate').style.display='none'}
+  const hv=await sha(v);
+  if(hv===GATE_HASH||hv===GATE_ALT){sessionStorage.setItem('cm_rh_ok','1');document.getElementById('gate').style.display='none'}
   else document.getElementById('gerr').textContent='Senha incorreta.'}
 if((sessionStorage.getItem('cm_rh_ok')==='1'||sessionStorage.getItem('cm_owner_ok')==='1'))document.getElementById('gate').style.display='none';
 const ORD={SERIO:0,GRAVE:1,INFRACAO:2,VERBAL:3,ESCALA:4,JORNADA:5,VERIFICAR:6,SEM:7};
@@ -134,6 +136,7 @@ ESCALA:'RH: confirmar com o gerente a escala real do dia ANTES de qualquer medid
 JORNADA:'RH: pedir à diretoria a definição do horário oficial deste funcionário.',
 VERIFICAR:'RH: sem marcações — conferir se há férias/atestado/folga registrados; se não houver, tratar como falta (ver Guia).'};
 let ALL=[],DAYS=[],DI=0,UNIT='Todas',FILT=null,VIEW='day';
+try{const _u=new URLSearchParams(location.search).get('u');if(_u)UNIT=_u}catch(e){}
 const $=id=>document.getElementById(id);
 const fmt=m=>m==null?'—':Math.floor(m/60)+'h'+String(m%60).padStart(2,'0');
 const title=n=>n.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
