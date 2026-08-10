@@ -125,6 +125,292 @@ async function loadAll(){
     const d8=iso(new Date(Date.now()-8*864e5));
     [DIMS,AVAL,CANC,NEG,SUPER]=await Promise.all([
       fj('ifood_dim_loja?select=id_loja,nome,unidade'),
+      fj('ifood_fato_avaliacao?data_avaliacao=gte.'+d8+'&select=id_loja,data_avaliacao,data_pedido,nota,tags,comentario,id_pedido_curto&order=data_avaliacao.desc&limit=3000'),
+      fj('ifood_fato_cancelamento?data=gte.'+d8+'&select=id_loja,data,turno,motivo,valor_pedido,valor_cancelamento,itens_cancelados,impactou_super,id_pedido,origem,contestavel,loja_contestou,status_contestacao,id_saipos,forma_pagamento,pagamento_online,primeiro_pedido,chat,fotos&order=data.desc&limit=1000'),
+      fj('ifood_fato_negociacao?data=gte.'+d8+'&select=id_loja,data,motivo,resposta_loja,resposta_cliente,momento_solicitacao,tempo_ofertado_atraso_min,cancelamento_evitado,valor_reembolso,valor_pedido,impactou_super,id_pedido,id_saipos,forma_pagamento,pagamento_online,primeiro_pedido,chat,fotos&order=data.desc&limit=1000'),
+      fj("ifood_fato_super_status?periodo=neq.&select=id_loja,nome,e_super,nivel,status,media_avaliacoes,pct_cancelamento,pct_chamados,plano_acao")
+    ]);
+    $('hsub').textContent='dados ao vivo do Supabase · Cidadão do Mundo Burgers & Arts';
+    render();
+  }catch(e){$('conteudo').innerHTML='<div class="sec"><div class="empty">Erro: '+esc(e.message)+'</div></div>'}
+}
+function setPer(p){PER=p;render()}
+function setLoja(l){LOJA=l;render()}
+function setSub(s){SUB=s;render()}
+function kpi(k,cls,v,d){return '<div class="kpi '+(cls||'')+'"><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="d">'+(d||'')+'</div></div>'}
+
+function render(){
+  const per=[['hoje','Hoje'],['ontem','Ontem'],['7dias','7 dias']];
+  $('periodos').innerHTML=per.map(p=>'<span class="tab '+(PER===p[0]?'on':'')+'" onclick="setPer(\''+p[0]+'\')">'+p[1]+'</span>').join('');
+  $('lojas').innerHTML=LOJAS.map(l=>'<span class="tab '+(LOJA===l?'on':'')+'" onclick="setLoja(\''+l+'\')">'+l+'</span>').join('');
+  const D=diasPeriodo();
+  const aval=AVAL.filter(r=>D.includes(r.data_avaliacao)&&fL(r));
+  const canc=CANC.filter(r=>D.includes(r.data)&&fL(r));
+  const neg=NEG.filter(r=>D.includes(r.data)&&fL(r));
+  const nota=aval.length?aval.reduce((s,r)=>s+Number(r.nota),0)/aval.length:null;
+  const ruins=aval.filter(r=>Number(r.nota)<=3);
+  const perdido=canc.reduce((s,r)=>s+Number(r.valor_cancelamento||0),0);
+  const evitados=neg.filter(r=>r.cancelamento_evitado).length;
+  const resp=neg.filter(r=>r.resposta_loja&&!/n[aã]o respondeu/i.test(r.resposta_loja)).length;
+  const txResp=neg.length?Math.round(100*resp/neg.length):null;
+
+  $('kpis').innerHTML='<div class="kpis">'+
+    kpi('Nota média no período', nota==null?'var(--muted)':nota>=4.5?'g':nota>=4?'w':'b', nota?('★ '+nota.toFixed(2)):'—', aval.length+' avaliações')+
+    kpi('Cancelamentos', canc.length?'b':'g', canc.length, 'R$ '+rs(perdido)+' perdidos')+
+    kpi('Chamados / negociações','y', neg.length, evitados+' cancelamentos evitados')+
+    kpi('Notas baixas (1–3)', ruins.length?'w':'g', ruins.length, 'de '+aval.length+' avaliações')+
+  '</div>';
+
+  const subs=[['aval','⭐ Avaliações',aval.length],['canc','🚫 Cancelamentos',canc.length],['cham','📞 Chamados',neg.length],['resp','💬 Taxa de Resposta',txResp==null?'—':txResp+'%'],['super','🏆 Selo Super','']];
+  $('subtabs').innerHTML=subs.map(s=>'<span class="tab '+(SUB===s[0]?'on':'')+'" onclick="setSub(\''+s[0]+'\')">'+s[1]+(s[2]!==''?' <b>'+s[2]+'</b>':'')+'</span>').join('');
+
+  if(SUB==='aval')viewAval(aval,D);
+  else if(SUB==='canc')viewCanc(canc);
+  else if(SUB==='cham')viewCham(neg);
+  else if(SUB==='resp')viewResp(neg,resp,txResp);
+  else viewSuper();
+}
+
+function viewAval(aval,D){
+  let h='';
+  // nota média por dia
+  const byd={};D.slice().sort().forEach(d=>byd[d]={s:0,n:0});
+  aval.forEach(r=>{const b=byd[r.data_avaliacao];if(b){b.s+=Number(r.nota);b.n++}});
+  const dias=Object.keys(byd).sort();
+  h+='<div class="sec"><h2>📈 Nota média por dia</h2><div class="hs">'+rotulo().toLowerCase()+'</div>';
+  if(dias.some(d=>byd[d].n)){
+    h+=dias.map(d=>{const b=byd[d];const m=b.n?b.s/b.n:0;const pct=b.n?Math.round((m/5)*100):0;
+      const cor=m>=4.5?'var(--good)':m>=4?'var(--warn)':'var(--bad)';
+      return '<div class="day"><div style="color:var(--muted)">'+DOWN[dow(d)]+' '+br(d)+'</div><div class="bar"><i style="width:'+pct+'%;background:'+cor+'"></i></div><div class="num">'+(b.n?m.toFixed(2):'—')+'</div></div>'}).join('');
+  } else h+='<div class="empty">Sem avaliações no período.</div>';
+  h+='</div>';
+  // distribuicao
+  const dist=[5,4,3,2,1].map(n=>({n,c:aval.filter(r=>Number(r.nota)===n).length}));
+  const tot=aval.length||1;
+  h+='<div class="sec"><h2>⭐ Distribuição de notas</h2><div class="hs">'+aval.length+' avaliações</div><table>'+
+    dist.map(x=>{const pct=Math.round(100*x.c/tot);const cor=x.n>=4?'var(--good)':x.n===3?'var(--warn)':'var(--bad)';
+      return '<tr><td class="stars" style="width:90px">'+'★'.repeat(x.n)+'</td><td class="num" style="width:50px">'+x.c+'</td><td class="num" style="width:50px;color:var(--muted)">'+pct+'%</td><td><div class="bar"><i style="width:'+pct+'%;background:'+cor+'"></i></div></td></tr>'}).join('')+'</table></div>';
+  // tags
+  const tc={};aval.forEach(r=>(r.tags||[]).forEach(t=>tc[t]=(tc[t]||0)+1));
+  const tags=Object.entries(tc).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  h+='<div class="sec"><h2>🏷 Tags mais citadas</h2><div class="hs">o que os clientes marcaram</div>';
+  h+=tags.length?('<table>'+tags.map(([t,n])=>{const ruim=/incompleto|errado|danificad|frio|mal |demor|faltando|troca/i.test(t);return '<tr><td>'+(ruim?'⚠️ ':'✅ ')+esc(t)+'</td><td class="num" style="width:60px">'+n+'</td></tr>'}).join('')+'</table>'):'<div class="empty">Sem tags no período.</div>';
+  h+='</div>';
+  // comentarios ruins
+  const cr=aval.filter(r=>Number(r.nota)<=3&&r.comentario);
+  h+='<div class="sec"><h2>💬 Comentários das notas baixas</h2><div class="hs">use na conversa do turno, sem expor ninguém</div>';
+  h+=cr.length?('<table><tr><th>Data</th><th>Horário</th><th>Pedido</th><th>Loja</th><th>Nota</th><th>Comentário</th></tr>'+cr.map(r=>'<tr><td>'+br(r.data_avaliacao)+'</td><td>'+(r.data_pedido?esc(r.data_pedido.slice(11,16)):'—')+'</td><td>'+esc(r.id_pedido_curto||'—')+'</td><td>'+esc(nomeLoja(r.id_loja))+'</td><td class="stars">★'+r.nota+'</td><td style="color:var(--text2)">'+esc(r.comentario)+'</td></tr>').join('')+'</table>'):'<div class="empty">✅ Nenhum comentário negativo no período.</div>';
+  h+='</div>';
+  $('conteudo').innerHTML=h;
+}
+function pagHtml(x){if(x.pagamento_online===true)return '<span class="pill pi">Online</span>';if(x.pagamento_online===false)return '<span class="pill pw">Na entrega</span>';if(x.forma_pagamento)return '<span class="pill pm">'+esc(x.forma_pagamento)+'</span>';return '<span class="empty">—</span>'}
+function pedHtml(x){return '<div class="ped"><b>iFood:</b> '+esc(x.id_pedido||'—')+'</div><div style="color:var(--muted);font-size:11px">Saipos: '+esc(x.id_saipos||'—')+'</div>'}
+function chatHtml(x){if(x.chat&&Array.isArray(x.chat)&&x.chat.length){return '<details><summary>💬 ver chat ('+x.chat.length+')</summary><div class="chat">'+x.chat.map(m=>'<div class="msg"><b>'+esc(m.quem||m.autor||'')+':</b> '+esc(m.texto||m.msg||(typeof m==='string'?m:''))+'</div>').join('')+'</div></details>'}
+  const rl=x.resposta_loja,rc=x.resposta_cliente;if((rl&&rl!=='-')||(rc&&rc!=='-'))return '<details><summary>💬 conversa (resumo)</summary><div class="chat"><div class="msg"><b>Loja:</b> '+esc(rl||'—')+'</div><div class="msg"><b>Cliente:</b> '+esc(rc||'—')+'</div></div></details>';return '<span class="empty">sem chat</span>'}
+function fotosHtml(x){if(x.fotos&&Array.isArray(x.fotos)&&x.fotos.length){return '<details><summary>📷 fotos ('+x.fotos.length+')</summary><div class="fotos">'+x.fotos.map(u=>'<a href="'+esc(u)+'" target="_blank" rel="noopener"><img src="'+esc(u)+'"></a>').join('')+'</div></details>'}return '<span class="empty">sem foto</span>'}
+function contestHtml(c){var s=c.status_contestacao; if(s==='CONTESTAÇÃO ACATADA')return '<span class="pill pg">acatada</span>'; if(s==='CONTESTAÇÃO RECUSADA')return '<span class="pill pb">recusada</span>'; if(c.loja_contestou===true)return '<span class="pill pw">contestada</span>'; return '<span class="empty">—</span>'}
+function tardeCanc(c){return c.contestavel===true&&c.loja_contestou!==true&&(!c.status_contestacao||c.status_contestacao==='-')}
+function cgCanc(c){var m=(c.motivo||'').toUpperCase();var semFoto=!c.fotos||(Array.isArray(c.fotos)&&c.fotos.length===0);
+  var ausente=/NINGU[EÉ]M PODER|LOCAL ERRADO|ENDERE|NÃO ESTAVA|RECEBER O PEDIDO/.test(m);
+  var reclama=/ERRAD|INCOMPLET|IMPR[OÓ]PRIO|FALTOU|REVIRAD|VIOLAD|NÃO CHEGOU/.test(m);
+  if(c.status_contestacao==='CONTESTAÇÃO ACATADA')return {g:true,t:'contestação acatada'};
+  if(ausente)return {g:true,t:'cliente ausente / endereço — motoboy foi'};
+  if(reclama&&semFoto)return {g:true,t:'reclamação sem foto — contestar'};
+  if(c.primeiro_pedido===true&&reclama)return {g:true,t:'1º pedido — checar fala suspeita'};
+  return {g:false,t:''}}
+function viewCanc(canc){
+  let h='<div class="sec"><h2>🚫 Cancelamentos</h2><div class="hs">nº iFood/Saipos, contestável, chat, fotos, pagamento e causa ganha p/ loja</div>';
+  if(!canc.length){h+='<div class="empty">✅ Nenhum cancelamento no período.</div></div>';$('conteudo').innerHTML=h;return}
+  const wins=canc.filter(c=>cgCanc(c).g).length, late=canc.filter(tardeCanc).length;
+  h+='<div class="hs" style="margin:-4px 0 8px">🏆 <b style="color:#5fd396">'+wins+' causa ganha p/ loja</b>'+(late?' · <b style="color:#f08d8d">'+late+' não contestados a tempo</b>':'')+'</div>';
+  h+='<div class="wrapx"><table><tr><th>Data</th><th>Loja</th><th>Pedido</th><th>Motivo</th><th>Origem</th><th>Pagamento</th><th>Contest.</th><th>Status</th><th>Causa ganha</th><th class="num">Valor</th><th>Chat / Fotos</th></tr>'+
+    canc.map(c=>{var cg=cgCanc(c);var cls=cg.g?'win':(tardeCanc(c)?'late':'');
+      return '<tr class="'+cls+'"><td>'+br(c.data)+'</td><td class="small">'+esc(String(nomeLoja(c.id_loja)).split(' - ').pop())+'</td>'+
+      '<td>'+pedHtml(c)+'</td><td>'+esc(c.motivo||'—')+'</td><td class="small">'+esc(c.origem||'—')+'</td>'+
+      '<td>'+pagHtml(c)+'</td>'+
+      '<td>'+(c.contestavel===true?'<span class="pill pg">sim</span>':c.contestavel===false?'<span class="pill pm">não</span>':'—')+'</td>'+
+      '<td>'+contestHtml(c)+(tardeCanc(c)?'<br><span class="pill pb">⏰ fora do prazo</span>':'')+'</td>'+
+      '<td>'+(cg.g?'<span class="pill pg">🏆 '+esc(cg.t)+'</span>':'')+'</td>'+
+      '<td class="num">R$ '+rs(c.valor_cancelamento||c.valor_pedido)+'</td>'+
+      '<td>'+chatHtml(c)+fotosHtml(c)+'</td></tr>'}).join('')+'</table></div></div>';
+  $('conteudo').innerHTML=h;
+}
+function cgCham(n){var rc=(n.resposta_cliente||'').toUpperCase();var mo=(n.momento_solicitacao||'').toUpperCase();
+  if(rc==='NÃO RESPONDEU'&&/ATRASO/.test(mo))return {g:true,t:'cliente não respondeu (motoboy foi)'};
+  if(/REJEITOU|REJEITADA|EXPIRADA/.test(rc))return {g:true,t:'cliente rejeitou/expirou — registrar'};
+  return {g:false,t:''}}
+function viewCham(neg){
+  let h='<div class="sec"><h2>📞 Chamados / negociações</h2><div class="hs">nº iFood/Saipos, momento, chat, pagamento e causa ganha</div>';
+  if(!neg.length){h+='<div class="empty">Nenhum chamado no período.</div></div>';$('conteudo').innerHTML=h;return}
+  const wins=neg.filter(n=>cgCham(n).g).length;
+  h+='<div class="hs" style="margin:-4px 0 8px">🏆 <b style="color:#5fd396">'+wins+' causa ganha p/ loja</b></div>';
+  h+='<div class="wrapx"><table><tr><th>Data</th><th>Loja</th><th>Pedido</th><th>Momento</th><th>Motivo</th><th>Pagamento</th><th>Resp. loja</th><th>Resp. cliente</th><th>Causa ganha</th><th>Evitou?</th><th class="num">Reemb.</th><th>Chat / Fotos</th></tr>'+
+    neg.map(n=>{var cg=cgCham(n);var rp=n.resposta_loja&&!/n[aã]o respondeu/i.test(n.resposta_loja)&&n.resposta_loja!=='-';
+      return '<tr class="'+(cg.g?'win':'')+'"><td>'+br(n.data)+'</td><td class="small">'+esc(String(nomeLoja(n.id_loja)).split(' - ').pop())+'</td>'+
+      '<td>'+pedHtml(n)+'</td><td class="small">'+esc(n.momento_solicitacao||'—')+'</td><td>'+esc(n.motivo||'—')+'</td>'+
+      '<td>'+pagHtml(n)+'</td>'+
+      '<td>'+(rp?'<span class="pill pg">respondeu</span>':'<span class="pill pb">sem resposta</span>')+'</td>'+
+      '<td class="small">'+esc(n.resposta_cliente||'—')+'</td>'+
+      '<td>'+(cg.g?'<span class="pill pg">🏆 '+esc(cg.t)+'</span>':'')+'</td>'+
+      '<td>'+(n.cancelamento_evitado?'<span class="pill pg">sim</span>':'<span class="pill pw">não</span>')+'</td>'+
+      '<td class="num">R$ '+rs(n.valor_reembolso)+'</td>'+
+      '<td>'+chatHtml(n)+fotosHtml(n)+'</td></tr>'}).join('')+'</table></div></div>';
+  $('conteudo').innerHTML=h;
+}
+function viewResp(neg,resp,txResp){
+  const semResp=neg.filter(r=>!(r.resposta_loja&&!/n[aã]o respondeu/i.test(r.resposta_loja)));
+  let h='<div class="sec"><h2>💬 Taxa de resposta aos chamados</h2><div class="hs">meta: 100% — cada chamado sem resposta pode virar cancelamento</div>';
+  h+='<div style="font-size:34px;font-weight:800;color:'+(txResp==null?'var(--muted)':txResp>=90?'var(--good)':txResp>=60?'var(--warn)':'var(--bad)')+'">'+(txResp==null?'—':txResp+'%')+'</div>';
+  h+='<div class="hs">'+resp+' respondidos de '+neg.length+' chamados</div>';
+  h+='<div class="bar" style="height:12px;margin-top:6px"><i style="width:'+(txResp||0)+'%;background:'+(txResp>=90?'var(--good)':txResp>=60?'var(--warn)':'var(--bad)')+'"></i></div></div>';
+  if(semResp.length){h+='<div class="sec"><h2>⚠️ Chamados sem resposta</h2><table><tr><th>Data</th><th>Loja</th><th>Motivo</th></tr>'+
+    semResp.map(n=>'<tr><td>'+br(n.data)+'</td><td>'+esc(nomeLoja(n.id_loja))+'</td><td>'+esc(n.motivo||'—')+'</td></tr>').join('')+'</table></div>'}
+  $('conteudo').innerHTML=h;
+}
+function viewSuper(){
+  // filtra as lojas de delivery (unidades AV/SB/Ahú) conforme filtro
+  const rows=SUPER.filter(s=>{const u=uni(s.id_loja);return u&&(LOJA==='Todas'?['Água Verde','São Braz','Ahú'].includes(u):u===LOJA)});
+  let h='<div class="sec"><h2>🏆 Selo Super</h2><div class="hs">status do trimestre vigente — não muda por dia (avaliação trimestral do iFood)</div>';
+  if(!rows.length){h+='<div class="empty">Sem dados de Selo Super para esta seleção.</div></div>';$('conteudo').innerHTML=h;return}
+  h+='<div class="superc">'+rows.map(s=>{
+    const pctC=(Number(s.pct_cancelamento)*100).toFixed(2), pctCh=(Number(s.pct_chamados)*100).toFixed(2);
+    return '<div class="super"><div class="nm">'+esc(s.nome)+'</div>'+
+      '<div class="lv" style="color:'+(s.e_super?'var(--good)':'var(--warn)')+'">'+(s.e_super?'⭐ Super':'Nível '+s.nivel)+'</div>'+
+      '<div class="hs" style="margin:0">★ '+s.media_avaliacoes+' · cancel. '+pctC+'% · chamados '+pctCh+'%</div>'+
+      (s.plano_acao?'<div class="hs" style="margin-top:6px;color:var(--warn)">'+esc(String(s.plano_acao).slice(0,120))+'</div>':'')+'</div>'}).join('')+'</div></div>';
+  $('conteudo').innerHTML=h;
+}
+loadAll();
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#c8102e">
+<link rel="manifest" href="manifest-central.webmanifest">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>iFood · Qualidade · Cidadão do Mundo</title>
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--good:#2fae6a;--bad:#e66767;--warn:#e0a93a;--brand:#c8102e;--blue:#3987e5}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.45}
+.wrap{max-width:1000px;margin:0 auto;padding:14px 12px 60px}
+header{display:flex;align-items:center;gap:12px;border-bottom:2px solid var(--brand);padding-bottom:10px;margin-bottom:12px}
+.dot{width:40px;height:40px;border-radius:10px;background:var(--brand);display:grid;place-items:center;font-weight:800;font-size:15px;flex-shrink:0}
+h1{font-size:17px;font-weight:800}
+.sub{color:var(--text2);font-size:11.5px;margin-top:2px}
+.tabs{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}
+.tab{background:var(--s1);border:1px solid var(--line);border-radius:20px;padding:7px 14px;font-size:12.5px;font-weight:700;color:var(--text2);cursor:pointer;user-select:none}
+.tab.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.tabs.per .tab{border-radius:9px}
+.tabs.sub .tab{border-radius:9px;padding:8px 14px;font-size:13px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}
+.kpi{background:var(--s1);border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:10px;padding:11px 13px}
+.kpi .k{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.kpi .v{font-size:23px;font-weight:800;margin:2px 0}
+.kpi .d{font-size:11px;color:var(--text2)}
+.kpi.g{border-left-color:var(--good)}.kpi.w{border-left-color:var(--warn)}.kpi.b{border-left-color:var(--bad)}.kpi.y{border-left-color:#e8b93a}
+.sec{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:14px 15px;margin-bottom:13px}
+.sec h2{font-size:14px;font-weight:800}
+.sec .hs{font-size:11px;color:var(--muted);margin:2px 0 10px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{text-align:left;padding:6px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px}
+tr:last-child td{border-bottom:none}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.bar{background:var(--s2);border-radius:6px;height:9px;overflow:hidden}
+.bar i{display:block;height:100%}
+.pill{display:inline-block;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap}
+.pg{background:rgba(47,174,106,.16);color:#5fd396}.pw{background:rgba(224,169,58,.16);color:#e0a93a}.pb{background:rgba(230,103,103,.16);color:#f08d8d}
+.empty{color:var(--muted);font-size:12px;padding:6px 0}
+.stars{color:#e8b93a}
+.day{display:grid;grid-template-columns:52px 1fr 42px;gap:8px;align-items:center;margin:4px 0;font-size:12px}
+.superc{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.super{background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:12px}
+.super .nm{font-weight:800;font-size:13px}
+.super .lv{font-size:20px;font-weight:800;margin:4px 0}
+#gate{position:fixed;inset:0;background:var(--s0);z-index:100;display:flex;align-items:center;justify-content:center}
+.gatebox{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:30px 26px;width:320px;text-align:center}
+.gatebox input{width:100%;background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:11px 14px;color:var(--text);font-size:15px;outline:none;margin:14px 0 10px;text-align:center}
+.gatebox button{width:100%;background:var(--brand);border:none;color:#fff;border-radius:10px;padding:11px;font-size:14px;font-weight:800;cursor:pointer}
+.gerr{color:#f08d8d;font-size:12px;min-height:16px;margin-top:8px}
+select{background:var(--s2);border:1px solid var(--line);border-radius:8px;color:#fff;padding:6px 8px;font-size:12.5px;font-family:inherit}
+@media(max-width:560px){th,td{padding:6px 3px;font-size:11.5px}.wrap{padding:10px 8px 60px}}
+.win td{border-top:1px solid var(--good)} .win td:first-child{box-shadow:inset 3px 0 var(--good)}
+.late td:first-child{box-shadow:inset 3px 0 var(--bad)}
+details{margin:2px 0} details summary{cursor:pointer;color:#7fb4f2;font-size:11.5px;list-style:none}
+.chat{background:var(--s2);border-radius:8px;padding:8px;margin-top:4px}
+.chat .msg{font-size:12px;margin:3px 0;color:var(--text2)}
+.fotos{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.fotos img{width:70px;height:70px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+.ped b{color:var(--text)} .wrapx{overflow-x:auto}
+</style>
+</head>
+<body>
+<div id="gate"><div class="gatebox">
+  <div class="dot" style="margin:0 auto 12px">CM</div>
+  <h1>iFood · Qualidade</h1>
+  <div class="sub">Equipe de gestão — digite a senha</div>
+  <input type="password" id="gpw" placeholder="Senha" onkeydown="if(event.key==='Enter')gateTry()">
+  <button onclick="gateTry()">Entrar</button>
+  <div class="gerr" id="gerr"></div>
+</div></div>
+
+<div class="wrap">
+<header>
+  <div class="dot">CM</div>
+  <div style="flex:1"><h1>🍔 iFood · Qualidade</h1><div class="sub" id="hsub">carregando…</div></div>
+  <button class="tab" onclick="loadAll()">↻</button>
+</header>
+
+<div class="tabs per" id="periodos"></div>
+<div class="tabs" id="lojas"></div>
+<div id="kpis"></div>
+<div class="tabs sub" id="subtabs"></div>
+<div id="conteudo"><div class="empty">carregando…</div></div>
+</div>
+
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const H={apikey:KEY,Authorization:'Bearer '+KEY};
+const PASS_HASH='132704a017cc174942929dae49a5de2748d09170a0b16962cad693e88ee57441';
+const OWNER_HASH='d7149f187239f5d99c428c666fa476b7e7808f38226765d5c62ed0ec65e7eaee';
+const $=id=>document.getElementById(id);
+async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+async function gateTry(){const v=$('gpw').value;const h=await sha((v||'').trim());
+  if(h===PASS_HASH||h===OWNER_HASH){sessionStorage.setItem('cm_del_ok','1');$('gate').style.display='none';loadAll()}
+  else $('gerr').textContent='Senha incorreta.'}
+if(sessionStorage.getItem('cm_del_ok')==='1'||sessionStorage.getItem('cm_owner_ok')==='1'){$('gate').style.display='none'}
+
+const LOJAS=['Todas','Água Verde','São Braz','Ahú'];
+const DOWN=['dom','seg','ter','qua','qui','sex','sáb'];
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const iso=d=>d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
+const br=d=>d.slice(8,10)+'/'+d.slice(5,7);
+const dow=d=>{const p=d.split('-').map(Number);return new Date(Date.UTC(p[0],p[1]-1,p[2])).getUTCDay()};
+const rs=n=>Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+async function fj(u){const r=await fetch(SB+u,{headers:H});if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
+
+let PER='hoje', LOJA='Todas', SUB='aval', AVAL=[],CANC=[],NEG=[],DIMS=[],SUPER=[];
+function hoje(){return iso(new Date())}
+function ontem(){return iso(new Date(Date.now()-864e5))}
+function diasPeriodo(){ if(PER==='hoje')return [hoje()]; if(PER==='ontem')return [ontem()];
+  const a=[];for(let i=0;i<7;i++)a.push(iso(new Date(Date.now()-i*864e5)));return a}
+function rotulo(){return PER==='hoje'?('Hoje · '+DOWN[dow(hoje())]+' '+br(hoje())):PER==='ontem'?('Ontem · '+DOWN[dow(ontem())]+' '+br(ontem())):'Últimos 7 dias'}
+function uni(id){const l=DIMS.find(x=>x.id_loja===id);return l?l.unidade:null}
+function nomeLoja(id){const l=DIMS.find(x=>x.id_loja===id);return l?l.nome:id}
+function fL(r){return LOJA==='Todas'||uni(r.id_loja)===LOJA}
+
+async function loadAll(){
+  try{
+    const d8=iso(new Date(Date.now()-8*864e5));
+    [DIMS,AVAL,CANC,NEG,SUPER]=await Promise.all([
+      fj('ifood_dim_loja?select=id_loja,nome,unidade'),
       fj('ifood_fato_avaliacao?data_avaliacao=gte.'+d8+'&select=id_loja,data_avaliacao,nota,tags,comentario&order=data_avaliacao.desc&limit=3000'),
       fj('ifood_fato_cancelamento?data=gte.'+d8+'&select=id_loja,data,turno,motivo,valor_pedido,valor_cancelamento,itens_cancelados,impactou_super,id_pedido,origem,contestavel,loja_contestou,status_contestacao,id_saipos,forma_pagamento,pagamento_online,primeiro_pedido,chat,fotos&order=data.desc&limit=1000'),
       fj('ifood_fato_negociacao?data=gte.'+d8+'&select=id_loja,data,motivo,resposta_loja,resposta_cliente,momento_solicitacao,tempo_ofertado_atraso_min,cancelamento_evitado,valor_reembolso,valor_pedido,impactou_super,id_pedido,id_saipos,forma_pagamento,pagamento_online,primeiro_pedido,chat,fotos&order=data.desc&limit=1000'),
