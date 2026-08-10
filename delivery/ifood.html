@@ -97,11 +97,15 @@ const OWNER_HASH='d7149f187239f5d99c428c666fa476b7e7808f38226765d5c62ed0ec65e7ea
 const $=id=>document.getElementById(id);
 async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 async function gateTry(){const v=$('gpw').value;const h=await sha((v||'').trim());
-  if(h===PASS_HASH||h===OWNER_HASH){sessionStorage.setItem('cm_del_ok','1');$('gate').style.display='none';loadAll()}
+  if(h===SB_HASH){sessionStorage.setItem('cm_sb_ok','1');sessionStorage.setItem('cm_portal_role','saobraz');location.href='?u='+encodeURIComponent('São Braz')}
+  else if(h===PASS_HASH||h===OWNER_HASH){sessionStorage.setItem('cm_del_ok','1');$('gate').style.display='none';loadAll()}
   else $('gerr').textContent='Senha incorreta.'}
-if(sessionStorage.getItem('cm_del_ok')==='1'||sessionStorage.getItem('cm_owner_ok')==='1'){$('gate').style.display='none'}
+if(sessionStorage.getItem('cm_del_ok')==='1'||sessionStorage.getItem('cm_owner_ok')==='1'||sessionStorage.getItem('cm_sb_ok')==='1'){$('gate').style.display='none'}
 
-const LOJAS=['Todas','Água Verde','São Braz','Ahú'];
+const SB_HASH='bc54706ad12e7654b56e3b7468768d3c9a3b98459a95b8c465a47fed979ed792';
+const _pu=new URLSearchParams(location.search).get('u');
+const SOSB=_pu==='São Braz'||sessionStorage.getItem('cm_portal_role')==='saobraz';
+const LOJAS=SOSB?['São Braz']:['Todas','Água Verde','São Braz','Ahú'];
 const DOWN=['dom','seg','ter','qua','qui','sex','sáb'];
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const iso=d=>d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
@@ -110,7 +114,7 @@ const dow=d=>{const p=d.split('-').map(Number);return new Date(Date.UTC(p[0],p[1
 const rs=n=>Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 async function fj(u){const r=await fetch(SB+u,{headers:H});if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
 
-let PER='hoje', LOJA='Todas', SUB='aval', AVAL=[],CANC=[],NEG=[],DIMS=[],SUPER=[];
+let PER='hoje', LOJA=SOSB?'São Braz':'Todas', SUB='aval', AVAL=[],CANC=[],NEG=[],DIMS=[],SUPER=[];
 function hoje(){return iso(new Date())}
 function ontem(){return iso(new Date(Date.now()-864e5))}
 function diasPeriodo(){ if(PER==='hoje')return [hoje()]; if(PER==='ontem')return [ontem()];
