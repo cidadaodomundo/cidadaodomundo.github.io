@@ -43,6 +43,9 @@
   .muted{color:var(--mut)}
   .flex{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
   .cwrap{position:relative;height:260px}
+  details{margin:2px 0}details summary{cursor:pointer;color:var(--acc);font-size:12px;list-style:none}
+  .chat{background:var(--panel2);border-radius:8px;padding:8px;margin-top:4px}.chat .msg{font-size:12px;margin:3px 0;color:var(--txt)}
+  .fotos{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}.fotos img{width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
   @media(max-width:640px){.card .big{font-size:18px}.cwrap{height:200px}}
 </style>
 </head>
@@ -127,9 +130,9 @@ async function loadAll(){
   document.getElementById("content").innerHTML='<div class="panel muted">Carregando dados ao vivo…</div>';
   [LOJAS,CANC,NEG,AVAL,QUAL,SUPER]=await Promise.all([
     fetchAll("ifood_dim_loja","id_loja,nome,unidade,ativa"),
-    fetchAll("ifood_fato_cancelamento","id_loja,id_pedido,data,turno,status_pedido,motivo,impactou_super,valor_pedido,valor_cancelamento,itens_cancelados,origem,contestavel,loja_contestou,status_contestacao","data"),
-    fetchAll("ifood_fato_negociacao","id_loja,id_pedido,data,turno,motivo,momento_solicitacao,quem_iniciou,resposta_loja,resposta_cliente,valor_reembolso,valor_cupom,cancelamento_evitado,impactou_super","data"),
-    fetchAll("ifood_fato_avaliacao","id_loja,data_avaliacao,nota,tags,comentario","data_avaliacao"),
+    fetchAll("ifood_fato_cancelamento","id_loja,id_pedido,data,turno,status_pedido,motivo,impactou_super,valor_pedido,valor_cancelamento,itens_cancelados,origem,contestavel,loja_contestou,status_contestacao,id_saipos,forma_pagamento,pagamento_online,primeiro_pedido,chat,fotos","data"),
+    fetchAll("ifood_fato_negociacao","id_loja,id_pedido,data,turno,motivo,momento_solicitacao,quem_iniciou,resposta_loja,resposta_cliente,valor_reembolso,valor_cupom,cancelamento_evitado,impactou_super,id_saipos,forma_pagamento,pagamento_online,primeiro_pedido,chat,fotos","data"),
+    fetchAll("ifood_fato_avaliacao","id_loja,data_avaliacao,nota,tags,comentario,data_pedido,id_pedido_curto","data_avaliacao"),
     fetchAll("ifood_fato_qualidade_periodo","id_loja,periodo_inicio,periodo_fim,pedidos_totais,cancelamentos_super,pct_cancelamentos_super,negociacoes_super,pct_negociacoes_super,pct_respostas_negociacoes,qtd_avaliacoes,media_avaliacoes","periodo_fim"),
     fetchAll("ifood_fato_super_status","tipo,id_loja,referencia,periodo,e_elegivel,e_super,nivel,status,total_pedidos,pedidos_avaliados,media_avaliacoes,pct_cancelamento,canc_resp_loja,pct_chamados,chamados_validos,plano_acao","referencia"),
   ]);
@@ -154,6 +157,14 @@ function lojaIds(){
 }
 function inPeriod(d){return d&&d>=F.d1&&d<=F.d2}
 function lojaNome(id){const l=LOJAS.find(x=>x.id_loja===id);return l?l.nome:id}
+function hhmm(x){return x&&x.data_pedido?String(x.data_pedido).slice(11,16):"–"}
+function pedHtml(x){return '<div><b>iFood:</b> '+(x.id_pedido||"–")+'</div><div class="muted" style="font-size:11px">Saipos: '+(x.id_saipos||"–")+'</div>'}
+function pagHtml(x){if(x.pagamento_online===true)return '<span class="pill p-ok">Online</span>';if(x.pagamento_online===false)return '<span class="pill p-neu">Na entrega</span>';if(x.forma_pagamento)return '<span class="pill p-neu">'+x.forma_pagamento+'</span>';return "–"}
+function chatHtml(x){if(x.chat&&Array.isArray(x.chat)&&x.chat.length){return '<details><summary>💬 ver chat ('+x.chat.length+')</summary><div class="chat">'+x.chat.map(function(m){return '<div class="msg"><b>'+(m.quem||m.autor||"")+':</b> '+(m.texto||m.msg||(typeof m==="string"?m:""))+'</div>'}).join("")+'</div></details>'}var rl=x.resposta_loja,rc=x.resposta_cliente;if((rl&&rl!=="-")||(rc&&rc!=="-"))return '<details><summary>💬 conversa</summary><div class="chat"><div class="msg"><b>Loja:</b> '+(rl||"–")+'</div><div class="msg"><b>Cliente:</b> '+(rc||"–")+'</div></div></details>';return '<span class="muted">sem chat</span>'}
+function fotosHtml(x){if(x.fotos&&Array.isArray(x.fotos)&&x.fotos.length){return '<details><summary>📷 fotos ('+x.fotos.length+')</summary><div class="fotos">'+x.fotos.map(function(u){return '<a href="'+u+'" target="_blank" rel="noopener"><img src="'+u+'"></a>'}).join("")+'</div></details>'}return '<span class="muted">sem foto</span>'}
+function tardeCanc(c){return c.contestavel===true&&c.loja_contestou!==true&&(!c.status_contestacao||c.status_contestacao==="-")}
+function cgCanc(c){var m=(c.motivo||"").toUpperCase();var semFoto=!c.fotos||(Array.isArray(c.fotos)&&c.fotos.length===0);var ausente=/NINGU[EÉ]M PODER|LOCAL ERRADO|ENDERE|NÃO ESTAVA|RECEBER O PEDIDO/.test(m);var reclama=/ERRAD|INCOMPLET|IMPR[OÓ]PRIO|FALTOU|REVIRAD|VIOLAD|NÃO CHEGOU/.test(m);if(c.status_contestacao==="CONTESTAÇÃO ACATADA")return{g:true,t:"contestação acatada"};if(ausente)return{g:true,t:"cliente ausente/endereço — motoboy foi"};if(reclama&&semFoto)return{g:true,t:"reclamação sem foto — contestar"};if(c.primeiro_pedido===true&&reclama)return{g:true,t:"1º pedido — checar fala suspeita"};return{g:false,t:""}}
+function cgCham(n){var rc=(n.resposta_cliente||"").toUpperCase();var mo=(n.momento_solicitacao||"").toUpperCase();if(rc==="NÃO RESPONDEU"&&/ATRASO/.test(mo))return{g:true,t:"cliente não respondeu (motoboy foi)"};if(/REJEITOU|REJEITADA|EXPIRADA/.test(rc))return{g:true,t:"cliente rejeitou/expirou — registrar"};return{g:false,t:""}}
 
 function filtered(){
   const ids=lojaIds();
@@ -201,8 +212,8 @@ function rAval(f){
         <table>${tags.slice(0,10).map(([t,n])=>`<tr><td>${/incompleto|errado|danificado|mal /i.test(t)?"⚠️":"✅"} ${t}</td><td>${n}</td></tr>`).join("")||"<tr><td class='muted'>sem tags no período</td></tr>"}</table></div>
     </div>
     <div class="panel"><b>Comentários recentes</b>
-      <table><tr><th>Data</th><th>Loja</th><th>Nota</th><th>Comentário</th></tr>
-      ${coment.map(r=>`<tr><td>${dBR(r.data_avaliacao)}</td><td>${lojaNome(r.id_loja)}</td><td class="stars">★${r.nota}</td><td>${r.comentario}</td></tr>`).join("")||"<tr><td colspan=4 class='muted'>sem comentários no período</td></tr>"}</table></div>`);
+      <table><tr><th>Data</th><th>Horário</th><th>Pedido</th><th>Loja</th><th>Nota</th><th>Comentário</th></tr>
+      ${coment.map(r=>`<tr><td>${dBR(r.data_avaliacao)}</td><td>${hhmm(r)}</td><td>${r.id_pedido_curto||"–"}</td><td>${lojaNome(r.id_loja)}</td><td class="stars">★${r.nota}</td><td>${r.comentario}</td></tr>`).join("")||"<tr><td colspan=6 class='muted'>sem comentários no período</td></tr>"}</table></div>`);
   newChart("ch1",{type:"line",data:{labels:dias.map(dBR),datasets:[
     {label:"Nota média",data:dias.map(d=>+(porDia[d].s/porDia[d].n).toFixed(2)),borderColor:"#f5a623",backgroundColor:"#f5a62333",tension:.3,yAxisID:"y"},
     {label:"Qtd avaliações",data:dias.map(d=>porDia[d].n),borderColor:"#4aa3ff",backgroundColor:"#4aa3ff33",type:"bar",yAxisID:"y2"}]},
@@ -220,12 +231,13 @@ function rCanc(f){
       <div class="card"><div class="lbl">🍳 Responsab. cozinha (estimado)</div><div class="big">${coz.length}</div><div class="muted" style="font-size:12px">${fmtBRL(coz.reduce((s,r)=>s+(+r.valor_cancelamento||0),0))}</div></div>
       <div class="card"><div class="lbl">📦 Responsab. expedição (estimado)</div><div class="big">${exp.length}</div><div class="muted" style="font-size:12px">${fmtBRL(exp.reduce((s,r)=>s+(+r.valor_cancelamento||0),0))}</div></div>
       <div class="card"><div class="lbl">⚖️ Contestáveis</div><div class="big">${contest.length}</div><div class="muted" style="font-size:12px">${contest.filter(r=>r.loja_contestou).length} contestados pela loja</div></div>
+      <div class="card"><div class="lbl">🏆 Causa ganha p/ loja</div><div class="big">${f.canc.filter(r=>cgCanc(r).g).length}</div><div class="muted" style="font-size:12px">${f.canc.filter(tardeCanc).length} não contestados a tempo</div></div>
       <div class="card"><div class="lbl">🔴 Impactaram o Super</div><div class="big">${f.canc.filter(r=>r.impactou_super).length}</div></div>
     </div>
     <div class="panel"><b>Motivos (por valor perdido)</b><div class="cwrap"><canvas id="ch2"></canvas></div></div>
     <div class="panel"><b>Cancelamentos no período</b>
-      <table><tr><th>Data</th><th>Loja</th><th>Status</th><th>Motivo</th><th>Valor</th><th>Itens</th><th>Contestação</th></tr>
-      ${f.canc.map(r=>`<tr><td>${dBR(r.data)}</td><td>${lojaNome(r.id_loja)}</td><td><span class="pill ${r.status_pedido==="CANCELADO"?"p-bad":"p-warn"}">${r.status_pedido==="CANCELADO"?"Total":"Parcial"}</span></td><td>${r.motivo}</td><td>${fmtBRL(+r.valor_cancelamento)}</td><td class="muted">${(r.itens_cancelados||"-").slice(0,70)}</td><td>${r.status_contestacao&&r.status_contestacao!=="-"?r.status_contestacao:(r.contestavel?'<span class="pill p-warn">contestável</span>':"–")}</td></tr>`).join("")||"<tr><td colspan=7 class='muted'>nenhum no período 🎉</td></tr>"}</table></div>`);
+      <table><tr><th>Data</th><th>Loja</th><th>Pedido</th><th>Status</th><th>Motivo</th><th>Pagamento</th><th>Valor</th><th>Contestação</th><th>Causa ganha</th><th>Chat / Fotos</th></tr>
+      ${f.canc.map(r=>{const cg=cgCanc(r);return `<tr><td>${dBR(r.data)}</td><td>${lojaNome(r.id_loja)}</td><td>${pedHtml(r)}</td><td><span class="pill ${r.status_pedido==="CANCELADO"?"p-bad":"p-warn"}">${r.status_pedido==="CANCELADO"?"Total":"Parcial"}</span></td><td>${r.motivo}</td><td>${pagHtml(r)}</td><td>${fmtBRL(+r.valor_cancelamento)}</td><td>${r.status_contestacao&&r.status_contestacao!=="-"?r.status_contestacao:(r.contestavel?'<span class="pill p-warn">contestável</span>':"–")}${tardeCanc(r)?'<br><span class="pill p-bad">⏰ fora do prazo</span>':""}</td><td>${cg.g?'<span class="pill p-ok">🏆 '+cg.t+'</span>':"–"}</td><td>${chatHtml(r)} ${fotosHtml(r)}</td></tr>`}).join("")||"<tr><td colspan=10 class='muted'>nenhum no período 🎉</td></tr>"}</table></div>`);
   newChart("ch2",{type:"bar",data:{labels:ms.slice(0,8).map(m=>m[0].slice(0,38)),datasets:[{label:"R$ perdidos",data:ms.slice(0,8).map(m=>+m[1].v.toFixed(2)),backgroundColor:"#e5484d"}]},
     options:{indexAxis:"y",maintainAspectRatio:false,scales:{x:{ticks:{color:"#95a1b2"}},y:{ticks:{color:"#e6eaf0",font:{size:11}}}},plugins:{legend:{display:false}}}});
 }
@@ -243,8 +255,8 @@ function rNeg(f){
     <div class="panel"><b>Motivos mais comuns</b>
       <table>${ms.slice(0,10).map(([m,n])=>`<tr><td>${m}</td><td>${n}</td></tr>`).join("")}</table></div>
     <div class="panel"><b>Chamados no período</b>
-      <table><tr><th>Data</th><th>Loja</th><th>Momento</th><th>Motivo</th><th>Resposta da loja</th><th>Cliente</th></tr>
-      ${f.neg.map(r=>`<tr><td>${dBR(r.data)}</td><td>${lojaNome(r.id_loja)}</td><td class="muted">${r.momento_solicitacao||"–"}</td><td>${r.motivo}</td><td>${r.resposta_loja||"–"}</td><td class="muted">${r.resposta_cliente&&r.resposta_cliente!=="-"?r.resposta_cliente:"–"}</td></tr>`).join("")||"<tr><td colspan=6 class='muted'>nenhum no período 🎉</td></tr>"}</table></div>`);
+      <table><tr><th>Data</th><th>Loja</th><th>Pedido</th><th>Momento</th><th>Motivo</th><th>Pagamento</th><th>Resposta da loja</th><th>Cliente</th><th>Causa ganha</th><th>Chat / Fotos</th></tr>
+      ${f.neg.map(r=>{const cg=cgCham(r);return `<tr><td>${dBR(r.data)}</td><td>${lojaNome(r.id_loja)}</td><td>${pedHtml(r)}</td><td class="muted">${r.momento_solicitacao||"–"}</td><td>${r.motivo}</td><td>${pagHtml(r)}</td><td>${r.resposta_loja||"–"}</td><td class="muted">${r.resposta_cliente&&r.resposta_cliente!=="-"?r.resposta_cliente:"–"}</td><td>${cg.g?'<span class="pill p-ok">🏆 '+cg.t+'</span>':"–"}</td><td>${chatHtml(r)} ${fotosHtml(r)}</td></tr>`}).join("")||"<tr><td colspan=10 class='muted'>nenhum no período 🎉</td></tr>"}</table></div>`);
 }
 
 function rResp(f){
