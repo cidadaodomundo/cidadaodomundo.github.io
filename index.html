@@ -62,7 +62,7 @@ iframe{flex:1;width:100%;border:0;background:var(--s0)}
   <input type="password" id="gpw" placeholder="Senha do proprietário" onkeydown="if(event.key==='Enter')gateTry()">
   <button onclick="gateTry()">Entrar</button>
   <div class="gerr" id="gerr"></div>
-  <span class="alt" onclick="entrarGestor()">Sou gestor — entrar sem senha →</span>
+  <div style="color:var(--muted);font-size:11.5px;margin-top:14px;line-height:1.5">Use a senha da sua área.<br>Não tem? Fale com o Fábio.</div>
 </div></div>
 
 <div class="app">
@@ -83,50 +83,54 @@ iframe{flex:1;width:100%;border:0;background:var(--s0)}
 
 <script>
 const LOGO="//acconimages.s3.amazonaws.com/merchants/logos/378-1755286245137.png";
-const OWNER_HASHES=['d7149f187239f5d99c428c666fa476b7e7808f38226765d5c62ed0ec65e7eaee','e4a209159425e3ee99d7c71a804c4e8c4dc9fa00acdaaab798b746d59205780c'];
+const PAPEIS={
+  'd7149f187239f5d99c428c666fa476b7e7808f38226765d5c62ed0ec65e7eaee':'dono',
+  'e4a209159425e3ee99d7c71a804c4e8c4dc9fa00acdaaab798b746d59205780c':'dono',
+  '717ae97317296be11ea11bfe873944d89ed75030fbf46f6cd74d488600ad5ccc':'gestao',
+  'bc54706ad12e7654b56e3b7468768d3c9a3b98459a95b8c465a47fed979ed792':'saobraz',
+  '132704a017cc174942929dae49a5de2748d09170a0b16962cad693e88ee57441':'delivery'};
+const ROTULO={dono:'Proprietário',gestao:'Gestoras · Água Verde',saobraz:'São Braz',delivery:'Delivery · Água Verde'};
+const FLAGS={dono:['cm_owner_ok','cm_ok','cm_del_ok','cm_rh_ok'],gestao:['cm_del_ok','cm_rh_ok'],delivery:['cm_del_ok'],saobraz:['cm_sb_ok']};
 const MODULOS=[
-  {id:'delivery',grupo:'gestao',nome:'Central do Delivery',icone:'🛵',desc:'Diário, equipe e iFood do delivery',url:'delivery/'},
-  {id:'rh',grupo:'gestao',nome:'Central do RH',icone:'👥',desc:'Ponto do dia das gestoras',url:'rh/'},
-  {id:'rhsb',grupo:'gestao',nome:'RH · São Braz',icone:'👥',desc:'Ponto do dia — só São Braz',url:'rh/?u='+encodeURIComponent('São Braz')},
-  {id:'salao',grupo:'gestao',nome:'Central Salão',icone:'🍽',desc:'Gestão do salão (em construção)',url:'salao/'},
-  {id:'ponto',grupo:'dono',nome:'Painel RH · Proprietários',icone:'⏱️',desc:'Ranking, guia e visão geral do ponto',url:'ponto/'},
-  {id:'ifood',grupo:'dono',nome:'iFood · Qualidade',icone:'🍔',desc:'Notas, cancelamentos, chamados e Selo Super',url:'delivery/ifood-proprietario.html'},
-  {id:'escala',grupo:'dono',nome:'Escala & Clima',icone:'🗓',desc:'Previsão de chuva e escala dos motoboys',url:'delivery/escala.html'},
-  {id:'qr',grupo:'dono',nome:'QR do dia',icone:'📱',desc:'QR de check-in do balcão',url:'delivery/qr.html'}
+  {id:'delivery',grupo:'Delivery',papeis:['dono','gestao','delivery'],nome:'Central do Delivery',icone:'🛵',desc:'Diário, equipe e iFood do delivery',url:'delivery/'},
+  {id:'escala',grupo:'Delivery',papeis:['dono','gestao','delivery'],nome:'Escala & Clima',icone:'🗓',desc:'Previsão de chuva e escala dos motoboys',url:'delivery/escala.html'},
+  {id:'qr',grupo:'Delivery',papeis:['dono','gestao','delivery'],nome:'QR do dia',icone:'📱',desc:'QR de check-in do balcão',url:'delivery/qr.html'},
+  {id:'checkin',grupo:'Delivery',papeis:['dono','gestao','delivery'],nome:'Check-in do motoboy',icone:'✅',desc:'Tela que o entregador usa para bater ponto',url:'delivery/checkin.html'},
+  {id:'rh',grupo:'Gestão',papeis:['dono','gestao'],nome:'Central do RH',icone:'👥',desc:'Ponto do dia das gestoras',url:'rh/'},
+  {id:'salao',grupo:'Gestão',papeis:['dono','gestao'],nome:'Central Salão',icone:'🍽',desc:'Gestão do salão (em construção)',url:'salao/'},
+  {id:'rhsb',grupo:'São Braz',papeis:['dono','saobraz'],nome:'Ponto · São Braz',icone:'👥',desc:'Ponto do dia — só São Braz',url:'rh/?u='+encodeURIComponent('São Braz')},
+  {id:'ifoodsb',grupo:'São Braz',papeis:['dono','saobraz'],nome:'iFood · São Braz',icone:'🍔',desc:'Notas e reclamações — só São Braz',url:'delivery/ifood.html?u='+encodeURIComponent('São Braz')},
+  {id:'ponto',grupo:'Proprietário',papeis:['dono'],nome:'Painel RH · Proprietários',icone:'⏱️',desc:'Ranking, guia e visão geral do ponto',url:'ponto/'},
+  {id:'ifood',grupo:'Proprietário',papeis:['dono'],nome:'iFood · Qualidade',icone:'🍔',desc:'Notas, cancelamentos, chamados e Selo Super',url:'delivery/ifood-proprietario.html'}
 ];
+const GRUPOS=['Delivery','Gestão','São Braz','Proprietário'];
 const $=id=>document.getElementById(id);
 let ROLE=sessionStorage.getItem('cm_portal_role')||null;
 let ATUAL=null;
 async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 async function gateTry(){const h=await sha(($('gpw').value||'').trim());
-  if(OWNER_HASHES.includes(h)){entrarDono()} else $('gerr').textContent='Senha incorreta.'}
-function entrarDono(){ROLE='dono';sessionStorage.setItem('cm_portal_role','dono');
-  ['cm_owner_ok','cm_del_ok','cm_rh_ok','cm_ok'].forEach(k=>sessionStorage.setItem(k,'1'));
+  const p=PAPEIS[h];
+  if(p){entrar(p)}else{$('gerr').textContent='Senha incorreta.';$('gpw').value=''}}
+function entrar(p){ROLE=p;sessionStorage.setItem('cm_portal_role',p);
+  (FLAGS[p]||[]).forEach(k=>sessionStorage.setItem(k,'1'));
   $('gate').style.display='none';boot()}
-function entrarGestor(){ROLE='gestor';sessionStorage.setItem('cm_portal_role','gestor');
-  ['cm_del_ok','cm_rh_ok','cm_ok'].forEach(k=>sessionStorage.setItem(k,'1'));
-  $('gate').style.display='none';boot()}
-function virarDono(){['cm_portal_role','cm_owner_ok','cm_del_ok','cm_rh_ok','cm_ok'].forEach(k=>sessionStorage.removeItem(k));location.reload()}
-function sair(){['cm_portal_role','cm_owner_ok','cm_del_ok','cm_rh_ok','cm_ok'].forEach(k=>sessionStorage.removeItem(k));location.reload()}
-function mods(){return MODULOS.filter(m=>ROLE==='dono'||m.grupo==='gestao')}
+function sair(){['cm_portal_role','cm_owner_ok','cm_del_ok','cm_rh_ok','cm_sb_ok','cm_ok'].forEach(k=>sessionStorage.removeItem(k));location.reload()}
+function mods(){return MODULOS.filter(m=>m.papeis.includes(ROLE))}
 function menu(){
   let h='<div class="mi'+(ATUAL===null?' on':'')+'" onclick="inicio()"><div class="ic">🏠</div><div><div class="t">Início</div></div></div>';
-  h+='<div class="grp">Gestão</div>'+mods().filter(m=>m.grupo==='gestao').map(mi).join('');
-  if(ROLE==='dono')h+='<div class="grp">Proprietário</div>'+mods().filter(m=>m.grupo==='dono').map(mi).join('');
-  else h+='<div class="grp">Proprietário</div><div class="mi" onclick="virarDono()"><div class="ic">🔑</div><div><div class="t">Entrar como proprietário</div><div class="d">Acessar os módulos exclusivos</div></div></div>';
+  GRUPOS.forEach(g=>{const l=mods().filter(m=>m.grupo===g);if(l.length)h+='<div class="grp">'+g+'</div>'+l.map(mi).join('')});
   $('menu').innerHTML=h;
-  $('roleLbl').textContent=ROLE==='dono'?'Proprietário':'Gestor';
+  $('roleLbl').textContent=ROTULO[ROLE]||'Portal de Gestão';
 }
 function mi(m){return '<div class="mi'+(ATUAL===m.id?' on':'')+'" onclick="abrir(\''+m.id+'\')"><div class="ic">'+m.icone+'</div><div><div class="t">'+m.nome+'</div><div class="d">'+m.desc+'</div></div></div>'}
 function inicio(){ATUAL=null;location.hash='';$('titulo').textContent='Início';$('rt').innerHTML='';
-  const grupos=[['Gestão','gestao'],['Proprietário','dono']];
-  let h='<div class="home"><img src="'+LOGO+'"><h1>Portal de Gestão</h1><div class="s">Escolha um módulo</div><div class="cards">';
-  grupos.forEach(g=>{const list=mods().filter(m=>m.grupo===g[1]);if(!list.length)return;
-    h+='<div class="gh">'+g[0]+'</div>'+list.map(m=>'<div class="card" onclick="abrir(\''+m.id+'\')"><div class="ic">'+m.icone+'</div><div class="t">'+m.nome+'</div><div class="d">'+m.desc+'</div></div>').join('')});
+  let h='<div class="home"><img src="'+LOGO+'"><h1>Portal de Gestão</h1><div class="s">'+(ROTULO[ROLE]||'')+' — escolha um módulo</div><div class="cards">';
+  GRUPOS.forEach(g=>{const list=mods().filter(m=>m.grupo===g);if(!list.length)return;
+    h+='<div class="gh">'+g+'</div>'+list.map(m=>'<div class="card" onclick="abrir(\''+m.id+'\')"><div class="ic">'+m.icone+'</div><div class="t">'+m.nome+'</div><div class="d">'+m.desc+'</div></div>').join('')});
   h+='</div></div>';$('view').innerHTML=h;menu();
 }
 function abrir(id){const m=MODULOS.find(x=>x.id===id);if(!m)return;
-  if(m.grupo==='dono'&&ROLE!=='dono')return;
+  if(!m.papeis.includes(ROLE))return;
   ATUAL=id;location.hash=id;$('titulo').textContent=m.icone+' '+m.nome;
   $('rt').innerHTML='<button class="btn" onclick="recarregar()">↻</button><a class="btn" href="'+m.url+'" target="_blank" rel="noopener">↗ abrir</a>';
   $('view').innerHTML='<iframe id="fr" src="'+m.url+'"></iframe>';
