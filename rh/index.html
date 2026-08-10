@@ -115,6 +115,347 @@ const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const H={apikey:KEY,Authorization:'Bearer '+KEY};
 const GATE_HASH='052765de61630b6ff12d29470a27786e064d7c8cb4f4c55e4a5bbbfcf624d618';
+const GATE_ALT='717ae97317296be11ea11bfe873944d89ed75030fbf46f6cd74d488600ad5ccc';
+const GATE_SB='bc54706ad12e7654b56e3b7468768d3c9a3b98459a95b8c465a47fed979ed792';
+async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+async function gateTry(){const v=document.getElementById('gpw').value;
+  const hv=await sha(v);
+  if(hv===GATE_SB){sessionStorage.setItem('cm_sb_ok','1');sessionStorage.setItem('cm_portal_role','saobraz');location.href='?u='+encodeURIComponent('São Braz')}
+  else if(hv===GATE_HASH||hv===GATE_ALT){sessionStorage.setItem('cm_rh_ok','1');document.getElementById('gate').style.display='none'}
+  else document.getElementById('gerr').textContent='Senha incorreta.'}
+if((sessionStorage.getItem('cm_rh_ok')==='1'||sessionStorage.getItem('cm_owner_ok')==='1'||sessionStorage.getItem('cm_sb_ok')==='1'))document.getElementById('gate').style.display='none';
+const ORD={SERIO:0,GRAVE:1,INFRACAO:2,VERBAL:3,ESCALA:4,JORNADA:5,VERIFICAR:6,SEM:7};
+const UORD={'Água Verde':0,'Ahú':1,'São Braz':2,'Boqueirão':3};
+const C={SERIO:'var(--serio)',GRAVE:'var(--grave)',INFRACAO:'var(--infra)',VERBAL:'var(--verbal)',ESCALA:'var(--conf)',JORNADA:'var(--conf)',VERIFICAR:'var(--conf)',SEM:'var(--sem)'};
+const L={SERIO:'🔴 SÉRIO',GRAVE:'🟠 GRAVE',INFRACAO:'🟡 FALTA DE BATIDA',VERBAL:'🔵 ORIENTAÇÃO',ESCALA:'🔎 CONFERIR',JORNADA:'🔎 CONFERIR',VERIFICAR:'🔎 VERIFICAR',SEM:'✅ OK'};
+const KL={TOTAL:'Funcionários',SERIO:'Sério',GRAVE:'Grave',INFRACAO:'Falta de batida',VERBAL:'Orientação',CONFERIR:'Conferir',SEM:'Sem ocorrência'};
+const ACAO={
+SERIO:'RH: aplicar ADVERTÊNCIA formal assinada — política da empresa: intervalo suprimido é falta GRAVE (Art. 71 CLT). Garantir que a pausa seja cumprida integralmente. Reincidência → nova advertência / suspensão.',
+GRAVE:'RH: verificar com o gestor se a extra foi autorizada. Autorizada → pagar +50% ou compensar (banco de horas). Não autorizada → orientação escrita ao funcionário.',
+INFRACAO:'RH: ajustar a marcação no Flash com justificativa. 1ª vez → orientação escrita; reincidência → advertência formal assinada (modelo no Guia).',
+VERBAL:'RH: orientar verbalmente sobre o intervalo e registrar a conversa (data + assunto).',
+ESCALA:'RH: confirmar com o gerente a escala real do dia ANTES de qualquer medida. Se o horário mudou de vez, avisar a diretoria para atualizar o cadastro.',
+JORNADA:'RH: pedir à diretoria a definição do horário oficial deste funcionário.',
+VERIFICAR:'RH: sem marcações — conferir se há férias/atestado/folga registrados; se não houver, tratar como falta (ver Guia).'};
+let ALL=[],DAYS=[],DI=0,UNIT='Todas',FILT=null,VIEW='day';
+try{const _u=new URLSearchParams(location.search).get('u');if(_u)UNIT=_u}catch(e){}
+const SOSB=sessionStorage.getItem('cm_portal_role')==='saobraz'||sessionStorage.getItem('cm_sb_ok')==='1';if(SOSB)UNIT='São Braz';
+const $=id=>document.getElementById(id);
+const fmt=m=>m==null?'—':Math.floor(m/60)+'h'+String(m%60).padStart(2,'0');
+const title=n=>n.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
+const br=d=>{const[y,m,dd]=d.split('-');return dd+'/'+m+'/'+y};
+const isConf=c=>['ESCALA','JORNADA','VERIFICAR'].includes(c);
+async function loadAll(){
+  $('content').innerHTML='<div class="loading">Carregando…</div>';
+  try{
+    const cutoff=new Date(Date.now()-7*864e5).toISOString().slice(0,10);
+    ALL=await fetch(SB+'fato_espelho_dia?ativo=eq.true&data=gte.'+cutoff+'&select=nome,unidade,data,dia_semana,categoria,marcacoes_txt,jornada_liquida_min,intervalo_real_min,jornada_contratada_min,extra_min,detalhe&order=data.asc',{headers:H}).then(r=>r.json());
+    DAYS=[...new Set(ALL.map(r=>r.data))].sort();
+    DI=DAYS.length-1;
+    $('sub').textContent='últimos '+DAYS.length+' dias úteis · 3 lojas · atualizado '+new Date().toLocaleTimeString('pt-BR');
+    render();
+    checkAcoes();
+  }catch(e){$('content').innerHTML='<div class="err">Erro: '+e.message+'</div>'}
+}
+function setView(v){VIEW=v;FILT=null;
+  ['vday','vguia'].forEach(id=>$(id).classList.remove('active'));
+  $(v==='day'?'vday':'vguia').classList.add('active');
+  $('toolbar').style.display=v==='guia'?'none':'flex';
+  render();}
+function stepDay(d){DI=Math.min(Math.max(DI+d,0),DAYS.length-1);FILT=null;render()}
+function dayRows(){return ALL.filter(r=>r.data===DAYS[DI])}
+function render(){ VIEW==='day'?renderDay():renderGuia() }
+function renderDay(){
+  const rows=dayRows();
+  $('curday').textContent=br(DAYS[DI])+' ('+(rows[0]?.dia_semana||'').replace('-feira','')+')';
+  const k={TOTAL:rows.length,SERIO:0,GRAVE:0,INFRACAO:0,VERBAL:0,CONFERIR:0,SEM:0};
+  rows.forEach(r=>{if(isConf(r.categoria))k.CONFERIR++;else k[r.categoria]=(k[r.categoria]||0)+1});
+  const kc={TOTAL:'var(--brand)',SERIO:'var(--serio)',GRAVE:'var(--grave)',INFRACAO:'var(--infra)',VERBAL:'var(--verbal)',CONFERIR:'var(--conf)',SEM:'var(--sem)'};
+  $('kpis').innerHTML=Object.keys(k).filter(x=>x==='TOTAL'||k[x]>0).map(x=>
+    `<div class="kpi ${FILT===x?'active':''}" style="--kc:${kc[x]}" onclick="FILT=FILT==='${x}'?null:'${x}';render()">
+     <div class="n">${k[x]}</div><div class="l">${KL[x]}</div></div>`).join('');
+  const uns=[...new Set(rows.map(r=>r.unidade))].sort((a,b)=>(UORD[a]??9)-(UORD[b]??9));
+  $('units').innerHTML=(SOSB?['São Braz']:['Todas',...uns]).map(u=>{
+    const n=u==='Todas'?rows.length:rows.filter(r=>r.unidade===u).length;
+    return `<span class="tab ${UNIT===u?'active':''}" onclick="UNIT='${u}';render()">${u}<span class="cnt">${n}</span></span>`}).join('');
+  let show=rows.filter(r=>UNIT==='Todas'||r.unidade===UNIT);
+  if(FILT&&FILT!=='TOTAL')show=show.filter(r=>FILT==='CONFERIR'?isConf(r.categoria):r.categoria===FILT);
+  show.sort((a,b)=>(ORD[a.categoria]-ORD[b.categoria])||((UORD[a.unidade]??9)-(UORD[b.unidade]??9))||a.nome.localeCompare(b.nome));
+  if(!show.length){$('content').innerHTML='<div class="empty">Nenhum funcionário neste filtro.</div>';return}
+  $('content').innerHTML='<div class="grid">'+show.map(r=>{
+    const acao=(r.categoria!=='SEM'&&ACAO[r.categoria])?`<div class="acao">▸ ${ACAO[r.categoria]}</div>`:'';
+    return `<div class="card" style="--cc:${C[r.categoria]}">
+      <div class="chead"><div><div class="cname">${title(r.nome)}</div><div class="cunit">${r.unidade}</div></div>
+      <span class="badge">${L[r.categoria]}</span></div>
+      <div class="mk">🕒 ${r.marcacoes_txt}</div>
+      <div class="jr">líq ${fmt(r.jornada_liquida_min)} · int ${r.intervalo_real_min??'—'}min · contr ${fmt(r.jornada_contratada_min)}${r.extra_min?' · +'+r.extra_min+'min':''}</div>
+      ${r.detalhe?`<div class="det">▸ ${r.detalhe}</div>`:''}
+      ${acao}</div>`}).join('')+'</div>';
+}
+function renderGuia(){
+  $('kpis').innerHTML='';$('units').innerHTML='';
+  $('content').innerHTML=`
+<div class="rkexpl">📖 <b>Guia prático do RH</b> — o que fazer em cada situação do ponto, com base legal e modelos prontos. Clique em cada bloco para abrir. Regra de ouro: <b>tudo por escrito, tudo assinado, tudo arquivado</b> na Gestão de documentos do Flash.</div>
+<div class="gcard"><div class="ghead" style="background:var(--serio)" onclick="this.parentElement.classList.toggle('open')">🔴 Intervalo abaixo do mínimo legal <span class="gtag">Art. 71 CLT</span></div>
+<div class="gbody">
+<p>Jornada acima de 6h exige <b>1h de intervalo</b> (na nossa regra interna, 60min); jornada de 4–6h exige <b>15min</b>. Intervalo menor que o mínimo <span class="lei">viola o Art. 71 da CLT</span> — e não existe tolerância: 59min já é violação.</p>
+<h5>O que a empresa deve fazer</h5>
+<ol class="steps">
+<li><b>Política da empresa: aplicar ADVERTÊNCIA formal assinada já na 1ª ocorrência</b> — intervalo suprimido é tratado como falta grave (modelo abaixo).</li>
+<li>Avisar o líder do turno: a pausa deve ser usufruída <b>integralmente, todos os dias</b> — organizar a operação para isso.</li>
+<li>Reincidência: nova advertência; na 3ª, <b>suspensão</b> (ver Gradação disciplinar).</li>
+</ol>
+<h5>Modelo — advertência por intervalo suprimido</h5>
+<div class="model"><button class="copybtn" onclick="copyM(this)">Copiar</button>ADVERTÊNCIA DISCIPLINAR
+
+Colaborador(a): [NOME]  ·  Unidade: [LOJA]  ·  Data: [DATA]
+
+Registramos que em [DATA DA OCORRÊNCIA] seu intervalo intrajornada foi de [X] minutos, inferior ao mínimo legal de [60/15] minutos previsto no Art. 71 da CLT.
+
+Pela gravidade da conduta, que expõe a empresa a passivo trabalhista e contraria orientação expressa, aplicamos a presente ADVERTÊNCIA DISCIPLINAR. O intervalo deve ser usufruído integralmente. A reincidência poderá ensejar nova advertência e suspensão disciplinar (Art. 474 da CLT).
+
+______________________          ______________________
+Empresa                          Colaborador(a)
+(Se houver recusa de assinatura, colher assinatura de 2 testemunhas.)</div>
+</div></div>
+<div class="gcard"><div class="ghead" style="background:var(--grave)" onclick="this.parentElement.classList.toggle('open')">🟠 Hora extra sem autorização <span class="gtag">Art. 59 CLT</span></div>
+<div class="gbody">
+<p>Horas além da jornada contratada (fora a tolerância de 10min/dia do <span class="lei">Art. 58 §1º</span>) são <b>horas extras</b> e exigem acordo — e mesmo assim o limite é de <b>2h extras/dia</b>. Extra feita = extra paga (<b>+50%</b>, ou 100% em domingo/feriado), autorizada ou não.</p>
+<h5>O que a empresa deve fazer</h5>
+<ol class="steps">
+<li>Confirmar com o gestor: a extra foi pedida pela empresa? Se sim → pagar +50% na folha ou compensar via banco de horas (se houver acordo escrito).</li>
+<li>Se NÃO foi autorizada → pagar mesmo assim, e aplicar <b>orientação escrita</b>: horário de saída deve ser respeitado salvo ordem do gestor.</li>
+<li>Chegadas muito adiantadas contam como jornada — orientar a entrar no horário.</li>
+<li>Atenção Ahú (jornada de 10h líquidas): extras ali estouram o teto legal de 10h/dia — <b>não permitir</b>.</li>
+</ol>
+</div></div>
+<div class="gcard"><div class="ghead" style="background:var(--infra)" onclick="this.parentElement.classList.toggle('open')">🟡 Falta de batida (marcação incompleta) <span class="gtag">Portaria 671</span></div>
+<div class="gbody">
+<p>O espelho precisa ter as 4 marcações do turno. Batida faltando fragiliza a empresa em fiscalização e ação trabalhista — o espelho é a <b>prova legal da jornada</b>.</p>
+<h5>O que a empresa deve fazer</h5>
+<ol class="steps">
+<li>Ajustar a marcação no Flash com justificativa (informar o horário real confirmado com o gestor).</li>
+<li>1ª vez → <b>orientação escrita</b>. Reincidência → <b>advertência formal</b>.</li>
+<li>Casos crônicos → sequência de advertências e, mantendo-se, suspensão.</li>
+</ol>
+<h5>Modelo — advertência por falta de batidas</h5>
+<div class="model"><button class="copybtn" onclick="copyM(this)">Copiar</button>ADVERTÊNCIA DISCIPLINAR
+
+Colaborador(a): [NOME]  ·  Unidade: [LOJA]  ·  Data: [DATA]
+
+Aplicamos a presente ADVERTÊNCIA em razão de reiteradas ausências de registro de ponto ([LISTAR DATAS]), descumprindo a obrigação de marcação prevista na Portaria MTP 671/2021 e nas normas internas, mesmo após orientação em [DATA DA ORIENTAÇÃO].
+
+A reincidência poderá ensejar suspensão disciplinar e, persistindo, rescisão por justa causa (Art. 482, "e" e "h", da CLT).
+
+______________________          ______________________
+Empresa                          Colaborador(a)
+(Se houver recusa de assinatura, colher assinatura de 2 testemunhas.)</div>
+</div></div>
+<div class="gcard"><div class="ghead" style="background:var(--serio)" onclick="this.parentElement.classList.toggle('open')">🚫 Falta sem justificativa <span class="gtag">Lei 605/49</span></div>
+<div class="gbody">
+<h5>O que a empresa deve fazer</h5>
+<ol class="steps">
+<li>Aguardar <b>48h</b> pela entrega de atestado. Entregou atestado válido → abonar e registrar no Flash.</li>
+<li>Sem justificativa → <b>descontar o dia + o DSR</b> da semana (<span class="lei">Lei 605/49, art. 6º</span>) e aplicar orientação/advertência conforme histórico.</li>
+<li>Registrar a falta no evento do Flash.</li>
+<li>Faltas seguidas e sem retorno: a partir de ~30 dias com tentativas de contato documentadas, avaliar abandono de emprego (Art. 482, "i") com a diretoria.</li>
+</ol>
+</div></div>
+<div class="gcard"><div class="ghead" style="background:var(--atest)" onclick="this.parentElement.classList.toggle('open')">🩺 Atestado médico — como receber <span class="gtag">Lei 605/49 · Súm. 15/282 TST</span></div>
+<div class="gbody">
+<ol class="steps">
+<li>Conferir: nome, data, período de afastamento, <b>assinatura e CRM/CRO</b>. CID não é obrigatório.</li>
+<li>Lançar como evento no Flash (Eventos da equipe) com anexo, e arquivar na Gestão de documentos.</li>
+<li>Atestado válido <b>abona</b> — não desconta, não conta como falta.</li>
+<li>Suspeita de atestado irregular? Não recusar de imediato — avisar a diretoria.</li>
+<li>Atestados em excesso: convocar conversa de acompanhamento; >15 dias contínuos → perícia INSS.</li>
+</ol>
+</div></div>
+<div class="gcard"><div class="ghead" style="background:var(--adv)" onclick="this.parentElement.classList.toggle('open')">📄 Gradação disciplinar — a régua certa <span class="gtag">Art. 474/482 CLT</span></div>
+<div class="gbody">
+<p>A disciplina precisa ser <b>gradual, proporcional, imediata e documentada</b>. Nunca punir duas vezes o mesmo fato.</p>
+<h5>A régua</h5>
+<ol class="steps">
+<li><b>Orientação verbal</b> (registrar data/assunto).</li>
+<li><b>Orientação escrita</b> assinada.</li>
+<li><b>Advertência formal</b> assinada (1ª, 2ª, 3ª… sempre por escrito, arquivada no Flash).</li>
+<li><b>Suspensão disciplinar</b> de 1 a 5 dias sem remuneração (máx legal 30 — <span class="lei">Art. 474</span>). Padrão da casa: a partir da 3ª advertência.</li>
+<li><b>Justa causa por desídia</b> (<span class="lei">Art. 482, "e"</span>) — só com histórico completo; validar com a diretoria/contador.</li>
+</ol>
+<h5>Modelo — comunicado de suspensão</h5>
+<div class="model"><button class="copybtn" onclick="copyM(this)">Copiar</button>COMUNICADO DE SUSPENSÃO DISCIPLINAR
+
+Colaborador(a): [NOME]  ·  Unidade: [LOJA]  ·  Data: [DATA]
+
+Em razão da reincidência nas condutas já objeto das advertências de [DATAS], aplicamos SUSPENSÃO DISCIPLINAR de [X] dia(s), em [DATA(S)], sem remuneração, com fundamento no poder diretivo do empregador e no Art. 474 da CLT.
+
+Nova reincidência poderá ensejar rescisão contratual por justa causa (Art. 482 da CLT).
+
+______________________          ______________________
+Empresa                          Colaborador(a)</div>
+</div></div>
+<div class="gcard"><div class="ghead" style="background:var(--conf)" onclick="this.parentElement.classList.toggle('open')">🔎 "Conferir" no painel — o que significa <span class="gtag">rotina diária</span></div>
+<div class="gbody">
+<ol class="steps">
+<li><b>Bateu diferente do combinado</b>: perguntar ao gerente se a escala do dia mudou. Mudança definitiva → avisar a diretoria.</li>
+<li><b>Sem marcações</b>: checar férias/atestado/folga; terça São Braz e Ahú fechadas é normal.</li>
+<li><b>Horário não cadastrado</b>: pedir a definição à diretoria.</li>
+</ol>
+<h5>Rotina diária (10 min)</h5>
+<ol class="steps">
+<li>Abrir o painel de manhã (o robô atualiza sozinho às 8h) e olhar os cards vermelhos/laranjas/amarelos.</li>
+<li>Executar a ação indicada em cada card (o texto verde "RH:" diz exatamente o que fazer).</li>
+<li>Lançar eventos e documentos no Flash no mesmo dia.</li>
+<li>Lançar a <b>escala de posições da Água Verde</b> na aba "📋 Escala do dia" e ativar os avisos (sino + app ntfy).</li>
+</ol>
+</div></div>`;
+}
+function copyM(btn){const t=btn.parentElement.innerText.replace(/^Copiar\n?/,'');navigator.clipboard.writeText(t).then(()=>{btn.textContent='Copiado ✓';setTimeout(()=>btn.textContent='Copiar',1500)})}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+function askNotif(){
+  if(!('Notification' in window)){alert('Este navegador não suporta avisos. No iPhone: Compartilhar → Adicionar à Tela de Início, e abra pelo ícone.');return}
+  Notification.requestPermission().then(p=>{
+    if(p==='granted'){$('bellbtn').textContent='🔔 Avisos ativos';new Notification('RH Cidadão do Mundo',{body:'Avisos ativados! Você será alertada quando houver medida a tomar.',icon:'icon.svg'})}
+  });
+}
+if('Notification' in window&&Notification.permission==='granted')setTimeout(()=>{const b=$('bellbtn');if(b)b.textContent='🔔 Avisos ativos'},500);
+function checkAcoes(){
+  const last=DAYS[DAYS.length-1]; if(!last)return;
+  const acoes=ALL.filter(r=>r.data===last&&['SERIO','GRAVE','INFRACAO','VERBAL'].includes(r.categoria));
+  const key='rhcdm_seen_'+last;
+  if(acoes.length&&!localStorage.getItem(key)){
+    localStorage.setItem(key,'1');
+    const nomes=acoes.map(a=>a.nome.split(' ')[0]).join(', ');
+    if('Notification' in window&&Notification.permission==='granted'){
+      navigator.serviceWorker.getRegistration().then(reg=>{
+        const opts={body:acoes.length+' medida(s) a tomar hoje: '+nomes+'. Abra para ver as instruções.',icon:'icon.svg',badge:'icon.svg'};
+        reg?reg.showNotification('⚠ Ponto '+last.split('-').reverse().join('/'),opts):new Notification('⚠ Ponto',opts);
+      });
+    }
+    document.title='('+acoes.length+') Relatório RH · Cidadão do Mundo';
+  }
+  if(!acoes.length)document.title='Relatório RH · Cidadão do Mundo';
+}
+setInterval(loadAll, 15*60*1000);
+loadAll();
+</script></body></html>
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relatório RH · Cidadão do Mundo</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="icon.svg">
+<meta name="theme-color" content="#e6007e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+:root{--brand:#e6007e;--bg:#0b0e14;--surface:#141922;--surface2:#1b2230;--line:#242d3d;--text:#e8edf4;--muted:#8b95a5;
+--serio:#e05252;--grave:#e8833a;--infra:#d4b43a;--verbal:#4a90d9;--conf:#6b7686;--sem:#37b46c;
+--adv:#c0392b;--atest:#8e6bc9;--folga:#3aa6a0;--gold:#e8c547;--silver:#b8c2cc;--bronze:#c98d5a;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Roboto,sans-serif;padding:18px;max-width:1240px;margin:0 auto;font-size:14px}
+header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding-bottom:14px;border-bottom:2px solid var(--brand);margin-bottom:14px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,var(--brand),#8b1a5e);display:grid;place-items:center;font-weight:800;font-size:15px;color:#fff}
+h1{font-size:17px;font-weight:800}
+.sub{color:var(--muted);font-size:12px;margin-top:2px}
+.hright{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.live{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sem);font-weight:700}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--sem);animation:pl 1.8s infinite}
+@keyframes pl{50%{opacity:.25}}
+.btn{background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 14px;font-size:12.5px;cursor:pointer;font-weight:600;transition:.15s}
+.btn:hover{border-color:var(--brand)}
+.views{display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:4px;width:max-content;margin-bottom:14px;flex-wrap:wrap}
+.view{border:none;background:none;color:var(--muted);font-weight:700;font-size:13px;padding:8px 16px;border-radius:8px;cursor:pointer}
+.view.active{background:var(--brand);color:#fff}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.datenav{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px}
+.datenav button{background:none;border:none;color:var(--text);font-size:16px;cursor:pointer;padding:6px 10px;border-radius:7px}
+.datenav button:hover{background:var(--surface2)}
+.datenav .cur{font-weight:800;font-size:13px;padding:0 8px;min-width:180px;text-align:center}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px 15px;cursor:pointer;transition:.15s;border-left:4px solid var(--kc,var(--line))}
+.kpi:hover{border-color:var(--kc)}
+.kpi.active{background:var(--surface2);border-color:var(--kc)}
+.kpi .n{font-size:23px;font-weight:800;color:var(--kc)}
+.kpi .l{font-size:10.5px;color:var(--muted);font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin-top:2px}
+.units{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.tab{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:8px 17px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;display:flex;gap:8px;align-items:center}
+.tab .cnt{background:var(--surface2);border-radius:10px;padding:1px 8px;font-size:11px}
+.tab.active{color:#fff;border-color:var(--brand);background:#261423}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px 15px;transition:.15s;border-left:4px solid var(--cc,var(--line))}
+.chead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}
+.cname{font-weight:700;font-size:13.5px}
+.cunit{color:var(--muted);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.badge{border-radius:7px;padding:4px 9px;font-size:10.5px;font-weight:800;color:#fff;white-space:nowrap;background:var(--cc)}
+.mk{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;color:#b6c2d4;margin:5px 0 3px}
+.jr{font-size:11px;color:var(--muted)}
+.det{font-size:11.5px;color:#d3b544;margin-top:5px}
+.acao{font-size:11.5px;color:#7ec8a3;margin-top:5px;background:#12241933;border-left:2px solid var(--sem);padding:4px 8px;border-radius:0 6px 6px 0}
+.rkexpl{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 16px;font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6}
+.gcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-bottom:12px;overflow:hidden}
+.ghead{padding:12px 16px;font-weight:800;font-size:13.5px;color:#fff;display:flex;align-items:center;gap:10px;cursor:pointer}
+.ghead .gtag{font-size:10px;background:rgba(0,0,0,.25);border-radius:6px;padding:2px 8px;font-weight:700}
+.gbody{padding:14px 18px;display:none}
+.gcard.open .gbody{display:block}
+.gbody h5{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px}
+.gbody p,.gbody li{font-size:12.5px;line-height:1.65;color:var(--text)}
+.gbody li{margin-left:18px;margin-bottom:5px}
+.gbody .lei{color:var(--verbal);font-weight:700}
+.model{background:#10141c;border:1px dashed var(--line);border-radius:10px;padding:12px 14px;font-size:12px;color:#c9d4e3;white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;margin:8px 0;position:relative}
+.copybtn{position:absolute;top:8px;right:8px;background:var(--surface2);border:1px solid var(--line);color:var(--muted);border-radius:7px;padding:4px 10px;font-size:11px;cursor:pointer}
+.copybtn:hover{color:#fff;border-color:var(--brand)}
+.steps{counter-reset:st}
+.steps li{list-style:none;margin-left:0;padding-left:34px;position:relative;margin-bottom:8px}
+.steps li::before{counter-increment:st;content:counter(st);position:absolute;left:0;top:0;width:22px;height:22px;border-radius:50%;background:var(--brand);color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center}
+.loading{text-align:center;color:var(--muted);padding:60px 0}
+.err{color:#f85149;padding:14px;border:1px solid #f85149;border-radius:10px;margin:12px 0}
+.empty{text-align:center;color:var(--muted);padding:40px 0}
+#gate{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center}
+.gatebox{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:34px;width:340px;text-align:center}
+.gatebox input{width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:11px 14px;color:var(--text);font-size:14px;outline:none;margin:14px 0 10px;text-align:center}
+.gatebox button{width:100%;background:var(--brand);border:none;color:#fff;border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer}
+.gerr{color:#f85149;font-size:12px;min-height:16px;margin-top:8px}
+@media(max-width:760px){.grid{grid-template-columns:1fr}}
+</style></head><body>
+<div id="gate"><div class="gatebox">
+  <div class="logo" style="margin:0 auto 12px">CM</div>
+  <h1>Ponto do Dia · Gestoras</h1>
+  <div class="sub">Painel restrito — digite a senha</div>
+  <input type="password" id="gpw" placeholder="Senha" onkeydown="if(event.key==='Enter')gateTry()">
+  <button onclick="gateTry()">Entrar</button>
+  <div class="gerr" id="gerr"></div>
+</div></div>
+<header>
+  <div class="brand"><div class="logo">CM</div>
+    <div><h1>Ponto do Dia — Painel das Gestoras</h1><div class="sub" id="sub">carregando…</div></div>
+  </div>
+  <div class="hright">
+    <div class="live"><span class="pulse"></span>ao vivo</div>
+    <button class="btn" onclick="loadAll()">↻ Atualizar</button>
+    <button class="btn" id="bellbtn" onclick="askNotif()">🔔 Ativar avisos</button>
+  </div>
+</header>
+<div class="views">
+  <button class="view active" id="vday" onclick="setView('day')">📅 Dia</button>
+  <button class="view" id="vguia" onclick="setView('guia')">📖 Guia RH — o que fazer</button>
+  <a class="view" href="escala.html?loja=%C3%81gua%20Verde" style="text-decoration:none">📋 Escala do dia</a>
+</div>
+<div class="toolbar" id="toolbar">
+  <div class="datenav" id="datenav">
+    <button onclick="stepDay(-1)">‹</button>
+    <div class="cur" id="curday">—</div>
+    <button onclick="stepDay(1)">›</button>
+  </div>
+</div>
+<div class="kpis" id="kpis"></div>
+<div class="units" id="units"></div>
+<div id="content"><div class="loading">Conectando…</div></div>
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const H={apikey:KEY,Authorization:'Bearer '+KEY};
+const GATE_HASH='052765de61630b6ff12d29470a27786e064d7c8cb4f4c55e4a5bbbfcf624d618';
 const GATE_ALT='6db4bb52b559fe6100a9ce00ff3ad2e9153a28179ddfc2fb394496e7c0edef34';
 async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 async function gateTry(){const v=document.getElementById('gpw').value;
