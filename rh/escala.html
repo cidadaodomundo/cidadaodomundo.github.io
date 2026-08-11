@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Escala do Dia · Cidadão do Mundo</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#e6007e">
+<style>
+:root{--brand:#e6007e;--bg:#0b0e14;--surface:#141922;--surface2:#1b2230;--line:#242d3d;--text:#e8edf4;--muted:#8b95a5;--sem:#37b46c;--err:#e05252;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Roboto,sans-serif;padding:18px;max-width:760px;margin:0 auto;font-size:14px}
+header{display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:2px solid var(--brand);margin-bottom:14px}
+.logo{width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,var(--brand),#8b1a5e);display:grid;place-items:center;font-weight:800;font-size:15px;color:#fff}
+h1{font-size:17px;font-weight:800}
+.sub{color:var(--muted);font-size:12px;margin-top:2px}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+select,input[type=date]{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--text);font-size:14px;outline:none}
+select:focus,input:focus{border-color:var(--brand)}
+.fcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.fname{font-weight:700;font-size:13.5px}
+.fhor{color:var(--muted);font-size:11px}
+.fcard select{min-width:210px}
+.btn{background:var(--brand);border:none;color:#fff;border-radius:10px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;width:100%;margin-top:12px}
+.btn:disabled{opacity:.5}
+.ok{background:#122419;color:var(--sem);border:1px solid #1c3b28;border-radius:10px;padding:12px;margin-top:12px;font-weight:700;display:none}
+.err{background:#2a1518;color:var(--err);border:1px solid #4a1c22;border-radius:10px;padding:12px;margin-top:12px;font-weight:700;display:none}
+.loading{text-align:center;color:var(--muted);padding:40px 0}
+.hoje{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--muted);margin-bottom:12px;display:none}
+#gate{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center}
+.gatebox{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:34px;width:340px;text-align:center}
+.gatebox input{width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:11px 14px;color:var(--text);font-size:14px;outline:none;margin:14px 0 10px;text-align:center}
+.gatebox button{width:100%;background:var(--brand);border:none;color:#fff;border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer}
+.gerr{color:var(--err);font-size:12px;min-height:16px;margin-top:8px}
+</style></head><body>
+<div id="gate"><div class="gatebox">
+  <div class="logo" style="margin:0 auto 12px">CM</div>
+  <h1>Escala do Dia</h1>
+  <div class="sub">Acesso restrito — digite a senha</div>
+  <input type="password" id="gpw" placeholder="Senha" onkeydown="if(event.key==='Enter')gateTry()">
+  <button onclick="gateTry()">Entrar</button>
+  <div class="gerr" id="gerr"></div>
+</div></div>
+<header>
+  <div class="logo">CM</div>
+  <div><h1>Escala do Dia — Posições</h1><div class="sub">Marque onde cada um vai ficar hoje. Leva 1 minuto e alimenta o mapa de qualidade.</div></div>
+</header>
+<div class="row">
+  <select id="loja">
+    <option value="">Escolha a loja…</option>
+    <option>Água Verde</option>
+    <option>Ahú</option>
+    <option>São Braz</option>
+  </select>
+  <input type="date" id="dia">
+  <select id="turno">
+    <option value="">Turno (opcional)</option>
+    <option>Dia</option><option>Noite</option><option>Integral</option>
+  </select>
+</div>
+<div class="hoje" id="hoje"></div>
+<div id="lista"><div class="loading">Escolha a loja pra carregar a equipe…</div></div>
+<button class="btn" id="salvar" onclick="salvar()" disabled>💾 Salvar escala</button>
+<div class="ok" id="okmsg">✅ Escala salva! Obrigado — isso ajuda a medir a qualidade por posição.</div>
+<div class="err" id="errmsg"></div>
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const H={apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'};
+const GATE_HASHES=['052765de61630b6ff12d29470a27786e064d7c8cb4f4c55e4a5bbbfcf624d618','bc54706ad12e7654b56e3b7468768d3c9a3b98459a95b8c465a47fed979ed792','6db4bb52b559fe6100a9ce00ff3ad2e9153a28179ddfc2fb394496e7c0edef34'];
+async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+async function gateTry(){const v=document.getElementById('gpw').value;
+  if(GATE_HASHES.includes(await sha(v))){sessionStorage.setItem('cm_esc_ok','1');document.getElementById('gate').style.display='none'}
+  else document.getElementById('gerr').textContent='Senha incorreta.'}
+if(['cm_esc_ok','cm_rh_ok','cm_sb_ok','cm_ok'].some(k=>sessionStorage.getItem(k)==='1'))document.getElementById('gate').style.display='none';
+const POS=['Chapa','Fritadeira','Montagem de burgers','Montagem de marmitas/pratos','Separação de pacotes/expedição','Atendimento/Caixa','Produção/Cozinha (apoio)','Limpeza','Delivery/Entregas','Gerência','FOLGA','Falta/Ausente'];
+const $=id=>document.getElementById(id);
+$('dia').value=new Date().toISOString().slice(0,10);
+const LOCK=new URLSearchParams(location.search).get('loja');
+if(LOCK){$('loja').value=LOCK;$('loja').disabled=true;setTimeout(carregar,50);}
+let EQUIPE=[];
+$('loja').addEventListener('change',carregar);
+$('dia').addEventListener('change',carregar);
+async function carregar(){
+  const loja=$('loja').value; if(!loja){return}
+  $('lista').innerHTML='<div class="loading">Carregando equipe…</div>';
+  $('okmsg').style.display='none';$('errmsg').style.display='none';
+  try{
+    EQUIPE=await fetch(SB+'dim_funcionario?ativo=eq.true&unidade=eq.'+encodeURIComponent(loja)+'&select=nome,entrada,saida&order=nome.asc',{headers:H}).then(r=>r.json());
+    const ja=await fetch(SB+'fato_escala_posicao?data=eq.'+$('dia').value+'&unidade=eq.'+encodeURIComponent(loja)+'&select=nome,posicao',{headers:H}).then(r=>r.json());
+    const mapa={};ja.forEach(r=>mapa[r.nome]=r.posicao);
+    if(ja.length){$('hoje').style.display='block';$('hoje').textContent='ℹ Já existe escala lançada para este dia — ao salvar, você atualiza.'}else{$('hoje').style.display='none'}
+    if(!EQUIPE.length){$('lista').innerHTML='<div class="loading">Nenhum funcionário ativo cadastrado nesta loja.</div>';$('salvar').disabled=true;return}
+    $('lista').innerHTML=EQUIPE.map((f,i)=>{
+      const nome=f.nome.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
+      const hor=(f.entrada&&f.saida)?(f.entrada.slice(0,5)+'–'+f.saida.slice(0,5)):'';
+      const sel=mapa[f.nome]||'';
+      return `<div class="fcard"><div><div class="fname">${nome}</div><div class="fhor">${hor}</div></div>
+        <select id="p${i}">${'<option value="">Posição…</option>'+POS.map(p=>`<option ${p===sel?'selected':''}>${p}</option>`).join('')}</select></div>`}).join('');
+    $('salvar').disabled=false;
+  }catch(e){$('lista').innerHTML='<div class="loading">Erro ao carregar: '+e.message+'</div>'}
+}
+async function salvar(){
+  const loja=$('loja').value, dia=$('dia').value, turno=$('turno').value||null;
+  const rows=[];
+  EQUIPE.forEach((f,i)=>{const p=$('p'+i).value;if(p)rows.push({data:dia,unidade:loja,nome:f.nome,posicao:p,turno:turno,lancado_por:'painel-escala'})});
+  if(!rows.length){$('errmsg').textContent='Marque a posição de pelo menos uma pessoa.';$('errmsg').style.display='block';return}
+  $('salvar').disabled=true;
+  try{
+    const r=await fetch(SB+'fato_escala_posicao?on_conflict=data,unidade,nome',{method:'POST',headers:{...H,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(rows)});
+    if(!r.ok)throw new Error(await r.text());
+    $('okmsg').style.display='block';$('errmsg').style.display='none';
+  }catch(e){$('errmsg').textContent='Erro ao salvar: '+e.message;$('errmsg').style.display='block'}
+  $('salvar').disabled=false;
+}
+</script></body></html>
