@@ -14,7 +14,11 @@ h1{font-size:17px;font-weight:800}
 .row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 select,input[type=date]{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--text);font-size:14px;outline:none}
 select:focus,input:focus{border-color:var(--brand)}
-.fcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.fcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px}
+.finfo{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+.poswrap{display:flex;flex-wrap:wrap;gap:6px}
+.poschip{background:var(--surface2);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:6px 11px;font-size:12px;cursor:pointer;font-weight:600}
+.poschip.on{background:var(--brand);border-color:var(--brand);color:#fff}
 .fname{font-weight:700;font-size:13.5px}
 .fhor{color:var(--muted);font-size:11px}
 .fcard select{min-width:210px}
@@ -43,7 +47,7 @@ select:focus,input:focus{border-color:var(--brand)}
 </div></div>
 <header>
   <div class="logo">CM</div>
-  <div><h1>Escala do Dia — Posições</h1><div class="sub">Marque onde cada um vai ficar hoje. Leva 1 minuto e alimenta o mapa de qualidade.</div></div>
+  <div><h1>Escala do Dia — Posições</h1><div class="sub">Marque todas as funções que cada pessoa cobre hoje — pode ser mais de uma.</div></div>
 </header>
 <div class="row">
   <select id="loja">
@@ -92,9 +96,9 @@ async function carregar(){
     const cardHtml=(f,i)=>{
       const nome=f.nome.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
       const hor=(f.entrada&&f.saida)?(f.entrada.slice(0,5)+'–'+f.saida.slice(0,5)):'';
-      const sel=mapa[f.nome]||'';
-      return `<div class="fcard"><div><div class="fname">${nome}</div><div class="fhor">${hor}</div></div>
-        <select id="p${i}">${'<option value="">Posição…</option>'+POS.map(p=>`<option ${p===sel?'selected':''}>${p}</option>`).join('')}</select></div>`;};
+      const sel=(mapa[f.nome]||'').split(', ').filter(Boolean);
+      return `<div class="fcard"><div class="finfo"><div class="fname">${nome}</div><div class="fhor">${hor}</div></div>
+        <div class="poswrap" data-i="${i}">${POS.map(p=>`<button type="button" class="poschip${sel.includes(p)?' on':''}" onclick="this.classList.toggle('on')">${p}</button>`).join('')}</div></div>`;};
     const dia=[],noite=[];
     EQUIPE.forEach((f,i)=>{(turnoDe(f)==='Dia'?dia:noite).push(cardHtml(f,i))});
     $('lista').innerHTML=(dia.length?'<div class="tsec">☀️ Turno Dia <span class="tcnt">'+dia.length+'</span></div>'+dia.join(''):'')+(noite.length?'<div class="tsec">🌙 Turno Noite / Madrugada <span class="tcnt">'+noite.length+'</span></div>'+noite.join(''):'');
@@ -104,7 +108,7 @@ async function carregar(){
 async function salvar(){
   const loja=$('loja').value, dia=$('dia').value;
   const rows=[];
-  EQUIPE.forEach((f,i)=>{const p=$('p'+i).value;if(p)rows.push({data:dia,unidade:loja,nome:f.nome,posicao:p,turno:turnoDe(f),lancado_por:'painel-escala'})});
+  EQUIPE.forEach((f,i)=>{const ch=[...document.querySelectorAll('.poswrap[data-i="'+i+'"] .poschip.on')].map(b=>b.textContent);if(ch.length)rows.push({data:dia,unidade:loja,nome:f.nome,posicao:ch.join(', '),turno:turnoDe(f),lancado_por:'painel-escala'})});
   if(!rows.length){$('errmsg').textContent='Marque a posição de pelo menos uma pessoa.';$('errmsg').style.display='block';return}
   $('salvar').disabled=true;
   try{
