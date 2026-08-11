@@ -29,6 +29,9 @@ select:focus,input:focus{border-color:var(--brand)}
 .gatebox input{width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:11px 14px;color:var(--text);font-size:14px;outline:none;margin:14px 0 10px;text-align:center}
 .gatebox button{width:100%;background:var(--brand);border:none;color:#fff;border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer}
 .gerr{color:var(--err);font-size:12px;min-height:16px;margin-top:8px}
+.tsec{font-weight:800;font-size:13px;color:var(--brand);margin:16px 0 8px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.tsec:first-child{margin-top:4px}
+.tcnt{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:1px 8px;font-size:11px;color:var(--muted)}
 </style></head><body>
 <div id="gate"><div class="gatebox">
   <div class="logo" style="margin:0 auto 12px">CM</div>
@@ -50,10 +53,6 @@ select:focus,input:focus{border-color:var(--brand)}
     <option>São Braz</option>
   </select>
   <input type="date" id="dia">
-  <select id="turno">
-    <option value="">Turno (opcional)</option>
-    <option>Dia</option><option>Noite</option><option>Integral</option>
-  </select>
 </div>
 <div class="hoje" id="hoje"></div>
 <div id="lista"><div class="loading">Escolha a loja pra carregar a equipe…</div></div>
@@ -72,6 +71,7 @@ async function gateTry(){const v=document.getElementById('gpw').value;
 if(['cm_esc_ok','cm_rh_ok','cm_sb_ok','cm_ok'].some(k=>sessionStorage.getItem(k)==='1'))document.getElementById('gate').style.display='none';
 const POS=['Chapa','Fritadeira','Montagem de burgers','Montagem de marmitas/pratos','Separação de pacotes/expedição','Atendimento/Caixa','Produção/Cozinha (apoio)','Limpeza','Delivery/Entregas','Gerência','FOLGA','Falta/Ausente'];
 const $=id=>document.getElementById(id);
+function turnoDe(f){if(!f.entrada)return 'Dia';const h=parseInt(f.entrada.slice(0,2),10);const cruza=f.saida&&f.saida<f.entrada;return (cruza||h>=15)?'Noite/Madrugada':'Dia';}
 $('dia').value=new Date().toISOString().slice(0,10);
 const LOCK=new URLSearchParams(location.search).get('loja');
 if(LOCK){$('loja').value=LOCK;$('loja').disabled=true;setTimeout(carregar,50);}
@@ -84,23 +84,27 @@ async function carregar(){
   $('okmsg').style.display='none';$('errmsg').style.display='none';
   try{
     EQUIPE=await fetch(SB+'dim_funcionario?ativo=eq.true&unidade=eq.'+encodeURIComponent(loja)+'&select=nome,entrada,saida&order=nome.asc',{headers:H}).then(r=>r.json());
+    EQUIPE.sort((a,b)=>((a.entrada||'99')<(b.entrada||'99')?-1:1));
     const ja=await fetch(SB+'fato_escala_posicao?data=eq.'+$('dia').value+'&unidade=eq.'+encodeURIComponent(loja)+'&select=nome,posicao',{headers:H}).then(r=>r.json());
     const mapa={};ja.forEach(r=>mapa[r.nome]=r.posicao);
     if(ja.length){$('hoje').style.display='block';$('hoje').textContent='ℹ Já existe escala lançada para este dia — ao salvar, você atualiza.'}else{$('hoje').style.display='none'}
     if(!EQUIPE.length){$('lista').innerHTML='<div class="loading">Nenhum funcionário ativo cadastrado nesta loja.</div>';$('salvar').disabled=true;return}
-    $('lista').innerHTML=EQUIPE.map((f,i)=>{
+    const cardHtml=(f,i)=>{
       const nome=f.nome.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
       const hor=(f.entrada&&f.saida)?(f.entrada.slice(0,5)+'–'+f.saida.slice(0,5)):'';
       const sel=mapa[f.nome]||'';
       return `<div class="fcard"><div><div class="fname">${nome}</div><div class="fhor">${hor}</div></div>
-        <select id="p${i}">${'<option value="">Posição…</option>'+POS.map(p=>`<option ${p===sel?'selected':''}>${p}</option>`).join('')}</select></div>`}).join('');
+        <select id="p${i}">${'<option value="">Posição…</option>'+POS.map(p=>`<option ${p===sel?'selected':''}>${p}</option>`).join('')}</select></div>`;};
+    const dia=[],noite=[];
+    EQUIPE.forEach((f,i)=>{(turnoDe(f)==='Dia'?dia:noite).push(cardHtml(f,i))});
+    $('lista').innerHTML=(dia.length?'<div class="tsec">☀️ Turno Dia <span class="tcnt">'+dia.length+'</span></div>'+dia.join(''):'')+(noite.length?'<div class="tsec">🌙 Turno Noite / Madrugada <span class="tcnt">'+noite.length+'</span></div>'+noite.join(''):'');
     $('salvar').disabled=false;
   }catch(e){$('lista').innerHTML='<div class="loading">Erro ao carregar: '+e.message+'</div>'}
 }
 async function salvar(){
-  const loja=$('loja').value, dia=$('dia').value, turno=$('turno').value||null;
+  const loja=$('loja').value, dia=$('dia').value;
   const rows=[];
-  EQUIPE.forEach((f,i)=>{const p=$('p'+i).value;if(p)rows.push({data:dia,unidade:loja,nome:f.nome,posicao:p,turno:turno,lancado_por:'painel-escala'})});
+  EQUIPE.forEach((f,i)=>{const p=$('p'+i).value;if(p)rows.push({data:dia,unidade:loja,nome:f.nome,posicao:p,turno:turnoDe(f),lancado_por:'painel-escala'})});
   if(!rows.length){$('errmsg').textContent='Marque a posição de pelo menos uma pessoa.';$('errmsg').style.display='block';return}
   $('salvar').disabled=true;
   try{
