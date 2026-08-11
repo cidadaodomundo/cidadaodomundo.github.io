@@ -75,6 +75,11 @@ select{background:var(--s2);border:1px solid var(--line);border-radius:8px;color
 .hint{background:rgba(57,135,229,.08);border:1px solid rgba(57,135,229,.3);border-radius:9px;padding:9px 12px;font-size:12px;color:#a9cbf5;margin-bottom:10px}
 .warnbox{background:rgba(224,169,58,.08);border:1px solid rgba(224,169,58,.3);border-radius:9px;padding:9px 12px;font-size:12px;color:#e8c882;margin-bottom:10px}
 @media(max-width:560px){th,td{padding:6px 3px;font-size:12px}.wrap{padding:12px 9px 70px}}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--s2,#232321);border:1px solid var(--line,#34332f);border-radius:999px;padding:10px 14px;font-size:14px;font-weight:600;cursor:pointer;user-select:none;color:var(--text2,#c3c2b7)}
+.chip.on{background:#1d6b43;border-color:#2fae6a;color:#fff}
+.chip .h{font-size:11.5px;opacity:.85;font-weight:700}
+.colar textarea{width:100%;min-height:150px;background:var(--s2,#232321);border:1px solid var(--line,#34332f);border-radius:10px;color:#fff;padding:11px;font-size:13.5px;font-family:inherit}
 </style>
 </head>
 <body>
@@ -237,10 +242,98 @@ function fmt(n){return Number(n||0).toLocaleString('pt-BR',{maximumFractionDigit
 function kpi(k,cls,v,d){return '<div class="kpi '+(cls||'')+'"><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="d">'+d+'</div></div>'}
 
 /* ================= 2) MONTAR ESCALA ================= */
+/* ================= COLAR ESCALA DO WHATSAPP ================= */
+const APELIDOS={'JOSE':'José cogumelo de Alencar vieira','KAWAN':'Kawann Bindá','KAWANN':'Kawann Bindá',
+'MIRIAN':'Mirian Benício','MYRIAN':'Mirian Benício','ERICK':'Erick Issa Bellizzi','RHYAN':'Rhyan Sabadin',
+'RYAN':'Rhyan Sabadin','PABLO':'Pablo Santos','LUCAS CESTARI':'Lucas Cestari Schoeninger','LUCAS':'Lucas Cestari Schoeninger',
+'FELIPE PILATI':'Felipe pilatti','FELIPE PILATTI':'Felipe pilatti','FELIPE':'Felipe pilatti',
+'ROMULO':'Rômulo Coutinho','ROBSON':'Robson souza','JONATHAN':'80 GME Jonathan Henrique'};
+const DIASEM={'SEGUNDA':1,'TERCA':2,'QUARTA':3,'QUINTA':4,'SEXTA':5,'SABADO':6,'DOMINGO':0};
+function semAc(x){return (x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim()}
+function nomeReal(n){var k=semAc(n).replace(/\.$/,'').trim();
+  for(var a in APELIDOS){if(semAc(a)===k)return APELIDOS[a]}
+  return n.replace(/\.$/,'').trim().replace(/\s+/g,' ').toLowerCase().replace(/(^|\s)\S/g,function(c){return c.toUpperCase()})}
+function parseEscala(txt){
+  var linhas=[],erros=[],data=null,turno=null,ini=null;
+  var mh=(txt||'').match(/ESCALA\s+(\d{1,2})\/(\d{1,2})/i);
+  if(mh){var hj=new Date();ini=new Date(hj.getFullYear(),parseInt(mh[2],10)-1,parseInt(mh[1],10))}
+  (txt||'').split('\n').forEach(function(raw){
+    var l=raw.trim(); if(!l)return;
+    if(/^[_\-=\s]+$/.test(l))return;
+    if(/^\(/.test(l))return;
+    var L=semAc(l);
+    if(/^ESCALA\b/.test(L))return;
+    var md=L.match(/^(SEGUNDA|TERCA|QUARTA|QUINTA|SEXTA|SABADO|DOMINGO)\b/);
+    if(md){
+      if(!ini){erros.push('faltou a linha ESCALA dd/mm');return}
+      var alvo=DIASEM[md[1]], d=new Date(ini.getTime()), passo=(alvo===0?6:alvo-1);
+      d.setDate(d.getDate()+passo); data=iso(d);
+      if(/ALMOC/.test(L))turno='Almoço'; else if(/JANTA/.test(L))turno='Jantar';
+      return;
+    }
+    if(/^ALMOC/.test(L)){turno='Almoço';return}
+    if(/^JANTA/.test(L)){turno='Jantar';return}
+    var m=l.match(/^(.+?)\s+(\d{1,2})(?::\d{2})?\s*(?:AS|ÀS)\s*(\d{1,2})(?::\d{2})?$/i);
+    if(m){
+      if(!data||!turno){erros.push(l);return}
+      var sai=parseInt(m[3],10);
+      linhas.push({nome:nomeReal(m[1]),data:data,turno:turno,bruto:m[1].trim(),
+        entrada:('0'+parseInt(m[2],10)).slice(-2)+':00',saida:(sai>=24?'00':('0'+sai).slice(-2))+':00'});
+      return}
+    m=l.match(/^(.+?)\s+(\d{1,2})\s*\/\s*FECHA$/i);
+    if(m){
+      if(!data||!turno){erros.push(l);return}
+      linhas.push({nome:nomeReal(m[1]),data:data,turno:turno,bruto:m[1].trim(),
+        entrada:('0'+parseInt(m[2],10)).slice(-2)+':00',saida:'00:00'});
+      return}
+    erros.push(l);
+  });
+  return {linhas:linhas,erros:erros}
+}
+var COLADO=null;
+function abrirColar(){
+  $('conteudo').innerHTML='<div class="sec colar"><h2>📋 Colar a escala do WhatsApp</h2>'+
+  '<div class="hs">Cole o texto do jeito que vem no grupo, começando pela linha <b>ESCALA 10/08 a 16/08</b>. Vai entrar na loja <b>'+LOJA+'</b>.</div>'+
+  '<textarea id="txtColar" placeholder="ESCALA 10/08 a 16/08&#10;SEGUNDA ALMOÇO&#10;JOSE 10 AS 14&#10;..."></textarea>'+
+  '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">'+
+  '<button class="btnr" onclick="lerColado()">👀 Ver o que entendi</button>'+
+  '<button class="btn" onclick="setView(\'mont\')">voltar</button></div><div id="prevColar"></div></div>';
+}
+function lerColado(){
+  var r=parseEscala($('txtColar').value||''); COLADO=r.linhas;
+  if(!r.linhas.length){$('prevColar').innerHTML='<div class="empty">Não consegui ler nada. Confira se colou desde a linha ESCALA.</div>';return}
+  var por={};r.linhas.forEach(function(x){(por[x.data]=por[x.data]||[]).push(x)});
+  var h='<div class="hs" style="margin-top:14px">Entendi <b>'+r.linhas.length+'</b> turnos:</div>';
+  Object.keys(por).sort().forEach(function(d){
+    h+='<div style="margin:10px 0 2px"><b>'+cap(DOWN[dowOf(d)])+' '+br(d)+'</b></div><div class="chips">'+
+      por[d].map(function(x){return '<span class="chip on">'+esc(x.nome.split(' ')[0])+' <span class="h">'+x.turno.slice(0,3)+' '+x.entrada.slice(0,2)+'h</span></span>'}).join('')+'</div>';
+  });
+  if(r.erros.length)h+='<div class="hs" style="color:#e8c547;margin-top:10px">⚠ pulei '+r.erros.length+' linha(s): '+esc(r.erros.slice(0,3).join(' · '))+'</div>';
+  h+='<button class="btnv" style="margin-top:14px" onclick="salvarColado()">💾 SALVAR ESSA ESCALA</button>';
+  $('prevColar').innerHTML=h;
+}
+async function salvarColado(){
+  if(!COLADO||!COLADO.length){toast('nada para salvar',1);return}
+  try{
+    var ds=COLADO.map(function(x){return x.data}).sort();
+    var d1=ds[0],d2=ds[ds.length-1];
+    var del=await fetch(SB+'foody_escala?data=gte.'+d1+'&data=lte.'+d2+'&unidade=eq.'+encodeURIComponent(LOJA),{method:'DELETE',headers:HJ});
+    if(!del.ok)throw new Error('não consegui limpar a escala antiga (HTTP '+del.status+')');
+    var body=COLADO.map(function(x){return {nome:x.nome,unidade:LOJA,data:x.data,turno:x.turno,entrada:x.entrada,saida:x.saida,origem:'colado/whatsapp'}});
+    var ins=await fetch(SB+'foody_escala',{method:'POST',headers:HJ,body:JSON.stringify(body)});
+    if(!ins.ok)throw new Error('não consegui salvar (HTTP '+ins.status+')');
+    toast('✅ '+COLADO.length+' turnos salvos ('+br(d1)+' a '+br(d2)+')');
+    var d7=dias(8)[7],dm7=iso(new Date(Date.now()-7*864e5));
+    ESC=await fj('foody_escala?data=gte.'+dm7+'&data=lte.'+d7+'&select=*&order=data,unidade,entrada&limit=2000');
+    ROWS=null;PEND={};setView('mont');
+  }catch(e){toast(e.message,1)}
+}
+
 async function viewMont(){
   const ds=dias(8);
   let h='<div class="tabs">'+ds.map(d=>'<span class="tab '+(DATA===d?'on':'')+'" onclick="DATA=\''+d+'\';ROWS=null;PEND={};render()">'+DOWN[dowOf(d)].slice(0,3)+' '+br(d)+'</span>').join('')+'</div>';
   h+='<div class="tabs">'+LOJAS.map(l=>'<span class="tab '+(LOJA===l?'on':'')+'" onclick="LOJA=\''+l+'\';ROWS=null;PEND={};render()">'+l+'</span>').join('')+'</div>';
+  h+='<button class="btnr" style="margin:4px 0 10px" onclick="abrirColar()">📋 Colar a escala do WhatsApp (semana inteira)</button>';
   h+='<div id="montbody"><div class="empty">carregando\u2026</div></div>';
   $('conteudo').innerHTML=h;
   try{ NOMES=await rpc('foody_sugere_nomes',{p_dia:DATA}); }catch(e){ NOMES=[] }
@@ -270,9 +363,18 @@ function montBody(){
       '<span class="pill '+okcls+'">'+nSel+(alvo?' / '+alvo+' sugeridos':'')+'</span>'+
       (sg?'<span class="small" style="margin-left:auto">~'+sg.ent_prev+' entregas previstas</span>':'')+'</div>';
     if(alvo>nSel)h+='<button class="btnr" style="margin:8px 0" onclick="preencher(\''+t+'\','+alvo+')">\u26A1 preencher os '+alvo+' sugeridos</button>';
-    h+='<table><tr><th style="width:40px"></th><th onclick="sortTbl(this)" style="cursor:pointer">Motoboy \u21C5</th><th onclick="sortTbl(this)" style="cursor:pointer">Entrada \u21C5</th><th onclick="sortTbl(this)" style="cursor:pointer">Sa\u00EDda \u21C5</th><th class="num" onclick="sortTbl(this)" style="cursor:pointer">hist. \u21C5</th></tr>';
-    cand.slice(0,20).forEach(c=>{
-      const on=sel(t,c.nome); const tm=times(t,c.nome); const sumido=c.dias_sem_rodar>21;
+    h+='<div class="chips">';
+    cand.slice(0,24).forEach(c=>{ const on=sel(t,c.nome); const tm=times(t,c.nome);
+      h+='<span class="chip'+(on?' on':'')+'" onclick="toggle(\''+t+'\',\''+c.nome.replace(/\x27/g,"\\x27")+'\')">'+esc(c.nome.split(' ')[0])+(on?' <span class="h">'+tm.entrada.slice(0,5)+'</span>':'')+'</span>';
+    });
+    h+='</div>';
+    if(ROWS.filter(r=>r.turno===t).length){
+      h+='<div class="hs" style="cursor:pointer" onclick="ABERTO[\''+t+'\']=!ABERTO[\''+t+'\'];montBody()">⏱ ajustar horários deste turno '+(ABERTO[t]?'▾':'▸')+'</div>';
+    }
+    if(ABERTO[t]){
+    h+='<table><tr><th style="width:40px"></th><th>Motoboy</th><th>Entrada</th><th>Sa\u00EDda</th><th class="num">hist.</th></tr>';
+    cand.filter(c=>sel(t,c.nome)).forEach(c=>{
+      const on=true; const tm=times(t,c.nome); const sumido=c.dias_sem_rodar>21;
       h+='<tr style="'+(on?'':'opacity:.62')+'">'+
         '<td><input type="checkbox" '+(on?'checked':'')+' style="width:20px;height:20px" onchange="toggle(\''+t+'\',\''+c.nome.replace(/\x27/g,"\\x27")+'\')"></td>'+
         '<td><b>'+esc(c.nome)+'</b>'+(c.vezes?' <span class="small">'+c.vezes+'x'+(sumido?' \u00B7 '+c.dias_sem_rodar+'d sem rodar':'')+'</span>':'')+'</td>'+
@@ -280,7 +382,8 @@ function montBody(){
         '<td><input type="time" value="'+tm.saida+'" onchange="setTime(\''+t+'\',\''+c.nome.replace(/\x27/g,"\\x27")+'\',\'saida\',this.value)"></td>'+
         '<td class="num small">'+(c.ent_hora||'\u2014')+'</td></tr>';
     });
-    h+='</table></div>';
+    h+='</table>';}
+    h+='</div>';
   });
   h+='<div class="sec"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="text" id="novoNome" placeholder="outro motoboy (nome igual ao Foody)\u2026" style="flex:2;min-width:150px"><select id="selTurno" style="min-width:110px">'+TURNOS.map(t=>'<option>'+t+'</option>').join('')+'</select><button class="btnr" onclick="addManual()">adicionar</button></div></div>';
   h+='<button class="btnv" onclick="salvar()">\uD83D\uDCBE SALVAR ESCALA DESTE DIA</button>';
