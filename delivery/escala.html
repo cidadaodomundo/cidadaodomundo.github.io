@@ -217,13 +217,17 @@ function viewPrev(){
     const rows=SUG.filter(s=>s.dia===d&&(s.motoboys_sug>0||s.motoboys_hist>0));
     const mot=rows.reduce((a,b)=>a+b.motoboys_sug,0);
     const jaMont=ESC.filter(e=>e.data===d).length;
+    const lojasEsc=[...new Set(ESC.filter(e=>e.data===d).map(e=>e.unidade))];
+    const motComp=lojasEsc.length?rows.filter(x=>lojasEsc.indexOf(x.unidade)>=0).reduce((a,b)=>a+b.motoboys_sug,0):mot;
+    const semEsc=LOJAS.filter(l=>lojasEsc.indexOf(l)<0&&rows.some(x=>x.unidade===l));
+    const alvoTxt=(lojasEsc.length===1?' ('+lojasEsc[0]+')':'')+(semEsc.length?' <span style="color:#e0a93a">· sem escala: '+semEsc.join(', ')+'</span>':'');
     const open=ABERTO[d]!==undefined?ABERTO[d]:(d===ds[1]);
     h+='<div class="day"><div class="dayh" onclick="ABERTO[\''+d+'\']='+(!open)+';render()">'+
       '<div class="ico">'+wxIcon(c.wcode_pico,Number(c.chuva_mm||0))+'</div>'+
       '<div><div class="dt">'+cap(DOWN[dowOf(d)])+' '+br(d)+' '+(d===ds[0]?'<span class="pill pm">hoje</span>':'')+'</div>'+
       '<div class="wx">'+(c.chuva_mm!=null?(c.chuva_mm+' mm · '+(c.prob_max||0)+'% chance · '+(c.tmin||'?')+'–'+(c.tmax||'?')+'°C · '+(c.horas_chovendo||0)+'h chovendo · '+(c.confianca||'')):'sem previsão')+'</div>'+
       '<div class="rain"><i style="width:'+Math.min(100,Number(c.chuva_mm||0)*6)+'%"></i></div></div>'+
-      '<div class="rt">'+climaPill(c.clima)+'<div style="margin-top:6px"><span class="stat '+(jaMont===0?'no':(jaMont>=mot?'ok':'par'))+'">'+(jaMont===0?'⚠ falta fazer':(jaMont>=mot?'✅ escala pronta':'⚡ escala parcial'))+'</span></div><div class="small" style="margin-top:4px">'+jaMont+' escalados · '+mot+' sugeridos'+'</div></div>'+
+      '<div class="rt">'+climaPill(c.clima)+'<div style="margin-top:6px"><span class="stat '+(jaMont===0?'no':(jaMont>=motComp?'ok':'par'))+'">'+(jaMont===0?'⚠ falta fazer':(jaMont>=motComp?'✅ escala pronta':'⚡ escala parcial'))+'</span></div><div class="small" style="margin-top:4px">'+jaMont+' escalados · '+motComp+' sugeridos'+alvoTxt+'</div></div>'+
       '</div>';
     if(open){
       h+='<div class="dayb">';
