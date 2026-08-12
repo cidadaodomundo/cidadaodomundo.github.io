@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="theme-color" content="#111110">
+<title>Reunião Semanal · Cidadão do Mundo</title>
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#c8102e;--ok:#2fae6a;--bad:#e66767;--warn:#c98500;--gold:#e8c547}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1280px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
+.top .rt{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+select,button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+h2{font-size:15px;font-weight:800;margin:26px 0 10px;display:flex;align-items:center;gap:8px}
+h2 .hint{font-weight:500;font-size:11.5px;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.c{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:15px}
+.c .k{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.c .v{font-size:27px;font-weight:800;margin-top:4px;line-height:1.1}
+.c .d{font-size:12px;margin-top:4px;color:var(--text2)}
+.up{color:var(--ok)}.dn{color:var(--bad)}.fl{color:var(--muted)}
+table{width:100%;border-collapse:collapse;background:var(--s1);border:1px solid var(--line);border-radius:13px;overflow:hidden}
+th,td{padding:10px 12px;text-align:left;font-size:13.5px;border-bottom:1px solid var(--line)}
+th{background:var(--s2);color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+tr:last-child td{border-bottom:none}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.bar{height:7px;border-radius:4px;background:var(--s2);overflow:hidden;margin-top:5px}
+.bar i{display:block;height:100%;background:var(--brand)}
+.q{background:var(--s1);border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:9px;padding:10px 13px;margin:7px 0;font-size:13.5px;color:var(--text2)}
+.q b{color:var(--text)}
+.q .m{color:var(--muted);font-size:11.5px;margin-top:3px}
+.good{border-left-color:var(--ok)}
+.pill{display:inline-block;background:var(--s2);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px;margin:3px 4px 0 0}
+.foco{background:linear-gradient(180deg,#1d1a1a,#1a1a19);border:1px solid #4a2b2b;border-radius:13px;padding:16px 18px}
+.foco ol{margin:8px 0 0 20px}.foco li{margin:7px 0;font-size:14px}
+.aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:11px 14px;font-size:12.5px;margin-top:10px}
+.load{color:var(--muted);padding:30px;text-align:center}
+#gate{position:fixed;inset:0;background:var(--s0);z-index:99;display:flex;align-items:center;justify-content:center}
+.gb{background:var(--s1);border:1px solid var(--line);border-radius:15px;padding:32px;width:320px;text-align:center}
+.gb input{width:100%;background:var(--s2);border:1px solid var(--line);border-radius:9px;padding:11px;color:#fff;text-align:center;margin:14px 0 10px;font-size:15px}
+.gb button{width:100%;background:var(--brand);border:none;color:#fff;border-radius:9px;padding:11px;font-weight:800;cursor:pointer}
+@media print{body{background:#fff;color:#000}#gate{display:none}}
+</style>
+</head>
+<body>
+<div id="gate"><div class="gb">
+  <h1 style="font-size:17px">Reunião Semanal</h1>
+  <div class="sub">Cidadão do Mundo</div>
+  <input type="password" id="gpw" placeholder="Senha" onkeydown="if(event.key==='Enter')gt()">
+  <button onclick="gt()">Entrar</button>
+  <div id="ge" style="color:#f08d8d;font-size:12px;min-height:16px;margin-top:8px"></div>
+</div></div>
+
+<div class="top">
+  <div><h1>📊 Reunião Semanal</h1><div class="sub" id="periodo">carregando…</div></div>
+  <div class="rt">
+    <select id="semana" onchange="render()"></select>
+    <button class="b" onclick="location.reload()">↻ Atualizar</button>
+    <button class="b" onclick="window.print()">🖨 Imprimir</button>
+  </div>
+</div>
+<div id="app"><div class="load">Carregando os dados da semana…</div></div>
+
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const H={apikey:KEY,Authorization:'Bearer '+KEY};
+const PASS='6db4bb52b559fe6100a9ce00ff3ad2e9153a28179ddfc2fb394496e7c0edef34';
+const OWNER=['d7149f187239f5d99c428c666fa476b7e7808f38226765d5c62ed0ec65e7eaee','e4a209159425e3ee99d7c71a804c4e8c4dc9fa00acdaaab798b746d59205780c'];
+const UNI=['Água Verde','Ahú','São Braz'];
+const $=i=>document.getElementById(i);
+async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+async function gt(){const h=await sha(($('gpw').value||'').trim());
+  if(h===PASS||OWNER.includes(h)){sessionStorage.setItem('cm_ok','1');$('gate').style.display='none';boot()}else $('ge').textContent='Senha incorreta.'}
+if(['cm_ok','cm_owner_ok','cm_del_ok','cm_rh_ok'].some(k=>sessionStorage.getItem(k)==='1')){$('gate').style.display='none'}
+
+/* ---------- semanas (segunda a domingo, fechadas) ---------- */
+const iso=d=>d.toISOString().slice(0,10);
+function segunda(d){const x=new Date(d);const w=(x.getDay()+6)%7;x.setDate(x.getDate()-w);x.setHours(0,0,0,0);return x}
+function semanas(n){const out=[];let s=segunda(new Date());s.setDate(s.getDate()-7);
+  for(let i=0;i<n;i++){const ini=new Date(s);ini.setDate(ini.getDate()-7*i);const fim=new Date(ini);fim.setDate(fim.getDate()+6);
+    out.push({ini:iso(ini),fim:iso(fim),rot:br(ini)+' a '+br(fim)})}
+  return out}
+const br=d=>String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');
+const brs=s=>s.slice(8,10)+'/'+s.slice(5,7);
+
+/* ---------- categorias de restaurante ---------- */
+const CATS=[
+ {id:'frio', ic:'🥶', nome:'Chegou frio',            re:/\bfri[ao]s?\b|gelad|sem estar quente|morn[ao]/i},
+ {id:'ponto',ic:'🔥', nome:'Ponto da carne / cru / queimado', re:/\bcru[ao]?s?\b|mal ?passad|queimad|torrad|ressecad|duro/i},
+ {id:'sabor',ic:'🧂', nome:'Sabor e tempero',        re:/sem (gosto|sabor|tempero|molho)|sem sal|salgad|azed|insosso|não (agrad|estava bom)|ruim|horr[íi]vel|estranho|não (é|era) o mesmo|sem graça/i},
+ {id:'falta',ic:'🥡', nome:'Faltou item / veio errado', re:/faltou|não veio|nao veio|veio errad|pedido errad|troca(ram|do)|incomplet|esqueceram|sem (a|o) (batata|bebida|refri|molho|sobremesa)/i},
+ {id:'valid',ic:'🧼', nome:'Validade, cheiro e higiene', re:/podre|estragad|cheiro|azedo|mofo|cabelo|inseto|mosca|sujo|espuma|vencid|impr[óo]pri/i},
+ {id:'porcao',ic:'📉',nome:'Porção pequena / não bate com a foto', re:/pequen|pouc[ao]|diferente da foto|nada a ver com a foto|pouco (recheio|molho|queijo)|só pão/i},
+ {id:'embal',ic:'📦', nome:'Embalagem / derramou',   re:/derram|vazou|virad|amassad|embalagem|revirad|violad/i},
+ {id:'demora',ic:'🕐',nome:'Demora e atraso',        re:/atras|demor|tard|esperei|1 ?hora|hora e meia/i},
+ {id:'atend',ic:'🙎', nome:'Atendimento',            re:/atendiment|atendente|educ|grosser|mal ?educ|recusaram|resposta|ignorar|descaso|mentiros/i}
+];
+const MOTIVO_RESP={
+ 'PARTE DO ITEM OU INTEGRANTE DE UM GRUPO NÃO FOI ENVIADO':'Cozinha / Expedição',
+ 'PEDIDO OU ITEM VEIO ERRADO':'Cozinha / Expedição',
+ 'O PEDIDO ESTÁ ERRADO OU INCOMPLETO':'Cozinha / Expedição',
+ 'FALTOU INSERIR INFORMAÇÕES NO PEDIDO':'Cozinha / Expedição',
+ 'FALTOU ADICIONAR O CUPOM':'Cozinha / Expedição',
+ 'PEDIDO IMPRÓPRIO PARA CONSUMO/USO':'Qualidade da comida',
+ 'CANCELAMENTO EXCEPCIONAL POR CARACTERÍSTICA DE QUALIDADE':'Qualidade da comida',
+ 'O PEDIDO VEIO REVIRADO/VIOLADO':'Embalagem / transporte',
+ 'PEDIDO CANCELADO POR ATRASO COM ALERTA PARA LOJA':'Atraso na entrega',
+ 'ITEM INDISPONÍVEL':'Estoque / cardápio',
+ 'O ENDEREÇO ESTÁ INCOMPLETO E O CLIENTE NÃO ATENDE':'Cliente / endereço',
+ 'NINGUÉM PODERÁ RECEBER O PEDIDO':'Cliente / endereço',
+ 'CLIENTE NÃO LOCALIZADO':'Cliente / endereço',
+ 'SOLICITADO PARA O LOCAL ERRADO':'Cliente / endereço',
+ 'PROBLEMA COM PAGAMENTO DO CLIENTE':'Cliente / pagamento',
+ 'A FORMA DE PAGAMENTO ESTÁ ERRADA':'Cliente / pagamento',
+ 'A LOJA ESTÁ PASSANDO POR DIFICULDADES INTERNAS':'Loja / sistema',
+ 'PROBLEMAS DE SISTEMA NA LOJA':'Loja / sistema',
+ 'O PEDIDO NÃO FOI CONFIRMADO PELA LOJA':'Loja / sistema',
+ 'O PEDIDO NÃO FOI ENVIADO PARA A LOJA':'Loja / sistema',
+ 'A LOJA ESTÁ SEM ENTREGADORES DISPONÍVEIS':'Entrega'
+};
+const resp=m=>MOTIVO_RESP[(m||'').toUpperCase().trim()]||'Outros';
+
+/* ---------- dados ---------- */
+let D={},LOJAS={},SEM=[];
+const get=(t,q)=>fetch(SB+t+'?'+q,{headers:H}).then(r=>r.ok?r.json():[]).catch(()=>[]);
+async function boot(){
+  SEM=semanas(8);
+  $('semana').innerHTML=SEM.map((s,i)=>`<option value="${i}">${s.rot}${i===0?' (última fechada)':''}</option>`).join('');
+  const lojas=await get('ifood_dim_loja','select=id_loja,unidade,nome&limit=200');
+  lojas.forEach(l=>LOJAS[l.id_loja]=l.unidade);
+  await carrega();
+  render();
+}
+async function carrega(){
+  const ini=SEM[SEM.length-1].ini, fim=SEM[0].fim;
+  const [av,ca,ne,qp,ss,go,es,ev]=await Promise.all([
+    get('ifood_fato_avaliacao','select=id_loja,nota,tags,comentario,data_avaliacao&data_avaliacao=gte.'+ini+'&data_avaliacao=lte.'+fim+'&limit=10000'),
+    get('ifood_fato_cancelamento','select=id_loja,data,motivo,status_pedido,valor_cancelamento&data=gte.'+ini+'&data=lte.'+fim+'&limit=10000'),
+    get('ifood_fato_negociacao','select=id_loja,data,motivo,cancelamento_evitado,valor_reembolso&data=gte.'+ini+'&data=lte.'+fim+'&limit=10000'),
+    get('ifood_fato_qualidade_periodo','select=id_loja,periodo_inicio,periodo_fim,pedidos_totais,pct_cancelamentos_super,pct_negociacoes_super,media_avaliacoes,qtd_avaliacoes,tempo_medio_preparo_min&periodo_inicio=gte.'+ini+'&limit=5000'),
+    get('ifood_fato_super_status','select=id_loja,nome,e_super,status,nivel,media_avaliacoes,pct_cancelamento,pct_chamados,referencia&limit=500'),
+    get('google_fato_avaliacao','select=unidade,nota,num_avaliacoes,data_coleta&order=data_coleta.desc&limit=200'),
+    get('fato_espelho_dia','select=unidade,data,categoria,nivel&data=gte.'+ini+'&data=lte.'+fim+'&ativo=eq.true&limit=10000'),
+    get('fato_evento','select=unidade,data,tipo&data=gte.'+ini+'&data=lte.'+fim+'&limit=5000')
+  ]);
+  D={av,ca,ne,qp,ss,go,es,ev};
+}
+const naSemana=(arr,campo,s)=>arr.filter(r=>r[campo]>=s.ini&&r[campo]<=s.fim&&UNI.includes(LOJAS[r.id_loja]||r.unidade));
+const delta=(a,b)=>{if(b===null||b===undefined||b===0&&a===0)return '<span class="fl">—</span>';
+  const d=a-b;const p=b?(d/b*100):null;const cls=d>0?'up':d<0?'dn':'fl';const sig=d>0?'▲':d<0?'▼':'—';
+  return `<span class="${cls}">${sig} ${Math.abs(d).toFixed(Math.abs(d)%1?1:0)}${p!==null?' ('+(p>0?'+':'')+p.toFixed(0)+'%)':''}</span>`}
+const deltaInv=(a,b)=>{if(b===null||b===undefined)return '<span class="fl">—</span>';
+  const d=a-b;const cls=d>0?'dn':d<0?'up':'fl';const sig=d>0?'▲':d<0?'▼':'—';
+  return `<span class="${cls}">${sig} ${Math.abs(d).toFixed(Math.abs(d)%1?1:0)}</span>`}
+
+function classifica(rows){
+  const m={};CATS.forEach(c=>m[c.id]={...c,n:0,ex:[]});
+  rows.forEach(r=>{const t=r.comentario||'';if(!t)return;
+    CATS.forEach(c=>{if(c.re.test(t)){m[c.id].n++;if(m[c.id].ex.length<3)m[c.id].ex.push(r)}})});
+  return Object.values(m).sort((a,b)=>b.n-a.n)}
+
+function render(){
+  const i=+$('semana').value||0, S=SEM[i], P=SEM[i+1]||null;
+  $('periodo').textContent='Semana de '+S.rot+' · comparada com '+(P?P.rot:'—')+'  ·  unidades: Água Verde, Ahú e São Braz';
+  const A=naSemana(D.av,'data_avaliacao',S), Ap=P?naSemana(D.av,'data_avaliacao',P):[];
+  const C=naSemana(D.ca,'data',S), Cp=P?naSemana(D.ca,'data',P):[];
+  const N=naSemana(D.ne,'data',S), Np=P?naSemana(D.ne,'data',P):[];
+  const med=x=>x.length?(x.reduce((s,r)=>s+(+r.nota||0),0)/x.length):null;
+  const ruins=A.filter(r=>+r.nota<=3), ruinsP=Ap.filter(r=>+r.nota<=3);
+  const cat=classifica(ruins), catP=classifica(ruinsP);
+  const mapP={};catP.forEach(c=>mapP[c.id]=c.n);
+  const ped=D.qp.filter(q=>q.periodo_inicio===S.ini&&UNI.includes(LOJAS[q.id_loja])).reduce((s,q)=>s+(+q.pedidos_totais||0),0);
+
+  let h='';
+  /* --- placar --- */
+  h+='<h2>🏁 O placar da semana</h2><div class="cards">';
+  h+=card('Nota média no iFood', med(A)?med(A).toFixed(2):'—', delta(+(med(A)||0).toFixed(2),Ap.length?+med(Ap).toFixed(2):null)+' vs semana anterior');
+  h+=card('Avaliações recebidas', A.length, delta(A.length,P?Ap.length:null));
+  h+=card('Clientes insatisfeitos', ruins.length, (A.length?((ruins.length/A.length*100).toFixed(1)+'% das avaliações · '):'')+deltaInv(ruins.length,P?ruinsP.length:null));
+  h+=card('Chamados abertos', N.length, deltaInv(N.length,P?Np.length:null));
+  h+=card('Pedidos cancelados', C.length, deltaInv(C.length,P?Cp.length:null));
+  if(ped)h+=card('Pedidos na semana', ped.toLocaleString('pt-BR'),'dado oficial do iFood');
+  h+='</div>';
+
+  /* --- focos --- */
+  const piores=cat.filter(c=>c.n>0).map(c=>({...c,dif:c.n-(mapP[c.id]||0)})).sort((a,b)=>(b.dif-a.dif)||(b.n-a.n)).slice(0,3);
+  if(piores.length){h+='<h2>🎯 Os 3 focos desta semana <span class="hint">o que mais cresceu ou mais pesou</span></h2><div class="foco"><ol>';
+    piores.forEach(c=>{h+=`<li><b>${c.ic} ${c.nome}</b> — ${c.n} reclamaç${c.n===1?'ão':'ões'} ${c.dif>0?'<span class="dn">(+'+c.dif+' vs semana passada)</span>':c.dif<0?'<span class="up">('+c.dif+' vs semana passada)</span>':''}</li>`});
+    h+='</ol></div>'}
+
+  /* --- por unidade --- */
+  h+='<h2>🏪 Como foi cada unidade</h2><table><tr><th>Unidade</th><th class="n">Nota</th><th class="n">Avaliações</th><th class="n">Insatisfeitos</th><th class="n">Chamados</th><th class="n">Cancelados</th></tr>';
+  UNI.forEach(u=>{const a=A.filter(r=>LOJAS[r.id_loja]===u);const m=med(a);
+    const ap=Ap.filter(r=>LOJAS[r.id_loja]===u);
+    h+=`<tr><td><b>${u}</b></td><td class="n">${m?m.toFixed(2):'—'} ${ap.length?delta(+(m||0).toFixed(2),+med(ap).toFixed(2)):''}</td><td class="n">${a.length}</td><td class="n">${a.filter(r=>+r.nota<=3).length}</td><td class="n">${N.filter(r=>LOJAS[r.id_loja]===u).length}</td><td class="n">${C.filter(r=>LOJAS[r.id_loja]===u).length}</td></tr>`});
+  h+='</table>';
+
+  /* --- reclamações --- */
+  h+='<h2>🗣 O que os clientes reclamaram <span class="hint">classificado pelo texto das avaliações de 1 a 3 estrelas</span></h2>';
+  const maxn=Math.max(1,...cat.map(c=>c.n));
+  h+='<table><tr><th>Assunto</th><th class="n">Semana</th><th class="n">Anterior</th><th style="width:34%">Peso</th></tr>';
+  cat.forEach(c=>{if(!c.n&&!mapP[c.id])return;
+    h+=`<tr><td>${c.ic} ${c.nome}</td><td class="n"><b>${c.n}</b></td><td class="n">${mapP[c.id]||0} ${deltaInv(c.n,mapP[c.id]||0)}</td><td><div class="bar"><i style="width:${c.n/maxn*100}%"></i></div></td></tr>`});
+  h+='</table>';
+
+  const exs=cat.filter(c=>c.ex.length).slice(0,4);
+  if(exs.length){h+='<h2>💬 Nas palavras do cliente</h2>';
+    exs.forEach(c=>{c.ex.forEach(r=>{h+=`<div class="q"><b>${c.ic} ${c.nome}</b> — “${(r.comentario||'').slice(0,220)}”<div class="m">${LOJAS[r.id_loja]||'—'} · ${'★'.repeat(+r.nota)}${'☆'.repeat(5-+r.nota)} · ${brs(r.data_avaliacao)}</div></div>`})})}
+
+  /* --- elogios --- */
+  const bons=A.filter(r=>+r.nota>=5);
+  const tags={};bons.forEach(r=>(r.tags||[]).forEach(t=>tags[t]=(tags[t]||0)+1));
+  const topTags=Object.entries(tags).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  h+='<h2>🏆 O que a equipe acertou</h2><div class="cards"><div class="c"><div class="k">Avaliações 5 estrelas</div><div class="v" style="color:var(--ok)">'+bons.length+'</div><div class="d">'+(A.length?(bons.length/A.length*100).toFixed(0)+'% de tudo que recebemos':'—')+'</div></div>';
+  h+='<div class="c" style="grid-column:span 2"><div class="k">Elogios mais repetidos</div><div style="margin-top:6px">'+(topTags.length?topTags.map(t=>`<span class="pill">${t[0]} · ${t[1]}</span>`).join(''):'<span class="fl">sem dados</span>')+'</div></div></div>';
+  const elogio=bons.filter(r=>(r.comentario||'').length>25).slice(0,2);
+  elogio.forEach(r=>{h+=`<div class="q good">“${r.comentario.slice(0,220)}”<div class="m">${LOJAS[r.id_loja]||'—'} · ★★★★★ · ${brs(r.data_avaliacao)}</div></div>`});
+
+  /* --- causas dos problemas --- */
+  const causas={};[...C.map(r=>({...r,t:'Cancelamento'})),...N.map(r=>({...r,t:'Chamado'}))].forEach(r=>{const k=resp(r.motivo);causas[k]=(causas[k]||0)+1});
+  const ordc=Object.entries(causas).sort((a,b)=>b[1]-a[1]);
+  if(ordc.length){h+='<h2>🔎 De quem foi o problema <span class="hint">cancelamentos e chamados agrupados por origem</span></h2><table><tr><th>Origem</th><th class="n">Ocorrências</th><th style="width:40%">Peso</th></tr>';
+    const mx=ordc[0][1];
+    ordc.forEach(([k,v])=>{h+=`<tr><td>${k}</td><td class="n"><b>${v}</b></td><td><div class="bar"><i style="width:${v/mx*100}%;background:${/Cliente|pagamento/.test(k)?'var(--muted)':'var(--brand)'}"></i></div></td></tr>`});
+    h+='</table><div class="aviso">As linhas em cinza são problemas do cliente ou de endereço — não dependem da cozinha nem do salão.</div>'}
+
+  /* --- selo super --- */
+  const ss=D.ss.filter(s=>UNI.includes(LOJAS[s.id_loja]));
+  if(ss.length){h+='<h2>⭐ Selo Super <span class="hint">status oficial do iFood por loja</span></h2><table><tr><th>Loja</th><th>Status</th><th class="n">Nota</th><th class="n">% cancel.</th><th class="n">% chamados</th></tr>';
+    ss.sort((a,b)=>(LOJAS[a.id_loja]||'').localeCompare(LOJAS[b.id_loja]||'')).forEach(s=>{
+      h+=`<tr><td>${s.nome||'—'}<div class="m" style="color:var(--muted);font-size:11px">${LOJAS[s.id_loja]||''}</div></td><td>${s.e_super?'<b style="color:var(--gold)">SUPER</b>':(s.status||'—')}</td><td class="n">${s.media_avaliacoes??'—'}</td><td class="n">${s.pct_cancelamento??'—'}</td><td class="n">${s.pct_chamados??'—'}</td></tr>`});
+    h+='</table>'}
+
+  /* --- google --- */
+  const gU={};D.go.forEach(g=>{(gU[g.unidade]=gU[g.unidade]||[]).push(g)});
+  const gl=Object.keys(gU).filter(u=>UNI.includes(u));
+  if(gl.length){h+='<h2>🗺 Reputação no Google</h2><table><tr><th>Unidade</th><th class="n">Nota</th><th class="n">Avaliações</th><th>Última coleta</th></tr>';
+    gl.forEach(u=>{const a=gU[u][0],b=gU[u][1];
+      h+=`<tr><td><b>${u}</b></td><td class="n">${a.nota} ${b?delta(+a.nota,+b.nota):''}</td><td class="n">${(a.num_avaliacoes||0).toLocaleString('pt-BR')} ${b?delta(a.num_avaliacoes,b.num_avaliacoes):''}</td><td>${brs(a.data_coleta)}</td></tr>`});
+    h+='</table>'}
+
+  /* --- RH agregado --- */
+  const E=D.es.filter(r=>r.data>=S.ini&&r.data<=S.fim&&UNI.includes(r.unidade));
+  const V=D.ev.filter(r=>r.data>=S.ini&&r.data<=S.fim&&UNI.includes(r.unidade));
+  h+='<h2>👥 Equipe na semana <span class="hint">números do grupo, sem citar pessoas</span></h2>';
+  if(!E.length&&!V.length){h+='<div class="aviso">Ainda não há registro de ponto carregado para esta semana.</div>'}
+  else{
+    const acao=E.filter(r=>r.nivel==='ACAO').length, conf=E.filter(r=>r.nivel==='CONFERIR').length, ok=E.filter(r=>r.nivel==='OK').length;
+    h+='<div class="cards">';
+    h+=card('Dias-funcionário analisados',E.length,'em '+new Set(E.map(r=>r.data)).size+' dia(s) com registro');
+    h+=card('Tudo certo',ok,E.length?(ok/E.length*100).toFixed(0)+'% dos registros':'');
+    h+=card('Precisa conferir',conf,'escala ou horário divergente');
+    h+=card('Exige ação',acao,'intervalo, hora extra ou marcação faltando');
+    const at=V.filter(r=>r.tipo==='ATESTADO').length, ad=V.filter(r=>r.tipo==='ADVERTENCIA').length;
+    h+=card('Atestados',at,'entregues na semana');
+    h+=card('Advertências',ad,ad?'formalizadas':'nenhuma — ótimo sinal');
+    h+='</div>';
+    h+='<table style="margin-top:12px"><tr><th>Unidade</th><th class="n">Registros</th><th class="n">Conferir</th><th class="n">Ação</th></tr>';
+    UNI.forEach(u=>{const e=E.filter(r=>r.unidade===u);
+      h+=`<tr><td><b>${u}</b></td><td class="n">${e.length}</td><td class="n">${e.filter(r=>r.nivel==='CONFERIR').length}</td><td class="n">${e.filter(r=>r.nivel==='ACAO').length}</td></tr>`});
+    h+='</table>';
+    const dias=new Set(E.map(r=>r.data)).size;
+    if(dias<7)h+='<div class="aviso">Cobertura parcial: só '+dias+' de 7 dias desta semana têm ponto carregado. Os números de equipe são um retrato incompleto.</div>';
+  }
+
+  h+='<div class="aviso" style="margin-top:24px">Faturamento, ticket médio e vendas do salão não aparecem aqui — esses dados estão no Saipos, que ainda não é lido automaticamente.</div>';
+  $('app').innerHTML=h;
+}
+const card=(k,v,d)=>`<div class="c"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d||''}</div></div>`;
+if($('gate').style.display==='none')boot();
+</script>
+</body></html>
