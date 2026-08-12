@@ -170,7 +170,7 @@ function climaPill(c){
   return '<span class="pill pm">Seco</span>';
 }
 
-let VIEW='prev', SUG=[], CLIMA=[], ESC=[], ADER=[], FORA=[], NOMES=[], DATA=null, LOJA='Água Verde', ROWS=[], ABERTO={}, RESUMO=false, ADER_INI=null, ADER_FIM=null;
+let VIEW='prev', SUG=[], CLIMA=[], ESC=[], ADER=[], FORA=[], NOMES=[], DATA=null, LOJA='Água Verde', ROWS=[], ABERTO={}, RESUMO=false, ADER_INI=null, ADER_FIM=null, LOJA_ADER='Todas';
 const hoje=()=>iso(new Date());
 function dias(n,off){const b=new Date();const a=[];for(let i=(off||0);i<(off||0)+n;i++)a.push(iso(new Date(b.getTime()+i*864e5)));return a}
 
@@ -500,7 +500,8 @@ async function salvar(){
 
 /* ================= 3) ADERÊNCIA ================= */
 function viewAder(){
-  const a=ADER.slice();
+  const a=ADER.filter(x=>LOJA_ADER==='Todas'||x.unidade===LOJA_ADER);
+  const fora=FORA.filter(x=>LOJA_ADER==='Todas'||x.unidade===LOJA_ADER);
   const tot=a.length;
   const noH=a.filter(x=>x.status==='No horário').length;
   const atr=a.filter(x=>x.status==='Atrasado'||x.status==='Muito atrasado').length;
@@ -517,6 +518,7 @@ h+='<div class="sec" style="display:flex;gap:10px;align-items:flex-end;flex-wrap
 '<button class="btnr" onclick="periodoAderRapido(7)">7 dias</button>'+
 '<button class="btnr" onclick="periodoAderRapido(30)">30 dias</button>'+
 '</div>';
+h+='<div class="tabs">'+['Todas'].concat(LOJAS).map(l=>'<span class="tab '+(LOJA_ADER===l?'on':'')+'" onclick="LOJA_ADER=\''+l+'\';viewAder()">'+l+'</span>').join('')+'</div>';
   if(!tot){
     h+='<div class="warnbox">Ainda não há escala salva nos últimos 7 dias, então não dá para comparar combinado × chegada. Monte a escala na aba <b>Montar escala</b> — a partir do primeiro dia salvo esta tela passa a mostrar quem chegou no horário.</div>';
   }
@@ -569,9 +571,9 @@ h+='<div class="sec" style="display:flex;gap:10px;align-items:flex-end;flex-wrap
   }
   h+='</div>';
 
-  if(FORA.length){
+  if(fora.length){
     h+='<div class="sec"><h2>❓ Rodou sem estar na escala</h2><div class="hs">apareceu no Foody mas não estava escalado — confira se foi troca de última hora</div><table><tr><th>Dia</th><th>Motoboy</th><th>Loja</th><th class="num">Entregas</th><th>1ª coleta</th></tr>';
-    FORA.slice(0,60).forEach(f=>{h+='<tr><td>'+br(f.dia_op)+'</td><td>'+esc(f.nome)+'</td><td class="small">'+esc(f.unidade)+'</td><td class="num">'+f.entregas+'</td><td>'+hm(f.primeira_coleta)+'</td></tr>'});
+    fora.slice(0,60).forEach(f=>{h+='<tr><td>'+br(f.dia_op)+'</td><td>'+esc(f.nome)+'</td><td class="small">'+esc(f.unidade)+'</td><td class="num">'+f.entregas+'</td><td>'+hm(f.primeira_coleta)+'</td></tr>'});
     h+='</table></div>';
   }
   $('conteudo').innerHTML=h;
