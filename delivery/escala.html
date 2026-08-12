@@ -313,7 +313,10 @@ var COLADO=null, ATIVOS=[];
 const HORAS=[10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
 function hh(t){return parseInt(String(t).slice(0,2),10)||0}
 function faixa(e,sa){var a=hh(e),b=hh(sa); if(b<=a)b+=24; return [a,b]}
-function cobre(r,t){var f=faixa(r.entrada,r.saida); return t===TURNOS_ESC[0] ? f[0]<17 : f[1]>=17}
+function cobre(r,t){var f=faixa(r.entrada,r.saida);
+  if(t==='Almoço')return f[0]<17;
+  if(t==='Fecha')return f[0]>=20;
+  return f[1]>=17&&f[0]<20}
 function barraCobertura(rows){
   var m={}; HORAS.forEach(function(h){m[h]=0});
   rows.forEach(function(r){var f=faixa(r.entrada,r.saida); for(var h=f[0];h<f[1];h++){ if(m[h]!==undefined)m[h]++ }});
@@ -324,9 +327,10 @@ function barraCobertura(rows){
     return '<div class="cb"><div class="bar '+cls+'" style="height:'+Math.round(6+(n/mx)*38)+'px"></div><div class="hl">'+(h%24)+'</div><div class="nn">'+(n||'')+'</div></div>'
   }).join('')+'</div><div class="hs" style="margin:0">quantos motoboys cobrem cada hora'+(vazias?' · <span style="color:#f08d8d">'+vazias+'h sem ninguém</span>':' · <span style="color:#5fd396">dia todo coberto</span>')+'</div>';
 }
-const TURNOS_ESC=['Almoço','Jantar'];
+const TURNOS_ESC=['Almoço','Jantar','Fecha'];
 const BLOCOS={'Almoço':[['10:00','14:00'],['10:00','16:00'],['11:00','17:00']],
-              'Jantar':[['17:00','23:00'],['18:00','00:00'],['20:00','02:00']]};
+              'Jantar':[['17:00','23:00'],['18:00','00:00']],
+              'Fecha':[['20:00','02:00']]};
 function rotBloco(e,sa){return e.slice(0,2)+'h \u2192 '+(sa==='02:00'?'fecha (02h)':(sa==='00:00'?'meia-noite':sa.slice(0,2)+'h'))}
 function blocoDe(t,n){var r=ROWS.find(function(x){return x.turno===t&&x.nome===n});return r?String(r.entrada).slice(0,5)+'|'+String(r.saida).slice(0,5):null}
 function porBloco(t,e,sa,n){
@@ -415,7 +419,7 @@ function montBody(){
   TURNOS_ESC.forEach(t=>{
     const nSel=ROWS.filter(r=>cobre(r,t)).length;
     h+='<div class="sec"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
-       '<h2 style="margin:0">'+turnoIcon(t)+' '+(t==='Almo\u00E7o'?'ALMO\u00C7O':'JANTA')+'</h2>'+
+       '<h2 style="margin:0">'+(turnoIcon(t)||'')+' '+(t==='Almo\u00E7o'?'ALMO\u00C7O':(t==='Jantar'?'JANTA':'FECHA \u{1F319}'))+'</h2>'+
        '<span class="pill '+(nSel?'pg':'pw')+'">'+nSel+' cobrindo</span></div>';
     const outros=ROWS.filter(r=>cobre(r,t)&&r.turno!==t);
     if(outros.length)h+='<div class="tamb">também cobre este turno: '+outros.map(r=>esc(r.nome.split(' ')[0])+' ('+String(r.entrada).slice(0,2)+'h→'+String(r.saida).slice(0,2)+'h)').join(' · ')+'</div>';
