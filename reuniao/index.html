@@ -142,7 +142,7 @@ async function carrega(){
     get('ifood_fato_cancelamento','select=id_loja,data,motivo,status_pedido,valor_cancelamento&data=gte.'+ini+'&data=lte.'+fim+'&limit=10000'),
     get('ifood_fato_negociacao','select=id_loja,data,motivo,cancelamento_evitado,valor_reembolso&data=gte.'+ini+'&data=lte.'+fim+'&limit=10000'),
     get('ifood_fato_qualidade_periodo','select=id_loja,periodo_inicio,periodo_fim,pedidos_totais,pct_cancelamentos_super,pct_negociacoes_super,media_avaliacoes,qtd_avaliacoes,tempo_medio_preparo_min&periodo_inicio=gte.'+ini+'&limit=5000'),
-    get('ifood_fato_super_status','select=id_loja,nome,e_super,status,nivel,media_avaliacoes,pct_cancelamento,pct_chamados,referencia&limit=500'),
+    get('ifood_fato_super_status','select=id_loja,nome,e_super,status,nivel,tipo,media_avaliacoes,pct_cancelamento,pct_chamados,referencia&order=referencia.desc&limit=500'),
     get('google_fato_avaliacao','select=unidade,nota,num_avaliacoes,data_coleta&order=data_coleta.desc&limit=200'),
     get('fato_espelho_dia','select=unidade,data,categoria,nivel&data=gte.'+ini+'&data=lte.'+fim+'&ativo=eq.true&limit=10000'),
     get('fato_evento','select=unidade,data,tipo&data=gte.'+ini+'&data=lte.'+fim+'&limit=5000')
@@ -229,10 +229,18 @@ function render(){
     h+='</table><div class="aviso">As linhas em cinza são problemas do cliente ou de endereço — não dependem da cozinha nem do salão.</div>'}
 
   /* --- selo super --- */
-  const ss=D.ss.filter(s=>UNI.includes(LOJAS[s.id_loja]));
-  if(ss.length){h+='<h2>⭐ Selo Super <span class="hint">status oficial do iFood por loja</span></h2><table><tr><th>Loja</th><th>Status</th><th class="n">Nota</th><th class="n">% cancel.</th><th class="n">% chamados</th></tr>';
-    ss.sort((a,b)=>(LOJAS[a.id_loja]||'').localeCompare(LOJAS[b.id_loja]||'')).forEach(s=>{
-      h+=`<tr><td>${s.nome||'—'}<div class="m" style="color:var(--muted);font-size:11px">${LOJAS[s.id_loja]||''}</div></td><td>${s.e_super?'<b style="color:var(--gold)">SUPER</b>':(s.status||'—')}</td><td class="n">${s.media_avaliacoes??'—'}</td><td class="n">${s.pct_cancelamento??'—'}</td><td class="n">${s.pct_chamados??'—'}</td></tr>`});
+  /* cada import do iFood grava um novo ciclo; ficamos só com o mais recente de cada tipo por loja (D.ss já vem ordenado por referencia desc) */
+  const ssAtual={},ssProx={};
+  D.ss.forEach(s=>{if(!UNI.includes(LOJAS[s.id_loja]))return;
+    if(s.tipo==='nivel_atual'&&!ssAtual[s.id_loja])ssAtual[s.id_loja]=s;
+    if(s.tipo==='proxima_avaliacao'&&!ssProx[s.id_loja])ssProx[s.id_loja]=s});
+  const ss=Object.values(ssAtual).sort((a,b)=>(LOJAS[a.id_loja]||'').localeCompare(LOJAS[b.id_loja]||''));
+  const fmtPct=v=>v==null?'—':(v*100).toLocaleString('pt-BR',{maximumFractionDigits:2})+'%';
+  const ssPill=x=>!x?'<span class="fl">—</span>':x.e_super?'<b style="color:var(--gold)">🏆 SUPER</b>':(x.nivel!=null?'Nível '+x.nivel:(x.status||'—'));
+  if(ss.length){h+='<h2>⭐ Selo Super <span class="hint">status oficial do iFood por loja · ciclo atual</span></h2><table><tr><th>Loja</th><th>Status</th><th>Próx. ciclo</th><th class="n">Nota</th><th class="n">% cancel.</th><th class="n">% chamados</th></tr>';
+    ss.forEach(s=>{const p=ssProx[s.id_loja];
+      const seta=p&&s.nivel!=null&&p.nivel!=null?(p.nivel>s.nivel?' <span class="up">▲</span>':p.nivel<s.nivel?' <span class="dn">▼</span>':''):'';
+      h+=`<tr><td>${s.nome||'—'}<div class="m" style="color:var(--muted);font-size:11px">${LOJAS[s.id_loja]||''}</div></td><td>${ssPill(s)}</td><td>${ssPill(p)}${seta}</td><td class="n">${s.media_avaliacoes??'—'}</td><td class="n">${fmtPct(s.pct_cancelamento)}</td><td class="n">${fmtPct(s.pct_chamados)}</td></tr>`});
     h+='</table>'}
 
   /* --- google --- */
