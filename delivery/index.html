@@ -146,10 +146,11 @@ async function pag(base){let all=[],from=0,step=1000;
   while(true){const r=await fetch(SB+base,{headers:{...H,Range:from+'-'+(from+step-1)}});if(!r.ok)throw new Error('HTTP '+r.status);
     const p=await r.json();all=all.concat(p);if(p.length<step)break;from+=step}return all}
 
+var ENTR=[];
 async function loadAll(){
   $('conteudo').innerHTML='<div class="loading">Carregando…</div>';
   try{
-    [F,SC,CANC,AVAL,NEG,DIMS,ATR,PAG]=await Promise.all([
+    [F,SC,CANC,AVAL,NEG,DIMS,ATR,PAG,ENTR]=await Promise.all([
       pag('foody_fato_fechamento_turno_dia?select=*&order=dia_operacional.asc'),
       fj('foody_fato_pedido_sem_codigo?select=*&order=hora_pedido.desc&limit=1000'),
       fj('ifood_fato_cancelamento?select=id_loja,data,turno,motivo,itens_cancelados,valor_cancelamento&order=data.desc&limit=500'),
@@ -157,7 +158,8 @@ async function loadAll(){
       fj('ifood_fato_negociacao?select=id_loja,data,motivo,resposta_loja,cancelamento_evitado&order=data.desc&limit=500'),
       fj('ifood_dim_loja?select=id_loja,nome,unidade'),
       pag('foody_vw_pedido_prazo?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=n_pedido,unidade,turno,entregador,data_hora_pedido,dia_operacional,dt_entregue,t_coleta_min,t_total_min,dt_pronto,dt_despachado,dt_aceite,dt_coletado,rota_km,raio_km,entrega_prometida,t_aceite_min,prazo_prometido_min,atraso_real_min,no_prazo_real,fonte_prazo_real&order=data_hora_pedido.asc'),
-      pag('foody_vw_pagamento_dia?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=*&order=dia_operacional.asc')
+      pag('foody_vw_pagamento_dia?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=*&order=dia_operacional.asc'),
+      fj('foody_vw_entregas_dia?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=*&order=dia_operacional.asc&limit=2000')
     ]);
     try{ESCH=await fj('foody_vw_aderencia?dia_op=gte.'+(new Date(Date.now()-8*864e5)).toISOString().slice(0,10)+'&select=*&order=entrada&limit=1000')}catch(e){ESCH=[]}
     DAYS=[...new Set(F.map(r=>r.dia_operacional))].sort();
@@ -179,6 +181,14 @@ function toggleAtr(){const x=document.getElementById('atrlist');if(x)x.style.dis
 function render(){lojasHTML();VIEW==='diario'?renderDiario():VIEW==='equipe'?renderEquipe():renderIfood()}
 
 /* ================= DIÁRIO ================= */
+function botoesDow(){
+  var N=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'],h='<span style="display:inline-block;width:10px"></span>';
+  for(var k=0;k<7;k++){h+='<span class="tab" onclick="irParaDow('+k+')">'+N[k]+'</span>'}
+  return h;
+}
+function irParaDow(k){
+  for(var i=NAV.length-1;i>=0;i--){ if(dow(NAV[i])===k){ DI=i; PER=1; render(); return } }
+}
 function renderDiario(){
   const D=NAV[DI];if(!D){$('conteudo').innerHTML='<div class="empty">Sem dados.</div>';$('barra').innerHTML='';return}
   $('barra').innerHTML='<div class="datenav" style="width:max-content"><button onclick="stepDay(-1)">‹</button><div class="cur">'+DOWN[dow(D)]+' '+br(D)+'</div><button onclick="stepDay(1)">›</button></div>';
@@ -288,8 +298,14 @@ const rM=v=>'R$ '+Math.round(v).toLocaleString('pt-BR');
 function copiarWpp(){
   const t=window.__WPP||'';navigator.clipboard.writeText(t).then(()=>{const b=document.getElementById('wppbtn');if(b){b.textContent='✓ Copiado!';setTimeout(()=>b.textContent='📱 Resumo p/ WhatsApp',1800)}});
 }
+function kpiCodigo(dias){
+  var e=(ENTR||[]).filter(function(r){return dias.indexOf(r.dia_operacional)>=0&&fLoja(r)});
+  var ped=0,sc=0; e.forEach(function(r){ped+=(+r.pedidos||0);sc+=(+r.sem_codigo||0)});
+  var comCod=ped-sc;
+  return kpi('Código de coleta',comCod,ped?(sc+' sem código de '+ped+' pedidos iFood'):'sem pedidos no período',sc?'var(--warn)':'var(--good)');
+}
 function renderEquipe(){
-  $('barra').innerHTML='<div class="tabs" style="margin:0">'+[['1','Ontem'],['3','3 dias'],['7','7 dias']].map(([n,l])=>'<span class="tab '+(PER===+n?'on':'')+'" onclick="PER='+n+';render()">'+l+'</span>').join('')+'</div>';
+  $('barra').innerHTML='<div class="tabs" style="margin:0">'+[['1','Ontem'],['3','3 dias'],['7','7 dias']].map(([n,l])=>'<span class="tab '+(PER===+n?'on':'')+'" onclick="PER='+n+';render()">'+l+'</span>').join('')+botoesDow()+'</div>';
   const dias=NAV.slice(-PER);
   const rs=PAG.filter(r=>dias.includes(r.dia_operacional)&&fLoja(r));
   const rsAll=PAG.filter(r=>dias.includes(r.dia_operacional));
@@ -303,8 +319,8 @@ function renderEquipe(){
     kpi('No horário',ok,pct!=null?pct+'% do total':'',pct==null?'var(--muted)':pct>=90?'var(--good)':pct>=75?'var(--warn)':'var(--bad)')+
     kpi('Atrasadas',atr,pct!=null?(100-pct).toFixed(1)+'% do total':'','var(--bad)')+
     kpi('Horas',Math.round(horas)+'h','trabalhadas','var(--blue)')+
-    kpi('Complemento',rM(comp),'garantido além das entregas','var(--warn)')+
-    kpi('A pagar',rM(rec),'entregas + complemento','var(--good)')+'</div>';
+    
+    kpiCodigo(dias)+'</div>';
   const bs=ok+atr, pok=bs?100*ok/bs:0;
   html+='<div class="sec"><h2>Entregas: no horário × atrasadas</h2><div class="hs">no período/loja selecionado</div>'+
     '<div class="splitbar"><div class="seg" style="width:'+pok+'%;background:var(--good)">'+(pok>7?ok:'')+'</div><div class="seg" style="width:'+(100-pok)+'%;background:var(--bad)">'+((100-pok)>7?atr:'')+'</div></div>'+
@@ -366,7 +382,7 @@ function renderEquipe(){
 function renderIfood(){
   try{sessionStorage.setItem('cm_owner_ok','1')}catch(e){}
   $('lojas').innerHTML='';$('barra').innerHTML='';
-  $('conteudo').innerHTML='<iframe src="ifood.html?v=4" style="width:100%;height:calc(100vh - 150px);min-height:620px;border:0;border-radius:12px;background:#1a1a19"></iframe>';
+  $('conteudo').innerHTML='<iframe src="ifood-proprietario.html?semmoto=1" style="width:100%;height:calc(100vh - 150px);min-height:620px;border:0;border-radius:12px;background:#1a1a19"></iframe>';
 }
 function sortTable(th){
   const table=th.closest('table');if(!table)return;
