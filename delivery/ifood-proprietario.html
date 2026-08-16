@@ -128,11 +128,40 @@ async function fetchAll(table,select,order){
   return out;
 }
 
+
+function motoPw(){return sessionStorage.getItem("cdm_moto_pw")||""}
+async function fetchMoto(){
+  var s=motoPw(); if(!s)return [];
+  var r=await sb.rpc("foody_pagamento_motoboy",{p_senha:s});
+  if(r.error){sessionStorage.removeItem("cdm_moto_pw");return []}
+  return r.data||[];
+}
+function motoForm(m){
+  var h="<div class=\"panel\" style=\"max-width:420px\">";
+  h+="<div style=\"font-weight:600;margin-bottom:6px\">Area restrita</div>";
+  h+="<div class=\"muted\" style=\"font-size:13px;margin-bottom:10px\">O pagamento dos entregadores so abre com senha.</div>";
+  h+="<input id=\"motopw\" type=\"password\" autocomplete=\"off\" placeholder=\"Senha\" onkeydown=\"if(event.key=='Enter')motoEntrar()\" style=\"width:100%;padding:8px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--txt)\">";
+  h+="<div style=\"margin-top:10px\"><button onclick=\"motoEntrar()\" style=\"padding:8px 16px;border-radius:6px;border:0;background:var(--acc);color:#0d1117;font-weight:bold;cursor:pointer\">Entrar</button></div>";
+  h+="<div id=\"motomsg\" class=\"muted\" style=\"font-size:12px;margin-top:8px\">"+(m||"")+"</div></div>";
+  return h;
+}
+async function motoEntrar(){
+  var el=document.getElementById("motopw"); if(!el)return;
+  var v=(el.value||"").trim(); if(!v){return}
+  var msg=document.getElementById("motomsg"); if(msg)msg.textContent="Conferindo...";
+  var r=await sb.rpc("foody_pagamento_motoboy",{p_senha:v});
+  if(r.error){if(msg)msg.textContent="Senha invalida.";return}
+  sessionStorage.setItem("cdm_moto_pw",v);
+  MOTO=r.data||[];
+  render();
+}
+function motoSair(){sessionStorage.removeItem("cdm_moto_pw");MOTO=[];render();}
+
 async function loadAll(){
   document.getElementById("content").innerHTML='<div class="panel muted">Carregando dados ao vivo…</div>';
   [ENTR,MOTO,LOJAS,CANC,NEG,AVAL,QUAL,SUPER]=await Promise.all([
     fetchAll("foody_vw_entregas_dia","id_loja,unidade,dia_operacional,turno,pedidos,no_prazo,atrasados,atraso_ate_10,atraso_10_30,atraso_mais_30,atraso_medio_min,pior_atraso_min,sem_codigo,no_prazo_foody,preparo_medio_min,entrega_medio_min"),
-    fetchAll("foody_vw_pagamento_motoboy","id_loja,unidade,dia_operacional,bloco,entregador,fim_de_semana,horas_entregas,horas_escala,entregas,no_prazo,atrasos,taxas,garantido_por_entregas,garantido_por_escala,pagar_por_entregas,pagar_por_escala"),
+    fetchMoto(),
     fetchAll("ifood_dim_loja","id_loja,nome,unidade,ativa"),
     fetchAll("ifood_fato_cancelamento","id_loja,id_pedido,data,turno,status_pedido,motivo,impactou_super,valor_pedido,valor_cancelamento,itens_cancelados,origem,contestavel,loja_contestou,status_contestacao,id_saipos,forma_pagamento,pagamento_online,primeiro_pedido,chat,fotos","data"),
     fetchAll("ifood_fato_negociacao","id_loja,id_pedido,data,turno,motivo,momento_solicitacao,quem_iniciou,resposta_loja,resposta_cliente,valor_reembolso,valor_cupom,cancelamento_evitado,impactou_super,id_saipos,forma_pagamento,pagamento_online,primeiro_pedido,chat,fotos","data"),
@@ -241,7 +270,7 @@ function rEntregas(f){
 }
 
 function rMoto(f){
-  var R=f.moto; if(!R.length){setContent("<div class=\"panel muted\">Sem dados de pagamento. A view foody_vw_pagamento_motoboy precisa existir e estar liberada para o portal.</div>");return;}
+  var R=f.moto; if(!motoPw()){setContent(motoForm(""));return;} if(!R.length){setContent("<div class=\"panel muted\">Sem dados de pagamento. Sem lancamentos no periodo escolhido.</div>");return;}
   var brl=function(v){return "R$ "+(+v||0).toFixed(2).replace(".",",")};
   var tE=R.reduce(function(a,r){return a+(+r.pagar_por_entregas||0)},0);
   var tS=R.reduce(function(a,r){return a+(+r.pagar_por_escala||0)},0);
