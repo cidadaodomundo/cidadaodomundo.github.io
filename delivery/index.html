@@ -386,7 +386,10 @@ function sortTable(th){
   rows.forEach(r=>table.appendChild(r));
 }
 document.addEventListener('click',e=>{const th=e.target.closest('th');if(th)sortTable(th)});
-setInterval(function(){if(VIEW!=='ifood')loadAll()},45000);
+// Recarga automatica a cada 3 horas, e so quando a aba esta visivel.
+// Antes era a cada 45s, o que consumia ~3,7 GB por dia por tela aberta.
+// Para atualizar na hora, use o botao ↻ Atualizar no topo.
+setInterval(function(){if(VIEW!=='ifood'&&document.visibilityState==='visible')loadAll()},10800000);
 loadAll();
 </script>
 <script>
@@ -401,9 +404,20 @@ function instalarApp(){if(_ip){_ip.prompt();_ip=null}else{alert('Para instalar:\
 window.addEventListener('load',function(){try{
  var _b='https://kqvoatdprjwxyadhvtdd.supabase.co';
  var _c=supabase.createClient(_b, KEY);
+ // Salvar a escala dispara varios eventos seguidos. Sem isto, cada evento
+ // fazia uma recarga completa (~1,9 MB) em TODAS as telas abertas.
+ // Agora as rajadas viram uma unica recarga, 20s depois, e so se a aba estiver visivel.
+ var _t=null;
+ function _recarregaEmBreve(){
+   try{
+     if(typeof VIEW!=='undefined'&&VIEW==='ifood')return;
+     if(document.visibilityState!=='visible')return;
+     clearTimeout(_t); _t=setTimeout(function(){try{loadAll()}catch(e){}},20000);
+   }catch(e){}
+ }
  _c.channel('cm-live')
-  .on('postgres_changes',{event:'*',schema:'public',table:'foody_checkin'},function(){try{if(typeof VIEW==='undefined'||VIEW!=='ifood')loadAll()}catch(e){}})
-  .on('postgres_changes',{event:'*',schema:'public',table:'foody_escala'},function(){try{if(typeof VIEW==='undefined'||VIEW!=='ifood')loadAll()}catch(e){}})
+  .on('postgres_changes',{event:'*',schema:'public',table:'foody_checkin'},_recarregaEmBreve)
+  .on('postgres_changes',{event:'*',schema:'public',table:'foody_escala'},_recarregaEmBreve)
   .subscribe();
 }catch(e){}});
 </script>
