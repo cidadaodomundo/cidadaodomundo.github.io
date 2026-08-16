@@ -136,6 +136,9 @@ async function gateTry(){const v=document.getElementById('gpw').value;const h=aw
 if(sessionStorage.getItem('cm_del_ok')==='1'||sessionStorage.getItem('cm_owner_ok')==='1')document.getElementById('gate').style.display='none';
 
 const LOJAS=['Água Verde','São Braz','Ahú'];
+const DONO=sessionStorage.getItem('cm_owner_ok')==='1';
+const DOWNS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+function periodoAderDow(k){var d=new Date();d.setHours(12,0,0,0);var i=0;while(d.getDay()!==k&&i<8){d.setDate(d.getDate()-1);i++}if(iso(d)===iso(new Date())){d.setDate(d.getDate()-7)}var v=iso(d);ADER_INI=v;ADER_FIM=v;var x=document.getElementById('aderIni'),y=document.getElementById('aderFim');if(x)x.value=v;if(y)y.value=v;aplicarPeriodoAder();}
 const TURNOS=['Almoço','Tarde','Jantar','Madrugada'];
 const TORD={'Almoço':1,'Tarde':2,'Jantar':3,'Madrugada':4};
 const DOWN=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
@@ -517,6 +520,7 @@ h+='<div class="sec" style="display:flex;gap:10px;align-items:flex-end;flex-wrap
 '<button class="btnr" onclick="aplicarPeriodoAder()">aplicar</button>'+
 '<button class="btnr" onclick="periodoAderRapido(7)">7 dias</button>'+
 '<button class="btnr" onclick="periodoAderRapido(30)">30 dias</button>'+
+    '<span style="flex-basis:100%;height:0"></span>'+DOWNS.map(function(n,k){return '<button class="btnr" onclick="periodoAderDow('+k+')">'+n+'</button>'}).join('')+
 '</div>';
 h+='<div class="tabs">'+['Todas'].concat(LOJAS).map(l=>'<span class="tab '+(LOJA_ADER===l?'on':'')+'" onclick="LOJA_ADER=\''+l+'\';viewAder()">'+l+'</span>').join('')+'</div>';
   if(!tot){
@@ -525,9 +529,8 @@ h+='<div class="tabs">'+['Todas'].concat(LOJAS).map(l=>'<span class="tab '+(LOJA
   h+='<div class="kpis">'+
     kpi('Escalados','', tot,'últimos 7 dias')+
     kpi('No horário','g',(tot?Math.round(100*noH/tot):0)+'%',noH+' de '+tot)+
-    kpi('Atrasados','w',atr,med?'média de '+med+' min':'—')+
+    kpi('Atrasados','w',atr,(DONO&&med)?'média de '+med+' min':'—')+
     kpi('Faltas','b',falt,'nenhum sinal no dia')+
-    kpi('Sem check-in','',semQR,'trabalhou mas não bateu o QR')+
   '</div>';
 
   h+='<div class="hint">A chegada vem do <b>QR do balcão</b>. Se o motoboy não bater o QR mas aparecer no Foody, mostramos a 1ª coleta dele como sinal — é uma pista, não a hora exata em que ele chegou.</div>';
@@ -541,14 +544,14 @@ h+='<div class="tabs">'+['Todas'].concat(LOJAS).map(l=>'<span class="tab '+(LOJA
   const arr=Object.values(by).sort((x,y)=>y.dias-x.dias);
   if(!arr.length)h+='<div class="empty">sem dados ainda</div>';
   else{
-    h+='<table id="tbMoto"><tr>'+['Motoboy','Dias','No horário','Atrasos','Faltas','Sem QR','Atraso médio','Entregas'].map((c,i)=>'<th onclick="sortT(\'tbMoto\','+i+')" style="cursor:pointer">'+c+' ⇅</th>').join('')+'</tr>';
+    h+='<table id="tbMoto"><tr>'+['Motoboy','Dias','No horário','Atrasos','Faltas','Atraso médio','Entregas'].map((c,i)=>'<th onclick="sortT(\'tbMoto\','+i+')" style="cursor:pointer">'+c+' ⇅</th>').join('')+'</tr>';
     arr.forEach(o=>{
       const pct=o.dias?Math.round(100*o.noH/o.dias):0;
       h+='<tr><td>'+esc(o.nome)+'</td><td class="num">'+o.dias+'</td>'+
          '<td class="num"><span class="pill '+(pct>=80?'pg':pct>=60?'pw':'pb')+'">'+pct+'%</span></td>'+
          '<td class="num">'+o.atr+'</td><td class="num">'+(o.falt?'<span style="color:#f19191">'+o.falt+'</span>':'0')+'</td>'+
-         '<td class="num">'+o.semQR+'</td>'+
-         '<td class="num">'+(o.cnt?Math.round(o.soma/o.cnt)+' min':'—')+'</td><td class="num">'+o.ent+'</td></tr>';
+         
+         '<td class="num">'+(DONO?(o.cnt?Math.round(o.soma/o.cnt)+' min':'—'):'·')+'</td><td class="num">'+o.ent+'</td></tr>';
     });
     h+='</table>';
   }
