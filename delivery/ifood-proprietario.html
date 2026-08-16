@@ -88,6 +88,8 @@
     <span class="tab" data-t="neg">📞 Chamados</span>
     <span class="tab" data-t="resp">💬 Taxa de Resposta</span>
     <span class="tab" data-t="super">🏆 Selo Super</span>
+    <span class="tab" data-t="entregas">⏱️ Entregas</span>
+    <span class="tab" data-t="moto">🏍️ Motoboys</span>
   </div>
   <div id="content"></div>
 </div>
@@ -97,7 +99,7 @@ const SUPABASE_URL="https://kqvoatdprjwxyadhvtdd.supabase.co";
 const SUPABASE_KEY="sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV";
 const sb=(typeof supabase!=="undefined"&&supabase.createClient)?supabase.createClient(SUPABASE_URL,SUPABASE_KEY):null;
 
-let LOJAS=[],CANC=[],NEG=[],AVAL=[],QUAL=[],SUPER=[];
+let LOJAS=[],CANC=[],NEG=[],AVAL=[],QUAL=[],SUPER=[],ENTR=[],MOTO=[];
 let F={unidade:"Todas",loja:0,d1:null,d2:null,tab:"aval"};
 
 const fmtBRL=v=>(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
@@ -128,7 +130,9 @@ async function fetchAll(table,select,order){
 
 async function loadAll(){
   document.getElementById("content").innerHTML='<div class="panel muted">Carregando dados ao vivo…</div>';
-  [LOJAS,CANC,NEG,AVAL,QUAL,SUPER]=await Promise.all([
+  [ENTR,MOTO,LOJAS,CANC,NEG,AVAL,QUAL,SUPER]=await Promise.all([
+    fetchAll("foody_vw_entregas_dia","id_loja,unidade,dia_operacional,turno,pedidos,no_prazo,atrasados,atraso_ate_10,atraso_10_30,atraso_mais_30,atraso_medio_min,pior_atraso_min,sem_codigo,no_prazo_foody,preparo_medio_min,entrega_medio_min"),
+    fetchAll("foody_vw_pagamento_motoboy","id_loja,unidade,dia_operacional,bloco,entregador,fim_de_semana,horas_entregas,horas_escala,entregas,no_prazo,atrasos,taxas,garantido_por_entregas,garantido_por_escala,pagar_por_entregas,pagar_por_escala"),
     fetchAll("ifood_dim_loja","id_loja,nome,unidade,ativa"),
     fetchAll("ifood_fato_cancelamento","id_loja,id_pedido,data,turno,status_pedido,motivo,impactou_super,valor_pedido,valor_cancelamento,itens_cancelados,origem,contestavel,loja_contestou,status_contestacao,id_saipos,forma_pagamento,pagamento_online,primeiro_pedido,chat,fotos","data"),
     fetchAll("ifood_fato_negociacao","id_loja,id_pedido,data,turno,motivo,momento_solicitacao,quem_iniciou,resposta_loja,resposta_cliente,valor_reembolso,valor_cupom,cancelamento_evitado,impactou_super,id_saipos,forma_pagamento,pagamento_online,primeiro_pedido,chat,fotos","data"),
@@ -172,6 +176,8 @@ function filtered(){
     canc:CANC.filter(r=>ids.has(r.id_loja)&&inPeriod(r.data)),
     neg:NEG.filter(r=>ids.has(r.id_loja)&&inPeriod(r.data)),
     aval:AVAL.filter(r=>ids.has(r.id_loja)&&inPeriod(r.data_avaliacao)),
+    entr:ENTR.filter(r=>ids.has(r.id_loja)&&inPeriod(r.dia_operacional)),
+    moto:MOTO.filter(r=>ids.has(r.id_loja)&&inPeriod(r.dia_operacional)),
   };
 }
 
@@ -188,13 +194,73 @@ function render(){
   ].map(([l,v,s])=>`<div class="card"><div class="lbl">${l}</div><div class="big">${v}</div><div class="muted" style="font-size:12px">${s}</div></div>`).join("");
   const cnts={aval:f.aval.length,canc:f.canc.length,neg:f.neg.length,resp:f.neg.length,super:SUPER.filter(r=>r.tipo==="nivel_atual"&&r.e_super&&lojaIds().has(r.id_loja)).length};
   document.querySelectorAll("#tabs .tab").forEach(t=>{if(!t.dataset.lbl)t.dataset.lbl=t.innerHTML;const c=cnts[t.dataset.t];t.innerHTML=t.dataset.lbl+(c!=null?' <span class="tcnt">'+c+"</span>":"");});
-  ({aval:rAval,canc:rCanc,neg:rNeg,resp:rResp,super:rSuper})[F.tab](f);
+  cnts.entregas=f.entr.reduce((a,r)=>a+(+r.pedidos||0),0);
+  cnts.moto=new Set(f.moto.map(r=>r.entregador)).size;
+  document.querySelectorAll("#tabs .tab").forEach(t=>{const c=cnts[t.dataset.t];if(t.dataset.t==="entregas"||t.dataset.t==="moto")t.innerHTML=t.dataset.lbl+(c!=null?' <span class="tcnt">'+c+"</span>":"");});
+  ({aval:rAval,canc:rCanc,neg:rNeg,resp:rResp,super:rSuper,entregas:rEntregas,moto:rMoto})[F.tab](f);
 }
 
 let _charts=[];
 function newChart(id,cfg){const el=document.getElementById(id);if(!el||typeof Chart==="undefined")return;_charts.push(new Chart(el,cfg));}
 function clearCharts(){_charts.forEach(c=>c.destroy());_charts=[];}
 function setContent(html){clearCharts();document.getElementById("content").innerHTML=html;}
+
+function rEntregas(f){
+  var R=f.entr; if(!R.length){setContent("<div class=\"panel muted\">Sem pedidos do iFood no periodo. Se acabou de criar a view, recarregue.</div>");return;}
+  var S=function(k){return R.reduce(function(a,r){return a+(+r[k]||0)},0)};
+  var ped=S("pedidos"),ok=S("no_prazo"),atr=S("atrasados"),sc=S("sem_codigo"),okF=S("no_prazo_foody");
+  var pc=function(a,b){return b?(100*a/b).toFixed(1):"-"};
+  var n=0,t=0; R.forEach(function(r){if(r.atraso_medio_min!=null&&r.atrasados>0){t+=(+r.atraso_medio_min)*(+r.atrasados);n+=(+r.atrasados);}});
+  var med=n?(t/n).toFixed(1):"-";
+  var pior=R.reduce(function(m,r){return Math.max(m,+r.pior_atraso_min||0)},0);
+  var cor=function(p){return p>=90?"var(--ok)":p>=75?"var(--warn)":"var(--bad)"};
+  var pD={}; R.forEach(function(r){var d=r.dia_operacional;pD[d]=pD[d]||{p:0,o:0,f:0};pD[d].p+=+r.pedidos||0;pD[d].o+=+r.no_prazo||0;pD[d].f+=+r.no_prazo_foody||0;});
+  var dias=Object.keys(pD).sort();
+  var pT={}; R.forEach(function(r){var k=r.turno||"-";pT[k]=pT[k]||{p:0,o:0,a:0,s:0};pT[k].p+=+r.pedidos||0;pT[k].o+=+r.no_prazo||0;pT[k].a+=+r.atrasados||0;pT[k].s+=+r.sem_codigo||0;});
+  var h="<div class=\"cards\">";
+  h+="<div class=\"card\"><div class=\"lbl\">No prazo &mdash; promessa real</div><div class=\"big\" style=\"color:"+cor(ped?100*ok/ped:0)+"\">"+pc(ok,ped)+"%</div><div class=\"muted\" style=\"font-size:12px\">"+ok+" de "+ped+" pedidos iFood</div></div>";
+  h+="<div class=\"card\"><div class=\"lbl\">No prazo &mdash; prazo do Foody</div><div class=\"big\" style=\"color:var(--neu)\">"+pc(okF,ped)+"%</div><div class=\"muted\" style=\"font-size:12px\">a hora padrao, que inflava o numero</div></div>";
+  h+="<div class=\"card\"><div class=\"lbl\">Atrasados</div><div class=\"big\" style=\"color:var(--bad)\">"+atr+"</div><div class=\"muted\" style=\"font-size:12px\">media "+med+" min &middot; pior "+(pior?pior.toFixed(0)+" min":"-")+"</div></div>";
+  h+="<div class=\"card\"><div class=\"lbl\">Sem codigo de coleta</div><div class=\"big\" style=\"color:"+(sc?"var(--warn)":"var(--ok)")+"\">"+sc+"</div><div class=\"muted\" style=\"font-size:12px\">indicio, precisa conferir</div></div></div>";
+  h+="<div class=\"panel\" style=\"margin-top:14px\"><div class=\"lbl\" style=\"margin-bottom:8px\">Quanto atrasou</div>";
+  [["ate 10 min","atraso_ate_10","var(--warn)"],["de 10 a 30 min","atraso_10_30","var(--bad)"],["mais de 30 min","atraso_mais_30","var(--bad)"]].forEach(function(x){
+    var v=S(x[1]),p=atr?100*v/atr:0;
+    h+="<div style=\"margin:6px 0\"><div style=\"display:flex;justify-content:space-between;font-size:13px\"><span>"+x[0]+"</span><span class=\"muted\">"+v+" &middot; "+p.toFixed(0)+"%</span></div><div style=\"height:7px;background:var(--panel2);border-radius:4px;margin-top:3px\"><div style=\"height:100%;width:"+p+"%;background:"+x[2]+";border-radius:4px\"></div></div></div>";});
+  h+="</div>";
+  h+="<div class=\"panel\" style=\"margin-top:14px\"><div class=\"lbl\" style=\"margin-bottom:8px\">Por turno</div><table style=\"width:100%;border-collapse:collapse;font-size:13px\"><tr style=\"color:var(--mut);text-align:left\"><th style=\"padding:6px 4px\">Turno</th><th>Pedidos</th><th>No prazo</th><th>Atrasados</th><th>Sem codigo</th><th>%</th></tr>";
+  Object.keys(pT).sort(function(a,b){return pT[b].p-pT[a].p}).forEach(function(k){var v=pT[k],p=v.p?100*v.o/v.p:0;
+    h+="<tr style=\"border-top:1px solid var(--line)\"><td style=\"padding:6px 4px\">"+k+"</td><td>"+v.p+"</td><td>"+v.o+"</td><td>"+v.a+"</td><td>"+v.s+"</td><td style=\"color:"+cor(p)+"\">"+p.toFixed(1)+"%</td></tr>";});
+  h+="</table></div>";
+  h+="<div class=\"panel\" style=\"margin-top:14px\"><div class=\"lbl\" style=\"margin-bottom:8px\">Dia a dia &mdash; % no prazo</div><canvas id=\"ch1\" height=\"90\"></canvas></div>";
+  h+="<div class=\"panel muted\" style=\"margin-top:14px;font-size:12.5px;line-height:1.5\"><b>So pedidos do iFood.</b> Accon, telefone e balcao ficam de fora. O prazo e o que o iFood prometeu ao cliente, lido da observacao do pedido &mdash; nao a hora padrao do Foody. <b>Sem codigo de coleta</b> e indicio de que o codigo nao foi registrado, nao prova: confira antes de cobrar alguem.</div>";
+  setContent(h);
+  newChart("ch1",{type:"line",data:{labels:dias.map(function(d){return d.slice(8,10)+"/"+d.slice(5,7)}),datasets:[
+    {label:"Promessa real",data:dias.map(function(d){return pD[d].p?+(100*pD[d].o/pD[d].p).toFixed(1):null}),borderColor:"#4aa3ff",backgroundColor:"rgba(74,163,255,.15)",tension:.3,fill:true},
+    {label:"Prazo do Foody",data:dias.map(function(d){return pD[d].p?+(100*pD[d].f/pD[d].p).toFixed(1):null}),borderColor:"#7c8aa0",borderDash:[5,4],tension:.3,fill:false}]},
+   options:{responsive:true,plugins:{legend:{labels:{color:"#95a1b2"}}},scales:{y:{min:0,max:100,ticks:{color:"#95a1b2",callback:function(v){return v+"%"}},grid:{color:"#2a323c"}},x:{ticks:{color:"#95a1b2"},grid:{display:false}}}}});
+}
+
+function rMoto(f){
+  var R=f.moto; if(!R.length){setContent("<div class=\"panel muted\">Sem dados de pagamento. A view foody_vw_pagamento_motoboy precisa existir e estar liberada para o portal.</div>");return;}
+  var brl=function(v){return "R$ "+(+v||0).toFixed(2).replace(".",",")};
+  var tE=R.reduce(function(a,r){return a+(+r.pagar_por_entregas||0)},0);
+  var tS=R.reduce(function(a,r){return a+(+r.pagar_por_escala||0)},0);
+  var tx=R.reduce(function(a,r){return a+(+r.taxas||0)},0);
+  var dias=Object.keys(R.reduce(function(a,r){a[r.dia_operacional]=1;return a},{})).sort().reverse();
+  var h="<div class=\"cards\">";
+  h+="<div class=\"card\"><div class=\"lbl\">A pagar &mdash; base escala</div><div class=\"big\">"+brl(tS)+"</div><div class=\"muted\" style=\"font-size:12px\">garantido pelas horas combinadas</div></div>";
+  h+="<div class=\"card\"><div class=\"lbl\">A pagar &mdash; base entregas</div><div class=\"big\">"+brl(tE)+"</div><div class=\"muted\" style=\"font-size:12px\">garantido pelo tempo entre entregas</div></div>";
+  h+="<div class=\"card\"><div class=\"lbl\">Diferenca</div><div class=\"big\" style=\"color:"+((tS-tE)>0?"var(--warn)":"var(--ok)")+"\">"+brl(tS-tE)+"</div><div class=\"muted\" style=\"font-size:12px\">quanto a base muda no total</div></div>";
+  h+="<div class=\"card\"><div class=\"lbl\">So taxas de entrega</div><div class=\"big\" style=\"color:var(--neu)\">"+brl(tx)+"</div><div class=\"muted\" style=\"font-size:12px\">sem aplicar o garantido</div></div></div>";
+  dias.forEach(function(d){
+    var Lr=R.filter(function(r){return r.dia_operacional===d}).sort(function(a,b){return (a.unidade+a.bloco+a.entregador).localeCompare(b.unidade+b.bloco+b.entregador)});
+    var sd=Lr.reduce(function(a,r){return a+(+r.pagar_por_escala||0)},0);
+    h+="<div class=\"panel\" style=\"margin-top:14px\"><div class=\"lbl\" style=\"margin-bottom:8px\">"+d.slice(8,10)+"/"+d.slice(5,7)+" &mdash; total "+brl(sd)+"</div><table style=\"width:100%;border-collapse:collapse;font-size:13px\"><tr style=\"color:var(--mut);text-align:left\"><th style=\"padding:6px 4px\">Loja</th><th>Bloco</th><th>Entregador</th><th>Escala</th><th>Entregas</th><th>Taxas</th><th>Pagar (escala)</th><th>Pagar (entregas)</th><th>Atrasos</th></tr>";
+    Lr.forEach(function(r){ h+="<tr style=\"border-top:1px solid var(--line)\"><td style=\"padding:6px 4px\">"+r.unidade+"</td><td>"+r.bloco+"</td><td>"+r.entregador+"</td><td>"+(r.horas_escala!=null?(+r.horas_escala).toFixed(1)+"h":"-")+"</td><td>"+r.entregas+"</td><td>"+brl(r.taxas)+"</td><td><b>"+brl(r.pagar_por_escala)+"</b></td><td class=\"muted\">"+brl(r.pagar_por_entregas)+"</td><td style=\"color:"+((+r.atrasos>0)?"var(--bad)":"var(--mut)")+"\">"+r.atrasos+"</td></tr>";});
+    h+="</table></div>";});
+  h+="<div class=\"panel muted\" style=\"margin-top:14px;font-size:12.5px;line-height:1.5\"><b>Garantido por loja.</b> Agua Verde: R$ 20/hora em dia de semana e R$ 25 no fim de semana. Sao Braz: R$ 80 no Dia e R$ 100 na Noite/Fecha. Ahu: R$ 100 nos dois blocos. Paga-se sempre o maior entre as taxas e o garantido.<br><b>As duas bases.</b> Escala usa as horas combinadas; entregas usa o tempo entre a primeira e a ultima entrega. Compare alguns dias antes de fixar a regra.<br><b>Atrasos aparecem como informacao</b>, sem desconto automatico.</div>";
+  setContent(h);
+}
 
 function rAval(f){
   const porDia={};f.aval.forEach(r=>{const d=r.data_avaliacao;porDia[d]=porDia[d]||{n:0,s:0};porDia[d].n++;porDia[d].s+=r.nota;});
