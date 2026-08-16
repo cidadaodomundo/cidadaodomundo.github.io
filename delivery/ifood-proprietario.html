@@ -212,7 +212,29 @@ function filtered(){
 
 var LOJAS_FISICAS=[1129620,1831001,1984218];
 var SEMMOTO=location.search.indexOf('semmoto')>=0;
-function _superDedup(a){var b={};(a||[]).forEach(function(r){var k=r.id_loja+"|"+r.tipo;var atual=b[k];var novo=String(r.referencia||"")+"|"+String(r.atualizado_em||"");if(!atual||novo>String(atual.referencia||"")+"|"+String(atual.atualizado_em||""))b[k]=r});return Object.keys(b).map(function(k){return b[k]})}
+function _superDedup(a){
+  var EXC={1134806:1,546359:1,1803383:1};
+  var b={};
+  (a||[]).forEach(function(r){
+    if(EXC[+r.id_loja])return;
+    var k=r.id_loja+"|"+r.tipo;
+    var novo=String(r.referencia||"")+"|"+String(r.atualizado_em||"");
+    var at=b[k];
+    if(!at||novo>String(at.referencia||"")+"|"+String(at.atualizado_em||""))b[k]=r;
+  });
+  var out=Object.keys(b).map(function(k){return b[k]});
+  var uni=function(id){var L=(typeof LOJAS!=="undefined"?LOJAS:[]).filter(function(x){return +x.id_loja===+id})[0];return (L&&L.unidade)?L.unidade:"Outras"};
+  out.forEach(function(r){
+    r._uni=uni(r.id_loja);
+    if(String(r.nome||"").indexOf(" · ")<0){
+      var nm=String(r.nome||"").replace(/^CIDAD[ÃA]O DO MUNDO ?/i,"").replace(/^Burger - /i,"").replace(/ - (ÁGUA VERDE|AGUA VERDE|SÃO BRAZ|SAO BRAZ|AHÚ|AHU|SB|AV)$/i,"").trim();
+      if(!nm)nm="Burger";
+      r.nome=r._uni+" · "+nm;
+    }
+  });
+  out.sort(function(x,y){return (x._uni+"|"+x.nome).localeCompare(y._uni+"|"+y.nome,"pt-BR")});
+  return out;
+}
 function _isoD(d){return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)}
 function _diaTem(v){try{
   if((typeof ENTR!=='undefined'?ENTR:[]).some(function(r){return r.dia_operacional===v}))return true;
