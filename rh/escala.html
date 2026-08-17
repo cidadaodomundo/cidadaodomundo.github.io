@@ -59,6 +59,7 @@ select:focus,input:focus{border-color:var(--brand)}
   <input type="date" id="dia">
 </div>
 <div class="hoje" id="hoje"></div>
+<div id="setores" class="poswrap" style="margin:0 0 10px"></div>
 <div id="lista"><div class="loading">Escolha a loja pra carregar a equipe…</div></div>
 <button class="btn" id="salvar" onclick="salvar()" disabled>💾 Salvar escala</button>
 <div class="ok" id="okmsg">✅ Escala salva! Obrigado — isso ajuda a medir a qualidade por posição.</div>
@@ -83,8 +84,16 @@ const _qsb=[_qs.get('u'),_qs.get('loja')].some(v=>v&&v.trim()===SBUN);
 const SOSB=sessionStorage.getItem('cm_portal_role')==='saobraz'||sessionStorage.getItem('cm_sb_ok')==='1'||localStorage.getItem('cm_portal_role')==='saobraz'||_qsb;
 if(SOSB){sessionStorage.setItem('cm_portal_role','saobraz');localStorage.setItem('cm_portal_role','saobraz');}
 const HOJE=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
-const BLOCOS=['Cozinha','Salão','Produção','Delivery'];
-const blocoDe=s=>BLOCOS.indexOf(s)>=0?s:'Produção';
+const BLOCOS=['Cozinha','Salão','Produção','Delivery','Escritório','Estoque','Limpeza','Outros'];
+const blocoDe=s=>BLOCOS.indexOf(s)>=0?s:'Outros';
+let SETOR='Todos';
+function setSetor(s){SETOR=s;
+  document.querySelectorAll('#setores .poschip').forEach(function(b){b.classList.toggle('on',b.dataset.s===s)});
+  document.querySelectorAll('#lista .sblk').forEach(function(d){d.style.display=(s==='Todos'||d.dataset.setor===s)?'':'none'});}
+function barraSetores(){var ex=[];
+  document.querySelectorAll('#lista .sblk').forEach(function(d){ex.push(d.dataset.setor)});
+  $('setores').innerHTML=['Todos'].concat(ex).map(function(s){return '<button type="button" class="poschip" data-s="'+s+'" onclick="setSetor(\''+s+'\')">'+s+'</button>';}).join('');
+  setSetor(ex.indexOf(SETOR)>=0?SETOR:'Todos');}
 const hhmm=t=>t?String(t).slice(0,5):'';
 const horDe=f=>(f.entrada&&f.saida)?hhmm(f.entrada)+'–'+hhmm(f.saida):'';
 const afastado=f=>!!f.afastado_desde&&(!f.afastado_ate||f.afastado_ate>=HOJE());
@@ -107,6 +116,7 @@ async function carregar(){
     if(ja.length){$('hoje').style.display='block';$('hoje').textContent='ℹ Já existe escala lançada para este dia — ao salvar, você atualiza.'}else{$('hoje').style.display='none'}
     if(!EQUIPE.length){$('lista').innerHTML='<div class="loading">Nenhum funcionário ativo cadastrado nesta loja.</div>';$('salvar').disabled=true;return}
     $('lista').innerHTML=escBlocos(EQUIPE,mapa);
+    barraSetores();
     $('salvar').disabled=false;
   }catch(e){$('lista').innerHTML='<div class="loading">Erro ao carregar: '+e.message+'</div>'}
 }
@@ -116,7 +126,7 @@ function escBlocos(eq,mapa){
   BLOCOS.forEach(b=>{
     const doB=eq.filter(f=>blocoDe(f.setor)===b);
     if(!doB.length)return;
-    html+='<div class="sblk"><div class="sbh"><span>'+b+'</span><span class="tcnt">'+doB.length+'</span></div>';
+    html+='<div class="sblk" data-setor="'+b+'"><div class="sbh"><span>'+b+'</span><span class="tcnt">'+doB.length+'</span></div>';
     [[false,'☀️ Dia'],[true,'🌙 Noite']].forEach(t=>{
       const pes=doB.filter(f=>!!f.noturno===t[0]);
       if(!pes.length)return;
