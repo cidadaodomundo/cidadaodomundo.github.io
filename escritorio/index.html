@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#111110">
+<meta name="robots" content="noindex, nofollow">
+<title>Escritório · Cidadão do Mundo</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#111110;color:#e8e6e1;font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#c8a35a}
+.wrap{max-width:1180px;margin:0 auto;padding:16px}
+header{border-bottom:1px solid #2a2926;padding:14px 0;margin-bottom:14px}
+h1{font-size:19px;font-weight:600;letter-spacing:.2px}
+.sub{color:#8d8a83;font-size:13px;margin-top:3px}
+.dev{display:inline-block;background:#3a2f14;color:#e0b95c;border:1px solid #5c4a1d;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;margin-left:8px;vertical-align:middle}
+#gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.box{width:100%;max-width:360px;background:#191817;border:1px solid #2a2926;border-radius:14px;padding:26px;text-align:center}
+.box h2{font-size:17px;font-weight:600;margin-bottom:6px}
+.box p{color:#8d8a83;font-size:13px;margin-bottom:16px}
+input[type=password]{width:100%;background:#111110;border:1px solid #35332e;border-radius:9px;color:#e8e6e1;padding:11px 13px;font-size:15px;outline:none}
+input[type=password]:focus{border-color:#c8a35a}
+button{background:#c8a35a;color:#1a1712;border:0;border-radius:9px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer;margin-top:10px;width:100%}
+button:hover{background:#d8b269}
+button.gh{width:auto;background:#26241f;color:#c9c5bc;border:1px solid #35332e;font-weight:500;margin:0;padding:7px 13px;font-size:13px}
+button.gh:hover{background:#302d27}
+button.gh.on{background:#c8a35a;color:#1a1712;border-color:#c8a35a}
+.err{color:#e0736a;font-size:13px;margin-top:10px;min-height:18px}
+nav{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin-bottom:16px}
+.kpi{background:#191817;border:1px solid #2a2926;border-radius:11px;padding:13px}
+.kpi .k{color:#8d8a83;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.kpi .v{font-size:21px;font-weight:600;margin-top:5px}
+.kpi .n{color:#6f6c66;font-size:11px;margin-top:3px}
+.card{background:#191817;border:1px solid #2a2926;border-radius:11px;padding:14px;margin-bottom:14px;overflow:auto}
+.card h3{font-size:14px;font-weight:600;margin-bottom:10px;color:#d6d2c9}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:#8d8a83;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px;padding:7px 9px;border-bottom:1px solid #2a2926;white-space:nowrap;cursor:pointer;user-select:none}
+td{padding:7px 9px;border-bottom:1px solid #201f1c;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.neg{color:#e0736a}
+.aviso{background:#221d12;border:1px solid #4a3d1c;border-radius:11px;padding:14px;color:#c9b073;font-size:13px;margin-bottom:14px}
+.load{color:#8d8a83;padding:30px 0;text-align:center}
+.foot{color:#5f5c57;font-size:11px;padding:18px 0 30px;text-align:center}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="box">
+    <h2>Escritório</h2>
+    <p>Área restrita. Digite a senha do escritório.</p>
+    <input type="password" id="pw" autocomplete="off" placeholder="senha">
+    <button onclick="entrar()">Entrar</button>
+    <div class="err" id="err"></div>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <div class="wrap">
+    <header>
+      <h1>Escritório<span class="dev">em desenvolvimento</span></h1>
+      <div class="sub" id="sub">Carregando…</div>
+    </header>
+    <nav id="nav"></nav>
+    <div id="content"><div class="load">Carregando…</div></div>
+    <div class="foot">Dados privados · não compartilhe esta senha · <a href="#" onclick="sair();return false">sair</a></div>
+  </div>
+</div>
+
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const $=i=>document.getElementById(i);
+const PWKEY='cdm_esc_pw';
+let D=null, ABA='caixa';
+
+const brl=v=>(v==null||isNaN(v))?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const nn=v=>(v==null||isNaN(v))?'—':Number(v).toLocaleString('pt-BR');
+const dt=s=>{if(!s)return '—';const p=String(s).slice(0,10).split('-');return p[2]+'/'+p[1]};
+const soma=(a,f)=>a.reduce((t,x)=>t+(Number(f(x))||0),0);
+
+function pw(){return sessionStorage.getItem(PWKEY)||''}
+
+async function chamar(senha){
+  const r=await fetch(SB+'rpc/escritorio_painel',{
+    method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_senha:senha})
+  });
+  if(!r.ok) throw new Error('senha');
+  return await r.json();
+}
+
+async function entrar(){
+  const s=($('pw').value||'').trim();
+  if(!s){$('err').textContent='Digite a senha.';return}
+  $('err').textContent='Conferindo…';
+  try{
+    D=await chamar(s);
+    sessionStorage.setItem(PWKEY,s);
+    $('gate').style.display='none';
+    $('app').hidden=false;
+    boot();
+  }catch(e){
+    $('err').textContent='Senha incorreta.';
+    $('pw').value='';
+  }
+}
+
+function sair(){
+  sessionStorage.removeItem(PWKEY);
+  location.reload();
+}
+
+const ABAS=[
+  {id:'caixa',   nome:'Caixa & Vendas'},
+  {id:'pagar',   nome:'Contas a Pagar'},
+  {id:'motoboy', nome:'Motoboy & Folha'},
+  {id:'dre',     nome:'DRE / DFC'}
+];
+
+function boot(){
+  $('nav').innerHTML=ABAS.map(a=>'<button class="gh'+(a.id===ABA?' on':'')+'" onclick="ir('+"'"+a.id+"'"+')">'+a.nome+'</button>').join('');
+  const g=D.gerado_em?String(D.gerado_em).slice(0,10).split('-').reverse().join('/'):'—';
+  $('sub').textContent='Financeiro privado · dados até '+g;
+  render();
+}
+
+function ir(id){ABA=id;boot()}
+
+function tabela(cols,linhas){
+  if(!linhas.length) return '<div class="load">Sem dado no período.</div>';
+  const th=cols.map(c=>'<th'+(c.n?' class="num"':'')+'>'+c.t+'</th>').join('');
+  const tr=linhas.map(l=>'<tr>'+cols.map(c=>'<td'+(c.n?' class="num"':'')+'>'+c.f(l)+'</td>').join('')+'</tr>').join('');
+  return '<table><thead><tr>'+th+'</tr></thead><tbody>'+tr+'</tbody></table>';
+}
+
+function kpi(k,v,n){return '<div class="kpi"><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="n">'+(n||'')+'</div></div>'}
+
+function render(){
+  const c=$('content');
+  const av=D.avisos||{};
+
+  if(ABA==='caixa'){
+    const vd=D.vendas_dia||[], cf=D.cofre||[], ct=D.cartao_dia||[];
+    let h='<div class="kpis">'
+      +kpi('Vendas 30 dias',brl(soma(vd,x=>x.total)),nn(soma(vd,x=>x.n_vendas))+' vendas')
+      +kpi('Dinheiro',brl(soma(vd,x=>x.dinheiro)),'do total de vendas')
+      +kpi('Cartão bruto',brl(soma(ct,x=>x.bruto)),nn(soma(ct,x=>x.transacoes))+' transações')
+      +kpi('Cartão líquido',brl(soma(ct,x=>x.liquido)),'depois da taxa')
+      +'</div>';
+    if(!Number(av.extrato_bancario)) h+='<div class="aviso">Extrato bancário e conciliação ainda sem carga — as tabelas existem mas estão vazias. Quando a carga entrar, o confronto banco x Saipos aparece aqui.</div>';
+    h+='<div class="card"><h3>Vendas por dia (Saipos)</h3>'+tabela([
+      {t:'Data',f:x=>dt(x.data)},
+      {t:'Loja',f:x=>x.id_store},
+      {t:'Vendas',n:1,f:x=>nn(x.n_vendas)},
+      {t:'Dinheiro',n:1,f:x=>brl(x.dinheiro)},
+      {t:'Total',n:1,f:x=>brl(x.total)}
+    ],vd)+'</div>';
+    h+='<div class="card"><h3>Cartão por dia (Rede)</h3>'+tabela([
+      {t:'Data',f:x=>dt(x.data)},
+      {t:'Transações',n:1,f:x=>nn(x.transacoes)},
+      {t:'Bruto',n:1,f:x=>brl(x.bruto)},
+      {t:'Líquido',n:1,f:x=>brl(x.liquido)}
+    ],ct)+'</div>';
+    h+='<div class="card"><h3>Cofre</h3>'+tabela([
+      {t:'Data',f:x=>dt(x.data)},
+      {t:'Conta',f:x=>x.conta||'—'},
+      {t:'Categoria',f:x=>x.categoria||'—'},
+      {t:'Descrição',f:x=>x.descricao||'—'},
+      {t:'Valor',n:1,f:x=>brl(x.valor)}
+    ],cf)+'</div>';
+    c.innerHTML=h;
+  }
+
+  else if(ABA==='pagar'){
+    const ap=D.a_pagar||[];
+    const hoje=new Date().toISOString().slice(0,10);
+    const venc=ap.filter(x=>x.vencimento<hoje);
+    const sem=new Date(Date.now()+6048e5).toISOString().slice(0,10);
+    let h='<div class="kpis">'
+      +kpi('Em aberto',brl(soma(ap,x=>x.valor)),nn(ap.length)+' lançamentos')
+      +kpi('Vencido',brl(soma(venc,x=>x.valor)),nn(venc.length)+' em atraso')
+      +kpi('Vence em 7 dias',brl(soma(ap.filter(x=>x.vencimento>=hoje&&x.vencimento<=sem),x=>x.valor)),'próxima semana')
+      +'</div>';
+    h+='<div class="card"><h3>Contas a pagar em aberto</h3>'+tabela([
+      {t:'Vencimento',f:x=>'<span'+(x.vencimento<hoje?' class="neg"':'')+'>'+dt(x.vencimento)+'</span>'},
+      {t:'Fornecedor',f:x=>x.fornecedor||'—'},
+      {t:'Categoria',f:x=>x.categoria||'—'},
+      {t:'Descrição',f:x=>x.descricao||'—'},
+      {t:'Conta',f:x=>x.conta||'—'},
+      {t:'Valor',n:1,f:x=>brl(x.valor)}
+    ],ap)+'</div>';
+    c.innerHTML=h;
+  }
+
+  else if(ABA==='motoboy'){
+    const mb=D.motoboy||[];
+    const ent=soma(mb,x=>x.entregas), np=soma(mb,x=>x.no_prazo);
+    let h='<div class="kpis">'
+      +kpi('A pagar 30 dias',brl(soma(mb,x=>x.pagar)),nn(mb.length)+' turnos')
+      +kpi('Entregas',nn(ent),'no período')
+      +kpi('No prazo',ent?((np/ent*100).toFixed(1).replace('.',',')+'%'):'—','pelo prazo do iFood')
+      +kpi('Custo por entrega',ent?brl(soma(mb,x=>x.pagar)/ent):'—','média do período')
+      +'</div>';
+    h+='<div class="card"><h3>Pagamento por motoboy e turno</h3>'+tabela([
+      {t:'Dia',f:x=>dt(x.dia)},
+      {t:'Unidade',f:x=>x.unidade||'—'},
+      {t:'Bloco',f:x=>x.bloco||'—'},
+      {t:'Entregador',f:x=>x.entregador||'—'},
+      {t:'Entregas',n:1,f:x=>nn(x.entregas)},
+      {t:'No prazo',n:1,f:x=>nn(x.no_prazo)},
+      {t:'Horas',n:1,f:x=>x.horas==null?'—':Number(x.horas).toFixed(1).replace('.',',')},
+      {t:'A pagar',n:1,f:x=>brl(x.pagar)}
+    ],mb)+'</div>';
+    c.innerHTML=h;
+  }
+
+  else if(ABA==='dre'){
+    const dre=D.dre||[];
+    if(!dre.length){
+      c.innerHTML='<div class="aviso"><strong>Aguardando carga.</strong><br>As tabelas do DRE/DFC (fin_plano_contas, fin_contas, fin_lancamentos) foram criadas no banco em 17/08/2026, junto com as views vw_fin_dfc_mensal e vw_fin_saldo_conta_mensal — mas ainda estão sem nenhum lançamento. Assim que os dados forem carregados, o fluxo de caixa e a DRE aparecem aqui automaticamente, sem precisar mexer nesta tela.</div>';
+      return;
+    }
+    let h='<div class="card"><h3>Fluxo de caixa mensal</h3>'+tabela([
+      {t:'Mês',f:x=>String(x.mes).slice(0,7).split('-').reverse().join('/')},
+      {t:'Unidade',f:x=>x.unidade||'—'},
+      {t:'Natureza',f:x=>x.natureza||'—'},
+      {t:'Tipo',f:x=>x.tipo||'—'},
+      {t:'Subtipo',f:x=>x.subtipo||'—'},
+      {t:'Crédito',n:1,f:x=>brl(x.credito)},
+      {t:'Débito',n:1,f:x=>brl(x.debito)}
+    ],dre)+'</div>';
+    c.innerHTML=h;
+  }
+}
+
+(async function(){
+  const s=pw();
+  if(!s) return;
+  try{
+    D=await chamar(s);
+    $('gate').style.display='none';
+    $('app').hidden=false;
+    boot();
+  }catch(e){ sessionStorage.removeItem(PWKEY) }
+})();
+
+document.addEventListener('keydown',e=>{ if(e.key==='Enter'&&document.activeElement===$('pw')) entrar() });
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
