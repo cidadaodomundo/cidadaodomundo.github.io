@@ -108,7 +108,7 @@ tr:last-child td{border-bottom:none}
 
 <div class="views">
   <button class="view active" id="v_diario" onclick="setView('diario')">📋 Diário</button>
-  <button class="view" id="v_equipe" onclick="setView('equipe')">🛵 Equipe</button>
+  <button class="view" id="v_equipe" onclick="setView('equipe')">🛵 Motoboys</button>
   <button class="view" id="v_ifood" onclick="setView('ifood')">🍔 iFood</button>
 </div>
 
@@ -287,6 +287,7 @@ function blocoEscala(D){
   h+='</table></div>';return h;
 }
 /* ================= EQUIPE ================= */
+function _realPorMoto(dias){var m={};(typeof ATR!=='undefined'?ATR:[]).forEach(function(p){if(dias.indexOf(p.dia_operacional)<0)return;if(!p.entregador)return;var k=p.entregador+'|'+p.unidade;var o=m[k]=m[k]||{ok:0,at:0,e:0};o.e++;if(p.no_prazo_real)o.ok++;else o.at++});return m}
 function aggMoto(rows){
   const m={};rows.forEach(r=>{const k=r.nome+'|'+r.unidade;const o=m[k]=m[k]||{n:r.nome,l:r.unidade,d:0,h:0,e:0,ok:0,at:0,sem:0,v:0,g:0,c:0,rec:0,qr:0};
     o.d++;o.h+=(+r.horas||0);o.e+=(+r.entregas||0);o.ok+=(+r.no_prazo||0);o.at+=(+r.atrasos||0);o.sem+=(+r.sem_codigo||0);
@@ -305,12 +306,13 @@ function kpiCodigo(dias){
   return kpi('Código de coleta',comCod,ped?(sc+' sem código de '+ped+' pedidos iFood'):'sem pedidos no período',sc?'var(--warn)':'var(--good)');
 }
 function renderEquipe(){
-  $('barra').innerHTML='<div class="tabs" style="margin:0">'+[['1','Ontem'],['3','3 dias'],['7','7 dias']].map(([n,l])=>'<span class="tab '+(PER===+n?'on':'')+'" onclick="PER='+n+';render()">'+l+'</span>').join('')+botoesDow()+'</div>';
+  $('barra').innerHTML='<a class="btnr" href="escala.html" style="text-decoration:none;margin-right:8px">🗓 Escala</a>'+'<div class="tabs" style="margin:0">'+[['1','Ontem'],['3','3 dias'],['7','7 dias']].map(([n,l])=>'<span class="tab '+(PER===+n?'on':'')+'" onclick="PER='+n+';render()">'+l+'</span>').join('')+botoesDow()+'</div>';
   const dias=NAV.slice(-PER);
   const rs=PAG.filter(r=>dias.includes(r.dia_operacional)&&fLoja(r));
   const rsAll=PAG.filter(r=>dias.includes(r.dia_operacional));
   const motos=aggMoto(rs).sort((a,b)=>b.e-a.e);
   const motosAll=aggMoto(rsAll);
+  var _R=_realPorMoto(dias);var _ap=function(arr){arr.forEach(function(o){var r=_R[o.n+'|'+o.l];if(r){o.ok=r.ok;o.at=r.at;o.e=r.e}})};_ap(motos);_ap(motosAll);
   let ent=0,ok=0,atr=0,sem=0,horas=0,comp=0,rec=0;
   motos.forEach(m=>{ent+=m.e;ok+=m.ok;atr+=m.at;sem+=m.sem;horas+=m.h;comp+=m.c;rec+=m.rec});
   const pct=pctS(ok,atr);
@@ -335,7 +337,7 @@ function renderEquipe(){
         '<div class="lm"><span>No prazo</span><span class="pill '+pc+'">'+(p==null?'—':p+'%')+'</span></div>'+
         '<div class="lm"><span>Entregas/hora</span><b>'+eph+'</b></div>'+
         '<div class="lm"><span>Custo/entrega</span><b>'+custo+'</b></div>'+
-        '<div class="lm"><span>A pagar</span><b>'+rM(x.rec)+'</b></div></div>'}).join('')+'</div></div>';
+        '</div>'}).join('')+'</div></div>';
   const pts=NAV.map(d=>{const rr=F.filter(r=>r.dia_operacional===d&&fLoja(r));let e=0,o2=0,a2=0;rr.forEach(r=>{e+=r.entregas;o2+=r.no_prazo;a2+=r.atrasos});const b2=o2+a2;return {label:DOWN[dow(d)].slice(0,3)+' '+br(d),e,p:b2?100*o2/b2:0,has:rr.length>0}});
   const bw=52,gap=16,padL=8,padT=16,hh2=170,axB=30,plotH=hh2-padT-axB;
   const W=Math.max(padL*2+pts.length*(bw+gap),320);
