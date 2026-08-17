@@ -57,6 +57,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 <div class="top">
   <div><h1>📊 Reunião Semanal</h1><div class="sub" id="periodo">carregando…</div></div>
   <div class="rt">
+    <span id="lojas"></span>
     <select id="semana" onchange="render()"></select>
     <button class="b" onclick="location.reload()">↻ Atualizar</button>
     <button class="b" onclick="window.print()">🖨 Imprimir</button>
@@ -70,7 +71,10 @@ const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const H={apikey:KEY,Authorization:'Bearer '+KEY};
 const PASS='6db4bb52b559fe6100a9ce00ff3ad2e9153a28179ddfc2fb394496e7c0edef34';
 const OWNER=['d7149f187239f5d99c428c666fa476b7e7808f38226765d5c62ed0ec65e7eaee','e4a209159425e3ee99d7c71a804c4e8c4dc9fa00acdaaab798b746d59205780c'];
-const UNI=['Água Verde','Ahú','São Braz'];
+const TODAS=['Água Verde','Ahú','São Braz'];
+let LOJA='Todas';
+let UNI=TODAS.slice();
+function setLoja(u){LOJA=u;UNI=(u==='Todas')?TODAS.slice():[u];render();}
 const $=i=>document.getElementById(i);
 async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 async function gt(){const h=await sha(($('gpw').value||'').trim());
@@ -165,7 +169,8 @@ function classifica(rows){
 
 function render(){
   const i=+$('semana').value||0, S=SEM[i], P=SEM[i+1]||null;
-  $('periodo').textContent='Semana de '+S.rot+' · comparada com '+(P?P.rot:'—')+'  ·  unidades: Água Verde, Ahú e São Braz';
+  $('lojas').innerHTML=['Todas'].concat(TODAS).map(function(u){var on=(LOJA===u);return '<button class="b" style="'+(on?'background:#e8590c;color:#fff;font-weight:700':'')+'" onclick="setLoja('+String.fromCharCode(39)+u+String.fromCharCode(39)+')">'+(u==='Todas'?'🏪 Todas':u)+'</button>';}).join('');
+  $('periodo').textContent='Semana de '+S.rot+' · comparada com '+(P?P.rot:'—')+'  ·  '+(LOJA==='Todas'?'unidades: Água Verde, Ahú e São Braz':'unidade: '+LOJA);
   const A=naSemana(D.av,'data_avaliacao',S), Ap=P?naSemana(D.av,'data_avaliacao',P):[];
   const C=naSemana(D.ca,'data',S), Cp=P?naSemana(D.ca,'data',P):[];
   const N=naSemana(D.ne,'data',S), Np=P?naSemana(D.ne,'data',P):[];
