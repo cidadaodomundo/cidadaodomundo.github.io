@@ -233,18 +233,25 @@ function _diaTem(v){try{
 function _ultimoDia(){for(var i=0;i<21;i++){var d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-i);var v=_isoD(d);if(_diaTem(v))return v}return _isoD(new Date())}
 function irDia(v){F.d1=v;F.d2=v;render()}
 function semanaFechada(){var f=_ultimoDia();var d=new Date(f+'T12:00:00');d.setDate(d.getDate()-6);F.d1=_isoD(d);F.d2=f;render()}
+function _diasAbertos(n){var out=[],d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-1);
+  for(var g=0;g<45&&out.length<n;g++){if(d.getDay()!==2)out.push(_isoD(d));d.setDate(d.getDate()-1);}
+  return out;}
+function seteDiasFechados(){var a=_diasAbertos(7);if(!a.length)return;F.d2=a[0];F.d1=a[a.length-1];render()}
 function botoesDia(){
   var host=document.getElementById('unidades'); if(!host)return;
   var w=document.getElementById('cmdow');
   if(!w){w=document.createElement('div');w.id='cmdow';w.className='bar';w.style.cssText='gap:6px;flex-wrap:wrap';host.parentNode.insertBefore(w,host.nextSibling)}
   var NM=["Dom","Seg","Ter","Qua","Qui","Sex","Sab"],h='';
-  for(var i=0;i<7;i++){
+  var _n=0;
+  for(var i=0;i<45&&_n<7;i++){
     var d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-i);
+    if(d.getDay()===2)continue;
     var v=_isoD(d),ok=_diaTem(v),sel=(F.d1===v&&F.d2===v)?' on':'';
     var rot=i===0?'Hoje':(i===1?'Ontem':NM[d.getDay()]);
     h+='<span class="chip'+sel+'" style="cursor:pointer" title="'+v+'" onclick="irDia(\''+v+'\')">'+rot+' '+('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+' '+(ok?'✓':'○')+'</span>';
+    _n++;
   }
-  h+='<span class="chip" style="cursor:pointer" onclick="semanaFechada()">Semana fechada</span>';
+  h+='<span class="chip" style="cursor:pointer" onclick="seteDiasFechados()">🗓 7 dias fechados</span>';
   w.innerHTML=h;
 }
 function carimbo(){var el=document.getElementById('upinfo');if(!el)return;if(!el.getAttribute('data-base'))el.setAttribute('data-base',el.textContent||'');var n=new Date();var hh=('0'+n.getHours()).slice(-2),mm=('0'+n.getMinutes()).slice(-2);el.textContent=el.getAttribute('data-base')+' · atualizado as '+hh+':'+mm}
