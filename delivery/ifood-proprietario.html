@@ -490,7 +490,7 @@ async function cdmAtrasadas(btn){
     var uni=[];
     LOJAS.forEach(function(l){ if(ids.has(l.id_loja)&&l.unidade&&uni.indexOf(l.unidade)<0) uni.push(l.unidade); });
     var q=sb.from("foody_vw_pedido_prazo")
-      .select("n_pedido,id_ifood,unidade,turno,entregador,dia_operacional,prazo_prometido_min,atraso_real_min",{count:"exact"})
+      .select("n_pedido,id_ifood,unidade,turno,entregador,dia_operacional,prazo_prometido_min,atraso_real_min,data_hora_pedido,entrega_prometida,fonte_prazo_real",{count:"exact"})
       .eq("no_prazo_real",false)
       .gte("dia_operacional",F.d1).lte("dia_operacional",F.d2)
       .order("atraso_real_min",{ascending:false})
@@ -505,6 +505,7 @@ async function cdmAtrasadas(btn){
       return;
     }
     var dBR=function(d){return d?String(d).slice(8,10)+"/"+String(d).slice(5,7):"–"};
+    var hr=function(x){return x?String(x).slice(11,16):""};
     var cor=function(m){return m>30?"var(--bad)":m>10?"var(--warn)":"inherit"};
     var h='<div class="panel" id="cdmatr" style="margin-top:14px">';
     h+='<div class="lbl" style="margin-bottom:8px">Pedidos atrasados · '+tot+' no periodo';
@@ -521,12 +522,12 @@ async function cdmAtrasadas(btn){
        + '<td>'+(r.n_pedido!=null?r.n_pedido:"–")+'</td>'
        + '<td class="muted">'+(r.id_ifood||"–")+'</td>'
        + '<td>'+(r.entregador||"sem motoboy")+'</td>'
-       + '<td>'+(r.prazo_prometido_min!=null?Math.round(r.prazo_prometido_min)+" min":"–")+'</td>'
-       + '<td style="color:'+cor(a)+';font-weight:600">+'+a+' min</td>'
+       + '<td data-k="'+(r.prazo_prometido_min!=null?Math.round(r.prazo_prometido_min):0)+'">'+(r.fonte_prazo_real&&r.fonte_prazo_real.indexOf("real")<0?"~":"")+(r.prazo_prometido_min!=null?Math.round(r.prazo_prometido_min)+" min":"–")+(hr(r.data_hora_pedido)?' <span class="muted">('+hr(r.data_hora_pedido)+')</span>':'')+'</td>'
+       + '<td data-k="'+a+'" style="color:'+cor(a)+';font-weight:600">+'+a+' min'+(hr(r.entrega_prometida)?' <span class="muted" style="font-weight:400">(era '+hr(r.entrega_prometida)+')</span>':'')+'</td>'
        + '</tr>';
     });
     h+='</table></div>';
-    h+='<div class="muted" style="font-size:11px;margin-top:8px">Atrasado = entregue depois da promessa real do iFood, com 1 minuto de tolerancia — por isso o total pode diferir em alguns pedidos da tabela Por turno, que usa o atraso cru. Clique em qualquer cabecalho para reordenar.</div>';
+    h+='<div class="muted" style="font-size:11px;margin-top:8px">Em <b>Prometido</b>, o horario entre parenteses e a hora em que o pedido entrou; em <b>Atraso</b>, a hora em que ele deveria ter chegado. O til (~) marca prazo estimado por raio, quando o iFood nao mandou a promessa. Atrasado = entregue depois da promessa, com 1 minuto de tolerancia — por isso o total pode diferir em alguns pedidos da tabela Por turno, que usa o atraso cru. Clique em qualquer cabecalho para reordenar.</div>';
     h+='</div>';
     pai.insertAdjacentHTML("afterend",h);
   }catch(e){
@@ -536,6 +537,6 @@ async function cdmAtrasadas(btn){
 }
 
 </script>
-<script src="/assets/portal.js?v=2"></script>
+<script src="/assets/portal.js?v=3"></script>
 </body>
 </html>

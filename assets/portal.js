@@ -24,7 +24,9 @@
   /* ---------------- 1. ordenacao ---------------- */
   function celTxt(r, i) {
     var c = r.cells[i];
-    return c ? (c.innerText || c.textContent || '').trim() : '';
+    if (!c) return '';
+    var k = c.getAttribute('data-k');            /* chave explicita vence o texto */
+    return (k !== null ? k : (c.innerText || c.textContent || '')).trim();
   }
 
   function chave(s) {
