@@ -77,6 +77,8 @@
       return sa.localeCompare(sb, 'pt-BR', { numeric: true }) * dir;
     });
     corpo.forEach(function (r) { r.parentNode.appendChild(r); });
+    /* a pagina pode ter ordenacao propria mais fraca; a nossa prevalece */
+    e.stopPropagation();
   }, true);
 
   /* ---------------- 2. carimbo de frescor ---------------- */
