@@ -69,16 +69,26 @@ const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const H={apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'};
 const GATE_HASHES=['052765de61630b6ff12d29470a27786e064d7c8cb4f4c55e4a5bbbfcf624d618','bc54706ad12e7654b56e3b7468768d3c9a3b98459a95b8c465a47fed979ed792','6db4bb52b559fe6100a9ce00ff3ad2e9153a28179ddfc2fb394496e7c0edef34'];
 async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
-async function gateTry(){const v=document.getElementById('gpw').value;
-  if(GATE_HASHES.includes(await sha(v))){sessionStorage.setItem('cm_esc_ok','1');document.getElementById('gate').style.display='none'}
+const GATE_SB='bc54706ad12e7654b56e3b7468768d3c9a3b98459a95b8c465a47fed979ed792';
+async function gateTry(){const v=document.getElementById('gpw').value;const h=await sha(v);
+  if(h===GATE_SB){sessionStorage.setItem('cm_sb_ok','1');sessionStorage.setItem('cm_portal_role','saobraz');location.reload()}
+  else if(GATE_HASHES.includes(h)){sessionStorage.setItem('cm_esc_ok','1');document.getElementById('gate').style.display='none'}
   else document.getElementById('gerr').textContent='Senha incorreta.'}
 if(['cm_esc_ok','cm_rh_ok','cm_sb_ok','cm_ok'].some(k=>sessionStorage.getItem(k)==='1'))document.getElementById('gate').style.display='none';
 const POS=['Chapa','Fritadeira','Montagem de burgers','Montagem de marmitas/pratos','Separação de pacotes/expedição','Atendimento/Caixa','Produção/Cozinha (apoio)','Limpeza','Delivery/Entregas','Gerência','FOLGA','Falta/Ausente'];
 const $=id=>document.getElementById(id);
-function turnoDe(f){if(!f.entrada)return 'Dia';const h=parseInt(f.entrada.slice(0,2),10);const cruza=f.saida&&f.saida<f.entrada;return (cruza||h>=15)?'Noite/Madrugada':'Dia';}
-$('dia').value=new Date().toISOString().slice(0,10);
-const LOCK=new URLSearchParams(location.search).get('loja');
-if(LOCK){$('loja').value=LOCK;$('loja').disabled=true;setTimeout(carregar,50);}
+const SOSB=sessionStorage.getItem('cm_portal_role')==='saobraz'||sessionStorage.getItem('cm_sb_ok')==='1';
+const SBUN='São Braz';
+const HOJE=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
+const BLOCOS=['Cozinha','Salão','Produção','Delivery'];
+const blocoDe=s=>BLOCOS.indexOf(s)>=0?s:'Produção';
+const hhmm=t=>t?String(t).slice(0,5):'';
+const horDe=f=>(f.entrada&&f.saida)?hhmm(f.entrada)+'–'+hhmm(f.saida):'';
+const afastado=f=>!!f.afastado_desde&&(!f.afastado_ate||f.afastado_ate>=HOJE());
+const titulo=n=>n.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
+$('dia').value=HOJE();
+if(SOSB){$('loja').innerHTML='<option>'+SBUN+'</option>';$('loja').value=SBUN;setTimeout(carregar,50);}
+else{const LOCK=new URLSearchParams(location.search).get('loja');if(LOCK){$('loja').value=LOCK;setTimeout(carregar,50);}}
 let EQUIPE=[];
 $('loja').addEventListener('change',carregar);
 $('dia').addEventListener('change',carregar);
@@ -87,28 +97,44 @@ async function carregar(){
   $('lista').innerHTML='<div class="loading">Carregando equipe…</div>';
   $('okmsg').style.display='none';$('errmsg').style.display='none';
   try{
-    EQUIPE=await fetch(SB+'dim_funcionario?ativo=eq.true&unidade=eq.'+encodeURIComponent(loja)+'&select=nome,entrada,saida&order=nome.asc',{headers:H}).then(r=>r.json());
+    EQUIPE=await fetch(SB+'dim_funcionario?ativo=eq.true&unidade=eq.'+encodeURIComponent(loja)+'&select=nome,setor,noturno,entrada,saida,afastado_desde,afastado_ate,afastado_motivo&order=nome.asc',{headers:H}).then(r=>r.json());
     EQUIPE.sort((a,b)=>((a.entrada||'99')<(b.entrada||'99')?-1:1));
     const ja=await fetch(SB+'fato_escala_posicao?data=eq.'+$('dia').value+'&unidade=eq.'+encodeURIComponent(loja)+'&select=nome,posicao',{headers:H}).then(r=>r.json());
     const mapa={};ja.forEach(r=>mapa[r.nome]=r.posicao);
     if(ja.length){$('hoje').style.display='block';$('hoje').textContent='ℹ Já existe escala lançada para este dia — ao salvar, você atualiza.'}else{$('hoje').style.display='none'}
     if(!EQUIPE.length){$('lista').innerHTML='<div class="loading">Nenhum funcionário ativo cadastrado nesta loja.</div>';$('salvar').disabled=true;return}
-    const cardHtml=(f,i)=>{
-      const nome=f.nome.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
-      const hor=(f.entrada&&f.saida)?(f.entrada.slice(0,5)+'–'+f.saida.slice(0,5)):'';
-      const sel=(mapa[f.nome]||'').split(', ').filter(Boolean);
-      return `<div class="fcard"><div class="finfo"><div class="fname">${nome}</div><div class="fhor">${hor}</div></div>
-        <div class="poswrap" data-i="${i}">${POS.map(p=>`<button type="button" class="poschip${sel.includes(p)?' on':''}" onclick="this.classList.toggle('on')">${p}</button>`).join('')}</div></div>`;};
-    const dia=[],noite=[];
-    EQUIPE.forEach((f,i)=>{(turnoDe(f)==='Dia'?dia:noite).push(cardHtml(f,i))});
-    $('lista').innerHTML=(dia.length?'<div class="tsec">☀️ Turno Dia <span class="tcnt">'+dia.length+'</span></div>'+dia.join(''):'')+(noite.length?'<div class="tsec">🌙 Turno Noite / Madrugada <span class="tcnt">'+noite.length+'</span></div>'+noite.join(''):'');
+    $('lista').innerHTML=escBlocos(EQUIPE,mapa);
     $('salvar').disabled=false;
   }catch(e){$('lista').innerHTML='<div class="loading">Erro ao carregar: '+e.message+'</div>'}
+}
+function escBlocos(eq,mapa){
+  if(!eq.length)return '<div class="loading">Nenhum funcionário ativo cadastrado nesta loja.</div>';
+  let html='';
+  BLOCOS.forEach(b=>{
+    const doB=eq.filter(f=>blocoDe(f.setor)===b);
+    if(!doB.length)return;
+    html+='<div class="sblk"><div class="sbh"><span>'+b+'</span><span class="tcnt">'+doB.length+'</span></div>';
+    [[false,'☀️ Dia'],[true,'🌙 Noite']].forEach(t=>{
+      const pes=doB.filter(f=>!!f.noturno===t[0]);
+      if(!pes.length)return;
+      html+='<div class="tsec">'+t[1]+' <span class="tcnt">'+pes.length+'</span></div>';
+      pes.forEach(f=>{
+        const i=eq.indexOf(f);
+        const marc=(mapa[f.nome]||'').split(', ').filter(Boolean);
+        const corpo=afastado(f)
+          ?'<span class="afast">⚕️ Afastado — '+(f.afastado_motivo||'sem motivo informado')+'</span>'
+          :'<div class="poswrap" data-i="'+i+'">'+POS.map(p=>'<button type="button" class="poschip'+(marc.indexOf(p)>=0?' on':'')+'" onclick="this.classList.toggle(\'on\')">'+p+'</button>').join('')+'</div>';
+        html+='<div class="fcard"><div class="finfo"><div class="fname">'+titulo(f.nome)+'</div><div class="fhor">'+horDe(f)+'</div></div>'+corpo+'</div>';
+      });
+    });
+    html+='</div>';
+  });
+  return html;
 }
 async function salvar(){
   const loja=$('loja').value, dia=$('dia').value;
   const rows=[];
-  EQUIPE.forEach((f,i)=>{const ch=[...document.querySelectorAll('.poswrap[data-i="'+i+'"] .poschip.on')].map(b=>b.textContent);if(ch.length)rows.push({data:dia,unidade:loja,nome:f.nome,posicao:ch.join(', '),turno:turnoDe(f),lancado_por:'painel-escala'})});
+  EQUIPE.forEach((f,i)=>{if(afastado(f))return;const ch=[...document.querySelectorAll('.poswrap[data-i="'+i+'"] .poschip.on')].map(b=>b.textContent);if(ch.length)rows.push({data:dia,unidade:loja,nome:f.nome,posicao:ch.join(', '),turno:f.noturno?'Noite':'Dia',lancado_por:'painel-escala'})});
   if(!rows.length){$('errmsg').textContent='Marque a posição de pelo menos uma pessoa.';$('errmsg').style.display='block';return}
   $('salvar').disabled=true;
   try{

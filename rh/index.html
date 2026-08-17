@@ -75,6 +75,36 @@ h1{font-size:17px;font-weight:800}
 .gatebox input{width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:11px 14px;color:var(--text);font-size:14px;outline:none;margin:14px 0 10px;text-align:center}
 .gatebox button{width:100%;background:var(--brand);border:none;color:#fff;border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer}
 .gerr{color:#f85149;font-size:12px;min-height:16px;margin-top:8px}
+.exbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.exbar select,.exbar input[type=date]{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 12px;color:var(--text);font-size:13px;outline:none}
+.exbar select:focus,.exbar input:focus{border-color:var(--brand)}
+.exlock{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:13px;font-weight:700}
+.exblk{margin-bottom:16px}
+.exbh{font-weight:800;font-size:14px;color:#fff;background:linear-gradient(135deg,var(--brand),#8b1a5e);border-radius:10px;padding:9px 14px;display:flex;justify-content:space-between;align-items:center}
+.excnt{background:rgba(0,0,0,.25);border-radius:20px;padding:1px 9px;font-size:11px;font-weight:700}
+.exth{margin:12px 0 6px;font-weight:800;font-size:12.5px;color:var(--brand);display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--line);padding-bottom:5px}
+.exth .excnt{background:var(--surface2);border:1px solid var(--line);color:var(--muted);font-weight:600}
+.exrow{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 13px;margin-bottom:7px}
+.exhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.exname{font-weight:700;font-size:13.5px}
+.exhor{color:var(--muted);font-size:11.5px;font-variant-numeric:tabular-nums}
+.exchips{display:flex;flex-wrap:wrap;gap:6px}
+.exchip{background:var(--surface2);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:6px 11px;font-size:12px;cursor:pointer;font-weight:600}
+.exchip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.exaf{display:inline-block;background:rgba(142,107,201,.14);border:1px solid rgba(142,107,201,.4);color:#b79ee6;border-radius:999px;padding:5px 11px;font-size:11.5px;font-weight:700}
+.exsave{background:var(--brand);border:none;color:#fff;border-radius:10px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;width:100%;margin-top:12px}
+.exsave:disabled{opacity:.5}
+.exok{background:#122419;color:var(--sem);border:1px solid #1c3b28;border-radius:10px;padding:12px;margin-top:12px;font-weight:700}
+.exerr{background:#2a1518;color:#e05252;border:1px solid #4a1c22;border-radius:10px;padding:12px;margin-top:12px;font-weight:700}
+.exnote{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--muted);margin-bottom:12px}
+.eqp{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.eqn{font-weight:700;font-size:13.5px;flex:1;min-width:160px}
+.eqb{font-size:10.5px;font-weight:700;border-radius:20px;padding:2px 9px}
+.eqdia{background:rgba(232,163,58,.16);color:#e8a33a;border:1px solid rgba(232,163,58,.35)}
+.eqnoite{background:rgba(122,111,240,.16);color:#7a6ff0;border:1px solid rgba(122,111,240,.35)}
+.eqfolga{font-size:11.5px;color:var(--sem);background:rgba(55,180,108,.12);border:1px solid rgba(55,180,108,.3);border-radius:20px;padding:2px 9px}
+.eqnof{font-size:11px;color:#e05252}
+.exframe{width:100%;height:calc(100vh - 230px);min-height:520px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
 @media(max-width:760px){.grid{grid-template-columns:1fr}}
 </style></head><body>
 <div id="gate"><div class="gatebox">
@@ -97,10 +127,10 @@ h1{font-size:17px;font-weight:800}
 </header>
 <div class="views">
   <button class="view active" id="vday" onclick="setView('day')">📅 Dia</button>
+  <button class="view" id="vesc" onclick="setView('escala')">📋 Escala do dia</button>
+  <button class="view" id="vequipe" onclick="setView('equipe')">👥 Equipe por setor</button>
   <button class="view" id="vguia" onclick="setView('guia')">📖 Guia RH — o que fazer</button>
-  <a class="view" href="escala.html?loja=%C3%81gua%20Verde" style="text-decoration:none">📋 Escala do dia</a>
-  <a class="view" href="manual.html" style="text-decoration:none">📕 Manual & Regras</a>
-  <a class="view" href="equipe.html" style="text-decoration:none">👥 Equipe por setor</a>
+  <button class="view" id="vman" onclick="setView('manual')">📕 Manual & Regras</button>
 </div>
 <div class="toolbar" id="toolbar">
   <div class="datenav" id="datenav">
@@ -147,25 +177,150 @@ const title=n=>n.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' 
 const br=d=>{const[y,m,dd]=d.split('-');return dd+'/'+m+'/'+y};
 const isConf=c=>c==='CONFERIR';
 async function loadAll(){
-  $('content').innerHTML='<div class="loading">Carregando…</div>';
+  if(VIEW==='day')$('content').innerHTML='<div class="loading">Carregando…</div>';
   try{
     const cutoff=new Date(Date.now()-7*864e5).toISOString().slice(0,10);
-    ALL=await fetch(SB+'fato_espelho_dia?ativo=eq.true&data=gte.'+cutoff+'&select=nome,unidade,data,dia_semana,categoria,nivel,tag,marcacoes_txt,jornada_liquida_min,intervalo_real_min,jornada_contratada_min,extra_min,detalhe&order=data.asc',{headers:H}).then(r=>r.json());
+    ALL=await fetch(SB+'fato_espelho_dia?ativo=eq.true'+(SOSB?'&unidade=eq.'+encodeURIComponent('São Braz'):'')+'&data=gte.'+cutoff+'&select=nome,unidade,data,dia_semana,categoria,nivel,tag,marcacoes_txt,jornada_liquida_min,intervalo_real_min,jornada_contratada_min,extra_min,detalhe&order=data.asc',{headers:H}).then(r=>r.json());
     DAYS=[...new Set(ALL.map(r=>r.data))].sort();
     DI=DAYS.length-1;
     $('sub').textContent='últimos '+DAYS.length+' dias úteis · 3 lojas · atualizado '+new Date().toLocaleTimeString('pt-BR');
-    render();
+    if(VIEW==='day')render();
     checkAcoes();
   }catch(e){$('content').innerHTML='<div class="err">Erro: '+e.message+'</div>'}
 }
 function setView(v){VIEW=v;FILT=null;
-  ['vday','vguia'].forEach(id=>$(id).classList.remove('active'));
-  $(v==='day'?'vday':'vguia').classList.add('active');
-  $('toolbar').style.display=v==='guia'?'none':'flex';
+  ['vday','vesc','vequipe','vguia','vman'].forEach(id=>{const b=$(id);if(b)b.classList.remove('active')});
+  const ab=$({day:'vday',escala:'vesc',equipe:'vequipe',guia:'vguia',manual:'vman'}[v]||'vday');if(ab)ab.classList.add('active');
+  $('toolbar').style.display=v==='day'?'flex':'none';
   render();}
 function stepDay(d){DI=Math.min(Math.max(DI+d,0),DAYS.length-1);FILT=null;render()}
 function dayRows(){return ALL.filter(r=>r.data===DAYS[DI])}
-function render(){ VIEW==='day'?renderDay():renderGuia() }
+function render(){
+  if(VIEW==='guia')return renderGuia();
+  if(VIEW==='escala')return renderEscala();
+  if(VIEW==='equipe')return renderEquipeSetor();
+  if(VIEW==='manual')return renderManual();
+  renderDay();
+}
+function limpaTopo(){$('kpis').innerHTML='';$('units').innerHTML=''}
+function renderManual(){limpaTopo();$('content').innerHTML='<iframe class="exframe" src="manual.html" title="Manual e Regras"></iframe>'}
+const HOJE=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
+const SBUN='São Braz';
+const LOJAS=['Água Verde','Ahú',SBUN];
+const BLOCOS=['Cozinha','Salão','Produção','Delivery'];
+const blocoDe=s=>BLOCOS.indexOf(s)>=0?s:'Produção';
+const hhmm=t=>t?String(t).slice(0,5):'';
+const horDe=f=>(f.entrada&&f.saida)?hhmm(f.entrada)+'–'+hhmm(f.saida):'';
+const afastado=f=>!!f.afastado_desde&&(!f.afastado_ate||f.afastado_ate>=HOJE());
+const porEntrada=(a,b)=>((a.entrada||'99')<(b.entrada||'99')?-1:1);
+const COLS_FUNC='nome,unidade,setor,folgas,entrada,saida,noturno,jornada_contratada_min,afastado_desde,afastado_ate,afastado_motivo';
+const POS=['Chapa','Fritadeira','Montagem de burgers','Montagem de marmitas/pratos','Separação de pacotes/expedição','Atendimento/Caixa','Produção/Cozinha (apoio)','Limpeza','Delivery/Entregas','Gerência','FOLGA','Falta/Ausente'];
+let ESCLOJA=SOSB?SBUN:'',ESCDIA='',ESCEQ=[];
+function renderEscala(){
+  limpaTopo();
+  if(!ESCDIA)ESCDIA=HOJE();
+  const sel=SOSB?'<span class="exlock">🏪 '+SBUN+'</span>'
+    :'<select id="escloja" onchange="ESCLOJA=this.value;escCarregar()"><option value="">Escolha a loja…</option>'+LOJAS.map(l=>'<option'+(l===ESCLOJA?' selected':'')+'>'+l+'</option>').join('')+'</select>';
+  $('content').innerHTML='<div class="exbar">'+sel+'<input type="date" id="escdia" value="'+ESCDIA+'" onchange="ESCDIA=this.value;escCarregar()"></div><div id="esclista"></div><div id="escfoot"></div>';
+  escCarregar();
+}
+async function escCarregar(){
+  const el=$('esclista');if(!el)return;
+  const loja=SOSB?SBUN:ESCLOJA;
+  $('escfoot').innerHTML='';
+  if(!loja){el.innerHTML='<div class="empty">Escolha a loja para carregar a equipe…</div>';return}
+  el.innerHTML='<div class="loading">Carregando equipe…</div>';
+  try{
+    const u='&unidade=eq.'+encodeURIComponent(loja);
+    ESCEQ=await fetch(SB+'dim_funcionario?ativo=eq.true'+u+'&select='+COLS_FUNC+'&order=nome.asc',{headers:H}).then(r=>r.json());
+    const ja=await fetch(SB+'fato_escala_posicao?data=eq.'+ESCDIA+u+'&select=nome,posicao',{headers:H}).then(r=>r.json());
+    const mapa={};(ja||[]).forEach(r=>{mapa[r.nome]=r.posicao});
+    el.innerHTML=((ja&&ja.length)?'<div class="exnote">ℹ Já existe escala lançada para este dia — ao salvar, você atualiza.</div>':'')+escBlocos(ESCEQ,mapa);
+    if(ESCEQ.length)$('escfoot').innerHTML='<button class="exsave" id="escbtn" onclick="escSalvar()">💾 Salvar escala</button><div id="escmsg"></div>';
+  }catch(e){el.innerHTML='<div class="err">Erro ao carregar: '+e.message+'</div>'}
+}
+function escBlocos(eq,mapa){
+  if(!eq.length)return '<div class="empty">Nenhum funcionário ativo cadastrado nesta loja.</div>';
+  let html='';
+  BLOCOS.forEach(b=>{
+    const doB=eq.filter(f=>blocoDe(f.setor)===b);
+    if(!doB.length)return;
+    html+='<div class="exblk"><div class="exbh"><span>'+b+'</span><span class="excnt">'+doB.length+'</span></div>';
+    [[false,'☀️ Dia'],[true,'🌙 Noite']].forEach(t=>{
+      const pes=doB.filter(f=>!!f.noturno===t[0]).sort(porEntrada);
+      if(!pes.length)return;
+      html+='<div class="exth">'+t[1]+' <span class="excnt">'+pes.length+'</span></div>';
+      pes.forEach(f=>{
+        const i=eq.indexOf(f);
+        const marc=(mapa[f.nome]||'').split(', ').filter(Boolean);
+        const corpo=afastado(f)
+          ?'<span class="exaf">⚕️ Afastado — '+(f.afastado_motivo||'sem motivo informado')+'</span>'
+          :'<div class="exchips" data-i="'+i+'">'+POS.map(p=>'<button type="button" class="exchip'+(marc.indexOf(p)>=0?' on':'')+'" onclick="this.classList.toggle(\'on\')">'+p+'</button>').join('')+'</div>';
+        html+='<div class="exrow"><div class="exhead"><span class="exname">'+title(f.nome)+'</span><span class="exhor">'+horDe(f)+'</span></div>'+corpo+'</div>';
+      });
+    });
+    html+='</div>';
+  });
+  return html;
+}
+async function escSalvar(){
+  const loja=SOSB?SBUN:ESCLOJA,btn=$('escbtn'),msg=$('escmsg');
+  const rows=[];
+  ESCEQ.forEach((f,i)=>{
+    if(afastado(f))return;
+    const ch=[...document.querySelectorAll('.exchips[data-i="'+i+'"] .exchip.on')].map(b=>b.textContent);
+    if(ch.length)rows.push({data:ESCDIA,unidade:loja,nome:f.nome,posicao:ch.join(', '),turno:f.noturno?'Noite':'Dia',lancado_por:'painel-rh'});
+  });
+  if(!rows.length){msg.innerHTML='<div class="exerr">Marque a posição de pelo menos uma pessoa.</div>';return}
+  btn.disabled=true;
+  try{
+    const r=await fetch(SB+'fato_escala_posicao?on_conflict=data,unidade,nome',{method:'POST',headers:Object.assign({},H,{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'}),body:JSON.stringify(rows)});
+    if(!r.ok)throw new Error(await r.text());
+    msg.innerHTML='<div class="exok">✅ Escala salva — '+rows.length+' pessoa(s) lançada(s).</div>';
+  }catch(e){msg.innerHTML='<div class="exerr">Erro ao salvar: '+e.message+'</div>'}
+  btn.disabled=false;
+}
+let EQTEAM=[],EQLOJA=SOSB?SBUN:'',EQSETOR='';
+function renderEquipeSetor(){
+  limpaTopo();
+  const sel=SOSB?'<span class="exlock">🏪 '+SBUN+'</span>'
+    :'<select id="eqloja" onchange="EQLOJA=this.value;eqRender()"><option value="">Todas as lojas</option>'+LOJAS.map(l=>'<option'+(l===EQLOJA?' selected':'')+'>'+l+'</option>').join('')+'</select>';
+  $('content').innerHTML='<div class="exbar">'+sel+'<select id="eqsetor" onchange="EQSETOR=this.value;eqRender()"><option value="">Todos os setores</option></select><span class="exlock">Ativos: <b id="eqcnt">–</b></span></div><div id="eqlista"><div class="loading">Carregando equipe…</div></div>';
+  eqLoad();
+}
+async function eqLoad(){
+  try{
+    const u=SOSB?'&unidade=eq.'+encodeURIComponent(SBUN):'';
+    EQTEAM=await fetch(SB+'dim_funcionario?ativo=eq.true'+u+'&select='+COLS_FUNC+'&order=unidade.asc,setor.asc,entrada.asc',{headers:H}).then(r=>r.json());
+    const sets=[...new Set(EQTEAM.map(f=>f.setor).filter(Boolean))].sort();
+    const s=$('eqsetor');if(s)s.innerHTML='<option value="">Todos os setores</option>'+sets.map(x=>'<option'+(x===EQSETOR?' selected':'')+'>'+x+'</option>').join('');
+    eqRender();
+  }catch(e){const el=$('eqlista');if(el)el.innerHTML='<div class="err">Erro ao carregar: '+e.message+'</div>'}
+}
+function eqRender(){
+  const el=$('eqlista');if(!el)return;
+  const fl=SOSB?SBUN:EQLOJA;
+  const d=EQTEAM.filter(f=>(!fl||f.unidade===fl)&&(!EQSETOR||f.setor===EQSETOR));
+  const c=$('eqcnt');if(c)c.textContent=d.length;
+  if(!d.length){el.innerHTML='<div class="empty">Nenhum funcionário nesse filtro.</div>';return}
+  const lojas=[...new Set(d.map(f=>f.unidade))].sort((a,b)=>(UORD[a]??9)-(UORD[b]??9));
+  let html='';
+  lojas.forEach(loja=>{
+    const doLoja=d.filter(f=>f.unidade===loja);
+    html+='<div class="exblk"><div class="exbh"><span>'+loja+'</span><span class="excnt">'+doLoja.length+'</span></div>';
+    [...new Set(doLoja.map(f=>f.setor||'—'))].sort().forEach(s=>{
+      const pes=doLoja.filter(f=>(f.setor||'—')===s).sort(porEntrada);
+      html+='<div class="exth">'+s+' <span class="excnt">'+pes.length+'</span></div>';
+      pes.forEach(f=>{
+        const n=!!f.noturno;
+        const folga=afastado(f)?'<span class="exaf">⚕️ Afastado</span>':(f.folgas?'<span class="eqfolga">🌙 '+f.folgas+'</span>':'<span class="eqnof">sem folga fixa</span>');
+        html+='<div class="eqp"><span class="eqn">'+title(f.nome)+'</span><span class="eqb '+(n?'eqnoite':'eqdia')+'">'+(n?'🌙 Noite':'☀️ Dia')+'</span><span class="exhor">'+horDe(f)+(f.jornada_contratada_min?' · '+fmt(f.jornada_contratada_min):'')+'</span>'+folga+'</div>';
+      });
+    });
+    html+='</div>';
+  });
+  el.innerHTML=html;
+}
 function renderDay(){
   const rows=dayRows();
   $('curday').textContent=br(DAYS[DI])+' ('+(rows[0]?.dia_semana||'').replace('-feira','')+')';
