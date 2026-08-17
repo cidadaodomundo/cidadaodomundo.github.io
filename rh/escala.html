@@ -77,8 +77,11 @@ async function gateTry(){const v=document.getElementById('gpw').value;const h=aw
 if(['cm_esc_ok','cm_rh_ok','cm_sb_ok','cm_ok'].some(k=>sessionStorage.getItem(k)==='1'))document.getElementById('gate').style.display='none';
 const POS=['Chapa','Fritadeira','Montagem de burgers','Montagem de marmitas/pratos','Separação de pacotes/expedição','Atendimento/Caixa','Produção/Cozinha (apoio)','Limpeza','Delivery/Entregas','Gerência','FOLGA','Falta/Ausente'];
 const $=id=>document.getElementById(id);
-const SOSB=sessionStorage.getItem('cm_portal_role')==='saobraz'||sessionStorage.getItem('cm_sb_ok')==='1';
 const SBUN='São Braz';
+const _qs=new URLSearchParams(location.search);
+const _qsb=[_qs.get('u'),_qs.get('loja')].some(v=>v&&v.trim()===SBUN);
+const SOSB=sessionStorage.getItem('cm_portal_role')==='saobraz'||sessionStorage.getItem('cm_sb_ok')==='1'||localStorage.getItem('cm_portal_role')==='saobraz'||_qsb;
+if(SOSB){sessionStorage.setItem('cm_portal_role','saobraz');localStorage.setItem('cm_portal_role','saobraz');}
 const HOJE=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
 const BLOCOS=['Cozinha','Salão','Produção','Delivery'];
 const blocoDe=s=>BLOCOS.indexOf(s)>=0?s:'Produção';
@@ -87,13 +90,13 @@ const horDe=f=>(f.entrada&&f.saida)?hhmm(f.entrada)+'–'+hhmm(f.saida):'';
 const afastado=f=>!!f.afastado_desde&&(!f.afastado_ate||f.afastado_ate>=HOJE());
 const titulo=n=>n.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
 $('dia').value=HOJE();
-if(SOSB){$('loja').innerHTML='<option>'+SBUN+'</option>';$('loja').value=SBUN;setTimeout(carregar,50);}
+if(SOSB){const _s=$('loja');_s.innerHTML='<option>'+SBUN+'</option>';_s.value=SBUN;_s.style.display='none';const _b=document.createElement('span');_b.textContent='🏪 '+SBUN;_b.style.cssText='display:inline-block;background:var(--surface2);border:1px solid var(--brand);border-radius:10px;padding:9px 12px;font-weight:800;font-size:13px';_s.parentNode.insertBefore(_b,_s);setTimeout(carregar,50);}
 else{const LOCK=new URLSearchParams(location.search).get('loja');if(LOCK){$('loja').value=LOCK;setTimeout(carregar,50);}}
 let EQUIPE=[];
 $('loja').addEventListener('change',carregar);
 $('dia').addEventListener('change',carregar);
 async function carregar(){
-  const loja=$('loja').value; if(!loja){return}
+  const loja=SOSB?SBUN:$('loja').value; if(!loja){return}
   $('lista').innerHTML='<div class="loading">Carregando equipe…</div>';
   $('okmsg').style.display='none';$('errmsg').style.display='none';
   try{
@@ -132,7 +135,7 @@ function escBlocos(eq,mapa){
   return html;
 }
 async function salvar(){
-  const loja=$('loja').value, dia=$('dia').value;
+  const loja=SOSB?SBUN:$('loja').value, dia=$('dia').value;
   const rows=[];
   EQUIPE.forEach((f,i)=>{if(afastado(f))return;const ch=[...document.querySelectorAll('.poswrap[data-i="'+i+'"] .poschip.on')].map(b=>b.textContent);if(ch.length)rows.push({data:dia,unidade:loja,nome:f.nome,posicao:ch.join(', '),turno:f.noturno?'Noite':'Dia',lancado_por:'painel-escala'})});
   if(!rows.length){$('errmsg').textContent='Marque a posição de pelo menos uma pessoa.';$('errmsg').style.display='block';return}

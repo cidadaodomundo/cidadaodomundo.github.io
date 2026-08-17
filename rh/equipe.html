@@ -67,16 +67,20 @@ async function gateTry(){const v=document.getElementById('gpw').value;const h=aw
   else document.getElementById('gerr').textContent='Senha incorreta.'}
 if(['cm_rh_ok','cm_sb_ok','cm_esc_ok','cm_owner_ok','cm_ok'].some(k=>sessionStorage.getItem(k)==='1'))document.getElementById('gate').style.display='none';
 const $=id=>document.getElementById(id);
-const SOSB=sessionStorage.getItem('cm_portal_role')==='saobraz'||sessionStorage.getItem('cm_sb_ok')==='1';
+const SBUN='São Braz';
+const _qs=new URLSearchParams(location.search);
+const _qsb=[_qs.get('u'),_qs.get('loja')].some(v=>v&&v.trim()===SBUN);
+const SOSB=sessionStorage.getItem('cm_portal_role')==='saobraz'||sessionStorage.getItem('cm_sb_ok')==='1'||localStorage.getItem('cm_portal_role')==='saobraz'||_qsb;
+if(SOSB){sessionStorage.setItem('cm_portal_role','saobraz');localStorage.setItem('cm_portal_role','saobraz');}
 const lojaOrdem={'Água Verde':0,'Ahú':1,'São Braz':2};
-if(SOSB){const sl=$('fLoja');sl.innerHTML='<option>São Braz</option>';sl.value='São Braz';sl.disabled=true;}
+if(SOSB){const sl=$('fLoja');sl.innerHTML='<option>'+SBUN+'</option>';sl.value=SBUN;sl.disabled=true;sl.style.display='none';const _b=document.createElement('div');_b.className='kpi';_b.innerHTML='<b>🏪 '+SBUN+'</b>';sl.parentNode.insertBefore(_b,sl);}
 function titulo(n){return n.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ')}
 function turnoDe(f){if(!f.entrada)return 'Dia';const h=parseInt(f.entrada.slice(0,2),10);const cruza=f.saida&&f.saida<f.entrada;return (cruza||h>=15)?'Noite':'Dia';}
 function jorn(m){return m?(Math.floor(m/60)+'h'+String(m%60).padStart(2,'0')):''}
 let TEAM=[];
 async function load(){
   try{
-    TEAM=await fetch(SB+'dim_funcionario?ativo=eq.true'+(SOSB?'&unidade=eq.'+encodeURIComponent('São Braz'):'')+'&select=nome,unidade,setor,folgas,entrada,saida,jornada_contratada_min&order=unidade.asc,setor.asc,entrada.asc',{headers:H}).then(r=>r.json());
+    TEAM=await fetch(SB+'dim_funcionario?ativo=eq.true'+(SOSB?'&unidade=eq.'+encodeURIComponent(SBUN):'')+'&select=nome,unidade,setor,folgas,entrada,saida,jornada_contratada_min&order=unidade.asc,setor.asc,entrada.asc',{headers:H}).then(r=>r.json());
     $('kAtivos').textContent=TEAM.length;
     const setores=[...new Set(TEAM.map(f=>f.setor).filter(Boolean))].sort();
     $('fSetor').innerHTML='<option value="">Todos os setores</option>'+setores.map(s=>`<option>${s}</option>`).join('');
@@ -84,7 +88,7 @@ async function load(){
   }catch(e){$('lista').innerHTML='<div class="loading">Erro ao carregar: '+e.message+'</div>'}
 }
 function render(){
-  const fl=SOSB?'São Braz':$('fLoja').value, fs=$('fSetor').value;
+  const fl=SOSB?SBUN:$('fLoja').value, fs=$('fSetor').value;
   let d=TEAM.filter(f=>(!fl||f.unidade===fl)&&(!fs||f.setor===fs));
   if(!d.length){$('lista').innerHTML='<div class="loading">Nenhum funcionário nesse filtro.</div>';return}
   const lojas=[...new Set(d.map(f=>f.unidade))].sort((a,b)=>lojaOrdem[a]-lojaOrdem[b]);

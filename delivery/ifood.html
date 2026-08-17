@@ -103,9 +103,12 @@ async function gateTry(){const v=$('gpw').value;const h=await sha((v||'').trim()
 if(sessionStorage.getItem('cm_del_ok')==='1'||sessionStorage.getItem('cm_owner_ok')==='1'||sessionStorage.getItem('cm_sb_ok')==='1'){$('gate').style.display='none'}
 
 const SB_HASH='bc54706ad12e7654b56e3b7468768d3c9a3b98459a95b8c465a47fed979ed792';
-const _pu=new URLSearchParams(location.search).get('u');
-const SOSB=_pu==='São Braz'||sessionStorage.getItem('cm_portal_role')==='saobraz';
-const LOJAS=SOSB?['São Braz']:['Todas','Água Verde','São Braz','Ahú'];
+const SBUN='São Braz';
+const _qs=new URLSearchParams(location.search);
+const _qsb=[_qs.get('u'),_qs.get('loja')].some(v=>v&&v.trim()===SBUN);
+const SOSB=sessionStorage.getItem('cm_portal_role')==='saobraz'||sessionStorage.getItem('cm_sb_ok')==='1'||localStorage.getItem('cm_portal_role')==='saobraz'||_qsb;
+if(SOSB){sessionStorage.setItem('cm_portal_role','saobraz');localStorage.setItem('cm_portal_role','saobraz');}
+const LOJAS=SOSB?[SBUN]:['Todas','Água Verde','São Braz','Ahú'];
 const DOWN=['dom','seg','ter','qua','qui','sex','sáb'];
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const iso=d=>d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
@@ -114,7 +117,7 @@ const dow=d=>{const p=d.split('-').map(Number);return new Date(Date.UTC(p[0],p[1
 const rs=n=>Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 async function fj(u){const r=await fetch(SB+u,{headers:H});if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
 
-let PER='hoje', LOJA=SOSB?'São Braz':'Todas', SUB='aval', AVAL=[],CANC=[],NEG=[],DIMS=[],SUPER=[];
+let PER='hoje', LOJA=SOSB?SBUN:'Todas', SUB='aval', AVAL=[],CANC=[],NEG=[],DIMS=[],SUPER=[];
 function hoje(){return iso(new Date())}
 function ontem(){return iso(new Date(Date.now()-864e5))}
 function diasPeriodo(){ if(PER==='hoje')return [hoje()]; if(PER==='ontem')return [ontem()];
@@ -122,17 +125,18 @@ function diasPeriodo(){ if(PER==='hoje')return [hoje()]; if(PER==='ontem')return
 function rotulo(){return PER==='hoje'?('Hoje · '+DOWN[dow(hoje())]+' '+br(hoje())):PER==='ontem'?('Ontem · '+DOWN[dow(ontem())]+' '+br(ontem())):'Últimos 7 dias'}
 function uni(id){const l=DIMS.find(x=>x.id_loja===id);return l?l.unidade:null}
 function nomeLoja(id){const l=DIMS.find(x=>x.id_loja===id);return l?l.nome:id}
-function fL(r){return LOJA==='Todas'||uni(r.id_loja)===LOJA}
+function fL(r){return SOSB?uni(r.id_loja)===SBUN:(LOJA==='Todas'||uni(r.id_loja)===LOJA)}
 
 async function loadAll(){
   try{
     const d8=iso(new Date(Date.now()-8*864e5));
-    [DIMS,AVAL,CANC,NEG,SUPER]=await Promise.all([
-      fj('ifood_dim_loja?select=id_loja,nome,unidade'),
-      fj('ifood_fato_avaliacao?data_avaliacao=gte.'+d8+'&select=id_loja,data_avaliacao,data_pedido,nota,tags,comentario,id_pedido_curto&order=data_avaliacao.desc&limit=3000'),
-      fj('ifood_fato_cancelamento?data=gte.'+d8+'&select=id_loja,data,turno,motivo,valor_pedido,valor_cancelamento,itens_cancelados,impactou_super,id_pedido,origem,contestavel,loja_contestou,status_contestacao,id_saipos,forma_pagamento,pagamento_online,primeiro_pedido,chat,fotos&order=data.desc&limit=1000'),
-      fj('ifood_fato_negociacao?data=gte.'+d8+'&select=id_loja,data,motivo,resposta_loja,resposta_cliente,momento_solicitacao,tempo_ofertado_atraso_min,cancelamento_evitado,valor_reembolso,valor_pedido,impactou_super,id_pedido,id_saipos,forma_pagamento,pagamento_online,primeiro_pedido,chat,fotos&order=data.desc&limit=1000'),
-      fj("ifood_fato_super_status?periodo=neq.&select=id_loja,nome,e_super,nivel,status,media_avaliacoes,pct_cancelamento,pct_chamados,plano_acao")
+    DIMS=await fj('ifood_dim_loja?select=id_loja,nome,unidade'+(SOSB?'&unidade=eq.'+encodeURIComponent(SBUN):''));
+    const FLT=SOSB?('&id_loja=in.('+(DIMS.map(x=>x.id_loja).join(',')||'-1')+')'):'';
+    [AVAL,CANC,NEG,SUPER]=await Promise.all([
+      fj('ifood_fato_avaliacao?data_avaliacao=gte.'+d8+FLT+'&select=id_loja,data_avaliacao,data_pedido,nota,tags,comentario,id_pedido_curto&order=data_avaliacao.desc&limit=3000'),
+      fj('ifood_fato_cancelamento?data=gte.'+d8+FLT+'&select=id_loja,data,turno,motivo,valor_pedido,valor_cancelamento,itens_cancelados,impactou_super,id_pedido,origem,contestavel,loja_contestou,status_contestacao,id_saipos,forma_pagamento,pagamento_online,primeiro_pedido,chat,fotos&order=data.desc&limit=1000'),
+      fj('ifood_fato_negociacao?data=gte.'+d8+FLT+'&select=id_loja,data,motivo,resposta_loja,resposta_cliente,momento_solicitacao,tempo_ofertado_atraso_min,cancelamento_evitado,valor_reembolso,valor_pedido,impactou_super,id_pedido,id_saipos,forma_pagamento,pagamento_online,primeiro_pedido,chat,fotos&order=data.desc&limit=1000'),
+      fj("ifood_fato_super_status?periodo=neq."+FLT+"&select=id_loja,nome,e_super,nivel,status,media_avaliacoes,pct_cancelamento,pct_chamados,plano_acao")
     ]);
     $('hsub').textContent='dados ao vivo do Supabase · Cidadão do Mundo Burgers & Arts';
     render();
@@ -146,7 +150,7 @@ function kpi(k,cls,v,d){return '<div class="kpi '+(cls||'')+'"><div class="k">'+
 function render(){
   const per=[['hoje','Hoje'],['ontem','Ontem'],['7dias','7 dias']];
   $('periodos').innerHTML=per.map(p=>'<span class="tab '+(PER===p[0]?'on':'')+'" onclick="setPer(\''+p[0]+'\')">'+p[1]+'</span>').join('');
-  $('lojas').innerHTML=LOJAS.map(l=>'<span class="tab '+(LOJA===l?'on':'')+'" onclick="setLoja(\''+l+'\')">'+l+'</span>').join('');
+  $('lojas').innerHTML=SOSB?'<span class="tab on">🏪 '+SBUN+'</span>':LOJAS.map(l=>'<span class="tab '+(LOJA===l?'on':'')+'" onclick="setLoja(\''+l+'\')">'+l+'</span>').join('');
   const D=diasPeriodo();
   const aval=AVAL.filter(r=>D.includes(r.data_avaliacao)&&fL(r));
   const canc=CANC.filter(r=>D.includes(r.data)&&fL(r));
@@ -273,7 +277,7 @@ function viewResp(neg,resp,txResp){
 }
 function viewSuper(){
   // filtra as lojas de delivery (unidades AV/SB/Ahú) conforme filtro
-  const rows=SUPER.filter(s=>{const u=uni(s.id_loja);return u&&(LOJA==='Todas'?['Água Verde','São Braz','Ahú'].includes(u):u===LOJA)});
+  const rows=SUPER.filter(s=>{const u=uni(s.id_loja);return u&&(SOSB?u===SBUN:(LOJA==='Todas'?['Água Verde','São Braz','Ahú'].includes(u):u===LOJA))});
   let h='<div class="sec"><h2>🏆 Selo Super</h2><div class="hs">status do trimestre vigente — não muda por dia (avaliação trimestral do iFood)</div>';
   if(!rows.length){h+='<div class="empty">Sem dados de Selo Super para esta seleção.</div></div>';$('conteudo').innerHTML=h;return}
   h+='<div class="superc">'+rows.map(s=>{

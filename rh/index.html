@@ -170,7 +170,11 @@ VERBAL:'RH: orientar verbalmente sobre o intervalo e registrar a conversa (data 
 CONFERIR:'RH: conferir antes de qualquer medida — escala real do dia, horário oficial no cadastro e se há férias/atestado/folga registrados. Só depois tratar como ocorrência.'};
 let ALL=[],DAYS=[],DI=0,UNIT='Todas',FILT=null,VIEW='day';
 try{const _u=new URLSearchParams(location.search).get('u');if(_u)UNIT=_u}catch(e){}
-const SOSB=sessionStorage.getItem('cm_portal_role')==='saobraz'||sessionStorage.getItem('cm_sb_ok')==='1';if(SOSB)UNIT='São Braz';
+const SBUN='São Braz';
+const _qs=new URLSearchParams(location.search);
+const _qsb=[_qs.get('u'),_qs.get('loja')].some(v=>v&&v.trim()===SBUN);
+const SOSB=sessionStorage.getItem('cm_portal_role')==='saobraz'||sessionStorage.getItem('cm_sb_ok')==='1'||localStorage.getItem('cm_portal_role')==='saobraz'||_qsb;
+if(SOSB){sessionStorage.setItem('cm_portal_role','saobraz');localStorage.setItem('cm_portal_role','saobraz');UNIT=SBUN;}
 const $=id=>document.getElementById(id);
 const fmt=m=>m==null?'—':Math.floor(m/60)+'h'+String(m%60).padStart(2,'0');
 const title=n=>n.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
@@ -183,7 +187,7 @@ async function loadAll(){
     ALL=await fetch(SB+'fato_espelho_dia?ativo=eq.true'+(SOSB?'&unidade=eq.'+encodeURIComponent('São Braz'):'')+'&data=gte.'+cutoff+'&select=nome,unidade,data,dia_semana,categoria,nivel,tag,marcacoes_txt,jornada_liquida_min,intervalo_real_min,jornada_contratada_min,extra_min,detalhe&order=data.asc',{headers:H}).then(r=>r.json());
     DAYS=[...new Set(ALL.map(r=>r.data))].sort();
     DI=DAYS.length-1;
-    $('sub').textContent='últimos '+DAYS.length+' dias úteis · 3 lojas · atualizado '+new Date().toLocaleTimeString('pt-BR');
+    $('sub').textContent='últimos '+DAYS.length+' dias úteis · '+(SOSB?SBUN:'3 lojas')+' · atualizado '+new Date().toLocaleTimeString('pt-BR');
     if(VIEW==='day')render();
     checkAcoes();
   }catch(e){$('content').innerHTML='<div class="err">Erro: '+e.message+'</div>'}
@@ -205,8 +209,7 @@ function render(){
 function limpaTopo(){$('kpis').innerHTML='';$('units').innerHTML=''}
 function renderManual(){limpaTopo();$('content').innerHTML='<iframe class="exframe" src="manual.html" title="Manual e Regras"></iframe>'}
 const HOJE=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
-const SBUN='São Braz';
-const LOJAS=['Água Verde','Ahú',SBUN];
+const LOJAS=SOSB?[SBUN]:['Água Verde','Ahú',SBUN];
 const BLOCOS=['Cozinha','Salão','Produção','Delivery'];
 const blocoDe=s=>BLOCOS.indexOf(s)>=0?s:'Produção';
 const hhmm=t=>t?String(t).slice(0,5):'';
@@ -462,7 +465,7 @@ Empresa                          Colaborador(a)</div>
 <li>Abrir o painel de manhã (o robô atualiza sozinho às 8h) e olhar os cards vermelhos/laranjas/amarelos.</li>
 <li>Executar a ação indicada em cada card (o texto verde "RH:" diz exatamente o que fazer).</li>
 <li>Lançar eventos e documentos no Flash no mesmo dia.</li>
-<li>Lançar a <b>escala de posições da Água Verde</b> na aba "📋 Escala do dia" e ativar os avisos (sino + app ntfy).</li>
+<li>Lançar a <b>escala de posições ${SOSB?'do São Braz':'da Água Verde'}</b> na aba "📋 Escala do dia" e ativar os avisos (sino + app ntfy).</li>
 </ol>
 </div></div>`;
 }
