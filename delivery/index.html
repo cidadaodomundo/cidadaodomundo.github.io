@@ -183,9 +183,10 @@ function render(){lojasHTML();VIEW==='diario'?renderDiario():VIEW==='equipe'?ren
 /* ================= DIÁRIO ================= */
 function botoesDow(){
   var N=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'],h='<span style="display:inline-block;width:10px"></span>';
-  for(var k=0;k<7;k++){h+='<span class="tab" onclick="irParaDow('+k+')">'+N[k]+'</span>'}
+  for(var i=NAV.length-1;i>=0;i--){h+='<span class="tab'+((PER===1&&DI===i)?' on':'')+'" onclick="irParaDia('+i+')" style="text-align:center;line-height:1.15">'+N[dow(NAV[i])]+'<br><span style="font-size:10px;opacity:.6">'+br(NAV[i])+'</span></span>'}
   return h;
 }
+function irParaDia(i){DI=i;PER=1;render()}
 function irParaDow(k){
   for(var i=NAV.length-1;i>=0;i--){ if(dow(NAV[i])===k){ DI=i; PER=1; render(); return } }
 }
@@ -288,6 +289,28 @@ function blocoEscala(D){
 }
 /* ================= EQUIPE ================= */
 function _realPorMoto(dias){var m={};(typeof ATR!=='undefined'?ATR:[]).forEach(function(p){if(dias.indexOf(p.dia_operacional)<0)return;if(!p.entregador)return;var k=p.entregador+'|'+p.unidade;var o=m[k]=m[k]||{ok:0,at:0,e:0};o.e++;if(p.no_prazo_real)o.ok++;else o.at++});return m}
+function _tabelaTurno(dias){
+  var ORD={'Almoço':1,'Tarde':2,'Jantar':3,'Madrugada':4};
+  var m={};
+  (typeof ATR!=='undefined'?ATR:[]).forEach(function(p){
+    if(dias.indexOf(p.dia_operacional)<0)return;
+    if(!p.entregador)return;
+    if(LOJA!=='Todas'&&String(p.unidade||'')!==LOJA)return;
+    var t=p.turno||'—', k=t+'|'+p.entregador+'|'+p.unidade;
+    var o=m[k]=m[k]||{t:t,n:p.entregador,l:p.unidade,e:0,ok:0,at:0,ds:{}};
+    o.e++; if(p.no_prazo_real)o.ok++; else o.at++; o.ds[p.dia_operacional]=1;
+  });
+  var L=Object.keys(m).map(function(k){var o=m[k];o.d=Object.keys(o.ds).length;o.p=pctS(o.ok,o.at);return o});
+  if(!L.length) return '';
+  L.sort(function(a,b){return (ORD[a.t]||9)-(ORD[b.t]||9)||b.e-a.e});
+  var h='<h2 style="margin-top:20px">Por motoboy e turno</h2><div class="hs">quem rodou em cada turno, pelo prazo real do iFood · clique no cabeçalho para ordenar</div>';
+  h+='<table><tr><th>Turno</th><th>Motoboy</th><th>Loja</th><th>Dias</th><th>Entregas</th><th>No prazo</th><th>Atrasos</th><th>% no prazo</th></tr>';
+  L.forEach(function(o){
+    var cls=o.p==null?'pw':o.p>=90?'pg':o.p>=70?'pw':'pb';
+    h+='<tr><td><b>'+o.t+'</b></td><td>'+o.n+'</td><td style="color:var(--text2)">'+o.l+'</td><td>'+o.d+'</td><td>'+o.e+'</td><td>'+o.ok+'</td><td>'+o.at+'</td><td><span class="pill '+cls+'">'+(o.p==null?'—':o.p+'%')+'</span></td></tr>';
+  });
+  return h+'</table>';
+}
 function aggMoto(rows){
   const m={};rows.forEach(r=>{const k=r.nome+'|'+r.unidade;const o=m[k]=m[k]||{n:r.nome,l:r.unidade,d:0,h:0,e:0,ok:0,at:0,sem:0,v:0,g:0,c:0,rec:0,qr:0};
     o.d++;o.h+=(+r.horas||0);o.e+=(+r.entregas||0);o.ok+=(+r.no_prazo||0);o.at+=(+r.atrasos||0);o.sem+=(+r.sem_codigo||0);
@@ -306,7 +329,7 @@ function kpiCodigo(dias){
   return kpi('Código de coleta',comCod,ped?(sc+' sem código de '+ped+' pedidos iFood'):'sem pedidos no período',sc?'var(--warn)':'var(--good)');
 }
 function renderEquipe(){
-  $('barra').innerHTML='<a class="btnr" href="escala.html" style="text-decoration:none;margin-right:8px">🗓 Escala</a>'+'<div class="tabs" style="margin:0">'+[['1','Ontem'],['3','3 dias'],['7','7 dias']].map(([n,l])=>'<span class="tab '+(PER===+n?'on':'')+'" onclick="PER='+n+';render()">'+l+'</span>').join('')+botoesDow()+'</div>';
+  $('barra').innerHTML='<a class="btnr" href="escala.html" style="text-decoration:none;margin-right:8px">🗓 Escala</a>'+'<div class="tabs" style="margin:0">'+[['1','Último dia'],['3','3 dias'],['7','7 dias']].map(([n,l])=>'<span class="tab '+(PER===+n?'on':'')+'" onclick="PER='+n+';render()">'+l+'</span>').join('')+botoesDow()+'</div>';
   const dias=NAV.slice(-PER);
   const rs=PAG.filter(r=>dias.includes(r.dia_operacional)&&fLoja(r));
   const rsAll=PAG.filter(r=>dias.includes(r.dia_operacional));
@@ -372,7 +395,8 @@ function renderEquipe(){
   html+='<button class="btnr" id="wppbtn" onclick="copiarWpp()" style="margin-bottom:14px">📱 Resumo p/ WhatsApp</button>';
   html+='<div class="sec"><h2>🛵 Por motoboy</h2><div class="hs">Horas: <b>QR</b> = presença real registrada no balcão (chegada→saída); <b>Foody</b> = tempo de turno do sistema, usado enquanto não houver check-in. Garantido = horas × R$ 20/h · Complemento = só quando o garantido do DIA passa do que fez em entregas (nunca negativo) · A receber = entregas + complemento. Estimativa — confira contra o fechamento oficial.</div>';
   if(motos.length){
-    html+='<table><tr><th>Motoboy</th><th>Loja</th><th>Dias</th><th>Horas</th><th>Entregas</th><th>% no prazo</th><th>Atrasos</th><th>Sem código</th><th>Fez (entregas)</th><th>Garantido</th><th>Complemento</th><th>A receber</th></tr>'+motos.map(m=>{
+    html+=_tabelaTurno(dias);
+     html+='<table><tr><th>Motoboy</th><th>Loja</th><th>Dias</th><th>Horas</th><th>Entregas</th><th>% no prazo</th><th>Atrasos</th><th>Sem código</th><th>Fez (entregas)</th><th>Garantido</th><th>Complemento</th><th>A receber</th></tr>'+motos.map(m=>{
       const cls=m.p==null?'pw':m.p>=90?'pg':m.p>=70?'pw':'pb';
       return '<tr><td><b>'+m.n+'</b></td><td style="color:var(--text2)">'+m.l+'</td><td>'+m.d+'</td><td>'+m.h.toFixed(1)+'h '+(m.qr>0?'<span class="pill pg" title="horas do check-in por QR">QR '+m.qr+'/'+m.d+'</span>':'<span style="color:var(--muted)">Foody</span>')+'</td><td>'+m.e+'</td><td><span class="pill '+cls+'">'+(m.p==null?'—':m.p+'%')+'</span></td><td>'+m.at+'</td><td>'+(m.sem>0?'<span class="pill pw">'+m.sem+'</span>':'0')+'</td><td>'+rM(m.v)+'</td><td>'+rM(m.g)+'</td><td>'+(m.c>0?'<span class="pill pw">'+rM(m.c)+'</span>':'R$ 0')+'</td><td><b>'+rM(m.rec)+'</b></td></tr>'}).join('')+'</table>';
   }else html+='<div class="empty">Sem registros no período.</div>';
