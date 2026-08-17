@@ -126,19 +126,18 @@ async function gateTry(){const v=document.getElementById('gpw').value;
   else if(hv===GATE_HASH||hv===GATE_ALT){sessionStorage.setItem('cm_rh_ok','1');document.getElementById('gate').style.display='none'}
   else document.getElementById('gerr').textContent='Senha incorreta.'}
 if((sessionStorage.getItem('cm_rh_ok')==='1'||sessionStorage.getItem('cm_owner_ok')==='1'||sessionStorage.getItem('cm_sb_ok')==='1'))document.getElementById('gate').style.display='none';
-const ORD={SERIO:0,GRAVE:1,INFRACAO:2,VERBAL:3,ESCALA:4,JORNADA:5,VERIFICAR:6,SEM:7};
+const ORD={SERIO:0,GRAVE:1,INFRACAO:2,VERBAL:3,CONFERIR:4,SEM:5};
+const NV=r=>(ORD[r.nivel]!==undefined?r.nivel:'CONFERIR');
 const UORD={'Água Verde':0,'Ahú':1,'São Braz':2,'Boqueirão':3};
-const C={SERIO:'var(--serio)',GRAVE:'var(--grave)',INFRACAO:'var(--infra)',VERBAL:'var(--verbal)',ESCALA:'var(--conf)',JORNADA:'var(--conf)',VERIFICAR:'var(--conf)',SEM:'var(--sem)'};
-const L={SERIO:'🔴 SÉRIO',GRAVE:'🟠 GRAVE',INFRACAO:'🟡 FALTA DE BATIDA',VERBAL:'🔵 ORIENTAÇÃO',ESCALA:'🔎 CONFERIR',JORNADA:'🔎 CONFERIR',VERIFICAR:'🔎 VERIFICAR',SEM:'✅ OK'};
+const C={SERIO:'var(--serio)',GRAVE:'var(--grave)',INFRACAO:'var(--infra)',VERBAL:'var(--verbal)',CONFERIR:'var(--conf)',SEM:'var(--sem)'};
+const L={SERIO:'🔴 SÉRIO',GRAVE:'🟠 GRAVE',INFRACAO:'🟡 INFRAÇÃO',VERBAL:'🔵 ORIENTAÇÃO',CONFERIR:'🔎 CONFERIR',SEM:'✅ OK'};
 const KL={TOTAL:'Funcionários',SERIO:'Sério',GRAVE:'Grave',INFRACAO:'Falta de batida',VERBAL:'Orientação',CONFERIR:'Conferir',SEM:'Sem ocorrência'};
 const ACAO={
 SERIO:'RH: aplicar ADVERTÊNCIA formal assinada — política da empresa: intervalo suprimido é falta GRAVE (Art. 71 CLT). Garantir que a pausa seja cumprida integralmente. Reincidência → nova advertência / suspensão.',
 GRAVE:'RH: verificar com o gestor se a extra foi autorizada. Autorizada → pagar +50% ou compensar (banco de horas). Não autorizada → orientação escrita ao funcionário.',
 INFRACAO:'RH: ajustar a marcação no Flash com justificativa. 1ª vez → orientação escrita; reincidência → advertência formal assinada (modelo no Guia).',
 VERBAL:'RH: orientar verbalmente sobre o intervalo e registrar a conversa (data + assunto).',
-ESCALA:'RH: confirmar com o gerente a escala real do dia ANTES de qualquer medida. Se o horário mudou de vez, avisar a diretoria para atualizar o cadastro.',
-JORNADA:'RH: pedir à diretoria a definição do horário oficial deste funcionário.',
-VERIFICAR:'RH: sem marcações — conferir se há férias/atestado/folga registrados; se não houver, tratar como falta (ver Guia).'};
+CONFERIR:'RH: conferir antes de qualquer medida — escala real do dia, horário oficial no cadastro e se há férias/atestado/folga registrados. Só depois tratar como ocorrência.'};
 let ALL=[],DAYS=[],DI=0,UNIT='Todas',FILT=null,VIEW='day';
 try{const _u=new URLSearchParams(location.search).get('u');if(_u)UNIT=_u}catch(e){}
 const SOSB=sessionStorage.getItem('cm_portal_role')==='saobraz'||sessionStorage.getItem('cm_sb_ok')==='1';if(SOSB)UNIT='São Braz';
@@ -146,12 +145,12 @@ const $=id=>document.getElementById(id);
 const fmt=m=>m==null?'—':Math.floor(m/60)+'h'+String(m%60).padStart(2,'0');
 const title=n=>n.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
 const br=d=>{const[y,m,dd]=d.split('-');return dd+'/'+m+'/'+y};
-const isConf=c=>['ESCALA','JORNADA','VERIFICAR'].includes(c);
+const isConf=c=>c==='CONFERIR';
 async function loadAll(){
   $('content').innerHTML='<div class="loading">Carregando…</div>';
   try{
     const cutoff=new Date(Date.now()-7*864e5).toISOString().slice(0,10);
-    ALL=await fetch(SB+'fato_espelho_dia?ativo=eq.true&data=gte.'+cutoff+'&select=nome,unidade,data,dia_semana,categoria,marcacoes_txt,jornada_liquida_min,intervalo_real_min,jornada_contratada_min,extra_min,detalhe&order=data.asc',{headers:H}).then(r=>r.json());
+    ALL=await fetch(SB+'fato_espelho_dia?ativo=eq.true&data=gte.'+cutoff+'&select=nome,unidade,data,dia_semana,categoria,nivel,tag,marcacoes_txt,jornada_liquida_min,intervalo_real_min,jornada_contratada_min,extra_min,detalhe&order=data.asc',{headers:H}).then(r=>r.json());
     DAYS=[...new Set(ALL.map(r=>r.data))].sort();
     DI=DAYS.length-1;
     $('sub').textContent='últimos '+DAYS.length+' dias úteis · 3 lojas · atualizado '+new Date().toLocaleTimeString('pt-BR');
@@ -171,7 +170,7 @@ function renderDay(){
   const rows=dayRows();
   $('curday').textContent=br(DAYS[DI])+' ('+(rows[0]?.dia_semana||'').replace('-feira','')+')';
   const k={TOTAL:rows.length,SERIO:0,GRAVE:0,INFRACAO:0,VERBAL:0,CONFERIR:0,SEM:0};
-  rows.forEach(r=>{if(isConf(r.categoria))k.CONFERIR++;else k[r.categoria]=(k[r.categoria]||0)+1});
+  rows.forEach(r=>{const n=NV(r);if(isConf(n))k.CONFERIR++;else k[n]=(k[n]||0)+1});
   const kc={TOTAL:'var(--brand)',SERIO:'var(--serio)',GRAVE:'var(--grave)',INFRACAO:'var(--infra)',VERBAL:'var(--verbal)',CONFERIR:'var(--conf)',SEM:'var(--sem)'};
   $('kpis').innerHTML=Object.keys(k).filter(x=>x==='TOTAL'||k[x]>0).map(x=>
     `<div class="kpi ${FILT===x?'active':''}" style="--kc:${kc[x]}" onclick="FILT=FILT==='${x}'?null:'${x}';render()">
@@ -181,14 +180,14 @@ function renderDay(){
     const n=u==='Todas'?rows.length:rows.filter(r=>r.unidade===u).length;
     return `<span class="tab ${UNIT===u?'active':''}" onclick="UNIT='${u}';render()">${u}<span class="cnt">${n}</span></span>`}).join('');
   let show=rows.filter(r=>UNIT==='Todas'||r.unidade===UNIT);
-  if(FILT&&FILT!=='TOTAL')show=show.filter(r=>FILT==='CONFERIR'?isConf(r.categoria):r.categoria===FILT);
-  show.sort((a,b)=>(ORD[a.categoria]-ORD[b.categoria])||((UORD[a.unidade]??9)-(UORD[b.unidade]??9))||a.nome.localeCompare(b.nome));
+  if(FILT&&FILT!=='TOTAL')show=show.filter(r=>NV(r)===FILT);
+  show.sort((a,b)=>(ORD[NV(a)]-ORD[NV(b)])||((UORD[a.unidade]??9)-(UORD[b.unidade]??9))||a.nome.localeCompare(b.nome));
   if(!show.length){$('content').innerHTML='<div class="empty">Nenhum funcionário neste filtro.</div>';return}
   $('content').innerHTML='<div class="grid">'+show.map(r=>{
-    const acao=(r.categoria!=='SEM'&&ACAO[r.categoria])?`<div class="acao">▸ ${ACAO[r.categoria]}</div>`:'';
-    return `<div class="card" style="--cc:${C[r.categoria]}">
+    const acao=(NV(r)!=='SEM'&&ACAO[NV(r)])?`<div class="acao">▸ ${ACAO[NV(r)]}</div>`:'';
+    return `<div class="card" style="--cc:${C[NV(r)]}">
       <div class="chead"><div><div class="cname">${title(r.nome)}</div><div class="cunit">${r.unidade}</div></div>
-      <span class="badge">${L[r.categoria]}</span></div>
+      <span class="badge">${L[NV(r)]}</span>${NV(r)!=='SEM'&&r.tag?`<span class="cunit" style="margin-left:6px">${r.tag}</span>`:''}</div>
       <div class="mk">🕒 ${r.marcacoes_txt}</div>
       <div class="jr">líq ${fmt(r.jornada_liquida_min)} · int ${r.intervalo_real_min??'—'}min · contr ${fmt(r.jornada_contratada_min)}${r.extra_min?' · +'+r.extra_min+'min':''}</div>
       ${r.detalhe?`<div class="det">▸ ${r.detalhe}</div>`:''}
@@ -323,7 +322,7 @@ function askNotif(){
 if('Notification' in window&&Notification.permission==='granted')setTimeout(()=>{const b=$('bellbtn');if(b)b.textContent='🔔 Avisos ativos'},500);
 function checkAcoes(){
   const last=DAYS[DAYS.length-1]; if(!last)return;
-  const acoes=ALL.filter(r=>r.data===last&&['SERIO','GRAVE','INFRACAO','VERBAL'].includes(r.categoria));
+  const acoes=ALL.filter(r=>r.data===last&&['SERIO','GRAVE','INFRACAO','VERBAL'].includes(NV(r)));
   const key='rhcdm_seen_'+last;
   if(acoes.length&&!localStorage.getItem(key)){
     localStorage.setItem(key,'1');

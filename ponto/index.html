@@ -217,10 +217,11 @@ async function gateTry(){const v=document.getElementById('gpw').value;
   if(hv===GATE_HASH||hv===OWNER_HASH){if(hv===OWNER_HASH)sessionStorage.setItem('cm_owner_ok','1');sessionStorage.setItem('cm_ok','1');document.getElementById('gate').style.display='none'}
   else document.getElementById('gerr').textContent='Senha incorreta.'}
 if(sessionStorage.getItem('cm_ok')==='1'||sessionStorage.getItem('cm_owner_ok')==='1')document.getElementById('gate').style.display='none';
-const ORD={SERIO:0,GRAVE:1,INFRACAO:2,VERBAL:3,ESCALA:4,JORNADA:5,VERIFICAR:6,SEM:7};
+const ORD={SERIO:0,GRAVE:1,INFRACAO:2,VERBAL:3,CONFERIR:4,SEM:5};
+const NV=r=>(ORD[r.nivel]!==undefined?r.nivel:'CONFERIR');
 const UORD={'Água Verde':0,'Ahú':1,'São Braz':2,'Boqueirão':3};
-const C={SERIO:'var(--serio)',GRAVE:'var(--grave)',INFRACAO:'var(--infra)',VERBAL:'var(--verbal)',ESCALA:'var(--conf)',JORNADA:'var(--conf)',VERIFICAR:'var(--conf)',SEM:'var(--sem)'};
-const L={SERIO:'🔴 SÉRIO',GRAVE:'🟠 GRAVE',INFRACAO:'🟡 FALTA DE BATIDA',VERBAL:'🔵 ORIENTAÇÃO',ESCALA:'🔎 CONFERIR',JORNADA:'🔎 CONFERIR',VERIFICAR:'🔎 VERIFICAR',SEM:'✅ OK'};
+const C={SERIO:'var(--serio)',GRAVE:'var(--grave)',INFRACAO:'var(--infra)',VERBAL:'var(--verbal)',CONFERIR:'var(--conf)',SEM:'var(--sem)'};
+const L={SERIO:'🔴 SÉRIO',GRAVE:'🟠 GRAVE',INFRACAO:'🟡 INFRAÇÃO',VERBAL:'🔵 ORIENTAÇÃO',CONFERIR:'🔎 CONFERIR',SEM:'✅ OK'};
 const EC={ADVERTENCIA:'var(--adv)',ATESTADO:'var(--atest)',FERIAS:'var(--folga)',FOLGA_ABONADA:'var(--folga)',DECLARACAO:'var(--verbal)',LICENCA:'var(--atest)',FALTA:'var(--serio)'};
 const EL={ADVERTENCIA:'📄 ADVERTÊNCIA',ATESTADO:'🩺 ATESTADO',FERIAS:'🏖 FÉRIAS',FOLGA_ABONADA:'🔄 FOLGA ABONADA',DECLARACAO:'🕐 DECLARAÇÃO',LICENCA:'👶 LICENÇA',FALTA:'🚫 FALTA'};
 const KL={TOTAL:'Funcionários',SERIO:'Sério',GRAVE:'Grave',INFRACAO:'Falta de batida',VERBAL:'Orientação',CONFERIR:'Conferir',SEM:'Sem ocorrência'};
@@ -230,16 +231,14 @@ SERIO:'RH: aplicar ADVERTÊNCIA formal assinada — política da empresa: interv
 GRAVE:'RH: verificar com o gestor se a extra foi autorizada. Autorizada → pagar +50% ou compensar (banco de horas). Não autorizada → orientação escrita ao funcionário.',
 INFRACAO:'RH: ajustar a marcação no Flash com justificativa. 1ª vez → orientação escrita; reincidência → advertência formal assinada (modelo no Guia).',
 VERBAL:'RH: orientar verbalmente sobre o intervalo e registrar a conversa (data + assunto).',
-ESCALA:'RH: confirmar com o gerente a escala real do dia ANTES de qualquer medida. Se o horário mudou de vez, atualizar o cadastro oficial.',
-JORNADA:'RH: definir e cadastrar o horário oficial deste funcionário para a apuração valer.',
-VERIFICAR:'RH: sem marcações — conferir se há férias/atestado/folga registrados; se não houver, tratar como falta (ver Guia).'};
+CONFERIR:'RH: conferir antes de qualquer medida — escala real do dia, horário oficial no cadastro e se há férias/atestado/folga registrados. Só depois tratar como ocorrência.'};
 const MESES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 let ALL=[],MEN=[],EVT=[],DAYS=[],DI=0,UNIT='Todas',FILT=null,VIEW='day',RKMODE='clt';
 const $=id=>document.getElementById(id);
 const fmt=m=>m==null?'—':Math.floor(m/60)+'h'+String(m%60).padStart(2,'0');
 const title=n=>n.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
 const br=d=>{const[y,m,dd]=d.split('-');return dd+'/'+m+'/'+y};
-const isConf=c=>['ESCALA','JORNADA','VERIFICAR'].includes(c);
+const isConf=c=>c==='CONFERIR';
 const isPen=c=>['SERIO','GRAVE','INFRACAO','VERBAL'].includes(c);
 
 async function loadAll(){
@@ -275,11 +274,12 @@ function stats(nome){
   const h=ALL.filter(r=>r.nome===nome);
   const s={serio:0,grave:0,infra:0,verbal:0,conf:0,ok:0,dias:h.length,extra:0,score:0,faltas:0};
   h.forEach(r=>{
-    if(r.categoria==='SERIO')s.serio++;else if(r.categoria==='GRAVE')s.grave++;
-    else if(r.categoria==='INFRACAO')s.infra++;else if(r.categoria==='VERBAL')s.verbal++;
-    else if(isConf(r.categoria)){s.conf++; if((r.detalhe||'').startsWith('Nenhuma marca'))s.faltas++;}
-    else s.ok++;
-    s.extra+=r.extra_min||0; s.score+=W[r.categoria]||0;});
+    const n=NV(r);
+    if(n==='SERIO')s.serio++;else if(n==='GRAVE')s.grave++;
+    else if(n==='INFRACAO')s.infra++;else if(n==='VERBAL')s.verbal++;
+    else if(n==='SEM')s.ok++;
+    else {s.conf++; if((r.detalhe||'').startsWith('Nenhuma marca'))s.faltas++;}
+    s.extra+=r.extra_min||0; s.score+=W[n]||0;});
   s.pen=s.serio+s.grave+s.infra+s.verbal;
   s.okpct=s.dias?Math.round(100*s.ok/s.dias):0;
   const m=MEN.filter(r=>r.nome===nome);
@@ -317,7 +317,7 @@ function renderDay(){
   const rows=dayRows();
   $('curday').textContent=br(DAYS[DI])+' ('+(rows[0]?.dia_semana||'').replace('-feira','')+')';
   const k={TOTAL:rows.length,SERIO:0,GRAVE:0,INFRACAO:0,VERBAL:0,CONFERIR:0,SEM:0};
-  rows.forEach(r=>{if(isConf(r.categoria))k.CONFERIR++;else k[r.categoria]=(k[r.categoria]||0)+1});
+  rows.forEach(r=>{const n=NV(r);if(isConf(n))k.CONFERIR++;else k[n]=(k[n]||0)+1});
   const kc={TOTAL:'var(--brand)',SERIO:'var(--serio)',GRAVE:'var(--grave)',INFRACAO:'var(--infra)',VERBAL:'var(--verbal)',CONFERIR:'var(--conf)',SEM:'var(--sem)'};
   $('kpis').innerHTML=Object.keys(k).filter(x=>x==='TOTAL'||k[x]>0).map(x=>
     `<div class="kpi ${FILT===x?'active':''}" style="--kc:${kc[x]}" onclick="FILT=FILT==='${x}'?null:'${x}';render()">
@@ -327,22 +327,22 @@ function renderDay(){
     const n=u==='Todas'?rows.length:rows.filter(r=>r.unidade===u).length;
     return `<span class="tab ${UNIT===u?'active':''}" onclick="UNIT='${u}';render()">${u}<span class="cnt">${n}</span></span>`}).join('');
   let show=rows.filter(r=>UNIT==='Todas'||r.unidade===UNIT);
-  if(FILT&&FILT!=='TOTAL')show=show.filter(r=>FILT==='CONFERIR'?isConf(r.categoria):r.categoria===FILT);
-  show.sort((a,b)=>(ORD[a.categoria]-ORD[b.categoria])||((UORD[a.unidade]??9)-(UORD[b.unidade]??9))||a.nome.localeCompare(b.nome));
+  if(FILT&&FILT!=='TOTAL')show=show.filter(r=>NV(r)===FILT);
+  show.sort((a,b)=>(ORD[NV(a)]-ORD[NV(b)])||((UORD[a.unidade]??9)-(UORD[b.unidade]??9))||a.nome.localeCompare(b.nome));
   if(!show.length){$('content').innerHTML='<div class="empty">Nenhum funcionário neste filtro.</div>';return}
   $('content').innerHTML='<div class="grid">'+show.map(r=>{
     const p=stats(r.nome);
     const hist=ALL.filter(x=>x.nome===r.nome).slice(-7);
-    const dots=hist.map(x=>`<span class="dot" title="${br(x.data)}: ${L[x.categoria]}" style="background:${C[x.categoria]}"></span>`).join('');
+    const dots=hist.map(x=>`<span class="dot" title="${br(x.data)}: ${L[NV(x)]}" style="background:${C[NV(x)]}"></span>`).join('');
     const flags=(p.adv?`<span class="flag" style="color:var(--adv)">📄 ${p.adv} advert.</span>`:'')+
                 (p.pen?`<span class="flag" style="color:var(--grave)">⚠ ${p.pen} ocorr.</span>`:'')+
                 (p.atest?`<span class="flag" style="color:var(--atest)">🩺 ${p.atest} atest. (${p.atestDias}d)</span>`:'')+
                 (p.faltasTot?`<span class="flag" style="color:var(--serio)">🚫 ${p.faltasTot} falta${p.faltasTot>1?'s':''}</span>`:'')+
                 (p.esq2y?`<span class="flag" style="color:var(--infra)">🕐 ${p.esq2y} s/ batida (2a)</span>`:'');
-    const acao=(r.categoria!=='SEM'&&ACAO[r.categoria])?`<div class="acao">▸ ${ACAO[r.categoria]}</div>`:'';
-    return `<div class="card" style="--cc:${C[r.categoria]}" onclick="openModal('${r.nome.replace(/'/g,"\\'")}')">
+    const acao=(NV(r)!=='SEM'&&ACAO[NV(r)])?`<div class="acao">▸ ${ACAO[NV(r)]}</div>`:'';
+    return `<div class="card" style="--cc:${C[NV(r)]}" onclick="openModal('${r.nome.replace(/'/g,"\\'")}')">
       <div class="chead"><div><div class="cname">${title(r.nome)}</div><div class="cunit">${r.unidade}</div></div>
-      <span class="badge">${L[r.categoria]}</span></div>
+      <span class="badge">${L[NV(r)]}</span>${NV(r)!=='SEM'&&r.tag?`<span class="cunit" style="margin-left:6px">${r.tag}</span>`:''}</div>
       <div class="mk">🕒 ${r.marcacoes_txt}</div>
       <div class="jr">líq ${fmt(r.jornada_liquida_min)} · int ${r.intervalo_real_min??'—'}min · contr ${fmt(r.jornada_contratada_min)}${r.extra_min?' · +'+r.extra_min+'min':''}</div>
       ${r.detalhe?`<div class="det">▸ ${r.detalhe}</div>`:''}
@@ -537,7 +537,7 @@ Empresa                          Colaborador(a)</div>
 function todoFor(nome,p,h){
   const acts=[];
   const last=h[0];
-  if(last&&last.categoria!=='SEM'&&ACAO[last.categoria])acts.push('Hoje ('+br(last.data)+'): '+ACAO[last.categoria]);
+  if(last&&NV(last)!=='SEM'&&ACAO[NV(last)])acts.push('Hoje ('+br(last.data)+'): '+ACAO[NV(last)]);
   if(p.adv>=3)acts.push('3+ advertências formais: preparar SUSPENSÃO (modelo no Guia RH) e validar com contador/jurídico.');
   else if(p.adv===2)acts.push('Já tem 2 advertências: a próxima ocorrência leva à 3ª e abre caminho para suspensão — monitorar de perto.');
   if(p.serio>0)acts.push('Intervalo suprimido no período ('+p.serio+'x): conferir se a ADVERTÊNCIA foi aplicada (política da empresa: falta grave).');
@@ -573,7 +573,7 @@ function openModal(nome){
       ${r.detalhe?`<div class="tdet">▸ ${r.detalhe}</div>`:''}</div></div>`).join('')):'';
   $('mdaily').innerHTML=h.length?('<h3>Dia a dia — Flash (recente)</h3>'+h.map(r=>`<div class="trow">
     <div class="tdate">${br(r.data)}<br><span style="font-weight:400">${(r.dia_semana||'').replace('-feira','')}</span></div>
-    <div><span class="tbadge" style="background:${C[r.categoria]}">${L[r.categoria]}</span>
+    <div><span class="tbadge" style="background:${C[NV(r)]}">${L[NV(r)]}</span>
       <div class="tmk">🕒 ${r.marcacoes_txt} · líq ${fmt(r.jornada_liquida_min)} · int ${r.intervalo_real_min??'—'}min</div>
       ${r.detalhe?`<div class="tdet">▸ ${r.detalhe}</div>`:''}</div></div>`).join('')):'';
   const maxh=Math.max(...m.map(r=>r.horas_liquidas_min||0),1);
