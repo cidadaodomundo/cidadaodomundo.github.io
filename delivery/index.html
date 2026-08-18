@@ -151,14 +151,14 @@ async function loadAll(){
   $('conteudo').innerHTML='<div class="loading">Carregando…</div>';
   try{
     [F,SC,CANC,AVAL,NEG,DIMS,ATR,PAG,ENTR]=await Promise.all([
-      pag('foody_fato_fechamento_turno_dia?select=*&order=dia_operacional.asc'),
-      fj('foody_fato_pedido_sem_codigo?select=*&order=hora_pedido.desc&limit=1000'),
+      pag('foody_fato_fechamento_turno_dia?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=id_loja,unidade,dia_operacional,turno,entregador,horas,entregas,no_prazo,atrasos,sem_codigo&order=dia_operacional.asc'),
+      fj('foody_fato_pedido_sem_codigo?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=id_loja,unidade,dia_operacional,turno,entregador,n_pedido,hora_pedido&order=hora_pedido.desc&limit=1000'),
       fj('ifood_fato_cancelamento?select=id_loja,data,turno,motivo,itens_cancelados,valor_cancelamento&order=data.desc&limit=500'),
       fj('ifood_fato_avaliacao?select=id_loja,data_avaliacao,nota,tags,comentario&order=data_avaliacao.desc&limit=1000'),
       fj('ifood_fato_negociacao?select=id_loja,data,motivo,resposta_loja,cancelamento_evitado&order=data.desc&limit=500'),
       fj('ifood_dim_loja?select=id_loja,nome,unidade'),
       pag('foody_vw_pedido_prazo?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=n_pedido,unidade,turno,entregador,data_hora_pedido,dia_operacional,dt_entregue,t_coleta_min,t_total_min,dt_pronto,dt_despachado,dt_aceite,dt_coletado,rota_km,raio_km,entrega_prometida,t_aceite_min,prazo_prometido_min,atraso_real_min,no_prazo_real,fonte_prazo_real&order=data_hora_pedido.asc'),
-      pag('foody_vw_pagamento_dia?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=*&order=dia_operacional.asc'),
+      pag('foody_vw_pagamento_dia?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=dia_operacional,unidade,nome,complemento,fez,garantido,a_receber,horas,horas_qr,entregas,atrasos,no_prazo,sem_codigo&order=dia_operacional.asc'),
       fj('foody_vw_entregas_dia?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=*&order=dia_operacional.asc&limit=2000')
     ]);
     try{ESCH=await fj('foody_vw_aderencia?dia_op=gte.'+(new Date(Date.now()-8*864e5)).toISOString().slice(0,10)+'&select=*&order=entrada&limit=1000')}catch(e){ESCH=[]}
