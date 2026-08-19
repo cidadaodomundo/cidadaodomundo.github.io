@@ -158,7 +158,7 @@ async function loadAll(){
       fj('ifood_fato_negociacao?select=id_loja,data,motivo,resposta_loja,cancelamento_evitado&order=data.desc&limit=500'),
       fj('ifood_dim_loja?select=id_loja,nome,unidade'),
       (async()=>{var dDet=(new Date(Date.now()-10*864e5)).toISOString().slice(0,10);var dBase=(new Date(Date.now()-36*864e5)).toISOString().slice(0,10);var r=await Promise.all([pag('foody_vw_pedido_prazo?dia_operacional=gte.'+dDet+'&select=n_pedido,unidade,turno,entregador,data_hora_pedido,dia_operacional,dt_entregue,t_coleta_min,t_total_min,dt_pronto,dt_despachado,dt_aceite,dt_coletado,raio_km,entrega_prometida,t_aceite_min,prazo_prometido_min,atraso_real_min,no_prazo_real,fonte_prazo_real&order=data_hora_pedido.asc'),pag('foody_vw_pedido_prazo?dia_operacional=gte.'+dBase+'&dia_operacional=lt.'+dDet+'&select=dia_operacional,unidade,turno,t_total_min,no_prazo_real&order=dia_operacional.asc')]);return r[0].concat(r[1])})(),
-      pag('foody_vw_pagamento_dia?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=dia_operacional,unidade,nome,complemento,fez,garantido,a_receber,horas,horas_qr,entregas,atrasos,no_prazo,sem_codigo&order=dia_operacional.asc'),
+      (async()=>{const d30=(new Date(Date.now()-29*864e5)).toISOString().slice(0,10);const rr=await Promise.all([pag('foody_vw_pagamento_dia?dia_operacional=gte.'+d30+'&select=dia_operacional,unidade,nome,complemento,fez,garantido,a_receber,horas,horas_qr,entregas,atrasos,no_prazo,sem_codigo&order=dia_operacional.asc'),pag('foody_vw_prazo_real_dia?dia_operacional=gte.'+d30+'&select=dia_operacional,unidade,entregador,no_prazo,atrasos&order=dia_operacional.asc')]);const mp={};rr[1].forEach(function(x){const k=x.dia_operacional+'|'+x.unidade+'|'+x.entregador;const o=mp[k]=mp[k]||{ok:0,at:0};o.ok+=(+x.no_prazo||0);o.at+=(+x.atrasos||0);});return rr[0].map(function(z){const o=mp[z.dia_operacional+'|'+z.unidade+'|'+z.nome];return Object.assign({},z,{no_prazo:o?o.ok:null,atrasos:o?o.at:null});});})(),
       fj('foody_vw_entregas_dia?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=*&order=dia_operacional.asc&limit=2000')
     ]);
     try{ESCH=await fj('foody_vw_aderencia?dia_op=gte.'+(new Date(Date.now()-8*864e5)).toISOString().slice(0,10)+'&select=*&order=entrada&limit=1000')}catch(e){ESCH=[]}
@@ -304,7 +304,7 @@ function _tabelaTurno(dias){
   if(!L.length) return '';
   L.sort(function(a,b){return (ORD[a.t]||9)-(ORD[b.t]||9)||b.e-a.e});
   var h='<h2 style="margin-top:20px">Por motoboy e turno</h2><div class="hs">quem rodou em cada turno, pelo prazo real do iFood · clique no cabeçalho para ordenar</div>';
-  h+='<table><tr><th>Turno</th><th>Motoboy</th><th>Loja</th><th>Dias</th><th>Entregas</th><th>No prazo</th><th>Atrasos</th><th>% no prazo</th></tr>';
+  h+='<table><tr><th>Turno</th><th>Motoboy</th><th>Loja</th><th>Dias</th><th>Entregas</th><th>No prazo</th><th>Atrasos</th><th>% no prazo (real)</th></tr>';
   L.forEach(function(o){
     var cls=o.p==null?'pw':o.p>=90?'pg':o.p>=70?'pw':'pb';
     h+='<tr><td><b>'+o.t+'</b></td><td>'+o.n+'</td><td style="color:var(--text2)">'+o.l+'</td><td>'+o.d+'</td><td>'+o.e+'</td><td>'+o.ok+'</td><td>'+o.at+'</td><td><span class="pill '+cls+'">'+(o.p==null?'—':o.p+'%')+'</span></td></tr>';
