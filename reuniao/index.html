@@ -43,6 +43,33 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .gb input{width:100%;background:var(--s2);border:1px solid var(--line);border-radius:9px;padding:11px;color:#fff;text-align:center;margin:14px 0 10px;font-size:15px}
 .gb button{width:100%;background:var(--brand);border:none;color:#fff;border-radius:9px;padding:11px;font-weight:800;cursor:pointer}
 @media print{body{background:#fff;color:#000}#gate{display:none}}
+/* ---------- pauta da semana ---------- */
+#pauta h2{margin-top:4px}
+.ptnav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.ptnav .lbl{font-weight:800;font-size:13.5px}
+button.b[disabled]{opacity:.4;cursor:default}
+.ptgrp{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin:16px 0 6px}
+.pti{background:var(--s1);border:1px solid var(--line);border-left:3px solid var(--muted);border-radius:11px;padding:11px 13px;margin:7px 0}
+.pti.critico{border-left-color:var(--bad)}
+.pti.atencao{border-left-color:var(--warn)}
+.pti .t{font-weight:700;font-size:14px;margin-top:5px}
+.pti .dt{color:var(--text2);font-size:12.5px;margin-top:3px}
+.pti .fo{color:var(--muted);font-size:11.5px;margin-top:3px}
+.selo{display:inline-block;border:1px solid var(--line);background:var(--s2);color:var(--text2);border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:0 5px 0 0}
+.selo.critico{background:#3a1c1c;border-color:#6b2f2f;color:#f0a0a0}
+.selo.atencao{background:#2c2413;border-color:#5b4a22;color:#e6c675}
+.selo.decidido{background:#14251c;border-color:#265239;color:#8fd6b0}
+.ptd{border-top:1px dashed var(--line);margin-top:9px;padding-top:8px;display:flex;gap:9px;align-items:flex-start;font-size:13px;color:var(--text2)}
+.ptd input[type=checkbox]{margin-top:3px;width:16px;height:16px;accent-color:var(--ok);cursor:pointer}
+.ptd.venc,.ptd.venc .fo,.ptd.venc b{color:var(--bad)}
+.ptd .fo{color:var(--muted);font-size:11.5px;margin-top:2px}
+.ptf{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;align-items:center}
+.ptf input,.ptf select{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:7px 9px;font-size:12.5px;font-family:inherit}
+.ptf input[type=date]{color-scheme:dark}
+.ptf .g{flex:1;min-width:180px}
+button.bx{background:#2a1a1a;border-color:#5a2f2f;color:#f0a0a0}
+.ptvazio{background:var(--s1);border:1px dashed var(--line);border-radius:13px;padding:24px;text-align:center;color:var(--text2)}
+@media print{.ptf,.ptnav button,.ptvazio button{display:none}}
 </style>
 </head>
 <body>
@@ -63,6 +90,7 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
     <button class="b" onclick="window.print()">🖨 Imprimir</button>
   </div>
 </div>
+<div id="pauta"><div class="load">Carregando a pauta…</div></div>
 <div id="app"><div class="load">Carregando os dados da semana…</div></div>
 
 <script>
@@ -78,7 +106,7 @@ function setLoja(u){LOJA=u;UNI=(u==='Todas')?TODAS.slice():[u];render();}
 const $=i=>document.getElementById(i);
 async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 async function gt(){const h=await sha(($('gpw').value||'').trim());
-  if(h===PASS||OWNER.includes(h)){sessionStorage.setItem('cm_ok','1');$('gate').style.display='none';boot()}else $('ge').textContent='Senha incorreta.'}
+  if(h===PASS||OWNER.includes(h)){sessionStorage.setItem('cm_ok','1');sessionStorage.setItem('cdm_reuniao_pw',($('gpw').value||'').trim());$('gate').style.display='none';boot()}else $('ge').textContent='Senha incorreta.'}
 if(['cm_ok','cm_owner_ok','cm_del_ok','cm_rh_ok'].some(k=>sessionStorage.getItem(k)==='1')){$('gate').style.display='none'}
 
 /* ---------- semanas (segunda a domingo, fechadas) ---------- */
@@ -136,6 +164,7 @@ async function boot(){
   $('semana').innerHTML=SEM.map((s,i)=>`<option value="${i}">${s.rot}${i===0?' (última fechada)':''}</option>`).join('');
   const lojas=await get('ifood_dim_loja','select=id_loja,unidade,nome&limit=200');
   lojas.forEach(l=>LOJAS[l.id_loja]=l.unidade);
+  pautaBoot();
   await carrega();
   render();
 }
@@ -282,6 +311,131 @@ function render(){
 
   h+='<div class="aviso" style="margin-top:24px">Faturamento, ticket médio e vendas do salão não aparecem aqui — esses dados estão no Saipos, que ainda não é lido automaticamente.</div>';
   $('app').innerHTML=h;
+}
+/* ---------- pauta da semana ---------- */
+const PWK='cdm_reuniao_pw';
+const CATP=['Delivery','RH','iFood','Google','Salão','Financeiro','Outro'];
+const GRAV={critico:0,atencao:1,info:2};
+const GRN={critico:'crítico',atencao:'atenção',info:'info'};
+const ORN={auto:'auto',manual:'manual',pendencia:'pendência'};
+let PSEM='',PT=[],PD=[],PMSG='';
+const pwPauta=()=>sessionStorage.getItem(PWK)||sessionStorage.getItem('cdm_moto_pw')||'';
+const pEsc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const semAtual=()=>iso(segunda(new Date()));
+const maisDias=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return iso(d)};
+function pSem(n){PSEM=maisDias(PSEM,7*n);$('pauta').innerHTML='<div class="load">Carregando a pauta…</div>';pautaLoad()}
+function pautaBoot(){PSEM=semAtual();pautaLoad()}
+async function pautaLoad(){
+  PMSG='';
+  PT=await get('reuniao_pauta','select=id,semana,ordem,origem,categoria,titulo,detalhe,fonte,gravidade,status&semana=eq.'+PSEM+'&order=ordem.asc&limit=500');
+  const ids=PT.map(r=>r.id);
+  PD=ids.length?await get('reuniao_decisao','select=id,pauta_id,decisao,responsavel,prazo,concluido&pauta_id=in.('+ids.join(',')+')&order=id.asc&limit=500'):[];
+  pautaRender();
+}
+function pautaRender(){
+  const hj=iso(new Date()), pw=pwPauta(), fim=maisDias(PSEM,6), atual=semAtual();
+  const abertos=PT.filter(i=>i.status==='aberto').length;
+  const crits=PT.filter(i=>i.gravidade==='critico').length;
+  const venc=PD.filter(d=>!d.concluido&&d.prazo&&d.prazo<hj).length;
+  let h=`<h2>🗒 Pauta da semana <span class="hint">o que vamos discutir · o placar abaixo é o pano de fundo</span></h2>`;
+  h+=`<div class="ptnav"><button class="b" onclick="pSem(-1)">‹ semana anterior</button>`
+   +`<span class="lbl">${brs(PSEM)} a ${brs(fim)}${PSEM===atual?' · semana corrente':''}</span>`
+   +`<button class="b" onclick="pSem(1)"${PSEM>=atual?' disabled':''}>próxima semana ›</button>`
+   +`<button class="b" onclick="pautaGerar(this)" title="Relê os dados e recria só os itens automáticos. Pode rodar quantas vezes quiser: é idempotente e não apaga o que foi escrito à mão.">⟳ Atualizar pauta dos dados</button></div>`;
+  h+=`<div class="cards">`+card('Itens abertos',abertos,`${PT.length} ${PT.length===1?'item':'itens'} na semana`)
+   +card('Críticos',crits,crits?'olhar primeiro':'nenhum item crítico')
+   +card('Pendências vencidas',venc,venc?'decisão com prazo estourado':'nada vencido')+`</div>`;
+  if(PMSG)h+=`<div class="aviso">${pEsc(PMSG)}</div>`;
+  if(!pw)h+=`<div class="aviso">Para registrar decisões e acrescentar itens, digite a senha do escritório: <input type="password" id="ptpw" style="background:var(--s2);border:1px solid var(--line);color:#fff;border-radius:8px;padding:6px 9px;margin:0 6px;max-width:150px"> <button class="b" onclick="pautaPw()">Liberar edição</button></div>`;
+  if(!PT.length){
+    h+=`<div class="ptvazio"><div style="font-size:15px;font-weight:700;margin-bottom:6px">Nenhum item nesta semana</div>`
+     +`<div style="font-size:12.5px;margin-bottom:13px">A pauta automática lê o delivery, o ponto e o iFood. Rodar de novo é seguro: não apaga o que foi escrito à mão.</div>`
+     +`<button class="b" onclick="pautaGerar(this)">⟳ Gerar a pauta dos dados</button></div>`;
+  }else{
+    const ord=PT.slice().sort((a,b)=>(+a.ordem||0)-(+b.ordem||0)||((GRAV[a.gravidade]===undefined?9:GRAV[a.gravidade])-(GRAV[b.gravidade]===undefined?9:GRAV[b.gravidade])));
+    const ci=c=>{const k=CATP.indexOf(c);return k<0?99:k};
+    const cats=[];ord.forEach(i=>{if(cats.indexOf(i.categoria)<0)cats.push(i.categoria)});
+    cats.sort((a,b)=>ci(a)-ci(b));
+    cats.forEach(c=>{
+      const itens=ord.filter(i=>i.categoria===c);
+      h+=`<div class="ptgrp">${pEsc(c)} · ${itens.length} ${itens.length===1?'item':'itens'}</div>`;
+      itens.forEach(i=>{h+=pautaItem(i,pw,hj)});
+    });
+  }
+  if(pw)h+=pautaNovo();
+  $('pauta').innerHTML=h;
+}
+function pautaItem(i,pw,hj){
+  let h=`<div class="pti ${i.gravidade}">`;
+  h+=`<div><span class="selo ${i.gravidade}">${GRN[i.gravidade]||i.gravidade}</span><span class="selo">${ORN[i.origem]||i.origem}</span>`
+   +(i.status&&i.status!=='aberto'?`<span class="selo ${i.status==='decidido'?'decidido':''}">${pEsc(i.status)}</span>`:'')+`</div>`;
+  h+=`<div class="t">${pEsc(i.titulo)}</div>`;
+  if(i.detalhe)h+=`<div class="dt">${pEsc(i.detalhe)}</div>`;
+  if(i.fonte)h+=`<div class="fo">fonte: ${pEsc(i.fonte)}</div>`;
+  PD.filter(d=>d.pauta_id===i.id).forEach(d=>{
+    const at=!d.concluido&&d.prazo&&d.prazo<hj;
+    h+=`<div class="ptd${at?' venc':''}"><input type="checkbox" ${d.concluido?'checked':''}${pw?'':' disabled'} onchange="pautaConcluir(${d.id},this.checked,this)">`
+     +`<div><b>${pEsc(d.decisao)}</b><div class="fo">${d.responsavel?'👤 '+pEsc(d.responsavel):'sem responsável'}${d.prazo?' · 📅 '+brs(d.prazo)+(at?' · vencido':''):' · sem prazo'}${d.concluido?' · ✅ concluído':''}</div></div></div>`;
+  });
+  if(pw){
+    h+=`<div class="ptf"><input class="g" id="dc${i.id}" placeholder="Decisão tomada…" maxlength="300">`
+     +`<input id="dr${i.id}" placeholder="Responsável" style="width:140px" maxlength="60">`
+     +`<input type="date" id="dp${i.id}" title="Prazo">`
+     +`<button class="b" onclick="pautaDecidir(${i.id},this)">✔ Registrar decisão</button>`
+     +`<select onchange="pautaStatus(${i.id},this.value,this)" title="Situação do item">`
+     +['aberto','discutido','decidido','adiado'].map(s=>`<option value="${s}"${s===i.status?' selected':''}>${s}</option>`).join('')
+     +`</select>`
+     +(i.origem==='manual'?`<button class="b bx" onclick="pautaApagar(${i.id},this)" title="Apagar este item manual">🗑</button>`:'')
+     +`</div>`;
+  }
+  return h+`</div>`;
+}
+function pautaNovo(){
+  return `<div class="ptgrp">Acrescentar item à mão</div><div class="pti">`
+   +`<div class="ptf"><select id="nvcat">${CATP.map(c=>`<option>${c}</option>`).join('')}</select>`
+   +`<input class="g" id="nvtit" placeholder="Título do item" maxlength="200">`
+   +`<select id="nvgr"><option value="info">info</option><option value="atencao">atenção</option><option value="critico">crítico</option></select></div>`
+   +`<div class="ptf"><input class="g" id="nvdet" placeholder="Detalhe (opcional)" maxlength="400">`
+   +`<button class="b" onclick="pautaAdd(this)">+ Acrescentar item</button></div></div>`;
+}
+async function pSalvar(acao,dados){
+  const pw=pwPauta();
+  if(!pw)throw new Error('Digite a senha do escritório para gravar.');
+  const r=await fetch(SB+'rpc/reuniao_salvar',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_senha:pw,p_acao:acao,p_dados:dados})});
+  let j=null;try{j=await r.json()}catch(e){}
+  if(!r.ok){
+    if(j&&j.code==='28000'){sessionStorage.removeItem(PWK);throw new Error('Senha incorreta. Digite de novo.')}
+    throw new Error((j&&(j.message||j.hint))||('Não deu para salvar (erro '+r.status+').'));
+  }
+  return j;
+}
+async function pAcao(btn,acao,dados){
+  const t=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='…'}
+  try{await pSalvar(acao,dados);await pautaLoad()}
+  catch(e){if(btn){btn.disabled=false;btn.textContent=t}PMSG=e.message;pautaRender()}
+}
+function pautaPw(){const v=($('ptpw').value||'').trim();if(!v)return;sessionStorage.setItem(PWK,v);PMSG='';pautaRender()}
+function pautaGerar(b){pAcao(b,'gerar',{semana:PSEM})}
+function pautaDecidir(id,b){
+  const d=($('dc'+id).value||'').trim();
+  if(!d){PMSG='Escreva a decisão antes de registrar.';pautaRender();return}
+  pAcao(b,'add_decisao',{pauta_id:id,decisao:d,responsavel:($('dr'+id).value||'').trim()||null,prazo:$('dp'+id).value||null});
+}
+function pautaAdd(b){
+  const t=($('nvtit').value||'').trim();
+  if(!t){PMSG='Escreva o título do item.';pautaRender();return}
+  const ordem=PT.reduce((m,i)=>Math.max(m,+i.ordem||0),0)+5;
+  pAcao(b,'add_item',{semana:PSEM,categoria:$('nvcat').value,titulo:t,detalhe:($('nvdet').value||'').trim()||null,gravidade:$('nvgr').value,ordem:ordem});
+}
+function pautaApagar(id,b){if(confirm('Apagar este item da pauta?'))pAcao(b,'del_item',{pauta_id:id})}
+function pautaConcluir(id,v,el){
+  el.disabled=true;
+  pSalvar('concluir',{decisao_id:id,concluido:v}).then(()=>pautaLoad()).catch(e=>{el.disabled=false;el.checked=!v;PMSG=e.message;pautaRender()});
+}
+function pautaStatus(id,v,el){
+  el.disabled=true;
+  pSalvar('set_status',{pauta_id:id,status:v}).then(()=>pautaLoad()).catch(e=>{el.disabled=false;PMSG=e.message;pautaRender()});
 }
 const card=(k,v,d)=>`<div class="c"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d||''}</div></div>`;
 if($('gate').style.display==='none')boot();
