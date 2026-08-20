@@ -158,7 +158,7 @@ async function loadAll(){
       fj('ifood_fato_negociacao?select=id_loja,data,motivo,resposta_loja,cancelamento_evitado&order=data.desc&limit=500'),
       fj('ifood_dim_loja?select=id_loja,nome,unidade'),
       (async()=>{var dDet=(new Date(Date.now()-10*864e5)).toISOString().slice(0,10);var dBase=(new Date(Date.now()-36*864e5)).toISOString().slice(0,10);var r=await Promise.all([pag('foody_vw_pedido_prazo?dia_operacional=gte.'+dDet+'&select=n_pedido,unidade,turno,entregador,data_hora_pedido,dia_operacional,dt_entregue,t_coleta_min,t_total_min,dt_pronto,dt_despachado,dt_aceite,dt_coletado,raio_km,entrega_prometida,t_aceite_min,prazo_prometido_min,atraso_real_min,no_prazo_real,fonte_prazo_real&order=data_hora_pedido.asc'),pag('foody_vw_pedido_prazo?dia_operacional=gte.'+dBase+'&dia_operacional=lt.'+dDet+'&select=dia_operacional,unidade,turno,t_total_min,no_prazo_real&order=dia_operacional.asc')]);return r[0].concat(r[1])})(),
-      (async()=>{const d30=(new Date(Date.now()-29*864e5)).toISOString().slice(0,10);const rr=await Promise.all([pag('foody_vw_pagamento_dia?dia_operacional=gte.'+d30+'&select=dia_operacional,unidade,nome,complemento,fez,garantido,a_receber,horas,horas_qr,entregas,atrasos,no_prazo,sem_codigo&order=dia_operacional.asc'),pag('foody_vw_prazo_real_dia?dia_operacional=gte.'+d30+'&select=dia_operacional,unidade,entregador,no_prazo,atrasos&order=dia_operacional.asc')]);const mp={};rr[1].forEach(function(x){const k=x.dia_operacional+'|'+x.unidade+'|'+x.entregador;const o=mp[k]=mp[k]||{ok:0,at:0};o.ok+=(+x.no_prazo||0);o.at+=(+x.atrasos||0);});return rr[0].map(function(z){const o=mp[z.dia_operacional+'|'+z.unidade+'|'+z.nome];return Object.assign({},z,{no_prazo:o?o.ok:null,atrasos:o?o.at:null});});})(),
+      (async()=>{const d30=(new Date(Date.now()-29*864e5)).toISOString().slice(0,10);const rr=await Promise.all([pag('foody_vw_pagamento_dia?dia_operacional=gte.'+d30+'&select=dia_operacional,unidade,nome,fez,horas,horas_qr,entregas,atrasos,no_prazo,sem_codigo&order=dia_operacional.asc'),pag('foody_vw_prazo_real_dia?dia_operacional=gte.'+d30+'&select=dia_operacional,unidade,entregador,no_prazo,atrasos&order=dia_operacional.asc')]);const mp={};rr[1].forEach(function(x){const k=x.dia_operacional+'|'+x.unidade+'|'+x.entregador;const o=mp[k]=mp[k]||{ok:0,at:0};o.ok+=(+x.no_prazo||0);o.at+=(+x.atrasos||0);});return rr[0].map(function(z){const o=mp[z.dia_operacional+'|'+z.unidade+'|'+z.nome];return Object.assign({},z,{no_prazo:o?o.ok:null,atrasos:o?o.at:null});});})(),
       fj('foody_vw_entregas_dia?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=*&order=dia_operacional.asc&limit=2000')
     ]);
     try{ESCH=await fj('foody_vw_aderencia?dia_op=gte.'+(new Date(Date.now()-8*864e5)).toISOString().slice(0,10)+'&select=*&order=entrada&limit=1000')}catch(e){ESCH=[]}
@@ -314,7 +314,7 @@ function _tabelaTurno(dias){
 function aggMoto(rows){
   const m={};rows.forEach(r=>{const k=r.nome+'|'+r.unidade;const o=m[k]=m[k]||{n:r.nome,l:r.unidade,d:0,h:0,e:0,ok:0,at:0,sem:0,v:0,g:0,c:0,rec:0,qr:0};
     o.d++;o.h+=(+r.horas||0);o.e+=(+r.entregas||0);o.ok+=(+r.no_prazo||0);o.at+=(+r.atrasos||0);o.sem+=(+r.sem_codigo||0);
-    o.v+=(+r.fez||0);o.g+=(+r.garantido||0);o.c+=(+r.complemento||0);o.rec+=(+r.a_receber||0);
+    o.v+=(+r.fez||0);
     if(r.horas_qr!=null)o.qr++;});
   return Object.values(m).map(o=>({...o,p:pctS(o.ok,o.at)}));
 }
@@ -354,7 +354,7 @@ function renderEquipe(){
   motosAll.forEach(o=>{const x=gLoja[o.l];if(!x)return;x.e+=o.e;x.ok+=o.ok;x.at+=o.at;x.h+=o.h;x.rec+=o.rec;x.c+=o.c;x.sem+=o.sem;x.ef=(x.ef||0)+(o.parcial?0:o.e)});
   html+='<div class="sec"><h2>🏬 As 3 lojas lado a lado</h2><div class="hs">no período selecionado · ignora o filtro de loja acima</div><div class="lojagrid">'+
     Object.values(gLoja).map(x=>{const b=x.ok+x.at,p=b?Math.round(1000*x.ok/b)/10:null;const pc=p==null?'pw':p>=90?'pg':p>=60?'pw':'pb';
-      const eph=x.h?((x.ef||0)/x.h).toFixed(1):'—';const custo=(x.ef||0)?('R$ '+(x.rec/x.ef).toFixed(2).replace('.',',')):'—';
+      const eph=x.h?((x.ef||0)/x.h).toFixed(1):'—';const custo='—';
       return '<div class="lcard"><div class="ln">'+x.l+'</div>'+
         '<div class="lm"><span>Entregas</span><b>'+x.e+'</b></div>'+
         '<div class="lm"><span>No prazo</span><span class="pill '+pc+'">'+(p==null?'—':p+'%')+'</span></div>'+
@@ -384,22 +384,22 @@ function renderEquipe(){
   html+='<div class="sec"><h2>⭐ Destaques</h2><div class="hs">no período/loja selecionado (mínimo 20 entregas para o ranking de %)</div><div class="rankgrid">'+
     col('🏆 Melhor % no prazo',best,o=>(o.p==null?'—':o.p+'%'))+
     col('⚠ Pior % no prazo',worst,o=>(o.p==null?'—':o.p+'%'))+
-    col('💰 Maior complemento',compTop,o=>rM(o.c),'comp')+
+    col('💰 Maior complemento (exige senha)',compTop,o=>rM(o.c),'comp')+
     (scTop.length?col('🚩 Mais sem código',scTop,o=>o.sem+''):col('📦 Mais entregas',[...motos].sort((a,b)=>b.e-a.e).slice(0,3),o=>o.e+''))+'</div></div>';
   let wt='*Motoboys — '+dias.length+' dia(s)'+(LOJA!=='Todas'?' · '+LOJA:'')+'*\n';
   wt+='Entregas: '+ent+'  |  No prazo: '+(pct==null?'—':pct+'%')+'\n';
-  wt+='A pagar: '+rM(rec)+'  (complemento '+rM(comp)+')\n\n';
-  Object.values(gLoja).forEach(x=>{if(!x.e)return;const b3=x.ok+x.at,p3=b3?Math.round(1000*x.ok/b3)/10:0;wt+='• '+x.l+': '+x.e+' entregas · '+p3+'% no prazo · '+rM(x.rec)+'\n'});
+  wt+='A pagar: — · valor de pagamento agora exige a senha\n\n';
+  Object.values(gLoja).forEach(x=>{if(!x.e)return;const b3=x.ok+x.at,p3=b3?Math.round(1000*x.ok/b3)/10:0;wt+='• '+x.l+': '+x.e+' entregas · '+p3+'% no prazo'+'\n'});
   wt+='\n_Gerado do painel ao vivo · confira contra o fechamento oficial._';
   window.__WPP=wt;
   html+='<button class="btnr" id="wppbtn" onclick="copiarWpp()" style="margin-bottom:14px">📱 Resumo p/ WhatsApp</button>';
-  html+='<div class="sec"><h2>🛵 Por motoboy</h2><div class="hs">Entregas e % no prazo são o dia inteiro, pelo prazo real do iFood. Horas e valores vêm do fechamento de turno do Foody e aparecem como — enquanto o turno não fechou. Garantido = horas × R$ 20/h · Complemento = só quando o garantido do DIA passa do que fez em entregas (nunca negativo) · A receber = entregas + complemento. Estimativa — confira contra o fechamento oficial.</div>';
+  html+='<div class="sec"><h2>🛵 Por motoboy</h2><div class="hs">Entregas e % no prazo são o dia inteiro, pelo prazo real do iFood. Horas vêm do fechamento de turno do Foody e aparecem como — enquanto o turno não fechou. ⚠ Os valores de pagamento (garantido, complemento e a receber) agora exigem a senha e não aparecem mais nesta tela.</div>';
   if(motos.length){
     html+=_tabelaTurno(dias);
      html+='<table><tr><th>Motoboy</th><th>Loja</th><th>Dias</th><th>Horas</th><th>Entregas</th><th>% no prazo</th><th>Atrasos</th><th>Sem código</th><th>Fez (entregas)</th><th>Garantido</th><th>Complemento</th><th>A receber</th></tr>'+motos.map(m=>{
       const cls=m.p==null?'pw':m.p>=90?'pg':m.p>=70?'pw':'pb';
        const pz=function(s){return m.parcial?'<span style="color:var(--muted)" title="turno ainda nao fechou no Foody">—</span>':s};
-      return '<tr><td><b>'+m.n+'</b></td><td style="color:var(--text2)">'+m.l+'</td><td>'+m.d+'</td><td>'+pz(m.h.toFixed(1)+'h')+'</td><td>'+m.e+'</td><td><span class="pill '+cls+'">'+(m.p==null?'—':m.p+'%')+'</span></td><td>'+m.at+'</td><td>'+(m.sem>0?'<span class="pill pw">'+m.sem+'</span>':'0')+'</td><td>'+pz(rM(m.v))+'</td><td>'+pz(rM(m.g))+'</td><td>'+pz(m.c>0?'<span class="pill pw">'+rM(m.c)+'</span>':'R$ 0')+'</td><td><b>'+pz(rM(m.rec))+'</b></td></tr>'}).join('')+'</table>';
+      return '<tr><td><b>'+m.n+'</b></td><td style="color:var(--text2)">'+m.l+'</td><td>'+m.d+'</td><td>'+pz(m.h.toFixed(1)+'h')+'</td><td>'+m.e+'</td><td><span class="pill '+cls+'">'+(m.p==null?'—':m.p+'%')+'</span></td><td>'+m.at+'</td><td>'+(m.sem>0?'<span class="pill pw">'+m.sem+'</span>':'0')+'</td><td>'+pz(rM(m.v))+'</td><td title="valor exige senha">—</td><td title="valor exige senha">—</td><td title="valor exige senha">—</td></tr>'}).join('')+'</table>';
   }else html+='<div class="empty">Sem registros no período.</div>';
   html+='</div>';
   $('conteudo').innerHTML=html;

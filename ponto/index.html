@@ -214,9 +214,23 @@ const OWNER_HASH='d7149f187239f5d99c428c666fa476b7e7808f38226765d5c62ed0ec65e7ea
 async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 async function gateTry(){const v=document.getElementById('gpw').value;
   const hv=await sha(v);
-  if(hv===GATE_HASH||hv===OWNER_HASH){if(hv===OWNER_HASH)sessionStorage.setItem('cm_owner_ok','1');sessionStorage.setItem('cm_ok','1');document.getElementById('gate').style.display='none'}
+  if(hv===GATE_HASH||hv===OWNER_HASH){if(hv===OWNER_HASH)sessionStorage.setItem('cm_owner_ok','1');sessionStorage.setItem('cm_ok','1');try{sessionStorage.setItem('cdm_rh_pw',v)}catch(e){}document.getElementById('gate').style.display='none';loadAll()}
   else document.getElementById('gerr').textContent='Senha incorreta.'}
 if(sessionStorage.getItem('cm_ok')==='1'||sessionStorage.getItem('cm_owner_ok')==='1')document.getElementById('gate').style.display='none';
+/* senha do escritório — guardada só na sessão, nunca no HTML */
+const RH_DE='2000-01-01',RH_ATE='2099-12-31';
+let RH_SEM_SENHA=false;
+function rhPw(){try{return sessionStorage.getItem('cdm_rh_pw')||''}catch(e){return ''}}
+function rhPedeSenha(msg){try{sessionStorage.removeItem('cdm_rh_pw')}catch(e){}RH_SEM_SENHA=true;const g=document.getElementById('gate');if(g)g.style.display='flex';const el=document.getElementById('gerr');if(el)el.textContent=msg||'Entre com a senha para ver o histórico.';}
+async function rhRPC(acao,dados){
+  const pw=rhPw();if(!pw){RH_SEM_SENHA=true;return[]}
+  try{
+    const res=await fetch(SB+'rpc/rh_consulta',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_senha:pw,p_acao:acao,p_dados:dados||{}})});
+    const j=await res.json().catch(()=>null);
+    if(!res.ok){if(j&&j.code==='28000')rhPedeSenha('Senha incorreta — digite de novo.');else RH_SEM_SENHA=true;return[]}
+    RH_SEM_SENHA=false;return Array.isArray(j)?j:[];
+  }catch(err){RH_SEM_SENHA=true;return[]}
+}
 const ORD={SERIO:0,GRAVE:1,INFRACAO:2,VERBAL:3,CONFERIR:4,SEM:5};
 const NV=r=>(ORD[r.nivel]!==undefined?r.nivel:'CONFERIR');
 const UORD={'Água Verde':0,'Ahú':1,'São Braz':2,'Boqueirão':3};
@@ -244,14 +258,20 @@ const isPen=c=>['SERIO','GRAVE','INFRACAO','VERBAL'].includes(c);
 async function loadAll(){
   $('content').innerHTML='<div class="loading">Carregando…</div>';
   try{
-    [ALL,MEN,EVT]=await Promise.all([
-      fetch(SB+'fato_espelho_dia?ativo=eq.true&select=*&order=data.asc',{headers:H}).then(r=>r.json()),
+    let ESP=[];
+    [ALL,MEN,EVT,ESP]=await Promise.all([
+      fetch(SB+'fato_espelho_dia?ativo=eq.true&select=id,funcionario_id,nome,unidade,data,ano,semana,dia_semana,entrada,saida,saida_dia_seguinte,n_marcacoes,intervalo_real_min,jornada_liquida_min,jornada_contratada_min,extra_min,categoria,tag,nivel,importado_em,ativo&order=data.asc',{headers:H}).then(r=>r.json()),
       fetch(SB+'fato_ponto_mensal?ativo=eq.true&select=id,fonte,nome,empresa,unidade,ano,mes,dias_trabalhados,total_marcacoes,esquecimentos,horas_liquidas_min,importado_em,ativo&order=ano.asc,mes.asc',{headers:H}).then(r=>r.json()),
-      fetch(SB+'fato_evento?select=id,nome,unidade,data,tipo,motivo,dias,detalhe,origem,criado_em&order=data.asc',{headers:H}).then(r=>r.json())
+      rhRPC('eventos',{de:RH_DE,ate:RH_ATE}),
+      rhRPC('espelho',{de:RH_DE,ate:RH_ATE})
     ]);
+    if(!Array.isArray(ALL))ALL=[];if(!Array.isArray(MEN))MEN=[];if(!Array.isArray(EVT))EVT=[];
+    const DET={};(ESP||[]).forEach(e=>{DET[e.nome+'|'+e.data]=e.detalhe});
+    ALL.forEach(r=>{r.detalhe=DET[r.nome+'|'+r.data]||null});
+    EVT.sort((a,b)=>String(a.data).localeCompare(String(b.data)));
     DAYS=[...new Set(ALL.map(r=>r.data))].sort();
     DI=DAYS.length-1;
-    $('sub').textContent='Flash: '+DAYS.length+' dias · Eventos: '+EVT.length+' · Secullum: 2 anos · atualizado '+new Date().toLocaleTimeString('pt-BR');
+    $('sub').textContent='Flash: '+DAYS.length+' dias · Eventos: '+(RH_SEM_SENHA?'entre com a senha':EVT.length)+' · Secullum: 2 anos · atualizado '+new Date().toLocaleTimeString('pt-BR');
     render();
   }catch(e){$('content').innerHTML='<div class="err">Erro: '+e.message+'</div>'}
 }
@@ -343,9 +363,9 @@ function renderDay(){
     return `<div class="card" style="--cc:${C[NV(r)]}" onclick="openModal('${r.nome.replace(/'/g,"\\'")}')">
       <div class="chead"><div><div class="cname">${title(r.nome)}</div><div class="cunit">${r.unidade}</div></div>
       <span class="badge">${L[NV(r)]}</span>${NV(r)!=='SEM'&&r.tag?`<span class="cunit" style="margin-left:6px">${r.tag}</span>`:''}</div>
-      <div class="mk">🕒 ${r.marcacoes_txt}</div>
+      <div class="mk">🕒 <span style="color:var(--muted)">marcações não disponíveis nesta tela</span></div>
       <div class="jr">líq ${fmt(r.jornada_liquida_min)} · int ${r.intervalo_real_min??'—'}min · contr ${fmt(r.jornada_contratada_min)}${r.extra_min?' · +'+r.extra_min+'min':''}</div>
-      ${r.detalhe?`<div class="det">▸ ${r.detalhe}</div>`:''}
+      ${r.detalhe?`<div class="det">▸ ${r.detalhe}</div>`:(RH_SEM_SENHA?`<div class="det" style="color:var(--muted)">▸ entre com a senha para ver o detalhe</div>`:'')}
       ${acao}
       <div class="hist">${dots}<span class="hl">últimos ${hist.length} dias</span></div>${flags}</div>`}).join('')+'</div>';
 }
@@ -566,7 +586,7 @@ function openModal(nome){
   else if(p.pen===0&&p.esq2y<=5) flag.innerHTML='<div class="mflag ok">✓ Histórico limpo — sem penalidades nem advertências.</div>';
   else flag.innerHTML='<div class="mflag ok">✓ Sem advertências formais ('+p.esq2y+' batidas esquecidas em 2 anos — acompanhar).</div>';
   $('mtodo').innerHTML='<div class="mtodo"><h4>✅ O que o RH deve fazer</h4><ul>'+todoFor(nome,p,h).map(a=>'<li>'+a+'</li>').join('')+'</ul></div>';
-  $('mevents').innerHTML=ev.length?('<h3>Ocorrências registradas — advertências, atestados, faltas, férias</h3>'+ev.map(r=>`<div class="trow">
+  $('mevents').innerHTML=RH_SEM_SENHA?"<h3>Ocorrências registradas</h3><div class='tinfo'>Entre com a senha para ver o histórico.</div>":ev.length?('<h3>Ocorrências registradas — advertências, atestados, faltas, férias</h3>'+ev.map(r=>`<div class="trow">
     <div class="tdate">${br(r.data)}</div>
     <div><span class="tbadge" style="background:${EC[r.tipo]||'var(--conf)'}">${EL[r.tipo]||r.tipo}</span>
       <div class="tinfo">${r.motivo||''}${r.dias&&r.dias>1?' · '+r.dias+' dias':''}</div>
@@ -574,7 +594,7 @@ function openModal(nome){
   $('mdaily').innerHTML=h.length?('<h3>Dia a dia — Flash (recente)</h3>'+h.map(r=>`<div class="trow">
     <div class="tdate">${br(r.data)}<br><span style="font-weight:400">${(r.dia_semana||'').replace('-feira','')}</span></div>
     <div><span class="tbadge" style="background:${C[NV(r)]}">${L[NV(r)]}</span>
-      <div class="tmk">🕒 ${r.marcacoes_txt} · líq ${fmt(r.jornada_liquida_min)} · int ${r.intervalo_real_min??'—'}min</div>
+      <div class="tmk">líq ${fmt(r.jornada_liquida_min)} · int ${r.intervalo_real_min??'—'}min</div>
       ${r.detalhe?`<div class="tdet">▸ ${r.detalhe}</div>`:''}</div></div>`).join('')):'';
   const maxh=Math.max(...m.map(r=>r.horas_liquidas_min||0),1);
   $('mmonthly').innerHTML=m.length?('<h3>Histórico mensal — Secullum (2 anos)</h3><div class="mmgrid">'+m.map(r=>{
