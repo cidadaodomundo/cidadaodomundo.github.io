@@ -804,9 +804,69 @@ async function rfCarregaMoto(){
       });
       h+='</table></div>';
     }
-    h+='<div class="rf-nota">Quem rodou vem do Foody, por turno. A refeição vem das comandas marcadas como <b>motoboys</b> na aba Comandas (ZMOTOBOYS, JAISON). Enquanto elas não estiverem marcadas, a coluna de refeições fica zerada.</div></div>';
+    h+='<div class="rf-nota">Quem rodou vem do Foody, por turno. A refeição vem das vendas feitas no <b>cliente</b> dos motoboys no Saipos (Z Motoboys, z Jaison…). Se o nome do cliente mudar, marque o novo aqui embaixo.</div></div>';
+    h+='<div id="rfcli"><div class="rf-load">Vendo os clientes…</div></div>';
     rfBox(h);
+    rfCarregaClientes();
   }catch(e){rfErro(e)}
+}
+
+async function rfCarregaClientes(){
+  var el=document.getElementById('rfcli');
+  if(!el)return;
+  try{
+    var r=await Promise.all([
+      rfOp('clientes_grupo',{de:rfAtras(30),ate:rfHoje()}),
+      rfOp('clientes_candidatos',{de:rfAtras(30),ate:rfHoje()})
+    ]);
+    RF.cli=rfArr(r[0]);RF.cand=rfArr(r[1]);
+    var h='<div class="rf-h2">Quem conta como motoboys <span class="hint">cliente cadastrado no Saipos</span></div><div class="rf-card">';
+    if(!RF.cli.length){
+      h+='<div class="rf-empty">Nenhum cliente marcado. Marque um da lista de baixo.</div>';
+    }else{
+      h+='<div class="rf-wrap"><table class="rf-tb"><tr><th>Cliente no Saipos</th><th>Grupo</th><th class="n">Refeições em 30 dias</th><th>Observação</th><th></th></tr>';
+      RF.cli.forEach(function(c){
+        h+='<tr><td>'+rfEsc(c.nome)+'</td><td><span class="rf-pill ok">'+rfEsc(c.grupo)+'</span></td>'+
+           '<td class="n">'+rfNum(c.refeicoes)+'</td><td>'+rfEsc(c.obs||'—')+'</td>'+
+           '<td class="n"><button class="rf-x" onclick="rfDelCliente('+c.id+')">✕</button></td></tr>';
+      });
+      h+='</table></div>';
+    }
+    h+='<div class="rf-msg" id="rf_gmsg"></div></div>';
+
+    h+='<div class="rf-h2">Outros clientes que apareceram em refeição <span class="hint">30 dias · marque se for grupo</span></div><div class="rf-card">';
+    if(!RF.cand.length){
+      h+='<div class="rf-empty">Nenhum outro cliente com refeição no período.</div>';
+    }else{
+      h+='<div class="rf-wrap"><table class="rf-tb"><tr><th>Cliente</th><th class="n">Refeições</th><th class="n">Lojas</th><th>Período</th><th></th></tr>';
+      RF.cand.forEach(function(c,i){
+        h+='<tr><td>'+rfEsc(c.cliente)+'</td><td class="n">'+rfNum(c.refeicoes)+'</td>'+
+           '<td class="n">'+rfNum(c.lojas)+'</td><td>'+rfBr(c.de)+'–'+rfBr(c.ate)+'</td>'+
+           '<td class="n"><button class="rf-b" onclick="rfMarcaCliente('+i+')">é motoboys</button></td></tr>';
+      });
+      h+='</table></div>';
+    }
+    h+='<div class="rf-nota">"Consumidor não identificado" é venda sem cliente escolhido — não marque, senão a refeição de todo mundo vira motoboy.</div></div>';
+    el.innerHTML=h;
+  }catch(e){el.innerHTML='<div class="rf-empty">'+rfEsc(e.message)+'</div>'}
+}
+
+async function rfMarcaCliente(i){
+  var c=RF.cand[i];
+  if(!c)return;
+  if(!confirm('Marcar "'+c.cliente+'" como motoboys? As refeições dele deixam de ser cobradas de uma pessoa.'))return;
+  try{
+    await rfOp('cliente_grupo_salvar',{nome:c.cliente,grupo:'motoboys',obs:'marcado na tela',criado_por:rfNome()});
+    await rfCarregaMoto();
+  }catch(e){alert(e.message)}
+}
+
+async function rfDelCliente(id){
+  if(!confirm('Tirar este cliente do grupo motoboys?'))return;
+  try{
+    await rfOp('cliente_grupo_del',{id:String(id)});
+    await rfCarregaMoto();
+  }catch(e){alert(e.message)}
 }
 
 /* ---------- 4) comandas ---------- */
