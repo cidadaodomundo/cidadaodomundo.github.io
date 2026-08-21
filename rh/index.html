@@ -106,6 +106,44 @@ h1{font-size:17px;font-weight:800}
 .eqnof{font-size:11px;color:#e05252}
 .exframe{width:100%;height:calc(100vh - 230px);min-height:520px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
 @media(max-width:760px){.grid{grid-template-columns:1fr}}
+
+/* ===== visão Refeição ===== */
+.rf-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 14px}
+.rf-tab{background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:7px 15px;font-size:13px;font-weight:700;cursor:pointer}
+.rf-tab.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.rf-sel,.rf-in{background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;color:var(--text);font-size:13px;outline:none;font-family:inherit;width:100%}
+.rf-sel:focus,.rf-in:focus{border-color:var(--brand)}
+.rf-b{background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer}
+.rf-b:hover{border-color:var(--muted)}
+.rf-b.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.rf-x{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px}
+.rf-x:hover{color:var(--serio)}
+.rf-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+.rf-h2{font-size:14.5px;font-weight:800;margin:20px 0 9px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rf-h2 .hint{font-weight:500;font-size:11.5px;color:var(--muted)}
+.rf-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin-bottom:12px}
+.rf-kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.rf-kpi .t{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+.rf-kpi .v{font-size:24px;font-weight:800;line-height:1.15;margin-top:3px}
+.rf-kpi .d{color:var(--muted);font-size:11px;margin-top:2px}
+.rf-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.rf-form label{display:block;color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:4px}
+.rf-wrap{overflow-x:auto}
+table.rf-tb{width:100%;border-collapse:collapse}
+table.rf-tb th,table.rf-tb td{padding:7px 9px;text-align:left;font-size:12.5px;border-bottom:1px solid var(--line);vertical-align:top}
+table.rf-tb th{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+table.rf-tb td.n,table.rf-tb th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.rf-tb tr:last-child td{border-bottom:none}
+.rf-pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:700;white-space:nowrap}
+.rf-pill.ok{background:rgba(55,180,108,.15);color:var(--sem)}
+.rf-pill.warn{background:rgba(212,180,58,.15);color:var(--infra)}
+.rf-pill.bad{background:rgba(224,82,82,.15);color:var(--serio)}
+.rf-pill.mute{background:var(--surface2);color:var(--muted)}
+.rf-lk{cursor:pointer;font-weight:700;text-decoration:underline;text-underline-offset:2px}
+.rf-load,.rf-empty{color:var(--muted);padding:22px;text-align:center;font-size:13px}
+.rf-msg{font-size:12px;margin-left:8px}
+.rf-nota{color:var(--muted);font-size:11.5px;margin-top:8px;line-height:1.5}
+.rf-aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:10px 13px;font-size:12px;margin:10px 0}
 </style></head><body>
 <div id="gate" style="display:none"><div class="gatebox">
   <div class="logo" style="margin:0 auto 12px">CM</div>
@@ -130,6 +168,7 @@ h1{font-size:17px;font-weight:800}
   <button class="view active" id="vday" onclick="setView('day')">📅 Dia</button>
   <button class="view" id="vesc" onclick="setView('escala')">📋 Escala do dia</button>
   <button class="view" id="vequipe" onclick="setView('equipe')">👥 Equipe por setor</button>
+  <button class="view" id="vref" onclick="setView('refeicao')">🍽 Refeição</button>
   <button class="view" id="vguia" onclick="setView('guia')">📖 Guia RH — o que fazer</button>
   <button class="view" id="vman" onclick="setView('manual')">📕 Manual & Regras</button>
 </div>
@@ -253,8 +292,8 @@ async function loadAll(){
   }catch(e){$('content').innerHTML='<div class="err">Erro: '+e.message+'</div>'}
 }
 function setView(v){VIEW=v;FILT=null;
-  ['vday','vesc','vequipe','vguia','vman'].forEach(id=>{const b=$(id);if(b)b.classList.remove('active')});
-  const ab=$({day:'vday',escala:'vesc',equipe:'vequipe',guia:'vguia',manual:'vman'}[v]||'vday');if(ab)ab.classList.add('active');
+  ['vday','vesc','vequipe','vref','vguia','vman'].forEach(id=>{const b=$(id);if(b)b.classList.remove('active')});
+  const ab=$({day:'vday',escala:'vesc',equipe:'vequipe',refeicao:'vref',guia:'vguia',manual:'vman'}[v]||'vday');if(ab)ab.classList.add('active');
   $('toolbar').style.display=v==='day'?'flex':'none';
   render();}
 function stepDay(d){DI=Math.min(Math.max(DI+d,0),DAYS.length-1);FILT=null;render()}
@@ -264,6 +303,7 @@ function render(){
   if(VIEW==='escala')return renderEscala();
   if(VIEW==='equipe')return renderEquipeSetor();
   if(VIEW==='manual')return renderManual();
+  if(VIEW==='refeicao')return renderRefeicao();
   renderDay();
 }
 function limpaTopo(){$('kpis').innerHTML='';$('units').innerHTML=''}
@@ -559,5 +599,372 @@ function checkAcoes(){
 }
 setInterval(loadAll, 15*60*1000);
 cdmGuarda().then(function(ok){if(ok)loadAll()});
+</script>
+<script>
+/* ===== 🍽 REFEIÇÃO DA EQUIPE — veio da tela de Operação em 21/08/2026 ===== */
+var RF={aba:'dia',loja:'',dia:[],fila:[],moto:[],cart:[],equipe:[],offset:[],saipos:[],cartloja:'Água Verde'};
+var RFUNI=['Água Verde','São Braz','Ahú','Boqueirão'];
+function rfArr(x){return Array.isArray(x)?x:[]}
+function rfEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function rfBr(s){return s?String(s).slice(8,10)+'/'+String(s).slice(5,7):'—'}
+function rfNum(v){return v==null?'—':Number(v).toLocaleString('pt-BR')}
+function rfIso(d){return d.toISOString().slice(0,10)}
+function rfHoje(){return rfIso(new Date())}
+function rfAtras(n){return rfIso(new Date(Date.now()-n*864e5))}
+function rfTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function rfNome(){try{return sessionStorage.getItem('cdm_nome')||''}catch(e){return ''}}
+function rfMsg(id,txt,erro){var e=document.getElementById(id);if(!e)return;e.style.color=erro?'#e66767':'#2fae6a';e.textContent=txt||''}
+async function rfOp(acao,dados){
+  var r=await fetch(SB+'rpc/operacao_consulta',{method:'POST',
+    headers:Object.assign({'Content-Type':'application/json'},H),
+    body:JSON.stringify({p_cred:rfTok(),p_acao:acao,p_dados:dados||{}})});
+  var j=null;try{j=await r.json()}catch(e){}
+  if(!r.ok)throw new Error((j&&j.message)||('falha na consulta (HTTP '+r.status+')'));
+  return j;
+}
+function rfLoja(){return RF.loja||''}
+
+function renderRefeicao(){
+  limpaTopo();
+  var abas=[['dia','📅 Dia a dia'],['fila','🔗 Sem dono'],['moto','🏍 Motoboys'],['cart','💳 Comandas']];
+  var h='<div class="rf-bar">'+
+    abas.map(function(a){return '<button class="rf-tab'+(RF.aba===a[0]?' on':'')+'" onclick="rfSet(\'' + a[0] + '\')">'+a[1]+'</button>'}).join('')+
+    '<select class="rf-sel" style="margin-left:auto;width:auto" onchange="RF.loja=this.value;rfSet(RF.aba)">'+
+    '<option value="">Todas as lojas</option>'+
+    RFUNI.map(function(u){return '<option'+(RF.loja===u?' selected':'')+'>'+rfEsc(u)+'</option>'}).join('')+
+    '</select></div><div id="rfbox"><div class="rf-load">Carregando…</div></div>';
+  document.getElementById('content').innerHTML=h;
+  rfSet(RF.aba);
+}
+
+function rfSet(a){
+  RF.aba=a;
+  var bs=document.querySelectorAll('.rf-tab');
+  for(var i=0;i<bs.length;i++){bs[i].className='rf-tab'+(i===['dia','fila','moto','cart'].indexOf(a)?' on':'')}
+  if(a==='dia')rfCarregaDia();
+  if(a==='fila')rfCarregaFila();
+  if(a==='moto')rfCarregaMoto();
+  if(a==='cart')rfCarregaCart();
+}
+function rfBox(h){var e=document.getElementById('rfbox');if(e)e.innerHTML=h}
+function rfErro(e){rfBox('<div class="rf-empty">'+rfEsc(e&&e.message?e.message:e)+'</div>')}
+
+/* ---------- 1) dia a dia ---------- */
+async function rfCarregaDia(){
+  rfBox('<div class="rf-load">Carregando refeições…</div>');
+  try{
+    RF.dia=rfArr(await rfOp('refeicao_dia',{de:rfAtras(14),ate:rfHoje(),unidade:rfLoja()}));
+    var com=RF.dia.filter(function(r){return r.tem_dado_saipos});
+    var sem=RF.dia.length-com.length;
+    var trab=0,nao=0,semc=0,acima=0,ref=0,semd=0;
+    com.forEach(function(r){trab+=Number(r.trabalharam||0);nao+=Number(r.nao_lancaram||0);
+      semc+=Number(r.sem_cartao||0);acima+=Number(r.lancaram_demais||0);
+      ref+=Number(r.refeicoes_total||0);semd+=Number(r.sem_dono||0)});
+
+    var h='<div class="rf-kpis">'+
+      rfKpi('Refeições lançadas',rfNum(ref),rfNum(com.length)+' dia(s) com dado do Saipos')+
+      rfKpi('Trabalharam',rfNum(trab),'pelo ponto, não pela venda')+
+      rfKpi('Não lançaram',rfNum(nao),'estavam no ponto e não registraram')+
+      rfKpi('Sem cartão',rfNum(semc),'falta comanda no cadastro')+
+      rfKpi('Sem dono',rfNum(semd),ref>0?Math.round((ref-semd)/ref*100)+'% já tem dono':'—')+
+      '</div>';
+    if(sem>0)h+='<div class="rf-aviso">'+rfNum(sem)+' dia(s) estão como <b>SEM DADO DO SAIPOS</b> — a carga não trouxe a venda daquele dia. Não quer dizer que ninguém lançou, e por isso ficam fora das somas.</div>';
+
+    h+='<div class="rf-card"><div class="rf-wrap"><table class="rf-tb"><tr>'+
+       '<th>Dia</th><th>Loja</th><th class="n">Trabalharam</th><th class="n">Refeições</th>'+
+       '<th class="n">Não lançaram</th><th class="n">Sem cartão</th><th class="n">Acima do direito</th>'+
+       '<th class="n">Sem dono</th><th>Situação</th></tr>';
+    if(!RF.dia.length){
+      h+='<tr><td colspan="9"><div class="rf-empty">Sem dado no período.</div></td></tr>';
+    }else{
+      RF.dia.forEach(function(r){
+        var s=!r.tem_dado_saipos;
+        h+='<tr><td><span class="rf-lk" onclick="rfVerDia(\'' + r.dia + '\',\'' + rfEsc(r.unidade).replace(/'/g,'') + '\')">'+rfBr(r.dia)+'</span></td>'+
+           '<td>'+rfEsc(r.unidade)+'</td>'+
+           '<td class="n">'+rfNum(r.trabalharam)+'</td>'+
+           '<td class="n">'+(s?'—':rfNum(r.refeicoes_total))+'</td>'+
+           '<td class="n">'+(s?'—':rfNum(r.nao_lancaram))+'</td>'+
+           '<td class="n">'+(s?'—':rfNum(r.sem_cartao))+'</td>'+
+           '<td class="n">'+(s?'—':rfNum(r.lancaram_demais))+'</td>'+
+           '<td class="n">'+(s?'—':rfNum(r.sem_dono))+'</td>'+
+           '<td>'+(s?'<span class="rf-pill mute">sem dado do Saipos</span>':
+                  (r.alerta==='OK'?'<span class="rf-pill ok">ok</span>':'<span class="rf-pill warn">'+rfEsc(r.alerta)+'</span>'))+'</td></tr>';
+      });
+    }
+    h+='</table></div></div><div id="rfdet"></div>'+
+       '<div class="rf-aviso">Cada pessoa tem direito a <b>uma refeição por turno trabalhado</b> — duas no dia em que dobra (jornada acima de 8h ou intervalo acima de 2h). Quem sai disso aparece em "acima do direito".</div>';
+    rfBox(h);
+  }catch(e){rfErro(e)}
+}
+function rfKpi(t,v,d){return '<div class="rf-kpi"><div class="t">'+t+'</div><div class="v">'+v+'</div><div class="d">'+d+'</div></div>'}
+
+async function rfVerDia(dia,uni){
+  var el=document.getElementById('rfdet');
+  if(!el)return;
+  el.innerHTML='<div class="rf-load">Carregando o dia…</div>';
+  try{
+    var l=rfArr(await rfOp('refeicao_pessoa',{dia:dia,unidade:uni}));
+    var h='<div class="rf-h2">'+rfBr(dia)+' · '+rfEsc(uni)+' <span class="hint">pessoa a pessoa</span></div><div class="rf-card">';
+    if(!l.length){h+='<div class="rf-empty">Ninguém no ponto nesse dia nessa loja.</div>'}
+    else{
+      h+='<div class="rf-wrap"><table class="rf-tb"><tr><th>Pessoa</th><th>Entrada</th><th>Saída</th><th class="n">Horas</th>'+
+         '<th class="n">Comanda</th><th class="n">Direito</th><th class="n">Pegou</th><th>O que</th><th>Como achou</th><th>Situação</th></tr>';
+      l.forEach(function(x){
+        var s=String(x.situacao||'');
+        var cls=/^OK$/i.test(s)?'ok':(/ACIMA/i.test(s)?'bad':'warn');
+        h+='<tr><td>'+rfEsc(x.nome)+'</td>'+
+           '<td>'+rfEsc((x.entrada||'').slice(0,5)||'—')+'</td>'+
+           '<td>'+rfEsc((x.saida||'').slice(0,5)||'—')+'</td>'+
+           '<td class="n">'+(x.horas==null?'—':rfNum(x.horas))+'</td>'+
+           '<td class="n">'+(x.codigo==null?'—':x.codigo)+'</td>'+
+           '<td class="n">'+rfNum(x.direito)+'</td>'+
+           '<td class="n">'+rfNum(x.refeicoes)+'</td>'+
+           '<td>'+rfEsc(x.tipos||'—')+'</td>'+
+           '<td>'+rfEsc(x.origem_dono||'—')+'</td>'+
+           '<td><span class="rf-pill '+cls+'">'+rfEsc(s||'—')+'</span></td></tr>';
+      });
+      h+='</table></div>';
+    }
+    h+='</div>';
+    el.innerHTML=h;
+    el.scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(e){el.innerHTML='<div class="rf-empty">'+rfEsc(e.message)+'</div>'}
+}
+
+/* ---------- 2) fila: sem dono ---------- */
+async function rfCarregaFila(){
+  rfBox('<div class="rf-load">Vendo o que ficou sem dono…</div>');
+  try{
+    if(!RF.equipe.length){var c=await rfOp('cartoes',{});RF.equipe=rfArr(c.equipe)}
+    RF.fila=rfArr(await rfOp('sem_dono',{de:rfAtras(30),ate:rfHoje(),unidade:rfLoja()}));
+    var h='<div class="rf-h2">Refeição sem dono <span class="hint">30 dias · resolva uma vez e não volta mais</span></div><div class="rf-card">';
+    if(!RF.fila.length){
+      h+='<div class="rf-empty">Nada pendente. Toda refeição do período tem dono.</div>';
+    }else{
+      h+='<div class="rf-wrap"><table class="rf-tb"><tr><th>Loja</th><th class="n">Comanda</th><th>Nome no cartão</th>'+
+         '<th>Nome digitado</th><th class="n">Refeições</th><th>Período</th><th>De quem é?</th><th></th></tr>';
+      RF.fila.forEach(function(f,i){
+        h+='<tr><td>'+rfEsc(f.unidade)+'</td>'+
+           '<td class="n">'+(f.codigo==null?'—':f.codigo)+'</td>'+
+           '<td>'+rfEsc(f.nome_cartao||'—')+'</td>'+
+           '<td>'+(f.nome_digitado?rfEsc(f.nome_digitado):'<span class="rf-pill mute">nada digitado</span>')+'</td>'+
+           '<td class="n">'+rfNum(f.refeicoes)+'</td>'+
+           '<td>'+rfBr(f.de)+'–'+rfBr(f.ate)+'</td>'+
+           '<td>'+rfSelEquipe('rfq_'+i,null)+'</td>'+
+           '<td class="n"><button class="rf-b" onclick="rfResolve('+i+')">Ligar</button></td></tr>';
+      });
+      h+='</table></div><div class="rf-msg" id="rf_fmsg"></div>'+
+         '<div class="rf-nota">Se a linha tem <b>comanda</b>, ligar grava a comanda no nome da pessoa. Se só tem <b>nome digitado</b>, ligar cria um apelido — da próxima vez que alguém escrever esse mesmo nome, o sistema já sabe de quem é.</div>';
+    }
+    h+='</div>';
+    rfBox(h);
+  }catch(e){rfErro(e)}
+}
+
+async function rfResolve(i){
+  var f=RF.fila[i];
+  var sel=document.getElementById('rfq_'+i);
+  var fid=sel?sel.value:'';
+  if(!f)return;
+  if(!fid){rfMsg('rf_fmsg','Escolha a pessoa antes de ligar.',1);return}
+  rfMsg('rf_fmsg','Ligando…');
+  try{
+    if(f.codigo!=null){
+      await rfOp('resolver_dono',{tipo:'comanda',unidade:f.unidade,codigo:String(f.codigo),funcionario_id:fid});
+    }else if(f.nome_digitado){
+      await rfOp('resolver_dono',{tipo:'apelido',unidade:f.unidade,texto:f.nome_digitado,funcionario_id:fid,criado_por:rfNome()});
+    }else{
+      rfMsg('rf_fmsg','Esta linha não tem comanda nem nome digitado — não dá para ligar a ninguém.',1);return;
+    }
+    await rfCarregaFila();
+    rfMsg('rf_fmsg','✅ Ligado.');
+  }catch(e){rfMsg('rf_fmsg',e.message,1)}
+}
+
+/* ---------- 3) motoboys ---------- */
+async function rfCarregaMoto(){
+  rfBox('<div class="rf-load">Vendo a refeição dos motoboys…</div>');
+  try{
+    RF.moto=rfArr(await rfOp('refeicao_motoboy',{de:rfAtras(14),ate:rfHoje(),unidade:rfLoja()}));
+    var h='<div class="rf-h2">Refeição dos motoboys <span class="hint">14 dias · Dia = almoço+tarde · Noite = jantar+madrugada</span></div><div class="rf-card">';
+    if(!RF.moto.length){
+      h+='<div class="rf-empty">Sem dado no período.</div>';
+    }else{
+      h+='<div class="rf-wrap"><table class="rf-tb"><tr><th>Dia</th><th>Loja</th><th>Bloco</th>'+
+         '<th class="n">Motoboys que rodaram</th><th class="n">Entregas</th><th class="n">Refeições lançadas</th><th>Diferença</th></tr>';
+      RF.moto.forEach(function(l){
+        var d=Number(l.diferenca||0);
+        var cls=d>0?'bad':(d<0?'warn':'ok');
+        var txt=d>0?('+'+d+' a mais'):(d<0?(d+' a menos'):'bate');
+        h+='<tr><td>'+rfBr(l.dia)+'</td><td>'+rfEsc(l.unidade)+'</td><td>'+rfEsc(l.bloco)+'</td>'+
+           '<td class="n">'+rfNum(l.motoboys_rodaram)+'</td>'+
+           '<td class="n">'+rfNum(l.entregas)+'</td>'+
+           '<td class="n">'+rfNum(l.refeicoes_lancadas)+'</td>'+
+           '<td><span class="rf-pill '+cls+'">'+txt+'</span></td></tr>';
+      });
+      h+='</table></div>';
+    }
+    h+='<div class="rf-nota">Quem rodou vem do Foody, por turno. A refeição vem das comandas marcadas como <b>motoboys</b> na aba Comandas (ZMOTOBOYS, JAISON). Enquanto elas não estiverem marcadas, a coluna de refeições fica zerada.</div></div>';
+    rfBox(h);
+  }catch(e){rfErro(e)}
+}
+
+/* ---------- 4) comandas ---------- */
+async function rfCarregaCart(){
+  rfBox('<div class="rf-load">Carregando comandas…</div>');
+  try{
+    var r=await rfOp('cartoes',{unidade:RF.cartloja});
+    RF.cart=rfArr(r.cartoes);RF.offset=rfArr(r.offset);RF.equipe=rfArr(r.equipe);
+    var off=RF.offset.filter(function(o){return o.unidade===RF.cartloja})[0];
+
+    var h='<div class="rf-h2">Comandas do Saipos <span class="hint">o número que cada um digita</span></div>';
+    h+='<div class="rf-card"><div class="rf-form">'+
+       '<div><label>Loja</label><select class="rf-sel" onchange="RF.cartloja=this.value;rfCarregaCart()">'+
+       RFUNI.map(function(u){return '<option'+(u===RF.cartloja?' selected':'')+'>'+rfEsc(u)+'</option>'}).join('')+'</select></div>'+
+       '<div><label>Offset desta loja</label><input class="rf-in" id="rf_off" type="number" value="'+(off&&off.offset_card!=null?off.offset_card:'')+'" placeholder="ainda não descoberto"></div>'+
+       '<div style="display:flex;align-items:flex-end"><button class="rf-b" onclick="rfSalvaOffset()">Salvar offset</button></div>'+
+       '</div><div class="rf-msg" id="rf_omsg"></div>'+
+       '<div class="rf-nota">A API do Saipos <b>não devolve o nome nem o número da comanda</b> — só um id interno. O offset é a ponte: <b>número da comanda = id interno − offset</b>. Na Água Verde é 153714.</div>'+
+       '<div class="rf-form" style="margin-top:10px">'+
+       '<div><label>Descobrir o offset · id interno</label><input class="rf-in" id="rf_oid" type="number" placeholder="ex: 536779"></div>'+
+       '<div><label>… é a comanda número</label><input class="rf-in" id="rf_ocod" type="number" placeholder="ex: 100"></div>'+
+       '<div style="display:flex;align-items:flex-end"><button class="rf-b" onclick="rfDescobreOffset()">Calcular e salvar</button></div>'+
+       '</div></div>';
+
+    h+='<div class="rf-h2">Códigos de '+rfEsc(RF.cartloja)+' <span class="hint">'+rfNum(RF.cart.length)+' cadastrado(s)</span></div><div class="rf-card">';
+    h+='<div class="rf-wrap"><table class="rf-tb"><tr><th class="n">Código</th><th>Nome na comanda</th><th>Pessoa do cadastro</th><th>Tipo</th><th>Ativo</th><th></th></tr>';
+    if(!RF.cart.length){
+      h+='<tr><td colspan="6"><div class="rf-empty">Nenhum código cadastrado nesta loja.</div></td></tr>';
+    }else{
+      RF.cart.forEach(function(c,i){
+        h+='<tr><td class="n">'+c.codigo+'</td>'+
+           '<td><input class="rf-in rfnome" data-i="'+i+'" value="'+rfEsc(c.nome||'')+'"></td>'+
+           '<td>'+rfSelEquipe('rfc_'+i,c.funcionario_id)+'</td>'+
+           '<td>'+rfSelTipo('rft_'+i,c.tipo)+'</td>'+
+           '<td><input type="checkbox" id="rfa_'+i+'"'+(c.ativo?' checked':'')+'></td>'+
+           '<td class="n"><button class="rf-x" onclick="rfApagaCart('+c.id+')">✕</button></td></tr>';
+      });
+    }
+    h+='</table></div><div style="margin-top:12px"><button class="rf-b on" onclick="rfSalvaCart()">Salvar alterações</button> <span class="rf-msg" id="rf_cmsg"></span></div></div>';
+
+    h+='<div class="rf-h2">Cadastrar um código novo</div><div class="rf-card"><div class="rf-form">'+
+       '<div><label>Código</label><input class="rf-in" id="rf_ncod" type="number" placeholder="ex: 101"></div>'+
+       '<div><label>Nome na comanda</label><input class="rf-in" id="rf_nnome" placeholder="COMO APARECE NO SAIPOS"></div>'+
+       '<div><label>Pessoa do cadastro</label>'+rfSelEquipe('rf_nfunc',null)+'</div>'+
+       '<div><label>Tipo</label>'+rfSelTipo('rf_ntipo','funcionario')+'</div>'+
+       '</div><div style="margin-top:12px"><button class="rf-b on" onclick="rfNovoCart()">Cadastrar</button> <span class="rf-msg" id="rf_nmsg"></span></div></div>';
+
+    var semLig=RF.cart.filter(function(c){return c.tipo==='funcionario'&&!c.funcionario_id}).length;
+    if(semLig)h+='<div class="rf-aviso">'+rfNum(semLig)+' código(s) ainda não estão ligados a uma pessoa. Enquanto isso, a refeição dessas pessoas não cruza com o ponto.</div>';
+    h+='<div id="rfsai"><div class="rf-load">Vendo o que o Saipos usou…</div></div>';
+    rfBox(h);
+    rfCarregaSaipos();
+  }catch(e){rfErro(e)}
+}
+
+function rfSelEquipe(id,val){
+  var s='<select class="rf-sel" id="'+id+'"><option value="">— não ligado —</option>';
+  RF.equipe.forEach(function(f){s+='<option value="'+f.id+'"'+(String(val||'')===String(f.id)?' selected':'')+'>'+rfEsc(f.nome)+'</option>'});
+  return s+'</select>';
+}
+function rfSelTipo(id,val){
+  var T=['funcionario','motoboys','taxa','outro'];
+  var s='<select class="rf-sel" id="'+id+'">';
+  T.forEach(function(t){s+='<option'+(t===(val||'funcionario')?' selected':'')+'>'+t+'</option>'});
+  return s+'</select>';
+}
+
+async function rfCarregaSaipos(){
+  var el=document.getElementById('rfsai');
+  if(!el)return;
+  try{
+    RF.saipos=rfArr(await rfOp('comandas_saipos',{unidade:RF.cartloja,de:rfAtras(30),ate:rfHoje()}));
+    var h='<div class="rf-h2">O que o Saipos usou <span class="hint">30 dias · comandas que apareceram nas refeições</span></div><div class="rf-card">';
+    if(!RF.saipos.length){
+      h+='<div class="rf-empty">Nenhuma refeição de funcionário veio do Saipos nesta loja nos últimos 30 dias.</div>';
+    }else{
+      var faltam=RF.saipos.filter(function(l){return l.codigo!=null&&!l.ja_cadastrado}).length;
+      var semCod=RF.saipos.filter(function(l){return l.codigo==null}).length;
+      h+='<div class="rf-wrap"><table class="rf-tb"><tr><th class="n">Id interno</th><th class="n">Comanda</th><th class="n">Refeições</th><th>Nome digitado na venda</th><th>Cadastro</th></tr>';
+      RF.saipos.forEach(function(l){
+        h+='<tr><td class="n">'+(l.id_card==null?'—':l.id_card)+'</td>'+
+           '<td class="n">'+(l.codigo==null?'—':l.codigo)+'</td>'+
+           '<td class="n">'+rfNum(l.refeicoes)+'</td>'+
+           '<td>'+rfEsc(l.nomes_digitados||'—')+'</td>'+
+           '<td>'+(l.ja_cadastrado?'<span class="rf-pill ok">'+rfEsc(l.ja_cadastrado)+'</span>':
+                   (l.codigo==null?'<span class="rf-pill mute">sem comanda</span>':'<span class="rf-pill warn">não cadastrada</span>'))+'</td></tr>';
+      });
+      h+='</table></div><div style="margin-top:12px"><button class="rf-b on" onclick="rfImporta()">Trazer do Saipos as que faltam'+(faltam?' ('+faltam+')':'')+'</button> <span class="rf-msg" id="rf_smsg"></span></div>';
+      if(semCod)h+='<div class="rf-aviso">'+rfNum(semCod)+' linha(s) sem comanda nenhuma — refeição lançada fora do salão (balcão ou ficha). Essas não têm como ser ligadas a uma pessoa.</div>';
+    }
+    h+='</div>';
+    el.innerHTML=h;
+  }catch(e){el.innerHTML='<div class="rf-empty">'+rfEsc(e.message)+'</div>'}
+}
+
+async function rfImporta(){
+  rfMsg('rf_smsg','Trazendo…');
+  try{
+    var r=await rfOp('importar_comandas',{unidade:RF.cartloja,de:rfAtras(30),ate:rfHoje()});
+    await rfCarregaCart();
+    rfMsg('rf_smsg','✅ '+rfNum(r.novos)+' comanda(s) cadastrada(s).');
+  }catch(e){rfMsg('rf_smsg',e.message,1)}
+}
+
+async function rfSalvaCart(){
+  var linhas=[];
+  RF.cart.forEach(function(c,i){
+    var el=document.querySelector('.rfnome[data-i="'+i+'"]');
+    var sf=document.getElementById('rfc_'+i), st=document.getElementById('rft_'+i), sa=document.getElementById('rfa_'+i);
+    linhas.push({unidade:RF.cartloja,codigo:String(c.codigo),nome:(el?el.value:c.nome)||c.nome,
+      funcionario_id:sf?sf.value:'',tipo:st?st.value:'funcionario',ativo:sa?sa.checked:true});
+  });
+  if(!linhas.length){rfMsg('rf_cmsg','Nada para salvar.',1);return}
+  rfMsg('rf_cmsg','Salvando…');
+  try{
+    var r=await rfOp('cartao_salvar',{unidade:RF.cartloja,linhas:linhas});
+    await rfCarregaCart();
+    rfMsg('rf_cmsg','✅ '+rfNum(r.gravados)+' código(s) salvos.');
+  }catch(e){rfMsg('rf_cmsg',e.message,1)}
+}
+
+async function rfNovoCart(){
+  var cod=document.getElementById('rf_ncod').value;
+  if(!cod){rfMsg('rf_nmsg','Digite o código.',1);return}
+  rfMsg('rf_nmsg','Salvando…');
+  try{
+    await rfOp('cartao_salvar',{unidade:RF.cartloja,linhas:[{unidade:RF.cartloja,codigo:String(cod),
+      nome:document.getElementById('rf_nnome').value,
+      funcionario_id:document.getElementById('rf_nfunc').value||'',
+      tipo:document.getElementById('rf_ntipo').value,ativo:true}]});
+    await rfCarregaCart();
+    rfMsg('rf_nmsg','✅ Cadastrado.');
+  }catch(e){rfMsg('rf_nmsg',e.message,1)}
+}
+
+async function rfApagaCart(id){
+  if(!confirm('Apagar este código?'))return;
+  try{await rfOp('cartao_del',{id:String(id)});await rfCarregaCart()}
+  catch(e){alert(e.message)}
+}
+
+async function rfSalvaOffset(){
+  var v=document.getElementById('rf_off').value;
+  if(!v){rfMsg('rf_omsg','Digite o offset.',1);return}
+  rfMsg('rf_omsg','Salvando…');
+  try{await rfOp('offset_salvar',{unidade:RF.cartloja,offset_card:String(v)});await rfCarregaCart();rfMsg('rf_omsg','✅ Offset salvo.')}
+  catch(e){rfMsg('rf_omsg',e.message,1)}
+}
+
+async function rfDescobreOffset(){
+  var id=document.getElementById('rf_oid').value, cod=document.getElementById('rf_ocod').value;
+  if(!id||!cod){rfMsg('rf_omsg','Preencha o id interno e o número da comanda.',1);return}
+  rfMsg('rf_omsg','Calculando…');
+  try{
+    var r=await rfOp('descobrir_offset',{unidade:RF.cartloja,id_card:String(id),codigo:String(cod)});
+    await rfCarregaCart();
+    rfMsg('rf_omsg','✅ Offset desta loja: '+r.offset);
+  }catch(e){rfMsg('rf_omsg',e.message,1)}
+}
 </script><script src="/assets/portal.js?v=3"></script>
 </body></html>

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#c8102e">
-<title>Desperdício &amp; Refeição · Cidadão do Mundo</title>
+<title>Desperdício · Cidadão do Mundo</title>
 <style>
 :root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#c8102e;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -18,9 +18,6 @@ button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);bor
 button.b:hover{border-color:var(--muted)}
 button.p{background:var(--brand);border-color:var(--brand)}
 button.p:disabled{opacity:.5;cursor:default}
-.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
-.tab{background:var(--s1);border:1px solid var(--line);border-radius:999px;padding:8px 16px;font-size:13.5px;font-weight:700;color:var(--text2);cursor:pointer}
-.tab.on{background:var(--brand);border-color:var(--brand);color:#fff}
 h2{font-size:15px;font-weight:800;margin:22px 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 h2 .hint{font-weight:500;font-size:11.5px;color:var(--muted)}
 .card{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:16px;margin-bottom:14px}
@@ -41,7 +38,6 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .wrap{overflow-x:auto}
 .pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap}
 .p-ok{background:rgba(47,174,106,.15);color:var(--ok)}
-.p-warn{background:rgba(201,133,0,.15);color:var(--warn)}
 .p-bad{background:rgba(230,103,103,.15);color:var(--bad)}
 .p-mute{background:var(--s2);color:var(--muted)}
 .aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:11px 14px;font-size:12.5px;margin:12px 0}
@@ -50,7 +46,6 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .msg{font-size:12.5px;margin-top:10px;min-height:18px}
 .msg.ok{color:var(--ok)}
 .msg.err{color:var(--bad)}
-.lk{color:var(--text);cursor:pointer;font-weight:600;text-decoration:underline;text-underline-offset:2px}
 .x{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:0 4px}
 .x:hover{color:var(--bad)}
 @media(max-width:640px){body{padding:12px}h1{font-size:19px}}
@@ -61,18 +56,12 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 <div class="top">
   <div style="display:flex;gap:10px;align-items:center">
     <div class="dot">CM</div>
-    <div><h1>🗑 Desperdício &amp; Refeição</h1><div class="sub" id="sub">o que se perdeu e o que a equipe comeu — por loja</div></div>
+    <div><h1>🗑 Desperdício</h1><div class="sub">o que se perdeu, por loja e por motivo</div></div>
   </div>
   <div class="rt">
     <span id="quem" style="color:var(--muted);font-size:12.5px"></span>
     <button class="b" onclick="location.reload()">↻ Atualizar</button>
   </div>
-</div>
-
-<div class="tabs">
-  <div class="tab on" id="t_desp" onclick="setAba('desp')">🗑 Desperdício</div>
-  <div class="tab" id="t_ref" onclick="setAba('ref')">🍽 Refeição do time</div>
-  <div class="tab" id="t_cart" onclick="setAba('cart')">💳 Cartões</div>
 </div>
 
 <div id="conteudo"><div class="load">Carregando…</div></div>
@@ -109,7 +98,7 @@ const UNI=['Água Verde','São Braz','Ahú','Boqueirão'];
 const TURNOS=['Almoço','Tarde','Jantar','Madrugada'];
 const MOTIVOS=['Queimou','Caiu no chão','Erro de pedido','Venceu / estragou','Sobra de produção','Devolução do cliente','Teste / treinamento','Outro'];
 const MEDIDAS=['un','kg','g','L','ml','porção'];
-let ABA='desp', LOJA='', DESP=[], RESUMO=[], REFDIA=[], CART=[], OFFSET=[], EQUIPE=[], FILA=[], CARTLOJA='Água Verde';
+let DESP=[], RESUMO=[], DIAS=30;
 
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function iso(d){return d.toISOString().slice(0,10)}
@@ -118,6 +107,8 @@ function brl(v){return v==null?'—':'R$ '+Number(v).toLocaleString('pt-BR',{min
 function num(v){return v==null?'—':Number(v).toLocaleString('pt-BR')}
 function hoje(){return iso(new Date())}
 function diasAtras(n){return iso(new Date(Date.now()-n*864e5))}
+function arrOk(x){return Array.isArray(x)?x:[]}
+function setMsg(id,txt,erro){const e=$(id);if(!e)return;e.className='msg '+(erro?'err':'ok');e.textContent=txt||''}
 
 async function op(acao,dados){
   const r=await fetch(SB+'rpc/operacao_consulta',{method:'POST',headers:H,
@@ -126,51 +117,33 @@ async function op(acao,dados){
   if(!r.ok)throw new Error((j&&j.message)||('falha na consulta (HTTP '+r.status+')'));
   return j;
 }
-function arrOk(x){return Array.isArray(x)?x:[]}
-function setMsg(id,txt,erro){const e=$(id);if(!e)return;e.className='msg '+(erro?'err':'ok');e.textContent=txt||''}
 
-function setAba(a){
-  ABA=a;
-  ['desp','ref','cart'].forEach(function(k){const e=$('t_'+k);if(e)e.className='tab'+(k===a?' on':'')});
-  if(a==='desp')carregaDesp();
-  if(a==='ref')carregaRef();
-  if(a==='cart')carregaCart();
-}
-
-/* ================= 1) DESPERDÍCIO ================= */
-async function carregaDesp(){
+async function carrega(){
   $('conteudo').innerHTML='<div class="load">Carregando lançamentos…</div>';
   try{
-    const p={de:diasAtras(30),ate:hoje()};
-    if(LOJA)p.unidade=LOJA;
+    const p={de:diasAtras(DIAS),ate:hoje()};
     const r=await Promise.all([op('resumo',p),op('lista',p)]);
     RESUMO=arrOk(r[0]);DESP=arrOk(r[1]);
-    renderDesp();
+    render();
   }catch(e){$('conteudo').innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
 }
 
-function renderDesp(){
+function render(){
   let tot=0,evi=0,nl=0;
   RESUMO.forEach(function(x){tot+=Number(x.custo||0);evi+=Number(x.custo_evitavel||0);nl+=Number(x.lancamentos||0)});
-  const porLoja={};
+  const porLoja={},porMotivo={};
   RESUMO.forEach(function(x){porLoja[x.unidade]=(porLoja[x.unidade]||0)+Number(x.custo||0)});
+  DESP.forEach(function(d){const m=d.motivo||'Sem motivo';
+    porMotivo[m]=porMotivo[m]||{n:0,v:0};porMotivo[m].n++;porMotivo[m].v+=Number(d.custo_total||0)});
 
   let h='<div class="cards">'+
-    '<div class="kpi"><div class="t">Perdas em 30 dias</div><div class="v">'+brl(tot)+'</div><div class="d">'+num(nl)+' lançamento(s)</div></div>'+
+    '<div class="kpi"><div class="t">Perdas em '+DIAS+' dias</div><div class="v">'+brl(tot)+'</div><div class="d">'+num(nl)+' lançamento(s)</div></div>'+
     '<div class="kpi"><div class="t">Era evitável</div><div class="v">'+brl(evi)+'</div><div class="d">'+(tot>0?Math.round(evi/tot*100)+'% do total':'—')+'</div></div>'+
-    '<div class="kpi"><div class="t">Média por dia</div><div class="v">'+brl(tot/30)+'</div><div class="d">últimos 30 dias</div></div>'+
+    '<div class="kpi"><div class="t">Média por dia</div><div class="v">'+brl(tot/DIAS)+'</div><div class="d">últimos '+DIAS+' dias</div></div>'+
     '</div>';
 
-  if(Object.keys(porLoja).length){
-    h+='<h2>Por loja <span class="hint">30 dias</span></h2><div class="card"><div class="wrap"><table><tr><th>Loja</th><th class="n">Perdas</th></tr>';
-    Object.keys(porLoja).sort(function(a,b){return porLoja[b]-porLoja[a]}).forEach(function(u){
-      h+='<tr><td>'+esc(u)+'</td><td class="n">'+brl(porLoja[u])+'</td></tr>';
-    });
-    h+='</table></div></div>';
-  }
-
   h+='<h2>Lançar uma perda</h2><div class="card f"><div class="form">'+
-    '<div><label>Loja</label><select id="d_uni">'+UNI.map(function(u){return '<option'+(u===(LOJA||'Água Verde')?' selected':'')+'>'+esc(u)+'</option>'}).join('')+'</select></div>'+
+    '<div><label>Loja</label><select id="d_uni">'+UNI.map(function(u){return '<option>'+esc(u)+'</option>'}).join('')+'</select></div>'+
     '<div><label>Data</label><input type="date" id="d_data" value="'+hoje()+'"></div>'+
     '<div><label>Turno</label><select id="d_turno"><option value="">—</option>'+TURNOS.map(function(t){return '<option>'+t+'</option>'}).join('')+'</select></div>'+
     '<div><label>O que se perdeu</label><input id="d_prod" placeholder="ex: hambúrguer 180g" autocomplete="off"></div>'+
@@ -181,10 +154,27 @@ function renderDesp(){
     '<div><label>Dava para evitar?</label><select id="d_evi"><option value="1">Sim</option><option value="0">Não</option></select></div>'+
     '<div style="grid-column:1/-1"><label>Detalhe (opcional)</label><input id="d_det" placeholder="o que aconteceu"></div>'+
     '</div><div style="margin-top:12px;display:flex;gap:8px;align-items:center">'+
-    '<button class="b p" id="d_btn" onclick="salvaDesp()">Lançar perda</button>'+
+    '<button class="b p" id="d_btn" onclick="salva()">Lançar perda</button>'+
     '<span class="msg" id="d_msg"></span></div></div>';
 
-  h+='<h2>Últimos lançamentos <span class="hint">30 dias · '+num(DESP.length)+' linha(s)</span></h2>';
+  if(Object.keys(porLoja).length){
+    h+='<h2>Por loja <span class="hint">'+DIAS+' dias</span></h2><div class="card"><div class="wrap"><table><tr><th>Loja</th><th class="n">Perdas</th></tr>';
+    Object.keys(porLoja).sort(function(a,b){return porLoja[b]-porLoja[a]}).forEach(function(u){
+      h+='<tr><td>'+esc(u)+'</td><td class="n">'+brl(porLoja[u])+'</td></tr>';
+    });
+    h+='</table></div></div>';
+  }
+
+  if(Object.keys(porMotivo).length){
+    h+='<h2>Por motivo <span class="hint">onde está escorrendo</span></h2><div class="card"><div class="wrap"><table><tr><th>Motivo</th><th class="n">Vezes</th><th class="n">Custo</th></tr>';
+    Object.keys(porMotivo).sort(function(a,b){return porMotivo[b].v-porMotivo[a].v||porMotivo[b].n-porMotivo[a].n}).forEach(function(m){
+      h+='<tr><td>'+esc(m)+'</td><td class="n">'+num(porMotivo[m].n)+'</td><td class="n">'+(porMotivo[m].v?brl(porMotivo[m].v):'—')+'</td></tr>';
+    });
+    h+='</table></div></div>';
+  }
+
+  h+='<h2>Últimos lançamentos <span class="hint">'+DIAS+' dias · '+num(DESP.length)+' linha(s)</span>'+
+     '<button class="b" style="margin-left:auto" onclick="DIAS=(DIAS===30?90:30);carrega()">'+(DIAS===30?'ver 90 dias':'ver 30 dias')+'</button></h2>';
   if(!DESP.length){
     h+='<div class="card"><div class="empty">Nada lançado ainda. Assim que a equipe começar a registrar, os números aparecem aqui em cima.</div></div>';
   }else{
@@ -197,15 +187,15 @@ function renderDesp(){
          '<td>'+esc(d.motivo||'—')+'</td>'+
          '<td>'+(d.evitavel?'<span class="pill p-bad">sim</span>':'<span class="pill p-mute">não</span>')+'</td>'+
          '<td>'+esc(d.lancado_por||'—')+'</td>'+
-         '<td class="n"><button class="x" title="apagar" onclick="apagaDesp('+d.id+')">✕</button></td></tr>';
+         '<td class="n"><button class="x" title="apagar" onclick="apaga('+d.id+')">✕</button></td></tr>';
     });
     h+='</table></div></div>';
   }
-  h+='<div class="aviso">O custo é opcional. Sem ele o lançamento continua valendo para contar quantas vezes aconteceu — só não entra na conta de dinheiro.</div>';
+  h+='<div class="aviso">O custo é opcional. Sem ele o lançamento continua valendo para contar quantas vezes aconteceu — só não entra na conta de dinheiro.<br>A refeição da equipe saiu daqui: agora fica na <b>Central do RH</b>, na visão 🍽 Refeição.</div>';
   $('conteudo').innerHTML=h;
 }
 
-async function salvaDesp(){
+async function salva(){
   const prod=$('d_prod').value.trim();
   if(!prod){setMsg('d_msg','Escreva o que se perdeu.',1);return}
   const qtd=Number($('d_qtd').value||0);
@@ -217,363 +207,22 @@ async function salvaDesp(){
       custo_unit:$('d_custo').value||'',motivo:$('d_mot').value,
       evitavel:$('d_evi').value==='1',detalhe:$('d_det').value.trim(),
       lancado_por:cdmNome()});
+    await carrega();
     setMsg('d_msg','✅ Lançado.');
-    $('d_prod').value='';$('d_qtd').value='1';$('d_custo').value='';$('d_det').value='';
-    await carregaDesp();
   }catch(e){setMsg('d_msg',e.message,1)}
   const b=$('d_btn');if(b)b.disabled=false;
 }
 
-async function apagaDesp(id){
+async function apaga(id){
   if(!confirm('Apagar este lançamento?'))return;
-  try{await op('del',{id:String(id)});await carregaDesp()}
+  try{await op('del',{id:String(id)});await carrega()}
   catch(e){alert(e.message)}
 }
 
-/* ================= 2) REFEIÇÃO DO TIME ================= */
-async function carregaRef(){
-  $('conteudo').innerHTML='<div class="load">Carregando refeições…</div>';
-  try{
-    const p={de:diasAtras(14),ate:hoje()};
-    if(LOJA)p.unidade=LOJA;
-    REFDIA=arrOk(await op('refeicao_dia',p));
-    renderRef();
-  }catch(e){$('conteudo').innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
-}
-
-function renderRef(){
-  const comDado=REFDIA.filter(function(r){return r.tem_dado_saipos});
-  const semDado=REFDIA.length-comDado.length;
-  let trab=0,nao=0,semc=0,demais=0,ref=0,semd=0;
-  comDado.forEach(function(r){trab+=Number(r.trabalharam||0);nao+=Number(r.nao_lancaram||0);
-    semc+=Number(r.sem_cartao||0);demais+=Number(r.lancaram_demais||0);ref+=Number(r.refeicoes_total||0);
-    semd+=Number(r.sem_dono||0)});
-
-  let h='<div class="cards">'+
-    '<div class="kpi"><div class="t">Refeições lançadas</div><div class="v">'+num(ref)+'</div><div class="d">'+num(comDado.length)+' dia(s) com dado do Saipos</div></div>'+
-    '<div class="kpi"><div class="t">Trabalharam</div><div class="v">'+num(trab)+'</div><div class="d">pelo ponto, não pela venda</div></div>'+
-    '<div class="kpi"><div class="t">Não lançaram</div><div class="v">'+num(nao)+'</div><div class="d">estavam no ponto e não registraram</div></div>'+
-    '<div class="kpi"><div class="t">Sem cartão cadastrado</div><div class="v">'+num(semc)+'</div><div class="d">falta código na aba Cartões</div></div>'+
-    '<div class="kpi"><div class="t">Refeição sem dono</div><div class="v">'+num(semd)+'</div><div class="d">'+(ref>0?Math.round((ref-semd)/ref*100)+'% já tem dono':'—')+'</div></div>'+
-    '</div>';
-
-  if(semDado>0){
-    h+='<div class="aviso">'+num(semDado)+' dia(s) do período estão como <b>SEM DADO DO SAIPOS</b> — a carga não trouxe a venda daquele dia. Isso não quer dizer que ninguém lançou, e por isso esses dias ficam fora das contas acima.</div>';
-  }
-
-  h+='<h2>Dia a dia <span class="hint">últimos 14 dias · a base é o PONTO, não a venda</span></h2>';
-  if(!REFDIA.length){
-    h+='<div class="card"><div class="empty">Sem dado no período.</div></div>';
-  }else{
-    h+='<div class="card"><div class="wrap"><table><tr><th>Dia</th><th>Loja</th><th class="n">Trabalharam</th><th class="n">Refeições</th><th class="n">Não lançaram</th><th class="n">Sem cartão</th><th class="n">Acima do direito</th><th class="n">Sem dono</th><th>Situação</th></tr>';
-    REFDIA.forEach(function(r){
-      const sem=!r.tem_dado_saipos;
-      h+='<tr><td><span class="lk" onclick="verDia(\''+r.dia+'\',\''+esc(r.unidade).replace(/'/g,'')+'\')">'+br(r.dia)+'</span></td>'+
-         '<td>'+esc(r.unidade)+'</td>'+
-         '<td class="n">'+num(r.trabalharam)+'</td>'+
-         '<td class="n">'+(sem?'—':num(r.refeicoes_total))+'</td>'+
-         '<td class="n">'+(sem?'—':num(r.nao_lancaram))+'</td>'+
-         '<td class="n">'+(sem?'—':num(r.sem_cartao))+'</td>'+
-         '<td class="n">'+(sem?'—':num(r.lancaram_demais))+'</td>'+
-         '<td class="n">'+(sem?'—':num(r.sem_dono))+'</td>'+
-         '<td>'+(sem?'<span class="pill p-mute">sem dado do Saipos</span>':
-                 (r.alerta?'<span class="pill p-warn">'+esc(r.alerta)+'</span>':'<span class="pill p-ok">ok</span>'))+'</td></tr>';
-    });
-    h+='</table></div></div>';
-  }
-  h+='<div id="detdia"></div>';
-  h+='<div id="fila"><div class="load">Vendo o que ficou sem dono…</div></div>';
-  h+='<div id="moto"><div class="load">Vendo a refeição dos motoboys…</div></div>';
-  h+='<div class="aviso">Cada pessoa tem direito a <b>uma refeição por turno trabalhado</b> — duas no dia em que dobra (mais de 8h de jornada ou intervalo acima de 2h). O sistema calcula isso pelo ponto.</div>';
-  $('conteudo').innerHTML=h;
-  carregaFila();carregaMoto();
-}
-
-/* ----- fila: refeição sem dono ----- */
-async function carregaFila(){
-  const el=$('fila');
-  if(!el)return;
-  try{
-    if(!EQUIPE.length){
-      const c=await op('cartoes',{});
-      EQUIPE=arrOk(c.equipe);
-    }
-    FILA=arrOk(await op('sem_dono',{de:diasAtras(30),ate:hoje(),unidade:LOJA||''}));
-    let h='<h2>Refeição sem dono <span class="hint">30 dias · resolva uma vez e não volta mais</span></h2><div class="card">';
-    if(!FILA.length){
-      h+='<div class="empty">Nada pendente. Toda refeição do período tem dono.</div>';
-    }else{
-      h+='<div class="wrap"><table><tr><th>Loja</th><th class="n">Comanda</th><th>Nome no cartão</th><th>Nome digitado</th><th class="n">Refeições</th><th>Período</th><th>De quem é?</th><th></th></tr>';
-      FILA.forEach(function(f,i){
-        const dig=f.nome_digitado||'';
-        h+='<tr><td>'+esc(f.unidade)+'</td>'+
-           '<td class="n">'+(f.codigo==null?'—':f.codigo)+'</td>'+
-           '<td>'+esc(f.nome_cartao||'—')+'</td>'+
-           '<td>'+(dig?esc(dig):'<span class="pill p-mute">nada digitado</span>')+'</td>'+
-           '<td class="n">'+num(f.refeicoes)+'</td>'+
-           '<td>'+br(f.de)+'–'+br(f.ate)+'</td>'+
-           '<td>'+selEquipe('fq_'+i,null)+'</td>'+
-           '<td class="n"><button class="b" onclick="resolveDono('+i+')">Ligar</button></td></tr>';
-      });
-      h+='</table></div><div style="margin-top:10px"><span class="msg" id="f_msg"></span></div>';
-      h+='<div style="color:var(--muted);font-size:11.5px;margin-top:8px;line-height:1.5">Se a linha tem <b>comanda</b>, ligar grava a comanda no nome da pessoa. Se só tem <b>nome digitado</b>, ligar cria um apelido — da próxima vez que alguém escrever esse mesmo nome, o sistema já sabe de quem é.</div>';
-    }
-    h+='</div>';
-    el.innerHTML=h;
-  }catch(e){el.innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
-}
-
-async function resolveDono(i){
-  const f=FILA[i];
-  const fid=($('fq_'+i)||{}).value;
-  if(!f)return;
-  if(!fid){setMsg('f_msg','Escolha a pessoa antes de ligar.',1);return}
-  setMsg('f_msg','Ligando…');
-  try{
-    if(f.codigo!=null){
-      await op('resolver_dono',{tipo:'comanda',unidade:f.unidade,codigo:String(f.codigo),funcionario_id:fid});
-    }else if(f.nome_digitado){
-      await op('resolver_dono',{tipo:'apelido',unidade:f.unidade,texto:f.nome_digitado,funcionario_id:fid,criado_por:cdmNome()});
-    }else{
-      setMsg('f_msg','Esta linha não tem comanda nem nome digitado — não dá para ligar a ninguém.',1);return;
-    }
-    setMsg('f_msg','✅ Ligado.');
-    await carregaRef();
-  }catch(e){setMsg('f_msg',e.message,1)}
-}
-
-/* ----- motoboys por bloco ----- */
-async function carregaMoto(){
-  const el=$('moto');
-  if(!el)return;
-  try{
-    const linhas=arrOk(await op('refeicao_motoboy',{de:diasAtras(14),ate:hoje(),unidade:LOJA||''}));
-    let h='<h2>Refeição dos motoboys <span class="hint">14 dias · Dia = almoço+tarde · Noite = jantar+madrugada</span></h2><div class="card">';
-    if(!linhas.length){
-      h+='<div class="empty">Sem dado no período.</div>';
-    }else{
-      h+='<div class="wrap"><table><tr><th>Dia</th><th>Loja</th><th>Bloco</th><th class="n">Motoboys que rodaram</th><th class="n">Entregas</th><th class="n">Refeições lançadas</th><th>Diferença</th></tr>';
-      linhas.forEach(function(l){
-        const d=Number(l.diferenca||0);
-        const cls=d>0?'p-bad':(d<0?'p-warn':'p-ok');
-        const txt=d>0?('+'+d+' a mais'):(d<0?(d+' a menos'):'bate');
-        h+='<tr><td>'+br(l.dia)+'</td><td>'+esc(l.unidade)+'</td><td>'+esc(l.bloco)+'</td>'+
-           '<td class="n">'+num(l.motoboys_rodaram)+'</td>'+
-           '<td class="n">'+num(l.entregas)+'</td>'+
-           '<td class="n">'+num(l.refeicoes_lancadas)+'</td>'+
-           '<td><span class="pill '+cls+'">'+txt+'</span></td></tr>';
-      });
-      h+='</table></div>';
-      h+='<div style="color:var(--muted);font-size:11.5px;margin-top:8px;line-height:1.5">Quem rodou vem do Foody, por turno. A refeição vem das comandas marcadas como <b>motoboys</b> na aba Cartões (ZMOTOBOYS, JAISON). Enquanto elas não estiverem marcadas, a coluna de refeições fica zerada.</div>';
-    }
-    h+='</div>';
-    el.innerHTML=h;
-  }catch(e){el.innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
-}
-
-async function verDia(dia,uni){
-  const el=$('detdia');
-  if(!el)return;
-  el.innerHTML='<div class="load">Carregando o dia…</div>';
-  try{
-    const linhas=arrOk(await op('refeicao_pessoa',{dia:dia,unidade:uni}));
-    let h='<h2>'+br(dia)+' · '+esc(uni)+' <span class="hint">pessoa a pessoa</span></h2><div class="card">';
-    if(!linhas.length){h+='<div class="empty">Ninguém no ponto nesse dia nessa loja.</div>'}
-    else{
-      h+='<div class="wrap"><table><tr><th>Pessoa</th><th>Entrada</th><th>Saída</th><th class="n">Horas</th><th class="n">Código</th><th class="n">Refeições</th><th>O que pegou</th><th>Situação</th></tr>';
-      linhas.forEach(function(l){
-        const s=String(l.situacao||'');
-        const cls=/sem dado/i.test(s)?'p-mute':(/^ok$/i.test(s)?'p-ok':(/acima/i.test(s)?'p-bad':'p-warn'));
-        h+='<tr><td>'+esc(l.nome)+'</td><td>'+esc((l.entrada||'').slice(0,5)||'—')+'</td><td>'+esc((l.saida||'').slice(0,5)||'—')+'</td>'+
-           '<td class="n">'+(l.horas==null?'—':num(l.horas))+'</td>'+
-           '<td class="n">'+(l.codigo==null?'—':l.codigo)+'</td>'+
-           '<td class="n">'+num(l.refeicoes)+'</td>'+
-           '<td>'+esc(l.tipos||'—')+'</td>'+
-           '<td><span class="pill '+cls+'">'+esc(s||'—')+'</span></td></tr>';
-      });
-      h+='</table></div>';
-    }
-    h+='</div>';
-    el.innerHTML=h;
-    el.scrollIntoView({behavior:'smooth',block:'start'});
-  }catch(e){el.innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
-}
-
-/* ================= 3) CARTÕES ================= */
-async function carregaCart(){
-  $('conteudo').innerHTML='<div class="load">Carregando cartões…</div>';
-  try{
-    const r=await op('cartoes',{unidade:CARTLOJA});
-    CART=arrOk(r.cartoes);OFFSET=arrOk(r.offset);EQUIPE=arrOk(r.equipe);
-    renderCart();
-  }catch(e){$('conteudo').innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
-}
-
-function renderCart(){
-  const off=OFFSET.filter(function(o){return o.unidade===CARTLOJA})[0];
-  let h='<h2>Cartões (comandas do Saipos) <span class="hint">o número que cada um digita</span></h2>';
-  h+='<div class="card f"><div class="form">'+
-     '<div><label>Loja</label><select id="c_loja" onchange="CARTLOJA=this.value;carregaCart()">'+
-     UNI.map(function(u){return '<option'+(u===CARTLOJA?' selected':'')+'>'+esc(u)+'</option>'}).join('')+'</select></div>'+
-     '<div><label>Offset desta loja</label><input id="c_off" type="number" value="'+(off&&off.offset_card!=null?off.offset_card:'')+'" placeholder="ainda não descoberto"></div>'+
-     '<div style="display:flex;align-items:flex-end"><button class="b" onclick="salvaOffset()">Salvar offset</button></div>'+
-     '<div style="grid-column:1/-1"><span class="msg" id="c_msg2"></span></div>'+
-     '</div>'+
-     '<div style="color:var(--muted);font-size:11.5px;margin-top:10px;line-height:1.5">A API do Saipos <b>não devolve o nome nem o número da comanda</b> — só um id interno. O offset é a ponte: <b>número da comanda = id interno − offset</b>. Na Água Verde é 153714.</div>'+
-     '<div class="form" style="margin-top:10px">'+
-     '<div><label>Descobrir o offset · id interno</label><input id="o_id" type="number" placeholder="ex: 536779"></div>'+
-     '<div><label>… é a comanda número</label><input id="o_cod" type="number" placeholder="ex: 100"></div>'+
-     '<div style="display:flex;align-items:flex-end"><button class="b" onclick="descobreOffset()">Calcular e salvar</button></div>'+
-     '</div>'+
-     '<div style="color:var(--muted);font-size:11.5px;margin-top:6px">Pegue um id interno da tabela “O que o Saipos usou” aqui embaixo, veja no Saipos de quem é aquela comanda, e diga o número dela. Uma linha basta para acertar a loja inteira.</div></div>';
-
-  h+='<h2>Códigos de '+esc(CARTLOJA)+' <span class="hint">'+num(CART.length)+' cadastrado(s)</span></h2><div class="card">';
-  h+='<div class="wrap"><table><tr><th class="n">Código</th><th>Nome no cartão</th><th>Pessoa do cadastro</th><th>Tipo</th><th>Ativo</th><th></th></tr>';
-  if(!CART.length){
-    h+='<tr><td colspan="6"><div class="empty">Nenhum código cadastrado nesta loja. Use a linha de baixo para começar.</div></td></tr>';
-  }else{
-    CART.forEach(function(c,i){
-      h+='<tr>'+
-        '<td class="n">'+c.codigo+'</td>'+
-        '<td><input class="cin" data-i="'+i+'" data-k="nome" value="'+esc(c.nome||'')+'" style="width:100%;background:var(--s2);border:1px solid var(--line);border-radius:7px;padding:6px 8px;color:var(--text);font-size:13px"></td>'+
-        '<td>'+selEquipe('cf_'+i,c.funcionario_id)+'</td>'+
-        '<td>'+selTipo('ct_'+i,c.tipo)+'</td>'+
-        '<td><input type="checkbox" id="ca_'+i+'"'+(c.ativo?' checked':'')+'></td>'+
-        '<td class="n"><button class="x" title="apagar" onclick="apagaCart('+c.id+')">✕</button></td>'+
-      '</tr>';
-    });
-  }
-  h+='</table></div>';
-  h+='<div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
-     '<button class="b p" onclick="salvaCart()">Salvar alterações</button><span class="msg" id="c_msg"></span></div></div>';
-
-  h+='<h2>Cadastrar um código novo</h2><div class="card f"><div class="form">'+
-     '<div><label>Código</label><input id="n_cod" type="number" placeholder="ex: 101"></div>'+
-     '<div><label>Nome no cartão</label><input id="n_nome" placeholder="NOME COMO APARECE"></div>'+
-     '<div><label>Pessoa do cadastro</label>'+selEquipe('n_func',null)+'</div>'+
-     '<div><label>Tipo</label>'+selTipo('n_tipo','funcionario')+'</div>'+
-     '</div><div style="margin-top:12px;display:flex;gap:8px;align-items:center">'+
-     '<button class="b p" onclick="novoCart()">Cadastrar</button><span class="msg" id="n_msg"></span></div></div>';
-
-  const semLig=CART.filter(function(c){return c.tipo==='funcionario'&&!c.funcionario_id}).length;
-  if(semLig)h+='<div class="aviso">'+num(semLig)+' código(s) ainda não estão ligados a uma pessoa do cadastro. Enquanto isso, a refeição dessas pessoas não cruza com o ponto.</div>';
-  h+='<div id="saipos"><div class="load">Vendo o que o Saipos usou…</div></div>';
-  $('conteudo').innerHTML=h;
-  carregaSaipos();
-}
-
-/* ----- o que o Saipos realmente usou ----- */
-async function carregaSaipos(){
-  const el=$('saipos');
-  if(!el)return;
-  try{
-    const linhas=arrOk(await op('comandas_saipos',{unidade:CARTLOJA,de:diasAtras(30),ate:hoje()}));
-    let h='<h2>O que o Saipos usou <span class="hint">30 dias · comandas que apareceram nas refeições</span></h2><div class="card">';
-    if(!linhas.length){
-      h+='<div class="empty">Nenhuma refeição de funcionário veio do Saipos nesta loja nos últimos 30 dias.</div>';
-    }else{
-      const faltam=linhas.filter(function(l){return l.codigo!=null&&!l.ja_cadastrado}).length;
-      const semCod=linhas.filter(function(l){return l.codigo==null}).length;
-      h+='<div class="wrap"><table><tr><th class="n">Id interno</th><th class="n">Comanda</th><th class="n">Refeições</th><th>Nome digitado na venda</th><th>Cadastro</th></tr>';
-      linhas.forEach(function(l){
-        h+='<tr><td class="n">'+(l.id_card==null?'—':l.id_card)+'</td>'+
-           '<td class="n">'+(l.codigo==null?'—':l.codigo)+'</td>'+
-           '<td class="n">'+num(l.refeicoes)+'</td>'+
-           '<td>'+esc(l.nomes_digitados||'—')+'</td>'+
-           '<td>'+(l.ja_cadastrado?'<span class="pill p-ok">'+esc(l.ja_cadastrado)+'</span>':
-                   (l.codigo==null?'<span class="pill p-mute">sem comanda</span>':'<span class="pill p-warn">não cadastrada</span>'))+'</td></tr>';
-      });
-      h+='</table></div>';
-      h+='<div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
-         '<button class="b p" onclick="importaSaipos()">Trazer do Saipos as que faltam'+(faltam?' ('+faltam+')':'')+'</button>'+
-         '<span class="msg" id="s_msg"></span></div>';
-      if(semCod){
-        h+='<div class="aviso">'+num(semCod)+' linha(s) sem comanda nenhuma — refeição lançada fora do salão (balcão ou ficha). Essas não têm como ser ligadas a uma pessoa.</div>';
-      }
-    }
-    h+='</div>';
-    el.innerHTML=h;
-  }catch(e){el.innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
-}
-
-async function importaSaipos(){
-  setMsg('s_msg','Trazendo…');
-  try{
-    const r=await op('importar_comandas',{unidade:CARTLOJA,de:diasAtras(30),ate:hoje()});
-    setMsg('s_msg','✅ '+num(r.novos)+' comanda(s) cadastrada(s). Confira o nome e ligue cada uma à pessoa.');
-    await carregaCart();
-  }catch(e){setMsg('s_msg',e.message,1)}
-}
-
-async function descobreOffset(){
-  const id=$('o_id').value, cod=$('o_cod').value;
-  if(!id||!cod){setMsg('c_msg2','Preencha o id interno e o número da comanda.',1);return}
-  setMsg('c_msg2','Calculando…');
-  try{
-    const r=await op('descobrir_offset',{unidade:CARTLOJA,id_card:String(id),codigo:String(cod)});
-    setMsg('c_msg2','✅ Offset desta loja: '+r.offset);
-    await carregaCart();
-  }catch(e){setMsg('c_msg2',e.message,1)}
-}
-
-function selEquipe(id,val){
-  let s='<select id="'+id+'" style="width:100%;background:var(--s2);border:1px solid var(--line);border-radius:7px;padding:6px 8px;color:var(--text);font-size:13px">';
-  s+='<option value="">— não ligado —</option>';
-  EQUIPE.forEach(function(f){s+='<option value="'+f.id+'"'+(String(val||'')===String(f.id)?' selected':'')+'>'+esc(f.nome)+'</option>'});
-  return s+'</select>';
-}
-function selTipo(id,val){
-  const T=['funcionario','motoboys','taxa','outro'];
-  let s='<select id="'+id+'" style="width:100%;background:var(--s2);border:1px solid var(--line);border-radius:7px;padding:6px 8px;color:var(--text);font-size:13px">';
-  T.forEach(function(t){s+='<option'+(t===(val||'funcionario')?' selected':'')+'>'+t+'</option>'});
-  return s+'</select>';
-}
-
-async function salvaCart(){
-  const linhas=[];
-  CART.forEach(function(c,i){
-    const nome=(document.querySelector('.cin[data-i="'+i+'"][data-k="nome"]')||{}).value;
-    linhas.push({unidade:CARTLOJA,codigo:String(c.codigo),nome:nome||c.nome,
-      funcionario_id:($('cf_'+i)||{}).value||'',tipo:($('ct_'+i)||{}).value||'funcionario',
-      ativo:($('ca_'+i)||{}).checked!==false});
-  });
-  if(!linhas.length){setMsg('c_msg','Nada para salvar.',1);return}
-  setMsg('c_msg','Salvando…');
-  try{const r=await op('cartao_salvar',{unidade:CARTLOJA,linhas:linhas});
-    setMsg('c_msg','✅ '+num(r.gravados)+' código(s) salvos.');await carregaCart()}
-  catch(e){setMsg('c_msg',e.message,1)}
-}
-
-async function novoCart(){
-  const cod=$('n_cod').value;
-  if(!cod){setMsg('n_msg','Digite o código.',1);return}
-  setMsg('n_msg','Salvando…');
-  try{
-    await op('cartao_salvar',{unidade:CARTLOJA,linhas:[{unidade:CARTLOJA,codigo:String(cod),
-      nome:$('n_nome').value,funcionario_id:$('n_func').value||'',tipo:$('n_tipo').value,ativo:true}]});
-    setMsg('n_msg','✅ Cadastrado.');await carregaCart();
-  }catch(e){setMsg('n_msg',e.message,1)}
-}
-
-async function apagaCart(id){
-  if(!confirm('Apagar este código?'))return;
-  try{await op('cartao_del',{id:String(id)});await carregaCart()}
-  catch(e){alert(e.message)}
-}
-
-async function salvaOffset(){
-  const v=$('c_off').value;
-  if(!v){setMsg('c_msg2','Digite o offset.',1);return}
-  setMsg('c_msg2','Salvando…');
-  try{await op('offset_salvar',{unidade:CARTLOJA,offset_card:String(v)});setMsg('c_msg2','✅ Offset salvo.');await carregaCart()}
-  catch(e){setMsg('c_msg2',e.message,1)}
-}
-
-/* ================= entrada ================= */
 cdmGuarda().then(function(ok){
   if(!ok)return;
   const n=cdmNome();if(n)$('quem').textContent=n;
-  setAba('desp');
+  carrega();
 });
 </script>
 <script src="/assets/portal.js?v=3"></script>
