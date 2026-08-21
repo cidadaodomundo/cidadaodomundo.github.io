@@ -627,7 +627,7 @@ function rfLoja(){return RF.loja||''}
 
 function renderRefeicao(){
   limpaTopo();
-  var abas=[['dia','📅 Dia a dia'],['fila','🔗 Sem dono'],['moto','🏍 Motoboys'],['cart','💳 Comandas']];
+  var abas=[['dia','📅 Dia a dia'],['fila','🔗 Sem dono'],['moto','🏍 Motoboys'],['cort','🎁 Cortesias'],['cart','💳 Comandas']];
   var h='<div class="rf-bar">'+
     abas.map(function(a){return '<button class="rf-tab'+(RF.aba===a[0]?' on':'')+'" onclick="rfSet(\'' + a[0] + '\')">'+a[1]+'</button>'}).join('')+
     '<select class="rf-sel" style="margin-left:auto;width:auto" onchange="RF.loja=this.value;rfSet(RF.aba)">'+
@@ -641,10 +641,11 @@ function renderRefeicao(){
 function rfSet(a){
   RF.aba=a;
   var bs=document.querySelectorAll('.rf-tab');
-  for(var i=0;i<bs.length;i++){bs[i].className='rf-tab'+(i===['dia','fila','moto','cart'].indexOf(a)?' on':'')}
+  for(var i=0;i<bs.length;i++){bs[i].className='rf-tab'+(i===['dia','fila','moto','cort','cart'].indexOf(a)?' on':'')}
   if(a==='dia')rfCarregaDia();
   if(a==='fila')rfCarregaFila();
   if(a==='moto')rfCarregaMoto();
+  if(a==='cort')rfCarregaCortesias();
   if(a==='cart')rfCarregaCart();
 }
 function rfBox(h){var e=document.getElementById('rfbox');if(e)e.innerHTML=h}
@@ -1072,6 +1073,51 @@ async function rfPintaRefeicao(dia){
       el.appendChild(d);
     }
   }catch(e){}
+}
+
+async function rfCarregaCortesias(){
+  rfBox('<div class="rf-load">Vendo as cortesias…</div>');
+  try{
+    RF.cort=rfArr(await rfOp('cortesias',{de:rfAtras(30),ate:rfHoje(),unidade:rfLoja()}));
+    var tot=0; RF.cort.forEach(function(c){tot+=Number(c.refeicoes||0)});
+    var semTel=RF.cort.filter(function(c){return !c.telefone}).length;
+
+    var h='<div class="rf-kpis">'+
+      rfKpi('Cortesias em 30 dias',rfNum(tot),RF.cort.length+' lançamento(s)')+
+      rfKpi('Sem telefone',rfNum(semTel),'cadastre o cliente no Saipos para ter o contato')+
+      '</div>';
+
+    h+='<div class="rf-h2">Quem recebeu <span class="hint">30 dias · fora funcionário e motoboy</span></div><div class="rf-card">';
+    if(!RF.cort.length){
+      h+='<div class="rf-empty">Nenhuma cortesia registrada no período.</div>';
+    }else{
+      h+='<div class="rf-wrap"><table class="rf-tb"><tr><th>Dia</th><th>Loja</th><th>Quem recebeu</th>'+
+         '<th>Telefone</th><th>O que é</th><th class="n">Lanches</th><th>Produto</th></tr>';
+      RF.cort.forEach(function(c){
+        var quem=c.nome_digitado||c.cliente||'—';
+        var rot=c.rotulo||'sem rótulo';
+        h+='<tr><td>'+rfBr(c.dia)+'</td><td>'+rfEsc(c.unidade)+'</td>'+
+           '<td>'+rfEsc(quem)+(c.cliente&&c.nome_digitado?'<div class="rf-nota">cliente: '+rfEsc(c.cliente)+'</div>':'')+'</td>'+
+           '<td>'+(c.telefone?rfEsc(c.telefone):'<span class="rf-pill warn">sem telefone</span>')+'</td>'+
+           '<td><span class="rf-pill '+(rot==='sem rótulo'?'mute':'ok')+'">'+rfEsc(rot)+'</span></td>'+
+           '<td class="n">'+rfNum(c.refeicoes)+'</td>'+
+           '<td>'+rfEsc(c.produtos||'—')+'</td></tr>';
+      });
+      h+='</table></div>';
+    }
+    h+='</div>';
+
+    h+='<div class="rf-h2">Como registrar direito</div><div class="rf-card">'+
+       '<div style="line-height:1.7">'+
+       '<b>Quando der um lanche de cortesia — guarda municipal, prestador, visita:</b><br>'+
+       '1. No Saipos, <b>crie o cliente</b> com o nome da pessoa e o telefone.<br>'+
+       '2. Lance a venda nesse cliente, com o produto de funcionário (valor zero).<br>'+
+       '3. Pronto. O nome e o telefone aparecem aqui sozinhos, no dia seguinte.'+
+       '</div>'+
+       '<div class="rf-nota" style="margin-top:10px">Enquanto o cliente não for criado, a cortesia entra só com o nome digitado na comanda e fica <b>sem telefone</b>. Dá para trabalhar assim, mas sem contato de quem recebeu.</div>'+
+       '</div>';
+    rfBox(h);
+  }catch(e){rfErro(e)}
 }
 </script><script src="/assets/portal.js?v=3"></script>
 </body></html>
