@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#c8102e">
+<title>Desperdício &amp; Refeição · Cidadão do Mundo</title>
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#c8102e;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1180px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:16px}
+.top .rt{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.dot{width:40px;height:40px;border-radius:11px;background:var(--brand);display:grid;place-items:center;font-weight:800;font-size:16px}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+button.b:hover{border-color:var(--muted)}
+button.p{background:var(--brand);border-color:var(--brand)}
+button.p:disabled{opacity:.5;cursor:default}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.tab{background:var(--s1);border:1px solid var(--line);border-radius:999px;padding:8px 16px;font-size:13.5px;font-weight:700;color:var(--text2);cursor:pointer}
+.tab.on{background:var(--brand);border-color:var(--brand);color:#fff}
+h2{font-size:15px;font-weight:800;margin:22px 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+h2 .hint{font-weight:500;font-size:11.5px;color:var(--muted)}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:16px;margin-bottom:14px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:6px}
+.kpi{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:14px 16px}
+.kpi .t{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+.kpi .v{font-size:26px;font-weight:800;line-height:1.15;margin-top:4px}
+.kpi .d{color:var(--muted);font-size:11.5px;margin-top:2px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.f label{display:block;color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:4px}
+.f input,.f select,.f textarea{width:100%;background:var(--s2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;color:var(--text);font-size:13.5px;outline:none;font-family:inherit}
+.f input:focus,.f select:focus,.f textarea:focus{border-color:var(--brand)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px 10px;text-align:left;font-size:13px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+tr:last-child td{border-bottom:none}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.wrap{overflow-x:auto}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap}
+.p-ok{background:rgba(47,174,106,.15);color:var(--ok)}
+.p-warn{background:rgba(201,133,0,.15);color:var(--warn)}
+.p-bad{background:rgba(230,103,103,.15);color:var(--bad)}
+.p-mute{background:var(--s2);color:var(--muted)}
+.aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:11px 14px;font-size:12.5px;margin:12px 0}
+.load{color:var(--muted);padding:26px;text-align:center}
+.empty{color:var(--muted);padding:22px;text-align:center;font-size:13px}
+.msg{font-size:12.5px;margin-top:10px;min-height:18px}
+.msg.ok{color:var(--ok)}
+.msg.err{color:var(--bad)}
+.lk{color:var(--text);cursor:pointer;font-weight:600;text-decoration:underline;text-underline-offset:2px}
+.x{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:0 4px}
+.x:hover{color:var(--bad)}
+@media(max-width:640px){body{padding:12px}h1{font-size:19px}}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div style="display:flex;gap:10px;align-items:center">
+    <div class="dot">CM</div>
+    <div><h1>🗑 Desperdício &amp; Refeição</h1><div class="sub" id="sub">o que se perdeu e o que a equipe comeu — por loja</div></div>
+  </div>
+  <div class="rt">
+    <span id="quem" style="color:var(--muted);font-size:12.5px"></span>
+    <button class="b" onclick="location.reload()">↻ Atualizar</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab on" id="t_desp" onclick="setAba('desp')">🗑 Desperdício</div>
+  <div class="tab" id="t_ref" onclick="setAba('ref')">🍽 Refeição do time</div>
+  <div class="tab" id="t_cart" onclick="setAba('cart')">💳 Cartões</div>
+</div>
+
+<div id="conteudo"><div class="load">Carregando…</div></div>
+
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const H={apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'};
+const $=i=>document.getElementById(i);
+
+/* ===== porta unica do portal: sessao por usuario ===== */
+const CDMMODS=['operacao','escritorio'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmNome(){try{return sessionStorage.getItem('cdm_nome')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:H,body:JSON.stringify({p_token:t})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+
+/* ===== base ===== */
+const UNI=['Água Verde','São Braz','Ahú','Boqueirão'];
+const TURNOS=['Almoço','Tarde','Jantar','Madrugada'];
+const MOTIVOS=['Queimou','Caiu no chão','Erro de pedido','Venceu / estragou','Sobra de produção','Devolução do cliente','Teste / treinamento','Outro'];
+const MEDIDAS=['un','kg','g','L','ml','porção'];
+let ABA='desp', LOJA='', DESP=[], RESUMO=[], REFDIA=[], CART=[], OFFSET=[], EQUIPE=[], CARTLOJA='Água Verde';
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function iso(d){return d.toISOString().slice(0,10)}
+function br(s){return s?String(s).slice(8,10)+'/'+String(s).slice(5,7):'—'}
+function brl(v){return v==null?'—':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function num(v){return v==null?'—':Number(v).toLocaleString('pt-BR')}
+function hoje(){return iso(new Date())}
+function diasAtras(n){return iso(new Date(Date.now()-n*864e5))}
+
+async function op(acao,dados){
+  const r=await fetch(SB+'rpc/operacao_consulta',{method:'POST',headers:H,
+    body:JSON.stringify({p_cred:cdmTok(),p_acao:acao,p_dados:dados||{}})});
+  let j=null;try{j=await r.json()}catch(e){}
+  if(!r.ok)throw new Error((j&&j.message)||('falha na consulta (HTTP '+r.status+')'));
+  return j;
+}
+function arrOk(x){return Array.isArray(x)?x:[]}
+function setMsg(id,txt,erro){const e=$(id);if(!e)return;e.className='msg '+(erro?'err':'ok');e.textContent=txt||''}
+
+function setAba(a){
+  ABA=a;
+  ['desp','ref','cart'].forEach(function(k){const e=$('t_'+k);if(e)e.className='tab'+(k===a?' on':'')});
+  if(a==='desp')carregaDesp();
+  if(a==='ref')carregaRef();
+  if(a==='cart')carregaCart();
+}
+
+/* ================= 1) DESPERDÍCIO ================= */
+async function carregaDesp(){
+  $('conteudo').innerHTML='<div class="load">Carregando lançamentos…</div>';
+  try{
+    const p={de:diasAtras(30),ate:hoje()};
+    if(LOJA)p.unidade=LOJA;
+    const r=await Promise.all([op('resumo',p),op('lista',p)]);
+    RESUMO=arrOk(r[0]);DESP=arrOk(r[1]);
+    renderDesp();
+  }catch(e){$('conteudo').innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
+}
+
+function renderDesp(){
+  let tot=0,evi=0,nl=0;
+  RESUMO.forEach(function(x){tot+=Number(x.custo||0);evi+=Number(x.custo_evitavel||0);nl+=Number(x.lancamentos||0)});
+  const porLoja={};
+  RESUMO.forEach(function(x){porLoja[x.unidade]=(porLoja[x.unidade]||0)+Number(x.custo||0)});
+
+  let h='<div class="cards">'+
+    '<div class="kpi"><div class="t">Perdas em 30 dias</div><div class="v">'+brl(tot)+'</div><div class="d">'+num(nl)+' lançamento(s)</div></div>'+
+    '<div class="kpi"><div class="t">Era evitável</div><div class="v">'+brl(evi)+'</div><div class="d">'+(tot>0?Math.round(evi/tot*100)+'% do total':'—')+'</div></div>'+
+    '<div class="kpi"><div class="t">Média por dia</div><div class="v">'+brl(tot/30)+'</div><div class="d">últimos 30 dias</div></div>'+
+    '</div>';
+
+  if(Object.keys(porLoja).length){
+    h+='<h2>Por loja <span class="hint">30 dias</span></h2><div class="card"><div class="wrap"><table><tr><th>Loja</th><th class="n">Perdas</th></tr>';
+    Object.keys(porLoja).sort(function(a,b){return porLoja[b]-porLoja[a]}).forEach(function(u){
+      h+='<tr><td>'+esc(u)+'</td><td class="n">'+brl(porLoja[u])+'</td></tr>';
+    });
+    h+='</table></div></div>';
+  }
+
+  h+='<h2>Lançar uma perda</h2><div class="card f"><div class="form">'+
+    '<div><label>Loja</label><select id="d_uni">'+UNI.map(function(u){return '<option'+(u===(LOJA||'Água Verde')?' selected':'')+'>'+esc(u)+'</option>'}).join('')+'</select></div>'+
+    '<div><label>Data</label><input type="date" id="d_data" value="'+hoje()+'"></div>'+
+    '<div><label>Turno</label><select id="d_turno"><option value="">—</option>'+TURNOS.map(function(t){return '<option>'+t+'</option>'}).join('')+'</select></div>'+
+    '<div><label>O que se perdeu</label><input id="d_prod" placeholder="ex: hambúrguer 180g" autocomplete="off"></div>'+
+    '<div><label>Quantidade</label><input id="d_qtd" type="number" step="0.01" min="0" value="1"></div>'+
+    '<div><label>Medida</label><select id="d_med">'+MEDIDAS.map(function(m){return '<option>'+m+'</option>'}).join('')+'</select></div>'+
+    '<div><label>Custo por unidade</label><input id="d_custo" type="number" step="0.01" min="0" placeholder="opcional"></div>'+
+    '<div><label>Motivo</label><select id="d_mot">'+MOTIVOS.map(function(m){return '<option>'+m+'</option>'}).join('')+'</select></div>'+
+    '<div><label>Dava para evitar?</label><select id="d_evi"><option value="1">Sim</option><option value="0">Não</option></select></div>'+
+    '<div style="grid-column:1/-1"><label>Detalhe (opcional)</label><input id="d_det" placeholder="o que aconteceu"></div>'+
+    '</div><div style="margin-top:12px;display:flex;gap:8px;align-items:center">'+
+    '<button class="b p" id="d_btn" onclick="salvaDesp()">Lançar perda</button>'+
+    '<span class="msg" id="d_msg"></span></div></div>';
+
+  h+='<h2>Últimos lançamentos <span class="hint">30 dias · '+num(DESP.length)+' linha(s)</span></h2>';
+  if(!DESP.length){
+    h+='<div class="card"><div class="empty">Nada lançado ainda. Assim que a equipe começar a registrar, os números aparecem aqui em cima.</div></div>';
+  }else{
+    h+='<div class="card"><div class="wrap"><table><tr><th>Dia</th><th>Loja</th><th>Turno</th><th>Item</th><th class="n">Qtd</th><th class="n">Custo</th><th>Motivo</th><th>Evitável</th><th>Quem</th><th></th></tr>';
+    DESP.forEach(function(d){
+      h+='<tr><td>'+br(d.data)+'</td><td>'+esc(d.unidade)+'</td><td>'+esc(d.turno||'—')+'</td>'+
+         '<td>'+esc(d.produto||'—')+(d.detalhe?'<div style="color:var(--muted);font-size:11.5px">'+esc(d.detalhe)+'</div>':'')+'</td>'+
+         '<td class="n">'+num(d.quantidade)+' '+esc(d.medida||'')+'</td>'+
+         '<td class="n">'+(d.custo_total?brl(d.custo_total):'—')+'</td>'+
+         '<td>'+esc(d.motivo||'—')+'</td>'+
+         '<td>'+(d.evitavel?'<span class="pill p-bad">sim</span>':'<span class="pill p-mute">não</span>')+'</td>'+
+         '<td>'+esc(d.lancado_por||'—')+'</td>'+
+         '<td class="n"><button class="x" title="apagar" onclick="apagaDesp('+d.id+')">✕</button></td></tr>';
+    });
+    h+='</table></div></div>';
+  }
+  h+='<div class="aviso">O custo é opcional. Sem ele o lançamento continua valendo para contar quantas vezes aconteceu — só não entra na conta de dinheiro.</div>';
+  $('conteudo').innerHTML=h;
+}
+
+async function salvaDesp(){
+  const prod=$('d_prod').value.trim();
+  if(!prod){setMsg('d_msg','Escreva o que se perdeu.',1);return}
+  const qtd=Number($('d_qtd').value||0);
+  if(!(qtd>0)){setMsg('d_msg','A quantidade tem que ser maior que zero.',1);return}
+  $('d_btn').disabled=true;setMsg('d_msg','Salvando…');
+  try{
+    await op('add',{unidade:$('d_uni').value,data:$('d_data').value,turno:$('d_turno').value,
+      produto:prod,quantidade:String(qtd),medida:$('d_med').value,
+      custo_unit:$('d_custo').value||'',motivo:$('d_mot').value,
+      evitavel:$('d_evi').value==='1',detalhe:$('d_det').value.trim(),
+      lancado_por:cdmNome()});
+    setMsg('d_msg','✅ Lançado.');
+    $('d_prod').value='';$('d_qtd').value='1';$('d_custo').value='';$('d_det').value='';
+    await carregaDesp();
+  }catch(e){setMsg('d_msg',e.message,1)}
+  const b=$('d_btn');if(b)b.disabled=false;
+}
+
+async function apagaDesp(id){
+  if(!confirm('Apagar este lançamento?'))return;
+  try{await op('del',{id:String(id)});await carregaDesp()}
+  catch(e){alert(e.message)}
+}
+
+/* ================= 2) REFEIÇÃO DO TIME ================= */
+async function carregaRef(){
+  $('conteudo').innerHTML='<div class="load">Carregando refeições…</div>';
+  try{
+    const p={de:diasAtras(14),ate:hoje()};
+    if(LOJA)p.unidade=LOJA;
+    REFDIA=arrOk(await op('refeicao_dia',p));
+    renderRef();
+  }catch(e){$('conteudo').innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
+}
+
+function renderRef(){
+  const comDado=REFDIA.filter(function(r){return r.tem_dado_saipos});
+  const semDado=REFDIA.length-comDado.length;
+  let trab=0,nao=0,semc=0,demais=0,ref=0;
+  comDado.forEach(function(r){trab+=Number(r.trabalharam||0);nao+=Number(r.nao_lancaram||0);
+    semc+=Number(r.sem_cartao||0);demais+=Number(r.lancaram_demais||0);ref+=Number(r.refeicoes_total||0)});
+
+  let h='<div class="cards">'+
+    '<div class="kpi"><div class="t">Refeições lançadas</div><div class="v">'+num(ref)+'</div><div class="d">'+num(comDado.length)+' dia(s) com dado do Saipos</div></div>'+
+    '<div class="kpi"><div class="t">Trabalharam</div><div class="v">'+num(trab)+'</div><div class="d">pelo ponto, não pela venda</div></div>'+
+    '<div class="kpi"><div class="t">Não lançaram</div><div class="v">'+num(nao)+'</div><div class="d">estavam no ponto e não registraram</div></div>'+
+    '<div class="kpi"><div class="t">Sem cartão cadastrado</div><div class="v">'+num(semc)+'</div><div class="d">falta código na aba Cartões</div></div>'+
+    '</div>';
+
+  if(semDado>0){
+    h+='<div class="aviso">'+num(semDado)+' dia(s) do período estão como <b>SEM DADO DO SAIPOS</b> — a carga não trouxe a venda daquele dia. Isso não quer dizer que ninguém lançou, e por isso esses dias ficam fora das contas acima.</div>';
+  }
+
+  h+='<h2>Dia a dia <span class="hint">últimos 14 dias · a base é o PONTO, não a venda</span></h2>';
+  if(!REFDIA.length){
+    h+='<div class="card"><div class="empty">Sem dado no período.</div></div>';
+  }else{
+    h+='<div class="card"><div class="wrap"><table><tr><th>Dia</th><th>Loja</th><th class="n">Trabalharam</th><th class="n">Refeições</th><th class="n">Não lançaram</th><th class="n">Sem cartão</th><th class="n">A mais</th><th>Situação</th></tr>';
+    REFDIA.forEach(function(r){
+      const sem=!r.tem_dado_saipos;
+      h+='<tr><td><span class="lk" onclick="verDia(\''+r.dia+'\',\''+esc(r.unidade).replace(/'/g,'')+'\')">'+br(r.dia)+'</span></td>'+
+         '<td>'+esc(r.unidade)+'</td>'+
+         '<td class="n">'+num(r.trabalharam)+'</td>'+
+         '<td class="n">'+(sem?'—':num(r.refeicoes_total))+'</td>'+
+         '<td class="n">'+(sem?'—':num(r.nao_lancaram))+'</td>'+
+         '<td class="n">'+(sem?'—':num(r.sem_cartao))+'</td>'+
+         '<td class="n">'+(sem?'—':num(r.lancaram_demais))+'</td>'+
+         '<td>'+(sem?'<span class="pill p-mute">sem dado do Saipos</span>':
+                 (r.alerta?'<span class="pill p-warn">'+esc(r.alerta)+'</span>':'<span class="pill p-ok">ok</span>'))+'</td></tr>';
+    });
+    h+='</table></div></div>';
+  }
+  h+='<div id="detdia"></div>';
+  h+='<div class="aviso">O código que cada um digita é o <b>cartão do Saipos</b>. Quem aparece como “sem cartão” só precisa ser cadastrado na aba Cartões — não é falta de lançamento.</div>';
+  $('conteudo').innerHTML=h;
+}
+
+async function verDia(dia,uni){
+  const el=$('detdia');
+  if(!el)return;
+  el.innerHTML='<div class="load">Carregando o dia…</div>';
+  try{
+    const linhas=arrOk(await op('refeicao_pessoa',{dia:dia,unidade:uni}));
+    let h='<h2>'+br(dia)+' · '+esc(uni)+' <span class="hint">pessoa a pessoa</span></h2><div class="card">';
+    if(!linhas.length){h+='<div class="empty">Ninguém no ponto nesse dia nessa loja.</div>'}
+    else{
+      h+='<div class="wrap"><table><tr><th>Pessoa</th><th>Entrada</th><th>Saída</th><th class="n">Horas</th><th class="n">Código</th><th class="n">Refeições</th><th>O que pegou</th><th>Situação</th></tr>';
+      linhas.forEach(function(l){
+        const s=String(l.situacao||'');
+        const cls=/sem dado/i.test(s)?'p-mute':(/ok|normal/i.test(s)?'p-ok':(/demais|a mais/i.test(s)?'p-bad':'p-warn'));
+        h+='<tr><td>'+esc(l.nome)+'</td><td>'+esc((l.entrada||'').slice(0,5)||'—')+'</td><td>'+esc((l.saida||'').slice(0,5)||'—')+'</td>'+
+           '<td class="n">'+(l.horas==null?'—':num(l.horas))+'</td>'+
+           '<td class="n">'+(l.codigo==null?'—':l.codigo)+'</td>'+
+           '<td class="n">'+num(l.refeicoes)+'</td>'+
+           '<td>'+esc(l.tipos||'—')+'</td>'+
+           '<td><span class="pill '+cls+'">'+esc(s||'—')+'</span></td></tr>';
+      });
+      h+='</table></div>';
+    }
+    h+='</div>';
+    el.innerHTML=h;
+    el.scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(e){el.innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
+}
+
+/* ================= 3) CARTÕES ================= */
+async function carregaCart(){
+  $('conteudo').innerHTML='<div class="load">Carregando cartões…</div>';
+  try{
+    const r=await op('cartoes',{unidade:CARTLOJA});
+    CART=arrOk(r.cartoes);OFFSET=arrOk(r.offset);EQUIPE=arrOk(r.equipe);
+    renderCart();
+  }catch(e){$('conteudo').innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
+}
+
+function renderCart(){
+  const off=OFFSET.filter(function(o){return o.unidade===CARTLOJA})[0];
+  let h='<h2>Cartões (comandas do Saipos) <span class="hint">o número que cada um digita</span></h2>';
+  h+='<div class="card f"><div class="form">'+
+     '<div><label>Loja</label><select id="c_loja" onchange="CARTLOJA=this.value;carregaCart()">'+
+     UNI.map(function(u){return '<option'+(u===CARTLOJA?' selected':'')+'>'+esc(u)+'</option>'}).join('')+'</select></div>'+
+     '<div><label>Offset desta loja</label><input id="c_off" type="number" value="'+(off&&off.offset_card!=null?off.offset_card:'')+'" placeholder="ex: 153714"></div>'+
+     '<div style="display:flex;align-items:flex-end"><button class="b" onclick="salvaOffset()">Salvar offset</button></div>'+
+     '<div style="grid-column:1/-1"><span class="msg" id="c_msg2"></span></div>'+
+     '</div>'+
+     '<div style="color:var(--muted);font-size:11.5px;margin-top:8px">O offset é o que liga o número do cartão ao pedido do Saipos: <b>código = id do cartão − offset</b>. Na Água Verde é 153714. Ahú e São Braz ainda não têm o seu.</div></div>';
+
+  h+='<h2>Códigos de '+esc(CARTLOJA)+' <span class="hint">'+num(CART.length)+' cadastrado(s)</span></h2><div class="card">';
+  h+='<div class="wrap"><table><tr><th class="n">Código</th><th>Nome no cartão</th><th>Pessoa do cadastro</th><th>Tipo</th><th>Ativo</th><th></th></tr>';
+  if(!CART.length){
+    h+='<tr><td colspan="6"><div class="empty">Nenhum código cadastrado nesta loja. Use a linha de baixo para começar.</div></td></tr>';
+  }else{
+    CART.forEach(function(c,i){
+      h+='<tr>'+
+        '<td class="n">'+c.codigo+'</td>'+
+        '<td><input class="cin" data-i="'+i+'" data-k="nome" value="'+esc(c.nome||'')+'" style="width:100%;background:var(--s2);border:1px solid var(--line);border-radius:7px;padding:6px 8px;color:var(--text);font-size:13px"></td>'+
+        '<td>'+selEquipe('cf_'+i,c.funcionario_id)+'</td>'+
+        '<td>'+selTipo('ct_'+i,c.tipo)+'</td>'+
+        '<td><input type="checkbox" id="ca_'+i+'"'+(c.ativo?' checked':'')+'></td>'+
+        '<td class="n"><button class="x" title="apagar" onclick="apagaCart('+c.id+')">✕</button></td>'+
+      '</tr>';
+    });
+  }
+  h+='</table></div>';
+  h+='<div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+     '<button class="b p" onclick="salvaCart()">Salvar alterações</button><span class="msg" id="c_msg"></span></div></div>';
+
+  h+='<h2>Cadastrar um código novo</h2><div class="card f"><div class="form">'+
+     '<div><label>Código</label><input id="n_cod" type="number" placeholder="ex: 101"></div>'+
+     '<div><label>Nome no cartão</label><input id="n_nome" placeholder="NOME COMO APARECE"></div>'+
+     '<div><label>Pessoa do cadastro</label>'+selEquipe('n_func',null)+'</div>'+
+     '<div><label>Tipo</label>'+selTipo('n_tipo','funcionario')+'</div>'+
+     '</div><div style="margin-top:12px;display:flex;gap:8px;align-items:center">'+
+     '<button class="b p" onclick="novoCart()">Cadastrar</button><span class="msg" id="n_msg"></span></div></div>';
+
+  const semLig=CART.filter(function(c){return c.tipo==='funcionario'&&!c.funcionario_id}).length;
+  if(semLig)h+='<div class="aviso">'+num(semLig)+' código(s) ainda não estão ligados a uma pessoa do cadastro. Enquanto isso, a refeição dessas pessoas não cruza com o ponto.</div>';
+  $('conteudo').innerHTML=h;
+}
+
+function selEquipe(id,val){
+  let s='<select id="'+id+'" style="width:100%;background:var(--s2);border:1px solid var(--line);border-radius:7px;padding:6px 8px;color:var(--text);font-size:13px">';
+  s+='<option value="">— não ligado —</option>';
+  EQUIPE.forEach(function(f){s+='<option value="'+f.id+'"'+(String(val||'')===String(f.id)?' selected':'')+'>'+esc(f.nome)+'</option>'});
+  return s+'</select>';
+}
+function selTipo(id,val){
+  const T=['funcionario','taxa','outro'];
+  let s='<select id="'+id+'" style="width:100%;background:var(--s2);border:1px solid var(--line);border-radius:7px;padding:6px 8px;color:var(--text);font-size:13px">';
+  T.forEach(function(t){s+='<option'+(t===(val||'funcionario')?' selected':'')+'>'+t+'</option>'});
+  return s+'</select>';
+}
+
+async function salvaCart(){
+  const linhas=[];
+  CART.forEach(function(c,i){
+    const nome=(document.querySelector('.cin[data-i="'+i+'"][data-k="nome"]')||{}).value;
+    linhas.push({unidade:CARTLOJA,codigo:String(c.codigo),nome:nome||c.nome,
+      funcionario_id:($('cf_'+i)||{}).value||'',tipo:($('ct_'+i)||{}).value||'funcionario',
+      ativo:($('ca_'+i)||{}).checked!==false});
+  });
+  if(!linhas.length){setMsg('c_msg','Nada para salvar.',1);return}
+  setMsg('c_msg','Salvando…');
+  try{const r=await op('cartao_salvar',{unidade:CARTLOJA,linhas:linhas});
+    setMsg('c_msg','✅ '+num(r.gravados)+' código(s) salvos.');await carregaCart()}
+  catch(e){setMsg('c_msg',e.message,1)}
+}
+
+async function novoCart(){
+  const cod=$('n_cod').value;
+  if(!cod){setMsg('n_msg','Digite o código.',1);return}
+  setMsg('n_msg','Salvando…');
+  try{
+    await op('cartao_salvar',{unidade:CARTLOJA,linhas:[{unidade:CARTLOJA,codigo:String(cod),
+      nome:$('n_nome').value,funcionario_id:$('n_func').value||'',tipo:$('n_tipo').value,ativo:true}]});
+    setMsg('n_msg','✅ Cadastrado.');await carregaCart();
+  }catch(e){setMsg('n_msg',e.message,1)}
+}
+
+async function apagaCart(id){
+  if(!confirm('Apagar este código?'))return;
+  try{await op('cartao_del',{id:String(id)});await carregaCart()}
+  catch(e){alert(e.message)}
+}
+
+async function salvaOffset(){
+  const v=$('c_off').value;
+  if(!v){setMsg('c_msg2','Digite o offset.',1);return}
+  setMsg('c_msg2','Salvando…');
+  try{await op('offset_salvar',{unidade:CARTLOJA,offset_card:String(v)});setMsg('c_msg2','✅ Offset salvo.');await carregaCart()}
+  catch(e){setMsg('c_msg2',e.message,1)}
+}
+
+/* ================= entrada ================= */
+cdmGuarda().then(function(ok){
+  if(!ok)return;
+  const n=cdmNome();if(n)$('quem').textContent=n;
+  setAba('desp');
+});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
