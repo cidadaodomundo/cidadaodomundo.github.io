@@ -73,13 +73,6 @@ button.bx{background:#2a1a1a;border-color:#5a2f2f;color:#f0a0a0}
 </style>
 </head>
 <body>
-<div id="gate"><div class="gb">
-  <h1 style="font-size:17px">Reunião Semanal</h1>
-  <div class="sub">Cidadão do Mundo</div>
-  <input type="password" id="gpw" placeholder="Senha" onkeydown="if(event.key==='Enter')gt()">
-  <button onclick="gt()">Entrar</button>
-  <div id="ge" style="color:#f08d8d;font-size:12px;min-height:16px;margin-top:8px"></div>
-</div></div>
 
 <div class="top">
   <div><h1>📊 Reunião Semanal</h1><div class="sub" id="periodo">carregando…</div></div>
@@ -97,17 +90,31 @@ button.bx{background:#2a1a1a;border-color:#5a2f2f;color:#f0a0a0}
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const H={apikey:KEY,Authorization:'Bearer '+KEY};
-const PASS='6db4bb52b559fe6100a9ce00ff3ad2e9153a28179ddfc2fb394496e7c0edef34';
-const OWNER=['d7149f187239f5d99c428c666fa476b7e7808f38226765d5c62ed0ec65e7eaee','e4a209159425e3ee99d7c71a804c4e8c4dc9fa00acdaaab798b746d59205780c'];
 const TODAS=['Água Verde','Ahú','São Braz'];
 let LOJA='Todas';
 let UNI=TODAS.slice();
 function setLoja(u){LOJA=u;UNI=(u==='Todas')?TODAS.slice():[u];render();}
 const $=i=>document.getElementById(i);
-async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
-async function gt(){const h=await sha(($('gpw').value||'').trim());
-  if(h===PASS||OWNER.includes(h)){sessionStorage.setItem('cm_ok','1');sessionStorage.setItem('cdm_reuniao_pw',($('gpw').value||'').trim());$('gate').style.display='none';boot()}else $('ge').textContent='Senha incorreta.'}
-if(['cm_ok','cm_owner_ok','cm_del_ok','cm_rh_ok'].some(k=>sessionStorage.getItem(k)==='1')){$('gate').style.display='none'}
+/* ===== porta unica do portal: sessao por usuario ===== */
+const CDMMODS=['reuniao'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmTem(id){try{const l=JSON.parse(sessionStorage.getItem('cdm_modulos')||'[]');return Array.isArray(l)&&l.some(function(m){return m&&m.id===id})}catch(e){return false}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch('https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/rpc/portal_eu',{method:'POST',headers:{apikey:'sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV',Authorization:'Bearer sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV','Content-Type':'application/json'},body:JSON.stringify({p_token:t})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
 
 /* ---------- semanas (segunda a domingo, fechadas) ---------- */
 const iso=d=>d.toISOString().slice(0,10);
@@ -438,7 +445,7 @@ function pautaStatus(id,v,el){
   pSalvar('set_status',{pauta_id:id,status:v}).then(()=>pautaLoad()).catch(e=>{el.disabled=false;PMSG=e.message;pautaRender()});
 }
 const card=(k,v,d)=>`<div class="c"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d||''}</div></div>`;
-if($('gate').style.display==='none')boot();
+cdmGuarda().then(function(ok){if(ok)boot()});
 </script>
 <script src="/assets/portal.js?v=3"></script>
 </body></html>

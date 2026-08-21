@@ -58,11 +58,20 @@ iframe{flex:1;width:100%;border:0;background:var(--s0)}
 <div id="gate"><div class="gatebox">
   <img src="//acconimages.s3.amazonaws.com/merchants/logos/378-1755286245137.png" alt="CM">
   <h1>Portal Cidadão do Mundo</h1>
-  <div class="s">Acesso do proprietário — digite a senha</div>
-  <input type="password" id="gpw" placeholder="Senha do proprietário" onkeydown="if(event.key==='Enter')gateTry()">
-  <button onclick="gateTry()">Entrar</button>
+  <div class="s" id="gsub">Entre com o seu usuário</div>
+  <div id="gform">
+    <input type="text" id="guser" placeholder="Usuário" autocomplete="username" autocapitalize="none" spellcheck="false" onkeydown="if(event.key==='Enter')document.getElementById('gpw').focus()">
+    <input type="password" id="gpw" placeholder="Senha" autocomplete="current-password" onkeydown="if(event.key==='Enter')entrar()">
+    <button onclick="entrar()">Entrar</button>
+  </div>
+  <div id="tform" style="display:none">
+    <input type="password" id="t1" placeholder="Senha atual" autocomplete="current-password">
+    <input type="password" id="t2" placeholder="Nova senha (mínimo 8 letras)" autocomplete="new-password">
+    <input type="password" id="t3" placeholder="Repita a nova senha" autocomplete="new-password" onkeydown="if(event.key==='Enter')trocar()">
+    <button onclick="trocar()">Salvar e entrar</button>
+  </div>
   <div class="gerr" id="gerr"></div>
-  <div style="color:var(--muted);font-size:11.5px;margin-top:14px;line-height:1.5">Use a senha da sua área.<br>Não tem? Fale com o Fábio.</div>
+  <div style="color:var(--muted);font-size:11.5px;margin-top:14px;line-height:1.5">Cada pessoa tem o seu usuário.<br>Esqueceu a senha? Fale com o Fábio.</div>
 </div></div>
 
 <div class="app">
@@ -75,7 +84,8 @@ iframe{flex:1;width:100%;border:0;background:var(--s0)}
     <div class="top">
       <button class="ham" onclick="document.getElementById('side').classList.toggle('open')">☰</button>
       <div class="ti" id="titulo">Início</div>
-      <div class="rt" id="rt"></div>
+      <div id="quem" style="margin-left:auto;display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--muted)"></div>
+      <div class="rt" id="rt" style="margin-left:10px"></div>
     </div>
     <div id="view" style="flex:1;display:flex;flex-direction:column;min-height:0"></div>
   </div>
@@ -83,54 +93,95 @@ iframe{flex:1;width:100%;border:0;background:var(--s0)}
 
 <script>
 const LOGO="//acconimages.s3.amazonaws.com/merchants/logos/378-1755286245137.png";
-const PAPEIS={
-  'd7149f187239f5d99c428c666fa476b7e7808f38226765d5c62ed0ec65e7eaee':'dono',
-  'e4a209159425e3ee99d7c71a804c4e8c4dc9fa00acdaaab798b746d59205780c':'dono',
-  '717ae97317296be11ea11bfe873944d89ed75030fbf46f6cd74d488600ad5ccc':'gestao',
-  'bc54706ad12e7654b56e3b7468768d3c9a3b98459a95b8c465a47fed979ed792':'saobraz',
-  '132704a017cc174942929dae49a5de2748d09170a0b16962cad693e88ee57441':'delivery'};
-const ROTULO={dono:'Proprietário',gestao:'Gestoras · Água Verde',saobraz:'São Braz',delivery:'Delivery · Água Verde'};
-const FLAGS={dono:['cm_owner_ok','cm_ok','cm_del_ok','cm_rh_ok'],gestao:['cm_del_ok','cm_rh_ok'],delivery:['cm_del_ok'],saobraz:['cm_sb_ok']};
-const MODULOS=[
-  {id:'delivery',grupo:'Delivery',papeis:['dono','gestao','delivery'],nome:'Central do Delivery',icone:'🛵',desc:'Diário, equipe e iFood do delivery',url:'delivery/'},
-  {id:'escala',grupo:'Delivery',papeis:['dono','gestao','delivery'],nome:'Escala & Clima',icone:'🗓',desc:'Previsão de chuva e escala dos motoboys',url:'delivery/escala.html'},
-  {id:'rh',grupo:'Gestão',papeis:['dono','gestao'],nome:'Central do RH',icone:'👥',desc:'Ponto do dia das gestoras',url:'rh/'},
-  {id:'salao',grupo:'Gestão',papeis:['dono','gestao'],nome:'Central Salão',icone:'🍽',desc:'Gestão do salão (em construção)',url:'salao/'},
-  {id:'rhsb',grupo:'São Braz',papeis:['dono','saobraz'],nome:'Ponto · São Braz',icone:'👥',desc:'Ponto do dia — só São Braz',url:'rh/?u='+encodeURIComponent('São Braz')},
-  {id:'ifoodsb',grupo:'São Braz',papeis:['dono','saobraz'],nome:'iFood · São Braz',icone:'🍔',desc:'Notas, cancelamentos, chamados e Selo Super — só São Braz',url:'delivery/ifood-saobraz.html'},
-  {id:'ponto',grupo:'Proprietário',papeis:['dono'],nome:'Painel RH · Proprietários',icone:'⏱️',desc:'Ranking, guia e visão geral do ponto',url:'ponto/'},
-  {id:'ifood',grupo:'Proprietário',papeis:['dono'],nome:'iFood · Qualidade',icone:'🍔',desc:'Notas, cancelamentos, chamados e Selo Super',url:'delivery/ifood-proprietario.html'},
-  {id:'reuniao',grupo:'Proprietário',papeis:['dono'],nome:'Reunião Semanal',icone:'📊',desc:'Resumo semanal: avaliações, cancelamentos, chamados e RH',url:'reuniao/'},
-  {id:'escritorio',grupo:'Proprietário',papeis:['dono'],nome:'Escritório',icone:'🔐',desc:'Em desenvolvimento — acesso restrito',url:'escritorio/'}
-];
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const H={apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'};
+const DESC={delivery:'Diário, equipe e iFood do delivery',escala:'Previsão de chuva e escala dos motoboys',rh:'Ponto do dia das gestoras',salao:'Avaliações e gestão do salão',rhsb:'Ponto do dia — só São Braz',ifoodsb:'Notas, cancelamentos e chamados — só São Braz',ponto:'Consulta por tipo, guia e visão geral do ponto',ifood:'Notas, cancelamentos, chamados e Selo Super',reuniao:'Resumo semanal: avaliações, cancelamentos e RH',escritorio:'Financeiro, contas a pagar e usuários'};
 const GRUPOS=['Delivery','Gestão','São Braz','Proprietário'];
 const $=id=>document.getElementById(id);
-let ROLE=sessionStorage.getItem('cm_portal_role')||null;
+let MODULOS=[];
+let NOME='';
 let ATUAL=null;
-async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
-async function gateTry(){const h=await sha(($('gpw').value||'').trim());
-  const p=PAPEIS[h];
-  if(p){entrar(p)}else{$('gerr').textContent='Senha incorreta.';$('gpw').value=''}}
-function entrar(p){ROLE=p;localStorage.removeItem('cm_portal_role');sessionStorage.setItem('cm_portal_role',p);
-  (FLAGS[p]||[]).forEach(k=>sessionStorage.setItem(k,'1'));
-  $('gate').style.display='none';boot()}
-function sair(){['cm_portal_role','cm_owner_ok','cm_del_ok','cm_rh_ok','cm_sb_ok','cm_esc_ok','cm_ok'].forEach(k=>sessionStorage.removeItem(k));localStorage.removeItem('cm_portal_role');location.reload()}
-function mods(){return MODULOS.filter(m=>m.papeis.includes(ROLE))}
+function arrOk(r){return Array.isArray(r)?r:[]}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function tok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+async function rpc(fn,body){
+  const r=await fetch(SB+'rpc/'+fn,{method:'POST',headers:H,body:JSON.stringify(body)});
+  let j=null;try{j=await r.json()}catch(e){}
+  if(!r.ok){const er=new Error((j&&j.message)||'falha');er.code=(j&&j.code)||'';throw er}
+  return j;
+}
+function aplicar(j){
+  NOME=(j&&j.nome)||'';
+  MODULOS=arrOk(j&&j.modulos).filter(m=>m&&m.id).sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+  try{sessionStorage.setItem('cdm_nome',NOME);
+      sessionStorage.setItem('cdm_admin',(j&&j.admin)?'1':'0');
+      sessionStorage.setItem('cdm_modulos',JSON.stringify(MODULOS));}catch(e){}
+}
+async function entrar(){
+  const u=($('guser').value||'').trim(), s=$('gpw').value||'';
+  if(!u||!s){$('gerr').textContent='Preencha usuário e senha.';return}
+  $('gerr').textContent='Entrando…';
+  try{
+    const j=await rpc('portal_login',{p_usuario:u,p_senha:s});
+    $('gpw').value='';
+    try{sessionStorage.setItem('cdm_token',(j&&j.token)||'')}catch(e){}
+    aplicar(j);
+    $('gerr').textContent='';
+    if(j&&j.precisa_trocar){pedeTroca()}else{$('gate').style.display='none';boot()}
+  }catch(e){
+    $('gpw').value='';
+    $('gerr').textContent=(e.code==='28000')?'Usuário ou senha inválidos':(e.message||'Não foi possível entrar. Tente de novo.');
+  }
+}
+function pedeTroca(){
+  $('gsub').textContent='Troque a senha para continuar';
+  $('gform').style.display='none';$('tform').style.display='';
+  $('gerr').textContent='';
+  setTimeout(function(){try{$('t1').focus()}catch(e){}},60);
+}
+async function trocar(){
+  const a=$('t1').value||'', b=$('t2').value||'', c=$('t3').value||'';
+  if(b.length<8){$('gerr').textContent='A nova senha precisa de pelo menos 8 letras.';return}
+  if(b!==c){$('gerr').textContent='A confirmação não bateu.';return}
+  if(b===a){$('gerr').textContent='A nova senha precisa ser diferente da atual.';return}
+  $('gerr').textContent='Salvando…';
+  try{
+    await rpc('portal_trocar_senha',{p_token:tok(),p_atual:a,p_nova:b});
+    $('t1').value='';$('t2').value='';$('t3').value='';
+    const eu=await rpc('portal_eu',{p_token:tok()});
+    aplicar(eu);
+    $('gerr').textContent='';
+    $('gate').style.display='none';boot();
+  }catch(e){
+    $('gerr').textContent=(e.code==='28000')?'Senha atual incorreta.':(e.message||'Não foi possível trocar a senha.');
+  }
+}
+async function sair(){
+  const t=tok();
+  try{if(t)await rpc('portal_sair',{p_token:t})}catch(e){}
+  ['cdm_token','cdm_nome','cdm_admin','cdm_modulos','cdm_rh_pw','cdm_esc_pw','cdm_moto_pw','cdm_reuniao_pw','cdm_aviso'].forEach(function(k){try{sessionStorage.removeItem(k)}catch(e){}});
+  location.replace('/index.html');
+}
+function mods(){return MODULOS}
 function menu(){
   let h='<div class="mi'+(ATUAL===null?' on':'')+'" onclick="inicio()"><div class="ic">🏠</div><div><div class="t">Início</div></div></div>';
   GRUPOS.forEach(g=>{const l=mods().filter(m=>m.grupo===g);if(l.length)h+='<div class="grp">'+g+'</div>'+l.map(mi).join('')});
   $('menu').innerHTML=h;
-  $('roleLbl').textContent=ROTULO[ROLE]||'Portal de Gestão';
+  $('roleLbl').textContent=NOME||'Portal de Gestão';
+  $('quem').innerHTML=(NOME?'<span>'+esc(NOME)+'</span>':'')+'<button class="btn" onclick="sair()">Sair</button>';
 }
-function mi(m){return '<div class="mi'+(ATUAL===m.id?' on':'')+'" onclick="abrir(\''+m.id+'\')"><div class="ic">'+m.icone+'</div><div><div class="t">'+m.nome+'</div><div class="d">'+m.desc+'</div></div></div>'}
+function mi(m){return '<div class="mi'+(ATUAL===m.id?' on':'')+'" onclick="abrir(\''+m.id+'\')"><div class="ic">'+(m.icone||'')+'</div><div><div class="t">'+esc(m.nome)+'</div><div class="d">'+esc(DESC[m.id]||'')+'</div></div></div>'}
 function inicio(){ATUAL=null;location.hash='';$('titulo').textContent='Início';$('rt').innerHTML='';
-  let h='<div class="home"><img src="'+LOGO+'"><h1>Portal de Gestão</h1><div class="s">'+(ROTULO[ROLE]||'')+' — escolha um módulo</div><div class="cards">';
-  GRUPOS.forEach(g=>{const list=mods().filter(m=>m.grupo===g);if(!list.length)return;
-    h+='<div class="gh">'+g+'</div>'+list.map(m=>'<div class="card" onclick="abrir(\''+m.id+'\')"><div class="ic">'+m.icone+'</div><div class="t">'+m.nome+'</div><div class="d">'+m.desc+'</div></div>').join('')});
+  let h='<div class="home"><img src="'+LOGO+'"><h1>Portal de Gestão</h1><div class="s">'+esc(NOME)+' — escolha um módulo</div><div class="cards">';
+  const gs=GRUPOS.slice();
+  mods().forEach(m=>{if(gs.indexOf(m.grupo)<0)gs.push(m.grupo)});
+  gs.forEach(g=>{const list=mods().filter(m=>m.grupo===g);if(!list.length)return;
+    h+='<div class="gh">'+esc(g)+'</div>'+list.map(m=>'<div class="card" onclick="abrir(\''+m.id+'\')"><div class="ic">'+(m.icone||'')+'</div><div class="t">'+esc(m.nome)+'</div><div class="d">'+esc(DESC[m.id]||'')+'</div></div>').join('')});
+  if(!mods().length)h+='<div class="gh">Sem módulos liberados</div><div class="card"><div class="t">Nada por aqui ainda</div><div class="d">Peça ao Fábio para liberar os módulos do seu usuário.</div></div>';
   h+='</div></div>';$('view').innerHTML=h;menu();
 }
 function abrir(id){const m=MODULOS.find(x=>x.id===id);if(!m)return;
-  if(!m.papeis.includes(ROLE))return;
   ATUAL=id;location.hash=id;$('titulo').textContent=m.icone+' '+m.nome;
   URLBASE=m.url;
   $('rt').innerHTML='<button class="btn" onclick="voltar()">← Voltar</button><button class="btn" onclick="recarregar()">↻</button><a class="btn" href="'+m.url+'" target="_blank" rel="noopener">↗ abrir</a>';
@@ -141,7 +192,22 @@ let URLBASE='';
 function recarregar(){const f=$('fr');if(f)f.src=f.src}
 function voltar(){const f=$('fr');if(!f||!URLBASE){inicio();return;}f.src=URLBASE;}
 function boot(){menu();const h=location.hash.replace('#','');if(h&&MODULOS.find(x=>x.id===h)){abrir(h)}else{inicio()}}
-if(ROLE){$('gate').style.display='none';boot()}
+(async function(){
+  let av='';try{av=sessionStorage.getItem('cdm_aviso')||'';sessionStorage.removeItem('cdm_aviso')}catch(e){}
+  if(av)$('gerr').textContent=av;
+  const t=tok();
+  if(!t){try{$('guser').focus()}catch(e){}return}
+  try{
+    const eu=await rpc('portal_eu',{p_token:t});
+    aplicar(eu);
+    if(eu&&eu.precisa_trocar){pedeTroca();return}
+    $('gate').style.display='none';boot();
+  }catch(e){
+    ['cdm_token','cdm_nome','cdm_admin','cdm_modulos'].forEach(function(k){try{sessionStorage.removeItem(k)}catch(x){}});
+    if(!av)$('gerr').textContent='Sua sessão expirou. Entre de novo.';
+    try{$('guser').focus()}catch(x){}
+  }
+})();
 </script>
 </body>
 </html>

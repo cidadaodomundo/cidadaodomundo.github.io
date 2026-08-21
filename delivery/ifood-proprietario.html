@@ -51,15 +51,6 @@
 </head>
 <body>
 
-<div id="gate" style="position:fixed;inset:0;background:#0f1216;display:flex;align-items:center;justify-content:center;z-index:9999">
-  <div style="background:#171b21;border:1px solid #2a323c;border-radius:12px;padding:26px;width:300px;text-align:center">
-    <div style="font-size:17px;font-weight:bold;margin-bottom:6px">🍔 iFood · Cidadão do Mundo</div>
-    <div style="color:#95a1b2;font-size:13px;margin-bottom:16px">Painel restrito — digite a senha</div>
-    <input id="gp" type="password" placeholder="Senha" autocomplete="current-password" style="width:100%;box-sizing:border-box;background:#1e242c;color:#e6eaf0;border:1px solid #2a323c;border-radius:8px;padding:11px;font-size:15px;margin-bottom:10px">
-    <div id="gerr" style="display:none;color:#e5484d;font-size:12.5px;margin-bottom:8px">Senha incorreta.</div>
-    <button onclick="_tryAuth()" style="width:100%;background:#f5a623;color:#0d1117;border:0;border-radius:8px;padding:11px;font-size:14px;font-weight:bold;cursor:pointer">Entrar</button>
-  </div>
-</div>
 
 <div id="appwrap" class="wrap" style="display:none">
   <div class="flex" style="justify-content:space-between">
@@ -468,14 +459,27 @@ document.getElementById("lojasel").onchange=e=>{F.loja=+e.target.value;render();
 document.querySelectorAll("#tabs .tab").forEach(t=>t.onclick=()=>{document.querySelectorAll("#tabs .tab").forEach(x=>x.classList.remove("on"));t.classList.add("on");F.tab=t.dataset.t;render();});
 setDays(30);
 
-// gate de senha (mesmo do painel de ponto)
-const PASS_HASH="6db4bb52b559fe6100a9ce00ff3ad2e9153a28179ddfc2fb394496e7c0edef34";
-const OWNER_HASH="d7149f187239f5d99c428c666fa476b7e7808f38226765d5c62ed0ec65e7eaee";
-async function _sha(s){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");}
-async function _tryAuth(){const inp=document.getElementById("gp"),err=document.getElementById("gerr");let h="";try{h=await _sha((inp.value||"").trim());}catch(e){h="";}if(h===PASS_HASH||h===OWNER_HASH){if(h===OWNER_HASH)sessionStorage.setItem("cm_owner_ok","1");document.getElementById("gate").style.display="none";document.getElementById("appwrap").style.display="";loadAll();}else{err.style.display="block";inp.value="";inp.focus();}}
-document.getElementById("gp").addEventListener("keydown",e=>{if(e.key==="Enter")_tryAuth();});
-if(sessionStorage.getItem("cm_owner_ok")==="1"||sessionStorage.getItem("cm_ok")==="1"){document.getElementById("gate").style.display="none";document.getElementById("appwrap").style.display="";loadAll();}else{document.getElementById("gp").focus();}
-if(sessionStorage.getItem("cm_owner_ok")==="1"){document.getElementById("gate").style.display="none";document.getElementById("appwrap").style.display="";loadAll();}
+/* ===== porta unica do portal: sessao por usuario ===== */
+const CDMMODS=['ifood'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmTem(id){try{const l=JSON.parse(sessionStorage.getItem('cdm_modulos')||'[]');return Array.isArray(l)&&l.some(function(m){return m&&m.id===id})}catch(e){return false}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch('https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/rpc/portal_eu',{method:'POST',headers:{apikey:'sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV',Authorization:'Bearer sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV','Content-Type':'application/json'},body:JSON.stringify({p_token:t})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(!ok)return;document.getElementById("appwrap").style.display="";loadAll();});
 </script>
 <script>
 /* Lista de pedidos atrasados — pedido + motoboy. Adicionado 17/08/2026.

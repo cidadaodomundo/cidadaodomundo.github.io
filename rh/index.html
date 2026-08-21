@@ -107,13 +107,14 @@ h1{font-size:17px;font-weight:800}
 .exframe{width:100%;height:calc(100vh - 230px);min-height:520px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
 @media(max-width:760px){.grid{grid-template-columns:1fr}}
 </style></head><body>
-<div id="gate"><div class="gatebox">
+<div id="gate" style="display:none"><div class="gatebox">
   <div class="logo" style="margin:0 auto 12px">CM</div>
-  <h1>Ponto do Dia · Gestoras</h1>
-  <div class="sub">Painel restrito — digite a senha</div>
-  <input type="password" id="gpw" placeholder="Senha" onkeydown="if(event.key==='Enter')gateTry()">
-  <button onclick="gateTry()">Entrar</button>
+  <h1>Detalhe protegido</h1>
+  <div class="sub">Batidas, atestados e advertências pedem a senha do escritório.</div>
+  <input type="password" id="gpw" placeholder="Senha do escritório" onkeydown="if(event.key==='Enter')gateTry()">
+  <button onclick="gateTry()">Liberar detalhe</button>
   <div class="gerr" id="gerr"></div>
+  <div style="margin-top:12px"><a href="#" onclick="rhPular();return false" style="color:var(--muted);font-size:12px">ver o painel sem o detalhe</a></div>
 </div></div>
 <header>
   <div class="brand"><div class="logo">CM</div>
@@ -146,16 +147,36 @@ h1{font-size:17px;font-weight:800}
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const H={apikey:KEY,Authorization:'Bearer '+KEY};
-const GATE_HASH='052765de61630b6ff12d29470a27786e064d7c8cb4f4c55e4a5bbbfcf624d618';
-const GATE_ALT='717ae97317296be11ea11bfe873944d89ed75030fbf46f6cd74d488600ad5ccc';
-const GATE_SB='bc54706ad12e7654b56e3b7468768d3c9a3b98459a95b8c465a47fed979ed792';
-async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
-async function gateTry(){const v=document.getElementById('gpw').value;
-  const hv=await sha(v);
-  if(hv===GATE_SB){sessionStorage.setItem('cm_sb_ok','1');sessionStorage.setItem('cm_portal_role','saobraz');localStorage.setItem('cm_portal_role','saobraz');location.href='?u='+encodeURIComponent('São Braz')}
-  else if(hv===GATE_HASH||hv===GATE_ALT){sessionStorage.setItem('cm_rh_ok','1');try{sessionStorage.setItem('cdm_rh_pw',v)}catch(e){}document.getElementById('gate').style.display='none';RH_SEM_SENHA=false;loadAll()}
-  else document.getElementById('gerr').textContent='Senha incorreta.'}
-if((sessionStorage.getItem('cm_rh_ok')==='1'||sessionStorage.getItem('cm_owner_ok')==='1'||sessionStorage.getItem('cm_sb_ok')==='1'))document.getElementById('gate').style.display='none';
+/* ===== porta unica do portal: sessao por usuario ===== */
+const CDMMODS=['rh','rhsb'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmTem(id){try{const l=JSON.parse(sessionStorage.getItem('cdm_modulos')||'[]');return Array.isArray(l)&&l.some(function(m){return m&&m.id===id})}catch(e){return false}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch('https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/rpc/portal_eu',{method:'POST',headers:{apikey:'sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV',Authorization:'Bearer sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV','Content-Type':'application/json'},body:JSON.stringify({p_token:t})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+function gateTry(){
+  const el=document.getElementById('gpw'), v=(el&&el.value)||'';
+  if(!v){document.getElementById('gerr').textContent='Digite a senha do escritório.';return}
+  try{sessionStorage.setItem('cdm_rh_pw',v)}catch(e){}
+  if(el)el.value='';
+  RH_CRED=null;RH_SEM_SENHA=false;RH_PULOU=false;
+  document.getElementById('gate').style.display='none';
+  document.getElementById('gerr').textContent='';
+  loadAll();
+}
 const ORD={SERIO:0,GRAVE:1,INFRACAO:2,VERBAL:3,CONFERIR:4,SEM:5};
 const NV=r=>(ORD[r.nivel]!==undefined?r.nivel:'CONFERIR');
 const UORD={'Água Verde':0,'Ahú':1,'São Braz':2,'Boqueirão':3};
@@ -173,8 +194,12 @@ try{const _u=new URLSearchParams(location.search).get('u');if(_u)UNIT=_u}catch(e
 const SBUN='São Braz';
 const _qs=new URLSearchParams(location.search);
 const _qsb=[_qs.get('u'),_qs.get('loja')].some(v=>v&&v.trim()===SBUN);
-const SOSB=sessionStorage.getItem('cm_portal_role')==='saobraz'||sessionStorage.getItem('cm_sb_ok')==='1'||localStorage.getItem('cm_portal_role')==='saobraz'||_qsb;
-if(SOSB){sessionStorage.setItem('cm_portal_role','saobraz');localStorage.setItem('cm_portal_role','saobraz');UNIT=SBUN;}
+const _soRHSB=(function(){try{const l=JSON.parse(sessionStorage.getItem('cdm_modulos')||'[]');
+  if(!Array.isArray(l))return false;
+  const ids=l.map(function(m){return m&&m.id});
+  return ids.indexOf('rhsb')>=0&&ids.indexOf('rh')<0;}catch(e){return false}})();
+const SOSB=_qsb||_soRHSB;
+if(SOSB){UNIT=SBUN;}
 const $=id=>document.getElementById(id);
 const fmt=m=>m==null?'—':Math.floor(m/60)+'h'+String(m%60).padStart(2,'0');
 const title=n=>n.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
@@ -185,15 +210,30 @@ let RH_SEM_SENHA=false;
 let ARRERR=0;
 function arrOk(r,q){if(Array.isArray(r))return r;ARRERR++;try{console.error('[rh] falha ao carregar '+q,(r&&(r.message||r.hint||r.code))||r)}catch(e){}return[]}
 const dbr=d=>d?String(d).slice(0,10).split('-').reverse().join('/'):'';
+/* o token da sessao vale como credencial; a senha antiga do escritorio continua
+   valendo como reserva ate o rh_consulta passar a aceitar o token (portal_cred_ok). */
+let RH_CRED=null,RH_PULOU=false;
 function rhPw(){try{return sessionStorage.getItem('cdm_rh_pw')||''}catch(e){return ''}}
-function rhPedeSenha(msg){try{sessionStorage.removeItem('cdm_rh_pw')}catch(e){}RH_SEM_SENHA=true;const g=$('gate');if(g)g.style.display='flex';const el=$('gerr');if(el)el.textContent=msg||'Entre com a senha do escritório para ver o detalhe.';}
+function rhTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function rhPular(){RH_PULOU=true;const g=$('gate');if(g)g.style.display='none';}
+function rhPedeSenha(msg){RH_CRED=null;RH_SEM_SENHA=true;if(RH_PULOU)return;const g=$('gate');if(g)g.style.display='flex';const el=$('gerr');if(el)el.textContent=msg||'Digite a senha do escritório para ver o detalhe.';}
+async function _rhTenta(cred,acao,dados){
+  const res=await fetch(SB+'rpc/rh_consulta',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_senha:cred,p_acao:acao,p_dados:dados||{}})});
+  const j=await res.json().catch(()=>null);
+  return {ok:res.ok,code:(j&&j.code)||'',lista:Array.isArray(j)?j:[]};
+}
 async function rhRPC(acao,dados){
-  const pw=rhPw();if(!pw){RH_SEM_SENHA=true;return[]}
   try{
-    const res=await fetch(SB+'rpc/rh_consulta',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_senha:pw,p_acao:acao,p_dados:dados||{}})});
-    const j=await res.json().catch(()=>null);
-    if(!res.ok){if(j&&j.code==='28000')rhPedeSenha('Senha incorreta — digite de novo.');else RH_SEM_SENHA=true;return[]}
-    RH_SEM_SENHA=false;return Array.isArray(j)?j:[];
+    const cands=RH_CRED?[RH_CRED]:[rhTok(),rhPw()].filter(function(x){return !!x});
+    if(!cands.length){rhPedeSenha('Digite a senha do escritório para ver o detalhe.');return[]}
+    for(let i=0;i<cands.length;i++){
+      const r=await _rhTenta(cands[i],acao,dados);
+      if(r.ok){RH_CRED=cands[i];RH_SEM_SENHA=false;return r.lista}
+      if(r.code!=='28000'){RH_SEM_SENHA=true;return[]}
+    }
+    try{sessionStorage.removeItem('cdm_rh_pw')}catch(e){}
+    rhPedeSenha('Digite a senha do escritório para ver o detalhe.');
+    return[];
   }catch(err){RH_SEM_SENHA=true;return[]}
 }
 async function loadAll(){
@@ -518,6 +558,6 @@ function checkAcoes(){
   if(!acoes.length)document.title='Relatório RH · Cidadão do Mundo';
 }
 setInterval(loadAll, 15*60*1000);
-loadAll();
+cdmGuarda().then(function(ok){if(ok)loadAll()});
 </script><script src="/assets/portal.js?v=3"></script>
 </body></html>

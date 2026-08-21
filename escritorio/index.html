@@ -48,16 +48,6 @@ tr:last-child td{border-bottom:0}
 </head>
 <body>
 
-<div id="gate">
-  <div class="box">
-    <h2>Escritório</h2>
-    <p>Área restrita. Digite a senha do escritório.</p>
-    <input type="password" id="pw" autocomplete="off" placeholder="senha">
-    <button onclick="entrar()">Entrar</button>
-    <div class="err" id="err"></div>
-  </div>
-</div>
-
 <div id="app" hidden>
   <div class="wrap">
     <header>
@@ -66,7 +56,7 @@ tr:last-child td{border-bottom:0}
     </header>
     <nav id="nav"></nav>
     <div id="content"><div class="load">Carregando…</div></div>
-    <div class="foot">Dados privados · não compartilhe esta senha · <a href="#" onclick="sair();return false">sair</a></div>
+    <div class="foot">Dados privados · <span id="quem"></span> · <a href="#" onclick="sair();return false">sair do portal</a></div>
   </div>
 </div>
 
@@ -100,32 +90,35 @@ async function entrar(){
   $('err').textContent='Conferindo…';
   try{
     D=await chamar(s);
-    sessionStorage.setItem(PWKEY,s);
-    $('gate').style.display='none';
-    $('app').hidden=false;
+    try{sessionStorage.setItem(PWKEY,s)}catch(e){}
     boot();
   }catch(e){
-    $('err').textContent='Senha incorreta.';
+    $('err').textContent='Senha do escritório incorreta.';
     $('pw').value='';
   }
 }
 
-function sair(){
-  sessionStorage.removeItem(PWKEY);
-  location.reload();
+async function sair(){
+  const t=cdmTok();
+  try{if(t)await fetch(SB+'rpc/portal_sair',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t})})}catch(e){}
+  ['cdm_token','cdm_nome','cdm_admin','cdm_modulos','cdm_rh_pw',PWKEY,'cdm_moto_pw','cdm_reuniao_pw','cdm_aviso'].forEach(function(k){try{sessionStorage.removeItem(k)}catch(e){}});
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}
 }
 
-const ABAS=[
+const ABAS_FIN=[
   {id:'caixa',   nome:'Caixa & Vendas'},
   {id:'pagar',   nome:'Contas a Pagar'},
   {id:'motoboy', nome:'Motoboy & Folha'},
   {id:'dre',     nome:'DRE / DFC'}
 ];
+const ADMIN=(function(){try{return sessionStorage.getItem('cdm_admin')==='1'}catch(e){return false}})();
+function ABAS(){return ADMIN?ABAS_FIN.concat([{id:'usuarios',nome:'Usuários'}]):ABAS_FIN.slice()}
 
 function boot(){
-  $('nav').innerHTML=ABAS.map(a=>'<button class="gh'+(a.id===ABA?' on':'')+'" onclick="ir('+"'"+a.id+"'"+')">'+a.nome+'</button>').join('');
-  const g=D.gerado_em?String(D.gerado_em).slice(0,10).split('-').reverse().join('/'):'—';
-  $('sub').textContent='Financeiro privado · dados até '+g;
+  $('nav').innerHTML=ABAS().map(a=>'<button class="gh'+(a.id===ABA?' on':'')+'" onclick="ir('+"'"+a.id+"'"+')">'+a.nome+'</button>').join('');
+  const g=(D&&D.gerado_em)?String(D.gerado_em).slice(0,10).split('-').reverse().join('/'):'—';
+  $('sub').textContent=(ABA==='usuarios')?'Quem entra no portal e o que cada um vê':('Financeiro privado · dados até '+g);
+  const q=$('quem');if(q){let n='';try{n=sessionStorage.getItem('cdm_nome')||''}catch(e){}q.textContent=n}
   render();
 }
 
@@ -142,6 +135,8 @@ function kpi(k,v,n){return '<div class="kpi"><div class="k">'+k+'</div><div clas
 
 function render(){
   const c=$('content');
+  if(ABA==='usuarios'){c.innerHTML=usRender();USPROV=null;return}
+  if(!D){c.innerHTML=escPede();setTimeout(function(){try{$('pw').focus()}catch(e){}},60);return}
   const av=D.avisos||{};
 
   if(ABA==='caixa'){
@@ -238,15 +233,224 @@ function render(){
   }
 }
 
-(async function(){
-  const s=pw();
-  if(!s) return;
+/* ===== porta unica do portal: sessao por usuario ===== */
+const CDMMODS=['escritorio'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmTem(id){try{const l=JSON.parse(sessionStorage.getItem('cdm_modulos')||'[]');return Array.isArray(l)&&l.some(function(m){return m&&m.id===id})}catch(e){return false}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
   try{
-    D=await chamar(s);
-    $('gate').style.display='none';
-    $('app').hidden=false;
-    boot();
-  }catch(e){ sessionStorage.removeItem(PWKEY) }
+    const r=await fetch('https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/rpc/portal_eu',{method:'POST',headers:{apikey:'sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV',Authorization:'Bearer sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV','Content-Type':'application/json'},body:JSON.stringify({p_token:t})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const dth=s=>{if(!s)return '—';const t=String(s);const d=t.slice(8,10)+'/'+t.slice(5,7);const h=t.slice(11,16);return h?d+' '+h:d};
+
+function escPede(){
+  return '<div class="box" style="margin:30px auto"><h2>Financeiro</h2>'+
+    '<p>Os números do escritório pedem a senha do escritório, além do seu login.</p>'+
+    '<input type="password" id="pw" autocomplete="off" placeholder="senha do escritório">'+
+    '<button onclick="entrar()">Ver os números</button>'+
+    '<div class="err" id="err"></div></div>';
+}
+
+/* ===================== usuarios e permissoes (so admin) ===================== */
+let USUS=[], UMODS=[], USMSG='', USPROV=null, USFORM=false;
+
+async function padm(acao,dados){
+  const r=await fetch(SB+'rpc/portal_admin',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:cdmTok(),p_acao:acao,p_dados:dados||{}})});
+  let j=null;try{j=await r.json()}catch(e){}
+  if(!r.ok){const er=new Error((j&&j.message)||'falha');er.code=(j&&j.code)||'';throw er}
+  return j;
+}
+
+async function usCarregar(){
+  try{
+    const r=await Promise.all([padm('listar'),padm('modulos')]);
+    USUS=Array.isArray(r[0])?r[0]:[];
+    UMODS=Array.isArray(r[1])?r[1]:[];
+    USMSG='';
+  }catch(e){
+    USUS=[];UMODS=[];
+    USMSG=(e.code==='42501')?'Só o perfil de proprietário administra usuários.':'Não foi possível carregar os usuários agora.';
+  }
+  if(ABA==='usuarios')boot();
+}
+
+function usGrupos(){
+  const g=[];
+  (Array.isArray(UMODS)?UMODS:[]).forEach(function(m){
+    if(!m||!m.id)return;
+    const k=m.grupo||'Outros';
+    let e=null;for(let i=0;i<g.length;i++)if(g[i].k===k)e=g[i];
+    if(!e){e={k:k,ms:[]};g.push(e)}
+    e.ms.push(m);
+  });
+  return g;
+}
+
+function usSelos(u){
+  const s=[];
+  const pill=(t,c)=>'<span style="display:inline-block;border-radius:999px;padding:1px 8px;font-size:10.5px;border:1px solid '+c+';color:'+c+';margin:2px 3px 0 0">'+t+'</span>';
+  s.push(u.ativo?pill('ativo','#8fbf7a'):pill('desativado','#e0736a'));
+  if(u.admin)s.push(pill('proprietário','#c8a35a'));
+  if(u.precisa_trocar)s.push(pill('troca a senha','#8d8a83'));
+  if(u.bloqueado)s.push(pill('bloqueado','#e0736a'));
+  return '<div>'+s.join('')+'</div>';
+}
+
+function usRender(){
+  if(!ADMIN)return '<div class="aviso">Só o perfil de proprietário administra usuários.</div>';
+  if(USMSG)return '<div class="aviso">'+esc(USMSG)+'</div>';
+  if(!USUS.length||!UMODS.length)return '<div class="load">Carregando usuários…</div>';
+  const gs=usGrupos();
+  let h='';
+  if(USPROV)h+='<div class="aviso" id="usprovbox"><b>Senha provisória de '+esc(USPROV.n)+'</b><br>'+
+    '<code id="usprov" style="display:inline-block;background:#111110;border:1px solid #35332e;border-radius:8px;padding:8px 12px;margin:8px 0;font-size:17px;letter-spacing:1px;user-select:all">'+esc(USPROV.s)+'</code> '+
+    '<button class="gh" onclick="usCopiar()">copiar</button><br>'+
+    'Anote agora — ela não aparece de novo. A pessoa troca a senha no primeiro acesso.</div>';
+  h+='<div id="usform">'+(USFORM?usFormHtml():'')+'</div>';
+  h+='<div class="card"><h3>Quem vê o quê</h3>';
+  h+='<div class="aviso">Marcar ou desmarcar salva na hora, sem botão. Desativar uma pessoa derruba a sessão dela na mesma hora.</div>';
+  h+='<div style="margin-bottom:10px"><button class="gh" onclick="usNovo()">+ Novo usuário</button> <button class="gh" onclick="usCarregar()">atualizar</button></div>';
+  h+='<table><thead><tr><th rowspan="2" onclick="return false">Pessoa</th>';
+  gs.forEach(function(g){h+='<th colspan="'+g.ms.length+'" style="text-align:center" onclick="return false">'+esc(g.k)+'</th>'});
+  h+='<th rowspan="2" onclick="return false">Ações</th></tr><tr>';
+  gs.forEach(function(g){g.ms.forEach(function(m){
+    h+='<th style="text-align:center" title="'+esc(m.nome)+'" onclick="return false">'+(m.icone||'')+'<br><span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">'+esc(m.id)+'</span></th>';
+  })});
+  h+='</tr></thead><tbody>';
+  USUS.forEach(function(u){
+    const tem=Array.isArray(u.modulos)?u.modulos:[];
+    h+='<tr><td style="white-space:normal;min-width:190px"><b>'+esc(u.nome||'')+'</b><br>'+
+       '<span style="color:#8d8a83;font-size:11px">'+esc(u.usuario||'')+(u.unidade?' · '+esc(u.unidade):'')+'</span><br>'+
+       '<span style="color:#6f6c66;font-size:11px">último acesso: '+dth(u.ultimo_acesso)+'</span>'+usSelos(u)+'</td>';
+    gs.forEach(function(g){g.ms.forEach(function(m){
+      h+='<td style="text-align:center"><input type="checkbox" '+(tem.indexOf(m.id)>=0?'checked':'')+
+         ' onchange="usPerm(this,'+u.id+',\''+m.id+'\')" title="'+esc(u.nome)+' — '+esc(m.nome)+'"></td>';
+    })});
+    h+='<td style="white-space:normal;min-width:150px">'+
+       '<button class="gh" onclick="usResetar('+u.id+')">Resetar senha</button> '+
+       '<button class="gh" onclick="usAtivo('+u.id+','+(u.ativo?'false':'true')+')">'+(u.ativo?'Desativar':'Reativar')+'</button>'+
+       (u.bloqueado?' <button class="gh" onclick="usDesbloquear('+u.id+')">Desbloquear</button>':'')+
+       '</td></tr>';
+  });
+  h+='</tbody></table></div>';
+  return h;
+}
+
+function usFormHtml(){
+  const st='background:#111110;border:1px solid #35332e;border-radius:9px;color:#e8e6e1;padding:9px 11px;font-size:14px;outline:none;width:auto';
+  return '<div class="card"><h3>Novo usuário</h3>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
+    '<input id="nu_u" placeholder="usuário (sem espaço)" autocapitalize="none" spellcheck="false" style="'+st+'">'+
+    '<input id="nu_n" placeholder="nome completo" style="'+st+'">'+
+    '<input id="nu_d" placeholder="unidade (opcional)" style="'+st+'">'+
+    '<label style="font-size:13px;color:#8d8a83"><input type="checkbox" id="nu_a"> proprietário (administra usuários)</label>'+
+    '<button class="gh" onclick="usCriar()">Criar</button>'+
+    '<button class="gh" onclick="usFecharForm()">cancelar</button>'+
+    '</div><div class="err" id="nu_e"></div>'+
+    '<div style="color:#6f6c66;font-size:11.5px;margin-top:6px">A senha provisória aparece uma única vez depois de criar. Os módulos você marca na tabela abaixo.</div></div>';
+}
+function usNovo(){USFORM=true;boot()}
+function usFecharForm(){USFORM=false;boot()}
+
+function usFeed(el,txt,ok){
+  const td=el&&el.parentNode;if(!td)return;
+  const s=document.createElement('span');
+  s.textContent=' '+txt;
+  s.style.cssText='font-size:10px;margin-left:3px;color:'+(ok?'#8fbf7a':'#e0736a');
+  td.appendChild(s);
+  setTimeout(function(){try{td.removeChild(s)}catch(e){}},1600);
+}
+
+async function usPerm(el,uid,mid){
+  const marcado=el.checked;
+  el.disabled=true;
+  try{
+    await padm('permissao',{usuario_id:uid,modulo_id:mid,marcado:marcado});
+    for(let i=0;i<USUS.length;i++)if(USUS[i].id===uid){
+      const l=Array.isArray(USUS[i].modulos)?USUS[i].modulos:[];
+      const p=l.indexOf(mid);
+      if(marcado){if(p<0)l.push(mid)}else{if(p>=0)l.splice(p,1)}
+      USUS[i].modulos=l;
+    }
+    usFeed(el,'salvo',true);
+  }catch(e){
+    el.checked=!marcado;
+    usFeed(el,'não salvou',false);
+  }
+  el.disabled=false;
+}
+
+async function usResetar(uid){
+  let nome='';for(let i=0;i<USUS.length;i++)if(USUS[i].id===uid)nome=USUS[i].nome||'';
+  if(!confirm('Gerar uma senha nova para '+nome+'? A senha atual para de valer e a sessão dela cai.'))return;
+  try{
+    const r=await padm('resetar_senha',{usuario_id:uid});
+    USPROV={n:nome,s:(r&&r.senha_provisoria)||''};
+    await usCarregar();
+  }catch(e){USMSG='Não foi possível resetar a senha.';boot()}
+}
+
+async function usAtivo(uid,valor){
+  let nome='';for(let i=0;i<USUS.length;i++)if(USUS[i].id===uid)nome=USUS[i].nome||'';
+  if(!valor&&!confirm('Desativar '+nome+'? A sessão aberta dela cai na hora.'))return;
+  try{await padm('editar',{usuario_id:uid,ativo:valor});await usCarregar();}
+  catch(e){USMSG='Não foi possível mudar o cadastro.';boot()}
+}
+
+async function usDesbloquear(uid){
+  try{await padm('desbloquear',{usuario_id:uid});await usCarregar();}
+  catch(e){USMSG='Não foi possível desbloquear.';boot()}
+}
+
+async function usCriar(){
+  const u=(($('nu_u')||{}).value||'').trim().toLowerCase();
+  const n=(($('nu_n')||{}).value||'').trim();
+  const d=(($('nu_d')||{}).value||'').trim();
+  const a=!!(($('nu_a')||{}).checked);
+  if(!u||!n){$('nu_e').textContent='Preencha usuário e nome.';return}
+  if(/\s/.test(u)){$('nu_e').textContent='O usuário não pode ter espaço.';return}
+  $('nu_e').textContent='Criando…';
+  try{
+    const r=await padm('criar',{usuario:u,nome:n,unidade:d,admin:a});
+    USPROV={n:n,s:(r&&r.senha_provisoria)||''};
+    USFORM=false;
+    await usCarregar();
+  }catch(e){$('nu_e').textContent=(e.message&&/duplicad|unique|already/i.test(e.message))?'Já existe alguém com esse usuário.':'Não foi possível criar.'}
+}
+
+function usCopiar(){
+  const c=$('usprov');if(!c)return;
+  const t=c.textContent||'';
+  try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t)}catch(e){}
+  try{const sel=window.getSelection(),r=document.createRange();r.selectNodeContents(c);sel.removeAllRanges();sel.addRange(r)}catch(e){}
+}
+
+/* ===================== abertura da tela ===================== */
+(async function(){
+  const ok=await cdmGuarda();
+  if(!ok)return;
+  $('app').hidden=false;
+  if(ADMIN)ABA='caixa';
+  const s=pw();
+  if(s){try{D=await chamar(s)}catch(e){D=null;try{sessionStorage.removeItem(PWKEY)}catch(x){}}}
+  boot();
+  if(ADMIN)usCarregar();
 })();
 
 document.addEventListener('keydown',e=>{ if(e.key==='Enter'&&document.activeElement===$('pw')) entrar() });
