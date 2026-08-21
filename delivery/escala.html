@@ -157,6 +157,7 @@ const hmT=t=>t?String(t).slice(0,5):'—';
 function toast(m,e){const t=$('toast');t.textContent=m;t.className='toast'+(e?' err':'');t.style.display='block';setTimeout(()=>{t.style.display='none'},3600)}
 async function fj(u){const r=await fetch(SB+u,{headers:H});if(!r.ok)throw new Error('HTTP '+r.status+' em '+u);return r.json()}
 async function rpc(fn,args){const r=await fetch(SB+'rpc/'+fn,{method:'POST',headers:HJ,body:JSON.stringify(args||{})});if(!r.ok)throw new Error('HTTP '+r.status+' em '+fn);return r.json()}
+function escRPC(acao,dados){return rpc('escala_consulta',{p_cred:cdmTok(),p_acao:acao,p_dados:dados||{}})}
 
 // ícone do tempo pelo código WMO da Open-Meteo
 function wxIcon(code,mm){
@@ -189,11 +190,10 @@ if(!ADER_INI){ADER_INI=dm7;ADER_FIM=iso(new Date(Date.now()-864e5))}
     const r=await Promise.all([
       rpc('foody_sugere_escala_semana',{p_ini:d0,p_dias:8}),
       fj('clima_vw_dia?dia_op=gte.'+d0+'&dia_op=lte.'+d7+'&select=*&order=dia_op'),
-      fj('foody_escala?data=gte.'+dm7+'&data=lte.'+d7+'&select=*&order=data,unidade,entrada&limit=2000'),
-      fj('foody_vw_aderencia?dia_op=gte.'+ADER_INI+'&dia_op=lte.'+ADER_FIM+'&select=*&order=dia_op.desc&limit=2000'),
-      fj('foody_vw_fora_escala?dia_op=gte.'+ADER_INI+'&dia_op=lte.'+ADER_FIM+'&select=*&order=dia_op.desc&limit=500')
+      escRPC('escala',{de:dm7,ate:d7}),
+      escRPC('aderencia',{de:ADER_INI,ate:ADER_FIM})
     ]);
-    SUG=r[0];CLIMA=r[1];ESC=r[2];ADER=r[3];FORA=r[4];
+    SUG=r[0];CLIMA=r[1];ESC=r[2];ADER=r[3].aderencia||[];FORA=r[3].fora||[];
     const at=CLIMA.length?CLIMA[CLIMA.length-1].atualizado_em:null;
     $('hsub').textContent='previsão do tempo + histórico do Foody · clima atualizado '+(at?hm(at):'—');
     if(!DATA)DATA=dias(8)[1];
@@ -399,14 +399,11 @@ async function salvarColado(){
   try{
     var ds=COLADO.map(function(x){return x.data}).sort();
     var d1=ds[0],d2=ds[ds.length-1];
-    var del=await fetch(SB+'foody_escala?data=gte.'+d1+'&data=lte.'+d2+'&unidade=eq.'+encodeURIComponent(LOJA),{method:'DELETE',headers:HJ});
-    if(!del.ok)throw new Error('não consegui limpar a escala antiga (HTTP '+del.status+')');
     var body=COLADO.map(function(x){return {nome:x.nome,unidade:LOJA,data:x.data,turno:x.turno,entrada:x.entrada,saida:x.saida,origem:'colado/whatsapp'}});
-    var ins=await fetch(SB+'foody_escala',{method:'POST',headers:HJ,body:JSON.stringify(body)});
-    if(!ins.ok)throw new Error('não consegui salvar (HTTP '+ins.status+')');
+    await escRPC('salvar_escala',{de:d1,ate:d2,unidade:LOJA,linhas:body});
     toast('✅ '+COLADO.length+' turnos salvos ('+br(d1)+' a '+br(d2)+')');
     var d7=dias(8)[7],dm7=iso(new Date(Date.now()-7*864e5));
-    ESC=await fj('foody_escala?data=gte.'+dm7+'&data=lte.'+d7+'&select=*&order=data,unidade,entrada&limit=2000');
+    ESC=await escRPC('escala',{de:dm7,ate:d7});
     ROWS=null;PEND={};setView('mont');
   }catch(e){toast(e.message,1)}
 }
@@ -493,16 +490,11 @@ function aplicar(turno,n){
 async function salvar(){
   try{
     for(const r of ROWS){if(!r.nome||!r.entrada||!r.saida){toast('faltou preencher horário de '+(r.nome||'alguém'),1);return}}
-    const del=await fetch(SB+'foody_escala?data=eq.'+DATA+'&unidade=eq.'+encodeURIComponent(LOJA),{method:'DELETE',headers:HJ});
-    if(!del.ok)throw new Error('não consegui limpar a escala antiga (HTTP '+del.status+')');
-    if(ROWS.length){
-      const body=ROWS.map(r=>({nome:r.nome,unidade:LOJA,data:DATA,turno:r.turno,entrada:r.entrada,saida:r.saida,origem:'jaison'}));
-      const ins=await fetch(SB+'foody_escala',{method:'POST',headers:HJ,body:JSON.stringify(body)});
-      if(!ins.ok)throw new Error('não consegui salvar (HTTP '+ins.status+')');
-    }
+    const body=ROWS.map(r=>({nome:r.nome,unidade:LOJA,data:DATA,turno:r.turno,entrada:r.entrada,saida:r.saida,origem:'jaison'}));
+    await escRPC('salvar_dia',{data:DATA,unidade:LOJA,linhas:body});
     toast('✅ escala de '+br(DATA)+' salva ('+ROWS.length+' motoboys)');
     const d7=dias(8)[7],dm7=iso(new Date(Date.now()-7*864e5));
-    ESC=await fj('foody_escala?data=gte.'+dm7+'&data=lte.'+d7+'&select=*&order=data,unidade,entrada&limit=2000');
+    ESC=await escRPC('escala',{de:dm7,ate:d7});
   }catch(e){toast(e.message,1)}
 }
 
@@ -592,11 +584,8 @@ async function aplicarPeriodoAder(){
 ADER_INI=$('aderIni').value;ADER_FIM=$('aderFim').value;
 if(!ADER_INI||!ADER_FIM){toast('escolha as duas datas',1);return}
 try{
-const r=await Promise.all([
-fj('foody_vw_aderencia?dia_op=gte.'+ADER_INI+'&dia_op=lte.'+ADER_FIM+'&select=*&order=dia_op.desc&limit=2000'),
-fj('foody_vw_fora_escala?dia_op=gte.'+ADER_INI+'&dia_op=lte.'+ADER_FIM+'&select=*&order=dia_op.desc&limit=500')
-]);
-ADER=r[0];FORA=r[1];
+const r=await escRPC('aderencia',{de:ADER_INI,ate:ADER_FIM});
+ADER=r.aderencia||[];FORA=r.fora||[];
 viewAder();
 }catch(e){toast(e.message,1)}
 }

@@ -147,6 +147,7 @@ const pctS=(ok,at)=>{const b=ok+at;return b?Math.round(1000*ok/b)/10:null};
 // promessa real do iFood por raio (cenário Padrão): até 2km=39 · 2-3=45 · 3-4=50 · 4-5=55 · 5-6=60 · 6-7=65 · 7+=70
 const atrasoReal=p=>p.atraso_real_min==null?null:+p.atraso_real_min;
 async function fj(u){const r=await fetch(SB+u,{headers:H});if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
+async function escRPC(acao,dados){const r=await fetch(SB+'rpc/escala_consulta',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_cred:cdmTok(),p_acao:acao,p_dados:dados||{}})});const j=await r.json().catch(function(){return null});if(!r.ok)throw new Error((j&&j.message)||('HTTP '+r.status));return j}
 async function pag(base){let all=[],from=0,step=1000;
   while(true){const r=await fetch(SB+base,{headers:{...H,Range:from+'-'+(from+step-1)}});if(!r.ok)throw new Error('HTTP '+r.status);
     const p=await r.json();all=all.concat(p);if(p.length<step)break;from+=step}return all}
@@ -166,7 +167,7 @@ async function loadAll(){
       (async()=>{const d30=(new Date(Date.now()-29*864e5)).toISOString().slice(0,10);const rr=await Promise.all([pag('foody_vw_pagamento_dia?dia_operacional=gte.'+d30+'&select=dia_operacional,unidade,nome,fez,horas,horas_qr,entregas,atrasos,no_prazo,sem_codigo&order=dia_operacional.asc'),pag('foody_vw_prazo_real_dia?dia_operacional=gte.'+d30+'&select=dia_operacional,unidade,entregador,no_prazo,atrasos&order=dia_operacional.asc')]);const mp={};rr[1].forEach(function(x){const k=x.dia_operacional+'|'+x.unidade+'|'+x.entregador;const o=mp[k]=mp[k]||{ok:0,at:0};o.ok+=(+x.no_prazo||0);o.at+=(+x.atrasos||0);});return rr[0].map(function(z){const o=mp[z.dia_operacional+'|'+z.unidade+'|'+z.nome];return Object.assign({},z,{no_prazo:o?o.ok:null,atrasos:o?o.at:null});});})(),
       fj('foody_vw_entregas_dia?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=*&order=dia_operacional.asc&limit=2000')
     ]);
-    try{ESCH=await fj('foody_vw_aderencia?dia_op=gte.'+(new Date(Date.now()-8*864e5)).toISOString().slice(0,10)+'&select=*&order=entrada&limit=1000')}catch(e){ESCH=[]}
+    try{ESCH=((await escRPC('aderencia',{de:(new Date(Date.now()-8*864e5)).toISOString().slice(0,10),ate:(new Date(Date.now()+864e5)).toISOString().slice(0,10)})).aderencia||[]).sort(function(a,b){return (a.entrada||'')<(b.entrada||'')?-1:1})}catch(e){ESCH=[]}
     DAYS=[...new Set(F.map(r=>r.dia_operacional))].sort();
     NAV=DAYS.slice(-7);
     DI=NAV.length-1;

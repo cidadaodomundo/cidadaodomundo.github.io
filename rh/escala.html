@@ -66,6 +66,7 @@ select:focus,input:focus{border-color:var(--brand)}
 <div class="err" id="errmsg"></div>
 <script>
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+async function escRPC(acao,dados){const t=(function(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}})();if(!t)throw new Error('Entre pelo portal para usar a escala.');const r=await fetch(SB+'rpc/escala_consulta',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_cred:t,p_acao:acao,p_dados:dados||{}})});const j=await r.json().catch(function(){return null});if(!r.ok)throw new Error((j&&j.message)||('HTTP '+r.status));return j}
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const H={apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'};
 const GATE_HASHES=['052765de61630b6ff12d29470a27786e064d7c8cb4f4c55e4a5bbbfcf624d618','bc54706ad12e7654b56e3b7468768d3c9a3b98459a95b8c465a47fed979ed792','6db4bb52b559fe6100a9ce00ff3ad2e9153a28179ddfc2fb394496e7c0edef34'];
@@ -114,7 +115,7 @@ async function carregar(){
   try{
     EQUIPE=arrOk(await fetch(SB+'dim_funcionario?ativo=eq.true&unidade=eq.'+encodeURIComponent(loja)+'&select=nome,setor,noturno,entrada,saida,afastado_desde,afastado_ate&order=nome.asc',{headers:H}).then(r=>r.json()),'equipe');
     EQUIPE.sort((a,b)=>((a.entrada||'99')<(b.entrada||'99')?-1:1));
-    const ja=arrOk(await fetch(SB+'fato_escala_posicao?data=eq.'+$('dia').value+'&unidade=eq.'+encodeURIComponent(loja)+'&select=nome,posicao',{headers:H}).then(r=>r.json()),'escala do dia');
+    const ja=arrOk(await escRPC('posicao',{data:$('dia').value,unidade:loja}),'escala do dia');
     const mapa={};ja.forEach(r=>mapa[r.nome]=r.posicao);
     if(ja.length){$('hoje').style.display='block';$('hoje').textContent='ℹ Já existe escala lançada para este dia — ao salvar, você atualiza.'}else{$('hoje').style.display='none'}
     if(!EQUIPE.length){$('lista').innerHTML='<div class="loading">'+(ARRERR?'Não foi possível carregar este bloco. Recarregue a página.':'Nenhum funcionário ativo cadastrado nesta loja.')+'</div>';$('salvar').disabled=true;return}
@@ -154,8 +155,7 @@ async function salvar(){
   if(!rows.length){$('errmsg').textContent='Marque a posição de pelo menos uma pessoa.';$('errmsg').style.display='block';return}
   $('salvar').disabled=true;
   try{
-    const r=await fetch(SB+'fato_escala_posicao?on_conflict=data,unidade,nome',{method:'POST',headers:{...H,Prefer:'resolution=merge-duplicates'},body:JSON.stringify(rows)});
-    if(!r.ok)throw new Error(await r.text());
+    await escRPC('salvar_posicao',{linhas:rows});
     $('okmsg').style.display='block';$('errmsg').style.display='none';
   }catch(e){$('errmsg').textContent='Erro ao salvar: '+e.message;$('errmsg').style.display='block'}
   $('salvar').disabled=false;
