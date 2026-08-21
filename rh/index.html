@@ -445,13 +445,14 @@ function renderDay(){
   if(!show.length){$('content').innerHTML='<div class="empty">'+(ARRERR&&!ALL.length?'Não foi possível carregar este bloco. Recarregue a página.':'Nenhum funcionário neste filtro.')+'</div>';return}
   $('content').innerHTML='<div class="grid">'+show.map(r=>{
     const acao=(NV(r)!=='SEM'&&ACAO[NV(r)])?`<div class="acao">▸ ${ACAO[NV(r)]}</div>`:'';
-    return `<div class="card" style="--cc:${C[NV(r)]}">
+    return `<div class="card" data-nome="${r.nome}" style="--cc:${C[NV(r)]}">
       <div class="chead"><div><div class="cname">${title(r.nome)}</div><div class="cunit">${r.unidade}</div></div>
       <span class="badge">${L[NV(r)]}</span>${NV(r)!=='SEM'&&r.tag?`<span class="cunit" style="margin-left:6px">${r.tag}</span>`:''}</div>
       <div class="mk">🕒 ${r.marcacoes_txt||(RH_SEM_SENHA?'— <span style="opacity:.65;font-size:11px">(entre com a senha do escritório para ver as batidas)</span>':'—')}</div>
       <div class="jr">líq ${fmt(r.jornada_liquida_min)} · int ${r.intervalo_real_min??'—'}min · contr ${fmt(r.jornada_contratada_min)}${r.extra_min?' · +'+r.extra_min+'min':''}</div>
       ${r.detalhe?`<div class="det">▸ ${r.detalhe}</div>`:(RH_SEM_SENHA&&NV(r)!=='SEM'?'<div class="det" style="opacity:.65">▸ — detalhe protegido; entre com a senha do escritório</div>':'')}
       ${acao}</div>`}).join('')+'</div>';
+  rfPintaRefeicao(DAYS[DI]);
 }
 function renderGuia(){
   $('kpis').innerHTML='';$('units').innerHTML='';
@@ -750,8 +751,12 @@ async function rfCarregaFila(){
            '<td>'+(f.nome_digitado?rfEsc(f.nome_digitado):'<span class="rf-pill mute">nada digitado</span>')+'</td>'+
            '<td class="n">'+rfNum(f.refeicoes)+'</td>'+
            '<td>'+rfBr(f.de)+'–'+rfBr(f.ate)+'</td>'+
-           '<td>'+rfSelEquipe('rfq_'+i,null)+'</td>'+
-           '<td class="n"><button class="rf-b" onclick="rfResolve('+i+')">Ligar</button></td></tr>';
+           '<td>'+rfSelEquipe('rfq_'+i,f.sugestao_id)+
+             (f.sugestao_id?'<div class="rf-nota" style="margin-top:3px">sugestão minha, confira</div>':'')+'</td>'+
+           '<td class="n" style="white-space:nowrap">'+
+             '<button class="rf-b on" onclick="rfResolve('+i+')">Ligar</button> '+
+             '<button class="rf-b" title="não é funcionário: nutricionista, prestador, visita" onclick="rfVisitante('+i+')">Não é funcionário</button>'+
+           '</td></tr>';
       });
       h+='</table></div><div class="rf-msg" id="rf_fmsg"></div>'+
          '<div class="rf-nota">Se a linha tem <b>comanda</b>, ligar grava a comanda no nome da pessoa. Se só tem <b>nome digitado</b>, ligar cria um apelido — da próxima vez que alguém escrever esse mesmo nome, o sistema já sabe de quem é.</div>';
@@ -1025,6 +1030,48 @@ async function rfDescobreOffset(){
     await rfCarregaCart();
     rfMsg('rf_omsg','✅ Offset desta loja: '+r.offset);
   }catch(e){rfMsg('rf_omsg',e.message,1)}
+}
+
+async function rfVisitante(i){
+  var f=RF.fila[i];
+  if(!f)return;
+  var quem=f.nome_digitado||f.nome_cartao||'';
+  if(!quem){rfMsg('rf_fmsg','Esta linha não tem nome digitado — não dá para marcar como visitante. Ligue a comanda a alguém ou corrija no Saipos.',1);return}
+  var tipo=prompt('Quem é? Escreva o que essa pessoa é para a loja.\n\nexemplos: nutricionista, eletricista, contador, visita, cortesia','visitante');
+  if(tipo===null)return;
+  rfMsg('rf_fmsg','Marcando…');
+  try{
+    await rfOp('resolver_dono',{tipo:'visitante',unidade:f.unidade,texto:quem,
+      grupo:(tipo||'visitante').trim().toLowerCase(),criado_por:rfNome()});
+    await rfCarregaFila();
+    rfMsg('rf_fmsg','✅ "'+quem+'" marcado como '+((tipo||'visitante').trim().toLowerCase())+'. Some da fila e não conta como refeição de funcionário.');
+  }catch(e){rfMsg('rf_fmsg',e.message,1)}
+}
+
+function rfNorm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim()}
+
+async function rfPintaRefeicao(dia){
+  if(!dia)return;
+  try{
+    var l=rfArr(await rfOp('nao_pegou',{dia:dia}));
+    if(!l.length)return;
+    var mapa={};
+    l.forEach(function(x){mapa[rfNorm(x.nome)]=x});
+    var cards=document.querySelectorAll('#content .card[data-nome]');
+    for(var i=0;i<cards.length;i++){
+      var el=cards[i];
+      var x=mapa[rfNorm(el.getAttribute('data-nome'))];
+      if(!x)continue;
+      if(el.querySelector('.rf-semref'))continue;
+      var d=document.createElement('div');
+      d.className='det rf-semref';
+      d.style.cssText='color:var(--grave);font-weight:700;border-left:3px solid var(--grave);padding-left:8px;margin-top:6px';
+      d.textContent = (x.situacao==='SEM CARTAO')
+        ? '🍽 Não pegou refeição — e não tem comanda cadastrada'
+        : '🍽 Não pegou refeição — trabalhou '+(x.horas==null?'—':x.horas)+'h e não lançou';
+      el.appendChild(d);
+    }
+  }catch(e){}
 }
 </script><script src="/assets/portal.js?v=3"></script>
 </body></html>
