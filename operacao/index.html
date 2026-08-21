@@ -327,11 +327,17 @@ function renderCart(){
   h+='<div class="card f"><div class="form">'+
      '<div><label>Loja</label><select id="c_loja" onchange="CARTLOJA=this.value;carregaCart()">'+
      UNI.map(function(u){return '<option'+(u===CARTLOJA?' selected':'')+'>'+esc(u)+'</option>'}).join('')+'</select></div>'+
-     '<div><label>Offset desta loja</label><input id="c_off" type="number" value="'+(off&&off.offset_card!=null?off.offset_card:'')+'" placeholder="ex: 153714"></div>'+
+     '<div><label>Offset desta loja</label><input id="c_off" type="number" value="'+(off&&off.offset_card!=null?off.offset_card:'')+'" placeholder="ainda não descoberto"></div>'+
      '<div style="display:flex;align-items:flex-end"><button class="b" onclick="salvaOffset()">Salvar offset</button></div>'+
      '<div style="grid-column:1/-1"><span class="msg" id="c_msg2"></span></div>'+
      '</div>'+
-     '<div style="color:var(--muted);font-size:11.5px;margin-top:8px">O offset é o que liga o número do cartão ao pedido do Saipos: <b>código = id do cartão − offset</b>. Na Água Verde é 153714. Ahú e São Braz ainda não têm o seu.</div></div>';
+     '<div style="color:var(--muted);font-size:11.5px;margin-top:10px;line-height:1.5">A API do Saipos <b>não devolve o nome nem o número da comanda</b> — só um id interno. O offset é a ponte: <b>número da comanda = id interno − offset</b>. Na Água Verde é 153714.</div>'+
+     '<div class="form" style="margin-top:10px">'+
+     '<div><label>Descobrir o offset · id interno</label><input id="o_id" type="number" placeholder="ex: 536779"></div>'+
+     '<div><label>… é a comanda número</label><input id="o_cod" type="number" placeholder="ex: 100"></div>'+
+     '<div style="display:flex;align-items:flex-end"><button class="b" onclick="descobreOffset()">Calcular e salvar</button></div>'+
+     '</div>'+
+     '<div style="color:var(--muted);font-size:11.5px;margin-top:6px">Pegue um id interno da tabela “O que o Saipos usou” aqui embaixo, veja no Saipos de quem é aquela comanda, e diga o número dela. Uma linha basta para acertar a loja inteira.</div></div>';
 
   h+='<h2>Códigos de '+esc(CARTLOJA)+' <span class="hint">'+num(CART.length)+' cadastrado(s)</span></h2><div class="card">';
   h+='<div class="wrap"><table><tr><th class="n">Código</th><th>Nome no cartão</th><th>Pessoa do cadastro</th><th>Tipo</th><th>Ativo</th><th></th></tr>';
@@ -363,7 +369,63 @@ function renderCart(){
 
   const semLig=CART.filter(function(c){return c.tipo==='funcionario'&&!c.funcionario_id}).length;
   if(semLig)h+='<div class="aviso">'+num(semLig)+' código(s) ainda não estão ligados a uma pessoa do cadastro. Enquanto isso, a refeição dessas pessoas não cruza com o ponto.</div>';
+  h+='<div id="saipos"><div class="load">Vendo o que o Saipos usou…</div></div>';
   $('conteudo').innerHTML=h;
+  carregaSaipos();
+}
+
+/* ----- o que o Saipos realmente usou ----- */
+async function carregaSaipos(){
+  const el=$('saipos');
+  if(!el)return;
+  try{
+    const linhas=arrOk(await op('comandas_saipos',{unidade:CARTLOJA,de:diasAtras(30),ate:hoje()}));
+    let h='<h2>O que o Saipos usou <span class="hint">30 dias · comandas que apareceram nas refeições</span></h2><div class="card">';
+    if(!linhas.length){
+      h+='<div class="empty">Nenhuma refeição de funcionário veio do Saipos nesta loja nos últimos 30 dias.</div>';
+    }else{
+      const faltam=linhas.filter(function(l){return l.codigo!=null&&!l.ja_cadastrado}).length;
+      const semCod=linhas.filter(function(l){return l.codigo==null}).length;
+      h+='<div class="wrap"><table><tr><th class="n">Id interno</th><th class="n">Comanda</th><th class="n">Refeições</th><th>Nome digitado na venda</th><th>Cadastro</th></tr>';
+      linhas.forEach(function(l){
+        h+='<tr><td class="n">'+(l.id_card==null?'—':l.id_card)+'</td>'+
+           '<td class="n">'+(l.codigo==null?'—':l.codigo)+'</td>'+
+           '<td class="n">'+num(l.refeicoes)+'</td>'+
+           '<td>'+esc(l.nomes_digitados||'—')+'</td>'+
+           '<td>'+(l.ja_cadastrado?'<span class="pill p-ok">'+esc(l.ja_cadastrado)+'</span>':
+                   (l.codigo==null?'<span class="pill p-mute">sem comanda</span>':'<span class="pill p-warn">não cadastrada</span>'))+'</td></tr>';
+      });
+      h+='</table></div>';
+      h+='<div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+         '<button class="b p" onclick="importaSaipos()">Trazer do Saipos as que faltam'+(faltam?' ('+faltam+')':'')+'</button>'+
+         '<span class="msg" id="s_msg"></span></div>';
+      if(semCod){
+        h+='<div class="aviso">'+num(semCod)+' linha(s) sem comanda nenhuma — refeição lançada fora do salão (balcão ou ficha). Essas não têm como ser ligadas a uma pessoa.</div>';
+      }
+    }
+    h+='</div>';
+    el.innerHTML=h;
+  }catch(e){el.innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
+}
+
+async function importaSaipos(){
+  setMsg('s_msg','Trazendo…');
+  try{
+    const r=await op('importar_comandas',{unidade:CARTLOJA,de:diasAtras(30),ate:hoje()});
+    setMsg('s_msg','✅ '+num(r.novos)+' comanda(s) cadastrada(s). Confira o nome e ligue cada uma à pessoa.');
+    await carregaCart();
+  }catch(e){setMsg('s_msg',e.message,1)}
+}
+
+async function descobreOffset(){
+  const id=$('o_id').value, cod=$('o_cod').value;
+  if(!id||!cod){setMsg('c_msg2','Preencha o id interno e o número da comanda.',1);return}
+  setMsg('c_msg2','Calculando…');
+  try{
+    const r=await op('descobrir_offset',{unidade:CARTLOJA,id_card:String(id),codigo:String(cod)});
+    setMsg('c_msg2','✅ Offset desta loja: '+r.offset);
+    await carregaCart();
+  }catch(e){setMsg('c_msg2',e.message,1)}
 }
 
 function selEquipe(id,val){
@@ -373,7 +435,7 @@ function selEquipe(id,val){
   return s+'</select>';
 }
 function selTipo(id,val){
-  const T=['funcionario','taxa','outro'];
+  const T=['funcionario','motoboys','taxa','outro'];
   let s='<select id="'+id+'" style="width:100%;background:var(--s2);border:1px solid var(--line);border-radius:7px;padding:6px 8px;color:var(--text);font-size:13px">';
   T.forEach(function(t){s+='<option'+(t===(val||'funcionario')?' selected':'')+'>'+t+'</option>'});
   return s+'</select>';
