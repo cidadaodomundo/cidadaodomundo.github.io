@@ -109,7 +109,7 @@ const UNI=['Água Verde','São Braz','Ahú','Boqueirão'];
 const TURNOS=['Almoço','Tarde','Jantar','Madrugada'];
 const MOTIVOS=['Queimou','Caiu no chão','Erro de pedido','Venceu / estragou','Sobra de produção','Devolução do cliente','Teste / treinamento','Outro'];
 const MEDIDAS=['un','kg','g','L','ml','porção'];
-let ABA='desp', LOJA='', DESP=[], RESUMO=[], REFDIA=[], CART=[], OFFSET=[], EQUIPE=[], CARTLOJA='Água Verde';
+let ABA='desp', LOJA='', DESP=[], RESUMO=[], REFDIA=[], CART=[], OFFSET=[], EQUIPE=[], FILA=[], CARTLOJA='Água Verde';
 
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function iso(d){return d.toISOString().slice(0,10)}
@@ -244,15 +244,17 @@ async function carregaRef(){
 function renderRef(){
   const comDado=REFDIA.filter(function(r){return r.tem_dado_saipos});
   const semDado=REFDIA.length-comDado.length;
-  let trab=0,nao=0,semc=0,demais=0,ref=0;
+  let trab=0,nao=0,semc=0,demais=0,ref=0,semd=0;
   comDado.forEach(function(r){trab+=Number(r.trabalharam||0);nao+=Number(r.nao_lancaram||0);
-    semc+=Number(r.sem_cartao||0);demais+=Number(r.lancaram_demais||0);ref+=Number(r.refeicoes_total||0)});
+    semc+=Number(r.sem_cartao||0);demais+=Number(r.lancaram_demais||0);ref+=Number(r.refeicoes_total||0);
+    semd+=Number(r.sem_dono||0)});
 
   let h='<div class="cards">'+
     '<div class="kpi"><div class="t">Refeições lançadas</div><div class="v">'+num(ref)+'</div><div class="d">'+num(comDado.length)+' dia(s) com dado do Saipos</div></div>'+
     '<div class="kpi"><div class="t">Trabalharam</div><div class="v">'+num(trab)+'</div><div class="d">pelo ponto, não pela venda</div></div>'+
     '<div class="kpi"><div class="t">Não lançaram</div><div class="v">'+num(nao)+'</div><div class="d">estavam no ponto e não registraram</div></div>'+
     '<div class="kpi"><div class="t">Sem cartão cadastrado</div><div class="v">'+num(semc)+'</div><div class="d">falta código na aba Cartões</div></div>'+
+    '<div class="kpi"><div class="t">Refeição sem dono</div><div class="v">'+num(semd)+'</div><div class="d">'+(ref>0?Math.round((ref-semd)/ref*100)+'% já tem dono':'—')+'</div></div>'+
     '</div>';
 
   if(semDado>0){
@@ -263,7 +265,7 @@ function renderRef(){
   if(!REFDIA.length){
     h+='<div class="card"><div class="empty">Sem dado no período.</div></div>';
   }else{
-    h+='<div class="card"><div class="wrap"><table><tr><th>Dia</th><th>Loja</th><th class="n">Trabalharam</th><th class="n">Refeições</th><th class="n">Não lançaram</th><th class="n">Sem cartão</th><th class="n">A mais</th><th>Situação</th></tr>';
+    h+='<div class="card"><div class="wrap"><table><tr><th>Dia</th><th>Loja</th><th class="n">Trabalharam</th><th class="n">Refeições</th><th class="n">Não lançaram</th><th class="n">Sem cartão</th><th class="n">Acima do direito</th><th class="n">Sem dono</th><th>Situação</th></tr>';
     REFDIA.forEach(function(r){
       const sem=!r.tem_dado_saipos;
       h+='<tr><td><span class="lk" onclick="verDia(\''+r.dia+'\',\''+esc(r.unidade).replace(/'/g,'')+'\')">'+br(r.dia)+'</span></td>'+
@@ -273,14 +275,100 @@ function renderRef(){
          '<td class="n">'+(sem?'—':num(r.nao_lancaram))+'</td>'+
          '<td class="n">'+(sem?'—':num(r.sem_cartao))+'</td>'+
          '<td class="n">'+(sem?'—':num(r.lancaram_demais))+'</td>'+
+         '<td class="n">'+(sem?'—':num(r.sem_dono))+'</td>'+
          '<td>'+(sem?'<span class="pill p-mute">sem dado do Saipos</span>':
                  (r.alerta?'<span class="pill p-warn">'+esc(r.alerta)+'</span>':'<span class="pill p-ok">ok</span>'))+'</td></tr>';
     });
     h+='</table></div></div>';
   }
   h+='<div id="detdia"></div>';
-  h+='<div class="aviso">O código que cada um digita é o <b>cartão do Saipos</b>. Quem aparece como “sem cartão” só precisa ser cadastrado na aba Cartões — não é falta de lançamento.</div>';
+  h+='<div id="fila"><div class="load">Vendo o que ficou sem dono…</div></div>';
+  h+='<div id="moto"><div class="load">Vendo a refeição dos motoboys…</div></div>';
+  h+='<div class="aviso">Cada pessoa tem direito a <b>uma refeição por turno trabalhado</b> — duas no dia em que dobra (mais de 8h de jornada ou intervalo acima de 2h). O sistema calcula isso pelo ponto.</div>';
   $('conteudo').innerHTML=h;
+  carregaFila();carregaMoto();
+}
+
+/* ----- fila: refeição sem dono ----- */
+async function carregaFila(){
+  const el=$('fila');
+  if(!el)return;
+  try{
+    if(!EQUIPE.length){
+      const c=await op('cartoes',{});
+      EQUIPE=arrOk(c.equipe);
+    }
+    FILA=arrOk(await op('sem_dono',{de:diasAtras(30),ate:hoje(),unidade:LOJA||''}));
+    let h='<h2>Refeição sem dono <span class="hint">30 dias · resolva uma vez e não volta mais</span></h2><div class="card">';
+    if(!FILA.length){
+      h+='<div class="empty">Nada pendente. Toda refeição do período tem dono.</div>';
+    }else{
+      h+='<div class="wrap"><table><tr><th>Loja</th><th class="n">Comanda</th><th>Nome no cartão</th><th>Nome digitado</th><th class="n">Refeições</th><th>Período</th><th>De quem é?</th><th></th></tr>';
+      FILA.forEach(function(f,i){
+        const dig=f.nome_digitado||'';
+        h+='<tr><td>'+esc(f.unidade)+'</td>'+
+           '<td class="n">'+(f.codigo==null?'—':f.codigo)+'</td>'+
+           '<td>'+esc(f.nome_cartao||'—')+'</td>'+
+           '<td>'+(dig?esc(dig):'<span class="pill p-mute">nada digitado</span>')+'</td>'+
+           '<td class="n">'+num(f.refeicoes)+'</td>'+
+           '<td>'+br(f.de)+'–'+br(f.ate)+'</td>'+
+           '<td>'+selEquipe('fq_'+i,null)+'</td>'+
+           '<td class="n"><button class="b" onclick="resolveDono('+i+')">Ligar</button></td></tr>';
+      });
+      h+='</table></div><div style="margin-top:10px"><span class="msg" id="f_msg"></span></div>';
+      h+='<div style="color:var(--muted);font-size:11.5px;margin-top:8px;line-height:1.5">Se a linha tem <b>comanda</b>, ligar grava a comanda no nome da pessoa. Se só tem <b>nome digitado</b>, ligar cria um apelido — da próxima vez que alguém escrever esse mesmo nome, o sistema já sabe de quem é.</div>';
+    }
+    h+='</div>';
+    el.innerHTML=h;
+  }catch(e){el.innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
+}
+
+async function resolveDono(i){
+  const f=FILA[i];
+  const fid=($('fq_'+i)||{}).value;
+  if(!f)return;
+  if(!fid){setMsg('f_msg','Escolha a pessoa antes de ligar.',1);return}
+  setMsg('f_msg','Ligando…');
+  try{
+    if(f.codigo!=null){
+      await op('resolver_dono',{tipo:'comanda',unidade:f.unidade,codigo:String(f.codigo),funcionario_id:fid});
+    }else if(f.nome_digitado){
+      await op('resolver_dono',{tipo:'apelido',unidade:f.unidade,texto:f.nome_digitado,funcionario_id:fid,criado_por:cdmNome()});
+    }else{
+      setMsg('f_msg','Esta linha não tem comanda nem nome digitado — não dá para ligar a ninguém.',1);return;
+    }
+    setMsg('f_msg','✅ Ligado.');
+    await carregaRef();
+  }catch(e){setMsg('f_msg',e.message,1)}
+}
+
+/* ----- motoboys por bloco ----- */
+async function carregaMoto(){
+  const el=$('moto');
+  if(!el)return;
+  try{
+    const linhas=arrOk(await op('refeicao_motoboy',{de:diasAtras(14),ate:hoje(),unidade:LOJA||''}));
+    let h='<h2>Refeição dos motoboys <span class="hint">14 dias · Dia = almoço+tarde · Noite = jantar+madrugada</span></h2><div class="card">';
+    if(!linhas.length){
+      h+='<div class="empty">Sem dado no período.</div>';
+    }else{
+      h+='<div class="wrap"><table><tr><th>Dia</th><th>Loja</th><th>Bloco</th><th class="n">Motoboys que rodaram</th><th class="n">Entregas</th><th class="n">Refeições lançadas</th><th>Diferença</th></tr>';
+      linhas.forEach(function(l){
+        const d=Number(l.diferenca||0);
+        const cls=d>0?'p-bad':(d<0?'p-warn':'p-ok');
+        const txt=d>0?('+'+d+' a mais'):(d<0?(d+' a menos'):'bate');
+        h+='<tr><td>'+br(l.dia)+'</td><td>'+esc(l.unidade)+'</td><td>'+esc(l.bloco)+'</td>'+
+           '<td class="n">'+num(l.motoboys_rodaram)+'</td>'+
+           '<td class="n">'+num(l.entregas)+'</td>'+
+           '<td class="n">'+num(l.refeicoes_lancadas)+'</td>'+
+           '<td><span class="pill '+cls+'">'+txt+'</span></td></tr>';
+      });
+      h+='</table></div>';
+      h+='<div style="color:var(--muted);font-size:11.5px;margin-top:8px;line-height:1.5">Quem rodou vem do Foody, por turno. A refeição vem das comandas marcadas como <b>motoboys</b> na aba Cartões (ZMOTOBOYS, JAISON). Enquanto elas não estiverem marcadas, a coluna de refeições fica zerada.</div>';
+    }
+    h+='</div>';
+    el.innerHTML=h;
+  }catch(e){el.innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
 }
 
 async function verDia(dia,uni){
@@ -295,7 +383,7 @@ async function verDia(dia,uni){
       h+='<div class="wrap"><table><tr><th>Pessoa</th><th>Entrada</th><th>Saída</th><th class="n">Horas</th><th class="n">Código</th><th class="n">Refeições</th><th>O que pegou</th><th>Situação</th></tr>';
       linhas.forEach(function(l){
         const s=String(l.situacao||'');
-        const cls=/sem dado/i.test(s)?'p-mute':(/ok|normal/i.test(s)?'p-ok':(/demais|a mais/i.test(s)?'p-bad':'p-warn'));
+        const cls=/sem dado/i.test(s)?'p-mute':(/^ok$/i.test(s)?'p-ok':(/acima/i.test(s)?'p-bad':'p-warn'));
         h+='<tr><td>'+esc(l.nome)+'</td><td>'+esc((l.entrada||'').slice(0,5)||'—')+'</td><td>'+esc((l.saida||'').slice(0,5)||'—')+'</td>'+
            '<td class="n">'+(l.horas==null?'—':num(l.horas))+'</td>'+
            '<td class="n">'+(l.codigo==null?'—':l.codigo)+'</td>'+
