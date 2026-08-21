@@ -153,7 +153,7 @@ async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncod
 async function gateTry(){const v=document.getElementById('gpw').value;
   const hv=await sha(v);
   if(hv===GATE_SB){sessionStorage.setItem('cm_sb_ok','1');sessionStorage.setItem('cm_portal_role','saobraz');localStorage.setItem('cm_portal_role','saobraz');location.href='?u='+encodeURIComponent('São Braz')}
-  else if(hv===GATE_HASH||hv===GATE_ALT){sessionStorage.setItem('cm_rh_ok','1');document.getElementById('gate').style.display='none'}
+  else if(hv===GATE_HASH||hv===GATE_ALT){sessionStorage.setItem('cm_rh_ok','1');try{sessionStorage.setItem('cdm_rh_pw',v)}catch(e){}document.getElementById('gate').style.display='none';RH_SEM_SENHA=false;loadAll()}
   else document.getElementById('gerr').textContent='Senha incorreta.'}
 if((sessionStorage.getItem('cm_rh_ok')==='1'||sessionStorage.getItem('cm_owner_ok')==='1'||sessionStorage.getItem('cm_sb_ok')==='1'))document.getElementById('gate').style.display='none';
 const ORD={SERIO:0,GRAVE:1,INFRACAO:2,VERBAL:3,CONFERIR:4,SEM:5};
@@ -180,11 +180,30 @@ const fmt=m=>m==null?'—':Math.floor(m/60)+'h'+String(m%60).padStart(2,'0');
 const title=n=>n.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
 const br=d=>{const[y,m,dd]=d.split('-');return dd+'/'+m+'/'+y};
 const isConf=c=>c==='CONFERIR';
+/* detalhe e batidas sao dado sensivel (fechados para anon): vem por rh_consulta com a senha da sessao */
+let RH_SEM_SENHA=false;
+let ARRERR=0;
+function arrOk(r,q){if(Array.isArray(r))return r;ARRERR++;try{console.error('[rh] falha ao carregar '+q,(r&&(r.message||r.hint||r.code))||r)}catch(e){}return[]}
+const dbr=d=>d?String(d).slice(0,10).split('-').reverse().join('/'):'';
+function rhPw(){try{return sessionStorage.getItem('cdm_rh_pw')||''}catch(e){return ''}}
+function rhPedeSenha(msg){try{sessionStorage.removeItem('cdm_rh_pw')}catch(e){}RH_SEM_SENHA=true;const g=$('gate');if(g)g.style.display='flex';const el=$('gerr');if(el)el.textContent=msg||'Entre com a senha do escritório para ver o detalhe.';}
+async function rhRPC(acao,dados){
+  const pw=rhPw();if(!pw){RH_SEM_SENHA=true;return[]}
+  try{
+    const res=await fetch(SB+'rpc/rh_consulta',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_senha:pw,p_acao:acao,p_dados:dados||{}})});
+    const j=await res.json().catch(()=>null);
+    if(!res.ok){if(j&&j.code==='28000')rhPedeSenha('Senha incorreta — digite de novo.');else RH_SEM_SENHA=true;return[]}
+    RH_SEM_SENHA=false;return Array.isArray(j)?j:[];
+  }catch(err){RH_SEM_SENHA=true;return[]}
+}
 async function loadAll(){
   if(VIEW==='day')$('content').innerHTML='<div class="loading">Carregando…</div>';
   try{
     const cutoff=new Date(Date.now()-7*864e5).toISOString().slice(0,10);
-    ALL=await fetch(SB+'fato_espelho_dia?ativo=eq.true'+(SOSB?'&unidade=eq.'+encodeURIComponent('São Braz'):'')+'&data=gte.'+cutoff+'&select=nome,unidade,data,dia_semana,categoria,nivel,tag,marcacoes_txt,jornada_liquida_min,intervalo_real_min,jornada_contratada_min,extra_min,detalhe&order=data.asc',{headers:H}).then(r=>r.json());
+    ARRERR=0;
+    ALL=arrOk(await fetch(SB+'fato_espelho_dia?ativo=eq.true'+(SOSB?'&unidade=eq.'+encodeURIComponent('São Braz'):'')+'&data=gte.'+cutoff+'&select=nome,unidade,data,dia_semana,categoria,nivel,tag,jornada_liquida_min,intervalo_real_min,jornada_contratada_min,extra_min&order=data.asc',{headers:H}).then(r=>r.json()),'espelho do dia');
+    const _det=await rhRPC('espelho',{de:cutoff,ate:'2099-12-31'});
+    if(_det.length){const _m={};_det.forEach(d=>{_m[d.nome+'|'+d.data]=d});ALL.forEach(r=>{const x=_m[r.nome+'|'+r.data];if(x){r.detalhe=x.detalhe;r.marcacoes_txt=x.marcacoes_txt}})}
     DAYS=[...new Set(ALL.map(r=>r.data))].sort();
     DI=DAYS.length-1;
     const _ultd=ALL.reduce((a,r)=>(r.data&&r.data>a)?r.data:a,'');const _base='últimos '+DAYS.length+' dias úteis · '+(SOSB?SBUN:'3 lojas');if(_ultd){const _p=_ultd.split('-').map(Number);const _n=new Date();const _dif=Math.round((new Date(_n.getFullYear(),_n.getMonth(),_n.getDate())-new Date(_p[0],_p[1]-1,_p[2]))/864e5);const _dm=String(_p[2]).padStart(2,'0')+'/'+String(_p[1]).padStart(2,'0');if(_dif>=2)$('sub').innerHTML=_base+' · <b style="color:var(--serio)">⚠ dado atrasado — última carga '+_dm+' ('+_dif+' dias)</b>';else $('sub').textContent=_base+' · dados até '+_dm;}else $('sub').textContent=_base+' · sem dado carregado';
@@ -216,7 +235,7 @@ const hhmm=t=>t?String(t).slice(0,5):'';
 const horDe=f=>(f.entrada&&f.saida)?hhmm(f.entrada)+'–'+hhmm(f.saida):'';
 const afastado=f=>!!f.afastado_desde&&(!f.afastado_ate||f.afastado_ate>=HOJE());
 const porEntrada=(a,b)=>((a.entrada||'99')<(b.entrada||'99')?-1:1);
-const COLS_FUNC='nome,unidade,setor,folgas,entrada,saida,noturno,jornada_contratada_min,afastado_desde,afastado_ate,afastado_motivo';
+const COLS_FUNC='nome,unidade,setor,folgas,entrada,saida,noturno,jornada_contratada_min,afastado_desde,afastado_ate';
 const POS=['Chapa','Fritadeira','Montagem de burgers','Montagem de marmitas/pratos','Separação de pacotes/expedição','Atendimento/Caixa','Produção/Cozinha (apoio)','Limpeza','Delivery/Entregas','Gerência','FOLGA','Falta/Ausente'];
 let ESCLOJA=SOSB?SBUN:'',ESCDIA='',ESCEQ=[];
 function renderEscala(){
@@ -234,10 +253,12 @@ async function escCarregar(){
   if(!loja){el.innerHTML='<div class="empty">Escolha a loja para carregar a equipe…</div>';return}
   el.innerHTML='<div class="loading">Carregando equipe…</div>';
   try{
+    ARRERR=0;
     const u='&unidade=eq.'+encodeURIComponent(loja);
-    ESCEQ=await fetch(SB+'dim_funcionario?ativo=eq.true'+u+'&select='+COLS_FUNC+'&order=nome.asc',{headers:H}).then(r=>r.json());
-    const ja=await fetch(SB+'fato_escala_posicao?data=eq.'+ESCDIA+u+'&select=nome,posicao',{headers:H}).then(r=>r.json());
+    ESCEQ=arrOk(await fetch(SB+'dim_funcionario?ativo=eq.true'+u+'&select='+COLS_FUNC+'&order=nome.asc',{headers:H}).then(r=>r.json()),'equipe da escala');
+    const ja=arrOk(await fetch(SB+'fato_escala_posicao?data=eq.'+ESCDIA+u+'&select=nome,posicao',{headers:H}).then(r=>r.json()),'escala do dia');
     const mapa={};(ja||[]).forEach(r=>{mapa[r.nome]=r.posicao});
+    if(ARRERR&&!ESCEQ.length){el.innerHTML='<div class="empty">Não foi possível carregar este bloco. Recarregue a página.</div>';return}
     el.innerHTML=((ja&&ja.length)?'<div class="exnote">ℹ Já existe escala lançada para este dia — ao salvar, você atualiza.</div>':'')+escBlocos(ESCEQ,mapa);
     if(ESCEQ.length)$('escfoot').innerHTML='<button class="exsave" id="escbtn" onclick="escSalvar()">💾 Salvar escala</button><div id="escmsg"></div>';
   }catch(e){el.innerHTML='<div class="err">Erro ao carregar: '+e.message+'</div>'}
@@ -257,7 +278,7 @@ function escBlocos(eq,mapa){
         const i=eq.indexOf(f);
         const marc=(mapa[f.nome]||'').split(', ').filter(Boolean);
         const corpo=afastado(f)
-          ?'<span class="exaf">⚕️ Afastado — '+(f.afastado_motivo||'sem motivo informado')+'</span>'
+          ?'<span class="exaf">⚕️ Afastado'+(f.afastado_desde?' desde '+dbr(f.afastado_desde):'')+(f.afastado_ate?' até '+dbr(f.afastado_ate):'')+'</span>'
           :'<div class="exchips" data-i="'+i+'">'+POS.map(p=>'<button type="button" class="exchip'+(marc.indexOf(p)>=0?' on':'')+'" onclick="this.classList.toggle(\'on\')">'+p+'</button>').join('')+'</div>';
         html+='<div class="exrow"><div class="exhead"><span class="exname">'+title(f.nome)+'</span><span class="exhor">'+horDe(f)+'</span></div>'+corpo+'</div>';
       });
@@ -293,8 +314,9 @@ function renderEquipeSetor(){
 }
 async function eqLoad(){
   try{
+    ARRERR=0;
     const u=SOSB?'&unidade=eq.'+encodeURIComponent(SBUN):'';
-    EQTEAM=await fetch(SB+'dim_funcionario?ativo=eq.true'+u+'&select='+COLS_FUNC+'&order=unidade.asc,setor.asc,entrada.asc',{headers:H}).then(r=>r.json());
+    EQTEAM=arrOk(await fetch(SB+'dim_funcionario?ativo=eq.true'+u+'&select='+COLS_FUNC+'&order=unidade.asc,setor.asc,entrada.asc',{headers:H}).then(r=>r.json()),'equipe por setor');
     const sets=[...new Set(EQTEAM.map(f=>f.setor).filter(Boolean))].sort();
     const s=$('eqsetor');if(s)s.innerHTML='<option value="">Todos os setores</option>'+sets.map(x=>'<option'+(x===EQSETOR?' selected':'')+'>'+x+'</option>').join('');
     eqRender();
@@ -305,7 +327,7 @@ function eqRender(){
   const fl=SOSB?SBUN:EQLOJA;
   const d=EQTEAM.filter(f=>(!fl||f.unidade===fl)&&(!EQSETOR||f.setor===EQSETOR));
   const c=$('eqcnt');if(c)c.textContent=d.length;
-  if(!d.length){el.innerHTML='<div class="empty">Nenhum funcionário nesse filtro.</div>';return}
+  if(!d.length){el.innerHTML='<div class="empty">'+(ARRERR&&!EQTEAM.length?'Não foi possível carregar este bloco. Recarregue a página.':'Nenhum funcionário nesse filtro.')+'</div>';return}
   const lojas=[...new Set(d.map(f=>f.unidade))].sort((a,b)=>(UORD[a]??9)-(UORD[b]??9));
   let html='';
   lojas.forEach(loja=>{
@@ -340,15 +362,15 @@ function renderDay(){
   let show=rows.filter(r=>UNIT==='Todas'||r.unidade===UNIT);
   if(FILT&&FILT!=='TOTAL')show=show.filter(r=>NV(r)===FILT);
   show.sort((a,b)=>(ORD[NV(a)]-ORD[NV(b)])||((UORD[a.unidade]??9)-(UORD[b.unidade]??9))||a.nome.localeCompare(b.nome));
-  if(!show.length){$('content').innerHTML='<div class="empty">Nenhum funcionário neste filtro.</div>';return}
+  if(!show.length){$('content').innerHTML='<div class="empty">'+(ARRERR&&!ALL.length?'Não foi possível carregar este bloco. Recarregue a página.':'Nenhum funcionário neste filtro.')+'</div>';return}
   $('content').innerHTML='<div class="grid">'+show.map(r=>{
     const acao=(NV(r)!=='SEM'&&ACAO[NV(r)])?`<div class="acao">▸ ${ACAO[NV(r)]}</div>`:'';
     return `<div class="card" style="--cc:${C[NV(r)]}">
       <div class="chead"><div><div class="cname">${title(r.nome)}</div><div class="cunit">${r.unidade}</div></div>
       <span class="badge">${L[NV(r)]}</span>${NV(r)!=='SEM'&&r.tag?`<span class="cunit" style="margin-left:6px">${r.tag}</span>`:''}</div>
-      <div class="mk">🕒 ${r.marcacoes_txt}</div>
+      <div class="mk">🕒 ${r.marcacoes_txt||(RH_SEM_SENHA?'— <span style="opacity:.65;font-size:11px">(entre com a senha do escritório para ver as batidas)</span>':'—')}</div>
       <div class="jr">líq ${fmt(r.jornada_liquida_min)} · int ${r.intervalo_real_min??'—'}min · contr ${fmt(r.jornada_contratada_min)}${r.extra_min?' · +'+r.extra_min+'min':''}</div>
-      ${r.detalhe?`<div class="det">▸ ${r.detalhe}</div>`:''}
+      ${r.detalhe?`<div class="det">▸ ${r.detalhe}</div>`:(RH_SEM_SENHA&&NV(r)!=='SEM'?'<div class="det" style="opacity:.65">▸ — detalhe protegido; entre com a senha do escritório</div>':'')}
       ${acao}</div>`}).join('')+'</div>';
 }
 function renderGuia(){

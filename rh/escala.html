@@ -95,6 +95,9 @@ function barraSetores(){var ex=[];
   $('setores').innerHTML=['Todos'].concat(ex).map(function(s){return '<button type="button" class="poschip" data-s="'+s+'" onclick="setSetor(\''+s+'\')">'+s+'</button>';}).join('');
   setSetor(ex.indexOf(SETOR)>=0?SETOR:'Todos');}
 const hhmm=t=>t?String(t).slice(0,5):'';
+const dbr=d=>d?String(d).slice(0,10).split('-').reverse().join('/'):'';
+let ARRERR=0;
+function arrOk(r,q){if(Array.isArray(r))return r;ARRERR++;try{console.error('[rh/escala] falha ao carregar '+q,(r&&(r.message||r.hint||r.code))||r)}catch(e){}return[]}
 const horDe=f=>(f.entrada&&f.saida)?hhmm(f.entrada)+'–'+hhmm(f.saida):'';
 const afastado=f=>!!f.afastado_desde&&(!f.afastado_ate||f.afastado_ate>=HOJE());
 const titulo=n=>n.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
@@ -107,14 +110,14 @@ $('dia').addEventListener('change',carregar);
 async function carregar(){
   const loja=SOSB?SBUN:$('loja').value; if(!loja){return}
   $('lista').innerHTML='<div class="loading">Carregando equipe…</div>';
-  $('okmsg').style.display='none';$('errmsg').style.display='none';
+  $('okmsg').style.display='none';$('errmsg').style.display='none';ARRERR=0;
   try{
-    EQUIPE=await fetch(SB+'dim_funcionario?ativo=eq.true&unidade=eq.'+encodeURIComponent(loja)+'&select=nome,setor,noturno,entrada,saida,afastado_desde,afastado_ate,afastado_motivo&order=nome.asc',{headers:H}).then(r=>r.json());
+    EQUIPE=arrOk(await fetch(SB+'dim_funcionario?ativo=eq.true&unidade=eq.'+encodeURIComponent(loja)+'&select=nome,setor,noturno,entrada,saida,afastado_desde,afastado_ate&order=nome.asc',{headers:H}).then(r=>r.json()),'equipe');
     EQUIPE.sort((a,b)=>((a.entrada||'99')<(b.entrada||'99')?-1:1));
-    const ja=await fetch(SB+'fato_escala_posicao?data=eq.'+$('dia').value+'&unidade=eq.'+encodeURIComponent(loja)+'&select=nome,posicao',{headers:H}).then(r=>r.json());
+    const ja=arrOk(await fetch(SB+'fato_escala_posicao?data=eq.'+$('dia').value+'&unidade=eq.'+encodeURIComponent(loja)+'&select=nome,posicao',{headers:H}).then(r=>r.json()),'escala do dia');
     const mapa={};ja.forEach(r=>mapa[r.nome]=r.posicao);
     if(ja.length){$('hoje').style.display='block';$('hoje').textContent='ℹ Já existe escala lançada para este dia — ao salvar, você atualiza.'}else{$('hoje').style.display='none'}
-    if(!EQUIPE.length){$('lista').innerHTML='<div class="loading">Nenhum funcionário ativo cadastrado nesta loja.</div>';$('salvar').disabled=true;return}
+    if(!EQUIPE.length){$('lista').innerHTML='<div class="loading">'+(ARRERR?'Não foi possível carregar este bloco. Recarregue a página.':'Nenhum funcionário ativo cadastrado nesta loja.')+'</div>';$('salvar').disabled=true;return}
     $('lista').innerHTML=escBlocos(EQUIPE,mapa);
     barraSetores();
     $('salvar').disabled=false;
@@ -135,7 +138,7 @@ function escBlocos(eq,mapa){
         const i=eq.indexOf(f);
         const marc=(mapa[f.nome]||'').split(', ').filter(Boolean);
         const corpo=afastado(f)
-          ?'<span class="afast">⚕️ Afastado — '+(f.afastado_motivo||'sem motivo informado')+'</span>'
+          ?'<span class="afast">⚕️ Afastado'+(f.afastado_desde?' desde '+dbr(f.afastado_desde):'')+(f.afastado_ate?' até '+dbr(f.afastado_ate):'')+'</span>'
           :'<div class="poswrap" data-i="'+i+'">'+POS.map(p=>'<button type="button" class="poschip'+(marc.indexOf(p)>=0?' on':'')+'" onclick="this.classList.toggle(\'on\')">'+p+'</button>').join('')+'</div>';
         html+='<div class="fcard"><div class="finfo"><div class="fname">'+titulo(f.nome)+'</div><div class="fhor">'+horDe(f)+'</div></div>'+corpo+'</div>';
       });
