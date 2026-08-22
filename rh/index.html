@@ -627,7 +627,7 @@ function rfLoja(){return RF.loja||''}
 
 function renderRefeicao(){
   limpaTopo();
-  var abas=[['dia','📅 Dia a dia'],['fila','🔗 Sem dono'],['moto','🏍 Motoboys'],['cort','🎁 Cortesias'],['cart','💳 Comandas']];
+  var abas=[['dia','📅 Dia a dia'],['moto','🏍 Motoboys'],['cort','🎁 Cortesias']];
   var h='<div class="rf-bar">'+
     abas.map(function(a){return '<button class="rf-tab'+(RF.aba===a[0]?' on':'')+'" onclick="rfSet(\'' + a[0] + '\')">'+a[1]+'</button>'}).join('')+
     '<select class="rf-sel" style="margin-left:auto;width:auto" onchange="RF.loja=this.value;rfSet(RF.aba)">'+
@@ -641,7 +641,7 @@ function renderRefeicao(){
 function rfSet(a){
   RF.aba=a;
   var bs=document.querySelectorAll('.rf-tab');
-  for(var i=0;i<bs.length;i++){bs[i].className='rf-tab'+(i===['dia','fila','moto','cort','cart'].indexOf(a)?' on':'')}
+  for(var i=0;i<bs.length;i++){bs[i].className='rf-tab'+(i===['dia','moto','cort'].indexOf(a)?' on':'')}
   if(a==='dia')rfCarregaDia();
   if(a==='fila')rfCarregaFila();
   if(a==='moto')rfCarregaMoto();
@@ -670,6 +670,7 @@ async function rfCarregaDia(){
       rfKpi('Sem cartão',rfNum(semc),'falta comanda no cadastro')+
       rfKpi('Sem dono',rfNum(semd),ref>0?Math.round((ref-semd)/ref*100)+'% já tem dono':'—')+
       '</div>';
+    if(semd>0)h+='<div class="rf-aviso" style="cursor:pointer" onclick="rfSet(\'fila\')">🔗 <b>'+rfNum(semd)+'</b> refeição(ões) ainda sem dono — clique aqui para resolver.</div>';
     if(sem>0)h+='<div class="rf-aviso">'+rfNum(sem)+' dia(s) estão como <b>SEM DADO DO SAIPOS</b> — a carga não trouxe a venda daquele dia. Não quer dizer que ninguém lançou, e por isso ficam fora das somas.</div>';
 
     h+='<div class="rf-card"><div class="rf-wrap"><table class="rf-tb"><tr>'+
