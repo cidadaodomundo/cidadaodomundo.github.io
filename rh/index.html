@@ -32,9 +32,11 @@ h1{font-size:17px;font-weight:800}
 .datenav button:hover{background:var(--surface2)}
 .datenav .cur{font-weight:800;font-size:13px;padding:0 8px;min-width:180px;text-align:center}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
-.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px 15px;cursor:pointer;transition:.15s;border-left:4px solid var(--kc,var(--line))}
-.kpi:hover{border-color:var(--kc)}
-.kpi.active{background:var(--surface2);border-color:var(--kc)}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 15px 10px;cursor:pointer;transition:.15s;border-left:4px solid var(--kc,var(--line));box-shadow:0 2px 6px rgba(0,0,0,.35);user-select:none}
+.kpi:hover{border-color:var(--kc);transform:translateY(-2px);box-shadow:0 7px 16px rgba(0,0,0,.5)}
+.kpi:active{transform:translateY(0);box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.kpi.active{background:var(--surface2);border-color:var(--kc);box-shadow:inset 0 0 0 2px var(--kc)}
+.kpi .cta{font-size:9.5px;font-weight:800;color:var(--kc);margin-top:7px;letter-spacing:.3px;text-transform:uppercase;opacity:.9}
 .kpi .n{font-size:23px;font-weight:800;color:var(--kc)}
 .kpi .l{font-size:10.5px;color:var(--muted);font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin-top:2px}
 .units{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
@@ -51,6 +53,17 @@ h1{font-size:17px;font-weight:800}
 .jr{font-size:11px;color:var(--muted)}
 .det{font-size:11.5px;color:#d3b544;margin-top:5px}
 .acao{font-size:11.5px;color:#7ec8a3;margin-top:5px;background:#12241933;border-left:2px solid var(--sem);padding:4px 8px;border-radius:0 6px 6px 0}
+.acaobox{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.acaoh{font-size:12px;font-weight:800;color:#7ec8a3;margin-bottom:8px}
+.acaoi{font-size:11.5px;color:var(--muted);line-height:1.55;border-left:3px solid var(--cc,var(--line));padding:6px 10px;margin-bottom:6px;background:rgba(0,0,0,.22);border-radius:0 6px 6px 0}
+.acaoi b{color:#fff}
+.todo{background:linear-gradient(135deg,#1d1512,#1a1a19);border:1px solid #4a2c18;border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.todo h2{font-size:15px;font-weight:800;color:#ffb054}
+.todo .hs{font-size:11.5px;color:var(--muted);margin:2px 0 9px}
+.todo ul{margin:0;padding:0}
+.todo li{list-style:none;margin-bottom:8px;padding:9px 12px;background:rgba(0,0,0,.25);border-left:3px solid #e0a93a;border-radius:0 8px 8px 0;font-size:13px;color:#e8e4dc}
+.todo li.ok{border-left-color:#2fae6a}
+.todo b{color:#fff}
 .rkexpl{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 16px;font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6}
 .gcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-bottom:12px;overflow:hidden}
 .ghead{padding:12px 16px;font-weight:800;font-size:13.5px;color:#fff;display:flex;align-items:center;gap:10px;cursor:pointer}
@@ -434,7 +447,7 @@ function renderDay(){
   const kc={TOTAL:'var(--brand)',SERIO:'var(--serio)',GRAVE:'var(--grave)',INFRACAO:'var(--infra)',VERBAL:'var(--verbal)',CONFERIR:'var(--conf)',SEM:'var(--sem)'};
   $('kpis').innerHTML=Object.keys(k).filter(x=>x==='TOTAL'||k[x]>0).map(x=>
     `<div class="kpi ${FILT===x?'active':''}" style="--kc:${kc[x]}" onclick="FILT=FILT==='${x}'?null:'${x}';render()">
-     <div class="n">${k[x]}</div><div class="l">${KL[x]}</div></div>`).join('');
+     <div class="n">${k[x]}</div><div class="l">${KL[x]}</div><div class="cta">${FILT===x?'✕ tirar filtro':'clique para filtrar'}</div></div>`).join('');
   const uns=[...new Set(rows.map(r=>r.unidade))].sort((a,b)=>(UORD[a]??9)-(UORD[b]??9));
   $('units').innerHTML=(SOSB?['São Braz']:['Todas',...uns]).map(u=>{
     const n=u==='Todas'?rows.length:rows.filter(r=>r.unidade===u).length;
@@ -443,13 +456,21 @@ function renderDay(){
   if(FILT&&FILT!=='TOTAL')show=show.filter(r=>NV(r)===FILT);
   show.sort((a,b)=>(ORD[NV(a)]-ORD[NV(b)])||((UORD[a.unidade]??9)-(UORD[b.unidade]??9))||a.nome.localeCompare(b.nome));
   if(!show.length){$('content').innerHTML='<div class="empty">'+(ARRERR&&!ALL.length?'Não foi possível carregar este bloco. Recarregue a página.':'Nenhum funcionário neste filtro.')+'</div>';return}
-  $('content').innerHTML='<div class="grid">'+show.map(r=>{
-    const acao=(NV(r)!=='SEM'&&ACAO[NV(r)])?`<div class="acao">▸ ${ACAO[NV(r)]}</div>`:'';
+  const doDia=rows.filter(r=>UNIT==='Todas'||r.unidade===UNIT);
+  const nAv={};doDia.forEach(r=>{const n=NV(r);if(n!=='SEM')nAv[n]=(nAv[n]||0)+1});
+  const TXT={CONFERIR:'conferir antes de qualquer medida: escala do dia, horário do cadastro e se há férias, atestado ou folga registrados',SERIO:'aplicar advertência formal assinada — intervalo suprimido (Art. 71 CLT)',GRAVE:'confirmar com o gestor se a hora extra foi autorizada',INFRACAO:'ajustar a marcação no Flash com justificativa',VERBAL:'orientar sobre o intervalo e registrar a conversa'};
+  const ordAcao=['CONFERIR','SERIO','GRAVE','INFRACAO','VERBAL'].filter(n=>nAv[n]);
+  const liHoje=ordAcao.length?ordAcao.map(n=>'<li>'+L[n]+' — <b>'+nAv[n]+'</b> '+(nAv[n]===1?'pessoa':'pessoas')+': '+TXT[n]+'</li>').join(''):'<li class="ok">✅ Dia limpo — nenhuma medida necessária hoje.</li>';
+  const painelHoje='<div class="todo"><h2>✅ O que fazer HOJE</h2><div class="hs">'+br(DAYS[DI])+(UNIT==='Todas'?' · todas as lojas':' · '+UNIT)+'</div><ul>'+liHoje+'</ul></div>';
+  const nivPres=ordAcao.filter(n=>ACAO[n]);
+  const painelAcao=nivPres.length?'<div class="acaobox"><div class="acaoh">📋 O que o RH faz em cada caso — vale para todas as pessoas abaixo</div>'+nivPres.map(n=>'<div class="acaoi" style="--cc:'+C[n]+'"><b>'+L[n]+'</b> '+ACAO[n]+'</div>').join('')+'</div>':'';
+  $('content').innerHTML=painelHoje+painelAcao+'<div class="grid">'+show.map(r=>{
+    const acao='';
     return `<div class="card" data-nome="${r.nome}" style="--cc:${C[NV(r)]}">
       <div class="chead"><div><div class="cname">${title(r.nome)}</div><div class="cunit">${r.unidade}</div></div>
       <span class="badge">${L[NV(r)]}</span>${NV(r)!=='SEM'&&r.tag?`<span class="cunit" style="margin-left:6px">${r.tag}</span>`:''}</div>
       <div class="mk">🕒 ${r.marcacoes_txt||(RH_SEM_SENHA?'— <span style="opacity:.65;font-size:11px">(entre com a senha do escritório para ver as batidas)</span>':'—')}</div>
-      <div class="jr">líq ${fmt(r.jornada_liquida_min)} · int ${r.intervalo_real_min??'—'}min · contr ${fmt(r.jornada_contratada_min)}${r.extra_min?' · +'+r.extra_min+'min':''}</div>
+      <div class="jr">Trabalhou <b>${fmt(r.jornada_liquida_min)}</b> · Intervalo <b>${r.intervalo_real_min==null?'—':r.intervalo_real_min+' min'}</b> · Deveria <b>${fmt(r.jornada_contratada_min)}</b>${r.extra_min?' · <b style="color:var(--grave)">'+r.extra_min+' min a mais</b>':''}</div>
       ${r.detalhe?`<div class="det">▸ ${r.detalhe}</div>`:(RH_SEM_SENHA&&NV(r)!=='SEM'?'<div class="det" style="opacity:.65">▸ — detalhe protegido; entre com a senha do escritório</div>':'')}
       ${acao}</div>`}).join('')+'</div>';
   rfPintaRefeicao(DAYS[DI]);
