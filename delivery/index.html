@@ -252,7 +252,7 @@ function renderDiario(){
   var _cmax='',_amax='';CANC.forEach(function(r){if(r.data>_cmax)_cmax=r.data});AVAL.forEach(function(r){if(r.data_avaliacao>_amax)_amax=r.data_avaliacao});
   var _dbr=function(s){return s?s.slice(8,10)+'/'+s.slice(5,7):'—'};
   var _cSem=(_cmax<D),_aSem=(_amax<D),_hojeOp=(new Date(Date.now()-7*36e5)).toISOString().slice(0,10),_emCurso=(D===_hojeOp);
-  var _rd=reeDia(D).filter(fBloco),_rc=_rd.filter(function(r){return r.familia==='COZINHA'}).length,_rp=_rd.filter(function(r){return r.familia==='DESPACHO'}).length,_rf=_rd.filter(function(r){return !r.familia}).length;
+  var _rd=reeDia(D).filter(fBloco),_rc=_rd.filter(function(r){return r.familia==='COZINHA'}).length,_rp=_rd.filter(function(r){return r.familia==='DESPACHO'}).length,_rf=_rd.filter(function(r){return !r.familia}).length,_reeNunca=(Array.isArray(REE)&&REE.length===0);
   KCTX={ped:pedD,atr:atrD,canc:cancD,aval:avalRuim,sc:scD,ree:_rd};
   let html='<div class="kpis">'+
     kpi('Entregas',ent,_emCurso?'dia em andamento — parcial':'','var(--blue)','ent')+kpi('Motoboys',motoQt,motoQt?'entregaram '+blocoNome():'nenhum','var(--blue)','moto')+
@@ -261,9 +261,9 @@ function renderDiario(){
     kpi('Sem código',sem,sem?'sem Cód. de Coleta':'tudo certo 🎉',sem?'var(--warn)':'var(--good)','sc')+
     kpi('Cancelamentos',_cSem?'—':cancD.length,_cSem?'iFood só até '+_dbr(_cmax):(cancD.length?'no iFood':'nenhum 🎉'),_cSem?'var(--muted)':(cancD.length?'var(--bad)':'var(--good)'),'canc')+
     kpi('Notas 1–3 ⭐',_aSem?'—':avalRuim.length,_aSem?'iFood só até '+_dbr(_amax):'últimos 3 dias · dia inteiro',_aSem?'var(--muted)':(avalRuim.length?'var(--warn)':'var(--good)'),'aval')+
-    kpi('Reentregas #',REE===null?'…':(REE===false?'—':_rd.length),REE===null?'buscando…':(REE===false?'não consegui buscar':(_rf?_rf+' a classificar':(_rd.length?'todas classificadas':'nenhuma 🎉'))),REE===false?'var(--bad)':(_rd.length?'var(--warn)':'var(--good)'),'ree')+
-    kpi('Erro cozinha',REE===null?'…':(REE===false?'—':_rc),REE===false?'sem dado — a busca falhou':'montagem, fritura, item',REE===false?'var(--muted)':'var(--bad)','coz')+
-    kpi('Erro despacho',REE===null?'…':(REE===false?'—':_rp),REE===false?'sem dado — a busca falhou':'esqueceu bebida, sobremesa',REE===false?'var(--muted)':'var(--warn)','des')+'</div>'+kPainel();
+    kpi('Reentregas #',REE===null?'…':(REE===false||_reeNunca?'—':_rd.length),REE===null?'buscando…':(REE===false?'não consegui buscar':(_reeNunca?'ninguém lançou no período':(_rf?_rf+' a classificar':(_rd.length?'todas classificadas':'nenhuma 🎉')))),REE===false?'var(--bad)':(_reeNunca?'var(--muted)':(_rd.length?'var(--warn)':'var(--good)')),'ree')+
+    kpi('Erro cozinha',REE===null?'…':(REE===false||_reeNunca?'—':_rc),REE===false?'sem dado — a busca falhou':(_reeNunca?'ninguém lançou no período':'montagem, fritura, item'),REE===false||_reeNunca?'var(--muted)':'var(--bad)','coz')+
+    kpi('Erro despacho',REE===null?'…':(REE===false||_reeNunca?'—':_rp),REE===false?'sem dado — a busca falhou':(_reeNunca?'ninguém lançou no período':'esqueceu bebida, sobremesa'),REE===false||_reeNunca?'var(--muted)':'var(--warn)','des')+'</div>'+kPainel();
   html+='<div class="hs" style="margin:-4px 0 10px;color:var(--muted)">⏱ <b>Prazo real do iFood</b>: o horário que o app prometeu ao cliente em cada pedido ("Entrega para às", vindo do Foody) — cobre ~95% dos pedidos; nos poucos sem essa informação usamos a tabela do iFood por raio. Atraso = chegou depois do horário prometido (tolerância 1 min).</div>';
 
   const acoes=[];
