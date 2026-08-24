@@ -406,7 +406,25 @@ function kTab(cab,linhas){if(!linhas.length)return '<div class="hs" style="color
 function kHoraD(base,t){if(!t)return "—";var s=String(t).slice(11,16);var d1=String(base||"").slice(0,10),d2=String(t).slice(0,10);return s+((d1&&d2&&d2>d1)?'<sup style="color:var(--warn)" title="ja no dia seguinte">+1</sup>':"")}
 function kPed(p){var a=(p.atraso_real_min==null)?null:+p.atraso_real_min;return "<tr><td>"+kEsc(p.unidade)+"</td><td>"+kEsc(p.turno)+"</td><td>"+kEsc(p.entregador||"—")+"</td><td>"+kHora(p.data_hora_pedido)+"</td><td>"+kHoraD(p.data_hora_pedido,p.dt_pronto)+"</td><td>"+kHoraD(p.data_hora_pedido,p.dt_despachado)+"</td><td>"+kHoraD(p.data_hora_pedido,p.dt_aceite)+"</td><td>"+kHoraD(p.data_hora_pedido,p.dt_entregue)+"</td><td>"+kHoraD(p.data_hora_pedido,p.entrega_prometida)+"</td><td data-k='"+(a==null?"":a)+"' style='color:"+(p.no_prazo_real?"var(--good)":"var(--bad)")+"'>"+(a==null?"—":(a>0?"+"+Math.round(a)+" min":(a<0?Math.round(-a)+" min antes":"0 min")))+"</td><td>"+kEsc(p.n_pedido||"—")+"</td><td>"+kEsc(p.id_ifood||"—")+"</td></tr>"}
 function kPainel(){if(!KSEL)return '';var h='',t='';var CP=["Loja","Turno","Motoboy","Pedido","Pronto","Rota montada","Aceito","Entregue","Prometido","Diferença","Nº Saipos","Nº iFood"];var CR=['Hora','Loja','Turno','Motoboy','Motivo','Culpa','Quem estava na posicao','Responsavel'];
-  if(KSEL==='ent'){h='Todas as entregas '+blocoNome();t=kTab(CP,(KCTX.ped||[]).map(kPed))}
+  if(KSEL==='ent'){var ps=KCTX.ped||[];h='Indicadores do dia '+blocoNome();
+    var _ok=0,_at=0,_st=0,_qt=0,_sa=0,_qa=0;
+    ps.forEach(function(p){if(p.no_prazo_real)_ok++;else _at++;if(p.t_total_min!=null){_st+=(+p.t_total_min);_qt++}var aa=(p.atraso_real_min==null)?null:+p.atraso_real_min;if(aa!=null&&aa>0){_sa+=aa;_qa++}});
+    var _pc=ps.length?Math.round(1000*_ok/ps.length)/10:null;
+    var _nm=function(l,v,s){return '<div style="background:var(--surface-1);border-radius:10px;padding:9px 11px"><div style="font-size:11.5px;color:var(--muted)">'+l+'</div><div style="font-size:19px;font-weight:700;margin-top:2px">'+v+'</div><div style="font-size:11px;color:var(--muted)">'+(s||'&nbsp;')+'</div></div>'};
+    t='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px">'+
+      _nm('Entregas',ps.length,'')+
+      _nm('No prazo',_ok,_pc==null?'—':_pc+'%')+
+      _nm('Atrasos',_at,_pc==null?'—':(Math.round((100-_pc)*10)/10)+'%')+
+      _nm('Atraso médio',(_qa?Math.round(_sa/_qa):0)+' min','só dos atrasados')+
+      _nm('Loja até o cliente',(_qt?Math.round(_st/_qt):0)+' min','tempo médio total')+
+      _nm('Motoboys',Object.keys(ps.reduce(function(o,p){if(p.entregador)o[p.entregador]=1;return o},{})).length,'')+
+      '</div>';
+    var _ag=function(campo,titulo){var m={};ps.forEach(function(p){var k=p[campo]||'—';var x=m[k]=m[k]||{e:0,ok:0};x.e++;if(p.no_prazo_real)x.ok++});
+      var ks=Object.keys(m).sort(function(a,b){return m[b].e-m[a].e});
+      if(!ks.length)return '';
+      return '<div class="hs" style="margin:12px 0 4px;color:var(--muted)">'+titulo+'</div>'+kTab(['','Entregas','No prazo','Atrasos'],ks.map(function(k){var x=m[k];var pp=Math.round(1000*x.ok/x.e)/10;return '<tr><td><b>'+kEsc(k)+'</b></td><td>'+x.e+'</td><td data-k="'+pp+'">'+pp+'%</td><td>'+(x.e-x.ok)+'</td></tr>'}))};
+    t+=_ag('turno','Por turno')+_ag('unidade','Por loja');
+  }
   else if(KSEL==="pct"){var _ok=(KCTX.ped||[]).filter(function(x){return x.no_prazo_real});h="Entregas que chegaram no prazo — "+_ok.length+" de "+(KCTX.ped||[]).length;t=kTab(CP,_ok.map(kPed))}
   else if(KSEL==='atr'){h='Atrasos reais';t=kTab(CP,(KCTX.atr||[]).map(kPed))}
   else if(KSEL==='sc'){h='Pedidos sem Codigo de Coleta';t='<div class="hs" style="color:var(--muted);margin-bottom:8px">O Codigo de Coleta vem do iFood junto com o pedido, antes de qualquer entregador tocar na sacola. Nao serve para medir nem para descontar motoboy.</div>'+kTab(["Hora","Loja","Turno","Pedido","Canal de venda"],(KCTX.sc||[]).map(function(s){return "<tr><td>"+kHora(s.hora_pedido)+"</td><td>"+kEsc(s.unidade)+"</td><td>"+kEsc(s.turno)+"</td><td>"+kEsc(s.n_pedido)+"</td><td>"+kEsc(canalDe(s))+"</td></tr>"}))}
@@ -463,12 +481,10 @@ function renderDiario(){
     kpi('% no prazo REAL',pct!=null?pct+'%':'—',cmp(pct,bPct),pct==null?'var(--muted)':pct>=85?'var(--good)':pct>=70?'var(--warn)':'var(--bad)','pct')+
     kpi('Atrasos reais',atr,atr?'acima da promessa do raio':'nenhum 🎉',atr?'var(--bad)':'var(--good)','atr')+
     kpi('Sem código',sem,sem?'sem Cód. de Coleta':'tudo certo 🎉',sem?'var(--warn)':'var(--good)','sc')+
-    kpi("Cancelamentos",_sSem?"—":_sCanc,_sSem?(SVSMAX&&D>SVSMAX?"Saipos só até "+_dbr(SVSMAX):"Saipos ainda fechando o dia"):(_sCanc?"no Saipos · dia inteiro":"nenhum 🎉"),_sSem?"var(--muted)":(_sCanc?"var(--bad)":"var(--good)"),"canc")+
-    kpi('Notas 1–3 ⭐',_aSem?'—':avalRuim.length,_aSem?'iFood só até '+_dbr(_amax):'últimos 3 dias · dia inteiro',_aSem?'var(--muted)':(avalRuim.length?'var(--warn)':'var(--good)'),'aval')+
     kpi('Reentregas #',REE===null?'…':(REE===false||_reeNunca?'—':_rd.length),REE===null?'buscando…':(REE===false?'não consegui buscar':(_reeNunca?'ninguém lançou no período':(_rf?_rf+' a classificar':(_rd.length?'todas classificadas':'nenhuma 🎉')))),REE===false?'var(--bad)':(_reeNunca?'var(--muted)':(_rd.length?'var(--warn)':'var(--good)')),'ree')+
     kpi('Erro cozinha',REE===null?'…':(REE===false||_reeNunca?'—':_rc),REE===false?'sem dado — a busca falhou':(_reeNunca?'ninguém lançou no período':'montagem, fritura, item'),REE===false||_reeNunca?'var(--muted)':'var(--bad)','coz')+
     kpi('Erro despacho',REE===null?'…':(REE===false||_reeNunca?'—':_rp),REE===false?'sem dado — a busca falhou':(_reeNunca?'ninguém lançou no período':'esqueceu bebida, sobremesa'),REE===false||_reeNunca?'var(--muted)':'var(--warn)','des')+
-    kpi('Cliente não recebeu',CANC.length?_rs(_vP):'—',CANC.length?('30 dias · '+_nrP.length+' sem direito a contestar'+(_nrC.length?' · '+_rs(_vC)+' ainda dá para contestar':'')):'sem dado do iFood',CANC.length?(_vP>0?'var(--bad)':'var(--good)'):'var(--muted)','nr')+'</div>'+kPainel();
+    '</div>'+kPainel();
   html+='<div class="hs" style="margin:-4px 0 10px;color:var(--muted)">⏱ <b>Prazo real do iFood</b>: o horário que o app prometeu ao cliente em cada pedido ("Entrega para às", vindo do Foody) — cobre ~95% dos pedidos; nos poucos sem essa informação usamos a tabela do iFood por raio. Atraso = chegou depois do horário prometido (tolerância 1 min).</div>';
 
   const acoes=[];
