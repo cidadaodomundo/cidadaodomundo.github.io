@@ -152,7 +152,7 @@ async function pag(base){let all=[],from=0,step=1000;
     const p=await r.json();all=all.concat(p);if(p.length<step)break;from+=step}return all}
 
 var ENTR=[];
-var SVS=[],SVSD=[],SVSK={},SVSMAX="";
+var SVS=[],SVSD=[],SVSK={},SVSMAX="",PAU=[],PAUMAX="";
 async function svsLoad(){try{
   var ini=(NAV&&NAV.length)?NAV[0]:(new Date(Date.now()-8*864e5)).toISOString().slice(0,10);
   var ns=[],vis={};
@@ -303,7 +303,12 @@ document.addEventListener("click",function(e){
 var PRZ=[];
 async function przLoad(){try{
   var d14=(new Date(Date.now()-14*864e5)).toISOString().slice(0,10);
-  PRZ=(await fj("foody_vw_prazo_real_dia?dia_operacional=gte."+d14+"&select=dia_operacional,unidade,entregas,no_prazo,atraso_mais_10&order=dia_operacional.desc&limit=1000"))||[];
+  var d3=(new Date(Date.now()-3*864e5)).toISOString().slice(0,10);
+  var _rr=await Promise.all([
+    fj("foody_vw_prazo_real_dia?dia_operacional=gte."+d14+"&select=dia_operacional,unidade,entregas,no_prazo,atraso_mais_10&order=dia_operacional.desc&limit=1000"),
+    fj("cardapio_pausado?visto_em=gte."+d3+"&select=canal,unidade,marca,item,tipo,estado,primeiro_visto,visto_em&order=primeiro_visto.asc&limit=1000")]);
+  PRZ=_rr[0]||[];PAU=_rr[1]||[];
+  PAUMAX="";PAU.forEach(function(r){if(r.visto_em>PAUMAX)PAUMAX=r.visto_em});
 }catch(e){PRZ=[]}}
 function _rs(v){return "R$ "+(+v||0).toFixed(2).replace(".",",")}
 function blocoDinheiro(){
@@ -437,6 +442,13 @@ function kPainel(){if(!KSEL)return '';var h='',t='';var CP=["Loja","Turno","Moto
   else if(KSEL==="pct"){var _ok=(KCTX.ped||[]).filter(function(x){return x.no_prazo_real});h="Entregas que chegaram no prazo — "+_ok.length+" de "+(KCTX.ped||[]).length;t=kTab(CP,_ok.map(kPed))}
   else if(KSEL==='atr'){h='Atrasos reais';t=kTab(CP,(KCTX.atr||[]).map(kPed))}
   else if(KSEL==='sc'){h='Pedidos sem Codigo de Coleta';t='<div class="hs" style="color:var(--muted);margin-bottom:8px">O Codigo de Coleta vem do iFood junto com o pedido, antes de qualquer entregador tocar na sacola. Nao serve para medir nem para descontar motoboy.</div>'+kTab(["Hora","Loja","Turno","Pedido","Canal de venda"],(KCTX.sc||[]).map(function(s){return "<tr><td>"+kHora(s.hora_pedido)+"</td><td>"+kEsc(s.unidade)+"</td><td>"+kEsc(s.turno)+"</td><td>"+kEsc(s.n_pedido)+"</td><td>"+kEsc(canalDe(s))+"</td></tr>"}))}
+  else if(KSEL==='pau'){h='Itens pausados no cardápio'+(PAUMAX?' — varredura de '+_dbr(PAUMAX):'');
+    t='<div class="hs" style="color:var(--muted);margin-bottom:8px">Pausado é o que o cliente vê e não consegue pedir. Escondido é o que ele nem vê. Complemento pausado é o que mais dói: o cliente pede o lanche e não consegue somar o adicional.</div>'+
+      kTab(['Dias parado','Canal','Loja','Marca','Item','Tipo','Situação'],_pauL.slice().sort(function(a,b){return String(a.primeiro_visto)<String(b.primeiro_visto)?-1:1}).map(function(r){
+        var dd=Math.round((new Date(_hojeOp+"T00:00:00")-new Date(String(r.primeiro_visto)+"T00:00:00"))/864e5);
+        if(!(dd>=0))dd=0;
+        var cor=dd>=2?"var(--bad)":"var(--warn)";
+        return '<tr><td data-k="'+dd+'" style="color:'+cor+'"><b>'+(dd<=0?'hoje':(dd===1?'1 dia':dd+' dias'))+'</b></td><td>'+kEsc(r.canal)+'</td><td>'+kEsc(r.unidade)+'</td><td>'+kEsc(r.marca||'—')+'</td><td><b>'+kEsc(r.item)+'</b></td><td>'+kEsc(r.tipo||'—')+'</td><td>'+kEsc(r.estado)+'</td></tr>'}))}
   else if(KSEL==='moto'){h='Motoboys que entregaram '+blocoNome();var _mm={};(KCTX.ped||[]).forEach(function(p){var n=p.entregador||'sem nome';if(!_mm[n])_mm[n]={n:n,e:0,a:0};_mm[n].e++;if(!p.no_prazo_real)_mm[n].a++});var _ml=Object.keys(_mm).map(function(k){return _mm[k]}).sort(function(x,y){return y.e-x.e});t=kTab(['Motoboy','Entregas','Atrasos','% no prazo'],_ml.map(function(m){return '<tr><td>'+kEsc(m.n)+'</td><td>'+m.e+'</td><td>'+m.a+'</td><td>'+(m.e?Math.round(1000*(m.e-m.a)/m.e)/10:0)+'%</td></tr>'}))}
   else if(KSEL==="canc"){h="Cancelamentos do dia (Saipos)";t="<div class='hs' style='color:var(--muted);margin-bottom:8px'>Vem do Saipos, que fecha todo dia. Canal de venda e o nome da loja ou da marca por onde o pedido entrou; quando esta vazio, foi venda direta no balcao ou no salao. O motivo e o prazo para contestar continuam no quadro Cliente nao recebeu, que vem do iFood.</div>"+kTab(["Loja","Pedido","Canal de venda","Itens cancelados"],(KCTX.canc||[]).map(function(c){return "<tr><td>"+kEsc(c.unidade)+"</td><td>"+kEsc(c.n_pedido||"—")+"</td><td>"+kEsc(c.canal||"venda direta (balcao/salao)")+"</td><td>"+kEsc(c.itens_cancelados||"—")+"</td></tr>"}))}
   else if(KSEL==='nr'){h='Cliente não recebeu — últimos 30 dias';t='<div class="hs" style="color:var(--muted);margin-bottom:8px">Cancelamentos em que o cliente disse que não recebeu, não atendeu ou não foi localizado. O que está como <b>perdido</b> o iFood não deixa contestar. O que está como <b>CONTESTAR</b> ainda dá para recuperar.</div>'+kTab(['Data','Loja','Motivo','Valor','Situação'],(KCTX.nr||[]).map(function(c){var st=c.contestavel?(c.loja_contestou?'já contestado':'<b style="color:var(--warn)">CONTESTAR</b>'):'<b style="color:var(--bad)">perdido</b>';return '<tr><td>'+kEsc(c.data?c.data.slice(8,10)+'/'+c.data.slice(5,7):'—')+'</td><td>'+kEsc(unidadeDe(c.id_loja)||'—')+'</td><td>'+kEsc(c.motivo)+'</td><td data-k="'+(+c.valor_pedido||0)+'">'+(c.valor_pedido!=null?'R$ '+(+c.valor_pedido).toFixed(2).replace('.',','):'—')+'</td><td>'+st+'</td></tr>'}))}
@@ -493,6 +505,9 @@ function renderDiario(){
   var _avMed=_avQt?(_avL.reduce(function(a,r){return a+(+r.nota||0)},0)/_avQt):null;
   var _avAtraso=(!_amax||_amax<D);
   var _cSem=(_cmax<D),_aSem=(_amax<D),_hojeOp=(new Date(Date.now()-7*36e5)).toISOString().slice(0,10),_emCurso=(D===_hojeOp);
+  var _pauL=PAU.filter(function(r){return LOJA==='Todas'||r.unidade===LOJA});
+  var _pauVelho=_pauL.filter(function(r){return (new Date(_hojeOp+"T00:00:00")-new Date(String(r.primeiro_visto)+"T00:00:00"))/864e5>=2}).length;
+  var _pauSem=(!PAUMAX||PAUMAX<_hojeOp);
   var _rd=reeDia(D).filter(fBloco),_rc=_rd.filter(function(r){return r.familia==='COZINHA'}).length,_rp=_rd.filter(function(r){return r.familia==='DESPACHO'}).length,_rf=_rd.filter(function(r){return !r.familia}).length,_reeNunca=(Array.isArray(REE)&&REE.length===0);
   var _MNR=['O PEDIDO NÃO FOI ENTREGUE','NINGUÉM PODERÁ RECEBER O PEDIDO','CLIENTE NÃO LOCALIZADO','O ENDEREÇO ESTÁ INCOMPLETO E O CLIENTE NÃO ATENDE'];var _d30=(new Date(Date.now()-30*864e5)).toISOString().slice(0,10);var _nr=CANC.filter(function(r){return r.data>=_d30&&fLojaI(r)&&_MNR.indexOf(r.motivo)>=0});var _nrP=_nr.filter(function(r){return !r.contestavel}),_nrC=_nr.filter(function(r){return r.contestavel&&!r.loja_contestou});var _vP=_nrP.reduce(function(a,r){return a+(+r.valor_pedido||0)},0),_vC=_nrC.reduce(function(a,r){return a+(+r.valor_pedido||0)},0);var _rs=function(v){return 'R$ '+v.toFixed(2).replace('.',',')};
   KCTX={ped:pedD,atr:atrD,canc:cancD,aval:avalRuim,sc:scD,ree:_rd,nr:_nr};
@@ -502,6 +517,7 @@ function renderDiario(){
     kpi('Atrasos reais',atr,atr?'acima da promessa do raio':'nenhum 🎉',atr?'var(--bad)':'var(--good)','atr')+
     kpi('Sem código',sem,sem?'sem Cód. de Coleta':'tudo certo 🎉',sem?'var(--warn)':'var(--good)','sc')+
     kpi('Avaliações',_avMed==null?'—':('★ '+_avMed.toFixed(2)),_avAtraso?('iFood publicou até '+_dbr(_amax)):(_avQt+' notas · '+_avRuim+' de 1 a 3'),_avMed==null?'var(--muted)':(_avMed>=4.6?'var(--good)':(_avMed>=4.2?'var(--warn)':'var(--bad)')),'aval')+
+    kpi('Itens pausados',_pauSem?'—':_pauL.length,_pauSem?(PAUMAX?'última varredura em '+_dbr(PAUMAX):'ainda não varreu'):(_pauL.length?(_pauVelho?_pauVelho+' parado'+(_pauVelho>1?'s':'')+' há 2 dias ou mais':'todos pausados hoje'):'tudo no ar 🎉'),_pauSem?'var(--muted)':(_pauVelho?'var(--bad)':(_pauL.length?'var(--warn)':'var(--good)')),'pau')+
     kpi('Reentregas #',REE===null?'…':(REE===false||_reeNunca?'—':_rd.length),REE===null?'buscando…':(REE===false?'não consegui buscar':(_reeNunca?'ninguém lançou no período':(_rf?_rf+' a classificar':(_rd.length?'todas classificadas':'nenhuma 🎉')))),REE===false?'var(--bad)':(_reeNunca?'var(--muted)':(_rd.length?'var(--warn)':'var(--good)')),'ree')+
     kpi('Erro cozinha',REE===null?'…':(REE===false||_reeNunca?'—':_rc),REE===false?'sem dado — a busca falhou':(_reeNunca?'ninguém lançou no período':'montagem, fritura, item'),REE===false||_reeNunca?'var(--muted)':'var(--bad)','coz')+
     kpi('Erro despacho',REE===null?'…':(REE===false||_reeNunca?'—':_rp),REE===false?'sem dado — a busca falhou':(_reeNunca?'ninguém lançou no período':'esqueceu bebida, sobremesa'),REE===false||_reeNunca?'var(--muted)':'var(--warn)','des')+
