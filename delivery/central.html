@@ -485,8 +485,6 @@ function renderDiario(){
     kpi('Erro cozinha',REE===null?'…':(REE===false||_reeNunca?'—':_rc),REE===false?'sem dado — a busca falhou':(_reeNunca?'ninguém lançou no período':'montagem, fritura, item'),REE===false||_reeNunca?'var(--muted)':'var(--bad)','coz')+
     kpi('Erro despacho',REE===null?'…':(REE===false||_reeNunca?'—':_rp),REE===false?'sem dado — a busca falhou':(_reeNunca?'ninguém lançou no período':'esqueceu bebida, sobremesa'),REE===false||_reeNunca?'var(--muted)':'var(--warn)','des')+
     '</div>'+kPainel();
-  html+='<div class="hs" style="margin:-4px 0 10px;color:var(--muted)">⏱ <b>Prazo real do iFood</b>: o horário que o app prometeu ao cliente em cada pedido ("Entrega para às", vindo do Foody) — cobre ~95% dos pedidos; nos poucos sem essa informação usamos a tabela do iFood por raio. Atraso = chegou depois do horário prometido (tolerância 1 min).</div>';
-
   const acoes=[];
   const turnos={};pedD.forEach(p=>{const t=turnos[p.turno]=turnos[p.turno]||{e:0,at:0};t.e++;if(!p.no_prazo_real)t.at++});
   let piorT=null;Object.entries(turnos).forEach(([t,v])=>{const pp=100*v.at/v.e;if(v.e>=10&&pp>=20&&(!piorT||pp>piorT.pp))piorT={t,pp,e:v.e,at:v.at}});
@@ -504,38 +502,8 @@ function renderDiario(){
   if(!acoes.length)acoes.push('✅ Dia limpo — sem atrasos relevantes, cancelamentos ou pedidos sem código. Manter o padrão!');
   html+='<div class="todo"><h2>✅ O que fazer HOJE</h2><div class="hs">gerado dos erros de ontem</div><ul>'+acoes.map(a=>'<li'+(a.includes('✅')?' class="ok"':'')+'>'+a+'</li>').join('')+'</ul></div>';
 
-  const tkeys=['Almoço','Tarde','Jantar','Madrugada'].filter(t=>turnos[t]);
-  html+='<div class="sec"><h2>⏰ Onde atrasou (régua real por raio)</h2><div class="hs">por turno vs média das últimas 4 '+DOWN[w]+'s — mesma régua</div>';
-  if(tkeys.length){
-    const bT={};pedBase.forEach(p=>{const t=bT[p.turno]=bT[p.turno]||{e:0,at:0};t.e++;if(!p.no_prazo_real)t.at++});
-    html+='<table><tr><th>Turno</th><th>Entregas</th><th>Atrasos</th><th>% no prazo</th><th>Média</th></tr>'+tkeys.map(t=>{
-      const v=turnos[t],p=v.e?Math.round(1000*(v.e-v.at)/v.e)/10:null,bp=bT[t]&&bT[t].e?Math.round(1000*(bT[t].e-bT[t].at)/bT[t].e)/10:null;
-      const cls=p==null?'pw':p>=85?'pg':p>=70?'pw':'pb';
-      return '<tr><td><b>'+t+'</b></td><td>'+v.e+'</td><td>'+v.at+'</td><td><span class="pill '+cls+'">'+(p==null?'—':p+'%')+'</span></td><td style="color:var(--muted)">'+(bp==null?'—':bp+'%')+'</td></tr>'}).join('')+'</table>';
-  }else html+='<div class="empty">Sem entregas nesse dia.</div>';
-  if(atrD.length){
-    html+='<button class="btnr" style="margin-top:10px" onclick="toggleAtr()">📄 Ver os '+atrD.length+' pedidos atrasados — nº, hora e entregador</button>';
-    html+='<div id="atrlist" style="display:none;margin-top:8px;overflow-x:auto"><table style="min-width:1220px"><tr><th>Pedido às</th><th>Loja</th><th>Entregador</th><th>Nº</th><th>Pronto</th><th>Rota montada</th><th>Aceitou</th><th>Coletou</th><th>Espera</th><th>Distância</th><th>Prometido p/ cliente</th><th>Levou</th><th>Chegou</th><th>Atraso real</th></tr>'+atrD.map(r=>{
-      const hm=x=>{if(!x)return '—';const d=new Date(x);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)};
-      const cm=r.t_coleta_min==null?null:Math.round(+r.t_coleta_min);
-      const ccls=cm==null?'pw':cm<10?'pg':cm<20?'pw':'pb';
-      const km=r.raio_km==null?null:+r.raio_km;
-      const pr=hm(r.entrega_prometida)+' <span style="color:var(--muted)">('+r.prazo_prometido_min+'min'+(r.fonte_prazo_real==='iFood (real)'?'':'*')+')</span>', tt=Math.round(+r.t_total_min||0), ar=atrasoReal(r);
-      return '<tr><td>'+hm(r.data_hora_pedido)+'</td><td>'+(r.unidade||'—').split(' ')[0]+'</td><td>'+(r.entregador||'—')+'</td><td><b>'+(r.n_pedido||'—')+'</b></td><td>'+hm(r.dt_pronto)+'</td><td>'+hm(r.dt_despachado)+'</td><td>'+hm(r.dt_aceite)+(r.t_aceite_min!=null?' <span style="color:var(--muted)">(+'+Math.round(r.t_aceite_min)+')</span>':'')+'</td><td>'+hm(r.dt_coletado)+'</td><td>'+(cm==null?'—':'<span class="pill '+ccls+'">'+cm+' min</span>')+'</td><td>'+(km!=null?km.toFixed(1)+' km':'—')+'</td><td>'+pr+'</td><td>'+tt+' min</td><td><b>'+hm(r.dt_entregue)+'</b></td><td><span class="pill pb">+'+ar+' min</span></td></tr>'}).join('')+'</table></div>';
-  }
-  html+='</div>';
-
-  html+=blocoDinheiro()+blocoOndeMelhorar(D)+blocoCliente();
+html+=blocoDinheiro()+blocoOndeMelhorar(D)+blocoCliente();
   html+=blocoGrafPrazo()+blocoGrafGargalo()+blocoGrafMotivos();
-  html+=blocoEscala(D);
-  html+='<div class="sec"><h2>🏷 Pedidos sem Código de Coleta</h2><div class="hs">do dia selecionado</div>';
-  if(scD.length){
-    html+='<table><tr><th>Hora</th><th>Loja</th><th>Turno</th><th>Entregador</th><th>Nº pedido</th><th>Canal de venda</th></tr>'+scD.map(r=>{
-      const hp=r.hora_pedido?new Date(r.hora_pedido):null;
-      const hh=hp?('0'+hp.getHours()).slice(-2)+':'+('0'+hp.getMinutes()).slice(-2):'—';
-      return '<tr><td>'+hh+'</td><td>'+r.unidade+'</td><td>'+r.turno+'</td><td>'+(r.entregador||'—')+'</td><td><b>'+(r.n_pedido||'—')+'</b></td><td>'+kEsc(canalDe(r))+'</td></tr>'}).join('')+'</table>';
-  }else html+='<div class="empty">✅ Nenhum.</div>';
-  html+='</div>';
   $('conteudo').innerHTML=html;
 }
 
