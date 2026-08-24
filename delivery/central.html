@@ -168,71 +168,80 @@ async function svsLoad(){try{
 function canalDe(r){var v=SVSK[(r.dia_operacional||"")+"|"+(r.unidade||"")+"|"+(r.n_pedido||"")];return v?v:"—"}
 function svsLojas(){var s={};SVSD.forEach(function(r){if(fLoja(r))s[r.unidade]=1});return Object.keys(s).length}
 function svsDia(d){return SVSD.filter(function(r){return r.dia_operacional===d&&fLoja(r)})}
+function _ehDono(){try{return sessionStorage.getItem("cdm_admin")==="1"}catch(e){return false}}
 var GCOR={"Água Verde":"#4da3ff","São Braz":"#f0b95a","Ahú":"#5ddc9b"};
 function _gc(u){return GCOR[u]||"#9aa3ad"}
 function _min(a,b){if(!a||!b)return null;var m=(new Date(String(b).replace(" ","T"))-new Date(String(a).replace(" ","T")))/6e4;return (isFinite(m)&&m>=0&&m<600)?m:null}
+function _frase(t){return '<div style="margin:8px 0 2px;font-size:13.5px;line-height:1.45">'+t+'</div>'}
 function _barras(itens,fmt){
   if(!itens.length)return '<div class="empty">Sem dado no período.</div>';
   var mx=1;itens.forEach(function(i){if(i.v>mx)mx=i.v});
-  return '<div style="display:grid;grid-template-columns:minmax(70px,auto) 1fr auto;gap:5px 10px;align-items:center;margin-top:8px">'+itens.map(function(i){
+  return '<div style="display:grid;grid-template-columns:minmax(64px,auto) 1fr auto;gap:5px 10px;align-items:center;margin-top:8px">'+itens.map(function(i){
     var pc=Math.max(2,Math.round(100*i.v/mx));
-    return '<div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px" title="'+kEsc(i.r)+'">'+kEsc(i.r)+'</div>'+
+    return '<div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px" title="'+kEsc(i.r)+'">'+kEsc(i.r)+'</div>'+
       '<div style="background:var(--line);border-radius:5px;height:15px"><div style="width:'+pc+'%;height:15px;border-radius:5px;background:'+(i.c||"#4da3ff")+'"></div></div>'+
       '<div style="font-size:12px;white-space:nowrap"><b>'+(fmt?fmt(i.v):i.v)+'</b></div>'}).join("")+'</div>';
 }
 function blocoGrafPrazo(){
-  var h='<div class="sec"><h2>📈 Prazo dia a dia</h2><div class="hs">% de entregas no prazo, últimos 14 dias, uma linha por loja. Serve para ver se está melhorando ou piorando.</div>';
+  var h2='<div class="sec"><h2>📈 Prazo dia a dia</h2>';
   var dias={},uni={};
   PRZ.forEach(function(r){if(!fLoja(r))return;dias[r.dia_operacional]=1;var u=uni[r.unidade]=uni[r.unidade]||{};var x=u[r.dia_operacional]=u[r.dia_operacional]||{e:0,ok:0};x.e+=(+r.entregas||0);x.ok+=(+r.no_prazo||0)});
   var ds=Object.keys(dias).sort(), us=Object.keys(uni).sort();
-  if(!ds.length)return h+'<div class="empty">Sem dado no período.</div></div>';
-  var W=680,HH=190,pl=36,pr=10,pt=14,pb=26,n=ds.length;
+  if(!ds.length)return h2+'<div class="empty">Sem dado no período.</div></div>';
+  var meio=Math.max(1,ds.length-7), rec=ds.slice(meio), ant=ds.slice(0,meio);
+  var _pp=function(u,lst){var e=0,o=0;lst.forEach(function(d){var x=uni[u][d];if(x){e+=x.e;o+=x.ok}});return e?Math.round(1000*o/e)/10:null};
+  var fr=us.map(function(u){var aa=_pp(u,ant),bb=_pp(u,rec);if(aa==null||bb==null)return null;var d=Math.round((bb-aa)*10)/10;
+    return '<b style="color:'+_gc(u)+'">'+kEsc(u)+'</b> '+(d>=1?'subiu '+d+' pontos':(d<=-1?'caiu '+Math.abs(d)+' pontos':'ficou igual'))+' na última semana ('+bb+'% agora)'}).filter(Boolean);
+  h2+=(fr.length?_frase(fr.join(' · ')+'.'):'')+'<div class="hs" style="color:var(--muted)">% no prazo por dia, últimos '+ds.length+' dias</div>';
+  var W=680,HH=160,pl=34,pr=10,pt=12,pb=22,n=ds.length;
   var X=function(i){return pl+(n<2?(W-pl-pr)/2:i*(W-pl-pr)/(n-1))};
   var Y=function(v){return pt+(100-v)*(HH-pt-pb)/100};
-  var g='<svg viewBox="0 0 '+W+' '+HH+'" style="width:100%;height:auto;margin-top:8px" role="img" aria-label="prazo por dia">';
-  [0,25,50,75,100].forEach(function(v){g+='<line x1="'+pl+'" y1="'+Y(v)+'" x2="'+(W-pr)+'" y2="'+Y(v)+'" stroke="var(--line)" stroke-width="1"/><text x="4" y="'+(Y(v)+4)+'" fill="var(--muted)" font-size="10">'+v+'%</text>'});
-  us.forEach(function(u){
-    var d="",ini=false;
-    ds.forEach(function(dd,i){var x=uni[u][dd];if(!x||!x.e)return;var v=100*x.ok/x.e;d+=(ini?" L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1);ini=true});
-    if(d)g+='<path d="'+d+'" fill="none" stroke="'+_gc(u)+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
-    ds.forEach(function(dd,i){var x=uni[u][dd];if(!x||!x.e)return;g+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(100*x.ok/x.e).toFixed(1)+'" r="2.8" fill="'+_gc(u)+'"/>'});
-  });
-  ds.forEach(function(dd,i){if(n<=8||i%2===0)g+='<text x="'+X(i).toFixed(1)+'" y="'+(HH-8)+'" fill="var(--muted)" font-size="10" text-anchor="middle">'+dd.slice(8,10)+"/"+dd.slice(5,7)+'</text>'});
-  g+='</svg>';
-  var leg='<div style="margin-top:6px;font-size:12px;color:var(--muted)">'+us.map(function(u){return '<span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:'+_gc(u)+';margin:0 5px 0 12px"></span>'+kEsc(u)}).join("")+'</div>';
-  return h+g+leg+'</div>';
+  var g='<svg viewBox="0 0 '+W+' '+HH+'" style="width:100%;height:auto;margin-top:6px" role="img" aria-label="prazo por dia">';
+  [50,75,100].forEach(function(v){g+='<line x1="'+pl+'" y1="'+Y(v)+'" x2="'+(W-pr)+'" y2="'+Y(v)+'" stroke="var(--line)" stroke-width="1"/><text x="4" y="'+(Y(v)+4)+'" fill="var(--muted)" font-size="10">'+v+'%</text>'});
+  us.forEach(function(u){var d="",ini=false;
+    ds.forEach(function(dd,i){var x=uni[u][dd];if(!x||!x.e)return;d+=(ini?" L":"M")+X(i).toFixed(1)+" "+Y(100*x.ok/x.e).toFixed(1);ini=true});
+    if(d)g+='<path d="'+d+'" fill="none" stroke="'+_gc(u)+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'});
+  ds.forEach(function(dd,i){if(i%3===0||i===n-1)g+='<text x="'+X(i).toFixed(1)+'" y="'+(HH-6)+'" fill="var(--muted)" font-size="10" text-anchor="middle">'+dd.slice(8,10)+"/"+dd.slice(5,7)+'</text>'});
+  return h2+g+'</svg></div>';
 }
-function _pedNav(){
-  var ok={};(NAV||[]).forEach(function(d){ok[d]=1});
-  return ATR.filter(function(p){return ok[p.dia_operacional]&&fLoja(p)&&p.data_hora_pedido&&p.t_total_min!=null});
-}
+function _pedNav(){var ok={};(NAV||[]).forEach(function(d){ok[d]=1});
+  return ATR.filter(function(p){return ok[p.dia_operacional]&&fLoja(p)&&p.data_hora_pedido&&p.t_total_min!=null})}
 function blocoGrafGargalo(){
   var ps=_pedNav();
-  var h='<div class="sec"><h2>🔎 Onde o tempo se perde</h2><div class="hs">média em minutos de cada etapa, e o atraso por hora do dia, nos 7 dias que a tela navega. Mostra se o gargalo é cozinha ou rua.</div>';
-  if(!ps.length)return h+'<div class="empty">Sem dado no período.</div></div>';
-  var et=[{r:"Pedido → pronto",k:["data_hora_pedido","dt_pronto"],c:"#f0b95a"},
-          {r:"Pronto → rota montada",k:["dt_pronto","dt_despachado"],c:"#e2725b"},
+  var h2='<div class="sec"><h2>🔎 Onde o tempo se perde</h2>';
+  if(!ps.length)return h2+'<div class="empty">Sem dado no período.</div></div>';
+  var et=[{r:"Cozinha (pedido → pronto)",k:["data_hora_pedido","dt_pronto"],c:"#f0b95a"},
+          {r:"Pronto parado (→ rota)",k:["dt_pronto","dt_despachado"],c:"#e2725b"},
           {r:"Rota → coleta",k:["dt_despachado","dt_coletado"],c:"#9b8cff"},
-          {r:"Coleta → entrega",k:["dt_coletado","dt_entregue"],c:"#4da3ff"}];
+          {r:"Rua (coleta → entrega)",k:["dt_coletado","dt_entregue"],c:"#4da3ff"}];
   var itens=et.map(function(e){var s=0,q=0;ps.forEach(function(p){var m=_min(p[e.k[0]],p[e.k[1]]);if(m!=null){s+=m;q++}});return {r:e.r,v:q?Math.round(10*s/q)/10:0,c:e.c}});
-  h+=_barras(itens,function(v){return v+" min"});
+  var pior=itens.slice().sort(function(a,b){return b.v-a.v})[0];
+  var tot=itens.reduce(function(a,i){return a+i.v},0);
   var hr={};ps.forEach(function(p){var k=String(p.data_hora_pedido).slice(11,13);var x=hr[k]=hr[k]||{e:0,a:0};x.e++;if(!p.no_prazo_real)x.a++});
-  var ks=Object.keys(hr).sort(function(a,b){var A=(+a<6)?+a+24:+a,B=(+b<6)?+b+24:+b;return A-B});
-  var it2=ks.filter(function(k){return hr[k].e>=5}).map(function(k){return {r:k+"h ("+hr[k].e+" pedidos)",v:Math.round(1000*hr[k].a/hr[k].e)/10,c:"#e2725b"}});
-  h+='<div class="hs" style="margin-top:14px">Atraso por hora do pedido — % que estourou a promessa</div>'+_barras(it2,function(v){return v+"%"});
-  return h+'</div>';
+  var pi=Object.keys(hr).filter(function(k){return hr[k].e>=10}).map(function(k){return {h:k,p:Math.round(1000*hr[k].a/hr[k].e)/10,e:hr[k].e}}).sort(function(a,b){return b.p-a.p}).slice(0,3);
+  h2+=_frase('Da loja até o cliente são <b>'+Math.round(tot)+' min</b> em média. O maior pedaço é <b>'+pior.r.split(" (")[0]+'</b>, com <b>'+pior.v+' min</b>.'+
+    (pi.length?' A hora mais crítica é <b>'+pi[0].h+'h</b>, com '+pi[0].p+'% de atraso.':''));
+  h2+=_barras(itens,function(v){return v+" min"});
+  if(pi.length)h2+='<div class="hs" style="margin-top:12px;color:var(--muted)">as 3 piores horas</div>'+_barras(pi.map(function(x){return {r:x.h+"h · "+x.e+" pedidos",v:x.p,c:"#e2725b"}}),function(v){return v+"%"});
+  return h2+'</div>';
 }
 function blocoGrafMotivos(){
   var d30=(new Date(Date.now()-30*864e5)).toISOString().slice(0,10);
   var d14=(new Date(Date.now()-14*864e5)).toISOString().slice(0,10);
-  var h='<div class="sec"><h2>🗣 Por que cancelam e por que reclamam</h2><div class="hs">motivos de cancelamento no iFood nos últimos 30 dias, e as marcações das notas 1 a 3 nos últimos 14</div>';
-  var mc={};CANC.filter(function(r){return r.data>=d30&&fLojaI(r)}).forEach(function(r){var m=r.motivo||"sem motivo";mc[m]=(mc[m]||0)+1});
-  var i1=Object.keys(mc).sort(function(a,b){return mc[b]-mc[a]}).slice(0,8).map(function(m){return {r:m.length>44?m.slice(0,42)+"…":m,v:mc[m],c:"#e2725b"}});
-  h+=_barras(i1);
+  var h2='<div class="sec"><h2>🗣 Por que cancelam e por que reclamam</h2>';
+  var cs=CANC.filter(function(r){return r.data>=d30&&fLojaI(r)});
+  var mc={};cs.forEach(function(r){var m=r.motivo||"sem motivo";mc[m]=(mc[m]||0)+1});
+  var ord=Object.keys(mc).sort(function(a,b){return mc[b]-mc[a]});
+  var i1=ord.slice(0,5).map(function(m){return {r:m.length>38?m.slice(0,36)+"…":m,v:mc[m],c:"#e2725b"}});
   var tg={};AVAL.filter(function(r){return (+r.nota)<=3&&r.data_avaliacao>=d14&&fLojaI(r)}).forEach(function(r){(r.tags||[]).forEach(function(t){tg[t]=(tg[t]||0)+1})});
-  var i2=Object.keys(tg).sort(function(a,b){return tg[b]-tg[a]}).slice(0,8).map(function(t){return {r:t.length>44?t.slice(0,42)+"…":t,v:tg[t],c:"#f0b95a"}});
-  h+='<div class="hs" style="margin-top:14px">O que o cliente marcou nas notas baixas</div>'+_barras(i2);
-  return h+'</div>';
+  var ot=Object.keys(tg).sort(function(a,b){return tg[b]-tg[a]});
+  var i2=ot.slice(0,5).map(function(t){return {r:t.length>38?t.slice(0,36)+"…":t,v:tg[t],c:"#f0b95a"}});
+  if(!cs.length&&!ot.length)return h2+'<div class="empty">Sem dado no período.</div></div>';
+  h2+=_frase((ord.length?'De <b>'+cs.length+'</b> cancelamentos em 30 dias, o motivo que mais aparece é <b>'+kEsc(ord[0].toLowerCase())+'</b> ('+mc[ord[0]]+').':'')+
+    (ot.length?' A reclamação mais repetida é <b>'+kEsc(ot[0])+'</b> ('+tg[ot[0]]+'×).':''));
+  h2+='<div class="hs" style="margin-top:8px;color:var(--muted)">motivos de cancelamento · 30 dias</div>'+_barras(i1);
+  if(i2.length)h2+='<div class="hs" style="margin-top:12px;color:var(--muted)">marcações das notas 1 a 3 · 14 dias</div>'+_barras(i2);
+  return h2+'</div>';
 }
 function _dobKey(t){return "cdm_dob_"+String(t||"").replace(/[^a-zA-Z0-9]/g,"").slice(0,26)}
 function aplicaDobrar(){
@@ -431,7 +440,13 @@ function kPainel(){if(!KSEL)return '';var h='',t='';var CP=["Loja","Turno","Moto
   else if(KSEL==='moto'){h='Motoboys que entregaram '+blocoNome();var _mm={};(KCTX.ped||[]).forEach(function(p){var n=p.entregador||'sem nome';if(!_mm[n])_mm[n]={n:n,e:0,a:0};_mm[n].e++;if(!p.no_prazo_real)_mm[n].a++});var _ml=Object.keys(_mm).map(function(k){return _mm[k]}).sort(function(x,y){return y.e-x.e});t=kTab(['Motoboy','Entregas','Atrasos','% no prazo'],_ml.map(function(m){return '<tr><td>'+kEsc(m.n)+'</td><td>'+m.e+'</td><td>'+m.a+'</td><td>'+(m.e?Math.round(1000*(m.e-m.a)/m.e)/10:0)+'%</td></tr>'}))}
   else if(KSEL==="canc"){h="Cancelamentos do dia (Saipos)";t="<div class='hs' style='color:var(--muted);margin-bottom:8px'>Vem do Saipos, que fecha todo dia. Canal de venda e o nome da loja ou da marca por onde o pedido entrou; quando esta vazio, foi venda direta no balcao ou no salao. O motivo e o prazo para contestar continuam no quadro Cliente nao recebeu, que vem do iFood.</div>"+kTab(["Loja","Pedido","Canal de venda","Itens cancelados"],(KCTX.canc||[]).map(function(c){return "<tr><td>"+kEsc(c.unidade)+"</td><td>"+kEsc(c.n_pedido||"—")+"</td><td>"+kEsc(c.canal||"venda direta (balcao/salao)")+"</td><td>"+kEsc(c.itens_cancelados||"—")+"</td></tr>"}))}
   else if(KSEL==='nr'){h='Cliente não recebeu — últimos 30 dias';t='<div class="hs" style="color:var(--muted);margin-bottom:8px">Cancelamentos em que o cliente disse que não recebeu, não atendeu ou não foi localizado. O que está como <b>perdido</b> o iFood não deixa contestar. O que está como <b>CONTESTAR</b> ainda dá para recuperar.</div>'+kTab(['Data','Loja','Motivo','Valor','Situação'],(KCTX.nr||[]).map(function(c){var st=c.contestavel?(c.loja_contestou?'já contestado':'<b style="color:var(--warn)">CONTESTAR</b>'):'<b style="color:var(--bad)">perdido</b>';return '<tr><td>'+kEsc(c.data?c.data.slice(8,10)+'/'+c.data.slice(5,7):'—')+'</td><td>'+kEsc(unidadeDe(c.id_loja)||'—')+'</td><td>'+kEsc(c.motivo)+'</td><td data-k="'+(+c.valor_pedido||0)+'">'+(c.valor_pedido!=null?'R$ '+(+c.valor_pedido).toFixed(2).replace('.',','):'—')+'</td><td>'+st+'</td></tr>'}))}
-  else if(KSEL==='aval'){h='Notas 1 a 3 dos ultimos 3 dias';t=kTab(['Data','Nota','O que o cliente disse'],(KCTX.aval||[]).map(function(a){return '<tr><td>'+kEsc(a.data_avaliacao)+'</td><td>'+kEsc(a.nota)+'</td><td>'+kEsc(a.comentario||a.tags||'—')+'</td></tr>'}))}
+  else if(KSEL==='aval'){var _d14=(new Date(Date.now()-14*864e5)).toISOString().slice(0,10);
+    var _rs2=AVAL.filter(function(r){return (+r.nota)<=3&&r.data_avaliacao>=_d14&&fLojaI(r)}).sort(function(a,b){return a.data_avaliacao<b.data_avaliacao?1:-1});
+    h='Avaliações — notas 1 a 3 dos últimos 14 dias'+(_amax?' · o iFood publicou até '+_dbr(_amax):'');
+    var _tg={};_rs2.forEach(function(r){(r.tags||[]).forEach(function(x){_tg[x]=(_tg[x]||0)+1})});
+    var _tp=Object.keys(_tg).sort(function(a,b){return _tg[b]-_tg[a]}).slice(0,3);
+    t=(_tp.length?'<div class="hs" style="margin-bottom:8px;color:var(--muted)">Mais repetido: '+_tp.map(function(x){return '<b>'+kEsc(x)+'</b> ('+_tg[x]+')'}).join(' · ')+'</div>':'')+
+      kTab(['Data','Loja','Nota','O que a pessoa escreveu'],_rs2.map(function(a){return '<tr><td>'+kEsc(a.data_avaliacao?a.data_avaliacao.slice(8,10)+'/'+a.data_avaliacao.slice(5,7):'—')+'</td><td>'+kEsc(unidadeDe(a.id_loja)||'—')+'</td><td data-k="'+(+a.nota||0)+'"><b style="color:var(--bad)">'+kEsc(a.nota)+'</b></td><td>'+kEsc(a.comentario||(a.tags||[]).join(', ')||'sem comentário')+'</td></tr>'}))}
   else if(KSEL==='ree'){h='Reentregas do dia (pedidos marcados com #)';t=(REE===null?'<div class="hs" style="color:var(--muted)">Buscando…</div>':kTab(CR,(KCTX.ree||[]).map(reeLinha)))}
   else if(KSEL==='coz'||KSEL==='des'){var f=KSEL==='coz'?'COZINHA':'DESPACHO';h=(KSEL==='coz'?'Reentregas por erro de cozinha':'Reentregas por erro de despacho');t=(REE===null?'<div class="hs" style="color:var(--muted)">Buscando…</div>':kTab(CR,(KCTX.ree||[]).filter(function(r){return r.familia===f}).map(reeLinha)))}
   return '<div class="kpain"><h4>'+h+'<span class="kfech" onclick="kClick(null)">fechar ✕</span></h4>'+t+'</div>'}
@@ -472,6 +487,11 @@ function renderDiario(){
   reeGarante();
   var _cmax='',_amax='';CANC.forEach(function(r){if(r.data>_cmax)_cmax=r.data});AVAL.forEach(function(r){if(r.data_avaliacao>_amax)_amax=r.data_avaliacao});
   var _dbr=function(s){return s?s.slice(8,10)+'/'+s.slice(5,7):'—'};
+  var _d14a=(new Date(Date.now()-14*864e5)).toISOString().slice(0,10);
+  var _avL=AVAL.filter(function(r){return r.data_avaliacao>=_d14a&&fLojaI(r)});
+  var _avQt=_avL.length,_avRuim=_avL.filter(function(r){return (+r.nota)<=3}).length;
+  var _avMed=_avQt?(_avL.reduce(function(a,r){return a+(+r.nota||0)},0)/_avQt):null;
+  var _avAtraso=(!_amax||_amax<D);
   var _cSem=(_cmax<D),_aSem=(_amax<D),_hojeOp=(new Date(Date.now()-7*36e5)).toISOString().slice(0,10),_emCurso=(D===_hojeOp);
   var _rd=reeDia(D).filter(fBloco),_rc=_rd.filter(function(r){return r.familia==='COZINHA'}).length,_rp=_rd.filter(function(r){return r.familia==='DESPACHO'}).length,_rf=_rd.filter(function(r){return !r.familia}).length,_reeNunca=(Array.isArray(REE)&&REE.length===0);
   var _MNR=['O PEDIDO NÃO FOI ENTREGUE','NINGUÉM PODERÁ RECEBER O PEDIDO','CLIENTE NÃO LOCALIZADO','O ENDEREÇO ESTÁ INCOMPLETO E O CLIENTE NÃO ATENDE'];var _d30=(new Date(Date.now()-30*864e5)).toISOString().slice(0,10);var _nr=CANC.filter(function(r){return r.data>=_d30&&fLojaI(r)&&_MNR.indexOf(r.motivo)>=0});var _nrP=_nr.filter(function(r){return !r.contestavel}),_nrC=_nr.filter(function(r){return r.contestavel&&!r.loja_contestou});var _vP=_nrP.reduce(function(a,r){return a+(+r.valor_pedido||0)},0),_vC=_nrC.reduce(function(a,r){return a+(+r.valor_pedido||0)},0);var _rs=function(v){return 'R$ '+v.toFixed(2).replace('.',',')};
@@ -481,28 +501,12 @@ function renderDiario(){
     kpi('% no prazo REAL',pct!=null?pct+'%':'—',cmp(pct,bPct),pct==null?'var(--muted)':pct>=85?'var(--good)':pct>=70?'var(--warn)':'var(--bad)','pct')+
     kpi('Atrasos reais',atr,atr?'acima da promessa do raio':'nenhum 🎉',atr?'var(--bad)':'var(--good)','atr')+
     kpi('Sem código',sem,sem?'sem Cód. de Coleta':'tudo certo 🎉',sem?'var(--warn)':'var(--good)','sc')+
+    kpi('Avaliações',_avMed==null?'—':('★ '+_avMed.toFixed(2)),_avAtraso?('iFood publicou até '+_dbr(_amax)):(_avQt+' notas · '+_avRuim+' de 1 a 3'),_avMed==null?'var(--muted)':(_avMed>=4.6?'var(--good)':(_avMed>=4.2?'var(--warn)':'var(--bad)')),'aval')+
     kpi('Reentregas #',REE===null?'…':(REE===false||_reeNunca?'—':_rd.length),REE===null?'buscando…':(REE===false?'não consegui buscar':(_reeNunca?'ninguém lançou no período':(_rf?_rf+' a classificar':(_rd.length?'todas classificadas':'nenhuma 🎉')))),REE===false?'var(--bad)':(_reeNunca?'var(--muted)':(_rd.length?'var(--warn)':'var(--good)')),'ree')+
     kpi('Erro cozinha',REE===null?'…':(REE===false||_reeNunca?'—':_rc),REE===false?'sem dado — a busca falhou':(_reeNunca?'ninguém lançou no período':'montagem, fritura, item'),REE===false||_reeNunca?'var(--muted)':'var(--bad)','coz')+
     kpi('Erro despacho',REE===null?'…':(REE===false||_reeNunca?'—':_rp),REE===false?'sem dado — a busca falhou':(_reeNunca?'ninguém lançou no período':'esqueceu bebida, sobremesa'),REE===false||_reeNunca?'var(--muted)':'var(--warn)','des')+
     '</div>'+kPainel();
-  const acoes=[];
-  const turnos={};pedD.forEach(p=>{const t=turnos[p.turno]=turnos[p.turno]||{e:0,at:0};t.e++;if(!p.no_prazo_real)t.at++});
-  let piorT=null;Object.entries(turnos).forEach(([t,v])=>{const pp=100*v.at/v.e;if(v.e>=10&&pp>=20&&(!piorT||pp>piorT.pp))piorT={t,pp,e:v.e,at:v.at}});
-  if(piorT)acoes.push('⏰ O turno <b>'+piorT.t+'</b> estourou a promessa do raio em '+piorT.pp.toFixed(0)+'% das entregas ('+piorT.at+' de '+piorT.e+'). Hoje: adiantar preparo antes do pico e reforço de 1–2h se possível.');
-  const porMoto={};pedD.forEach(p=>{const k=p.entregador+'|'+p.unidade;const m=porMoto[k]=porMoto[k]||{n:p.entregador,l:p.unidade,e:0,ok:0,at:0};m.e++;if(!p.no_prazo_real){m.at++}else{m.ok++}});
-  const atencao=Object.values(porMoto).map(m=>({...m,p:m.e?Math.round(1000*m.ok/m.e)/10:null})).filter(m=>m.at>=3||(m.p!=null&&m.p<70&&m.e>=5)).sort((a,b)=>b.at-a.at);
-  if(atencao.length)acoes.push('🛵 Conversar hoje com: '+atencao.slice(0,4).map(m=>'<b>'+m.n+'</b> ('+m.at+' atrasos em '+m.e+')').join(' · ')+'. Sem bronca: entender o que travou.');
-  if(sem>0)acoes.push('🏷 <b>'+sem+' pedido'+(sem>1?'s':'')+' sem Código de Coleta</b> (lista abaixo). Todo pedido do site/balcão sai COM código.');
-  const coletaLenta=atrD.filter(r=>(+r.t_coleta_min||0)>=15);
-  if(coletaLenta.length>=2)acoes.push('📦 <b>'+coletaLenta.length+' pedidos atrasados ficaram 15+ min prontos esperando o motoboy coletar</b> (coluna "Pronto → coleta" na lista). Combinar: enviou o pedido, coleta na hora.');
-  if(!_sSem)cancD.slice(0,3).forEach(c=>acoes.push("🚫 Cancelamento em <b>"+kEsc(c.unidade)+"</b> — pedido "+kEsc(c.n_pedido||"—")+", entrou por "+kEsc(c.canal||"venda direta")+((+c.itens_cancelados)>0?" — "+(+c.itens_cancelados)+" item(ns)":"")+". Conferir sacola/estoque antes de aceitar."));
-  const tagCount={};avalRuim.forEach(r=>(r.tags||[]).forEach(t=>tagCount[t]=(tagCount[t]||0)+1));
-  const tagTop=Object.entries(tagCount).sort((a,b)=>b[1]-a[1])[0];
-  if(tagTop)acoes.push('⭐ Reclamação mais citada: <b>'+tagTop[0]+'</b> ('+tagTop[1]+'×). Reforçar conferência da sacola na expedição.');
-  if(!acoes.length)acoes.push('✅ Dia limpo — sem atrasos relevantes, cancelamentos ou pedidos sem código. Manter o padrão!');
-  html+='<div class="todo"><h2>✅ O que fazer HOJE</h2><div class="hs">gerado dos erros de ontem</div><ul>'+acoes.map(a=>'<li'+(a.includes('✅')?' class="ok"':'')+'>'+a+'</li>').join('')+'</ul></div>';
-
-html+=blocoDinheiro()+blocoOndeMelhorar(D)+blocoCliente();
+  html+=(_ehDono()?blocoDinheiro():'')+blocoOndeMelhorar(D);
   html+=blocoGrafPrazo()+blocoGrafGargalo()+blocoGrafMotivos();
   $('conteudo').innerHTML=html;
 }
