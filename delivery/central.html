@@ -168,6 +168,72 @@ async function svsLoad(){try{
 function canalDe(r){var v=SVSK[(r.dia_operacional||"")+"|"+(r.unidade||"")+"|"+(r.n_pedido||"")];return v?v:"—"}
 function svsLojas(){var s={};SVSD.forEach(function(r){if(fLoja(r))s[r.unidade]=1});return Object.keys(s).length}
 function svsDia(d){return SVSD.filter(function(r){return r.dia_operacional===d&&fLoja(r)})}
+var GCOR={"Água Verde":"#4da3ff","São Braz":"#f0b95a","Ahú":"#5ddc9b"};
+function _gc(u){return GCOR[u]||"#9aa3ad"}
+function _min(a,b){if(!a||!b)return null;var m=(new Date(String(b).replace(" ","T"))-new Date(String(a).replace(" ","T")))/6e4;return (isFinite(m)&&m>=0&&m<600)?m:null}
+function _barras(itens,fmt){
+  if(!itens.length)return '<div class="empty">Sem dado no período.</div>';
+  var mx=1;itens.forEach(function(i){if(i.v>mx)mx=i.v});
+  return '<div style="display:grid;grid-template-columns:minmax(70px,auto) 1fr auto;gap:5px 10px;align-items:center;margin-top:8px">'+itens.map(function(i){
+    var pc=Math.max(2,Math.round(100*i.v/mx));
+    return '<div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px" title="'+kEsc(i.r)+'">'+kEsc(i.r)+'</div>'+
+      '<div style="background:var(--line);border-radius:5px;height:15px"><div style="width:'+pc+'%;height:15px;border-radius:5px;background:'+(i.c||"#4da3ff")+'"></div></div>'+
+      '<div style="font-size:12px;white-space:nowrap"><b>'+(fmt?fmt(i.v):i.v)+'</b></div>'}).join("")+'</div>';
+}
+function blocoGrafPrazo(){
+  var h='<div class="sec"><h2>📈 Prazo dia a dia</h2><div class="hs">% de entregas no prazo, últimos 14 dias, uma linha por loja. Serve para ver se está melhorando ou piorando.</div>';
+  var dias={},uni={};
+  PRZ.forEach(function(r){if(!fLoja(r))return;dias[r.dia_operacional]=1;var u=uni[r.unidade]=uni[r.unidade]||{};var x=u[r.dia_operacional]=u[r.dia_operacional]||{e:0,ok:0};x.e+=(+r.entregas||0);x.ok+=(+r.no_prazo||0)});
+  var ds=Object.keys(dias).sort(), us=Object.keys(uni).sort();
+  if(!ds.length)return h+'<div class="empty">Sem dado no período.</div></div>';
+  var W=680,HH=190,pl=36,pr=10,pt=14,pb=26,n=ds.length;
+  var X=function(i){return pl+(n<2?(W-pl-pr)/2:i*(W-pl-pr)/(n-1))};
+  var Y=function(v){return pt+(100-v)*(HH-pt-pb)/100};
+  var g='<svg viewBox="0 0 '+W+' '+HH+'" style="width:100%;height:auto;margin-top:8px" role="img" aria-label="prazo por dia">';
+  [0,25,50,75,100].forEach(function(v){g+='<line x1="'+pl+'" y1="'+Y(v)+'" x2="'+(W-pr)+'" y2="'+Y(v)+'" stroke="var(--line)" stroke-width="1"/><text x="4" y="'+(Y(v)+4)+'" fill="var(--muted)" font-size="10">'+v+'%</text>'});
+  us.forEach(function(u){
+    var d="",ini=false;
+    ds.forEach(function(dd,i){var x=uni[u][dd];if(!x||!x.e)return;var v=100*x.ok/x.e;d+=(ini?" L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1);ini=true});
+    if(d)g+='<path d="'+d+'" fill="none" stroke="'+_gc(u)+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
+    ds.forEach(function(dd,i){var x=uni[u][dd];if(!x||!x.e)return;g+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(100*x.ok/x.e).toFixed(1)+'" r="2.8" fill="'+_gc(u)+'"/>'});
+  });
+  ds.forEach(function(dd,i){if(n<=8||i%2===0)g+='<text x="'+X(i).toFixed(1)+'" y="'+(HH-8)+'" fill="var(--muted)" font-size="10" text-anchor="middle">'+dd.slice(8,10)+"/"+dd.slice(5,7)+'</text>'});
+  g+='</svg>';
+  var leg='<div style="margin-top:6px;font-size:12px;color:var(--muted)">'+us.map(function(u){return '<span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:'+_gc(u)+';margin:0 5px 0 12px"></span>'+kEsc(u)}).join("")+'</div>';
+  return h+g+leg+'</div>';
+}
+function _pedNav(){
+  var ok={};(NAV||[]).forEach(function(d){ok[d]=1});
+  return ATR.filter(function(p){return ok[p.dia_operacional]&&fLoja(p)&&p.data_hora_pedido&&p.t_total_min!=null});
+}
+function blocoGrafGargalo(){
+  var ps=_pedNav();
+  var h='<div class="sec"><h2>🔎 Onde o tempo se perde</h2><div class="hs">média em minutos de cada etapa, e o atraso por hora do dia, nos 7 dias que a tela navega. Mostra se o gargalo é cozinha ou rua.</div>';
+  if(!ps.length)return h+'<div class="empty">Sem dado no período.</div></div>';
+  var et=[{r:"Pedido → pronto",k:["data_hora_pedido","dt_pronto"],c:"#f0b95a"},
+          {r:"Pronto → rota montada",k:["dt_pronto","dt_despachado"],c:"#e2725b"},
+          {r:"Rota → coleta",k:["dt_despachado","dt_coletado"],c:"#9b8cff"},
+          {r:"Coleta → entrega",k:["dt_coletado","dt_entregue"],c:"#4da3ff"}];
+  var itens=et.map(function(e){var s=0,q=0;ps.forEach(function(p){var m=_min(p[e.k[0]],p[e.k[1]]);if(m!=null){s+=m;q++}});return {r:e.r,v:q?Math.round(10*s/q)/10:0,c:e.c}});
+  h+=_barras(itens,function(v){return v+" min"});
+  var hr={};ps.forEach(function(p){var k=String(p.data_hora_pedido).slice(11,13);var x=hr[k]=hr[k]||{e:0,a:0};x.e++;if(!p.no_prazo_real)x.a++});
+  var ks=Object.keys(hr).sort(function(a,b){var A=(+a<6)?+a+24:+a,B=(+b<6)?+b+24:+b;return A-B});
+  var it2=ks.filter(function(k){return hr[k].e>=5}).map(function(k){return {r:k+"h ("+hr[k].e+" pedidos)",v:Math.round(1000*hr[k].a/hr[k].e)/10,c:"#e2725b"}});
+  h+='<div class="hs" style="margin-top:14px">Atraso por hora do pedido — % que estourou a promessa</div>'+_barras(it2,function(v){return v+"%"});
+  return h+'</div>';
+}
+function blocoGrafMotivos(){
+  var d30=(new Date(Date.now()-30*864e5)).toISOString().slice(0,10);
+  var d14=(new Date(Date.now()-14*864e5)).toISOString().slice(0,10);
+  var h='<div class="sec"><h2>🗣 Por que cancelam e por que reclamam</h2><div class="hs">motivos de cancelamento no iFood nos últimos 30 dias, e as marcações das notas 1 a 3 nos últimos 14</div>';
+  var mc={};CANC.filter(function(r){return r.data>=d30&&fLojaI(r)}).forEach(function(r){var m=r.motivo||"sem motivo";mc[m]=(mc[m]||0)+1});
+  var i1=Object.keys(mc).sort(function(a,b){return mc[b]-mc[a]}).slice(0,8).map(function(m){return {r:m.length>44?m.slice(0,42)+"…":m,v:mc[m],c:"#e2725b"}});
+  h+=_barras(i1);
+  var tg={};AVAL.filter(function(r){return (+r.nota)<=3&&r.data_avaliacao>=d14&&fLojaI(r)}).forEach(function(r){(r.tags||[]).forEach(function(t){tg[t]=(tg[t]||0)+1})});
+  var i2=Object.keys(tg).sort(function(a,b){return tg[b]-tg[a]}).slice(0,8).map(function(t){return {r:t.length>44?t.slice(0,42)+"…":t,v:tg[t],c:"#f0b95a"}});
+  h+='<div class="hs" style="margin-top:14px">O que o cliente marcou nas notas baixas</div>'+_barras(i2);
+  return h+'</div>';
+}
 function _dobKey(t){return "cdm_dob_"+String(t||"").replace(/[^a-zA-Z0-9]/g,"").slice(0,26)}
 function aplicaDobrar(){
   var secs=document.querySelectorAll("#conteudo .sec");
@@ -444,6 +510,7 @@ function renderDiario(){
   html+='</div>';
 
   html+=blocoDinheiro()+blocoOndeMelhorar(D)+blocoCliente();
+  html+=blocoGrafPrazo()+blocoGrafGargalo()+blocoGrafMotivos();
   html+=blocoEscala(D);
   html+='<div class="sec"><h2>🏷 Pedidos sem Código de Coleta</h2><div class="hs">do dia selecionado</div>';
   if(scD.length){
