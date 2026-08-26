@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#c8102e">
 <title>Central Salão · Cidadão do Mundo</title>
 <style>
-:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#c8102e;--ok:#2fae6a;--bad:#e66767;--warn:#c98500;--gold:#e8c547}
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#c8102e;--ok:#2fae6a;--bad:#e66767;--warn:#c98500;--gold:#e0a81c}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--s0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1180px;margin:0 auto}
 h1{font-size:22px;font-weight:800}
@@ -50,8 +50,26 @@ a.src:hover{text-decoration:underline}
 .linha b{color:var(--text);font-weight:600}
 .turno{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin:10px 0 4px}
 .vazio{color:var(--muted);font-size:12.5px;padding:6px 0}
+.ctx{color:var(--muted);font-size:12.5px;margin:2px 0 14px}
 details{margin-top:10px}
 summary{cursor:pointer;color:var(--text2);font-size:12.5px;font-weight:600;padding:6px 0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-top:6px}
+.tile{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:20px;cursor:pointer;text-align:left;color:var(--text);font-family:inherit;display:flex;flex-direction:column;gap:6px;transition:border-color .15s,transform .1s}
+.tile:hover{border-color:var(--gold);transform:translateY(-2px)}
+.tile .ic{font-size:24px;line-height:1}
+.tile .tt{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.9px;color:var(--text2)}
+.tile .big{font-size:32px;font-weight:800;line-height:1.05;margin:2px 0}
+.tile .sub2{font-size:12.5px;color:var(--muted);line-height:1.45}
+.tile .go{margin-top:auto;padding-top:10px;font-size:12px;font-weight:700;color:var(--muted)}
+.tile:hover .go{color:var(--gold)}
+.tile.atencao .big{color:var(--gold)}
+.tile.off{cursor:default;opacity:.55}
+.tile.off:hover{border-color:var(--line);transform:none}
+.tile.off:hover .go{color:var(--muted)}
+.voltar{background:none;border:1px solid var(--line);color:var(--text2);border-radius:9px;padding:7px 13px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.voltar:hover{border-color:var(--text2);color:var(--text)}
+.barra{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.barra .tit{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.9px;color:var(--muted)}
 #gate{position:fixed;inset:0;background:var(--s0);z-index:100;display:flex;align-items:center;justify-content:center}
 .gatebox{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:32px 28px;width:330px;text-align:center}
 .gatebox input{width:100%;background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:11px 14px;color:var(--text);font-size:15px;outline:none;margin:14px 0 10px;text-align:center}
@@ -108,7 +126,9 @@ const MARCA=[
 ];
 
 const cls=n=>n==null?'':(n>=4.5?'p-ok':n>=4?'p-warn':'p-bad');
-const estrelas=n=>n==null?'':('★'+n.toFixed(1));
+const nb=n=>Number(n).toFixed(1).replace('.',',');
+const plural=(n,s,p)=>n+' '+(n===1?s:p);
+const estrelas=n=>n==null?'':('★'+nb(n));
 const fmtN=n=>(n==null?'—':n.toLocaleString('pt-BR'));
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const br=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'';
@@ -126,7 +146,7 @@ function fontesTable(lista){
 /* ================= 1. HOJE NO SALÃO ================= */
 function blocoHoje(escala,ponto,pessoas,cobertura){
   const hoje=hojeISO(), dow=new Date().getDay();
-  let h='<h2>👥 Hoje no salão <span class="hint">'+DIAS[dow]+', '+br(hoje)+' · escala lançada pela loja e ponto batido</span></h2><div class="cards">';
+  let h='<div class="ctx">'+DIAS[dow]+', '+br(hoje)+' · escala lançada pela loja e ponto batido</div><div class="cards">';
   const ultPonto=ponto.length?ponto.map(p=>p.data).sort().slice(-1)[0]:null;
   UNI.forEach(u=>{
     const daLoja=escala.filter(e=>e.unidade===u);
@@ -176,7 +196,7 @@ function blocoHoje(escala,ponto,pessoas,cobertura){
 /* ================= 2. CARDÁPIO FORA DO AR NO TABLET ================= */
 function blocoGoomer(pausados){
   const hoje=hojeISO();
-  let h='<h2>📵 Cardápio fora do ar no tablet da mesa <span class="hint">tablets Goomer · varredura automática</span></h2>';
+  let h='<div class="ctx">tablets Goomer da mesa · varredura automática do cardápio</div>';
   if(!pausados.length){
     h+='<div class="store"><div class="vazio">a varredura dos tablets ainda não trouxe nada — não quer dizer que está tudo no ar</div></div>';
     return h;
@@ -198,7 +218,7 @@ function blocoGoomer(pausados){
     const ultima=l.map(x=>x.visto).sort().slice(-1)[0];
     const maisVelho=l.map(x=>x.desde).sort()[0];
     const dias=diasEntre(maisVelho,hoje);
-    h+='<div class="c"><div class="nm">'+u+'<span class="pill '+(l.length>20?'p-bad':(l.length>5?'p-warn':'p-ok'))+'">'+l.length+' itens</span></div>';
+    h+='<div class="c"><div class="nm">'+u+'<span class="pill '+(l.length>20?'p-bad':(l.length>5?'p-warn':'p-ok'))+'">'+plural(l.length,'item','itens')+'</span></div>';
     h+='<div class="linha"><span>pausados no tablet</span><b>'+pau+'</b></div>';
     h+='<div class="linha"><span>escondidos do cliente</span><b>'+esco+'</b></div>';
     h+='<div class="linha"><span>o mais antigo está parado há</span><b>'+(dias>0?dias+' dias':'menos de 1 dia')+'</b></div>';
@@ -216,10 +236,10 @@ function blocoGoomer(pausados){
 
 /* ================= 3. NOTA NO GOOGLE ================= */
 function blocoGoogle(G){
-  let h='<h2>⭐ Nota no Google — por loja</h2><div class="cards">';
+  let h='<div class="ctx">coleta automática toda semana</div><div class="cards">';
   UNI.forEach(u=>{const g=G[u];
     h+='<div class="c"><div class="nm">'+u+(g?'<span class="pill '+cls(+g.nota)+'">Google</span>':'')+'</div>'+
-       (g?'<div class="nota">'+(+g.nota).toFixed(1)+'</div><div class="qtd">'+fmtN(g.num_avaliacoes)+' avaliações · coletado '+br(g.data_coleta)+'</div>'
+       (g?'<div class="nota">'+nb(g.nota)+'</div><div class="qtd">'+fmtN(g.num_avaliacoes)+' avaliações · coletado '+br(g.data_coleta)+'</div>'
           :'<div class="qtd">sem dado do Google ainda</div>')+
        '</div>'});
   h+='</div>';
@@ -228,7 +248,7 @@ function blocoGoogle(G){
 
 /* ================= 4. O QUE O CLIENTE FALOU ================= */
 function blocoClientes(G){
-  let h='<h2>💬 O que o cliente falou <span class="hint">Google · atualiza sozinho toda semana</span></h2>';
+  let h='<div class="ctx">Google · atualiza sozinho toda semana</div>';
   UNI.forEach(u=>{
     const g=G[u];
     h+='<div class="store"><h3>'+u+'</h3><div class="loc">Cidadão do Mundo Burgers &amp; Arts · '+u+'</div>';
@@ -247,17 +267,89 @@ function blocoClientes(G){
   return h;
 }
 
-function render(d){
-  let h='';
-  h+=blocoHoje(d.escala,d.ponto,d.pessoas,d.cobertura);
-  h+=blocoGoomer(d.pausados);
-  h+=blocoGoogle(d.google);
-  h+=blocoClientes(d.google);
-  h+='<h2>📱 Menções da marca <span class="hint">redes sociais e imprensa — não separado por loja</span></h2>';
+/* ================= 5. MENÇÕES DA MARCA ================= */
+function blocoMarca(){
+  let h='<h2>📱 Menções da marca <span class="hint">redes sociais e imprensa — não separado por loja</span></h2>';
   h+='<div class="store">'+fontesTable(MARCA)+'</div>';
-  h+='<div class="aviso">O Google atualiza sozinho toda semana. As notas de TripAdvisor, Restaurant Guru e redes sociais são uma foto tirada em '+COLETA+' — peça uma foto nova quando quiser. <b>As reservas do Getin ainda não estão ligadas nesta tela.</b></div>';
-  $('app').innerHTML=h;
+  h+='<div class="aviso">As notas de TripAdvisor, Restaurant Guru e redes sociais são uma foto tirada em '+COLETA+' — não têm robô que atualize sozinho. Peça uma foto nova quando quiser.</div>';
+  return h;
 }
+
+/* ================= RESUMOS PARA A CAPA ================= */
+function resumoEquipe(d){
+  const hoje=hojeISO();
+  let comEscala=0, gente=0, semEscala=[];
+  UNI.forEach(u=>{
+    const doDia=d.escala.filter(e=>e.unidade===u&&e.data===hoje);
+    if(doDia.length){comEscala++;gente+=doDia.length}else semEscala.push(u);
+  });
+  return {big:gente?plural(gente,'pessoa','pessoas'):'—',
+    sub:comEscala?(comEscala+' de '+UNI.length+' lojas com escala lançada hoje'+(semEscala.length?' · falta '+semEscala.join(' e '):''))
+                 :'nenhuma loja lançou a escala de hoje ainda',
+    atencao:semEscala.length>0};
+}
+function resumoGoomer(d){
+  if(!d.pausados.length)return {big:'—',sub:'a varredura dos tablets ainda não trouxe nada',atencao:false};
+  const chave={}, hoje=hojeISO();
+  d.pausados.forEach(p=>{chave[p.unidade+'|'+p.item]=String(p.primeiro_visto).slice(0,10)});
+  const ks=Object.keys(chave);
+  const maisVelho=ks.map(k=>chave[k]).sort()[0];
+  const dias=diasEntre(maisVelho,hoje);
+  return {big:plural(ks.length,'item','itens'),sub:'fora do ar no tablet · o mais antigo há '+(dias>0?dias+' dias':'menos de 1 dia'),atencao:ks.length>0};
+}
+function resumoClientes(d){
+  let com=0;
+  UNI.forEach(u=>{const g=d.google[u];if(g&&Array.isArray(g.destaques))com+=g.destaques.length});
+  return {big:com?com+' falas':'—',sub:com?'comentários guardados na última coleta do Google':'nenhum comentário guardado ainda',atencao:false};
+}
+function resumoGoogle(d){
+  const notas=UNI.map(u=>d.google[u]).filter(Boolean).map(g=>+g.nota);
+  if(!notas.length)return {big:'—',sub:'sem dado do Google ainda',atencao:false};
+  const menor=Math.min.apply(null,notas);
+  const loja=UNI.filter(u=>d.google[u]&&+d.google[u].nota===menor)[0];
+  const media=notas.reduce((a,b)=>a+b,0)/notas.length;
+  return {big:nb(media),sub:'média das lojas · a mais baixa é '+loja+' com '+nb(menor),atencao:menor<4.2};
+}
+
+/* ================= CAPA E NAVEGAÇÃO ================= */
+const SECOES={
+  equipe:{ic:'👥',tt:'Equipe do salão',resumo:resumoEquipe,corpo:d=>blocoHoje(d.escala,d.ponto,d.pessoas,d.cobertura)},
+  tablet:{ic:'📵',tt:'Cardápio no tablet',resumo:resumoGoomer,corpo:d=>blocoGoomer(d.pausados)},
+  cliente:{ic:'💬',tt:'O que o cliente falou',resumo:resumoClientes,corpo:d=>blocoClientes(d.google)},
+  google:{ic:'⭐',tt:'Nota no Google',resumo:resumoGoogle,corpo:d=>blocoGoogle(d.google)+blocoMarca()}
+};
+let DADOS=null;
+
+function capa(d){
+  let h='<div class="tiles">';
+  Object.keys(SECOES).forEach(k=>{
+    const s=SECOES[k], r=s.resumo(d);
+    h+='<button class="tile'+(r.atencao?' atencao':'')+'" onclick="abre(\'' + k + '\')">'+
+       '<div class="ic">'+s.ic+'</div><div class="tt">'+s.tt+'</div>'+
+       '<div class="big">'+esc(r.big)+'</div><div class="sub2">'+esc(r.sub)+'</div>'+
+       '<div class="go">abrir →</div></button>';
+  });
+  h+='<button class="tile off"><div class="ic">🪑</div><div class="tt">Reservas do dia</div>'+
+     '<div class="big">—</div><div class="sub2">o Getin ainda não está ligado nesta tela</div>'+
+     '<div class="go">falta ligar</div></button>';
+  h+='</div>';
+  return h;
+}
+
+function abre(k){location.hash=k}
+function rota(){
+  if(!DADOS)return;
+  const k=(location.hash||'').replace('#','');
+  if(SECOES[k]){
+    $('app').innerHTML='<div class="barra"><button class="voltar" onclick="location.hash=&quot;&quot;">← Voltar</button>'+
+      '<span class="tit">'+SECOES[k].ic+' '+SECOES[k].tt+'</span></div>'+SECOES[k].corpo(DADOS);
+  } else {
+    $('app').innerHTML=capa(DADOS);
+  }
+  window.scrollTo(0,0);
+}
+function render(d){DADOS=d;rota()}
+window.addEventListener('hashchange',rota);
 
 async function boot(){
   const [gRows,escala,ponto,pessoas,cobertura,pausados]=await Promise.all([
