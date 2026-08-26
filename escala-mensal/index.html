@@ -78,6 +78,11 @@ tr.m-FERIAS td{background:rgba(112,48,160,.28)}
 .sv{background:var(--ok);border:1px solid var(--ok);color:#04210f;border-radius:9px;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer}
 .msg{font-size:12.5px;color:var(--muted)}
 .mini{background:var(--s2);border:1px solid var(--line);color:var(--text2);border-radius:8px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer}
+
+.dias button.dom{border-color:#5a4a1f}
+.dias button.dom.on{background:var(--gold);border-color:var(--gold);color:#111}
+.mini.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.grp{display:inline-flex;gap:4px}
 </style>
 </head>
 <body>
@@ -234,7 +239,8 @@ function gerar(){
 const DIASEM=[[1,'Segunda'],[2,'Terça'],[3,'Quarta'],[4,'Quinta'],[5,'Sexta'],[6,'Sábado']];
 const MARCAS=[['','— na escala'],['FOLGA','FOLGA'],['TAXA','TAXA'],['JA_FOLGOU','JÁ FOLGOU'],['FERIAS','FÉRIAS']];
 const ORDSET={'Produção':10,'Estoque':15,'Cozinha':20,'Delivery':30,'Salão':40,'Limpeza':50,'Escritório':60};
-let SEM=[],DIASEL=1,KSEQ=0,CARREGOU=false;
+const SETORES=['Produção','Estoque','Cozinha','Delivery','Salão','Limpeza','Escritório'];
+let SEM=[],EQUIPE=[],TAXAS=[],DIASEL=1,DATASEL=null,FILTRO='tudo',PAINEL='',KSEQ=0,CARREGOU=false;
 
 async function rpcEsc(acao,dados){
   const r=await fetch(SB+'rpc/escala_semana_consulta',{method:'POST',
@@ -246,6 +252,7 @@ async function rpcEsc(acao,dados){
 function numera(){KSEQ=0;SEM.forEach(function(l){l._k=++KSEQ;});}
 function acha(k){return SEM.filter(function(l){return l._k===k})[0];}
 function hm(t){return t?String(t).slice(0,5):''}
+function dBRc(s){return s?String(s).slice(0,10).split('-').reverse().slice(0,2).join('/'):''}
 function emMin(t){if(!t)return null;const p=String(t).split(':');return (+p[0])*60+(+p[1]);}
 function cargaTxt(l){
   const e=emMin(l.entrada),s=emMin(l.saida);
@@ -258,8 +265,25 @@ function cargaTxt(l){
   return String(Math.floor(d/60)).padStart(2,'0')+':'+String(d%60).padStart(2,'0');
 }
 function semHorario(l){return !l.entrada&&!l.saida;}
-function nomeDia(d){for(let i=0;i<DIASEM.length;i++){if(DIASEM[i][0]===d)return DIASEM[i][1];}return '';}
-function linhasDoDia(){return SEM.filter(function(l){return +l.dia_semana===DIASEL});}
+function nomeDia(d){for(let i=0;i<DIASEM.length;i++){if(DIASEM[i][0]===d)return DIASEM[i][1];}return 'Domingo';}
+function rotulo(){return DATASEL?('Domingo '+dBRc(DATASEL)):nomeDia(DIASEL);}
+function domingos(){
+  const s=[];
+  SEM.forEach(function(l){if(l.data&&s.indexOf(l.data)<0)s.push(l.data);});
+  s.sort();return s;
+}
+function linhasDoDia(){
+  return SEM.filter(function(l){
+    if(DATASEL)return l.data===DATASEL;
+    return !l.data&&+l.dia_semana===DIASEL;
+  }).filter(function(l){return FILTRO==='tudo'||l.turno===FILTRO});
+}
+function linhasGravar(){
+  return SEM.filter(function(l){
+    if(DATASEL)return l.data===DATASEL;
+    return !l.data&&+l.dia_semana===DIASEL;
+  });
+}
 
 function marcaSujo(){const m=$('msgSem');if(m){m.textContent='há mudanças ainda não salvas';m.style.color='var(--warn)';}}
 function setC(k,c,v){const l=acha(k);if(!l)return;l[c]=v;marcaSujo();}
@@ -274,11 +298,26 @@ function setH(k,c,v){
 function setMarca(k,v){const l=acha(k);if(!l)return;l.marcacao=v||null;const tr=$('lin'+k);if(tr)tr.className='m-'+(v||'');marcaSujo();}
 function tiraLinha(k){SEM=SEM.filter(function(l){return l._k!==k});marcaSujo();pintaSemana();}
 function novaLinha(t,s){
-  SEM.push({_k:++KSEQ,dia_semana:DIASEL,turno:t,setor:s,funcao:'Taxa',nome:'',
+  SEM.push({_k:++KSEQ,dia_semana:DATASEL?0:DIASEL,data:DATASEL,turno:t,setor:s,funcao:'Taxa',nome:'',
             entrada:null,int_ini:null,int_fim:null,saida:null,intervalo_min:null,marcacao:'TAXA',ordem:100});
   marcaSujo();pintaSemana();
 }
-function trocaDia(d){DIASEL=d;pintaSemana();}
+function trocaDia(d){DIASEL=d;DATASEL=null;PAINEL='';pintaSemana();}
+function trocaDom(dt){DATASEL=dt;DIASEL=0;PAINEL='';pintaSemana();}
+function trocaFiltro(f){FILTRO=f;pintaSemana();}
+function abrePainel(p){PAINEL=(PAINEL===p?'':p);pintaSemana();}
+
+function addFunc(id){
+  if(!id)return;
+  const p=EQUIPE.filter(function(e){return String(e.id)===String(id)})[0];
+  if(!p)return;
+  SEM.push({_k:++KSEQ,dia_semana:DATASEL?0:DIASEL,data:DATASEL,
+            turno:p.noturno?'Noite':'Dia',setor:p.setor||'Sem setor',funcao:p.cargo||'',
+            funcionario_id:p.id,nome:p.nome,entrada:p.entrada,int_ini:null,int_fim:null,
+            saida:p.saida,intervalo_min:p.intervalo_min,marcacao:null,
+            ordem:(ORDSET[p.setor]||90)});
+  marcaSujo();pintaSemana();
+}
 
 function linhaHTML(l){
   const k=l._k;
@@ -298,17 +337,103 @@ function linhaHTML(l){
   return h;
 }
 
+function painelFolgas(){
+  let h='<div class="sec"><h2>Folga semanal da equipe <span class="hint">vem do cadastro de cada pessoa</span></h2>';
+  h+='<div class="store"><table><thead><tr><th>Nome</th><th>Setor</th><th>Turno</th><th>Folga</th></tr></thead><tbody>';
+  EQUIPE.forEach(function(p){
+    h+='<tr><td>'+esc(pNome(p.nome))+(p.entrada==null?' <span class="pill p-off">sem horário</span>':'')+'</td>';
+    h+='<td>'+esc(p.setor||'—')+'</td><td>'+(p.noturno?'Noite':'Dia')+'</td><td>'+esc(p.folgas||'—')+'</td></tr>';
+  });
+  h+='</tbody></table></div></div>';
+  return h;
+}
+
+function setTaxa(i,c,v){if(TAXAS[i]){TAXAS[i][c]=v;TAXAS[i]._mudou=true;}
+  const m=$('msgTaxa');if(m){m.textContent='há mudanças ainda não salvas';m.style.color='var(--warn)';}}
+function novaTaxa(s){TAXAS.push({id:null,apelido:'',nome_completo:'',telefone:'',setor:s,turno:'',obs:'',_novo:true});pintaSemana();}
+async function salvaTaxas(){
+  const m=$('msgTaxa');if(m){m.textContent='salvando…';m.style.color='var(--muted)';}
+  const linhas=TAXAS.filter(function(t){return t.id&&t._mudou}).map(function(t){
+    return {id:t.id,apelido:t.apelido,nome_completo:t.nome_completo,telefone:t.telefone,setor:t.setor,turno:t.turno,obs:t.obs};});
+  const novos=TAXAS.filter(function(t){return !t.id&&t.apelido}).map(function(t){
+    return {apelido:t.apelido,nome_completo:t.nome_completo,telefone:t.telefone,setor:t.setor,turno:t.turno,obs:t.obs};});
+  try{
+    await rpcEsc('taxas_salvar',{unidade:UNIDADE,linhas:linhas,novos:novos});
+    TAXAS=await rpcEsc('taxas_ler',{unidade:UNIDADE});
+    pintaSemana();
+    const m2=$('msgTaxa');if(m2){m2.textContent='salvo · '+(linhas.length+novos.length)+' fichas';m2.style.color='var(--ok)';}
+  }catch(e){const m3=$('msgTaxa');if(m3){m3.textContent='não consegui salvar — tente de novo';m3.style.color='var(--bad)';}}
+}
+function painelTaxas(){
+  let h='<div class="sec"><h2>Taxas · quem chamar <span class="hint">separado por setor · nome e telefone</span></h2>';
+  h+='<div class="barra"><button class="sv" onclick="salvaTaxas()">Salvar as taxas</button>';
+  h+='<span class="msg" id="msgTaxa">telefone fica guardado fechado, só quem entra no portal enxerga</span></div>';
+  const grupos=SETORES.slice();
+  grupos.push('Sem setor');
+  grupos.forEach(function(s){
+    const ls=[];
+    TAXAS.forEach(function(t,i){
+      const st=t.setor||'Sem setor';
+      if(st===s)ls.push(i);
+    });
+    if(!ls.length&&s==='Sem setor')return;
+    h+='<div class="bloco dia"><div class="cab">'+esc(s)+'</div>';
+    h+='<table class="gs"><thead><tr><th>Apelido</th><th>Nome completo</th><th>Telefone</th><th>Turno</th><th>Observação</th></tr></thead><tbody>';
+    if(!ls.length)h+='<tr><td colspan="5" style="color:var(--muted)">Ninguém ainda neste setor.</td></tr>';
+    ls.forEach(function(i){
+      const t=TAXAS[i];
+      h+='<tr>';
+      h+='<td><input value="'+esc(t.apelido||'')+'" placeholder="como chamam" oninput="setTaxa('+i+',&quot;apelido&quot;,this.value)"></td>';
+      h+='<td><input value="'+esc(t.nome_completo||'')+'" placeholder="nome de carteira" oninput="setTaxa('+i+',&quot;nome_completo&quot;,this.value)"></td>';
+      h+='<td><input value="'+esc(t.telefone||'')+'" placeholder="(41) 90000-0000" oninput="setTaxa('+i+',&quot;telefone&quot;,this.value)"></td>';
+      h+='<td><input value="'+esc(t.turno||'')+'" placeholder="dia ou noite" oninput="setTaxa('+i+',&quot;turno&quot;,this.value)"></td>';
+      h+='<td><input value="'+esc(t.obs||'')+'" placeholder="—" oninput="setTaxa('+i+',&quot;obs&quot;,this.value)"></td>';
+      h+='</tr>';
+    });
+    h+='</tbody></table>';
+    h+='<div style="padding:8px 12px"><button class="mini" onclick="novaTaxa('+JSON.stringify(s)+')">+ acrescentar taxa em '+esc(s)+'</button></div>';
+    h+='</div>';
+  });
+  h+='</div>';
+  return h;
+}
+
 function pintaSemana(){
   let h='<div class="dias">';
-  DIASEM.forEach(function(d){h+='<button class="'+(d[0]===DIASEL?'on':'')+'" onclick="trocaDia('+d[0]+')">'+d[1]+'</button>';});
+  DIASEM.forEach(function(d){h+='<button class="'+((!DATASEL&&d[0]===DIASEL)?'on':'')+'" onclick="trocaDia('+d[0]+')">'+d[1]+'</button>';});
+  const ds=domingos();
+  ds.forEach(function(dt){h+='<button class="dom '+(DATASEL===dt?'on':'')+'" onclick="trocaDom('+JSON.stringify(dt)+')">Dom '+dBRc(dt)+'</button>';});
+  if(!ds.length)h+='<span class="msg">nenhum domingo montado ainda — use o botão Gerar o mês</span>';
   h+='</div>';
-  h+='<div class="barra"><button class="sv" onclick="salvaDia()">Salvar '+nomeDia(DIASEL)+'</button>';
-  h+='<span class="msg" id="msgSem">mexa à vontade — só vale depois de clicar em Salvar</span></div>';
+
+  h+='<div class="barra">';
+  h+='<span class="grp"><button class="mini'+(FILTRO==='tudo'?' on':'')+'" onclick="trocaFiltro(&quot;tudo&quot;)">Tudo</button>';
+  h+='<button class="mini'+(FILTRO==='Dia'?' on':'')+'" onclick="trocaFiltro(&quot;Dia&quot;)">☀️ Dia</button>';
+  h+='<button class="mini'+(FILTRO==='Noite'?' on':'')+'" onclick="trocaFiltro(&quot;Noite&quot;)">🌙 Noite</button></span>';
+  h+='<select class="b" id="addFunc" onchange="addFunc(this.value);this.value=&quot;&quot;"><option value="">+ Acrescentar funcionário</option>';
+  EQUIPE.forEach(function(p){h+='<option value="'+p.id+'">'+esc(pNome(p.nome))+' · '+esc(p.setor||'')+'</option>';});
+  h+='</select>';
+  h+='<button class="sv" onclick="salvaDia()">Salvar '+esc(rotulo())+'</button>';
+  h+='<span class="msg" id="msgSem">mexa à vontade — só vale depois de clicar em Salvar</span>';
+  h+='</div>';
+
+  h+='<div class="barra">';
+  h+='<select class="b" id="mesGerar"></select>';
+  h+='<button class="b" onclick="gerarMes()">Gerar o mês inteiro</button>';
+  h+='<button class="b'+(PAINEL==='folgas'?' on':'')+'" onclick="abrePainel(&quot;folgas&quot;)">Folga semanal da equipe</button>';
+  h+='<button class="b'+(PAINEL==='taxas'?' on':'')+'" onclick="abrePainel(&quot;taxas&quot;)">Taxas · nome e telefone</button>';
+  h+='</div>';
+
+  if(PAINEL==='folgas'){$('semana').innerHTML=h+painelFolgas();montaMes();return;}
+  if(PAINEL==='taxas'){$('semana').innerHTML=h+painelTaxas();montaMes();return;}
+
   h+='<div class="leg"><span><i style="background:rgba(255,0,0,.65)"></i>FOLGA</span>';
   h+='<span><i style="background:rgba(255,255,0,.75)"></i>TAXA (freelancer)</span>';
   h+='<span><i style="background:rgba(146,208,80,.75)"></i>JÁ FOLGOU</span>';
   h+='<span><i style="background:rgba(112,48,160,.85)"></i>FÉRIAS</span></div>';
-  ['Dia','Noite'].forEach(function(t){
+
+  const turnos=(FILTRO==='tudo')?['Dia','Noite']:[FILTRO];
+  turnos.forEach(function(t){
     const ls=linhasDoDia().filter(function(l){return l.turno===t});
     const naOp=ls.filter(function(l){return !l.marcacao}).length;
     const folg=ls.filter(function(l){return l.marcacao==='FOLGA'}).length;
@@ -317,7 +442,7 @@ function pintaSemana(){
     const sets=[];
     ls.forEach(function(l){if(sets.indexOf(l.setor)<0)sets.push(l.setor);});
     sets.sort(function(a,b){return (ORDSET[a]||90)-(ORDSET[b]||90)});
-    if(!sets.length)h+='<div class="semdado">Ninguém neste turno em '+nomeDia(DIASEL)+'.</div>';
+    if(!sets.length)h+='<div class="semdado">Ninguém neste turno em '+esc(rotulo())+'.</div>';
     sets.forEach(function(s){
       h+='<div class="bloco '+(t==='Dia'?'dia':'noite')+'"><div class="cab">'+esc(s)+' · '+t.toUpperCase()+'</div>';
       h+='<table class="gs"><thead><tr><th>Função</th><th>Funcionário</th><th>Início</th><th>Intervalo</th><th>Fim</th><th class="n">Carga</th><th>Marca</th><th></th></tr></thead><tbody>';
@@ -328,20 +453,50 @@ function pintaSemana(){
     });
     h+='</div>';
   });
-  h+='<div class="aviso">Esta é a escala fixa da semana, a mesma ideia das abas Segunda a Sábado da planilha. Os horários vieram do cadastro de cada um e as folgas, da folga semanal. O intervalo veio em branco de propósito: o cadastro guarda só quantos minutos, não a hora. Enquanto ele estiver vazio, a carga desconta esses minutos. Domingo continua na outra aba.</div>';
+  h+='<div class="aviso">Esta é a escala planejada. Segunda a Sábado é a base que se repete toda semana; cada domingo é próprio, porque a folga muda. Os horários vieram do cadastro e as folgas, da folga semanal. O intervalo veio em branco: o cadastro guarda só quantos minutos, não a hora — enquanto estiver vazio, a carga desconta esses minutos.</div>';
   $('semana').innerHTML=h;
+  montaMes();
+}
+
+function montaMes(){
+  const sel=$('mesGerar');if(!sel)return;
+  const hoje=new Date();let h='';
+  for(let i=0;i<4;i++){
+    const d=new Date(hoje.getFullYear(),hoje.getMonth()+i,1);
+    const v=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    const n=d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    h+='<option value="'+v+'"'+(i===1?' selected':'')+'>'+esc(n)+'</option>';
+  }
+  sel.innerHTML=h;
+}
+
+async function gerarMes(){
+  const sel=$('mesGerar');if(!sel)return;
+  const mes=sel.value;
+  if(!confirm('Isto monta a semana inteira e todos os domingos de '+sel.selectedOptions[0].text+' de novo, a partir do cadastro.\n\nO que você já tiver ajustado à mão nesses dias será apagado.\n\nPode gerar?'))return;
+  const m=$('msgSem');if(m){m.textContent='gerando o mês…';m.style.color='var(--muted)';}
+  try{
+    const r=await rpcEsc('gerar_mes',{unidade:UNIDADE,mes:mes,
+      quem:(function(){try{return sessionStorage.getItem('cdm_nome')||'portal'}catch(e){return 'portal'}})()});
+    SEM=await rpcEsc('ler',{unidade:UNIDADE});numera();
+    DATASEL=null;DIASEL=1;PAINEL='';pintaSemana();
+    const m2=$('msgSem');
+    if(m2){m2.textContent='mês montado · '+(r.linhas_semana||0)+' linhas na semana e '+(r.linhas_domingos||0)+' nos '+(r.domingos||0)+' domingos';m2.style.color='var(--ok)';}
+  }catch(e){const m3=$('msgSem');if(m3){m3.textContent='não consegui gerar — tente de novo';m3.style.color='var(--bad)';}}
 }
 
 async function abreSemana(){
   $('semana').innerHTML='<div class="load">Abrindo a semana…</div>';
-  try{SEM=await rpcEsc('ler',{unidade:UNIDADE});}
-  catch(e){$('semana').innerHTML='<div class="semdado">Não consegui abrir a semana. Saia e entre de novo no portal, e tente outra vez.</div>';return;}
+  try{
+    const r=await Promise.all([rpcEsc('ler',{unidade:UNIDADE}),rpcEsc('equipe',{unidade:UNIDADE}),rpcEsc('taxas_ler',{unidade:UNIDADE})]);
+    SEM=r[0];EQUIPE=r[1];TAXAS=r[2];
+  }catch(e){$('semana').innerHTML='<div class="semdado">Não consegui abrir a semana. Saia e entre de novo no portal, e tente outra vez.</div>';return;}
   numera();CARREGOU=true;pintaSemana();
 }
 
 async function salvaDia(){
   const m=$('msgSem');if(m){m.textContent='salvando…';m.style.color='var(--muted)';}
-  const linhas=linhasDoDia().map(function(l){
+  const linhas=linhasGravar().map(function(l){
     return {turno:l.turno,setor:l.setor,funcao:l.funcao,funcionario_id:l.funcionario_id,nome:l.nome,
             entrada:l.entrada,
             int_ini:semHorario(l)?null:l.int_ini,int_fim:semHorario(l)?null:l.int_fim,
@@ -349,13 +504,14 @@ async function salvaDia(){
             intervalo_min:semHorario(l)?null:l.intervalo_min,
             marcacao:l.marcacao,ordem:l.ordem,obs:l.obs};
   });
+  const alvo={unidade:UNIDADE,linhas:linhas,
+    quem:(function(){try{return sessionStorage.getItem('cdm_nome')||'portal'}catch(e){return 'portal'}})()};
+  if(DATASEL)alvo.data=DATASEL; else alvo.dia_semana=DIASEL;
   try{
-    const r=await rpcEsc('salvar_dia',{unidade:UNIDADE,dia_semana:DIASEL,
-      quem:(function(){try{return sessionStorage.getItem('cdm_nome')||'portal'}catch(e){return 'portal'}})(),
-      linhas:linhas});
+    const r=await rpcEsc('salvar_dia',alvo);
     SEM=await rpcEsc('ler',{unidade:UNIDADE});numera();pintaSemana();
     const m2=$('msgSem');
-    if(m2){m2.textContent='salvo · '+((r&&r.gravadas!=null)?r.gravadas:linhas.length)+' linhas em '+nomeDia(DIASEL);m2.style.color='var(--ok)';}
+    if(m2){m2.textContent='salvo · '+((r&&r.gravadas!=null)?r.gravadas:linhas.length)+' linhas em '+rotulo();m2.style.color='var(--ok)';}
   }catch(e){
     const m3=$('msgSem');
     if(m3){m3.textContent='não consegui salvar — tente de novo';m3.style.color='var(--bad)';}
