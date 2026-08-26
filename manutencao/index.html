@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#c8102e">
+<title>Manutenção · Cidadão do Mundo</title>
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#c8102e;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1100px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
+.top .rt{margin-left:auto}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+h2{font-size:15px;font-weight:800;margin:24px 0 10px}
+.c{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:10px}
+.c .nm{font-weight:800;font-size:14.5px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700}
+.p-urg{background:rgba(230,103,103,.15);color:var(--bad)}
+.p-nor{background:rgba(201,133,0,.15);color:var(--warn)}
+.p-qdd{background:rgba(138,137,126,.15);color:var(--muted)}
+.p-ok{background:rgba(47,174,106,.15);color:var(--ok)}
+.d{color:var(--text2);font-size:13px;margin-top:6px;line-height:1.5}
+.m{color:var(--muted);font-size:11.5px;margin-top:6px}
+.load{color:var(--muted);padding:30px;text-align:center}
+.vazio{color:var(--muted);font-size:13px;padding:10px 0}
+.dot{width:40px;height:40px;border-radius:11px;background:var(--brand);display:grid;place-items:center;font-weight:800;font-size:16px}
+details{margin-top:16px}
+summary{cursor:pointer;color:var(--text2);font-size:13px;font-weight:600;padding:6px 0}
+.aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:11px 14px;font-size:12.5px;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="top">
+  <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>🔧 Manutenção</h1><div class="sub">o que está quebrado, por loja — alimentado pelo WhatsApp e pelo caderno</div></div></div>
+  <div class="rt"><button class="b" onclick="location.reload()">↻ Atualizar</button></div>
+</div>
+<div id="app"><div class="load">Carregando…</div></div>
+
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const H={apikey:KEY,Authorization:'Bearer '+KEY};
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const br=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'';
+function dias(d){const n=Math.round((new Date()-new Date(d+'T00:00:00'))/86400000);return n<=0?'hoje':(n+' dias')}
+async function get(q){try{const r=await fetch(SB+q,{headers:H});return r.ok?await r.json():[]}catch(e){return []}}
+const PRI={urgente:['urgente','p-urg'],normal:['normal','p-nor'],quando_der:['quando der','p-qdd']};
+
+async function boot(){
+  const rows=await get('manutencao_chamado?select=id,unidade,item,descricao,prioridade,status,origem,aberto_em,resolvido_em,obs&order=status.asc,prioridade.asc,aberto_em.asc&limit=200');
+  const abertos=rows.filter(r=>r.status!=='resolvido');
+  const resolvidos=rows.filter(r=>r.status==='resolvido').slice(0,30);
+  let h='';
+  if(!abertos.length){h+='<div class="vazio">nenhum chamado aberto — ou ninguém lançou ainda</div>'}
+  const lojas={};abertos.forEach(r=>{(lojas[r.unidade]=lojas[r.unidade]||[]).push(r)});
+  Object.keys(lojas).sort().forEach(u=>{
+    const l=lojas[u];
+    h+='<h2>'+esc(u)+' <span style="color:var(--muted);font-weight:500;font-size:12px">'+l.length+' aberto'+(l.length>1?'s':'')+'</span></h2>';
+    l.sort((a,b)=>(a.prioridade==='urgente'?0:1)-(b.prioridade==='urgente'?0:1));
+    l.forEach(r=>{
+      const p=PRI[r.prioridade]||PRI.normal;
+      h+='<div class="c"><div class="nm">'+esc(r.item)+
+         '<span><span class="pill '+p[1]+'">'+p[0]+'</span>'+(r.status==='agendado'?' <span class="pill p-ok">agendado</span>':'')+'</span></div>'+
+         (r.descricao?'<div class="d">'+esc(r.descricao)+'</div>':'')+
+         '<div class="m">aberto há '+dias(r.aberto_em)+' ('+br(r.aberto_em)+') · veio do '+esc(r.origem)+(r.obs?' · '+esc(r.obs):'')+'</div></div>';
+    });
+  });
+  if(resolvidos.length){
+    h+='<details><summary>✅ resolvidos recentes ('+resolvidos.length+')</summary>';
+    resolvidos.forEach(r=>{h+='<div class="c"><div class="nm">'+esc(r.item)+'<span class="pill p-ok">resolvido '+br(r.resolvido_em)+'</span></div><div class="m">'+esc(r.unidade)+'</div></div>'});
+    h+='</details>';
+  }
+  h+='<div class="aviso">Esta tela é alimentada pela varredura do WhatsApp (12h e 20h) e pelas sessões com o Claude. Para lançar ou dar baixa num chamado, avise no grupo Manutenção Cidadão — a varredura pega — ou fale com o Fábio.</div>';
+  $('app').innerHTML=h;
+}
+
+/* ===== porta unica do portal: sessao por usuario ===== */
+const CDMMODS=['manutencao'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(ok)boot()});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>

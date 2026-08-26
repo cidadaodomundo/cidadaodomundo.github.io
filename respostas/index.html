@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#c8102e">
+<title>Precisa de Resposta · Cidadão do Mundo</title>
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#c8102e;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1100px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
+.top .rt{margin-left:auto}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+h{font-size:15px;font-weight:800;margin:24px 0 10px}
+.c{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:10px}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700}
+.p-bad{background:rgba(230,103,103,.15);color:var(--bad)}
+.p-warn{background:rgba(201,133,0,.15);color:var(--warn)}
+.p-off{background:rgba(138,137,126,.15);color:var(--muted)}
+.q{background:var(--s2);border-left:3px solid var(--brand);border-radius:9px;padding:9px 12px;margin:6px 0;font-size:12.5px;color:var(--text2)}
+.m{color:var(--muted);font-size:11.5px;margin-top:4px}
+.load{color:var(--muted);padding:30px;text-align:center}
+.vazio{color:var(--muted);font-size:13px;padding:8px 0}
+.dot{width:40px;height:40px;border-radius:11px;background:var(--brand);display:grid;place-items:center;font-weight:800;font-size:16px}
+.aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:11px 14px;font-size:12.5px;margin-top:16px}
+.linha{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:5px 0;border-bottom:1px solid var(--line);color:var(--text2)}
+.linha:last-child{border-bottom:none}
+.linha b{color:var(--text)}
+</style>
+</head>
+<body>
+<div class="top">
+  <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>📣 Precisa de Resposta</h1><div class="sub">tudo que tem cliente ou prazo esperando alguém responder</div></div></div>
+  <div class="rt"><button class="b" onclick="location.reload()">↻ Atualizar</button></div>
+</div>
+<div id="app"><div class="load">Carregando…</div></div>
+
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const H={apikey:KEY,Authorization:'Bearer '+KEY};
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const br=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'';
+function hojeISO(){return new Date().toLocaleDateString('sv-SE')}
+function dMenos(n){const d=new Date();d.setDate(d.getDate()-n);return d.toLocaleDateString('sv-SE')}
+async function get(q){try{const r=await fetch(SB+q,{headers:H});return r.ok?await r.json():[]}catch(e){return []}}
+const LOJA={1129620:'Água Verde',1831001:'São Braz',1984218:'Ahú',1134806:'Boqueirão',3295625:'A Famosa Marmita',206853:'Cidadão Vegan AV',2170854:'Baixa Gastronomia',1575775:'Veganete AV',1569200:'UFO Burger',26979:'Comida Brasileira AV',2741723:'Comida Brasileira SB',2786005:'Cidadão Vegan Ahú',2786015:'Comida Brasileira Ahú',546359:'Cidadão Vegan Boq',1803383:'Veganete Boq'};
+const loja=id=>LOJA[id]||('loja '+id);
+
+async function boot(){
+  const [ult,pend,cham,pau,res]=await Promise.all([
+    get('ifood_fato_avaliacao?select=data_avaliacao&order=data_avaliacao.desc&limit=1'),
+    get('ifood_fato_avaliacao?select=id_loja,data_avaliacao,nota,comentario&status_avaliacao=eq.PENDING_REPLY&data_avaliacao=gte.'+dMenos(30)+'&order=data_avaliacao.asc&limit=100'),
+    get('ifood_fato_negociacao?select=id_loja,data,motivo,valor_pedido,resposta_loja&data=gte.'+dMenos(14)+'&order=data.asc&limit=100'),
+    get('cardapio_pausado?select=unidade,canal,item,primeiro_visto&visto_em=gte.'+dMenos(2)+'&order=primeiro_visto.asc&limit=800'),
+    get('salao_reserva?select=unidade,data,hora,pessoas,status,sinal_pago&data=gte.'+hojeISO()+'&order=data.asc&limit=50')
+  ]);
+  const ateIfood=ult.length?br(ult[0].data_avaliacao):'—';
+  let h='';
+
+  h+='<h2>⭐ Avaliações do iFood sem resposta <span class="pill p-off">iFood até '+ateIfood+'</span></h2>';
+  if(!pend.length){h+='<div class="vazio">nenhuma pendente na última carga</div>'}
+  else{
+    const porLoja={};pend.forEach(a=>{(porLoja[a.id_loja]=porLoja[a.id_loja]||[]).push(a)});
+    Object.keys(porLoja).forEach(id=>{
+      const l=porLoja[id];
+      h+='<div class="c"><div class="linha"><b>'+esc(loja(+id))+'</b><span class="pill '+(l.length>5?'p-bad':'p-warn')+'">'+l.length+' sem resposta</span></div>';
+      l.filter(a=>a.nota<=3).slice(0,5).forEach(a=>{
+        h+='<div class="q">★'+a.nota+' · '+br(a.data_avaliacao)+(a.comentario?' — “'+esc(String(a.comentario).slice(0,180))+'”':'')+'</div>';
+      });
+      h+='</div>';
+    });
+  }
+
+  const abertos=cham.filter(c=>!c.resposta_loja);
+  h+='<h2>🎧 Chamados do iFood sem resposta da loja</h2>';
+  if(!abertos.length){h+='<div class="vazio">nenhum aberto nos últimos 14 dias da carga</div>'}
+  else abertos.forEach(c=>{
+    h+='<div class="c"><div class="linha"><b>'+esc(loja(c.id_loja))+' · '+br(c.data)+'</b><span class="pill p-bad">sem resposta</span></div>'+
+       '<div class="m">'+esc(c.motivo||'')+(c.valor_pedido?' · pedido R$ '+Number(c.valor_pedido).toLocaleString('pt-BR'):'')+'</div></div>';
+  });
+
+  const velhos={};
+  pau.forEach(p=>{const d=Math.round((new Date()-new Date(String(p.primeiro_visto).slice(0,10)+'T00:00:00'))/86400000);
+    if(d>=2){const k=p.unidade+' · '+p.canal;(velhos[k]=velhos[k]||[]).push(p)}});
+  h+='<h2>📵 Itens pausados há 2+ dias</h2>';
+  const ks=Object.keys(velhos).sort();
+  if(!ks.length){h+='<div class="vazio">nada parado há mais de 2 dias</div>'}
+  else ks.forEach(k=>{h+='<div class="c"><div class="linha"><b>'+esc(k)+'</b><span class="pill p-warn">'+velhos[k].length+' itens</span></div></div>'});
+
+  const semSinal=res.filter(r=>r.sinal_pago!==true);
+  h+='<h2>🪑 Reservas sem sinal pago</h2>';
+  if(!semSinal.length){h+='<div class="vazio">nenhuma</div>'}
+  else semSinal.forEach(r=>{
+    h+='<div class="c"><div class="linha"><b>'+esc(r.unidade)+' · '+br(r.data)+(r.hora?' '+String(r.hora).slice(0,5):'')+' · '+(r.pessoas||'?')+' pessoas</b><span class="pill p-warn">'+esc(r.status||'a confirmar')+'</span></div></div>';
+  });
+
+  h+='<div class="aviso">O dado do iFood chega pelas capturas de 9h e 17h — o selo cinza mostra até quando ele vai. Contestação de cancelamento ainda não entra aqui (o prazo só existe no relatório exportado).</div>';
+  $('app').innerHTML=h;
+}
+
+/* ===== porta unica do portal ===== */
+const CDMMODS=['respostas'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(ok)boot()});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
