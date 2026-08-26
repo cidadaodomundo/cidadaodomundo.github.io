@@ -39,6 +39,16 @@ h1{font-size:17px;font-weight:800}
 .kpi .cta{font-size:9.5px;font-weight:800;color:var(--kc);margin-top:7px;letter-spacing:.3px;text-transform:uppercase;opacity:.9}
 .kpi .n{font-size:23px;font-weight:800;color:var(--kc)}
 .kpi .l{font-size:10.5px;color:var(--muted);font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin-top:2px}
+.refbox{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px}
+.refh{font-size:13px;font-weight:800;margin-bottom:10px}
+.refcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.refcol,.reftodas{background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:8px 11px}
+.reftodas{margin-top:10px}
+.refcol summary,.reftodas summary{cursor:pointer;font-size:12px;font-weight:700;color:var(--muted)}
+.refbox ul{list-style:none;margin:8px 0 0;padding:0;max-height:260px;overflow:auto}
+.refbox li{font-size:12px;padding:3px 0;border-bottom:1px solid var(--line)}
+.rfu{color:var(--muted);font-size:11px;font-weight:600}
+.rfx{color:var(--infra);font-size:11px;font-weight:700}
 .units{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .tab{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:8px 17px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;display:flex;gap:8px;align-items:center}
 .tab .cnt{background:var(--surface2);border-radius:10px;padding:1px 8px;font-size:11px}
@@ -230,12 +240,48 @@ function gateTry(){
   document.getElementById('gerr').textContent='';
   loadAll();
 }
-const ORD={SERIO:0,GRAVE:1,INFRACAO:2,VERBAL:3,CONFERIR:4,SEM:5};
-const NV=r=>(ORD[r.nivel]!==undefined?r.nivel:'CONFERIR');
+const ORD={SERIO:0,GRAVE:1,INFRACAO:2,VERBAL:3,CONFERIR:4,JUST:5,SEM:6};
+let REFP=[],REFI=[],REFDIA='',EVJ={};
+const DSEM=['DOMINGO','SEGUNDA','TERCA','QUARTA','QUINTA','SEXTA','SABADO'];
+const CARD_AV={DOMINGO:'MACARRAO COM CARNE MOIDA',SEGUNDA:'FRANGO A PASSARINHO',TERCA:'LINGUICA',QUARTA:'BISTECA',QUINTA:'FRANGO CROCANTE',SEXTA:'ISCAS DE CARNE',SABADO:'FRANGO GRELHADO'};
+const CARD_LANCHE=['NELSON PIQUET','ALAIN PROST','JESSE PINKMAN'];
+function refNorm(s){return (s||'').toString().toUpperCase().normalize('NFD').replace(/[^A-Z0-9 ]/g,'')}
+function refFora(prod,dia,uni){
+  if(uni!=='Água Verde')return '';
+  var p=refNorm(prod);
+  for(var i=0;i<CARD_LANCHE.length;i++){if(p.indexOf(CARD_LANCHE[i])>=0)return ''}
+  var d=DSEM[new Date(dia+'T12:00:00').getDay()];
+  var esp=refNorm(CARD_AV[d]);
+  if(esp&&p.indexOf(esp)>=0)return '';
+  return 'não é o prato de '+d.toLowerCase();
+}
+function refCurto(n){return (n||'').split(' ').slice(0,2).join(' ')}
+function blocoRef(){
+  if(!REFDIA)return '';
+  var uni=UNIT;
+  var pes=REFP.filter(function(x){return uni==='Todas'||x.unidade===uni});
+  var ite=REFI.filter(function(x){return uni==='Todas'||x.unidade===uni});
+  if(!pes.length&&!ite.length)return '';
+  var cmp=function(a,b){return (a.nome||'').localeCompare(b.nome||'')};
+  var ok=pes.filter(function(x){return x.situacao==='OK'||x.situacao==='ACIMA DO DIREITO'}).sort(cmp);
+  var nao=pes.filter(function(x){return x.situacao==='NAO LANCOU'}).sort(cmp);
+  var sc=pes.filter(function(x){return x.situacao==='SEM CARTAO'}).sort(cmp);
+  var vaz='<li class="rfu">ninguém</li>';
+  var cx=function(id,tit,arr,fn){return '<details class="refcol"'+(FILT===id?' open':'')+'><summary><b>'+arr.length+'</b> '+tit+'</summary><ul>'+(arr.length?arr.map(fn).join(''):vaz)+'</ul></details>'};
+  var h='<div class="refbox"><div class="refh">🍽 Refeições do dia — '+br(REFDIA)+' <span class="rfu">último dia já fechado pelo Saipos</span></div><div class="refcols">';
+  h+=cx('REFOK','lançaram a refeição',ok,function(x){return '<li><b>'+refCurto(x.nome)+'</b> <span class="rfu">'+(x.unidade||'')+' · '+(x.tipos||'')+(x.situacao==='ACIMA DO DIREITO'?' · acima do direito':'')+'</span></li>'});
+  h+=cx('REFNAO','NÃO lançaram',nao,function(x){return '<li><b>'+refCurto(x.nome)+'</b> <span class="rfu">'+(x.unidade||'')+' · '+String(x.entrada||'').slice(0,5)+' às '+String(x.saida||'').slice(0,5)+'</span></li>'});
+  h+=cx('REFSC','sem cartão cadastrado',sc,function(x){return '<li><b>'+refCurto(x.nome)+'</b> <span class="rfu">'+(x.unidade||'')+'</span></li>'});
+  h+='</div><details class="reftodas"><summary><b>'+ite.length+'</b> refeições lançadas no dia — abrir a lista</summary><ul>'+(ite.length?ite.map(function(x){var f=refFora(x.produto,REFDIA,x.unidade);return '<li><b>'+(x.produto||'—')+'</b> <span class="rfu">'+(x.dono_nome?refCurto(x.dono_nome):'sem dono')+' · '+(x.unidade||'')+'</span>'+(f?' <span class="rfx">⚠ '+f+'</span>':'')+'</li>'}).join(''):vaz)+'</ul></details></div>';
+  return h;
+}
+const NVB=r=>(ORD[r.nivel]!==undefined?r.nivel:'CONFERIR');
+const NV=function(r){if(EVJ[r.nome+'|'+r.data])return 'JUST';var b=NVB(r);if(b==='SEM'&&r.categoria==='FOLGA')return 'JUST';return b};
+const NVMOT=function(r){var j=EVJ[r.nome+'|'+r.data];return j?j:(r.categoria==='FOLGA'?'Folga':'')};
 const UORD={'Água Verde':0,'Ahú':1,'São Braz':2,'Boqueirão':3};
-const C={SERIO:'var(--serio)',GRAVE:'var(--grave)',INFRACAO:'var(--infra)',VERBAL:'var(--verbal)',CONFERIR:'var(--conf)',SEM:'var(--sem)'};
-const L={SERIO:'🔴 SÉRIO',GRAVE:'🟠 GRAVE',INFRACAO:'🟡 INFRAÇÃO',VERBAL:'🔵 ORIENTAÇÃO',CONFERIR:'🔎 CONFERIR',SEM:'✅ OK'};
-const KL={TOTAL:'Funcionários',SERIO:'Sério',GRAVE:'Grave',INFRACAO:'Falta de batida',VERBAL:'Orientação',CONFERIR:'Conferir',SEM:'Sem ocorrência'};
+const C={SERIO:'var(--serio)',GRAVE:'var(--grave)',INFRACAO:'var(--infra)',VERBAL:'var(--verbal)',CONFERIR:'var(--conf)',JUST:'#94a3b8',SEM:'var(--sem)'};
+const L={SERIO:'🔴 SÉRIO',GRAVE:'🟠 GRAVE',INFRACAO:'🟡 INFRAÇÃO',VERBAL:'🔵 ORIENTAÇÃO',CONFERIR:'🔎 CONFERIR',JUST:'🗓 JUSTIFICADO',SEM:'✅ OK'};
+const KL={TOTAL:'Funcionários',SERIO:'Sério',GRAVE:'Grave',INFRACAO:'Falta de batida',VERBAL:'Orientação',CONFERIR:'Conferir',JUST:'Folga, férias ou atestado',SEM:'Sem ocorrência',REFOK:'Refeição lançada',REFNAO:'Refeição NÃO lançada',REFSC:'Sem cartão'};
 const ACAO={
 SERIO:'RH: aplicar ADVERTÊNCIA formal assinada — política da empresa: intervalo suprimido é falta GRAVE (Art. 71 CLT). Garantir que a pausa seja cumprida integralmente. Reincidência → nova advertência / suspensão.',
 GRAVE:'RH: verificar com o gestor se a extra foi autorizada. Autorizada → pagar +50% ou compensar (banco de horas). Não autorizada → orientação escrita ao funcionário.',
@@ -298,6 +344,22 @@ async function loadAll(){
     const _det=await rhRPC('espelho',{de:cutoff,ate:'2099-12-31'});
     if(_det.length){const _m={};_det.forEach(d=>{_m[d.nome+'|'+d.data]=d});ALL.forEach(r=>{const x=_m[r.nome+'|'+r.data];if(x){r.detalhe=x.detalhe;r.marcacoes_txt=x.marcacoes_txt}})}
     DAYS=[...new Set(ALL.map(r=>r.data))].sort();
+    try{
+      EVJ={};REFP=[];REFI=[];REFDIA='';
+      const _ev=await rhRPC('eventos',{de:new Date(Date.now()-90*864e5).toISOString().slice(0,10),ate:'2099-12-31'});
+      (_ev||[]).forEach(function(e){
+        if(['FERIAS','ATESTADO','LICENCA','FOLGA_ABONADA','DECLARACAO'].indexOf(e.tipo)<0)return;
+        var rot=e.tipo==='FERIAS'?'Férias':(e.tipo==='ATESTADO'?'Atestado':(e.tipo==='LICENCA'?'Licença':(e.tipo==='FOLGA_ABONADA'?'Folga abonada':'Declaração')));
+        var nd=Math.min(120,Math.max(1,parseInt(e.dias,10)||1));
+        var t0=new Date(e.data+'T12:00:00').getTime();
+        for(var i=0;i<nd;i++){EVJ[e.nome+'|'+new Date(t0+i*864e5).toISOString().slice(0,10)]=rot}
+      });
+      const _rp=await rhRPC('refeicao',{de:DAYS[0]||cutoff,ate:DAYS[DAYS.length-1]||cutoff});
+      const _rall=_rp||[];
+      REFDIA=_rall.reduce(function(a,x){return (x.dia&&x.dia>a)?x.dia:a},'');
+      REFP=_rall.filter(function(x){return x.dia===REFDIA});
+      if(REFDIA){var _sv=RH_SEM_SENHA;const _ri=await rhRPC('refeicao_itens',{de:REFDIA,ate:REFDIA});REFI=_ri||[];RH_SEM_SENHA=_sv}
+    }catch(_e){}
     DI=DAYS.length-1;
     const _ultd=ALL.reduce((a,r)=>(r.data&&r.data>a)?r.data:a,'');const _base='últimos '+DAYS.length+' dias úteis · '+(SOSB?SBUN:'3 lojas');if(_ultd){const _p=_ultd.split('-').map(Number);const _n=new Date();const _dif=Math.round((new Date(_n.getFullYear(),_n.getMonth(),_n.getDate())-new Date(_p[0],_p[1]-1,_p[2]))/864e5);const _dm=String(_p[2]).padStart(2,'0')+'/'+String(_p[1]).padStart(2,'0');if(_dif>=2)$('sub').innerHTML=_base+' · <b style="color:var(--serio)">⚠ dado atrasado — última carga '+_dm+' ('+_dif+' dias)</b>';else $('sub').textContent=_base+' · dados até '+_dm;}else $('sub').textContent=_base+' · sem dado carregado';
     if(VIEW==='day')render();
@@ -442,9 +504,13 @@ function eqRender(){
 function renderDay(){
   const rows=dayRows();
   $('curday').textContent=br(DAYS[DI])+' ('+(rows[0]?.dia_semana||'').replace('-feira','')+')';
-  const k={TOTAL:rows.length,SERIO:0,GRAVE:0,INFRACAO:0,VERBAL:0,CONFERIR:0,SEM:0};
+  const k={TOTAL:rows.length,SERIO:0,GRAVE:0,INFRACAO:0,VERBAL:0,CONFERIR:0,JUST:0,SEM:0};
+  const _rpk=REFP.filter(function(x){return UNIT==='Todas'||x.unidade===UNIT});
   rows.forEach(r=>{const n=NV(r);if(isConf(n))k.CONFERIR++;else k[n]=(k[n]||0)+1});
-  const kc={TOTAL:'var(--brand)',SERIO:'var(--serio)',GRAVE:'var(--grave)',INFRACAO:'var(--infra)',VERBAL:'var(--verbal)',CONFERIR:'var(--conf)',SEM:'var(--sem)'};
+  k.REFOK=_rpk.filter(function(x){return x.situacao==='OK'||x.situacao==='ACIMA DO DIREITO'}).length;
+  k.REFNAO=_rpk.filter(function(x){return x.situacao==='NAO LANCOU'}).length;
+  k.REFSC=_rpk.filter(function(x){return x.situacao==='SEM CARTAO'}).length;
+  const kc={TOTAL:'var(--brand)',SERIO:'var(--serio)',GRAVE:'var(--grave)',INFRACAO:'var(--infra)',VERBAL:'var(--verbal)',CONFERIR:'var(--conf)',JUST:'#94a3b8',SEM:'var(--sem)',REFOK:'#22c55e',REFNAO:'#ef4444',REFSC:'#f59e0b'};
   $('kpis').innerHTML=Object.keys(k).filter(x=>x==='TOTAL'||k[x]>0).map(x=>
     `<div class="kpi ${FILT===x?'active':''}" style="--kc:${kc[x]}" onclick="FILT=FILT==='${x}'?null:'${x}';render()">
      <div class="n">${k[x]}</div><div class="l">${KL[x]}</div><div class="cta">${FILT===x?'✕ tirar filtro':'clique para filtrar'}</div></div>`).join('');
@@ -453,9 +519,11 @@ function renderDay(){
     const n=u==='Todas'?rows.length:rows.filter(r=>r.unidade===u).length;
     return `<span class="tab ${UNIT===u?'active':''}" onclick="UNIT='${u}';render()">${u}<span class="cnt">${n}</span></span>`}).join('');
   let show=rows.filter(r=>UNIT==='Todas'||r.unidade===UNIT);
-  if(FILT&&FILT!=='TOTAL')show=show.filter(r=>NV(r)===FILT);
+  if(FILT&&FILT!=='TOTAL'&&FILT.indexOf('REF')!==0)show=show.filter(r=>NV(r)===FILT);
+  else show=show.filter(function(r){var n=NV(r);return n!=='SEM'&&n!=='JUST'});
   show.sort((a,b)=>(ORD[NV(a)]-ORD[NV(b)])||((UORD[a.unidade]??9)-(UORD[b.unidade]??9))||a.nome.localeCompare(b.nome));
-  if(!show.length){$('content').innerHTML='<div class="empty">'+(ARRERR&&!ALL.length?'Não foi possível carregar este bloco. Recarregue a página.':'Nenhum funcionário neste filtro.')+'</div>';return}
+  if(!show.length){$('content').innerHTML='<div class="empty">'+(ARRERR&&!ALL.length?'Não foi possível carregar este bloco. Recarregue a página.':'Nenhum funcionário neste filtro.')+'</div>';$('content').insertAdjacentHTML('afterbegin',blocoRef());return}
+  /* 26/08/2026: os paineis O que fazer HOJE e O que o RH faz em cada caso foram retirados a pedido do Fabio.
   const doDia=rows.filter(r=>UNIT==='Todas'||r.unidade===UNIT);
   const nAv={};doDia.forEach(r=>{const n=NV(r);if(n!=='SEM')nAv[n]=(nAv[n]||0)+1});
   const TXT={CONFERIR:'conferir antes de qualquer medida: escala do dia, horário do cadastro e se há férias, atestado ou folga registrados',SERIO:'aplicar advertência formal assinada — intervalo suprimido (Art. 71 CLT)',GRAVE:'confirmar com o gestor se a hora extra foi autorizada',INFRACAO:'ajustar a marcação no Flash com justificativa',VERBAL:'orientar sobre o intervalo e registrar a conversa'};
@@ -464,7 +532,8 @@ function renderDay(){
   const painelHoje='<div class="todo"><h2>✅ O que fazer HOJE</h2><div class="hs">'+br(DAYS[DI])+(UNIT==='Todas'?' · todas as lojas':' · '+UNIT)+'</div><ul>'+liHoje+'</ul></div>';
   const nivPres=ordAcao.filter(n=>ACAO[n]);
   const painelAcao=nivPres.length?'<div class="acaobox"><div class="acaoh">📋 O que o RH faz em cada caso — vale para todas as pessoas abaixo</div>'+nivPres.map(n=>'<div class="acaoi" style="--cc:'+C[n]+'"><b>'+L[n]+'</b> '+ACAO[n]+'</div>').join('')+'</div>':'';
-  $('content').innerHTML=painelHoje+painelAcao+'<div class="grid">'+show.map(r=>{
+  */
+  $('content').innerHTML=blocoRef()+'<div class="grid">'+show.map(r=>{
     const acao='';
     return `<div class="card" data-nome="${r.nome}" style="--cc:${C[NV(r)]}">
       <div class="chead"><div><div class="cname">${title(r.nome)}</div><div class="cunit">${r.unidade}</div></div>
