@@ -48,6 +48,36 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .cal .d .fr{color:var(--warn);font-weight:700}
 .cal .d .fp{color:var(--text2)}
 .rasc{background:rgba(201,133,0,.12);border:1px solid #4a3f22;color:var(--gold);border-radius:999px;padding:3px 12px;font-size:11.5px;font-weight:800}
+
+.tabs{display:flex;gap:6px;margin:0 0 14px;flex-wrap:wrap}
+.tabs button{background:var(--s2);border:1px solid var(--line);color:var(--text2);border-radius:9px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer}
+.tabs button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.dias{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.dias button{background:var(--s2);border:1px solid var(--line);color:var(--text2);border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:700;cursor:pointer}
+.dias button.on{background:var(--gold);border-color:var(--gold);color:#111}
+.bloco{background:var(--s1);border:1px solid var(--line);border-radius:13px;margin-bottom:14px;overflow:hidden}
+.bloco .cab{padding:9px 14px;font-weight:800;font-size:12px;letter-spacing:.4px;text-transform:uppercase;border-bottom:1px solid var(--line)}
+.bloco.dia .cab{background:rgba(232,197,71,.13);color:var(--gold)}
+.bloco.noite .cab{background:rgba(0,112,192,.18);color:#8fc3f0}
+.gs{width:100%;border-collapse:collapse}
+.gs th{font-size:10px}
+.gs td{padding:4px 6px;border-bottom:1px solid var(--line);font-size:12.5px}
+.gs input{width:100%;background:transparent;border:1px solid transparent;border-radius:7px;color:var(--text);font:inherit;font-size:12.5px;padding:5px 6px}
+.gs input:hover{border-color:var(--line)}
+.gs input:focus{outline:none;border-color:var(--brand);background:var(--s2)}
+.gs input.t{text-align:center;font-variant-numeric:tabular-nums}
+.gs select{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:7px;font-size:11.5px;padding:4px 6px}
+.gs td.carga{text-align:right;font-variant-numeric:tabular-nums;color:var(--text2);white-space:nowrap}
+tr.m-FOLGA td{background:rgba(255,0,0,.20)}
+tr.m-TAXA td{background:rgba(255,255,0,.15)}
+tr.m-JA_FOLGOU td{background:rgba(146,208,80,.18)}
+tr.m-FERIAS td{background:rgba(112,48,160,.28)}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin:6px 0 16px}
+.leg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px}
+.barra{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.sv{background:var(--ok);border:1px solid var(--ok);color:#04210f;border-radius:9px;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer}
+.msg{font-size:12.5px;color:var(--muted)}
+.mini{background:var(--s2);border:1px solid var(--line);color:var(--text2);border-radius:8px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer}
 </style>
 </head>
 <body>
@@ -56,11 +86,13 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
   <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>📅 Escala do Mês</h1><div class="sub">Água Verde · gerador de rascunho — nada é gravado nem enviado</div></div></div>
   <div class="rt">
     <span class="rasc">RASCUNHO</span>
-    <select class="b" id="selMes"></select>
-    <button class="b on" onclick="gerar()">Gerar escala do mês</button>
+    <span id="ctlMes"><select class="b" id="selMes"></select>
+    <button class="b on" onclick="gerar()">Gerar escala do mês</button></span>
   </div>
 </div>
+<div class="tabs"><button id="abaDom" class="on" onclick="aba('dom')">Domingos e freelancers</button><button id="abaSem" onclick="aba('sem')">Semana dia a dia</button></div>
 <div id="app"><div class="load">Escolha o mês e clique em Gerar.</div></div>
+<div id="semana" style="display:none"></div>
 
 <script>
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
@@ -198,6 +230,147 @@ function gerar(){
   $('app').innerHTML=h;
 }
 
+/* ===== aba: semana dia a dia (26/08) ===== */
+const DIASEM=[[1,'Segunda'],[2,'Terça'],[3,'Quarta'],[4,'Quinta'],[5,'Sexta'],[6,'Sábado']];
+const MARCAS=[['','— na escala'],['FOLGA','FOLGA'],['TAXA','TAXA'],['JA_FOLGOU','JÁ FOLGOU'],['FERIAS','FÉRIAS']];
+const ORDSET={'Produção':10,'Estoque':15,'Cozinha':20,'Delivery':30,'Salão':40,'Limpeza':50,'Escritório':60};
+let SEM=[],DIASEL=1,KSEQ=0,CARREGOU=false;
+
+async function rpcEsc(acao,dados){
+  const r=await fetch(SB+'rpc/escala_semana_consulta',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_cred:cdmTok(),p_acao:acao,p_dados:dados||{}})});
+  if(!r.ok)throw new Error('rpc '+r.status);
+  return await r.json();
+}
+function numera(){KSEQ=0;SEM.forEach(function(l){l._k=++KSEQ;});}
+function acha(k){return SEM.filter(function(l){return l._k===k})[0];}
+function hm(t){return t?String(t).slice(0,5):''}
+function emMin(t){if(!t)return null;const p=String(t).split(':');return (+p[0])*60+(+p[1]);}
+function cargaTxt(l){
+  const e=emMin(l.entrada),s=emMin(l.saida);
+  if(e==null||s==null)return '—';
+  let d=s-e;if(d<0)d+=1440;
+  let iv=0;const a=emMin(l.int_ini),b=emMin(l.int_fim);
+  if(a!=null&&b!=null){iv=b-a;if(iv<0)iv+=1440;}
+  else if(l.intervalo_min)iv=+l.intervalo_min;
+  d-=iv;if(d<0)d=0;
+  return String(Math.floor(d/60)).padStart(2,'0')+':'+String(d%60).padStart(2,'0');
+}
+function semHorario(l){return !l.entrada&&!l.saida;}
+function nomeDia(d){for(let i=0;i<DIASEM.length;i++){if(DIASEM[i][0]===d)return DIASEM[i][1];}return '';}
+function linhasDoDia(){return SEM.filter(function(l){return +l.dia_semana===DIASEL});}
+
+function marcaSujo(){const m=$('msgSem');if(m){m.textContent='há mudanças ainda não salvas';m.style.color='var(--warn)';}}
+function setC(k,c,v){const l=acha(k);if(!l)return;l[c]=v;marcaSujo();}
+function setH(k,c,v){
+  const l=acha(k);if(!l)return;
+  if(v==='')l[c]=null;
+  else if(/^\d{1,2}:\d{2}$/.test(v))l[c]=(v.length===4?'0':'')+v;
+  else{marcaSujo();return;}
+  const el=$('cg'+k);if(el)el.textContent=cargaTxt(l);
+  marcaSujo();
+}
+function setMarca(k,v){const l=acha(k);if(!l)return;l.marcacao=v||null;const tr=$('lin'+k);if(tr)tr.className='m-'+(v||'');marcaSujo();}
+function tiraLinha(k){SEM=SEM.filter(function(l){return l._k!==k});marcaSujo();pintaSemana();}
+function novaLinha(t,s){
+  SEM.push({_k:++KSEQ,dia_semana:DIASEL,turno:t,setor:s,funcao:'Taxa',nome:'',
+            entrada:null,int_ini:null,int_fim:null,saida:null,intervalo_min:null,marcacao:'TAXA',ordem:100});
+  marcaSujo();pintaSemana();
+}
+function trocaDia(d){DIASEL=d;pintaSemana();}
+
+function linhaHTML(l){
+  const k=l._k;
+  let h='<tr class="m-'+(l.marcacao||'')+'" id="lin'+k+'">';
+  h+='<td><input value="'+esc(l.funcao||'')+'" placeholder="função" oninput="setC('+k+',&quot;funcao&quot;,this.value)"></td>';
+  h+='<td><input value="'+esc(l.nome||'')+'" placeholder="nome" oninput="setC('+k+',&quot;nome&quot;,this.value)"></td>';
+  h+='<td><input class="t" style="width:70px" value="'+hm(l.entrada)+'" placeholder="--:--" oninput="setH('+k+',&quot;entrada&quot;,this.value)"></td>';
+  if(semHorario(l))h+='<td style="color:var(--muted);font-size:11.5px">sem jornada de horário</td>';
+  else h+='<td style="white-space:nowrap"><input class="t" style="width:62px;display:inline-block" value="'+hm(l.int_ini)+'" placeholder="--:--" oninput="setH('+k+',&quot;int_ini&quot;,this.value)"> <input class="t" style="width:62px;display:inline-block" value="'+hm(l.int_fim)+'" placeholder="--:--" oninput="setH('+k+',&quot;int_fim&quot;,this.value)"></td>';
+  h+='<td><input class="t" style="width:70px" value="'+hm(l.saida)+'" placeholder="--:--" oninput="setH('+k+',&quot;saida&quot;,this.value)"></td>';
+  h+='<td class="carga" id="cg'+k+'">'+cargaTxt(l)+'</td>';
+  h+='<td><select onchange="setMarca('+k+',this.value)">';
+  MARCAS.forEach(function(m){h+='<option value="'+m[0]+'"'+((l.marcacao||'')===m[0]?' selected':'')+'>'+m[1]+'</option>';});
+  h+='</select></td>';
+  h+='<td><button class="mini" title="tirar esta linha" onclick="tiraLinha('+k+')">✕</button></td>';
+  h+='</tr>';
+  return h;
+}
+
+function pintaSemana(){
+  let h='<div class="dias">';
+  DIASEM.forEach(function(d){h+='<button class="'+(d[0]===DIASEL?'on':'')+'" onclick="trocaDia('+d[0]+')">'+d[1]+'</button>';});
+  h+='</div>';
+  h+='<div class="barra"><button class="sv" onclick="salvaDia()">Salvar '+nomeDia(DIASEL)+'</button>';
+  h+='<span class="msg" id="msgSem">mexa à vontade — só vale depois de clicar em Salvar</span></div>';
+  h+='<div class="leg"><span><i style="background:rgba(255,0,0,.65)"></i>FOLGA</span>';
+  h+='<span><i style="background:rgba(255,255,0,.75)"></i>TAXA (freelancer)</span>';
+  h+='<span><i style="background:rgba(146,208,80,.75)"></i>JÁ FOLGOU</span>';
+  h+='<span><i style="background:rgba(112,48,160,.85)"></i>FÉRIAS</span></div>';
+  ['Dia','Noite'].forEach(function(t){
+    const ls=linhasDoDia().filter(function(l){return l.turno===t});
+    const naOp=ls.filter(function(l){return !l.marcacao}).length;
+    const folg=ls.filter(function(l){return l.marcacao==='FOLGA'}).length;
+    const taxa=ls.filter(function(l){return l.marcacao==='TAXA'}).length;
+    h+='<div class="sec"><h2>'+(t==='Dia'?'☀️ DIA':'🌙 NOITE')+' <span class="hint">'+naOp+' na operação · '+folg+' de folga · '+taxa+' taxa</span></h2>';
+    const sets=[];
+    ls.forEach(function(l){if(sets.indexOf(l.setor)<0)sets.push(l.setor);});
+    sets.sort(function(a,b){return (ORDSET[a]||90)-(ORDSET[b]||90)});
+    if(!sets.length)h+='<div class="semdado">Ninguém neste turno em '+nomeDia(DIASEL)+'.</div>';
+    sets.forEach(function(s){
+      h+='<div class="bloco '+(t==='Dia'?'dia':'noite')+'"><div class="cab">'+esc(s)+' · '+t.toUpperCase()+'</div>';
+      h+='<table class="gs"><thead><tr><th>Função</th><th>Funcionário</th><th>Início</th><th>Intervalo</th><th>Fim</th><th class="n">Carga</th><th>Marca</th><th></th></tr></thead><tbody>';
+      ls.filter(function(l){return l.setor===s}).forEach(function(l){h+=linhaHTML(l);});
+      h+='</tbody></table>';
+      h+='<div style="padding:8px 12px"><button class="mini" onclick="novaLinha('+JSON.stringify(t)+','+JSON.stringify(s)+')">+ acrescentar pessoa ou taxa</button></div>';
+      h+='</div>';
+    });
+    h+='</div>';
+  });
+  h+='<div class="aviso">Esta é a escala fixa da semana, a mesma ideia das abas Segunda a Sábado da planilha. Os horários vieram do cadastro de cada um e as folgas, da folga semanal. O intervalo veio em branco de propósito: o cadastro guarda só quantos minutos, não a hora. Enquanto ele estiver vazio, a carga desconta esses minutos. Domingo continua na outra aba.</div>';
+  $('semana').innerHTML=h;
+}
+
+async function abreSemana(){
+  $('semana').innerHTML='<div class="load">Abrindo a semana…</div>';
+  try{SEM=await rpcEsc('ler',{unidade:UNIDADE});}
+  catch(e){$('semana').innerHTML='<div class="semdado">Não consegui abrir a semana. Saia e entre de novo no portal, e tente outra vez.</div>';return;}
+  numera();CARREGOU=true;pintaSemana();
+}
+
+async function salvaDia(){
+  const m=$('msgSem');if(m){m.textContent='salvando…';m.style.color='var(--muted)';}
+  const linhas=linhasDoDia().map(function(l){
+    return {turno:l.turno,setor:l.setor,funcao:l.funcao,funcionario_id:l.funcionario_id,nome:l.nome,
+            entrada:l.entrada,
+            int_ini:semHorario(l)?null:l.int_ini,int_fim:semHorario(l)?null:l.int_fim,
+            saida:l.saida,
+            intervalo_min:semHorario(l)?null:l.intervalo_min,
+            marcacao:l.marcacao,ordem:l.ordem,obs:l.obs};
+  });
+  try{
+    const r=await rpcEsc('salvar_dia',{unidade:UNIDADE,dia_semana:DIASEL,
+      quem:(function(){try{return sessionStorage.getItem('cdm_nome')||'portal'}catch(e){return 'portal'}})(),
+      linhas:linhas});
+    SEM=await rpcEsc('ler',{unidade:UNIDADE});numera();pintaSemana();
+    const m2=$('msgSem');
+    if(m2){m2.textContent='salvo · '+((r&&r.gravadas!=null)?r.gravadas:linhas.length)+' linhas em '+nomeDia(DIASEL);m2.style.color='var(--ok)';}
+  }catch(e){
+    const m3=$('msgSem');
+    if(m3){m3.textContent='não consegui salvar — tente de novo';m3.style.color='var(--bad)';}
+  }
+}
+
+function aba(n){
+  const dom=(n==='dom');
+  $('abaDom').className=dom?'on':'';
+  $('abaSem').className=dom?'':'on';
+  $('app').style.display=dom?'':'none';
+  $('semana').style.display=dom?'none':'';
+  $('ctlMes').style.display=dom?'':'none';
+  if(!dom&&!CARREGOU)abreSemana();
+}
 /* ===== porta unica do portal: sessao por usuario ===== */
 const CDMMODS=['escala-mensal'];
 function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
