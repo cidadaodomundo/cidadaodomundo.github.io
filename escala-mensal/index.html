@@ -413,10 +413,21 @@ function funcoesDe(p){
   });
 }
 function verTodas(id){VERTODAS[id]=!VERTODAS[id];pinta();}
+async function puxaHistorico(){
+  const m=$('msgPerfil');if(m){m.textContent='lendo a escala que as gestoras lançaram…';m.style.color='var(--muted)';}
+  try{
+    const r=await rpcEsc('funcoes_historico',{unidade:UNIDADE,dias:120,quem:quem()});
+    PERFIL=await rpcEsc('perfil_ler',{unidade:UNIDADE});
+    pinta();
+    const m2=$('msgPerfil');
+    if(m2){m2.textContent='pronto · '+(r.vinculos_novos||0)+' funções novas · '+(r.pessoas_com_funcao||0)+' pessoas já têm função';m2.style.color='var(--ok)';}
+  }catch(e){const m3=$('msgPerfil');if(m3){m3.textContent='não consegui puxar — tente de novo';m3.style.color='var(--bad)';}}
+}
 function painelPerfil(){
   if(!PERFIL)return '<div class="load">Abrindo a equipe…</div>';
   let h='<div class="sec"><h2>Equipe · quem é chave e o que cada um faz <span class="hint">cada um vê as funções do próprio setor</span></h2>';
   h+='<div class="barra"><button class="sv" onclick="salvaPerfil()">Salvar a equipe</button>';
+  h+='<button class="b" onclick="puxaHistorico()">Puxar funções do histórico do RH</button>';
   h+='<span class="msg" id="msgPerfil">Chave é quem faz falta de verdade quando não vem. Dois chaves do mesmo setor e turno não folgam no mesmo domingo.</span></div>';
   const setores=[];
   PERFIL.pessoas.forEach(function(p){const s=p.setor||'Sem setor';if(setores.indexOf(s)<0)setores.push(s);});
