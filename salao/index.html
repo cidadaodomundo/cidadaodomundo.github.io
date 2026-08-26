@@ -326,7 +326,50 @@ function blocoClientes(G){
   return h;
 }
 
-/* ================= 5. MENÇÕES DA MARCA ================= */
+/* ================= 5. RESERVAS =================
+   Vêm do recado no grupo de WhatsApp do salão e, quando a senha chegar, do Getin. */
+function blocoReservas(res){
+  const hoje=hojeISO();
+  let h='<div class="ctx">recado do grupo do salão · o Getin ainda não está ligado</div>';
+  if(!res||!res.length){
+    h+='<div class="store"><div class="vazio">nenhuma reserva anotada de hoje em diante — pode ser que ninguém tenha lançado ainda</div></div>';
+    return h;
+  }
+  h+='<div class="cards">';
+  UNI.forEach(u=>{
+    const l=res.filter(r=>r.unidade===u).sort((a,b)=>(a.data+(a.hora||''))<(b.data+(b.hora||''))?-1:1);
+    if(!l.length)return;
+    h+='<div class="c"><div class="nm">'+u+'<span class="pill p-off">'+plural(l.length,'reserva','reservas')+'</span></div>';
+    l.forEach(r=>{
+      const conf=String(r.status||'').indexOf('confirmada')===0;
+      const dias=diasEntre(hoje,String(r.data).slice(0,10));
+      h+='<div class="turno">'+br(r.data)+(r.hora?' · '+String(r.hora).slice(0,5):'')+
+         (dias===0?' · hoje':(dias===1?' · amanhã':(dias>1?' · em '+dias+' dias':'')))+'</div>'+
+         '<div class="linha"><b>'+plural(Number(r.pessoas)||0,'pessoa','pessoas')+'</b>'+
+         '<span class="pill '+(conf?'p-ok':'p-warn')+'">'+esc(r.status||'sem situação')+'</span></div>';
+      if(r.nome_cliente)h+='<div class="linha"><span>quem reservou</span><b>'+esc(r.nome_cliente)+'</b></div>';
+      if(r.area)h+='<div class="linha"><span>onde</span><b>'+esc(r.area)+'</b></div>';
+      h+='<div class="linha"><span>sinal</span><b>'+(r.sinal_pago===true?'pago':(r.sinal_pago===false?'ainda não':'—'))+'</b></div>';
+      if(r.observacao)h+='<div class="mini">'+esc(r.observacao)+'</div>';
+      h+='<div class="mini">veio do '+esc(r.origem||'—')+'</div>';
+    });
+    h+='</div>';
+  });
+  h+='</div>';
+  return h;
+}
+function resumoReservas(d){
+  const l=d.reservas||[];
+  if(!l.length)return {big:'—',sub:'nenhuma reserva anotada de hoje em diante',atencao:false};
+  const pessoas=l.reduce((s,r)=>s+(Number(r.pessoas)||0),0);
+  const prox=l.map(r=>String(r.data).slice(0,10)).sort()[0];
+  const semSinal=l.filter(r=>r.sinal_pago!==true).length;
+  return {big:plural(l.length,'reserva','reservas'),
+    sub:pessoas+' pessoas · a próxima é '+br(prox)+(semSinal?' · '+semSinal+' sem sinal pago':''),
+    atencao:semSinal>0};
+}
+
+/* ================= 6. MENÇÕES DA MARCA ================= */
 function blocoMarca(){
   let h='<h2>📱 Menções da marca <span class="hint">redes sociais e imprensa — não separado por loja</span></h2>';
   h+='<div class="store">'+fontesTable(MARCA)+'</div>';
@@ -376,6 +419,7 @@ function resumoGoogle(d){
 const SECOES={
   equipe:{ic:'👥',tt:'Equipe do salão',resumo:resumoEquipe,corpo:d=>blocoEquipe(d)},
   tablet:{ic:'📵',tt:'Cardápio no tablet',resumo:resumoGoomer,corpo:d=>blocoGoomer(d.pausados)},
+  reservas:{ic:'🪑',tt:'Reservas do salão',resumo:resumoReservas,corpo:d=>blocoReservas(d.reservas)},
   cliente:{ic:'💬',tt:'O que o cliente falou',resumo:resumoClientes,corpo:d=>blocoClientes(d.google)},
   google:{ic:'⭐',tt:'Nota no Google',resumo:resumoGoogle,corpo:d=>blocoGoogle(d.google)+blocoMarca()}
 };
@@ -390,9 +434,6 @@ function capa(d){
        '<div class="big">'+esc(r.big)+'</div><div class="sub2">'+esc(r.sub)+'</div>'+
        '<div class="go">abrir →</div></button>';
   });
-  h+='<button class="tile off"><div class="ic">🪑</div><div class="tt">Reservas do dia</div>'+
-     '<div class="big">—</div><div class="sub2">o Getin ainda não está ligado nesta tela</div>'+
-     '<div class="go">falta ligar</div></button>';
   h+='</div>';
   return h;
 }
@@ -413,17 +454,18 @@ function render(d){DADOS=d;rota()}
 window.addEventListener('hashchange',rota);
 
 async function boot(){
-  const [gRows,escala,ponto,pessoas,cobertura,pausados,balcao]=await Promise.all([
+  const [gRows,escala,ponto,pessoas,cobertura,pausados,balcao,reservas]=await Promise.all([
     get('google_fato_avaliacao?select=unidade,id_loja,nota,num_avaliacoes,resumo,destaques,data_coleta&order=data_coleta.desc&limit=200'),
     get('fato_escala_posicao?select=data,nome,turno,posicao,unidade&data=gte.'+dMenos(7)+'&posicao=ilike.*Atendimento*&order=data.desc&limit=200'),
     get('fato_espelho_dia?select=nome,unidade,data,entrada,saida,categoria&data=gte.'+dMenos(3)+'&order=data.desc&limit=300'),
     get('dim_funcionario?select=nome,unidade,setor,entrada,ativo&setor=eq.'+encodeURIComponent('Salão')+'&ativo=is.true&limit=50'),
     get('escala_cobertura_min?select=unidade,setor,turno,dia_semana,funcao,minimo&setor=ilike.*Sal*&limit=100'),
     get('cardapio_pausado?select=unidade,marca,item,tipo,estado,primeiro_visto,visto_em&canal=ilike.*Goomer*&order=primeiro_visto.asc&limit=400'),
-    get('saipos_venda_status?select=unidade,dia_operacional,n_pedido,cancelado&canal=is.null&dia_operacional=gte.'+dMenos(3)+'&limit=300')
+    get('saipos_venda_status?select=unidade,dia_operacional,n_pedido,cancelado&canal=is.null&dia_operacional=gte.'+dMenos(3)+'&limit=300'),
+    get('salao_reserva?select=unidade,data,hora,pessoas,nome_cliente,area,sinal_pago,status,observacao,origem&data=gte.'+hojeISO()+'&order=data.asc&limit=100')
   ]);
   const G={};gRows.forEach(x=>{if(!G[x.unidade])G[x.unidade]=x});
-  render({google:G,escala:escala,ponto:ponto,pessoas:pessoas,cobertura:cobertura,pausados:pausados,balcao:balcao});
+  render({google:G,escala:escala,ponto:ponto,pessoas:pessoas,cobertura:cobertura,pausados:pausados,balcao:balcao,reservas:reservas});
 }
 
 /* ===== porta unica do portal: sessao por usuario ===== */
