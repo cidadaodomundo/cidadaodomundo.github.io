@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#c8102e">
+<title>Escala do Mês · Cidadão do Mundo</title>
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#c8102e;--ok:#2fae6a;--bad:#e66767;--warn:#c98500;--gold:#e8c547}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1180px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
+.top .rt{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+button.b.on{background:var(--brand);border-color:var(--brand)}
+select.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600}
+h2{font-size:15px;font-weight:800;margin:26px 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+h2 .hint{font-weight:500;font-size:11.5px;color:var(--muted)}
+.sec{margin-bottom:6px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.c{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:16px}
+.c .nm{font-weight:800;font-size:14.5px;margin-bottom:8px}
+.c .nota{font-size:30px;font-weight:800;line-height:1}
+.c .qtd{color:var(--muted);font-size:12px;margin-top:3px}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700}
+.p-ok{background:rgba(47,174,106,.15);color:var(--ok)}
+.p-warn{background:rgba(201,133,0,.15);color:var(--warn)}
+.p-bad{background:rgba(230,103,103,.15);color:var(--bad)}
+.p-off{background:rgba(138,137,126,.15);color:var(--muted)}
+.store{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:16px;margin-bottom:14px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px 10px;text-align:left;font-size:13px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+tr:last-child td{border-bottom:none}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:11px 14px;font-size:12.5px;margin-top:14px}
+.semdado{background:var(--s2);border:1px dashed var(--line);color:var(--muted);border-radius:10px;padding:14px;font-size:12.5px}
+.load{color:var(--muted);padding:30px;text-align:center}
+.dot{width:40px;height:40px;border-radius:11px;background:var(--brand);display:grid;place-items:center;font-weight:800;font-size:16px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cal .hd{color:var(--muted);font-size:10.5px;text-transform:uppercase;text-align:center;font-weight:700;padding:4px 0}
+.cal .d{background:var(--s1);border:1px solid var(--line);border-radius:9px;min-height:72px;padding:6px 7px;font-size:11px}
+.cal .d.off{opacity:.25}
+.cal .d .num{font-weight:800;font-size:13px;margin-bottom:3px}
+.cal .d.dom{border-color:#5a4a1f}
+.cal .d .fr{color:var(--warn);font-weight:700}
+.cal .d .fp{color:var(--text2)}
+.rasc{background:rgba(201,133,0,.12);border:1px solid #4a3f22;color:var(--gold);border-radius:999px;padding:3px 12px;font-size:11.5px;font-weight:800}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>📅 Escala do Mês</h1><div class="sub">Água Verde · gerador de rascunho — nada é gravado nem enviado</div></div></div>
+  <div class="rt">
+    <span class="rasc">RASCUNHO</span>
+    <select class="b" id="selMes"></select>
+    <button class="b on" onclick="gerar()">Gerar escala do mês</button>
+  </div>
+</div>
+<div id="app"><div class="load">Escolha o mês e clique em Gerar.</div></div>
+
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const H={apikey:KEY,Authorization:'Bearer '+KEY};
+const $=i=>document.getElementById(i);
+const UNIDADE='Água Verde';
+const DIAS=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const dBR=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'—';
+const pNome=n=>{const p=String(n||'').split(' ');return p.length>1?p[0]+' '+p[1][0]+'.':p[0]};
+
+async function pega(url){
+  try{const r=await fetch(SB+url,{headers:H});return r.ok?await r.json():[];}
+  catch(e){return [];}
+}
+
+let EQ=[],COB=[],HISTD=[];
+
+function folgaDow(f){
+  const t=String(f||'').toLowerCase();
+  if(t.startsWith('domingo'))return 0;
+  const m={'segunda':1,'terça':2,'terca':2,'quarta':3,'quinta':4,'sexta':5,'sábado':6,'sabado':6};
+  for(const k in m){if(t.startsWith(k))return m[k];}
+  return null;
+}
+
+async function boot(){
+  const hoje=new Date();
+  const sel=$('selMes');let h='';
+  for(let i=0;i<4;i++){
+    const d=new Date(hoje.getFullYear(),hoje.getMonth()+i,1);
+    const v=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    const n=d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    h+='<option value="'+v+'"'+(i===1?' selected':'')+'>'+esc(n)+'</option>';
+  }
+  sel.innerHTML=h;
+  const d90=new Date(Date.now()-90*864e5).toISOString().slice(0,10);
+  const [eq,cob,hist]=await Promise.all([
+    pega('dim_funcionario?select=nome,setor,folgas,noturno,entrada&unidade=eq.'+encodeURIComponent(UNIDADE)+'&ativo=is.true&order=setor,nome&limit=100'),
+    pega('escala_cobertura_min?select=setor,turno,dia_semana,funcao,minimo&unidade=eq.'+encodeURIComponent(UNIDADE)+'&limit=100'),
+    pega('fato_escala_posicao?select=data,nome,turno&unidade=eq.'+encodeURIComponent(UNIDADE)+'&posicao=eq.FOLGA&data=gte.'+d90+'&order=data&limit=400')
+  ]);
+  EQ=eq;COB=cob;HISTD=hist.filter(r=>new Date(r.data+'T12:00:00').getDay()===0);
+  if(!EQ.length){$('app').innerHTML='<div class="semdado">Não consegui ler a equipe. Confira a conexão e recarregue.</div>';return;}
+  gerar();
+}
+
+function gerar(){
+  const [ano,mes]=$('selMes').value.split('-').map(Number);
+  const nDias=new Date(ano,mes,0).getDate();
+  const doms=[];for(let d=1;d<=nDias;d++){if(new Date(ano,mes-1,d).getDay()===0)doms.push(d);}
+
+  const eleg=EQ.filter(p=>String(p.folgas||'').includes('1 domingo'));
+  const fixosDom=EQ.filter(p=>folgaDow(p.folgas)===0);
+
+  const ult={};HISTD.forEach(r=>{if(!ult[r.nome]||r.data>ult[r.nome])ult[r.nome]=r.data;});
+  const fila=eleg.slice().sort((a,b)=>String(ult[a.nome]||'0000').localeCompare(String(ult[b.nome]||'0000')));
+  const porDom={};doms.forEach(d=>porDom[d]=[]);
+  fila.forEach((p,i)=>{porDom[doms[i%doms.length]].push(p);});
+
+  const turnoDe=p=>p.noturno?'Noite':'Dia';
+  const fixosPorST={};
+  EQ.forEach(p=>{const k=p.setor+'|'+turnoDe(p);fixosPorST[k]=(fixosPorST[k]||0)+1;});
+
+  const precisa=(setor,turno,dow)=>{
+    let t=0;COB.forEach(c=>{if(c.setor===setor&&c.turno===turno&&(c.dia_semana===-1||c.dia_semana===dow))t+=c.minimo;});
+    return t;
+  };
+  const setoresCob=[...new Set(COB.map(c=>c.setor))];
+
+  let totalFree=0,posDesc=0;const linhasDia=[];const freePorDia={};
+  for(let d=1;d<=nDias;d++){
+    const dow=new Date(ano,mes-1,d).getDay();
+    let freeDia=0;const det=[];
+    setoresCob.forEach(setor=>{['Dia','Noite'].forEach(turno=>{
+      const need=precisa(setor,turno,dow);if(!need)return;
+      let pres=0;
+      EQ.forEach(p=>{
+        if(p.setor!==setor||turnoDe(p)!==turno)return;
+        if(folgaDow(p.folgas)===dow)return;
+        if(dow===0&&(porDom[d]||[]).some(x=>x.nome===p.nome))return;
+        pres++;
+      });
+      const falta=Math.max(need-pres,0);
+      if(falta>0){freeDia+=falta;det.push(setor+' '+turno.toLowerCase()+': '+falta);}
+    });});
+    totalFree+=freeDia;if(freeDia>0)posDesc++;
+    freePorDia[d]=freeDia;
+    linhasDia.push({d,dow,freeDia,det});
+  }
+
+  const semDomingo=eleg.filter(p=>!doms.some(d=>(porDom[d]||[]).some(x=>x.nome===p.nome)));
+
+  let h='';
+  h+='<div class="sec"><h2>Resumo de '+esc($('selMes').selectedOptions[0].text)+' <span class="hint">rascunho — confira e ajuste na planilha ou aprove</span></h2><div class="cards">';
+  h+='<div class="c"><div class="nm">Dias no mês</div><div class="nota">'+nDias+'</div><div class="qtd">'+doms.length+' domingos</div></div>';
+  h+='<div class="c"><div class="nm">Equipe ativa</div><div class="nota">'+EQ.length+'</div><div class="qtd">'+eleg.length+' no revezamento de domingo · '+fixosDom.length+' folgam todo domingo</div></div>';
+  h+='<div class="c"><div class="nm">Diárias de freelancer</div><div class="nota">'+totalFree+'</div><div class="qtd">'+posDesc+' dias com posto a cobrir</div></div>';
+  h+='<div class="c"><div class="nm">Domingo de todos?</div><div class="nota">'+(semDomingo.length?'<span style="color:var(--bad)">não</span>':'<span style="color:var(--ok)">sim</span>')+'</div><div class="qtd">'+(semDomingo.length? semDomingo.map(p=>esc(pNome(p.nome))).join(', ')+' sem domingo':'todos os elegíveis receberam 1 domingo')+'</div></div>';
+  h+='</div></div>';
+
+  h+='<div class="sec"><h2>Folgas de domingo <span class="hint">fila justa: quem folgou por último vai para o fim (histórico de 90 dias)</span></h2><div class="store"><table><thead><tr><th>Domingo</th><th>Quem folga</th><th class="n">Freelancers no dia</th></tr></thead><tbody>';
+  doms.forEach(d=>{
+    const quem=(porDom[d]||[]).map(p=>esc(pNome(p.nome))+' <span class="pill p-off">'+esc(p.setor)+' '+turnoDe(p).toLowerCase()+'</span>'+(ult[p.nome]?' <span class="hint">folgou '+dBR(ult[p.nome])+'</span>':' <span class="hint">nunca no histórico</span>')).join('<br>');
+    h+='<tr><td><b>'+String(d).padStart(2,'0')+'/'+String(mes).padStart(2,'0')+'</b></td><td>'+(quem||'—')+'</td><td class="n">'+(freePorDia[d]||0)+'</td></tr>';
+  });
+  h+='</tbody></table></div></div>';
+
+  h+='<div class="sec"><h2>Calendário do mês <span class="hint">FR = freelancers a chamar · nomes = folga de domingo</span></h2><div class="cal">';
+  ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].forEach(x=>h+='<div class="hd">'+x+'</div>');
+  const pri=new Date(ano,mes-1,1).getDay();
+  for(let i=0;i<pri;i++)h+='<div class="d off"></div>';
+  for(let d=1;d<=nDias;d++){
+    const dow=new Date(ano,mes-1,d).getDay();
+    let inner='<div class="num">'+d+'</div>';
+    if(freePorDia[d]>0)inner+='<div class="fr">'+freePorDia[d]+' freelancer'+(freePorDia[d]>1?'s':'')+'</div>';
+    if(dow===0)inner+='<div class="fp">'+(porDom[d]||[]).map(p=>esc(pNome(p.nome))).join('<br>')+'</div>';
+    h+='<div class="d'+(dow===0?' dom':'')+'">'+inner+'</div>';
+  }
+  h+='</div></div>';
+
+  h+='<div class="sec"><h2>Postos a cobrir, dia a dia <span class="hint">só os dias em que a equipe fixa não fecha a conta</span></h2><div class="store"><table><thead><tr><th>Dia</th><th>Semana</th><th>Onde falta</th><th class="n">Freelancers</th></tr></thead><tbody>';
+  const comFalta=linhasDia.filter(l=>l.freeDia>0);
+  if(!comFalta.length)h+='<tr><td colspan="4">Nenhum. A equipe fixa cobre o mês inteiro.</td></tr>';
+  comFalta.forEach(l=>{h+='<tr><td><b>'+String(l.d).padStart(2,'0')+'/'+String(mes).padStart(2,'0')+'</b></td><td>'+DIAS[l.dow]+'</td><td>'+esc(l.det.join(' · '))+'</td><td class="n">'+l.freeDia+'</td></tr>';});
+  h+='</tbody></table></div></div>';
+
+  h+='<div class="sec"><h2>Folgas semanais da equipe</h2><div class="store"><table><thead><tr><th>Nome</th><th>Setor</th><th>Turno</th><th>Folga</th></tr></thead><tbody>';
+  EQ.forEach(p=>{h+='<tr><td>'+esc(pNome(p.nome))+(p.entrada==null?' <span class="pill p-off">gerência</span>':'')+'</td><td>'+esc(p.setor||'—')+'</td><td>'+turnoDe(p)+'</td><td>'+esc(p.folgas||'—')+'</td></tr>';});
+  h+='</tbody></table></div></div>';
+
+  h+='<div class="aviso">⚠️ Isto é um <b>rascunho gerado na hora</b> — nada foi gravado, publicado ou enviado a ninguém. A cobertura mínima vale para Delivery e Salão; os outros setores ainda não têm régua. Férias e atestados ainda não entram nesta conta. A distribuição dos domingos usa a fila justa do histórico, não a força prevista de cada domingo.</div>';
+
+  $('app').innerHTML=h;
+}
+
+/* ===== porta unica do portal: sessao por usuario ===== */
+const CDMMODS=['escala-mensal'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch('https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(ok)boot()});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
