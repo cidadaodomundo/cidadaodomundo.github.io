@@ -83,6 +83,11 @@ tr.m-FERIAS td{background:rgba(112,48,160,.28)}
 .dias button.dom.on{background:var(--gold);border-color:var(--gold);color:#111}
 .mini.on{background:var(--brand);border-color:var(--brand);color:#fff}
 .grp{display:inline-flex;gap:4px}
+
+.p-chave{background:rgba(200,16,46,.18);color:#ff8b9c}
+.cx{display:inline-block;margin:2px 10px 2px 0;font-size:12px;color:var(--text2);white-space:nowrap}
+.cx input{vertical-align:-1px;margin-right:3px}
+.gs tr.ch td{background:rgba(200,16,46,.07)}
 </style>
 </head>
 <body>
@@ -240,7 +245,8 @@ const DIASEM=[[1,'Segunda'],[2,'Terça'],[3,'Quarta'],[4,'Quinta'],[5,'Sexta'],[
 const MARCAS=[['','— na escala'],['FOLGA','FOLGA'],['TAXA','TAXA'],['JA_FOLGOU','JÁ FOLGOU'],['FERIAS','FÉRIAS']];
 const ORDSET={'Produção':10,'Estoque':15,'Cozinha':20,'Delivery':30,'Salão':40,'Limpeza':50,'Escritório':60};
 const SETORES=['Produção','Estoque','Cozinha','Delivery','Salão','Limpeza','Escritório'];
-let SEM=[],EQUIPE=[],TAXAS=[],DIASEL=1,DATASEL=null,FILTRO='tudo',PAINEL='',KSEQ=0,CARREGOU=false;
+const NIVEIS=[['CHAVE','Chave'],['NORMAL','Normal'],['APRENDIZ','Aprendiz']];
+let SEM=[],EQUIPE=[],TAXAS=[],PERFIL=null,DIASEL=1,DATASEL=null,FILTRO='tudo',PAINEL='',KSEQ=0,CARREGOU=false;
 
 async function rpcEsc(acao,dados){
   const r=await fetch(SB+'rpc/escala_semana_consulta',{method:'POST',
@@ -306,6 +312,15 @@ function trocaDia(d){DIASEL=d;DATASEL=null;PAINEL='';pintaSemana();}
 function trocaDom(dt){DATASEL=dt;DIASEL=0;PAINEL='';pintaSemana();}
 function trocaFiltro(f){FILTRO=f;pintaSemana();}
 function abrePainel(p){PAINEL=(PAINEL===p?'':p);pintaSemana();}
+async function abrePerfil(){
+  if(PAINEL==='perfil'){PAINEL='';pintaSemana();return;}
+  PAINEL='perfil';pintaSemana();
+  if(!PERFIL){
+    try{PERFIL=await rpcEsc('perfil_ler',{unidade:UNIDADE});}
+    catch(e){PERFIL={funcoes:[],pessoas:[]};}
+    pintaSemana();
+  }
+}
 
 function addFunc(id){
   if(!id)return;
@@ -323,7 +338,7 @@ function linhaHTML(l){
   const k=l._k;
   let h='<tr class="m-'+(l.marcacao||'')+'" id="lin'+k+'">';
   h+='<td><input value="'+esc(l.funcao||'')+'" placeholder="função" oninput="setC('+k+',&quot;funcao&quot;,this.value)"></td>';
-  h+='<td><input value="'+esc(l.nome||'')+'" placeholder="nome" oninput="setC('+k+',&quot;nome&quot;,this.value)"></td>';
+  h+='<td><input value="'+esc(l.nome||'')+'" placeholder="nome" oninput="setC('+k+',&quot;nome&quot;,this.value)">'+(l.nivel==='CHAVE'?' <span class="pill p-chave">chave</span>':'')+'</td>';
   h+='<td><input class="t" style="width:70px" value="'+hm(l.entrada)+'" placeholder="--:--" oninput="setH('+k+',&quot;entrada&quot;,this.value)"></td>';
   if(semHorario(l))h+='<td style="color:var(--muted);font-size:11.5px">sem jornada de horário</td>';
   else h+='<td style="white-space:nowrap"><input class="t" style="width:62px;display:inline-block" value="'+hm(l.int_ini)+'" placeholder="--:--" oninput="setH('+k+',&quot;int_ini&quot;,this.value)"> <input class="t" style="width:62px;display:inline-block" value="'+hm(l.int_fim)+'" placeholder="--:--" oninput="setH('+k+',&quot;int_fim&quot;,this.value)"></td>';
@@ -398,6 +413,64 @@ function painelTaxas(){
   return h;
 }
 
+function setNivel(id,v){
+  const p=PERFIL.pessoas.filter(function(x){return String(x.id)===String(id)})[0];
+  if(p){p.nivel=v;p._mudou=true;}
+  const m=$('msgPerfil');if(m){m.textContent='há mudanças ainda não salvas';m.style.color='var(--warn)';}
+  pintaSemana();
+}
+function toggleFuncao(id,cod,marcado){
+  const p=PERFIL.pessoas.filter(function(x){return String(x.id)===String(id)})[0];
+  if(!p)return;
+  if(!Array.isArray(p.funcoes))p.funcoes=[];
+  const i=p.funcoes.indexOf(cod);
+  if(marcado&&i<0)p.funcoes.push(cod);
+  if(!marcado&&i>=0)p.funcoes.splice(i,1);
+  p._mudou=true;
+  const m=$('msgPerfil');if(m){m.textContent='há mudanças ainda não salvas';m.style.color='var(--warn)';}
+}
+async function salvaPerfil(){
+  const m=$('msgPerfil');if(m){m.textContent='salvando…';m.style.color='var(--muted)';}
+  const pessoas=PERFIL.pessoas.map(function(p){return {id:p.id,nivel:p.nivel,funcoes:p.funcoes||[]};});
+  try{
+    await rpcEsc('perfil_salvar',{unidade:UNIDADE,pessoas:pessoas,
+      quem:(function(){try{return sessionStorage.getItem('cdm_nome')||'portal'}catch(e){return 'portal'}})()});
+    PERFIL=await rpcEsc('perfil_ler',{unidade:UNIDADE});
+    SEM=await rpcEsc('ler',{unidade:UNIDADE});numera();
+    pintaSemana();
+    const m2=$('msgPerfil');if(m2){m2.textContent='salvo · '+pessoas.length+' pessoas';m2.style.color='var(--ok)';}
+  }catch(e){const m3=$('msgPerfil');if(m3){m3.textContent='não consegui salvar — tente de novo';m3.style.color='var(--bad)';}}
+}
+function painelPerfil(){
+  if(!PERFIL)return '<div class="load">Abrindo a equipe…</div>';
+  let h='<div class="sec"><h2>Equipe · quem é chave e o que cada um faz <span class="hint">a folga de domingo não junta dois chaves do mesmo setor e turno</span></h2>';
+  h+='<div class="barra"><button class="sv" onclick="salvaPerfil()">Salvar a equipe</button>';
+  h+='<span class="msg" id="msgPerfil">marque o nível e as funções de cada um</span></div>';
+  const setores=[];
+  PERFIL.pessoas.forEach(function(p){const s=p.setor||'Sem setor';if(setores.indexOf(s)<0)setores.push(s);});
+  setores.sort(function(a,b){return (ORDSET[a]||90)-(ORDSET[b]||90)});
+  setores.forEach(function(s){
+    const fs=PERFIL.funcoes.filter(function(f){return f.setor===s||s==='Sem setor'});
+    const usa=fs.length?fs:PERFIL.funcoes;
+    h+='<div class="bloco dia"><div class="cab">'+esc(s)+'</div>';
+    h+='<table class="gs"><thead><tr><th style="width:150px">Nome</th><th style="width:110px">Nível</th><th>Funções que faz</th></tr></thead><tbody>';
+    PERFIL.pessoas.filter(function(p){return (p.setor||'Sem setor')===s}).forEach(function(p){
+      h+='<tr'+(p.nivel==='CHAVE'?' class="ch"':'')+'><td>'+esc(pNome(p.nome))+'<div class="hint">'+(p.turno||'')+' · folga '+esc(p.folgas||'—')+'</div></td>';
+      h+='<td><select onchange="setNivel('+p.id+',this.value)">';
+      NIVEIS.forEach(function(n){h+='<option value="'+n[0]+'"'+(p.nivel===n[0]?' selected':'')+'>'+n[1]+'</option>';});
+      h+='</select></td><td>';
+      usa.forEach(function(f){
+        const marc=(p.funcoes||[]).indexOf(f.codigo)>=0;
+        h+='<label class="cx"><input type="checkbox"'+(marc?' checked':'')+' onchange="toggleFuncao('+p.id+','+JSON.stringify(f.codigo)+',this.checked)"> '+esc(f.nome)+'</label>';
+      });
+      h+='</td></tr>';
+    });
+    h+='</tbody></table></div>';
+  });
+  h+='</div>';
+  return h;
+}
+
 function pintaSemana(){
   let h='<div class="dias">';
   DIASEM.forEach(function(d){h+='<button class="'+((!DATASEL&&d[0]===DIASEL)?'on':'')+'" onclick="trocaDia('+d[0]+')">'+d[1]+'</button>';});
@@ -422,10 +495,12 @@ function pintaSemana(){
   h+='<button class="b" onclick="gerarMes()">Gerar o mês inteiro</button>';
   h+='<button class="b'+(PAINEL==='folgas'?' on':'')+'" onclick="abrePainel(&quot;folgas&quot;)">Folga semanal da equipe</button>';
   h+='<button class="b'+(PAINEL==='taxas'?' on':'')+'" onclick="abrePainel(&quot;taxas&quot;)">Taxas · nome e telefone</button>';
+  h+='<button class="b'+(PAINEL==='perfil'?' on':'')+'" onclick="abrePerfil()">Equipe · chave e funções</button>';
   h+='</div>';
 
   if(PAINEL==='folgas'){$('semana').innerHTML=h+painelFolgas();montaMes();return;}
   if(PAINEL==='taxas'){$('semana').innerHTML=h+painelTaxas();montaMes();return;}
+  if(PAINEL==='perfil'){$('semana').innerHTML=h+painelPerfil();montaMes();return;}
 
   h+='<div class="leg"><span><i style="background:rgba(255,0,0,.65)"></i>FOLGA</span>';
   h+='<span><i style="background:rgba(255,255,0,.75)"></i>TAXA (freelancer)</span>';
@@ -438,7 +513,8 @@ function pintaSemana(){
     const naOp=ls.filter(function(l){return !l.marcacao}).length;
     const folg=ls.filter(function(l){return l.marcacao==='FOLGA'}).length;
     const taxa=ls.filter(function(l){return l.marcacao==='TAXA'}).length;
-    h+='<div class="sec"><h2>'+(t==='Dia'?'☀️ DIA':'🌙 NOITE')+' <span class="hint">'+naOp+' na operação · '+folg+' de folga · '+taxa+' taxa</span></h2>';
+    const chFolga=ls.filter(function(l){return l.marcacao==='FOLGA'&&l.nivel==='CHAVE'}).length;
+    h+='<div class="sec"><h2>'+(t==='Dia'?'☀️ DIA':'🌙 NOITE')+' <span class="hint">'+naOp+' na operação · '+folg+' de folga · '+taxa+' taxa'+(chFolga?' · <b style="color:var(--bad)">'+chFolga+' chave de folga</b>':'')+'</span></h2>';
     const sets=[];
     ls.forEach(function(l){if(sets.indexOf(l.setor)<0)sets.push(l.setor);});
     sets.sort(function(a,b){return (ORDSET[a]||90)-(ORDSET[b]||90)});
