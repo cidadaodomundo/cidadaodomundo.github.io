@@ -173,14 +173,30 @@ function menu(){
 }
 function mi(m){return '<div class="mi'+(ATUAL===m.id?' on':'')+'" onclick="abrir(\''+m.id+'\')"><div class="ic">'+(m.icone||'')+'</div><div><div class="t">'+esc(m.nome)+'</div><div class="d">'+esc(DESC[m.id]||'')+'</div></div></div>'}
 function inicio(){ATUAL=null;location.hash='';$('titulo').textContent='Início';$('rt').innerHTML='';
-  let h='<div class="home"><img src="'+LOGO+'"><h1>Portal de Gestão</h1><div class="s">'+esc(NOME)+' — escolha um módulo</div><div class="cards">';
+  let h='<div class="home"><img src="'+LOGO+'"><h1>Portal de Gestão</h1><div class="s">'+esc(NOME)+' — escolha um módulo</div><div id="fresco" style="text-align:center;margin-top:10px"></div><div class="cards">';
   const gs=GRUPOS.slice();
   mods().forEach(m=>{if(gs.indexOf(m.grupo)<0)gs.push(m.grupo)});
   gs.forEach(g=>{const list=mods().filter(m=>m.grupo===g);if(!list.length)return;
     h+='<div class="gh">'+esc(g)+'</div>'+list.map(m=>'<div class="card" onclick="abrir(\''+m.id+'\')"><div class="ic">'+(m.icone||'')+'</div><div class="t">'+esc(m.nome)+'</div><div class="d">'+esc(DESC[m.id]||'')+'</div></div>').join('')});
   if(!mods().length)h+='<div class="gh">Sem módulos liberados</div><div class="card"><div class="t">Nada por aqui ainda</div><div class="d">Peça ao Fábio para liberar os módulos do seu usuário.</div></div>';
-  h+='</div></div>';$('view').innerHTML=h;menu();
+  h+='</div></div>';$('view').innerHTML=h;menu();carimboFontes();
 }
+async function carimboFontes(){try{
+  const r=await fetch(SB+'fato_frescor?select=fonte,ultimo_dia,farol&farol=neq.OK&order=fonte&limit=20',{headers:H});
+  if(!r.ok)return;
+  const rows=await r.json();
+  const el=document.getElementById('fresco');
+  if(!el)return;
+  const nm={rede_venda:'Maquininha (vendas)',rede_pagamento:'Maquininha (pagamentos)',ifood_avaliacao:'iFood avaliações',ifood_cancelamento:'iFood cancelamentos',ifood_negociacao:'iFood chamados',saipos_av:'Saipos Água Verde',saipos_ahu:'Saipos Ahú',saipos_sb:'Saipos São Braz',saipos_venda:'Saipos (agregado)',saipos_item:'Saipos itens',delivery_pedido:'Delivery pedidos',delivery_fechamento:'Delivery fechamento',escala_av:'Escala Água Verde',escala_ahu:'Escala Ahú',escala_sb:'Escala São Braz',ponto:'Ponto',google:'Google',clima:'Clima'};
+  if(!rows.length){el.innerHTML='<div style="display:inline-block;margin:2px;padding:6px 14px;border-radius:999px;background:#16351f;color:#7ce28f;font-size:13px">✓ todas as fontes de dados em dia</div>';return}
+  el.innerHTML=rows.map(function(x){
+    const d=String(x.ultimo_dia||'').split('-').reverse().slice(0,2).join('/');
+    const parado=x.farol==='PARADO'||x.farol==='SEM_DADO';
+    const cor=parado?'#4a1515':'#4a3a12';
+    const tx=parado?'#ff9d9d':'#ffd98a';
+    return '<div style="display:inline-block;margin:3px;padding:6px 12px;border-radius:999px;background:'+cor+';color:'+tx+';font-size:13px">'+(parado?'⛔':'⚠')+' '+esc(nm[x.fonte]||x.fonte)+' — dado até '+esc(d||'nunca')+'</div>';
+  }).join('');
+}catch(e){}}
 function abrir(id){const m=MODULOS.find(x=>x.id===id);if(!m)return;
   ATUAL=id;location.hash=id;$('titulo').textContent=m.icone+' '+m.nome;
   URLBASE=m.url;
