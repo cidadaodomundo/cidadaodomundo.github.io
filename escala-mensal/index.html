@@ -251,7 +251,12 @@ function grade(){
     ls.forEach(function(l){if(sets.indexOf(l.setor)<0)sets.push(l.setor);});
     sets.sort(function(a,b){return (ORDSET[a]||90)-(ORDSET[b]||90)});
     if(!sets.length)h+='<div class="semdado">Ninguém neste turno em '+esc(rotulo())+'.</div>';
-    sets.forEach(function(s){
+    const fechados=sets.filter(function(s){
+      const g=ls.filter(function(l){return l.setor===s});
+      return g.length&&g.every(function(l){return l.marcacao==='FOLGA'});
+    });
+    if(fechados.length)h+='<div class="hint" style="margin:-2px 0 10px">'+esc(fechados.join(' · '))+': todo mundo de folga neste dia — o quadro não aparece.</div>';
+    sets.filter(function(s){return fechados.indexOf(s)<0}).forEach(function(s){
       h+='<div class="bloco '+(t==='Dia'?'dia':'noite')+'"><div class="cab">'+esc(s)+' · '+t.toUpperCase()+'</div>';
       h+='<table class="gs"><thead><tr><th>Função</th><th>Funcionário</th><th>Início</th><th>Intervalo</th><th>Fim</th><th class="n">Carga</th><th>Marca</th><th></th></tr></thead><tbody>';
       ls.filter(function(l){return l.setor===s}).forEach(function(l){h+=linhaHTML(l);});
