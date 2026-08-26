@@ -174,6 +174,20 @@ function situ(c){
   if(t.indexOf('FALTA')>=0||t.indexOf('AUSEN')>=0)return ['a confirmar','at'];
   return [t.toLowerCase().replace(/_/g,' '),''];
 }
+/* Quem é do salão. A escala vem da MESMA prateleira que as gestoras preenchem na
+   Central do RH. Duas portas de entrada, porque as duas acontecem na vida real:
+   1) a posição lançada no dia fala em Atendimento/Caixa;
+   2) a pessoa é do setor Salão no cadastro, mesmo lançada em outra posição.
+   Medido em 26/08: a Marcia aparece no Atendimento/Caixa do São Braz e o cadastro
+   dela diz Cozinha. Filtrar só por um dos dois perde gente. */
+const FORA=['FOLGA','Falta/Ausente','Férias','Atestado','Afastado'];
+function setorDe(pessoas,nome){const p=pessoas.filter(x=>x.nome===nome)[0];return p?(p.setor||''):''}
+function ehSalao(reg,pessoas){
+  const pos=String(reg.posicao||'');
+  if(FORA.indexOf(pos)>=0)return false;
+  if(pos.indexOf('Atendimento')>=0)return true;
+  return setorDe(pessoas,reg.nome)==='Salão';
+}
 /* a escala também usa "Noite/Madrugada" e "Integral" — medido no banco em 26/08 */
 function ehTurno(v,t){
   const s=String(v||'');
@@ -191,12 +205,15 @@ function blocoEquipe(d){
      '</div>';
   h+='<div class="cards">';
   UNI.forEach(u=>{
-    const daLoja=d.escala.filter(e=>e.unidade===u);
+    const daLoja=d.escala.filter(e=>e.unidade===u&&ehSalao(e,d.pessoas));
     const doDia=daLoja.filter(e=>e.data===hoje&&ehTurno(e.turno,t));
     const ultDia=daLoja.length?daLoja.map(e=>e.data).sort().slice(-1)[0]:null;
     const min=d.cobertura.filter(c=>c.unidade===u&&Number(c.dia_semana)===dow&&ehTurno(c.turno,t))
                          .reduce((m,c)=>Math.max(m,Number(c.minimo)||0),0);
-    const doSalao=d.pessoas.filter(p=>p.unidade===u);
+    /* quem responde pelo salão nesta loja: o cadastro diz Salão, mais quem a Central
+       do RH lançou no atendimento nos últimos dias, mesmo com outro setor no cadastro */
+    const nomesEscala={};daLoja.forEach(e=>{nomesEscala[e.nome]=1});
+    const doSalao=d.pessoas.filter(p=>p.unidade===u&&(p.setor==='Salão'||nomesEscala[p.nome]));
     const comPonto=doSalao.filter(p=>p.entrada);
     const gerencia=doSalao.length-comPonto.length;
     const doTurno=comPonto.filter(p=>turnoDe(p.entrada)===t).map(p=>p.nome);
@@ -209,8 +226,14 @@ function blocoEquipe(d){
     if(doDia.length){
       doDia.forEach(g=>{
         const bateu=pt.filter(p=>p.nome===g.nome)[0];
+        const pos=String(g.posicao||'');
+        const setor=setorDe(d.pessoas,g.nome);
+        let obs='';
+        if(pos.indexOf('Atendimento')<0)obs='hoje em '+pos.split(',')[0];
+        else if(setor&&setor!=='Salão')obs='no cadastro é do setor '+setor;
         h+='<div class="linha"><b>'+esc(g.nome)+'</b><span class="sit">'+
-           (bateu?(bateu.entrada?String(bateu.entrada).slice(0,5)+' no último dia':'sem batida no último dia'):'')+'</span></div>';
+           (bateu&&bateu.entrada?String(bateu.entrada).slice(0,5)+' no último dia':'')+'</span></div>'+
+           (obs?'<div class="mini">'+esc(obs)+'</div>':'');
       });
     } else if(daLoja.filter(e=>e.data===hoje).length){
       h+='<div class="vazio">ninguém lançado neste turno hoje</div>';
@@ -382,7 +405,7 @@ function resumoEquipe(d){
   const hoje=hojeISO();
   let dia=0, noite=0, semEscala=[];
   UNI.forEach(u=>{
-    const doDia=d.escala.filter(e=>e.unidade===u&&e.data===hoje);
+    const doDia=d.escala.filter(e=>e.unidade===u&&e.data===hoje&&ehSalao(e,d.pessoas));
     if(!doDia.length){semEscala.push(u);return}
     dia+=doDia.filter(e=>ehTurno(e.turno,'Dia')).length;
     noite+=doDia.filter(e=>ehTurno(e.turno,'Noite')).length;
@@ -456,9 +479,9 @@ window.addEventListener('hashchange',rota);
 async function boot(){
   const [gRows,escala,ponto,pessoas,cobertura,pausados,balcao,reservas]=await Promise.all([
     get('google_fato_avaliacao?select=unidade,id_loja,nota,num_avaliacoes,resumo,destaques,data_coleta&order=data_coleta.desc&limit=200'),
-    get('fato_escala_posicao?select=data,nome,turno,posicao,unidade&data=gte.'+dMenos(7)+'&posicao=ilike.*Atendimento*&order=data.desc&limit=200'),
+    get('fato_escala_posicao?select=data,nome,turno,posicao,unidade&data=gte.'+dMenos(7)+'&order=data.desc&limit=400'),
     get('fato_espelho_dia?select=nome,unidade,data,entrada,saida,categoria&data=gte.'+dMenos(3)+'&order=data.desc&limit=300'),
-    get('dim_funcionario?select=nome,unidade,setor,entrada,ativo&setor=eq.'+encodeURIComponent('Salão')+'&ativo=is.true&limit=50'),
+    get('dim_funcionario?select=nome,unidade,setor,entrada,ativo&ativo=is.true&limit=200'),
     get('escala_cobertura_min?select=unidade,setor,turno,dia_semana,funcao,minimo&setor=ilike.*Sal*&limit=100'),
     get('cardapio_pausado?select=unidade,marca,item,tipo,estado,primeiro_visto,visto_em&canal=ilike.*Goomer*&order=primeiro_visto.asc&limit=400'),
     get('saipos_venda_status?select=unidade,dia_operacional,n_pedido,cancelado&canal=is.null&dia_operacional=gte.'+dMenos(3)+'&limit=300'),
