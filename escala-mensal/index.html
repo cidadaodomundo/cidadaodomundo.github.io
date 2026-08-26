@@ -100,6 +100,9 @@ tr.m-FERIAS td{background:rgba(112,48,160,.28)}
 .grupofun .rot{display:inline-block;min-width:78px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;font-weight:700}
 
 .cx.on{color:var(--text);font-weight:700}
+
+.listafun{max-height:98px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;padding:5px 8px;background:var(--s2)}
+.listafun .cx{display:block;margin:1px 0;white-space:normal}
 </style>
 </head>
 <body>
@@ -311,6 +314,14 @@ function painelFolgas(){
     h+='<td>'+esc(p.setor||'—')+'</td><td>'+(p.noturno?'Noite':'Dia')+'</td><td>'+esc(p.folgas||'—')+'</td></tr>';
   });
   h+='</tbody></table></div>';
+  const choque={};
+  lista.forEach(function(p){
+    if(p.nivel!=='CHAVE')return;
+    const k=(p.setor||'sem setor')+' · '+(p.noturno?'noite':'dia');
+    choque[k]=(choque[k]||0)+1;
+  });
+  const ruins=Object.keys(choque).filter(function(k){return choque[k]>1});
+  if(ruins.length)h+='<div class="aviso">⚠️ Dois ou mais <b>chaves</b> folgam juntos na '+esc(nomeDia(FOLGADIA))+': '+esc(ruins.join(' · '))+'. Vale espalhar essas folgas em dias diferentes.</div>';
   h+='<div class="hint" style="margin-top:8px">'+lista.length+' de '+EQUIPE.length+' folgam na '+esc(nomeDia(FOLGADIA))+'. Quem tem "+ 1 domingo" reveza um domingo por mês.</div>';
   h+='</div>';
   return h;
@@ -418,11 +429,15 @@ function painelPerfil(){
       h+='<td><select onchange="setNivel('+p.id+',this.value)">';
       NIVEIS.forEach(function(n){h+='<option value="'+n[0]+'"'+(p.nivel===n[0]?' selected':'')+'>'+n[1]+'</option>';});
       h+='</select></td><td>';
-      funcoesDe(p).forEach(function(f){
+      const fs=funcoesDe(p);
+      const marcadas=fs.filter(function(f){return (p.funcoes||[]).indexOf(f.codigo)>=0}).length;
+      h+='<div class="listafun">';
+      fs.forEach(function(f){
         const marc=(p.funcoes||[]).indexOf(f.codigo)>=0;
         h+='<label class="cx'+(marc?' on':'')+'"><input type="checkbox"'+(marc?' checked':'')+' onchange="toggleFuncao('+p.id+','+arg(f.codigo)+',this.checked)"> '+esc(f.nome)+'</label>';
       });
-      h+=' <button class="mini" onclick="verTodas('+p.id+')">'+(VERTODAS[p.id]?'só do setor':'+ outros setores')+'</button>';
+      h+='</div>';
+      h+='<div class="hint" style="margin-top:4px">'+marcadas+' de '+fs.length+' marcadas · <button class="mini" onclick="verTodas('+p.id+')">'+(VERTODAS[p.id]?'só do setor':'+ outros setores')+'</button></div>';
       h+='</td></tr>';
     });
     h+='</tbody></table></div>';
