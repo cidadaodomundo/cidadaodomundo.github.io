@@ -88,21 +88,21 @@ tr.m-FERIAS td{background:rgba(112,48,160,.28)}
 .cx{display:inline-block;margin:2px 10px 2px 0;font-size:12px;color:var(--text2);white-space:nowrap}
 .cx input{vertical-align:-1px;margin-right:3px}
 .gs tr.ch td{background:rgba(200,16,46,.07)}
+
+.dias.sub{margin:-6px 0 12px 0}
+.dias.sub button{background:var(--s1);font-size:12px;padding:5px 12px}
+.dias.sub button.on{background:var(--gold);color:#111;border-color:var(--gold)}
 </style>
 </head>
 <body>
 
 <div class="top">
-  <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>📅 Escala do Mês</h1><div class="sub">Água Verde · gerador de rascunho — nada é gravado nem enviado</div></div></div>
+  <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>📅 Escala do Mês</h1><div class="sub">Água Verde · escala da semana e dos domingos</div></div></div>
   <div class="rt">
-    <span class="rasc">RASCUNHO</span>
-    <span id="ctlMes"><select class="b" id="selMes"></select>
-    <button class="b on" onclick="gerar()">Gerar escala do mês</button></span>
+    <span class="rasc">PLANEJAMENTO</span>
   </div>
 </div>
-<div class="tabs"><button id="abaDom" class="on" onclick="aba('dom')">Domingos e freelancers</button><button id="abaSem" onclick="aba('sem')">Semana dia a dia</button></div>
-<div id="app"><div class="load">Escolha o mês e clique em Gerar.</div></div>
-<div id="semana" style="display:none"></div>
+<div id="semana"><div class="load">Abrindo a escala…</div></div>
 
 <script>
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
@@ -120,133 +120,13 @@ async function pega(url){
   catch(e){return [];}
 }
 
-let EQ=[],COB=[],HISTD=[];
-
-function folgaDow(f){
-  const t=String(f||'').toLowerCase();
-  if(t.startsWith('domingo'))return 0;
-  const m={'segunda':1,'terça':2,'terca':2,'quarta':3,'quinta':4,'sexta':5,'sábado':6,'sabado':6};
-  for(const k in m){if(t.startsWith(k))return m[k];}
-  return null;
-}
-
-async function boot(){
-  const hoje=new Date();
-  const sel=$('selMes');let h='';
-  for(let i=0;i<4;i++){
-    const d=new Date(hoje.getFullYear(),hoje.getMonth()+i,1);
-    const v=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-    const n=d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
-    h+='<option value="'+v+'"'+(i===1?' selected':'')+'>'+esc(n)+'</option>';
-  }
-  sel.innerHTML=h;
-  const d90=new Date(Date.now()-90*864e5).toISOString().slice(0,10);
-  const [eq,cob,hist]=await Promise.all([
-    pega('dim_funcionario?select=nome,setor,folgas,noturno,entrada&unidade=eq.'+encodeURIComponent(UNIDADE)+'&ativo=is.true&order=setor,nome&limit=100'),
-    pega('escala_cobertura_min?select=setor,turno,dia_semana,funcao,minimo&unidade=eq.'+encodeURIComponent(UNIDADE)+'&limit=100'),
-    pega('fato_escala_posicao?select=data,nome,turno&unidade=eq.'+encodeURIComponent(UNIDADE)+'&posicao=eq.FOLGA&data=gte.'+d90+'&order=data&limit=400')
-  ]);
-  EQ=eq;COB=cob;HISTD=hist.filter(r=>new Date(r.data+'T12:00:00').getDay()===0);
-  if(!EQ.length){$('app').innerHTML='<div class="semdado">Não consegui ler a equipe. Confira a conexão e recarregue.</div>';return;}
-  gerar();
-}
-
-function gerar(){
-  const [ano,mes]=$('selMes').value.split('-').map(Number);
-  const nDias=new Date(ano,mes,0).getDate();
-  const doms=[];for(let d=1;d<=nDias;d++){if(new Date(ano,mes-1,d).getDay()===0)doms.push(d);}
-
-  const eleg=EQ.filter(p=>String(p.folgas||'').includes('1 domingo'));
-  const fixosDom=EQ.filter(p=>folgaDow(p.folgas)===0);
-
-  const ult={};HISTD.forEach(r=>{if(!ult[r.nome]||r.data>ult[r.nome])ult[r.nome]=r.data;});
-  const fila=eleg.slice().sort((a,b)=>String(ult[a.nome]||'0000').localeCompare(String(ult[b.nome]||'0000')));
-  const porDom={};doms.forEach(d=>porDom[d]=[]);
-  fila.forEach((p,i)=>{porDom[doms[i%doms.length]].push(p);});
-
-  const turnoDe=p=>p.noturno?'Noite':'Dia';
-  const fixosPorST={};
-  EQ.forEach(p=>{const k=p.setor+'|'+turnoDe(p);fixosPorST[k]=(fixosPorST[k]||0)+1;});
-
-  const precisa=(setor,turno,dow)=>{
-    let t=0;COB.forEach(c=>{if(c.setor===setor&&c.turno===turno&&(c.dia_semana===-1||c.dia_semana===dow))t+=c.minimo;});
-    return t;
-  };
-  const setoresCob=[...new Set(COB.map(c=>c.setor))];
-
-  let totalFree=0,posDesc=0;const linhasDia=[];const freePorDia={};
-  for(let d=1;d<=nDias;d++){
-    const dow=new Date(ano,mes-1,d).getDay();
-    let freeDia=0;const det=[];
-    setoresCob.forEach(setor=>{['Dia','Noite'].forEach(turno=>{
-      const need=precisa(setor,turno,dow);if(!need)return;
-      let pres=0;
-      EQ.forEach(p=>{
-        if(p.setor!==setor||turnoDe(p)!==turno)return;
-        if(folgaDow(p.folgas)===dow)return;
-        if(dow===0&&(porDom[d]||[]).some(x=>x.nome===p.nome))return;
-        pres++;
-      });
-      const falta=Math.max(need-pres,0);
-      if(falta>0){freeDia+=falta;det.push(setor+' '+turno.toLowerCase()+': '+falta);}
-    });});
-    totalFree+=freeDia;if(freeDia>0)posDesc++;
-    freePorDia[d]=freeDia;
-    linhasDia.push({d,dow,freeDia,det});
-  }
-
-  const semDomingo=eleg.filter(p=>!doms.some(d=>(porDom[d]||[]).some(x=>x.nome===p.nome)));
-
-  let h='';
-  h+='<div class="sec"><h2>Resumo de '+esc($('selMes').selectedOptions[0].text)+' <span class="hint">rascunho — confira e ajuste na planilha ou aprove</span></h2><div class="cards">';
-  h+='<div class="c"><div class="nm">Dias no mês</div><div class="nota">'+nDias+'</div><div class="qtd">'+doms.length+' domingos</div></div>';
-  h+='<div class="c"><div class="nm">Equipe ativa</div><div class="nota">'+EQ.length+'</div><div class="qtd">'+eleg.length+' no revezamento de domingo · '+fixosDom.length+' folgam todo domingo</div></div>';
-  h+='<div class="c"><div class="nm">Diárias de freelancer</div><div class="nota">'+totalFree+'</div><div class="qtd">'+posDesc+' dias com posto a cobrir</div></div>';
-  h+='<div class="c"><div class="nm">Domingo de todos?</div><div class="nota">'+(semDomingo.length?'<span style="color:var(--bad)">não</span>':'<span style="color:var(--ok)">sim</span>')+'</div><div class="qtd">'+(semDomingo.length? semDomingo.map(p=>esc(pNome(p.nome))).join(', ')+' sem domingo':'todos os elegíveis receberam 1 domingo')+'</div></div>';
-  h+='</div></div>';
-
-  h+='<div class="sec"><h2>Folgas de domingo <span class="hint">fila justa: quem folgou por último vai para o fim (histórico de 90 dias)</span></h2><div class="store"><table><thead><tr><th>Domingo</th><th>Quem folga</th><th class="n">Freelancers no dia</th></tr></thead><tbody>';
-  doms.forEach(d=>{
-    const quem=(porDom[d]||[]).map(p=>esc(pNome(p.nome))+' <span class="pill p-off">'+esc(p.setor)+' '+turnoDe(p).toLowerCase()+'</span>'+(ult[p.nome]?' <span class="hint">folgou '+dBR(ult[p.nome])+'</span>':' <span class="hint">nunca no histórico</span>')).join('<br>');
-    h+='<tr><td><b>'+String(d).padStart(2,'0')+'/'+String(mes).padStart(2,'0')+'</b></td><td>'+(quem||'—')+'</td><td class="n">'+(freePorDia[d]||0)+'</td></tr>';
-  });
-  h+='</tbody></table></div></div>';
-
-  h+='<div class="sec"><h2>Calendário do mês <span class="hint">FR = freelancers a chamar · nomes = folga de domingo</span></h2><div class="cal">';
-  ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].forEach(x=>h+='<div class="hd">'+x+'</div>');
-  const pri=new Date(ano,mes-1,1).getDay();
-  for(let i=0;i<pri;i++)h+='<div class="d off"></div>';
-  for(let d=1;d<=nDias;d++){
-    const dow=new Date(ano,mes-1,d).getDay();
-    let inner='<div class="num">'+d+'</div>';
-    if(freePorDia[d]>0)inner+='<div class="fr">'+freePorDia[d]+' freelancer'+(freePorDia[d]>1?'s':'')+'</div>';
-    if(dow===0)inner+='<div class="fp">'+(porDom[d]||[]).map(p=>esc(pNome(p.nome))).join('<br>')+'</div>';
-    h+='<div class="d'+(dow===0?' dom':'')+'">'+inner+'</div>';
-  }
-  h+='</div></div>';
-
-  h+='<div class="sec"><h2>Postos a cobrir, dia a dia <span class="hint">só os dias em que a equipe fixa não fecha a conta</span></h2><div class="store"><table><thead><tr><th>Dia</th><th>Semana</th><th>Onde falta</th><th class="n">Freelancers</th></tr></thead><tbody>';
-  const comFalta=linhasDia.filter(l=>l.freeDia>0);
-  if(!comFalta.length)h+='<tr><td colspan="4">Nenhum. A equipe fixa cobre o mês inteiro.</td></tr>';
-  comFalta.forEach(l=>{h+='<tr><td><b>'+String(l.d).padStart(2,'0')+'/'+String(mes).padStart(2,'0')+'</b></td><td>'+DIAS[l.dow]+'</td><td>'+esc(l.det.join(' · '))+'</td><td class="n">'+l.freeDia+'</td></tr>';});
-  h+='</tbody></table></div></div>';
-
-  h+='<div class="sec"><h2>Folgas semanais da equipe</h2><div class="store"><table><thead><tr><th>Nome</th><th>Setor</th><th>Turno</th><th>Folga</th></tr></thead><tbody>';
-  EQ.forEach(p=>{h+='<tr><td>'+esc(pNome(p.nome))+(p.entrada==null?' <span class="pill p-off">gerência</span>':'')+'</td><td>'+esc(p.setor||'—')+'</td><td>'+turnoDe(p)+'</td><td>'+esc(p.folgas||'—')+'</td></tr>';});
-  h+='</tbody></table></div></div>';
-
-  h+='<div class="aviso">⚠️ Isto é um <b>rascunho gerado na hora</b> — nada foi gravado, publicado ou enviado a ninguém. A cobertura mínima vale para Delivery e Salão; os outros setores ainda não têm régua. Férias e atestados ainda não entram nesta conta. A distribuição dos domingos usa a fila justa do histórico, não a força prevista de cada domingo.</div>';
-
-  $('app').innerHTML=h;
-}
-
 /* ===== aba: semana dia a dia (26/08) ===== */
 const DIASEM=[[1,'Segunda'],[2,'Terça'],[3,'Quarta'],[4,'Quinta'],[5,'Sexta'],[6,'Sábado']];
 const MARCAS=[['','— na escala'],['FOLGA','FOLGA'],['TAXA','TAXA'],['JA_FOLGOU','JÁ FOLGOU'],['FERIAS','FÉRIAS']];
 const ORDSET={'Produção':10,'Estoque':15,'Cozinha':20,'Delivery':30,'Salão':40,'Limpeza':50,'Escritório':60};
 const SETORES=['Produção','Estoque','Cozinha','Delivery','Salão','Limpeza','Escritório'];
 const NIVEIS=[['CHAVE','Chave'],['NORMAL','Normal'],['APRENDIZ','Aprendiz']];
-let SEM=[],EQUIPE=[],TAXAS=[],PERFIL=null,DIASEL=1,DATASEL=null,FILTRO='tudo',PAINEL='',KSEQ=0,CARREGOU=false;
+let SEM=[],EQUIPE=[],TAXAS=[],PERFIL=null,DIASEL=1,DATASEL=null,VERDOM=false,FILTRO='tudo',PAINEL='',KSEQ=0,CARREGOU=false;
 
 async function rpcEsc(acao,dados){
   const r=await fetch(SB+'rpc/escala_semana_consulta',{method:'POST',
@@ -308,8 +188,14 @@ function novaLinha(t,s){
             entrada:null,int_ini:null,int_fim:null,saida:null,intervalo_min:null,marcacao:'TAXA',ordem:100});
   marcaSujo();pintaSemana();
 }
-function trocaDia(d){DIASEL=d;DATASEL=null;PAINEL='';pintaSemana();}
-function trocaDom(dt){DATASEL=dt;DIASEL=0;PAINEL='';pintaSemana();}
+function trocaDia(d){DIASEL=d;DATASEL=null;VERDOM=false;PAINEL='';pintaSemana();}
+function trocaDom(dt){DATASEL=dt;DIASEL=0;VERDOM=true;PAINEL='';pintaSemana();}
+function abreDomingos(){
+  VERDOM=true;PAINEL='';
+  const ds=domingos();
+  if(ds.length&&!DATASEL){DATASEL=ds[0];DIASEL=0;}
+  pintaSemana();
+}
 function trocaFiltro(f){FILTRO=f;pintaSemana();}
 function abrePainel(p){PAINEL=(PAINEL===p?'':p);pintaSemana();}
 async function abrePerfil(){
@@ -380,8 +266,8 @@ async function salvaTaxas(){
   }catch(e){const m3=$('msgTaxa');if(m3){m3.textContent='não consegui salvar — tente de novo';m3.style.color='var(--bad)';}}
 }
 function painelTaxas(){
-  let h='<div class="sec"><h2>Taxas · quem chamar <span class="hint">separado por setor · nome e telefone</span></h2>';
-  h+='<div class="barra"><button class="sv" onclick="salvaTaxas()">Salvar as taxas</button>';
+  let h='<div class="sec"><h2>Freelancers e taxas <span class="hint">separado por setor · nome e telefone de quem chamar</span></h2>';
+  h+='<div class="barra"><button class="sv" onclick="salvaTaxas()">Salvar os freelancers</button>';
   h+='<span class="msg" id="msgTaxa">telefone fica guardado fechado, só quem entra no portal enxerga</span></div>';
   const grupos=SETORES.slice();
   grupos.push('Sem setor');
@@ -475,9 +361,14 @@ function pintaSemana(){
   let h='<div class="dias">';
   DIASEM.forEach(function(d){h+='<button class="'+((!DATASEL&&d[0]===DIASEL)?'on':'')+'" onclick="trocaDia('+d[0]+')">'+d[1]+'</button>';});
   const ds=domingos();
-  ds.forEach(function(dt){h+='<button class="dom '+(DATASEL===dt?'on':'')+'" onclick="trocaDom('+JSON.stringify(dt)+')">Dom '+dBRc(dt)+'</button>';});
-  if(!ds.length)h+='<span class="msg">nenhum domingo montado ainda — use o botão Gerar o mês</span>';
+  h+='<button class="dom '+((DATASEL||VERDOM)?'on':'')+'" onclick="abreDomingos()">Domingos</button>';
   h+='</div>';
+  if(DATASEL||VERDOM){
+    h+='<div class="dias sub">';
+    if(!ds.length)h+='<span class="msg">nenhum domingo montado ainda — clique em Gerar o mês inteiro</span>';
+    ds.forEach(function(dt){h+='<button class="dom '+(DATASEL===dt?'on':'')+'" onclick="trocaDom('+JSON.stringify(dt)+')">'+dBRc(dt)+'</button>';});
+    h+='</div>';
+  }
 
   h+='<div class="barra">';
   h+='<span class="grp"><button class="mini'+(FILTRO==='tudo'?' on':'')+'" onclick="trocaFiltro(&quot;tudo&quot;)">Tudo</button>';
@@ -493,8 +384,8 @@ function pintaSemana(){
   h+='<div class="barra">';
   h+='<select class="b" id="mesGerar"></select>';
   h+='<button class="b" onclick="gerarMes()">Gerar o mês inteiro</button>';
-  h+='<button class="b'+(PAINEL==='folgas'?' on':'')+'" onclick="abrePainel(&quot;folgas&quot;)">Folga semanal da equipe</button>';
-  h+='<button class="b'+(PAINEL==='taxas'?' on':'')+'" onclick="abrePainel(&quot;taxas&quot;)">Taxas · nome e telefone</button>';
+  h+='<button class="b'+(PAINEL==='folgas'?' on':'')+'" onclick="abrePainel(&quot;folgas&quot;)">Folgas semanais</button>';
+  h+='<button class="b'+(PAINEL==='taxas'?' on':'')+'" onclick="abrePainel(&quot;taxas&quot;)">Freelancers</button>';
   h+='<button class="b'+(PAINEL==='perfil'?' on':'')+'" onclick="abrePerfil()">Equipe · chave e funções</button>';
   h+='</div>';
 
@@ -594,15 +485,7 @@ async function salvaDia(){
   }
 }
 
-function aba(n){
-  const dom=(n==='dom');
-  $('abaDom').className=dom?'on':'';
-  $('abaSem').className=dom?'':'on';
-  $('app').style.display=dom?'':'none';
-  $('semana').style.display=dom?'none':'';
-  $('ctlMes').style.display=dom?'':'none';
-  if(!dom&&!CARREGOU)abreSemana();
-}
+
 /* ===== porta unica do portal: sessao por usuario ===== */
 const CDMMODS=['escala-mensal'];
 function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
@@ -622,7 +505,7 @@ async function cdmGuarda(){
   if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){if(ok)boot()});
+cdmGuarda().then(function(ok){if(ok)abreSemana()});
 </script>
 <script src="/assets/portal.js?v=3"></script>
 </body>
