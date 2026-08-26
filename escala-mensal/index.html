@@ -98,6 +98,8 @@ tr.m-FERIAS td{background:rgba(112,48,160,.28)}
 .cal .d.clic:hover{border-color:var(--brand)}
 .grupofun{display:block;margin-bottom:3px}
 .grupofun .rot{display:inline-block;min-width:78px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;font-weight:700}
+
+.cx.on{color:var(--text);font-weight:700}
 </style>
 </head>
 <body>
@@ -134,7 +136,7 @@ const NIVEIS=[['CHAVE','Chave'],['NORMAL','Normal'],['APRENDIZ','Aprendiz']];
 const ORDSET={'Produção':10,'Estoque':15,'Cozinha':20,'Delivery':30,'Salão':40,'Limpeza':50,'Escritório':60};
 const SETORES=['Produção','Estoque','Cozinha','Delivery','Salão','Limpeza','Escritório'];
 let SEM=[],EQUIPE=[],TAXAS=[],PERFIL=null;
-let MODO='molde',DIASEL=1,DATASEL=null,MESSEL='',FOLGADIA=1,FILTRO='tudo',PAINEL='',KSEQ=0;
+let MODO='molde',DIASEL=1,DATASEL=null,MESSEL='',FOLGADIA=1,FILTRO='tudo',PAINEL='',KSEQ=0,VERTODAS={};
 
 function arg(s){return '&quot;'+String(s==null?'':s).replace(/"/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;')+'&quot;';}
 function mesSeguinte(){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
@@ -381,32 +383,41 @@ async function salvaPerfil(){
     const m2=$('msgPerfil');if(m2){m2.textContent='salvo · '+pessoas.length+' pessoas';m2.style.color='var(--ok)';}
   }catch(e){const m3=$('msgPerfil');if(m3){m3.textContent='não consegui salvar — tente de novo';m3.style.color='var(--bad)';}}
 }
+const VIZINHOS={'Cozinha':['Cozinha','Produção'],'Produção':['Produção','Cozinha'],
+  'Salão':['Salão'],'Delivery':['Delivery'],'Estoque':['Produção'],
+  'Limpeza':['Limpeza'],'Escritório':['Gerência']};
+function funcoesDe(p){
+  const meu=p.setor||'';
+  const ok=VIZINHOS[meu]||[meu];
+  return PERFIL.funcoes.filter(function(f){
+    const sf=f.setor||'Outros';
+    if(VERTODAS[p.id])return true;
+    if(ok.indexOf(sf)>=0)return true;
+    return (p.funcoes||[]).indexOf(f.codigo)>=0;
+  });
+}
+function verTodas(id){VERTODAS[id]=!VERTODAS[id];pinta();}
 function painelPerfil(){
   if(!PERFIL)return '<div class="load">Abrindo a equipe…</div>';
-  let h='<div class="sec"><h2>Equipe · quem é chave e o que cada um faz <span class="hint">pode marcar quantas funções quiser, de qualquer setor</span></h2>';
+  let h='<div class="sec"><h2>Equipe · quem é chave e o que cada um faz <span class="hint">cada um vê as funções do próprio setor</span></h2>';
   h+='<div class="barra"><button class="sv" onclick="salvaPerfil()">Salvar a equipe</button>';
   h+='<span class="msg" id="msgPerfil">Chave é quem faz falta de verdade quando não vem. Dois chaves do mesmo setor e turno não folgam no mesmo domingo.</span></div>';
-  const setoresFun=[];
-  PERFIL.funcoes.forEach(function(f){const s=f.setor||'Outros';if(setoresFun.indexOf(s)<0)setoresFun.push(s);});
   const setores=[];
   PERFIL.pessoas.forEach(function(p){const s=p.setor||'Sem setor';if(setores.indexOf(s)<0)setores.push(s);});
   setores.sort(function(a,b){return (ORDSET[a]||90)-(ORDSET[b]||90)});
   setores.forEach(function(s){
     h+='<div class="bloco dia"><div class="cab">'+esc(s)+'</div>';
-    h+='<table class="gs"><thead><tr><th style="width:160px">Nome</th><th style="width:120px">Nível</th><th>Funções que sabe fazer</th></tr></thead><tbody>';
+    h+='<table class="gs"><thead><tr><th style="width:150px">Nome</th><th style="width:118px">Nível</th><th>Funções que sabe fazer</th></tr></thead><tbody>';
     PERFIL.pessoas.filter(function(p){return (p.setor||'Sem setor')===s}).forEach(function(p){
-      h+='<tr'+(p.nivel==='CHAVE'?' class="ch"':'')+'><td>'+esc(pNome(p.nome))+'<div class="hint">'+esc(p.turno||'')+' · folga '+esc(p.folgas||'—')+'</div></td>';
+      h+='<tr'+(p.nivel==='CHAVE'?' class="ch"':'')+'><td>'+esc(pNome(p.nome))+'</td>';
       h+='<td><select onchange="setNivel('+p.id+',this.value)">';
       NIVEIS.forEach(function(n){h+='<option value="'+n[0]+'"'+(p.nivel===n[0]?' selected':'')+'>'+n[1]+'</option>';});
       h+='</select></td><td>';
-      setoresFun.forEach(function(sf){
-        h+='<div class="grupofun"><span class="rot">'+esc(sf)+'</span>';
-        PERFIL.funcoes.filter(function(f){return (f.setor||'Outros')===sf}).forEach(function(f){
-          const marc=(p.funcoes||[]).indexOf(f.codigo)>=0;
-          h+='<label class="cx"><input type="checkbox"'+(marc?' checked':'')+' onchange="toggleFuncao('+p.id+','+arg(f.codigo)+',this.checked)"> '+esc(f.nome)+'</label>';
-        });
-        h+='</div>';
+      funcoesDe(p).forEach(function(f){
+        const marc=(p.funcoes||[]).indexOf(f.codigo)>=0;
+        h+='<label class="cx'+(marc?' on':'')+'"><input type="checkbox"'+(marc?' checked':'')+' onchange="toggleFuncao('+p.id+','+arg(f.codigo)+',this.checked)"> '+esc(f.nome)+'</label>';
       });
+      h+=' <button class="mini" onclick="verTodas('+p.id+')">'+(VERTODAS[p.id]?'só do setor':'+ outros setores')+'</button>';
       h+='</td></tr>';
     });
     h+='</tbody></table></div>';
