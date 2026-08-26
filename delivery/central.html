@@ -116,7 +116,7 @@ const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const H={apikey:KEY,Authorization:'Bearer '+KEY};
 /* ===== porta unica do portal: sessao por usuario ===== */
-const CDMMODS=['central'];
+const CDMMODS=['central','delivery','centralsb'];
 function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
 function cdmTem(id){try{const l=JSON.parse(sessionStorage.getItem('cdm_modulos')||'[]');return Array.isArray(l)&&l.some(function(m){return m&&m.id===id})}catch(e){return false}}
 function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
@@ -136,8 +136,9 @@ async function cdmGuarda(){
   return true;
 }
 
-const LOJAS=['Todas','Água Verde','São Braz','Ahú'];
-let F=[],SC=[],CANC=[],AVAL=[],NEG=[],DIMS=[],ATR=[],PAG=[],ESCH=[],IPER='hoje',DAYS=[],NAV=[],DI=0,LOJA='Todas',VIEW='diario',PER=7;
+let LOJAS=['Todas','Água Verde','São Braz','Ahú'];
+let LOJAFIXA=null;try{const _u=new URLSearchParams(location.search).get('u');if(_u&&LOJAS.indexOf(_u)>0){LOJAFIXA=_u;LOJAS=[_u]}}catch(e){}
+let F=[],SC=[],CANC=[],AVAL=[],NEG=[],DIMS=[],ATR=[],PAG=[],ESCH=[],IPER='hoje',DAYS=[],NAV=[],DI=0,LOJA=(LOJAFIXA||'Todas'),VIEW='diario',PER=7;
 const $=id=>document.getElementById(id);
 const br=d=>{const[y,m,dd]=d.split('-');return dd+'/'+m};
 const DOWN=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
@@ -426,7 +427,7 @@ function reeDia(D){return (REE||[]).filter(function(r){return r.dia_operacional=
 function reeCor(f){return f==='COZINHA'?'var(--bad)':f==='DESPACHO'?'var(--warn)':'var(--muted)'}
 function reeResp(el){var u=el.getAttribute('data-u'),t=el.getAttribute('data-t'),mo=el.getAttribute('data-m'),re=el.value;if(!mo){el.value='';return}el.disabled=true;reeRPC('marcar',{unidade:u,data_hora_pedido:t,motivo:mo,responsavel:re,lancado_por:(sessionStorage.getItem('cdm_papel')||'portal')}).then(function(){REE=null;REEbusy=false;reeGarante()}).catch(function(e){el.disabled=false;alert('Nao consegui gravar: '+e.message)})}
 function reeMarcar(el){var u=el.getAttribute('data-u'),t=el.getAttribute('data-t'),mo=el.value;el.disabled=true;reeRPC('marcar',{unidade:u,data_hora_pedido:t,motivo:mo,lancado_por:(sessionStorage.getItem('cdm_papel')||'portal')}).then(function(){REE=null;REEbusy=false;reeGarante()}).catch(function(e){el.disabled=false;alert('Nao consegui gravar: '+e.message)})}
-function reeLinha(r){var eq=r.familia==='COZINHA'?r.equipe_cozinha:r.familia==='DESPACHO'?r.equipe_despacho:null;var eqs=(eq&&eq.length)?eq.map(kEsc).join(', '):(r.familia?'<span style="color:var(--muted)">escala nao lancada</span>':'—');var fam=r.familia?'<span class="ktag" style="background:'+reeCor(r.familia)+'">'+r.familia+'</span>':'<span style="color:var(--muted)">a classificar</span>';var rsel=(eq&&eq.length&&r.motivo)?('<select data-u="'+kEsc(r.unidade)+'" data-t="'+kEsc(r.data_hora_pedido)+'" data-m="'+kEsc(r.motivo)+'" onchange="reeResp(this)"><option value="">— quem foi? —</option>'+eq.map(function(n){return '<option'+(r.responsavel===n?' selected':'')+'>'+kEsc(n)+'</option>'}).join('')+'</select>'):'<span style="color:var(--muted)">—</span>';var sel='<select data-u="'+kEsc(r.unidade)+'" data-t="'+kEsc(r.data_hora_pedido)+'" onchange="reeMarcar(this)"><option value="">— escolher —</option>'+(REEMOT||[]).map(function(m){return '<option'+(r.motivo===m.motivo?' selected':'')+'>'+kEsc(m.motivo)+'</option>'}).join('')+'</select>';return '<tr><td>'+kHora(r.data_hora_pedido)+'</td><td>'+kEsc(r.unidade)+'</td><td>'+kEsc(r.turno)+'</td><td>'+kEsc(r.entregador||'—')+'</td><td>'+sel+'</td><td>'+fam+'</td><td>'+eqs+'</td><td>'+rsel+'</td></tr>'}
+function reeLinha(r){var eq=r.familia==='COZINHA'?r.equipe_cozinha:r.familia==='DESPACHO'?r.equipe_despacho:null;var eqs=(eq&&eq.length)?eq.map(kEsc).join(', '):(r.familia?'<span style="color:var(--muted)">escala nao lancada</span>':'—');var fam=r.familia?'<span class="ktag" style="background:'+reeCor(r.familia)+'">'+r.familia+'</span>':(r.detectada_por_endereco?'<span class="ktag" style="background:#5a4517">suspeita: endereço repetido no dia — confirmar</span>':'<span style="color:var(--muted)">a classificar</span>');var rsel=(eq&&eq.length&&r.motivo)?('<select data-u="'+kEsc(r.unidade)+'" data-t="'+kEsc(r.data_hora_pedido)+'" data-m="'+kEsc(r.motivo)+'" onchange="reeResp(this)"><option value="">— quem foi? —</option>'+eq.map(function(n){return '<option'+(r.responsavel===n?' selected':'')+'>'+kEsc(n)+'</option>'}).join('')+'</select>'):'<span style="color:var(--muted)">—</span>';var sel='<select data-u="'+kEsc(r.unidade)+'" data-t="'+kEsc(r.data_hora_pedido)+'" onchange="reeMarcar(this)"><option value="">— escolher —</option>'+(REEMOT||[]).map(function(m){return '<option'+(r.motivo===m.motivo?' selected':'')+'>'+kEsc(m.motivo)+'</option>'}).join('')+'</select>';return '<tr><td>'+kHora(r.data_hora_pedido)+'</td><td>'+kEsc(r.unidade)+'</td><td>'+kEsc(r.turno)+'</td><td>'+kEsc(r.entregador||'—')+'</td><td>'+sel+'</td><td>'+fam+'</td><td>'+eqs+'</td><td>'+rsel+'</td></tr>'}
 function kTab(cab,linhas){if(!linhas.length)return '<div class="hs" style="color:var(--muted)">Nada aqui neste dia.</div>';return '<table><thead><tr>'+cab.map(function(c){return '<th>'+c+'</th>'}).join('')+'</tr></thead><tbody>'+linhas.join('')+'</tbody></table>'}
 function kHoraD(base,t){if(!t)return "—";var s=String(t).slice(11,16);var d1=String(base||"").slice(0,10),d2=String(t).slice(0,10);return s+((d1&&d2&&d2>d1)?'<sup style="color:var(--warn)" title="ja no dia seguinte">+1</sup>':"")}
 function kMin(a,b){if(!a||!b)return null;var x=(new Date(String(b).replace(' ','T'))-new Date(String(a).replace(' ','T')))/60000;return (isFinite(x)&&x>=0&&x<600)?Math.round(x):null}
