@@ -42,6 +42,7 @@ const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const H={apikey:KEY,Authorization:'Bearer '+KEY};
 const $=i=>document.getElementById(i);
+let SOLOJA=null;try{const _u=new URLSearchParams(location.search).get('u');if(_u)SOLOJA=_u}catch(e){}
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const br=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'';
 async function get(q){try{const r=await fetch(SB+q,{headers:H});return r.ok?await r.json():[]}catch(e){return []}}
@@ -49,8 +50,9 @@ const ST={pedido:['pedido','p-ped'],comprado:['comprado','p-com'],entregue:['ent
 
 async function boot(){
   const rows=await get('compra_item?select=id,unidade,item,quantidade,status,quem_pediu,origem,criado_em,obs&order=criado_em.desc&limit=200');
-  const ativos=rows.filter(r=>r.status!=='entregue');
-  const entregues=rows.filter(r=>r.status==='entregue').slice(0,20);
+  const rowsF=SOLOJA?rows.filter(function(r){return r.unidade===SOLOJA}):rows;
+  const ativos=rowsF.filter(r=>r.status!=='entregue');
+  const entregues=rowsF.filter(r=>r.status==='entregue').slice(0,20);
   let h='';
   if(!ativos.length){
     h+='<div class="vazio">Nenhum pedido de compra em aberto anotado ainda. Esta prateleira enche sozinha a partir das varreduras do WhatsApp (12h e 20h) — os grupos Listas São Braz e Listas Ahu são as fontes principais.</div>';
@@ -76,7 +78,7 @@ async function boot(){
 }
 
 /* ===== porta unica do portal ===== */
-const CDMMODS=['compras'];
+const CDMMODS=['compras','comprassb'];
 function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
 function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}

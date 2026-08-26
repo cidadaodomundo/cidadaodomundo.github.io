@@ -44,6 +44,7 @@ const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const H={apikey:KEY,Authorization:'Bearer '+KEY};
 const $=i=>document.getElementById(i);
+let SOLOJA=null;try{const _u=new URLSearchParams(location.search).get('u');if(_u)SOLOJA=_u}catch(e){}
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const br=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'';
 function dias(d){const n=Math.round((new Date()-new Date(d+'T00:00:00'))/86400000);return n<=0?'hoje':(n+' dias')}
@@ -52,8 +53,9 @@ const PRI={urgente:['urgente','p-urg'],normal:['normal','p-nor'],quando_der:['qu
 
 async function boot(){
   const rows=await get('manutencao_chamado?select=id,unidade,item,descricao,prioridade,status,origem,aberto_em,resolvido_em,obs&order=status.asc,prioridade.asc,aberto_em.asc&limit=200');
-  const abertos=rows.filter(r=>r.status!=='resolvido');
-  const resolvidos=rows.filter(r=>r.status==='resolvido').slice(0,30);
+  const rowsF=SOLOJA?rows.filter(function(r){return r.unidade===SOLOJA||r.unidade==='Todas'}):rows;
+  const abertos=rowsF.filter(r=>r.status!=='resolvido');
+  const resolvidos=rowsF.filter(r=>r.status==='resolvido').slice(0,30);
   let h='';
   if(!abertos.length){h+='<div class="vazio">nenhum chamado aberto — ou ninguém lançou ainda</div>'}
   const lojas={};abertos.forEach(r=>{(lojas[r.unidade]=lojas[r.unidade]||[]).push(r)});
@@ -79,7 +81,7 @@ async function boot(){
 }
 
 /* ===== porta unica do portal: sessao por usuario ===== */
-const CDMMODS=['manutencao'];
+const CDMMODS=['manutencao','manutencaosb'];
 function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
 function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}

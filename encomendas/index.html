@@ -45,6 +45,7 @@ const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const H={apikey:KEY,Authorization:'Bearer '+KEY};
 const $=i=>document.getElementById(i);
+let SOLOJA=null;try{const _u=new URLSearchParams(location.search).get('u');if(_u)SOLOJA=_u}catch(e){}
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const br=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'';
 function hojeISO(){return new Date().toLocaleDateString('sv-SE')}
@@ -56,8 +57,9 @@ const ST={anotada:['anotada — SEM DONO','p-ano'],confirmada:['confirmada','p-c
 async function boot(){
   const d0=new Date();d0.setDate(d0.getDate()-14);
   const rows=await get('encomenda?select=id,unidade,data_entrega,hora,descricao,qtd_itens,valor,status,responsavel,origem,criado_em,obs&data_entrega=gte.'+d0.toLocaleDateString('sv-SE')+'&order=data_entrega.asc&limit=100');
-  const futuras=rows.filter(r=>r.status!=='entregue'&&r.status!=='cancelada'&&r.data_entrega>=hojeISO());
-  const passadas=rows.filter(r=>!futuras.includes(r));
+  const rowsF=SOLOJA?rows.filter(function(r){return r.unidade===SOLOJA}):rows;
+  const futuras=rowsF.filter(r=>r.status!=='entregue'&&r.status!=='cancelada'&&r.data_entrega>=hojeISO());
+  const passadas=rowsF.filter(r=>!futuras.includes(r));
   let h='';
   if(!futuras.length){h+='<div class="vazio">nenhuma encomenda futura anotada</div>'}
   futuras.forEach(r=>{
@@ -81,7 +83,7 @@ async function boot(){
 }
 
 /* ===== porta unica do portal ===== */
-const CDMMODS=['encomendas'];
+const CDMMODS=['encomendas','encomendassb'];
 function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
 function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
