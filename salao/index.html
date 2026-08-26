@@ -14,17 +14,18 @@ h1{font-size:22px;font-weight:800}
 .top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
 .top .rt{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
-h2{font-size:15px;font-weight:800;margin:26px 0 10px;display:flex;align-items:center;gap:8px}
+h2{font-size:15px;font-weight:800;margin:26px 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 h2 .hint{font-weight:500;font-size:11.5px;color:var(--muted)}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 .c{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:16px}
-.c .nm{font-weight:800;font-size:14.5px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.c .nm{font-weight:800;font-size:14.5px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px}
 .c .nota{font-size:30px;font-weight:800;line-height:1}
 .c .qtd{color:var(--muted);font-size:12px;margin-top:3px}
 .pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700}
 .p-ok{background:rgba(47,174,106,.15);color:var(--ok)}
 .p-warn{background:rgba(201,133,0,.15);color:var(--warn)}
 .p-bad{background:rgba(230,103,103,.15);color:var(--bad)}
+.p-off{background:rgba(138,137,126,.15);color:var(--muted)}
 .store{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:16px;margin-bottom:14px}
 .store h3{font-size:15px;font-weight:800;margin-bottom:2px}
 .store .loc{color:var(--muted);font-size:11.5px;margin-bottom:12px}
@@ -44,6 +45,13 @@ a.src:hover{text-decoration:underline}
 .badge b{color:var(--text)}
 .aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:11px 14px;font-size:12.5px;margin-top:14px}
 .load{color:var(--muted);padding:30px;text-align:center}
+.linha{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--line);color:var(--text2)}
+.linha:last-child{border-bottom:none}
+.linha b{color:var(--text);font-weight:600}
+.turno{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin:10px 0 4px}
+.vazio{color:var(--muted);font-size:12.5px;padding:6px 0}
+details{margin-top:10px}
+summary{cursor:pointer;color:var(--text2);font-size:12.5px;font-weight:600;padding:6px 0}
 #gate{position:fixed;inset:0;background:var(--s0);z-index:100;display:flex;align-items:center;justify-content:center}
 .gatebox{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:32px 28px;width:330px;text-align:center}
 .gatebox input{width:100%;background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:11px 14px;color:var(--text);font-size:15px;outline:none;margin:14px 0 10px;text-align:center}
@@ -55,10 +63,10 @@ a.src:hover{text-decoration:underline}
 <body>
 
 <div class="top">
-  <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>🍽 Central Salão</h1><div class="sub">reputação e avaliações — por loja</div></div></div>
+  <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>🍽 Central Salão</h1><div class="sub">o dia da loja e o que o cliente falou</div></div></div>
   <div class="rt"><button class="b" onclick="location.reload()">↻ Atualizar</button></div>
 </div>
-<div id="app"><div class="load">Carregando avaliações…</div></div>
+<div id="app"><div class="load">Carregando…</div></div>
 
 <script>
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
@@ -66,8 +74,9 @@ const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const H={apikey:KEY,Authorization:'Bearer '+KEY};
 const $=i=>document.getElementById(i);
 const UNI=['Água Verde','São Braz','Ahú'];
+const DIAS=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
 
-/* --- snapshot manual: tudo que não tem robo (pesquisado na internet em 13/08/2026) --- */
+/* --- snapshot manual: tudo que nao tem robo (pesquisado na internet em 13/08/2026) --- */
 const COLETA='13/08/2026';
 const WEB={
  'Água Verde':[
@@ -95,62 +104,172 @@ const MARCA=[
  {fonte:'Facebook',nota:null,qtd:'≈27.524 curtidas',url:'https://www.facebook.com/cidadaomundo/'},
  {fonte:'TikTok',nota:null,qtd:'vídeos de clientes mencionando a marca',url:'https://www.tiktok.com/discover/cidadao-do-mundo-hamburgueria-curitiba'},
  {fonte:'Site oficial',nota:null,qtd:'cidadaodomundo.com.br',url:'https://www.cidadaodomundo.com.br/'},
- {fonte:'Chaves na Mão — Top 10 hamburguerias de Curitiba',nota:null,qtd:'citada na lista',url:'https://www.chavesnamao.com.br/melhores-bairros/pr-curitiba/hamburguerias-em-curitiba/'}
+ {fonte:'Chaves na Mão — hamburguerias de Curitiba',nota:null,qtd:'citada na lista',url:'https://www.chavesnamao.com.br/melhores-bairros/pr-curitiba/hamburguerias-em-curitiba/'}
 ];
 
 const cls=n=>n==null?'':(n>=4.5?'p-ok':n>=4?'p-warn':'p-bad');
 const estrelas=n=>n==null?'':('★'+n.toFixed(1));
-const fmtN=n=>n.toLocaleString('pt-BR');
+const fmtN=n=>(n==null?'—':n.toLocaleString('pt-BR'));
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const br=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'';
+const hojeISO=()=>new Date().toLocaleDateString('sv-SE');
+function dMenos(n){const d=new Date();d.setDate(d.getDate()-n);return d.toLocaleDateString('sv-SE')}
+function diasEntre(a,b){return Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/86400000)}
+async function get(q){try{const r=await fetch(SB+q,{headers:H});return r.ok?await r.json():[]}catch(e){return []}}
 
 function fontesTable(lista){
   return '<table><tr><th>Fonte</th><th class="n">Nota</th><th>Referência</th></tr>'+
-    lista.map(f=>`<tr><td><a class="src" href="${f.url}" target="_blank" rel="noopener">${f.fonte} ↗</a></td><td class="n">${f.nota!=null?'<span class="pill '+cls(f.nota)+'">'+estrelas(f.nota)+'</span>':'<span style="color:var(--muted)">—</span>'}</td><td style="color:var(--text2)">${f.qtd}</td></tr>`).join('')+
+    lista.map(f=>'<tr><td><a class="src" href="'+f.url+'" target="_blank" rel="noopener">'+esc(f.fonte)+' ↗</a></td><td class="n">'+(f.nota!=null?'<span class="pill '+cls(f.nota)+'">'+estrelas(f.nota)+'</span>':'<span style="color:var(--muted)">—</span>')+'</td><td style="color:var(--text2)">'+esc(f.qtd)+'</td></tr>').join('')+
   '</table>';
 }
 
-async function boot(){
-  const r=await fetch(SB+'google_fato_avaliacao?select=unidade,id_loja,nota,num_avaliacoes,resumo,destaques,data_coleta&order=data_coleta.desc&limit=200',{headers:H});
-  const rows=r.ok?await r.json():[];
-  const G={};rows.forEach(x=>{if(!G[x.unidade])G[x.unidade]=x});
-  render(G);
+/* ================= 1. HOJE NO SALÃO ================= */
+function blocoHoje(escala,ponto,pessoas,cobertura){
+  const hoje=hojeISO(), dow=new Date().getDay();
+  let h='<h2>👥 Hoje no salão <span class="hint">'+DIAS[dow]+', '+br(hoje)+' · escala lançada pela loja e ponto batido</span></h2><div class="cards">';
+  const ultPonto=ponto.length?ponto.map(p=>p.data).sort().slice(-1)[0]:null;
+  UNI.forEach(u=>{
+    const daLoja=escala.filter(e=>e.unidade===u);
+    const doDia=daLoja.filter(e=>e.data===hoje);
+    const ultDia=daLoja.length?daLoja.map(e=>e.data).sort().slice(-1)[0]:null;
+    const regua=cobertura.filter(c=>c.unidade===u&&Number(c.dia_semana)===dow);
+    h+='<div class="c"><div class="nm">'+u+'</div>';
+    if(doDia.length){
+      ['Dia','Noite'].forEach(t=>{
+        const gente=doDia.filter(e=>e.turno===t);
+        const min=regua.filter(c=>c.turno===t).reduce((m,c)=>Math.max(m,Number(c.minimo)||0),0);
+        if(!gente.length&&!min)return;
+        let sel='';
+        if(min){
+          const ok=gente.length>=min;
+          sel=' <span class="pill '+(ok?'p-ok':'p-bad')+'">'+gente.length+' de '+min+'</span>';
+        }
+        h+='<div class="turno">'+t+sel+'</div>';
+        h+=gente.length?gente.map(g=>'<div class="linha"><b>'+esc(g.nome)+'</b></div>').join('')
+                       :'<div class="vazio">ninguém lançado neste turno</div>';
+      });
+      if(!regua.length)h+='<div class="vazio" style="margin-top:8px">sem mínimo de gente cadastrado para esta loja</div>';
+    } else {
+      h+='<div class="vazio">escala de hoje ainda não lançada'+(ultDia?' — a última foi '+br(ultDia):'')+'</div>';
+    }
+    /* ponto do último dia fechado — quem tem horário de entrada no cadastro.
+       Gerência (sem horário fixo) fica fora do ponto, por regra. */
+    const doSalao=pessoas.filter(p=>p.unidade===u);
+    const nomes=doSalao.filter(p=>p.entrada).map(p=>p.nome);
+    const gerencia=doSalao.length-nomes.length;
+    const pt=ultPonto?ponto.filter(p=>p.data===ultPonto&&nomes.indexOf(p.nome)>=0):[];
+    h+='<div class="turno">Ponto · '+(ultPonto?br(ultPonto):'sem dado')+'</div>';
+    if(pt.length){
+      pt.forEach(p=>{
+        const falta=(p.categoria||'').indexOf('FALTA')>=0;
+        h+='<div class="linha"><b>'+esc(p.nome)+'</b><span'+(falta?' style="color:var(--warn)"':'')+'>'+
+           (p.entrada?String(p.entrada).slice(0,5)+'–'+(p.saida?String(p.saida).slice(0,5):'?'):(falta?'a confirmar':'—'))+'</span></div>';
+      });
+    } else h+='<div class="vazio">o ponto do dia ainda não chegou</div>';
+    if(gerencia)h+='<div class="vazio">gerência não entra no ponto</div>';
+    h+='</div>';
+  });
+  h+='</div>';
+  return h;
 }
 
-function render(G){
-  let h='';
-  /* cards de topo */
-  h+='<h2>⭐ Nota no Google — por loja</h2><div class="cards">';
+/* ================= 2. CARDÁPIO FORA DO AR NO TABLET ================= */
+function blocoGoomer(pausados){
+  const hoje=hojeISO();
+  let h='<h2>📵 Cardápio fora do ar no tablet da mesa <span class="hint">tablets Goomer · varredura automática</span></h2>';
+  if(!pausados.length){
+    h+='<div class="store"><div class="vazio">a varredura dos tablets ainda não trouxe nada — não quer dizer que está tudo no ar</div></div>';
+    return h;
+  }
+  const porLoja={};
+  pausados.forEach(p=>{
+    const m=(porLoja[p.unidade]=porLoja[p.unidade]||{});
+    const k=p.item;
+    const it=m[k]||(m[k]={item:p.item,estados:[],desde:String(p.primeiro_visto).slice(0,10),visto:String(p.visto_em).slice(0,10)});
+    if(it.estados.indexOf(p.estado)<0)it.estados.push(p.estado);
+    const d=String(p.primeiro_visto).slice(0,10); if(d<it.desde)it.desde=d;
+    const v=String(p.visto_em).slice(0,10); if(v>it.visto)it.visto=v;
+  });
+  h+='<div class="cards">';
+  Object.keys(porLoja).sort().forEach(u=>{
+    const l=Object.keys(porLoja[u]).map(k=>porLoja[u][k]).sort((a,b)=>a.desde<b.desde?-1:1);
+    const pau=l.filter(x=>x.estados.indexOf('pausado')>=0).length;
+    const esco=l.filter(x=>x.estados.indexOf('escondido')>=0).length;
+    const ultima=l.map(x=>x.visto).sort().slice(-1)[0];
+    const maisVelho=l.map(x=>x.desde).sort()[0];
+    const dias=diasEntre(maisVelho,hoje);
+    h+='<div class="c"><div class="nm">'+u+'<span class="pill '+(l.length>20?'p-bad':(l.length>5?'p-warn':'p-ok'))+'">'+l.length+' itens</span></div>';
+    h+='<div class="linha"><span>pausados no tablet</span><b>'+pau+'</b></div>';
+    h+='<div class="linha"><span>escondidos do cliente</span><b>'+esco+'</b></div>';
+    h+='<div class="linha"><span>o mais antigo está parado há</span><b>'+(dias>0?dias+' dias':'menos de 1 dia')+'</b></div>';
+    h+='<div class="qtd">última varredura '+br(ultima)+'</div>';
+    h+='<details><summary>ver os itens</summary><table><tr><th>Item</th><th>Situação</th></tr>'+
+        l.slice(0,60).map(x=>'<tr><td style="color:var(--text2)">'+esc(x.item)+'</td><td>'+x.estados.map(e=>'<span class="pill '+(e==='pausado'?'p-warn':'p-off')+'">'+esc(e)+'</span>').join(' ')+'</td></tr>').join('')+
+       '</table>'+(l.length>60?'<div class="qtd">e mais '+(l.length-60)+'…</div>':'')+'</details>';
+    h+='</div>';
+  });
+  h+='</div>';
+  const semGoomer=UNI.filter(u=>!porLoja[u]);
+  if(semGoomer.length)h+='<div class="aviso">Sem varredura de tablet em: '+semGoomer.join(', ')+'. Não é zero — é falta de dado.</div>';
+  return h;
+}
+
+/* ================= 3. NOTA NO GOOGLE ================= */
+function blocoGoogle(G){
+  let h='<h2>⭐ Nota no Google — por loja</h2><div class="cards">';
   UNI.forEach(u=>{const g=G[u];
-    h+=`<div class="c"><div class="nm">${u}${g?'<span class="pill '+cls(+g.nota)+'">Google</span>':''}</div>`+
-       (g?`<div class="nota">${(+g.nota).toFixed(1)}</div><div class="qtd">${fmtN(g.num_avaliacoes)} avaliações · coletado ${g.data_coleta.split('-').reverse().join('/')}</div>`
+    h+='<div class="c"><div class="nm">'+u+(g?'<span class="pill '+cls(+g.nota)+'">Google</span>':'')+'</div>'+
+       (g?'<div class="nota">'+(+g.nota).toFixed(1)+'</div><div class="qtd">'+fmtN(g.num_avaliacoes)+' avaliações · coletado '+br(g.data_coleta)+'</div>'
           :'<div class="qtd">sem dado do Google ainda</div>')+
        '</div>'});
   h+='</div>';
+  return h;
+}
 
-  /* por loja: resumo google + destaques + outras fontes */
-  h+='<h2>🌐 Presença na internet — por loja <span class="hint">Google atualiza sozinho toda semana · demais fontes: pesquisa manual, foto de '+COLETA+'</span></h2>';
+/* ================= 4. O QUE O CLIENTE FALOU ================= */
+function blocoClientes(G){
+  let h='<h2>💬 O que o cliente falou <span class="hint">Google · atualiza sozinho toda semana</span></h2>';
   UNI.forEach(u=>{
     const g=G[u];
     h+='<div class="store"><h3>'+u+'</h3><div class="loc">Cidadão do Mundo Burgers &amp; Arts · '+u+'</div>';
     if(g){
-      h+='<div class="resumo">'+(g.resumo||'')+'</div>';
-      if(g.destaques&&g.destaques.length){
-        h+='<div class="badges" style="margin-bottom:10px"></div>';
-        g.destaques.slice(0,3).forEach(d=>{
-          h+=`<div class="q ${d.tipo==='positivo'?'good':''}">“${(d.texto||'').slice(0,200)}”<div class="m">${d.autor||'cliente'} · Google · ${d.quando||''}</div></div>`;
+      if(g.resumo)h+='<div class="resumo">'+esc(g.resumo)+'</div>';
+      const d=Array.isArray(g.destaques)?g.destaques:[];
+      if(d.length){
+        d.slice(0,4).forEach(x=>{
+          h+='<div class="q'+(x.tipo==='positivo'?' good':'')+'">“'+esc((x.texto||'').slice(0,240))+'”<div class="m">'+esc(x.autor||'cliente')+' · Google · '+esc(x.quando||'')+'</div></div>';
         });
-      }
-    }
-    h+='<div style="margin-top:10px">'+fontesTable(WEB[u]||[])+'</div>';
+      } else h+='<div class="vazio">sem comentário guardado nesta coleta</div>';
+    } else h+='<div class="vazio">sem dado do Google ainda</div>';
+    h+='<details><summary>outras fontes da internet (foto de '+COLETA+')</summary>'+fontesTable(WEB[u]||[])+'</details>';
     h+='</div>';
   });
+  return h;
+}
 
-  /* marca (todas as lojas) */
+function render(d){
+  let h='';
+  h+=blocoHoje(d.escala,d.ponto,d.pessoas,d.cobertura);
+  h+=blocoGoomer(d.pausados);
+  h+=blocoGoogle(d.google);
+  h+=blocoClientes(d.google);
   h+='<h2>📱 Menções da marca <span class="hint">redes sociais e imprensa — não separado por loja</span></h2>';
   h+='<div class="store">'+fontesTable(MARCA)+'</div>';
-
-  h+='<div class="aviso">As notas de TripAdvisor, Restaurant Guru e redes sociais são uma foto tirada em '+COLETA+' — não têm robo que atualiza sozinho ainda. Peça para atualizar quando quiser uma foto nova. Já o Google é ao vivo e atualiza toda semana sozinho.</div>';
-
+  h+='<div class="aviso">O Google atualiza sozinho toda semana. As notas de TripAdvisor, Restaurant Guru e redes sociais são uma foto tirada em '+COLETA+' — peça uma foto nova quando quiser. <b>As reservas do Getin ainda não estão ligadas nesta tela.</b></div>';
   $('app').innerHTML=h;
+}
+
+async function boot(){
+  const [gRows,escala,ponto,pessoas,cobertura,pausados]=await Promise.all([
+    get('google_fato_avaliacao?select=unidade,id_loja,nota,num_avaliacoes,resumo,destaques,data_coleta&order=data_coleta.desc&limit=200'),
+    get('fato_escala_posicao?select=data,nome,turno,posicao,unidade&data=gte.'+dMenos(7)+'&posicao=ilike.*Atendimento*&order=data.desc&limit=200'),
+    get('fato_espelho_dia?select=nome,unidade,data,entrada,saida,categoria&data=gte.'+dMenos(3)+'&order=data.desc&limit=300'),
+    get('dim_funcionario?select=nome,unidade,setor,entrada,ativo&setor=eq.'+encodeURIComponent('Salão')+'&ativo=is.true&limit=50'),
+    get('escala_cobertura_min?select=unidade,setor,turno,dia_semana,funcao,minimo&setor=ilike.*Sal*&limit=100'),
+    get('cardapio_pausado?select=unidade,marca,item,tipo,estado,primeiro_visto,visto_em&canal=ilike.*Goomer*&order=primeiro_visto.asc&limit=400')
+  ]);
+  const G={};gRows.forEach(x=>{if(!G[x.unidade])G[x.unidade]=x});
+  render({google:G,escala:escala,ponto:ponto,pessoas:pessoas,cobertura:cobertura,pausados:pausados});
 }
 
 /* ===== porta unica do portal: sessao por usuario ===== */
