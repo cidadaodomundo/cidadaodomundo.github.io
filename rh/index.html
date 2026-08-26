@@ -39,6 +39,12 @@ h1{font-size:17px;font-weight:800}
 .kpi .cta{font-size:9.5px;font-weight:800;color:var(--kc);margin-top:7px;letter-spacing:.3px;text-transform:uppercase;opacity:.9}
 .kpi .n{font-size:23px;font-weight:800;color:var(--kc)}
 .kpi .l{font-size:10.5px;color:var(--muted);font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin-top:2px}
+.cardgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.cardd{background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:8px 11px;display:flex;flex-direction:column;gap:3px}
+.cardd b{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.cardd span{font-size:13px;font-weight:800;color:var(--brand)}
+.cardd.hoje{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+.cardlan{margin-top:10px;font-size:12px;padding:8px 11px;background:var(--surface2);border:1px solid var(--line);border-radius:9px}
 .refbox{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px}
 .refh{font-size:13px;font-weight:800;margin-bottom:10px}
 .refcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
@@ -504,14 +510,15 @@ function eqRender(){
 function renderDay(){
   const rows=dayRows();
   $('curday').textContent=br(DAYS[DI])+' ('+(rows[0]?.dia_semana||'').replace('-feira','')+')';
-  const k={TOTAL:rows.length,SERIO:0,GRAVE:0,INFRACAO:0,VERBAL:0,CONFERIR:0,JUST:0,SEM:0};
+  const rowsU=rows.filter(function(r){return UNIT==='Todas'||r.unidade===UNIT});
+  const k={TOTAL:rowsU.length,SERIO:0,GRAVE:0,INFRACAO:0,VERBAL:0,CONFERIR:0,JUST:0,SEM:0};
   const _rpk=REFP.filter(function(x){return UNIT==='Todas'||x.unidade===UNIT});
-  rows.forEach(r=>{const n=NV(r);if(isConf(n))k.CONFERIR++;else k[n]=(k[n]||0)+1});
+  rowsU.forEach(r=>{const n=NV(r);if(isConf(n))k.CONFERIR++;else k[n]=(k[n]||0)+1});
   k.REFOK=_rpk.filter(function(x){return x.situacao==='OK'||x.situacao==='ACIMA DO DIREITO'}).length;
   k.REFNAO=_rpk.filter(function(x){return x.situacao==='NAO LANCOU'}).length;
   k.REFSC=_rpk.filter(function(x){return x.situacao==='SEM CARTAO'}).length;
   const kc={TOTAL:'var(--brand)',SERIO:'var(--serio)',GRAVE:'var(--grave)',INFRACAO:'var(--infra)',VERBAL:'var(--verbal)',CONFERIR:'var(--conf)',JUST:'#94a3b8',SEM:'var(--sem)',REFOK:'#22c55e',REFNAO:'#ef4444',REFSC:'#f59e0b'};
-  $('kpis').innerHTML=Object.keys(k).filter(x=>x==='TOTAL'||k[x]>0).map(x=>
+  $('kpis').innerHTML=['SERIO','GRAVE','INFRACAO','VERBAL','CONFERIR','REFNAO','REFSC','REFOK','JUST','SEM','TOTAL'].filter(x=>k[x]!==undefined&&(x==='TOTAL'||k[x]>0)).map(x=>
     `<div class="kpi ${FILT===x?'active':''}" style="--kc:${kc[x]}" onclick="FILT=FILT==='${x}'?null:'${x}';render()">
      <div class="n">${k[x]}</div><div class="l">${KL[x]}</div><div class="cta">${FILT===x?'✕ tirar filtro':'clique para filtrar'}</div></div>`).join('');
   const uns=[...new Set(rows.map(r=>r.unidade))].sort((a,b)=>(UORD[a]??9)-(UORD[b]??9));
@@ -738,6 +745,23 @@ function rfSet(a){
   if(a==='cort')rfCarregaCortesias();
   if(a==='cart')rfCarregaCart();
 }
+const CARD_SEMANA={'Água Verde':[['Segunda','FRANGO A PASSARINHO'],['Terça','LINGUIÇA'],['Quarta','BISTECA'],['Quinta','FRANGO CROCANTE'],['Sexta','ISCAS DE CARNE'],['Sábado','FRANGO GRELHADO'],['Domingo','MACARRÃO COM CARNE MOÍDA']]};
+function cardapioBox(uni){
+  var u=uni||'Todas';
+  var lista=CARD_SEMANA[u];
+  if(!lista){
+    return '<div class="refbox"><div class="refh">📋 Cardápio da semana</div><div class="rfu">'+(u==='Todas'?'Escolha uma loja para ver o cardápio dela.':'O cardápio do '+u+' ainda não foi cadastrado aqui — por enquanto só a Água Verde tem.')+'</div></div>';
+  }
+  var ord=[6,0,1,2,3,4,5];
+  var hj=ord[new Date().getDay()];
+  var h='<div class="refbox"><div class="refh">📋 Cardápio da semana — '+u+' <span class="rfu">funcionários e motoboys</span></div><div class="cardgrid">';
+  for(var i=0;i<lista.length;i++){
+    h+='<div class="cardd'+(i===hj?' hoje':'')+'"><b>'+lista[i][0]+(i===hj?' · hoje':'')+'</b><span>'+lista[i][1]+'</span></div>';
+  }
+  h+='</div><div class="cardlan"><b>Lanches</b> — alternativa ao prato do dia, todos os dias: Nelson Piquet · Alain Prost · Jesse Pinkman</div>';
+  h+='<div class="rfu">Acompanhamentos de segunda a sábado: arroz, feijão, farofa, ovo frito e salada do dia. Cardápio atualizado em 18/08/2026.</div></div>';
+  return h;
+}
 function rfBox(h){var e=document.getElementById('rfbox');if(e)e.innerHTML=h}
 function rfErro(e){rfBox('<div class="rf-empty">'+rfEsc(e&&e.message?e.message:e)+'</div>')}
 
@@ -753,7 +777,7 @@ async function rfCarregaDia(){
       semc+=Number(r.sem_cartao||0);acima+=Number(r.lancaram_demais||0);
       ref+=Number(r.refeicoes_total||0);semd+=Number(r.sem_dono||0)});
 
-    var h='<div class="rf-kpis">'+
+    var h=cardapioBox(rfLoja())+'<div class="rf-kpis">'+
       rfKpi('Refeições lançadas',rfNum(ref),rfNum(com.length)+' dia(s) com dado do Saipos')+
       rfKpi('Trabalharam',rfNum(trab),'pelo ponto, não pela venda')+
       rfKpi('Não lançaram',rfNum(nao),'estavam no ponto e não registraram')+
