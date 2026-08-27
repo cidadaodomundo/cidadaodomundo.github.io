@@ -518,7 +518,7 @@ function renderDay(){
   k.REFNAO=_rpk.filter(function(x){return x.situacao==='NAO LANCOU'}).length;
   k.REFSC=_rpk.filter(function(x){return x.situacao==='SEM CARTAO'}).length;
   const kc={TOTAL:'var(--brand)',SERIO:'var(--serio)',GRAVE:'var(--grave)',INFRACAO:'var(--infra)',VERBAL:'var(--verbal)',CONFERIR:'var(--conf)',JUST:'#94a3b8',SEM:'var(--sem)',REFOK:'#22c55e',REFNAO:'#ef4444',REFSC:'#f59e0b'};
-  $('kpis').innerHTML=['SERIO','GRAVE','INFRACAO','VERBAL','CONFERIR','REFNAO','REFSC','REFOK','JUST','SEM','TOTAL'].filter(x=>k[x]!==undefined&&(x==='TOTAL'||k[x]>0)).map(x=>
+  $('kpis').innerHTML=['SERIO','REFNAO','GRAVE','REFSC','INFRACAO','VERBAL','CONFERIR','REFOK','JUST','SEM','TOTAL'].filter(x=>k[x]!==undefined&&(x==='TOTAL'||k[x]>0)).map(x=>
     `<div class="kpi ${FILT===x?'active':''}" style="--kc:${kc[x]}" onclick="FILT=FILT==='${x}'?null:'${x}';render()">
      <div class="n">${k[x]}</div><div class="l">${KL[x]}</div><div class="cta">${FILT===x?'✕ tirar filtro':'clique para filtrar'}</div></div>`).join('');
   const uns=[...new Set(rows.map(r=>r.unidade))].sort((a,b)=>(UORD[a]??9)-(UORD[b]??9));
@@ -526,7 +526,8 @@ function renderDay(){
     const n=u==='Todas'?rows.length:rows.filter(r=>r.unidade===u).length;
     return `<span class="tab ${UNIT===u?'active':''}" onclick="UNIT='${u}';render()">${u}<span class="cnt">${n}</span></span>`}).join('');
   let show=rows.filter(r=>UNIT==='Todas'||r.unidade===UNIT);
-  if(FILT&&FILT!=='TOTAL'&&FILT.indexOf('REF')!==0)show=show.filter(r=>NV(r)===FILT);
+  if(FILT&&FILT.indexOf('REF')===0)show=[];
+  else if(FILT&&FILT!=='TOTAL')show=show.filter(r=>NV(r)===FILT);
   else show=show.filter(function(r){var n=NV(r);return n!=='SEM'&&n!=='JUST'});
   show.sort((a,b)=>(ORD[NV(a)]-ORD[NV(b)])||((UORD[a.unidade]??9)-(UORD[b.unidade]??9))||a.nome.localeCompare(b.nome));
   if(!show.length){$('content').innerHTML='<div class="empty">'+(ARRERR&&!ALL.length?'Não foi possível carregar este bloco. Recarregue a página.':'Nenhum funcionário neste filtro.')+'</div>';$('content').insertAdjacentHTML('afterbegin',blocoRef());return}
