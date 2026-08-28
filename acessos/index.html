@@ -75,7 +75,7 @@ const $=i=>document.getElementById(i);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
 
-let USU=[],MOD=[],SES=[],SEL=null,MSG='',TOPO='',NOVA=null;
+let USU=[],MOD=[],SES=[],SEL=null,MSG='',TOPO='',NOVA=null,EU='';
 
 async function adm(acao,dados){
   const r=await fetch(SB+'rpc/portal_admin',{method:'POST',
@@ -89,7 +89,7 @@ async function boot(){
   try{
     const r=await Promise.all([adm('listar'),adm('modulos'),adm('sessoes')]);
     USU=r[0];MOD=r[1];SES=r[2];
-  }catch(e){$('app').innerHTML='<div class="c">Não deu para carregar. Entre no portal de novo e tente outra vez.</div>';return}
+  }catch(e){$('app').innerHTML=TOPO+'<div class="c">Não deu para carregar. Se você acabou de criar senha nova para você mesmo, isto é esperado: o portal te derrubou. Entre de novo com a senha que está logo acima.</div>';return}
   if(SEL===null&&USU.length)SEL=USU[0].id;
   desenha();
 }
@@ -110,10 +110,14 @@ async function troca(mid,el){
 
 async function resetar(){
   const u=pessoa(SEL); if(!u)return;
-  if(!confirm('Vai criar uma senha nova para '+u.nome+' e derrubar o acesso dela agora.\n\nA senha antiga para de funcionar na hora. Confirma?'))return;
+  const souEu=(String(u.usuario).toLowerCase()===String(EU).toLowerCase());
+  if(!confirm(souEu
+    ? 'ATENÇÃO: esta pessoa é VOCÊ.\n\nCriar senha nova aqui vai TE DERRUBAR do portal na hora, e você só volta com a senha nova.\n\nEla vai aparecer numa tarja verde no alto da tela. ANOTE antes de fechar ou de atualizar — depois não dá para ver de novo.\n\nQuer mesmo?'
+    : 'Vai criar uma senha nova para '+u.nome+' e derrubar o acesso dela agora.\n\nA senha antiga para de funcionar na hora. Confirma?'))return;
   try{
     const r=await adm('resetar_senha',{usuario_id:u.id});
-    MSG='<div class="senha">Senha nova de <b>'+esc(u.nome)+'</b>: <code>'+esc(r.senha_provisoria)+'</code><div class="m" style="color:#a8e6c2">Passe para ela por WhatsApp. Na primeira entrada o portal pede para trocar. Esta senha some da tela quando você atualizar.</div></div>';
+    MSG='';
+    TOPO='<div class="senha">Senha nova de <b>'+esc(u.nome)+'</b> (entra como <code>'+esc(u.usuario)+'</code>): <code>'+esc(r.senha_provisoria)+'</code><div class="m" style="color:#a8e6c2">Passe para ela por WhatsApp. Na primeira entrada o portal pede para trocar. Esta senha some da tela quando você atualizar.</div></div>';
     await boot();
   }catch(e){alert('Não deu para trocar a senha.')}
 }
@@ -222,7 +226,7 @@ function desenha(){
   h+='<h2>👤 Escolha a pessoa</h2><div class="pes">';
   USU.forEach(function(x){
     h+='<button class="'+(x.id===SEL?'on':'')+'" onclick="SEL='+x.id+';MSG=\'\';desenha()">'+esc(x.nome)+
-       '<span class="qt">'+x.modulos.length+' telas'+(x.ativo?'':' · desligada')+(x.bloqueado?' · bloqueada':'')+'</span></button>';
+       '<span class="qt">'+x.modulos.length+' telas'+(String(x.usuario).toLowerCase()===String(EU).toLowerCase()?' · você':'')+(x.ativo?'':' · desligada')+(x.bloqueado?' · bloqueada':'')+'</span></button>';
   });
   h+='</div>';
 
@@ -231,6 +235,7 @@ function desenha(){
     h+='<div class="c"><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+
        '<div><b style="font-size:17px">'+esc(u.nome)+'</b> <span class="pill p-off">'+esc(u.usuario)+'</span>'+
        (u.admin?' <span class="pill p-warn">dona do portal</span>':'')+
+       (String(u.usuario).toLowerCase()===String(EU).toLowerCase()?' <span class="pill p-ok">é você</span>':'')+
        (u.ativo?'':' <span class="pill p-bad">desligada</span>')+
        (u.bloqueado?' <span class="pill p-bad">bloqueada por erro de senha</span>':'')+
        (u.precisa_trocar?' <span class="pill p-warn">precisa trocar a senha</span>':'')+
@@ -281,6 +286,7 @@ async function cdmGuarda(){
     if(r.ok)j=await r.json();
   }catch(e){j=null}
   if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  EU=j.usuario;
   const ms=Array.isArray(j.modulos)?j.modulos:[];
   if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
   return true;
