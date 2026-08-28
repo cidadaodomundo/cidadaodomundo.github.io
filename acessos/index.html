@@ -53,12 +53,18 @@ td b{color:var(--text)}
 .senha code{font-family:ui-monospace,Consolas,monospace;font-size:17px;font-weight:800;letter-spacing:1px;color:#fff;background:rgba(0,0,0,.35);padding:3px 9px;border-radius:6px}
 .linha{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
 .rolar{overflow-x:auto}
+.frm{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-bottom:6px}
+.frm label{display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:5px}
+.frm input{width:100%;background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:9px 11px;font-size:14px;font-family:inherit}
+.frm input:focus{outline:none;border-color:var(--brand)}
+.frm input::placeholder{color:#5f5e57}
+.c.nova{border-color:#4a3f22}
 </style>
 </head>
 <body>
 <div class="top">
   <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>🔑 Acessos</h1><div class="sub">quem entra no portal e quem pode ver o quê</div></div></div>
-  <div class="rt"><button class="b" onclick="boot()">↻ Atualizar</button></div>
+  <div class="rt"><button class="b bp" onclick="abreNova()">+ Nova pessoa</button><button class="b" onclick="boot()">↻ Atualizar</button></div>
 </div>
 <div id="app"><div class="load">Carregando…</div></div>
 
@@ -69,13 +75,13 @@ const $=i=>document.getElementById(i);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
 
-let USU=[],MOD=[],SES=[],SEL=null,MSG='';
+let USU=[],MOD=[],SES=[],SEL=null,MSG='',TOPO='',NOVA=null;
 
 async function adm(acao,dados){
   const r=await fetch(SB+'rpc/portal_admin',{method:'POST',
     headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
     body:JSON.stringify({p_token:tok(),p_acao:acao,p_dados:dados||{}})});
-  if(!r.ok)throw new Error('porta '+r.status);
+  if(!r.ok){let m='';try{const j=await r.json();m=(j&&(j.message||j.hint))||''}catch(e){}throw new Error(m||('porta '+r.status))}
   return await r.json();
 }
 
@@ -126,9 +132,77 @@ async function desbloquear(){
   catch(e){alert('Não deu para desbloquear.')}
 }
 
+function abreNova(){NOVA={nome:'',usuario:'',senha:'',unidade:'',modulos:[]};MSG='';TOPO='';desenha();window.scrollTo(0,0)}
+function fechaNova(){NOVA=null;desenha()}
+function novaCampo(c,el){NOVA[c]=el.value}
+function novaTela(mid,el){
+  const i=NOVA.modulos.indexOf(mid);
+  if(i>=0)NOVA.modulos.splice(i,1);else NOVA.modulos.push(mid);
+  el.classList.toggle('on');
+  el.firstChild.textContent=(i>=0?'':'✔');
+}
+function caixas(marcadas,fn){
+  let h='';const grupos=[];
+  MOD.forEach(function(m){if(grupos.indexOf(m.grupo)<0)grupos.push(m.grupo)});
+  grupos.forEach(function(g){
+    h+='<div class="grupo"><div class="gt">'+esc(g)+'</div><div class="mods">';
+    MOD.filter(function(m){return m.grupo===g}).forEach(function(m){
+      const tem=marcadas.indexOf(m.id)>=0;
+      h+='<div class="mod'+(tem?' on':'')+'" onclick="'+fn+'(\''+m.id+'\',this)">'+
+         '<div class="cx">'+(tem?'✔':'')+'</div><div>'+esc(m.icone||'')+' '+esc(m.nome)+'</div></div>';
+    });
+    h+='</div></div>';
+  });
+  return h;
+}
+function formNova(){
+  let h='<h2>➕ Pessoa nova no portal</h2><div class="c nova">';
+  h+='<div class="frm">'+
+     '<div><label>Nome da pessoa</label><input value="'+esc(NOVA.nome)+'" oninput="novaCampo(\'nome\',this)" placeholder="Maria da Silva"></div>'+
+     '<div><label>Nome de entrada</label><input value="'+esc(NOVA.usuario)+'" oninput="novaCampo(\'usuario\',this)" placeholder="maria" autocapitalize="off" spellcheck="false"></div>'+
+     '<div><label>Senha</label><input value="'+esc(NOVA.senha)+'" oninput="novaCampo(\'senha\',this)" placeholder="vazio = o portal inventa uma"></div>'+
+     '<div><label>Loja (pode deixar vazio)</label><input value="'+esc(NOVA.unidade)+'" oninput="novaCampo(\'unidade\',this)" placeholder="Água Verde"></div>'+
+     '</div>';
+  h+='<div class="m">O <b>nome de entrada</b> é o que ela digita para entrar: só letras minúsculas, números, ponto ou hífen — sem espaço e sem acento. Se você deixar a senha vazia, o portal inventa uma e mostra aqui na tela.</div>';
+  h+='<h2 style="margin:16px 0 4px">🗂 O que ela vai poder ver</h2>';
+  h+=caixas(NOVA.modulos,'novaTela');
+  h+='<div class="linha"><button class="b bp" onclick="criarPessoa()">✅ Criar a pessoa</button>'+
+     '<button class="b" onclick="fechaNova()">Cancelar</button></div>';
+  h+='</div>';
+  return h;
+}
+async function criarPessoa(){
+  if(!NOVA)return;
+  const d={nome:(NOVA.nome||'').trim(),usuario:(NOVA.usuario||'').trim().toLowerCase(),
+           unidade:(NOVA.unidade||'').trim(),modulos:NOVA.modulos.slice()};
+  if((NOVA.senha||'').trim())d.senha=(NOVA.senha||'').trim();
+  try{
+    const r=await adm('criar',d);
+    const qt=d.modulos.length;
+    NOVA=null;SEL=r.id;MSG='';
+    TOPO='<div class="senha"><b>'+esc(d.nome)+'</b> entrou no portal. Nome de entrada: <code>'+esc(d.usuario)+'</code> · Senha: <code>'+esc(r.senha_provisoria)+'</code><div class="m" style="color:#a8e6c2">'+qt+' tela(s) liberadas. Passe os dois pelo WhatsApp. Esta senha aparece uma vez só — copie antes de sair da tela.</div></div>';
+    await boot();
+  }catch(e){alert(e.message||'Não deu para criar a pessoa.')}
+}
+async function apagar(){
+  const u=pessoa(SEL); if(!u)return;
+  if(!confirm('APAGAR '+u.nome+' do portal, para sempre.\n\nEla some da lista, perde todas as telas e sai do ar na hora. Isto NÃO tem botão de voltar.\n\nSe ela só saiu de férias ou está afastada, use "Desligar do portal" — esse dá para religar depois.\n\nQuer mesmo apagar?'))return;
+  const c=prompt('Para confirmar, escreva o nome de entrada dela:\n\n'+u.usuario);
+  if(c===null)return;
+  if(String(c).trim().toLowerCase()!==String(u.usuario).toLowerCase()){alert('Não bateu. Ninguém foi apagado.');return}
+  try{
+    await adm('apagar',{usuario_id:u.id});
+    SEL=null;MSG='';
+    TOPO='<div class="aviso"><b>'+esc(u.nome)+'</b> foi apagada do portal. O registro de quem abriu qual tela continua guardado.</div>';
+    await boot();
+  }catch(e){alert(e.message||'Não deu para apagar.')}
+}
+
 function desenha(){
   const u=pessoa(SEL);
   let h='';
+  h+=TOPO;
+  if(NOVA){$('app').innerHTML=h+formNova();return}
 
   /* quem esta com o portal aberto */
   h+='<h2>🟢 Com o portal aberto agora <span class="pill '+(SES.length?'p-ok':'p-off')+'">'+SES.length+'</span></h2><div class="c">';
@@ -167,7 +241,9 @@ function desenha(){
        '<button class="b" onclick="resetar()">🔑 Criar senha nova</button>'+
        '<button class="b '+(u.ativo?'bd':'')+'" onclick="ligaDesliga()">'+(u.ativo?'⛔ Desligar do portal':'✅ Ligar no portal')+'</button>'+
        (u.bloqueado?'<button class="b" onclick="desbloquear()">🔓 Desbloquear</button>':'')+
+       (u.admin?'':'<button class="b bd" onclick="apagar()">🗑 Apagar para sempre</button>')+
        '</div>';
+    if(u.admin)h+='<div class="m">Esta pessoa é dona do portal — por segurança o portal não deixa apagar. E não desligue o usuário <b>proprietarios</b>: ele é o único que enxerga esta tela.</div>';
     h+=MSG;
     h+='</div>';
 
@@ -187,7 +263,7 @@ function desenha(){
     h+='</div>';
   }
 
-  h+='<div class="aviso">Clicou na caixinha, mudou na hora — não tem botão de salvar. A pessoa vê a mudança quando abrir o portal de novo. Desligar alguém tira ela do ar na hora. A senha nova aparece uma vez só nesta tela: copie antes de sair. Esta tela é só sua.</div>';
+  h+='<div class="aviso">Clicou na caixinha, mudou na hora — não tem botão de salvar. A pessoa vê a mudança quando abrir o portal de novo. <b>Desligar</b> tira ela do ar agora e dá para religar depois; <b>Apagar</b> é para sempre e não volta. A senha nova aparece uma vez só nesta tela: copie antes de sair. Esta tela é só sua.</div>';
   $('app').innerHTML=h;
 }
 
