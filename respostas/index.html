@@ -168,14 +168,22 @@ async function boot(){
     get('manutencao_chamado?select=id,unidade,item,descricao,prioridade,status,aberto_em&status=neq.resolvido&order=aberto_em.asc&limit=200'),
     get('encomenda?select=id,unidade,data_entrega,hora,descricao,qtd_itens,status,responsavel&data_entrega=gte.'+dMenos(1)+'&order=data_entrega.asc&limit=100'),
     get('compra_item?select=id,unidade,item,quantidade,status,quem_pediu,criado_em&criado_em=gte.'+dMenos(30)+'&order=criado_em.asc&limit=200'),
-    porta('listar').catch(()=>({marcas:[],manuais:[],quem:''}))
+    porta('listar').catch(()=>({marcas:[],manuais:[],feitos7:[],quem:''}))
   ]);
 
   MARCAS={};(dad.marcas||[]).forEach(m=>{MARCAS[chave(m.fonte,m.ref)]=m});
+  const TIT={};
+  const poe=(f,id,t)=>{TIT[chave(f,String(id))]=t};
   QUEM=dad.quem||'';
   const manuais=dad.manuais||[];
   const ateIfood=ult.length?br(ult[0].data_avaliacao):'—';
   const abertoHoje=k=>!(MARCAS[k]&&MARCAS[k].feito===true);
+  man.forEach(c=>poe('manutencao',c.id,c.unidade+' · '+c.item));
+  res.forEach(r=>poe('reserva',r.id,'Reserva '+r.unidade+' '+br(r.data)));
+  enc.forEach(e=>poe('encomenda',e.id,'Encomenda '+e.unidade+' '+br(e.data_entrega)));
+  com.forEach(c=>poe('compra',c.id,c.unidade+' · '+c.item));
+  manuais.forEach(x=>poe('manual',x.id,x.titulo));
+  cham.forEach(c=>poe('chamado',c.id,'Chamado iFood '+loja(c.id_loja)+' '+br(c.data)));
   let h='';
 
   /* 1 - manutencao urgente */
@@ -265,7 +273,21 @@ async function boot(){
   }
   h+=bloco('av','⭐ Avaliações do iFood sem resposta <span class="pill p-off">iFood até '+ateIfood+'</span>',pend.length,ha,false);
 
-  h+='<div class="aviso">O que tem caixinha, a gestora marca aqui: fica riscado até o fim do dia e some amanhã. O recado fica 7 dias. O que vem do iFood depende das capturas de 9h e 17h — o selo cinza mostra até quando ele vai. Avaliações do iFood ainda se respondem no aplicativo do parceiro.'+(QUEM?' Você está como <b>'+esc(QUEM)+'</b>.':'')+'</div>';
+  /* 10 - historico dos ultimos 7 dias */
+  const NOME={manutencao:'Manutenção',reserva:'Reserva',encomenda:'Encomenda',compra:'Compra',manual:'Pedido',chamado:'Chamado iFood',pausado:'Item pausado'};
+  const f7=(dad.feitos7||[]);
+  h+=bloco('hi','✅ Resolvidos nos últimos 7 dias',f7.length,
+    f7.map(function(m){
+      const t=TIT[chave(m.fonte,m.ref)]||(NOME[m.fonte]||m.fonte)+' nº '+m.ref;
+      const q=new Date(m.feito_em);
+      const quando=('0'+q.getDate()).slice(-2)+'/'+('0'+(q.getMonth()+1)).slice(-2)+' '+('0'+q.getHours()).slice(-2)+':'+('0'+q.getMinutes()).slice(-2);
+      return '<div class="it"><div class="cx cx-off">✔</div><div class="tx"><b>'+esc(t)+'</b> <span class="pill p-off">'+esc(NOME[m.fonte]||m.fonte)+'</span>'+
+        '<div class="m">'+esc(m.feito_por||'')+' · '+quando+'</div>'+
+        (m.recado?'<div class="rec">💬 '+esc(m.recado)+'<div class="m">— '+esc(m.recado_por||'')+'</div></div>':'')+
+        '</div></div>';
+    }).join(''),false);
+
+  h+='<div class="aviso">A caixinha resolve de verdade: marcar fecha o item na aba de origem (manutenção vira resolvido, compra vira comprada, encomenda ganha você como dono). Desmarcar desfaz e devolve como estava. Reserva, chamado do iFood e item pausado só ficam riscados — esses o portal não fecha sozinho. O recado fica 7 dias, e tudo que foi resolvido na semana está na última faixa. O que vem do iFood depende das capturas de 9h e 17h — o selo cinza mostra até quando ele vai. Avaliações do iFood ainda se respondem no aplicativo do parceiro.'+(QUEM?' Você está como <b>'+esc(QUEM)+'</b>.':'')+'</div>';
   $('app').innerHTML=h;
 }
 
