@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#c8102e">
+<title>Painel do Dono · Cidadão do Mundo</title>
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#c8102e;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1200px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
+.top .rt{margin-left:auto;display:flex;gap:8px;align-items:center}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+button.b:hover{border-color:var(--brand)}
+h2{font-size:15px;font-weight:800;margin:22px 0 10px;display:flex;align-items:center;gap:9px}
+.c{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:10px}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700}
+.p-bad{background:rgba(230,103,103,.15);color:var(--bad)}
+.p-warn{background:rgba(201,133,0,.15);color:var(--warn)}
+.p-off{background:rgba(138,137,126,.15);color:var(--muted)}
+.p-ok{background:rgba(47,174,106,.15);color:var(--ok)}
+.m{color:var(--muted);font-size:11.5px;margin-top:3px}
+.load{color:var(--muted);padding:30px;text-align:center}
+.vazio{color:var(--muted);font-size:13px;padding:8px 0}
+.dot{width:40px;height:40px;border-radius:11px;background:var(--brand);display:grid;place-items:center;font-weight:800;font-size:16px}
+.aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:11px 14px;font-size:12.5px;margin-top:18px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;padding:0 8px 7px 0;border-bottom:1px solid var(--line)}
+td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line);color:var(--text2);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td b{color:var(--text)}
+.viv{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--ok);margin-right:7px;box-shadow:0 0 0 3px rgba(47,174,106,.2);animation:pulsa 1.4s infinite alternate}
+@keyframes pulsa{from{opacity:.35}to{opacity:1}}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}
+.rel{color:var(--muted);font-size:11.5px}
+.barra{height:6px;background:var(--s2);border-radius:4px;overflow:hidden;margin-top:5px}
+.barra i{display:block;height:100%;background:var(--ok)}
+.q{background:var(--s2);border-radius:9px;padding:11px 13px}
+.q .n{font-size:26px;font-weight:800;line-height:1.1}
+.q .l{color:var(--muted);font-size:11.5px;margin-top:3px}
+.rolar{overflow-x:auto}
+</style>
+</head>
+<body>
+<div class="top">
+  <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>🕹 Painel do Dono</h1><div class="sub">quem está no portal agora, quem resolveu o quê, e o que está parado</div></div></div>
+  <div class="rt"><span class="rel" id="rel">—</span><button class="b" onclick="boot()">↻ Atualizar</button></div>
+</div>
+<div id="app"><div class="load">Carregando…</div></div>
+
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
+const TELA={painel:'Painel do Dono',respostas:'Precisa de Resposta',central:'Central do Delivery',salao:'Central Salão',rh:'Central do RH',escala:'Escala & Clima','escala-mensal':'Escala do Mês',cozinha:'Central Cozinha',manutencao:'Manutenção',compras:'Compras & Listas',encomendas:'Encomendas',brasa:'Brasa e Fumaça',ponto:'Ponto',ifood:'iFood Qualidade',inicio:'Início'};
+const nomeTela=t=>(!t||t==='—')?'—':(TELA[t]||t);
+
+async function porta(acao){
+  const r=await fetch(SB+'rpc/painel_dono',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:tok(),p_acao:acao||'listar'})});
+  if(!r.ok)throw new Error('porta '+r.status);
+  return await r.json();
+}
+
+function quandoTxt(min){
+  if(min==null)return '—';
+  if(min<1)return 'agora mesmo';
+  if(min===1)return 'há 1 minuto';
+  return 'há '+min+' minutos';
+}
+
+async function boot(){
+  let d;
+  try{d=await porta('listar')}
+  catch(e){$('app').innerHTML='<div class="c">Não deu para carregar. Entre no portal de novo e tente outra vez.</div>';return}
+
+  const con=d.conectados||[], pes=d.pessoas||[], res=d.resolveram||[], par=d.parados||[];
+  $('rel').textContent='atualizado '+d.agora;
+  let h='';
+
+  /* resumo em numeros */
+  const seteDias=pes.filter(p=>p.total7>0).length;
+  const nunca=pes.filter(p=>p.ultima==null).length;
+  const paradosVelhos=par.filter(p=>p.dias>=7).length;
+  h+='<div class="grid">'+
+     '<div class="q"><div class="n">'+con.length+'</div><div class="l">no portal nos últimos 15 min</div></div>'+
+     '<div class="q"><div class="n">'+seteDias+' de '+pes.length+'</div><div class="l">entraram na última semana</div></div>'+
+     '<div class="q"><div class="n" style="color:'+(nunca?'var(--bad)':'var(--ok)')+'">'+nunca+'</div><div class="l">nunca abriram o portal</div></div>'+
+     '<div class="q"><div class="n" style="color:'+(paradosVelhos?'var(--bad)':'var(--ok)')+'">'+paradosVelhos+'</div><div class="l">itens parados há 7 dias ou mais</div></div>'+
+     '</div>';
+
+  /* quem esta no portal agora */
+  h+='<h2>🟢 No portal agora</h2><div class="c">';
+  if(!con.length){h+='<div class="vazio">ninguém abriu nenhuma tela nos últimos 15 minutos</div>'}
+  else{
+    h+='<div class="rolar"><table><tr><th>Quem</th><th>Última tela</th><th>Quando</th><th>Aberturas hoje</th></tr>';
+    con.forEach(function(c){
+      h+='<tr><td><span class="viv"></span><b>'+esc(c.nome||c.usuario)+'</b></td>'+
+         '<td>'+esc(nomeTela(c.tela))+'</td>'+
+         '<td>'+quandoTxt(c.ha_min)+'</td>'+
+         '<td>'+(c.aberturas_hoje||0)+'</td></tr>';
+    });
+    h+='</table></div>';
+  }
+  h+='</div>';
+
+  /* todo mundo do portal */
+  h+='<h2>👥 Todo mundo do portal</h2><div class="c"><div class="rolar"><table>'+
+     '<tr><th>Quem</th><th>Hoje</th><th>7 dias</th><th>Última vez</th><th>Última tela</th></tr>';
+  pes.forEach(function(p){
+    let sel='';
+    if(p.ultima==null)sel=' <span class="pill p-bad">nunca entrou</span>';
+    else if(p.dias_sem_entrar>=3)sel=' <span class="pill p-bad">'+p.dias_sem_entrar+' dias sem entrar</span>';
+    else if(p.hoje>0)sel=' <span class="pill p-ok">entrou hoje</span>';
+    h+='<tr><td><b>'+esc(p.nome||p.usuario)+'</b>'+sel+'</td>'+
+       '<td>'+(p.hoje||0)+'</td><td>'+(p.total7||0)+'</td>'+
+       '<td>'+(p.ultima?esc(p.ultima):'—')+'</td>'+
+       '<td>'+esc(nomeTela(p.ultima_tela))+'</td></tr>';
+  });
+  h+='</table></div></div>';
+
+  /* quem resolveu o que */
+  h+='<h2>✅ Quem resolveu, nos últimos 7 dias</h2><div class="c">';
+  if(!res.length){h+='<div class="vazio">ninguém marcou nada ainda</div>'}
+  else{
+    const maior=Math.max.apply(null,res.map(x=>x.quantos));
+    h+='<div class="rolar"><table><tr><th>Quem</th><th>Itens resolvidos</th><th>Última vez</th></tr>';
+    res.forEach(function(x){
+      h+='<tr><td><b>'+esc(x.quem)+'</b></td>'+
+         '<td>'+x.quantos+'<div class="barra"><i style="width:'+Math.round(x.quantos*100/maior)+'%"></i></div></td>'+
+         '<td>'+esc(x.ultima||'')+'</td></tr>';
+    });
+    h+='</table></div>';
+  }
+  h+='</div>';
+
+  /* o que esta parado ha mais tempo */
+  h+='<h2>⏳ Parado há mais tempo <span class="pill '+(par.length>10?'p-bad':'p-warn')+'">'+par.length+'</span></h2><div class="c">';
+  if(!par.length){h+='<div class="vazio">nada parado</div>'}
+  else{
+    h+='<div class="rolar"><table><tr><th>Dias</th><th>O que é</th><th>Tipo</th><th>Onde</th><th>Desde</th></tr>';
+    par.forEach(function(p){
+      const cor=p.dias>=14?'p-bad':(p.dias>=7?'p-warn':'p-off');
+      h+='<tr><td><span class="pill '+cor+'">'+p.dias+'</span></td>'+
+         '<td><b>'+esc(p.texto)+'</b></td>'+
+         '<td>'+esc(p.tipo)+'</td><td>'+esc(p.setor)+'</td><td>'+esc(p.desde)+'</td></tr>';
+    });
+    h+='</table></div>';
+  }
+  h+='</div>';
+
+  h+='<div class="aviso">Esta tela é só sua — ninguém da equipe enxerga. Ela se atualiza sozinha a cada 60 segundos enquanto estiver aberta. "No portal agora" quer dizer que a pessoa abriu alguma tela nos últimos 15 minutos; o portal não sabe se ela continua olhando. A última tela só aparece depois que a pessoa abrir uma tela nova a partir de hoje.</div>';
+  $('app').innerHTML=h;
+}
+
+/* ===== porta unica do portal ===== */
+const CDMMODS=['painel'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'painel'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){
+  if(!ok)return;
+  boot();
+  setInterval(function(){if(!document.hidden)boot()},60000);
+});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
