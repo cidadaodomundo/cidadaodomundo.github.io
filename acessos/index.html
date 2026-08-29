@@ -75,7 +75,7 @@ const $=i=>document.getElementById(i);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
 
-let USU=[],MOD=[],SES=[],SEL=null,MSG='',TOPO='',NOVA=null,EU='';
+let USU=[],MOD=[],SES=[],USO=[],SEL=null,MSG='',TOPO='',NOVA=null,EU='';
 
 async function adm(acao,dados){
   const r=await fetch(SB+'rpc/portal_admin',{method:'POST',
@@ -85,10 +85,26 @@ async function adm(acao,dados){
   return await r.json();
 }
 
+async function uso(){
+  try{
+    const r=await fetch(SB+'rpc/portal_uso',{method:'POST',
+      headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({p_token:tok()})});
+    if(!r.ok)return {pessoas:[]};
+    return await r.json();
+  }catch(e){return {pessoas:[]}}
+}
+
+const NOMETELA={inicio:'Início',delivery:'Central do Delivery','delivery-antiga':'Central antiga',escala:'Escala & Clima',ifood:'iFood · Qualidade',ifoodsb:'iFood · São Braz',rh:'Central do RH',ponto:'Painel RH',salao:'Central Salão',cozinha:'Central Cozinha',respostas:'Precisa de Resposta',manutencao:'Manutenção',compras:'Compras & Listas',encomendas:'Encomendas Grandes',brasa:'Brasa e Fumaça',reuniao:'Reunião Semanal','escala-mensal':'Escala do Mês',operacao:'Desperdício',escritorio:'Escritório',acessos:'Acessos',painel:'Painel do Dono','painel-dono':'Painel do Dono'};
+function nomeTela(t){return NOMETELA[t]||t}
+function tempoTxt(m){if(!m)return '—';if(m<60)return m+' min';const hh=Math.floor(m/60),rr=m%60;return hh+'h'+(rr?' '+rr+'min':'')}
+function usoDe(id){for(let i=0;i<USO.length;i++){if(USO[i].id===id)return USO[i]}return null}
+function dataTxt(s){if(!s)return '';const d=new Date(s);return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}
+
 async function boot(){
   try{
-    const r=await Promise.all([adm('listar'),adm('modulos'),adm('sessoes')]);
-    USU=r[0];MOD=r[1];SES=r[2];
+    const r=await Promise.all([adm('listar'),adm('modulos'),adm('sessoes'),uso()]);
+    USU=r[0];MOD=r[1];SES=r[2];USO=(r[3]&&r[3].pessoas)||[];
   }catch(e){$('app').innerHTML=TOPO+'<div class="c">Não deu para carregar. Se você acabou de criar senha nova para você mesmo, isto é esperado: o portal te derrubou. Entre de novo com a senha que está logo acima.</div>';return}
   if(SEL===null&&USU.length)SEL=USU[0].id;
   desenha();
@@ -222,6 +238,24 @@ function desenha(){
   }
   h+='</div>';
 
+  /* tempo no portal */
+  h+='<h2>⏱ Tempo no portal — últimos 7 dias</h2><div class="c">';
+  if(!USO.length){h+='<div class="vazio">ninguém abriu o portal nestes 7 dias</div>'}
+  else{
+    const ord=USO.slice().sort(function(a,b){return (b.minutos7||0)-(a.minutos7||0)});
+    h+='<div class="rolar"><table><tr><th>Quem</th><th>Hoje</th><th>Visitas em 7 dias</th><th>Tempo em 7 dias</th><th>Visita mais longa</th><th>Última vez</th></tr>';
+    ord.forEach(function(x){
+      const nunca=!x.ultimo_acesso;
+      h+='<tr><td><b>'+esc(x.nome)+'</b>'+(x.ativo?'':' <span class="pill p-bad">desligada</span>')+'</td>'+
+         '<td>'+(x.hoje||0)+'</td><td>'+(x.visitas7||0)+'</td><td>'+tempoTxt(x.minutos7)+'</td>'+
+         '<td>'+tempoTxt(x.maior_visita7)+'</td>'+
+         '<td>'+(nunca?'<span class="pill p-bad">nunca entrou</span>':esc(dataTxt(x.ultimo_acesso)))+'</td></tr>';
+    });
+    h+='</table></div>';
+  }
+  h+='<div class="m">O portal anota cada vez que alguém abre uma tela, mas não sabe a hora em que a pessoa fecha o navegador. O tempo aqui é uma <b>estimativa</b>: aberturas com menos de 30 minutos de intervalo contam como a mesma visita.</div>';
+  h+='</div>';
+
   /* escolher a pessoa */
   h+='<h2>👤 Escolha a pessoa</h2><div class="pes">';
   USU.forEach(function(x){
@@ -265,6 +299,19 @@ function desenha(){
       });
       h+='</div></div>';
     });
+    h+='</div>';
+
+    /* o que ela viu */
+    const uu=usoDe(u.id);
+    h+='<h2>👀 O que '+esc(u.nome)+' viu — últimos 7 dias</h2><div class="c">';
+    if(!uu||!uu.toques7){h+='<div class="vazio">não abriu o portal nestes 7 dias</div>'}
+    else if(!uu.telas7.length){h+='<div class="vazio">abriu o portal '+uu.toques7+' vezes, mas nessas aberturas o portal ainda não guardava o nome da tela</div>'}
+    else{
+      h+='<div class="rolar"><table><tr><th>Tela</th><th>Vezes</th></tr>';
+      uu.telas7.forEach(function(t){h+='<tr><td>'+esc(nomeTela(t.tela))+'</td><td>'+t.vezes+'</td></tr>'});
+      h+='</table></div>';
+      if(uu.sem_nome7)h+='<div class="m">Outras '+uu.sem_nome7+' aberturas são de antes de as telas passarem a se identificar — dessas não dá para saber qual tela era.</div>';
+    }
     h+='</div>';
   }
 
