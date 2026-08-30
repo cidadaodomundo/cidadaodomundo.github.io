@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#c8102e">
+<title>Roteiro da Obra · Cidadão do Mundo</title>
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#c8102e;--ok:#2fae6a;--bad:#e66767;--warn:#c98500;--fila:#7d7db8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:900px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
+.top .rt{margin-left:auto;display:flex;gap:8px;align-items:center}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+button.b:hover{border-color:var(--brand)}
+h2{font-size:15px;font-weight:800;margin:22px 0 10px}
+.c{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:10px}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;background:var(--s2);color:var(--text2);margin-right:8px}
+.tt{font-weight:800;font-size:15px}
+.quem{color:var(--muted);font-size:12px;margin-top:2px}
+.prox{margin-top:8px;font-size:13px;background:var(--s2);border-left:3px solid var(--brand);border-radius:0 8px 8px 0;padding:7px 10px}
+.passo{display:flex;gap:8px;align-items:flex-start;padding:5px 0;font-size:13.5px;cursor:pointer;color:var(--text2)}
+.passo:hover{color:var(--text)}
+.passo .cx{flex:0 0 auto;width:18px;text-align:center}
+.passo.feito{color:var(--muted);text-decoration:line-through}
+.stbar{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap}
+.stb{background:var(--s2);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:700;cursor:pointer}
+.stb.on{color:var(--text);border-color:var(--brand)}
+.rel{color:var(--muted);font-size:12px}
+.aviso{color:var(--muted);font-size:12px;margin:18px 0 30px;line-height:1.5}
+details.res summary{cursor:pointer;font-size:15px;font-weight:800;margin:22px 0 10px;list-style:none}
+</style>
+</head>
+<body>
+<div class="top">
+  <div><h1>🗺 Roteiro da Obra</h1><div class="sub">o que está pronto, o que está no meio e o que falta — para não mexer na mesma coisa duas vezes</div></div>
+  <div class="rt"><span class="rel" id="rel"></span><button class="b" onclick="boot()">⟳ Atualizar</button></div>
+</div>
+<div id="app">Carregando…</div>
+<div class="aviso">Esta tela é só sua. Clique num passo para marcar ou desmarcar; use os botões para mudar o estado do item. Quem grava fica registrado. Os chats do Claude leem esta lista antes de mexer no portal.</div>
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+async function porta(acao,dados){
+  const r=await fetch(SB+'rpc/obra_consulta',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:cdmTok(),p_acao:acao||'listar',p_dados:dados||{}})});
+  if(!r.ok)throw new Error('porta '+r.status);
+  return await r.json();
+}
+const FX=[['aberto','🔴 Não resolvido'],['construcao','🟡 Em construção'],['espera','⏸ Na fila (não mexer)'],['resolvido','✅ Resolvido']];
+let ITENS=[];
+function item(o){
+  let h='<div class="c">';
+  h+='<div><span class="pill">'+esc(o.area)+'</span><span class="tt">'+esc(o.titulo)+'</span></div>';
+  if(o.quem)h+='<div class="quem">quem destrava: '+esc(o.quem)+'</div>';
+  if(o.proximo&&o.status!=='resolvido')h+='<div class="prox">➜ próximo passo: <b>'+esc(o.proximo)+'</b></div>';
+  (o.passos||[]).forEach(function(p,i){
+    h+='<div class="passo'+(p.ok?' feito':'')+'" onclick="marca('+o.id+','+i+','+(p.ok?'false':'true')+')">'+
+       '<span class="cx">'+(p.ok?'✔':'○')+'</span><span>'+esc(p.t)+'</span></div>';
+  });
+  h+='<div class="stbar">'+FX.map(function(f){
+    return '<span class="stb'+(o.status===f[0]?' on':'')+'" onclick="muda('+o.id+',\''+f[0]+'\')">'+f[1]+'</span>';
+  }).join('')+'</div>';
+  if(o.atualizado_por)h+='<div class="quem" style="margin-top:6px">última mudança: '+esc(o.atualizado_por)+'</div>';
+  h+='</div>';
+  return h;
+}
+function desenha(){
+  let h='';
+  FX.forEach(function(f){
+    const l=ITENS.filter(function(o){return o.status===f[0]});
+    if(!l.length)return;
+    if(f[0]==='resolvido'){
+      h+='<details class="res"><summary>'+f[1]+' ('+l.length+') — clique para abrir</summary>'+l.map(item).join('')+'</details>';
+    }else{
+      h+='<h2>'+f[1]+' ('+l.length+')</h2>'+l.map(item).join('');
+    }
+  });
+  $('app').innerHTML=h||'<div class="c">Nada cadastrado ainda.</div>';
+}
+async function boot(){
+  try{
+    const d=await porta('listar');
+    ITENS=Array.isArray(d.itens)?d.itens:[];
+    $('rel').textContent='atualizado '+(d.agora||'');
+    desenha();
+  }catch(e){$('app').innerHTML='<div class="c">Não deu para carregar. Entre no portal de novo e tente outra vez.</div>'}
+}
+async function muda(id,st){
+  try{await porta('status',{id:id,status:st});
+    const o=ITENS.find(function(x){return x.id===id});if(o)o.status=st;desenha();
+  }catch(e){alert('Não deu para mudar o estado.')}
+}
+async function marca(id,idx,ok){
+  try{await porta('passo',{id:id,idx:idx,ok:ok});
+    const o=ITENS.find(function(x){return x.id===id});if(o&&o.passos&&o.passos[idx])o.passos[idx].ok=ok;desenha();
+  }catch(e){alert('Não deu para marcar o passo.')}
+}
+/* ===== porta unica do portal ===== */
+const CDMMODS=['obra'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'obra'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(!ok)return;boot();});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
