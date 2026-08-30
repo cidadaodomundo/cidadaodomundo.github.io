@@ -15,38 +15,41 @@ h1{font-size:22px;font-weight:800}
 .top .rt{margin-left:auto}
 button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
 .dot{width:40px;height:40px;border-radius:11px;background:var(--brand);display:grid;place-items:center;font-weight:800;font-size:16px}
-.tri{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-bottom:14px}
+.tri{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px;margin-bottom:14px}
 .big{background:var(--s1);border:2px solid var(--line);border-radius:16px;padding:20px;text-align:center}
-.big .n{font-size:62px;font-weight:800;line-height:1}
-.big .n span{font-size:22px;font-weight:700;color:var(--muted)}
+.big .n{font-size:56px;font-weight:800;line-height:1}
+.big .n span{font-size:20px;font-weight:700;color:var(--muted)}
 .big .l{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.8px;margin-top:6px}
-.big.alvo{border-color:var(--gold)}
-.big.alvo .n{color:var(--gold)}
-.vermelho .big.alvo{border-color:var(--bad);animation:pisca 1.1s ease-in-out infinite}
-.vermelho .big.alvo .n{color:var(--bad)}
-.azul .big.alvo{border-color:var(--azul)}
-.azul .big.alvo .n{color:var(--azul)}
-.verde .big.alvo{border-color:var(--ok)}
-.verde .big.alvo .n{color:var(--ok)}
+.big .x{color:var(--text2);font-size:12px;margin-top:6px}
+.vermelho .alvo{border-color:var(--bad);animation:pisca 1.1s ease-in-out infinite}
+.vermelho .alvo .n{color:var(--bad)}
+.azul .alvo{border-color:var(--azul)}
+.azul .alvo .n{color:var(--azul)}
+.verde .alvo{border-color:var(--ok)}
+.verde .alvo .n{color:var(--ok)}
 @keyframes pisca{0%,100%{opacity:1}50%{opacity:.45}}
-.acao{border-radius:14px;padding:16px 18px;font-size:17px;font-weight:800;margin-bottom:16px;line-height:1.45}
-.acao .p{display:block;font-size:13px;font-weight:600;margin-top:6px;opacity:.85}
+.acao{border-radius:14px;padding:16px 18px;font-size:17px;font-weight:800;margin-bottom:14px;line-height:1.45}
+.acao .p{display:block;font-size:13.5px;font-weight:600;margin-top:7px;opacity:.9}
 .a-sobe{background:rgba(230,103,103,.14);border:1px solid var(--bad);color:#ffbcbc}
 .a-desce{background:rgba(77,157,224,.14);border:1px solid var(--azul);color:#bcdcff}
 .a-ok{background:rgba(47,174,106,.14);border:1px solid var(--ok);color:#b6f0d0}
+.moto{border-radius:14px;padding:16px 18px;margin-bottom:16px;line-height:1.5;background:rgba(224,168,28,.12);border:1px solid var(--gold);color:#ffe7ab;font-size:15.5px;font-weight:700}
+.moto .p{display:block;font-size:13.5px;font-weight:600;margin-top:7px;opacity:.9}
 .res{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
-.k{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:12px 16px;min-width:132px;flex:1}
+.k{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:12px 16px;min-width:128px;flex:1}
 .k .n{font-size:22px;font-weight:800}
 .k .l{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
 .k.mal .n{color:var(--bad)}
 .k.aten .n{color:var(--gold)}
+.k.bom .n{color:var(--ok)}
 .regua{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:12px}
 .regua h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:10px}
 .regua table{width:100%;border-collapse:collapse;font-size:13.5px}
 .regua td{padding:6px 4px;border-bottom:1px solid var(--line);color:var(--text2)}
 .regua td:last-child{text-align:right;font-weight:800;color:var(--text);white-space:nowrap}
 .regua tr:last-child td{border-bottom:none}
-.m{color:var(--muted);font-size:11.5px;margin-top:10px;line-height:1.6}
+.regua tr.aqui td{background:rgba(224,168,28,.13);color:#ffe7ab}
+.m{color:var(--muted);font-size:11.5px;margin-top:10px;line-height:1.65}
 .load{color:var(--muted);padding:40px;text-align:center}
 </style>
 </head>
@@ -72,39 +75,59 @@ async function rpc(nome,corpo){
 
 function pinta(d){
   const prom=Number(d.prometido||0), sug=Number(d.sugerido||0), dif=sug-prom;
-  let acao,cls;
-  if(dif>5){acao='<div class="acao a-sobe">🔺 SUBA o tempo para '+sug+' minutos<span class="p">Motivo: '+esc(d.motivo)+'. Hoje está prometendo '+prom+'.</span></div>';cls='vermelho'}
-  else if(dif<-15){acao='<div class="acao a-desce">🔻 Dá para BAIXAR para '+sug+' minutos<span class="p">Motivo: '+esc(d.motivo)+'. Está prometendo '+prom+', mais do que precisa.</span></div>';cls='azul'}
-  else{acao='<div class="acao a-ok">✅ Está bom assim<span class="p">'+esc(d.motivo)+'. Prometido '+prom+', a conta pede '+sug+'.</span></div>';cls='verde'}
+  const clima=String(d.clima||'seco'), ppm=d.por_motoboy, lim=Number(d.limite_por_motoboy||5.5);
+  const motos=Number(d.motoboys||0), faltam=Number(d.motoboys_faltam||0), precisa=Number(d.motoboys_precisa||0);
+  const prontos=Number(d.prontos_sem_motoboy||0), antigo=Number(d.mais_antigo_min||0);
 
-  const prontos=Number(d.prontos_sem_motoboy||0), prep=Number(d.preparo_p90||0), antigo=Number(d.mais_antigo_min||0);
+  let acao,cls;
+  if(dif>4){acao='<div class="acao a-sobe">🔺 SUBA o tempo para '+sug+' minutos<span class="p">'+esc(d.motivo)+'. Hoje está em '+prom+', e o cliente enxerga '+(prom+10)+'.</span></div>';cls='vermelho'}
+  else if(dif<-8){acao='<div class="acao a-desce">🔻 Dá para BAIXAR para '+sug+' minutos<span class="p">'+esc(d.motivo)+'. Está em '+prom+' e a conta pede '+sug+' — tempo alto à toa espanta cliente.</span></div>';cls='azul'}
+  else{acao='<div class="acao a-ok">✅ Está bom assim<span class="p">'+esc(d.motivo)+'.</span></div>';cls='verde'}
+
+  let moto='';
+  if(faltam>0){
+    moto='<div class="moto">🛵 Faltam '+faltam+' motoboy'+(faltam>1?'s':'')+' agora — são '+motos+' na rua e o ritmo pede '+precisa+'.'+
+      '<span class="p">Este é o caminho barato: com motoboy suficiente, '+(clima==='seco'?'o tempo se segura em 44':'até dia de chuva se comporta quase como dia seco (73% no prazo contra 33%)')+'. Um almoço de chuva traz cerca de 14 pedidos a mais, que ao ticket medido de R$ 61 viram R$ 860 de venda.</span></div>';
+  } else if(prontos>=10){
+    moto='<div class="moto">🛵 '+prontos+' pedidos prontos parados esperando quem leve.'+
+      '<span class="p">O ritmo de entrada está bom ('+ppm+' por motoboy), mas a comida está esfriando no balcão. Vale olhar se alguém saiu para uma rota longa.</span></div>';
+  }
 
   let h='<div class="'+cls+'">'+
    '<div class="tri">'+
-    '<div class="big"><div class="n">'+prom+'<span> min</span></div><div class="l">prometido no iFood</div></div>'+
-    '<div class="big alvo"><div class="n">'+sug+'<span> min</span></div><div class="l">a conta pede</div></div>'+
-    '<div class="big"><div class="n">'+Number(d.fila||0)+'</div><div class="l">pedidos em aberto</div></div>'+
-   '</div>'+acao+'</div>';
+    '<div class="big"><div class="n">'+prom+'<span> min</span></div><div class="l">prometido no iFood</div><div class="x">o cliente enxerga '+(prom+10)+' min</div></div>'+
+    '<div class="big alvo"><div class="n">'+sug+'<span> min</span></div><div class="l">a conta pede</div><div class="x">cobre 8 de cada 10 pedidos</div></div>'+
+    '<div class="big"><div class="n">'+(ppm==null?'—':ppm)+'</div><div class="l">pedidos por motoboy</div><div class="x">'+clima+' · o limite hoje é '+lim+'</div></div>'+
+   '</div>'+acao+moto+'</div>';
 
   h+='<div class="res">'+
-   '<div class="k'+(prep>25?' mal':'')+'"><div class="n">'+prep+' min</div><div class="l">preparo · alarme acima de 25</div></div>'+
+   '<div class="k'+(faltam>0?' mal':' bom')+'"><div class="n">'+motos+'</div><div class="l">motoboys na rua</div></div>'+
+   '<div class="k"><div class="n">'+Number(d.pedidos_hora||0)+'</div><div class="l">pedidos na última hora</div></div>'+
    '<div class="k'+(prontos>=10?' mal':(prontos>=5?' aten':''))+'"><div class="n">'+prontos+'</div><div class="l">prontos esperando motoboy</div></div>'+
    '<div class="k"><div class="n">'+Number(d.esperando_cozinha||0)+'</div><div class="l">na fila da cozinha</div></div>'+
+   '<div class="k'+(Number(d.preparo_p80||0)>22?' aten':'')+'"><div class="n">'+Number(d.preparo_p80||0)+' min</div><div class="l">preparo</div></div>'+
    '<div class="k'+(antigo>90?' mal':'')+'"><div class="n">'+antigo+' min</div><div class="l">o pedido mais antigo</div></div>'+
-   '<div class="k"><div class="n">'+Number(d.pedidos_hora||0)+'</div><div class="l">pedidos na última hora</div></div>'+
-   '<div class="k'+(Number(d.chuva_mm||0)>=2?' aten':'')+'"><div class="n">'+Number(d.chuva_mm||0).toFixed(1)+' mm</div><div class="l">chuva agora · '+Number(d.chuva_prob||0)+'% de chance</div></div>'+
+   '<div class="k'+(Number(d.chuva_mm||0)>=1?' aten':'')+'"><div class="n">'+Number(d.chuva_mm||0).toFixed(1)+' mm</div><div class="l">chuva agora · '+Number(d.chuva_prob||0)+'% de chance</div></div>'+
   '</div>';
 
-  h+='<div class="regua"><h2>A régua, medida em 11.966 pedidos de 60 dias</h2><table>'+
-   '<tr><td>Dia normal, qualquer movimento</td><td>65 min</td></tr>'+
-   '<tr><td>Chuva, movimento normal</td><td>75 min</td></tr>'+
-   '<tr><td>Chuva <b>e</b> 25 ou mais pedidos na hora</td><td>95 min</td></tr>'+
-   '<tr><td>Cozinha lenta (preparo acima de 25 min)</td><td>sobe um degrau</td></tr>'+
-   '<tr><td>10 ou mais prontos parados sem motoboy</td><td>+20 min</td></tr>'+
+  const linha=(cond,a,b)=>'<tr class="'+(cond?'aqui':'')+'"><td>'+a+'</td><td>'+b+'</td></tr>';
+  const seco=clima==='seco', garoa=clima==='garoa', chuva=clima==='chuva';
+  const p=(ppm==null?-1:Number(ppm));
+  h+='<div class="regua"><h2>A régua — medida em 11.980 pedidos, 120 dias. A linha amarela é onde você está agora</h2><table>'+
+   linha(seco&&p>=0&&p<=5.5,'Seco, até 5,5 pedidos por motoboy','44 min')+
+   linha(seco&&p>5.5,'Seco, acima de 5,5 por motoboy','50 min')+
+   linha(garoa&&p>=0&&p<=5.5,'Garoa, até 5,5 por motoboy','48 min')+
+   linha(garoa&&p>5.5,'Garoa, acima de 5,5 por motoboy','55 min')+
+   linha(chuva&&p>=0&&p<=4,'Chuva, até 4 por motoboy','48 min')+
+   linha(chuva&&p>4&&p<=5.5,'Chuva, de 4 a 5,5 por motoboy','58 min')+
+   linha(chuva&&p>5.5,'Chuva, acima de 5,5 por motoboy','70 min')+
   '</table>'+
-  '<div class="m">A rua quase não muda: o motoboy leva de 31 a 38 minutos, chova ou não. O que estraga o dia é o preparo, que salta de 25 para 33 minutos quando chove e tem muito pedido ao mesmo tempo. Por isso o alarme é o preparo, não o atraso — quando o atraso aparece, já é tarde.<br><br><b>Para baixar</b>, espere a fila cair abaixo de 15 pedidos e o preparo abaixo de 20 minutos, e confira duas vezes seguidas. Nunca baixe em cima do pico.<br><br>Onde mudar: no Gestor de Pedidos do iFood, em <b>Ajustes → Ajuste de tempo de entrega</b>.</div></div>';
+  '<div class="m"><b>O que a medição mostrou, e é o contrário do que parece.</b> A chuva sozinha quase não atrapalha: em dia de chuva <b>com até 4 pedidos por motoboy, 73% dos pedidos chegam no prazo</b> — quase o mesmo dos 82% de um dia seco. O que derruba tudo é passar de 5,5 pedidos por motoboy debaixo de chuva: aí cai para <b>33%</b>, e a espera pelo motoboy salta de 13 para 29 minutos. A cozinha sobe só de 14 para 19 minutos, e a rua nem muda (18 para 21).<br><br>' +
+  '<b>Por que sobra pedido e falta motoboy justamente na chuva:</b> no almoço de chuva entram <b>20% mais pedidos</b> (os concorrentes que dependem da entrega do iFood ficam sem entregador e caem), e ao mesmo tempo <b>vem menos motoboy trabalhar</b>. As duas coisas empurram para o mesmo lado.<br><br>'+
+  '<b>Por isso a primeira resposta nunca é subir o tempo, é repor motoboy.</b> O almoço de chuva traz cerca de 14 pedidos a mais, que ao ticket medido de R$ 61 viram <b>R$ 860</b> de venda — e sem quem leve, esses pedidos chegam frios. Subir o tempo é o remédio de quando já não dá para repor ninguém.<br><br>'+
+  'Onde mudar o tempo: no Gestor de Pedidos do iFood, em <b>Ajustes → Ajuste de tempo de entrega</b>.</div></div>';
 
-  h+='<div class="m">Atualizado às '+esc(d.agora)+'. A tela se atualiza sozinha a cada 3 minutos. O "prometido" vem do último pedido que entrou pelo Foody, então ele demora alguns minutos para acompanhar uma mudança feita agora no iFood. Só a Água Verde: o Ahú e o São Braz entregam pelo TrackEat e ainda não têm dado aqui.</div>';
+  h+='<div class="m">Atualizado às '+esc(d.agora)+'. A tela se atualiza sozinha de 3 em 3 minutos. O iFood dá <b>10 minutos de tolerância</b> em cima do que você promete — por isso os 44 min viram 54 na conta do cliente, e é essa a régua usada aqui. O "prometido" vem do último pedido que entrou pelo Foody, então demora alguns minutos para acompanhar uma mudança feita agora no iFood. Só a Água Verde: o Ahú e o São Braz entregam pelo TrackEat e ainda não têm dado aqui.</div>';
 
   $('app').innerHTML=h;
 }
