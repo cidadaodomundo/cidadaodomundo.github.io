@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#e6007e">
+<title>Conferência da Maquininha · Cidadão do Mundo</title>
+<style>
+:root{--s0:#0b0e14;--s1:#141922;--s2:#1b2230;--line:#242d3d;--text:#e8edf4;--muted:#8b95a5;--brand:#e6007e;
+--ok:#37b46c;--bad:#e05252;--warn:#e8833a;--info:#4a90d9;--neutro:#6b7686}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1250px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:12.5px;margin-top:3px;line-height:1.5}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:16px}
+.top .rt{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+button.b.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.abas{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.res{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.k{background:var(--s1);border:1px solid var(--line);border-left:4px solid var(--cc,var(--neutro));border-radius:12px;padding:11px 14px;cursor:pointer;min-width:150px}
+.k.on{background:var(--s2);border-color:var(--cc,var(--neutro))}
+.k .n{font-size:22px;font-weight:800;line-height:1.1}
+.k .t{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:3px;font-weight:700}
+.k .v{font-size:12px;color:var(--text);margin-top:4px}
+.wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:920px}
+th{background:var(--s2);text-align:left;padding:9px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);white-space:nowrap}
+td{padding:9px 10px;border-top:1px solid var(--line);vertical-align:top}
+tr:hover td{background:var(--s1)}
+td.n{text-align:right;white-space:nowrap}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;color:#fff}
+.mot{color:var(--muted);font-size:11.5px;margin-top:3px;line-height:1.4}
+.nome{font-weight:600}
+.load,.vazio{padding:26px;text-align:center;color:var(--muted)}
+.aviso{margin-top:16px;background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:13px 15px;font-size:12.5px;color:var(--muted);line-height:1.6}
+.aviso b{color:var(--text)}
+@media(max-width:640px){body{padding:12px}.k{min-width:130px}}
+</style>
+</head>
+<body>
+<div class="top">
+  <div>
+    <h1>💳 Conferência da Maquininha</h1>
+    <div class="sub">Pedido a pedido: o que o <b>Foody</b> diz que foi cobrado, o que o <b>Saipos</b> registrou e o que existe de verdade na <b>Rede</b>.</div>
+  </div>
+  <div class="rt">
+    <button class="b" id="d7">7 dias</button>
+    <button class="b on" id="d30">30 dias</button>
+    <button class="b" id="d60">60 dias</button>
+  </div>
+</div>
+
+<div class="abas">
+  <button class="b on" id="abaLista">Pedido a pedido</button>
+  <button class="b" id="abaMoto">Por motoboy</button>
+</div>
+
+<div class="res" id="res"></div>
+<div id="app"><div class="load">Carregando…</div></div>
+
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const dinheiro=v=>'R$ '+Number(v||0).toFixed(2).replace('.',',');
+const diaBR=s=>s?s.slice(8,10)+'/'+s.slice(5,7):'—';
+
+var DIAS=30, ABA='lista', FILTRO=null, LISTA=[], MOTOS=[], RESUMO=[];
+
+const COR={
+ 'A COBRAR DO MOTOBOY':'var(--bad)',
+ 'COMANDA NAO COBRADA':'var(--warn)',
+ 'SEM VENDA NO SAIPOS':'var(--warn)',
+ 'PROVAVEL - CONFERIR':'var(--info)',
+ 'PAGO DE OUTRO JEITO':'var(--neutro)',
+ 'SEM DADO DA REDE':'var(--neutro)',
+ 'CONFERIDO':'var(--ok)'};
+const NOME={
+ 'A COBRAR DO MOTOBOY':'A cobrar do motoboy',
+ 'COMANDA NAO COBRADA':'Comanda não cobrada',
+ 'SEM VENDA NO SAIPOS':'Sem venda no Saipos',
+ 'PROVAVEL - CONFERIR':'Provável · conferir',
+ 'PAGO DE OUTRO JEITO':'Pago de outro jeito',
+ 'SEM DADO DA REDE':'Sem dado da Rede',
+ 'CONFERIDO':'Conferido'};
+const ORDEM=['A COBRAR DO MOTOBOY','COMANDA NAO COBRADA','SEM VENDA NO SAIPOS','PROVAVEL - CONFERIR','PAGO DE OUTRO JEITO','SEM DADO DA REDE','CONFERIDO'];
+
+function tok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function deAte(){
+  const hoje=new Date(Date.now()-3*36e5);
+  const ate=hoje.toISOString().slice(0,10);
+  const de=new Date(hoje.getTime()-DIAS*864e5).toISOString().slice(0,10);
+  return {de:de,ate:ate};
+}
+async function porta(acao){
+  const p=deAte();
+  const r=await fetch(SB+'rpc/conferencia_maquininha',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_cred:tok(),p_acao:acao,p_dados:{de:p.de,ate:p.ate}})});
+  if(!r.ok)throw new Error('não consegui ler a conferência ('+r.status+')');
+  const j=await r.json();
+  return Array.isArray(j)?j:[];
+}
+
+function pintaResumo(){
+  let h='';
+  ORDEM.forEach(function(s){
+    const r=RESUMO.filter(function(x){return x.situacao===s})[0];
+    if(!r)return;
+    h+='<div class="k'+(FILTRO===s?' on':'')+'" style="--cc:'+COR[s]+'" data-s="'+esc(s)+'">'
+      +'<div class="n" style="color:'+COR[s]+'">'+r.casos+'</div>'
+      +'<div class="t">'+esc(NOME[s]||s)+'</div>'
+      +'<div class="v">'+dinheiro(r.valor)+'</div></div>';
+  });
+  $('res').innerHTML=h;
+  Array.prototype.forEach.call(document.querySelectorAll('.k'),function(el){
+    el.onclick=function(){const s=el.getAttribute('data-s');FILTRO=(FILTRO===s?null:s);pintaResumo();pinta()};
+  });
+}
+
+function pintaLista(){
+  const l=FILTRO?LISTA.filter(function(x){return x.situacao===FILTRO}):LISTA;
+  if(!l.length){$('app').innerHTML='<div class="vazio">Nada neste filtro.</div>';return}
+  let h='<div class="wrap"><table><tr>'
+   +'<th>Dia</th><th>Loja</th><th>Pedido</th><th>Motoboy</th>'
+   +'<th>Foody diz</th><th class="n">Valor</th><th>Saipos registrou</th><th>Na Rede</th><th>Situação</th></tr>';
+  l.forEach(function(x){
+    h+='<tr>'
+     +'<td>'+diaBR(x.dia_operacional)+'</td>'
+     +'<td>'+esc(x.unidade)+'</td>'
+     +'<td>'+esc(x.n_pedido)+'<div class="mot">'+esc(x.quando||'')+'</div></td>'
+     +'<td class="nome">'+esc(x.entregador||'—')+'</td>'
+     +'<td>'+esc(x.meio||'—')+'</td>'
+     +'<td class="n">'+dinheiro(x.valor)+'</td>'
+     +'<td>'+esc(x.saipos_forma||'— não achei a venda')+'</td>'
+     +'<td>'+(x.rede_nsu?('NSU '+esc(x.rede_nsu)+'<div class="mot">'+esc(x.hora_na_rede||'')+' · '+esc(x.dif_min)+' min de diferença</div>'):'—')+'</td>'
+     +'<td><span class="pill" style="background:'+COR[x.situacao]+'">'+esc(NOME[x.situacao]||x.situacao)+'</span>'
+       +'<div class="mot">'+esc(x.motivo||'')+'</div></td>'
+     +'</tr>';
+  });
+  h+='</table></div>';
+  h+='<div class="aviso">São <b>'+l.length+'</b> pedidos nesta lista, dos <b>'+LISTA.length+'</b> cobrados na maquininha nos últimos '+DIAS+' dias. '
+   +'<b>A cobrar do motoboy</b> só aparece quando o Saipos confirma que foi cartão daquele valor <b>e</b> a Rede não tem a transação — é ponto de conversa, não desconto automático. '
+   +'<b>Comanda não cobrada</b> é do atendente, não do motoboy. '
+   +'<b>Sem dado da Rede</b> nunca deve ser cobrado de ninguém: é dia que a Rede não trouxe.</div>';
+  $('app').innerHTML=h;
+}
+
+function pintaMotos(){
+  if(!MOTOS.length){$('app').innerHTML='<div class="vazio">Sem movimento no período.</div>';return}
+  const l=MOTOS.slice().sort(function(a,b){return String(a.entregador).localeCompare(String(b.entregador))});
+  let h='<div class="wrap"><table><tr><th>Motoboy</th><th class="n">Cobrou</th><th class="n">Conferido</th>'
+   +'<th class="n">Provável</th><th class="n">A cobrar</th><th class="n">Valor a cobrar</th><th class="n">Comanda não cobrada</th></tr>';
+  l.forEach(function(x){
+    h+='<tr><td class="nome">'+esc(x.entregador)+'</td>'
+     +'<td class="n">'+x.cobrou+'</td>'
+     +'<td class="n" style="color:var(--ok)">'+x.conferido+'</td>'
+     +'<td class="n" style="color:var(--info)">'+(x.provavel||0)+'</td>'
+     +'<td class="n" style="color:'+(x.a_cobrar>0?'var(--bad)':'var(--muted)')+'">'+(x.a_cobrar||0)+'</td>'
+     +'<td class="n">'+(x.a_cobrar>0?dinheiro(x.valor_a_cobrar):'—')+'</td>'
+     +'<td class="n" style="color:'+(x.comanda_nao_cobrada>0?'var(--warn)':'var(--muted)')+'">'+(x.comanda_nao_cobrada||0)+'</td></tr>';
+  });
+  h+='</table></div>';
+  h+='<div class="aviso">Lista <b>em ordem alfabética, de propósito</b> — é conferência de dinheiro, não nota de desempenho. '
+   +'Quem tem poucas entregas no período aparece com número pequeno dos dois lados: olhe o caso, não a porcentagem. '
+   +'Para ver o pedido, volte em <b>Pedido a pedido</b>.</div>';
+  $('app').innerHTML=h;
+}
+
+function pinta(){ ABA==='lista'?pintaLista():pintaMotos(); }
+
+async function carrega(){
+  $('app').innerHTML='<div class="load">Carregando…</div>';
+  try{
+    const r=await Promise.all([porta('resumo'),porta('lista'),porta('por_motoboy')]);
+    RESUMO=r[0];LISTA=r[1];MOTOS=r[2];
+    pintaResumo();pinta();
+  }catch(e){
+    $('app').innerHTML='<div class="vazio">'+esc(e.message)+'</div>';
+  }
+}
+
+function boot(){
+  ['d7','d30','d60'].forEach(function(id){
+    $(id).onclick=function(){
+      DIAS=id==='d7'?7:(id==='d30'?30:60);
+      ['d7','d30','d60'].forEach(function(o){$(o).className='b'+(o===id?' on':'')});
+      carrega();
+    };
+  });
+  $('abaLista').onclick=function(){ABA='lista';$('abaLista').className='b on';$('abaMoto').className='b';pinta()};
+  $('abaMoto').onclick=function(){ABA='motos';$('abaMoto').className='b on';$('abaLista').className='b';pinta()};
+  carrega();
+}
+
+/* ===== porta unica do portal ===== */
+const CDMMODS=['conferencia'];
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=tok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'conferencia'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(ok)boot()});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
