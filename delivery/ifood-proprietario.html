@@ -107,9 +107,11 @@ function respItem(itens){
 
 async function fetchAll(table,select,order){
   let out=[],from=0,page=1000;
+  const DESDE=new Date(Date.now()-60*864e5).toISOString().slice(0,10); // 60 dias — corte de custo 30/08/2026
   for(;;){
     let q=sb.from(table).select(select);
     if(order)q=q.order(order,{ascending:false});
+    if(order&&order!=="referencia")q=q.gte(order,DESDE);
     const{data,error}=await q.range(from,from+page-1);
     if(error){console.error(table,error);break}
     out=out.concat(data||[]);
