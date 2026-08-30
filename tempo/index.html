@@ -51,6 +51,10 @@ button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);bor
 .regua tr.aqui td{background:rgba(224,168,28,.13);color:#ffe7ab}
 .m{color:var(--muted);font-size:11.5px;margin-top:10px;line-height:1.65}
 .load{color:var(--muted);padding:40px;text-align:center}
+body.alarme{animation:fundoAl .9s ease-in-out infinite alternate}
+@keyframes fundoAl{from{background:var(--s0)}to{background:#4a0a12}}
+.sil{position:fixed;right:14px;bottom:14px;z-index:99;background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;display:none}
+.somaviso{position:fixed;left:0;right:0;bottom:0;background:#c8102e;color:#fff;font-weight:800;text-align:center;padding:12px;z-index:98;display:none}
 </style>
 </head>
 <body>
@@ -59,6 +63,8 @@ button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);bor
   <div class="rt"><button class="b" onclick="location.reload()">↻ Atualizar</button></div>
 </div>
 <div id="app"><div class="load">Carregando…</div></div>
+<button id="sil" class="sil" onclick="silAte=Date.now()+15*60000;document.body.classList.remove('alarme')">🔇 Silenciar 15 min</button>
+<div id="somaviso" class="somaviso">🔊 Toque na tela UMA VEZ para ligar o som do alarme</div>
 
 <script>
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
@@ -127,11 +133,18 @@ function pinta(d){
   '<b>Por isso a primeira resposta nunca é subir o tempo, é repor motoboy.</b> O almoço de chuva traz cerca de 14 pedidos a mais, que ao ticket medido de R$ 61 viram <b>R$ 860</b> de venda — e sem quem leve, esses pedidos chegam frios. Subir o tempo é o remédio de quando já não dá para repor ninguém.<br><br>'+
   'Onde mudar o tempo: no Gestor de Pedidos do iFood, em <b>Ajustes → Ajuste de tempo de entrega</b>.</div></div>';
 
-  h+='<div class="m">Atualizado às '+esc(d.agora)+'. A tela se atualiza sozinha de 3 em 3 minutos. O iFood dá <b>10 minutos de tolerância</b> em cima do que você promete — por isso os 44 min viram 54 na conta do cliente, e é essa a régua usada aqui. O "prometido" vem do último pedido que entrou pelo Foody, então demora alguns minutos para acompanhar uma mudança feita agora no iFood. Só a Água Verde: o Ahú e o São Braz entregam pelo TrackEat e ainda não têm dado aqui.</div>';
+  h+='<div class="m">Atualizado às '+esc(d.agora)+'. A tela se atualiza sozinha de 3 em 3 minutos. <b>Quando fica vermelha, ela pisca e APITA</b> até a situação resolver (o botão no canto silencia por 15 minutos). O iFood dá <b>10 minutos de tolerância</b> em cima do que você promete — por isso os 44 min viram 54 na conta do cliente, e é essa a régua usada aqui. O "prometido" vem do último pedido que entrou pelo Foody, então demora alguns minutos para acompanhar uma mudança feita agora no iFood. Só a Água Verde: o Ahú e o São Braz entregam pelo TrackEat e ainda não têm dado aqui.</div>';
 
   $('app').innerHTML=h;
+  alarme(cls==='vermelho');
 }
 
+let AC=null,somOk=false,silAte=0,apitador=null;
+function ligaSom(){try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();somOk=true;var av=document.getElementById('somaviso');if(av)av.style.display='none';}catch(e){}}
+document.addEventListener('click',ligaSom);
+function apita(){if(!somOk||!AC)return;if(Date.now()<silAte)return;try{var t=AC.currentTime;var o=AC.createOscillator(),g=AC.createGain();o.type='square';o.frequency.value=880;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.5,t+0.05);g.gain.exponentialRampToValueAtTime(0.0001,t+0.55);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+0.6);var o2=AC.createOscillator(),g2=AC.createGain();o2.type='square';o2.frequency.value=660;g2.gain.setValueAtTime(0.0001,t+0.6);g2.gain.exponentialRampToValueAtTime(0.5,t+0.65);g2.gain.exponentialRampToValueAtTime(0.0001,t+1.15);o2.connect(g2);g2.connect(AC.destination);o2.start(t+0.6);o2.stop(t+1.2);}catch(e){}}
+function alarme(liga){if(Date.now()<silAte)liga=false;document.body.classList.toggle('alarme',liga);var b=document.getElementById('sil');if(b)b.style.display=liga?'block':'none';var av=document.getElementById('somaviso');if(av)av.style.display=(liga&&!somOk)?'block':'none';if(liga){if(!apitador){apita();apitador=setInterval(apita,4000)}}else if(apitador){clearInterval(apitador);apitador=null}}
+try{if(navigator.wakeLock)navigator.wakeLock.request('screen').catch(function(){})}catch(e){}
 async function boot(){
   const t=cdmTok();
   const d=await rpc('delivery_tempo',{p_token:t});
