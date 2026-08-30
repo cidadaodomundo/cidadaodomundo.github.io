@@ -344,12 +344,12 @@ async function rhRPC(acao,dados){
 async function loadAll(){
   if(VIEW==='day')$('content').innerHTML='<div class="loading">Carregando…</div>';
   try{
-    const cutoff=new Date(Date.now()-7*864e5).toISOString().slice(0,10);
+    const cutoff=new Date(Date.now()-7*864e5).toISOString().slice(0,10);const hojeBR=new Date(Date.now()-3*36e5).toISOString().slice(0,10);
     ARRERR=0;
-    ALL=arrOk(await fetch(SB+'fato_espelho_dia?ativo=eq.true'+(SOSB?'&unidade=eq.'+encodeURIComponent('São Braz'):'')+'&data=gte.'+cutoff+'&select=nome,unidade,data,dia_semana,categoria,nivel,tag,jornada_liquida_min,intervalo_real_min,jornada_contratada_min,extra_min&order=data.asc',{headers:H}).then(r=>r.json()),'espelho do dia');
-    const _det=await rhRPC('espelho',{de:cutoff,ate:'2099-12-31'});
+    ALL=arrOk(await fetch(SB+'fato_espelho_dia?ativo=eq.true'+(SOSB?'&unidade=eq.'+encodeURIComponent('São Braz'):'')+'&data=gte.'+cutoff+'&data=lte.'+hojeBR+'&select=nome,unidade,data,dia_semana,categoria,nivel,tag,jornada_liquida_min,intervalo_real_min,jornada_contratada_min,extra_min&order=data.asc',{headers:H}).then(r=>r.json()),'espelho do dia');
+    const _det=await rhRPC('espelho',{de:cutoff,ate:hojeBR});
     if(_det.length){const _m={};_det.forEach(d=>{_m[d.nome+'|'+d.data]=d});ALL.forEach(r=>{const x=_m[r.nome+'|'+r.data];if(x){r.detalhe=x.detalhe;r.marcacoes_txt=x.marcacoes_txt}})}
-    DAYS=[...new Set(ALL.map(r=>r.data))].sort();
+    DAYS=[...new Set(ALL.map(r=>r.data))].filter(function(d){return d<=hojeBR}).sort();
     try{
       EVJ={};REFP=[];REFI=[];REFDIA='';
       const _ev=await rhRPC('eventos',{de:new Date(Date.now()-90*864e5).toISOString().slice(0,10),ate:'2099-12-31'});
