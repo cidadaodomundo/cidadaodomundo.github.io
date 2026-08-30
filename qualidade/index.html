@@ -76,7 +76,37 @@ const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){retur
 
 let D=null,DD=null,SU=null,DIAS=30,UNI='',ABA='resumo',DIA='';
 
-function ontem(){const d=new Date();d.setDate(d.getDate()-1);return d.toISOString().slice(0,10)}
+function hoje(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)}
+function ontem(){const d=new Date();d.setDate(d.getDate()-1);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)}
+let FR=null,TIMER=null;
+async function puxaFrescor(){try{FR=await porta('qualidade_frescor',undefined)}catch(e){FR=null}}
+function idade(f){
+  if(f.min!=null&&f.min<600)return f.min<2?'agora mesmo':(f.min<60?'há '+f.min+' min':'há '+Math.floor(f.min/60)+'h'+(f.min%60?' '+(f.min%60)+'min':''));
+  if(f.dias!=null)return f.dias===0?'hoje':(f.dias===1?'ontem':'há '+f.dias+' dias');
+  return '—';
+}
+function carimbo(){
+  if(!FR||!FR.fontes)return '';
+  let h='<div class="c" style="padding:10px 14px"><div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">'+
+        '<b style="font-size:12.5px">🕐 De quando é cada número</b>';
+  FR.fontes.forEach(function(f){
+    const velho=(f.dias!=null&&f.dias>=2)||(f.min!=null&&f.min>=600);
+    h+='<span style="font-size:11.5px;color:var(--muted)">'+esc(f.fonte)+': '+
+       '<span class="pill '+(velho?'p-bad':'p-ok')+'">'+idade(f)+'</span></span>';
+  });
+  h+='</div><div class="m">Cada fonte entra no sistema num ritmo diferente. Entrega e prazo vêm de 5 em 5 minutos; avaliação e chamado do iFood dependem do robô que roda no computador, 9h e 17h.</div></div>';
+  return h;
+}
+function ligaTimer(){
+  if(TIMER){clearInterval(TIMER);TIMER=null}
+  if(ABA!=='dia')return;
+  /* 3 minutos, e so enquanto a aba estiver na frente */
+  TIMER=setInterval(function(){
+    if(document.visibilityState!=='visible')return;
+    if(ABA!=='dia'){clearInterval(TIMER);TIMER=null;return}
+    puxaDia();
+  },180000);
+}
 
 async function porta(nome,dados){
   const r=await fetch(SB+'rpc/'+nome,{method:'POST',
@@ -86,7 +116,7 @@ async function porta(nome,dados){
   return await r.json();
 }
 async function puxa(){return porta('qualidade_consulta',{dias:DIAS,unidade:UNI||null})}
-async function puxaDia(){DD=await porta('qualidade_dia',{dia:DIA||ontem(),unidade:UNI||null});desenha()}
+async function puxaDia(){DD=await porta('qualidade_dia',{dia:DIA||hoje(),unidade:UNI||null});await puxaFrescor();desenha()}
 async function puxaSuper(){SU=await porta('qualidade_super',{dias:DIAS});desenha()}
 
 function n(v){return v==null?'—':String(v)}
@@ -131,17 +161,20 @@ function filtros(){
   if(ABA==='dia'){
     h+='<div class="fil" style="align-items:center">'+
        '<span style="color:var(--muted);font-size:12.5px;font-weight:700">Escolha o dia:</span>'+
-       '<input type="date" id="qdia" value="'+(DIA||ontem())+'" max="'+ontem()+'" '+
+       '<input type="date" id="qdia" value="'+(DIA||hoje())+'" max="'+hoje()+'" '+
        'onchange="DIA=this.value;DD=null;puxaDia()" '+
        'style="background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:700">'+
-       '<button onclick="DIA=ontem();DD=null;puxaDia()">Ontem</button>'+
+       '<button class="'+((DIA||hoje())===hoje()?'on':'')+'" onclick="DIA=hoje();DD=null;puxaDia()">Hoje, ao vivo</button>'+
+       '<button class="'+(DIA===ontem()?'on':'')+'" onclick="DIA=ontem();DD=null;puxaDia()">Ontem</button>'+
        '</div>';
+    h+=carimbo();
   }
   return h;
 }
 
 function vaiPara(a){
   ABA=a;
+  ligaTimer();
   if(a==='dia'&&!DD){desenha();puxaDia();return}
   if(a==='super'&&!SU){desenha();puxaSuper();return}
   if(a==='motivos'&&!SU){desenha();puxaSuper();return}
