@@ -74,15 +74,20 @@ const $=i=>document.getElementById(i);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
 
-let D=null,DIAS=30,UNI='',ABA='resumo';
+let D=null,DD=null,SU=null,DIAS=30,UNI='',ABA='resumo',DIA='';
 
-async function puxa(){
-  const r=await fetch(SB+'rpc/qualidade_consulta',{method:'POST',
+function ontem(){const d=new Date();d.setDate(d.getDate()-1);return d.toISOString().slice(0,10)}
+
+async function porta(nome,dados){
+  const r=await fetch(SB+'rpc/'+nome,{method:'POST',
     headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
-    body:JSON.stringify({p_token:tok(),p_dados:{dias:DIAS,unidade:UNI||null}})});
+    body:JSON.stringify({p_token:tok(),p_dados:dados})});
   if(!r.ok){let m='';try{const j=await r.json();m=(j&&(j.message||j.hint))||''}catch(e){}throw new Error(m||('porta '+r.status))}
   return await r.json();
 }
+async function puxa(){return porta('qualidade_consulta',{dias:DIAS,unidade:UNI||null})}
+async function puxaDia(){DD=await porta('qualidade_dia',{dia:DIA||ontem(),unidade:UNI||null});desenha()}
+async function puxaSuper(){SU=await porta('qualidade_super',{dias:DIAS});desenha()}
 
 function n(v){return v==null?'—':String(v)}
 function br(v){return v==null?'—':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
@@ -116,13 +121,31 @@ function filtros(){
     h+='<button class="'+(UNI===l.unidade?'on':'')+'" onclick="UNI=\''+esc(l.unidade).replace(/'/g,"\\'")+'\';boot()">'+esc(l.unidade)+'</button>';
   });
   h+='</div>';
-  const abas=[['resumo','📈 Resumo'],['lojas','🏪 Por loja'],['turnos','🕐 Por turno'],
+  const abas=[['resumo','📈 Resumo'],['dia','🗓 O dia'],['super','🏆 Selo Super'],
+              ['motivos','📞 Por que reclamaram'],['lojas','🏪 Por loja'],['turnos','🕐 Por turno'],
               ['cliente','💬 O que o cliente falou'],['pausados','📵 Fora do ar']];
   if(D.modo==='dono')abas.push(['dinheiro','💰 Dinheiro'],['pessoas','🛵 Entregadores']);
   h+='<div class="fil">';
-  abas.forEach(function(a){h+='<button class="'+(ABA===a[0]?'on':'')+'" onclick="ABA=\''+a[0]+'\';desenha()">'+a[1]+'</button>'});
+  abas.forEach(function(a){h+='<button class="'+(ABA===a[0]?'on':'')+'" onclick="vaiPara(\''+a[0]+'\')">'+a[1]+'</button>'});
   h+='</div>';
+  if(ABA==='dia'){
+    h+='<div class="fil" style="align-items:center">'+
+       '<span style="color:var(--muted);font-size:12.5px;font-weight:700">Escolha o dia:</span>'+
+       '<input type="date" id="qdia" value="'+(DIA||ontem())+'" max="'+ontem()+'" '+
+       'onchange="DIA=this.value;DD=null;puxaDia()" '+
+       'style="background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:700">'+
+       '<button onclick="DIA=ontem();DD=null;puxaDia()">Ontem</button>'+
+       '</div>';
+  }
   return h;
+}
+
+function vaiPara(a){
+  ABA=a;
+  if(a==='dia'&&!DD){desenha();puxaDia();return}
+  if(a==='super'&&!SU){desenha();puxaSuper();return}
+  if(a==='motivos'&&!SU){desenha();puxaSuper();return}
+  desenha();
 }
 
 function resumo(){
@@ -238,10 +261,143 @@ function pessoas(){
   return h;
 }
 
+/* ===== o dia, em detalhe, turno por turno ===== */
+function odia(){
+  if(!DD)return '<div class="c"><div class="load">Buscando o dia…</div></div>';
+  const t=DD.total||{};
+  let h='<div class="cards">';
+  h+=cartao('Entregas no dia', n(t.entregas), '<div class="d flat">'+n(t.no_prazo)+' chegaram no prazo</div>');
+  h+=cartao('No prazo', (t.pct_prazo==null?'—':t.pct_prazo+'%'), '<div class="d flat">'+n(t.atrasados)+' atrasaram</div>');
+  h+=cartao('Atraso médio', (t.atraso_medio==null?'—':t.atraso_medio+' min'), '<div class="d flat">só dos que atrasaram</div>');
+  h+=cartao('Atraso máximo', (t.pior_atraso==null?'—':t.pior_atraso+' min'), '<div class="d flat">o pedido mais demorado</div>');
+  h+=cartao('Preparo', (t.preparo_medio==null?'—':t.preparo_medio+' min'), '<div class="d flat">cozinha</div>');
+  h+=cartao('Espera do motoboy', (t.coleta_media==null?'—':t.coleta_media+' min'), '<div class="d flat">da comida pronta até sair</div>');
+  h+=cartao('Rua', (t.entrega_media==null?'—':t.entrega_media+' min'), '<div class="d flat">da loja até o cliente</div>');
+  h+='</div>';
+
+  const T=DD.por_turno||[];
+  if(T.length){
+    h+='<h2>🕐 Turno por turno</h2><div class="c"><div class="rolar"><table>'+
+       '<tr><th>Turno</th><th>Entregas</th><th>No prazo</th><th>Atrasaram</th><th>Atraso médio</th>'+
+       '<th>Máximo</th><th>Preparo</th><th>Espera</th><th>Rua</th><th>Cancelou</th><th>Chamados</th></tr>';
+    T.forEach(function(x){
+      h+='<tr><td><b>'+esc(x.turno)+'</b></td><td>'+n(x.entregas)+'</td>'+
+         '<td>'+(x.pct_prazo==null?'—':x.pct_prazo+'%')+barra(x.pct_prazo)+'</td>'+
+         '<td>'+(x.atrasados>0?'<span class="pill p-warn">'+x.atrasados+'</span>':'0')+'</td>'+
+         '<td>'+(x.atraso_medio==null?'—':x.atraso_medio+' min')+'</td>'+
+         '<td>'+(x.pior_atraso==null?'—':x.pior_atraso+' min')+'</td>'+
+         '<td>'+(x.preparo_medio==null?'—':x.preparo_medio+'</td>')+
+         '<td>'+(x.coleta_media==null?'—':x.coleta_media+'</td>')+
+         '<td>'+(x.entrega_media==null?'—':x.entrega_media+'</td>')+
+         '<td>'+n(x.cancelamentos)+'</td><td>'+n(x.chamados)+'</td></tr>';
+    });
+    h+='</table></div><div class="m">Preparo, Espera e Rua estão em minutos. <b>Preparo</b> é a cozinha; <b>Espera</b> é a comida pronta esperando o motoboy sair; <b>Rua</b> é da loja até a porta do cliente. Quando o atraso é grande e o preparo está normal, o gargalo não é a cozinha.</div></div>';
+  }
+
+  const HH=(DD.por_hora||[]).filter(function(x){return x.entregas>0});
+  if(HH.length){
+    h+='<h2>⏰ Hora a hora</h2><div class="c"><div class="rolar"><table>'+
+       '<tr><th>Hora</th><th>Entregas</th><th>No prazo</th><th>Atraso médio</th></tr>';
+    HH.forEach(function(x){
+      h+='<tr><td><b>'+String(x.h).padStart(2,'0')+'h</b></td><td>'+n(x.entregas)+'</td>'+
+         '<td>'+(x.pct_prazo==null?'—':x.pct_prazo+'%')+barra(x.pct_prazo)+'</td>'+
+         '<td>'+(x.atraso_medio==null?'—':x.atraso_medio+' min')+'</td></tr>';
+    });
+    h+='</table></div><div class="m">A hora em que o prazo cai é a hora em que falta gente. É o número mais útil para montar escala.</div></div>';
+  }
+
+  const A=DD.avaliacoes||[];
+  if(A.length){
+    h+='<h2>💬 O que o cliente falou nesse dia</h2><div class="c">';
+    A.forEach(function(f){
+      h+='<div class="fala"><div class="q">"'+esc(f.comentario||'(sem comentário)')+'"</div>'+
+         '<div class="w">★ '+f.nota+' · '+esc(f.marca||f.unidade)+'</div></div>';
+    });
+    h+='</div>';
+  }
+
+  const P=DD.problemas||[];
+  if(P.length){
+    h+='<h2>🐢 Os pedidos que atrasaram</h2><div class="c"><div class="rolar"><table>'+
+       '<tr><th>Pedido</th><th>Hora</th><th>Loja</th><th>Turno</th><th>Atrasou</th><th>Prometido</th>'+
+       '<th>Preparo</th><th>Espera</th><th>Rua</th>'+(DD.modo==='dono'?'<th>Entregador</th>':'')+'</tr>';
+    P.forEach(function(p){
+      h+='<tr><td><b>'+esc(p.n_pedido)+'</b></td><td>'+esc(p.hora||'')+'</td><td>'+esc(p.unidade)+'</td>'+
+         '<td>'+esc(p.turno||'')+'</td>'+
+         '<td><span class="pill p-bad">'+n(p.atraso)+' min</span></td>'+
+         '<td>'+n(p.prometido)+' min</td><td>'+n(p.preparo)+'</td><td>'+n(p.coleta)+'</td><td>'+n(p.entrega)+'</td>'+
+         (DD.modo==='dono'?'<td>'+esc(p.entregador||'—')+'</td>':'')+'</tr>';
+    });
+    h+='</table></div><div class="m">Ordenados do que mais atrasou. Olhe a coluna Preparo: se ela está alta, o pedido nasceu atrasado na cozinha. Se está normal e a Espera está alta, o pedido ficou pronto e parado.</div></div>';
+  }
+  if(!T.length&&!P.length)h+='<div class="c"><div class="vazio">nenhuma entrega nesse dia</div></div>';
+  return h;
+}
+
+/* ===== o Selo Super, com os criterios oficiais do iFood ===== */
+function selo(){
+  if(!SU)return '<div class="c"><div class="load">Buscando…</div></div>';
+  const M=SU.marcas||[], R=SU.regra||{};
+  const sao=M.filter(function(m){return m.e_super}).length;
+  let h='<div class="cards">';
+  h+=cartao('Marcas com o selo', sao+' de '+M.length, '<div class="d flat">na próxima medição</div>');
+  h+=cartao('Nota mínima', '★ '+R.nota_min, '<div class="d flat">média das avaliações</div>');
+  h+=cartao('Cancelamento máximo', R.canc_max_pct+'%', '<div class="d flat">por erro nosso</div>');
+  h+=cartao('Chamados máximo', R.chamados_max_pct+'%', '<div class="d flat">cliente abrindo reclamação</div>');
+  h+='</div>';
+  h+='<div class="c"><b>O que o iFood cobra para dar o selo</b><div class="m">São três réguas, e é preciso passar nas <b>três ao mesmo tempo</b>: nota de <b>4,7 ou mais</b>, cancelamento por erro nosso de <b>1% ou menos</b>, e chamado de cliente de <b>2,5% ou menos</b>. Vale por marca, não por loja, e o iFood recalcula todo mês. Para entrar na conta, a marca precisa de pelo menos 45 pedidos e 10 avaliações em 3 meses.</div></div>';
+
+  if(!M.length)return h+'<div class="c"><div class="vazio">sem medição do iFood ainda</div></div>';
+  h+='<h2>🏆 Como está cada marca</h2><div class="c"><div class="rolar"><table>'+
+     '<tr><th>Marca</th><th>Selo</th><th>Nível</th><th>Nota</th><th>Cancelou</th><th>Chamados</th><th>Falta o quê</th></tr>';
+  M.forEach(function(m){
+    const ok=function(v){return v?'<span class="pill p-ok">ok</span>':'<span class="pill p-bad">fora</span>'};
+    h+='<tr><td><b>'+esc(m.marca)+'</b><div class="m">'+n(m.pedidos)+' pedidos · '+n(m.avaliados)+' avaliados</div></td>'+
+       '<td>'+(m.e_super?'<span class="pill p-ok">🏆 SUPER</span>':'<span class="pill p-off">não</span>')+'</td>'+
+       '<td>'+esc(m.status||'')+'</td>'+
+       '<td>★ '+n(m.nota)+' '+ok(m.nota_ok)+'</td>'+
+       '<td>'+n(m.canc_pct)+'% '+ok(m.canc_ok)+'</td>'+
+       '<td>'+n(m.chamados_pct)+'% '+ok(m.chamados_ok)+'</td>'+
+       '<td>'+esc(m.o_que_falta||'')+'</td></tr>';
+  });
+  h+='</table></div></div>';
+  h+='<div class="aviso"><b>Esta é a tela que mais importa para a equipe.</b> O selo não é enfeite: marca com selo aparece antes na busca do iFood e vende mais. E repare na coluna Chamados — é quase sempre ela que derruba, não a nota. Chamado é o cliente reclamando de pedido atrasado, item faltando ou item errado; tudo coisa que se resolve na cozinha e no despacho.</div>';
+  return h;
+}
+
+/* ===== por que o cliente reclamou ===== */
+function motivos(){
+  if(!SU)return '<div class="c"><div class="load">Buscando…</div></div>';
+  const C=SU.motivos_chamado||[], X=SU.motivos_cancelamento||[];
+  let tot=0; C.forEach(function(m){tot+=m.qtd});
+  let h='';
+  if(C.length){
+    h+='<h2>📞 Por que o cliente abriu chamado — '+SU.dias+' dias</h2><div class="c"><div class="rolar"><table>'+
+       '<tr><th>Motivo</th><th>Vezes</th><th>Peso</th><th>Cancelamento evitado</th></tr>';
+    C.forEach(function(m){
+      const pc=tot?Math.round(100*m.qtd/tot):0;
+      h+='<tr><td>'+esc(m.motivo)+'</td><td><b>'+m.qtd+'</b></td>'+
+         '<td>'+pc+'%'+barra(pc)+'</td><td>'+n(m.evitados)+'</td></tr>';
+    });
+    h+='</table></div><div class="m">Chamado é o que mais derruba o Selo Super. Cada linha aqui é um motivo pelo qual o cliente foi reclamar — e a de cima é a que mais custa.</div></div>';
+  }
+  if(X.length){
+    h+='<h2>🚫 Por que os pedidos foram cancelados</h2><div class="c"><div class="rolar"><table>'+
+       '<tr><th>Motivo</th><th>Vezes</th></tr>';
+    X.forEach(function(m){h+='<tr><td>'+esc(m.motivo)+'</td><td><b>'+m.qtd+'</b></td></tr>'});
+    h+='</table></div></div>';
+  }
+  if(!C.length&&!X.length)h='<div class="c"><div class="vazio">nenhuma reclamação no período 🎉</div></div>';
+  return h;
+}
+
 function desenha(){
   if(!D){$('app').innerHTML='<div class="load">Carregando…</div>';return}
   let h=filtros();
-  if(ABA==='resumo')h+=resumo();
+  if(ABA==='dia')h+=odia();
+  else if(ABA==='super')h+=selo();
+  else if(ABA==='motivos')h+=motivos();
+  else if(ABA==='resumo')h+=resumo();
   else if(ABA==='lojas')h+=tabelaLojas();
   else if(ABA==='turnos')h+=tabelaTurnos();
   else if(ABA==='cliente')h+=falas();
@@ -253,6 +409,7 @@ function desenha(){
 
 async function boot(){
   $('app').innerHTML='<div class="load">Carregando…</div>';
+  DD=null;SU=null;
   try{ D=await puxa(); }
   catch(e){ $('app').innerHTML='<div class="c">Não deu para carregar. '+esc(e.message||'')+'</div>'; return }
   const f=String(D.de).slice(8,10)+'/'+String(D.de).slice(5,7);
