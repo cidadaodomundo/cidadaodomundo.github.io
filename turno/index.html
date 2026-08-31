@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#c8102e">
+<title>Turno do Delivery · Cidadão do Mundo</title>
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#c8102e;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:900px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:14px}
+.top .rt{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+button.b:hover{border-color:var(--brand)}
+select,input[type=date],input[type=text],input[type=number]{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 10px;font-size:13px;font-family:inherit}
+.abas{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.aba{background:var(--s2);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer}
+.aba.on{color:var(--text);border-color:var(--brand)}
+h2{font-size:14px;font-weight:800;margin:20px 0 8px;color:var(--text2)}
+.c{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:10px}
+.linha{display:flex;gap:9px;align-items:flex-start;padding:7px 0;font-size:14px;cursor:pointer;color:var(--text2);border-bottom:1px solid rgba(255,255,255,.04)}
+.linha:hover{color:var(--text)}
+.linha .cx{flex:0 0 auto;width:20px;text-align:center;font-size:15px}
+.linha.feito{color:var(--muted)}
+.linha.feito .tx{text-decoration:line-through}
+.assin{color:var(--muted);font-size:11.5px;margin-top:2px}
+.barra{height:8px;background:var(--s2);border-radius:999px;overflow:hidden;margin:6px 0 2px}
+.barra i{display:block;height:100%;background:var(--ok)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.mq{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:12px 14px}
+.mq b{font-size:14px}
+.mq select{width:100%;margin-top:8px}
+.form{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-top:10px}
+.form label{font-size:11.5px;color:var(--muted);display:block;margin-bottom:4px;font-weight:700}
+.form input,.form select{width:100%}
+.wide{grid-column:1/-1}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+th{text-align:left;color:var(--muted);font-size:11.5px;font-weight:700;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:top}
+.x{color:var(--muted);cursor:pointer;font-weight:700}
+.x:hover{color:var(--bad)}
+.aviso{color:var(--muted);font-size:12px;margin:18px 0 30px;line-height:1.5}
+.vazio{color:var(--muted);font-size:13px;padding:8px 0}
+</style>
+</head>
+<body>
+<div class="top">
+  <div><h1>🧾 Turno do Delivery</h1><div class="sub">o que precisa ser conferido no turno, os cancelamentos do dia e qual maquininha ficou com quem</div></div>
+  <div class="rt">
+    <input type="date" id="dia">
+    <select id="turno"><option value="manha">☀ Manhã</option><option value="noite" selected>🌙 Noite</option></select>
+    <select id="uni"><option value="Agua Verde">Água Verde</option><option value="Sao Braz">São Braz</option><option value="Ahu">Ahú</option></select>
+    <button class="b" id="btAtualiza">⟳ Atualizar</button>
+  </div>
+</div>
+<div class="abas">
+  <span class="aba on" data-aba="check">✅ Checklist do turno</span>
+  <span class="aba" data-aba="cancel">🚫 Cancelamentos</span>
+  <span class="aba" data-aba="maq">💳 Maquininhas</span>
+</div>
+<div id="app">Carregando…</div>
+<div class="aviso">Cada marcação guarda o seu nome e a hora. O que você marcar fica valendo para o dia, o turno e a loja escolhidos lá em cima. Tela em construção — fale o que falta que a gente arruma.</div>
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+let D=null, ABA='check';
+function ctx(){return {dia:$('dia').value,turno:$('turno').value,unidade:$('uni').value}}
+async function porta(acao,dados){
+  const c=ctx(); const d=Object.assign({},c,dados||{});
+  const r=await fetch(SB+'rpc/turno_delivery',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:cdmTok(),p_acao:acao,p_dados:d})});
+  if(!r.ok)throw new Error('porta '+r.status);
+  return await r.json();
+}
+function moeda(v){if(v==null||v==='')return '—';return 'R$ '+Number(v).toFixed(2).replace('.',',')}
+function desenhaCheck(){
+  const l=D.checklist||[];
+  if(!l.length)return '<div class="c vazio">Não há itens de checklist para este turno.</div>';
+  const feitos=l.filter(function(o){return o.feito}).length;
+  let h='<div class="c"><b>'+feitos+' de '+l.length+' conferidos</b><div class="barra"><i style="width:'+Math.round(feitos*100/l.length)+'%"></i></div></div>';
+  let sec='';
+  l.forEach(function(o){
+    if(o.secao!==sec){if(sec)h+='</div>';sec=o.secao;h+='<h2>'+esc(sec)+'</h2><div class="c">';}
+    h+='<div class="linha'+(o.feito?' feito':'')+'" data-item="'+o.id+'" data-ok="'+(o.feito?'1':'0')+'">'+
+       '<span class="cx">'+(o.feito?'✔':'○')+'</span><span><span class="tx">'+esc(o.texto)+'</span>'+
+       (o.feito&&o.quem?'<div class="assin">'+esc(o.quem)+' · '+esc(o.quando||'')+'</div>':'')+'</span></div>';
+  });
+  if(sec)h+='</div>';
+  return h;
+}
+function desenhaMaq(){
+  const l=D.maquininhas||[];
+  if(!l.length)return '<div class="c vazio">Nenhuma maquininha cadastrada nesta loja. Por enquanto só a Água Verde tem as 6.</div>';
+  const ops=['<option value="">— ninguém —</option>'].concat((D.motoboys||[]).map(function(m){return '<option value="'+esc(m)+'">'+esc(m)+'</option>'})).join('');
+  let h='<div class="grid">';
+  l.forEach(function(o){
+    h+='<div class="mq"><b>'+esc(o.apelido)+'</b>'+
+       '<select data-maq="'+o.id+'">'+ops+'</select>'+
+       (o.quem?'<div class="assin">quem anotou: '+esc(o.quem)+' · '+esc(o.quando||'')+'</div>':'<div class="assin">ainda não anotado</div>')+
+       '</div>';
+  });
+  h+='</div>';
+  return h;
+}
+function desenhaCancel(){
+  const dono=!!D.dono;
+  let h='<div class="c"><b>Lançar um cancelamento</b><div class="form">'+
+    '<div><label>Canal</label><select id="fCanal"><option>iFood</option><option>Foody</option><option>Balcão</option><option>Telefone</option><option>Outro</option></select></div>'+
+    '<div><label>Número do pedido</label><input type="text" id="fPedido" placeholder="ex.: 6558"></div>'+
+    '<div><label>Cliente</label><input type="text" id="fCliente" placeholder="nome do cliente"><div class="assin">na lista aparece só as iniciais</div></div>'+
+    (dono?'<div><label>Valor (R$)</label><input type="number" id="fValor" step="0.01" placeholder="0,00"></div>':'')+
+    '<div><label>Quem cancelou</label><select id="fQuem"><option value="">—</option><option>Cliente</option><option>Loja</option><option>iFood</option><option>Entregador</option></select></div>'+
+    '<div class="wide"><label>Motivo (obrigatório)</label><input type="text" id="fMotivo" placeholder="ex.: item em falta, cliente desistiu, endereço errado"></div>'+
+    '<div class="wide"><label>Observação</label><input type="text" id="fObs" placeholder="o que mais precisa ficar registrado"></div>'+
+    '<div class="wide"><button class="b" id="btSalvaCancel">Salvar cancelamento</button></div>'+
+    '</div></div>';
+  const l=D.cancelamentos||[];
+  h+='<h2>Últimos 7 dias ('+l.length+')</h2>';
+  if(!l.length)return h+'<div class="c vazio">Nenhum cancelamento lançado ainda.</div>';
+  h+='<div class="c"><table><tr><th>Quando</th><th>Canal</th><th>Pedido</th><th>Cliente</th><th>Motivo</th>'+(dono?'<th>Valor</th>':'')+'<th>Quem lançou</th><th></th></tr>';
+  l.forEach(function(o){
+    h+='<tr><td>'+esc(o.quando)+'</td><td>'+esc(o.canal)+'</td><td>'+esc(o.n_pedido||'—')+'</td><td>'+esc(o.cliente||'—')+'</td>'+
+       '<td>'+esc(o.motivo)+(o.observacao?'<div class="assin">'+esc(o.observacao)+'</div>':'')+'</td>'+
+       (dono?'<td>'+moeda(o.valor)+'</td>':'')+
+       '<td>'+esc(o.lancado_por)+'</td><td><span class="x" data-apaga="'+o.id+'">apagar</span></td></tr>';
+  });
+  return h+'</table></div>';
+}
+function desenha(){
+  document.querySelectorAll('.aba').forEach(function(a){a.classList.toggle('on',a.dataset.aba===ABA)});
+  if(!D){$('app').innerHTML='<div class="c vazio">Carregando…</div>';return}
+  $('app').innerHTML = ABA==='check'?desenhaCheck():(ABA==='cancel'?desenhaCancel():desenhaMaq());
+  if(ABA==='maq'){
+    (D.maquininhas||[]).forEach(function(o){
+      const s=document.querySelector('[data-maq="'+o.id+'"]');
+      if(s)s.value=o.motoboy||'';
+    });
+  }
+}
+async function boot(){
+  try{ D=await porta('carregar'); desenha(); }
+  catch(e){ $('app').innerHTML='<div class="c">Não deu para carregar. Entre no portal de novo e tente outra vez.</div>' }
+}
+document.addEventListener('click',async function(ev){
+  const aba=ev.target.closest('.aba');
+  if(aba){ABA=aba.dataset.aba;desenha();return}
+  if(ev.target.id==='btAtualiza'){boot();return}
+  const li=ev.target.closest('.linha');
+  if(li){
+    const id=li.dataset.item, ok=li.dataset.ok!=='1';
+    try{ await porta('marcar',{item_id:Number(id),feito:ok}); await boot(); }
+    catch(e){ alert('Não deu para marcar.') }
+    return;
+  }
+  if(ev.target.id==='btSalvaCancel'){
+    const mot=$('fMotivo').value.trim();
+    if(!mot){alert('Escreva o motivo do cancelamento.');return}
+    const dd={canal:$('fCanal').value,n_pedido:$('fPedido').value.trim(),cliente:$('fCliente').value.trim(),
+              motivo:mot,quem_cancelou:$('fQuem').value,observacao:$('fObs').value.trim()};
+    if($('fValor'))dd.valor=$('fValor').value;
+    try{ await porta('cancel_novo',dd); await boot(); }
+    catch(e){ alert('Não deu para salvar.') }
+    return;
+  }
+  if(ev.target.dataset&&ev.target.dataset.apaga){
+    if(!confirm('Apagar este cancelamento?'))return;
+    try{ await porta('cancel_apagar',{id:Number(ev.target.dataset.apaga)}); await boot(); }
+    catch(e){ alert('Só dá para apagar o que você mesmo lançou hoje.') }
+    return;
+  }
+});
+document.addEventListener('change',async function(ev){
+  if(ev.target.dataset&&ev.target.dataset.maq){
+    try{ await porta('maq_definir',{maquininha_id:Number(ev.target.dataset.maq),motoboy:ev.target.value}); await boot(); }
+    catch(e){ alert('Não deu para anotar a maquininha.') }
+    return;
+  }
+  if(ev.target.id==='dia'||ev.target.id==='turno'||ev.target.id==='uni'){boot()}
+});
+/* ===== porta unica do portal ===== */
+const CDMMODS=['turno'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'turno'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+(function(){
+  var hoje=new Date(Date.now()-3*3600*1000).toISOString().slice(0,10);
+  $('dia').value=hoje;
+  var h=new Date().getHours();
+  $('turno').value=(h>=9&&h<18)?'manha':'noite';
+})();
+cdmGuarda().then(function(ok){if(!ok)return;boot();});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
