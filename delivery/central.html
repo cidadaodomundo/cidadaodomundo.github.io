@@ -312,7 +312,7 @@ async function przLoad(){try{
   PRZ=_rr[0]||[];PAU=(_rr[1]||[]).filter(function(r){return r.unidade!=='Boqueirão'});
   PAUMAX="";PAU.forEach(function(r){if(r.visto_em>PAUMAX)PAUMAX=r.visto_em});
 }catch(e){PRZ=[]}}
-function _rs(v){return "R$ "+(+v||0).toFixed(2).replace(".",",")}
+function _rs(v){return _ehDono()?("R$ "+(+v||0).toFixed(2).replace(".",",")):"—"}
 function blocoDinheiro(){
   var hoje=(new Date(Date.now()-7*36e5)).toISOString().slice(0,10);
   var ab=CANC.filter(function(r){return r.contestavel&&!r.loja_contestou&&r.data_limite_contestacao&&String(r.data_limite_contestacao).slice(0,10)>=hoje&&fLojaI(r)});
@@ -320,13 +320,13 @@ function blocoDinheiro(){
   var h='<div class="sec"><h2>💰 Dinheiro em cima da mesa</h2><div class="hs">cancelamentos que o iFood ainda deixa contestar. Passou o prazo, o dinheiro é perdido.</div>';
   if(!ab.length)return h+'<div class="empty">✅ Nada aberto para contestar agora.</div></div>';
   ab.sort(function(x,y){return String(x.data_limite_contestacao)<String(y.data_limite_contestacao)?-1:1});
-  h+='<div class="hs" style="margin:6px 0 10px">Dá para recuperar <b>'+_rs(tot)+'</b> em <b>'+ab.length+'</b> pedido'+(ab.length>1?"s":"")+'.</div>';
-  h+='<table><tr><th>Vence</th><th>Loja</th><th>Pedido</th><th>Motivo</th><th>Valor</th></tr>'+ab.map(function(r){
+  h+='<div class="hs" style="margin:6px 0 10px">'+(_ehDono()?('Dá para recuperar <b>'+_rs(tot)+'</b> em '):'Para contestar: ')+'<b>'+ab.length+'</b> pedido'+(ab.length>1?"s":"")+'.</div>';
+  h+='<table><tr><th>Vence</th><th>Loja</th><th>Pedido</th><th>Motivo</th>'+(_ehDono()?'<th>Valor</th>':'')+'</tr>'+ab.map(function(r){
     var lim=String(r.data_limite_contestacao).slice(0,10);
     var dias=Math.round((new Date(lim+"T00:00:00")-new Date(hoje+"T00:00:00"))/864e5);
     var txt=dias<=0?"hoje":(dias===1?"amanhã":"em "+dias+" dias");
     var cor=dias<=2?"var(--bad)":"var(--warn)";
-    return '<tr><td data-k="'+dias+'" style="color:'+cor+'"><b>'+txt+'</b></td><td>'+kEsc(unidadeDe(r.id_loja)||"—")+'</td><td>'+kEsc(r.id_pedido||"—")+'</td><td>'+kEsc(r.motivo||"—")+'</td><td data-k="'+(+r.valor_pedido||0)+'">'+_rs(r.valor_pedido)+'</td></tr>'}).join("")+'</table>';
+    return '<tr><td data-k="'+dias+'" style="color:'+cor+'"><b>'+txt+'</b></td><td>'+kEsc(unidadeDe(r.id_loja)||"—")+'</td><td>'+kEsc(r.id_pedido||"—")+'</td><td>'+kEsc(r.motivo||"—")+'</td>'+(_ehDono()?('<td data-k="'+(+r.valor_pedido||0)+'">'+_rs(r.valor_pedido)+'</td>'):'')+'</tr>'}).join("")+'</table>';
   return h+'</div>';
 }
 function blocoOndeMelhorar(D){
@@ -426,7 +426,7 @@ function chChat(p){var d=document.getElementById('chatbox');if(!d){d=document.cr
 function chLinha(x){var r=(x.resposta_loja||'—');return '<tr><td>'+kEsc(unidadeDe(x.id_loja))+'</td><td>'+chPed(x)+'</td><td>'+kEsc(x.motivo||'—')+'</td><td style="color:'+(r==='NÃO RESPONDEU'?'var(--bad)':'var(--text2)')+'">'+kEsc(r)+'</td><td>'+(x.cancelamento_evitado?'sim':'—')+'</td></tr>'}
 function cancErro(D,tipo){var re=tipo==='coz'?/VEIO ERRADO|IMPR[ÓO]PRIO/i:/N[ÃA]O FOI ENVIADO|REVIRADO|VIOLADO/i;return (typeof CANC!=='undefined'?CANC:[]).filter(function(c){return c.data===D&&fLojaI(c)&&re.test(c.motivo||'')})}
 function cancMax(){var m='';(typeof CANC!=='undefined'?CANC:[]).forEach(function(c){if(c.data&&c.data>m)m=c.data});return m}
-function _rs(v){return 'R$ '+(Number(v)||0).toFixed(2).replace('.',',')}
+function _rs(v){return _ehDono()?('R$ '+(Number(v)||0).toFixed(2).replace('.',',')):'—'}
 function cancLinha(c){return '<tr><td>'+kEsc(unidadeDe(c.id_loja))+'</td><td>'+kEsc(c.turno||'—')+'</td><td>'+kEsc(c.id_pedido)+'</td><td>'+kEsc(c.motivo||'—')+'</td><td>'+_rs(c.valor_cancelamento)+'</td></tr>'}
 function reeDia(D){return (REE||[]).filter(function(r){return r.dia_operacional===D&&fLoja(r)})}
 function reeCor(f){return f==='COZINHA'?'var(--bad)':f==='DESPACHO'?'var(--warn)':'var(--muted)'}
@@ -557,8 +557,8 @@ function renderDiario(){
     kpi('Avaliações',_avMed==null?'—':('★ '+_avMed.toFixed(2)),_avAtraso?('iFood publicou até '+_dbr(_amax)):(_avQt+' notas · '+_avRuim+' de 1 a 3'),_avMed==null?'var(--muted)':(_avMed>=4.6?'var(--good)':(_avMed>=4.2?'var(--warn)':'var(--bad)')),'aval')+
     kpi('Itens pausados',_pauSem?'—':_pauL.length,_pauSem?(PAUMAX?'última varredura em '+_dbr(PAUMAX):'ainda não varreu'):(_pauL.length?(_pauVelho?_pauVelho+' parado'+(_pauVelho>1?'s':'')+' há 2 dias ou mais':'todos pausados hoje'):'tudo no ar 🎉'),_pauSem?'var(--muted)':(_pauVelho?'var(--bad)':(_pauL.length?'var(--warn)':'var(--good)')),'pau')+
     kpi('Reentregas #',REE===null?'…':(REE===false||_reeNunca?'—':_rd.length),REE===null?'buscando…':(REE===false?'não consegui buscar':(_reeNunca?'ninguém lançou no período':(_rf?_rf+' a classificar':(_rd.length?'todas classificadas':'nenhuma 🎉')))),REE===false?'var(--bad)':(_reeNunca?'var(--muted)':(_rd.length?'var(--warn)':'var(--good)')),'ree')+
-    kpi('Erro cozinha',_rc,_rc?(_rs(_vcz)+' perdidos · veio errado ou impróprio'):(_cAtraso?'iFood publicou até '+_dbr(_cmax):'nenhum 🎉'),_rc?'var(--bad)':(_cAtraso?'var(--muted)':'var(--good)'),'coz')+
-    kpi('Erro despacho',_rp,_rp?(_rs(_vds)+' perdidos · faltou item na sacola'):(_cAtraso?'iFood publicou até '+_dbr(_cmax):'nenhum 🎉'),_rp?'var(--bad)':(_cAtraso?'var(--muted)':'var(--good)'),'des')+kpi('Chamados',_chSem?'—':_chL.length,_chSem?'iFood ainda não publicou nada':(_chAtraso?('📅 dado de '+_dbr(_chMax)+' — iFood não publicou hoje'):(_chL.length?(_chEv?_chEv+' cancelamento'+(_chEv>1?'s':'')+' evitado'+(_chEv>1?'s':''):'nenhum evitado'):'nenhum 🎉')),_chSem?'var(--muted)':(_chAtraso?'var(--muted)':(_chL.length?'var(--warn)':'var(--good)')),'cha')+kpi('Taxa de resposta',(_chSem||!_chL.length)?'—':_chPct+'%',_chSem?'iFood ainda não publicou nada':(_chAtraso?('📅 dado de '+_dbr(_chMax)+' · '+(_chNR?_chNR+' sem resposta':'respondeu todos 🎉')):(!_chL.length?'nenhum chamado no dia':(_chNR?_chNR+' sem resposta':'respondeu todos 🎉'))),(_chSem||!_chL.length)?'var(--muted)':(_chAtraso?'var(--muted)':(_chNR?'var(--bad)':'var(--good)')),'resp')+kpi('Selo Super',(SUP===false||!SUP||!SUP.length)?'—':(supQt()+' de '+SUP.length),(SUP===false)?'não consegui buscar':((!SUP||!SUP.length)?'ainda não capturado':('marcas com o selo · calculado até '+_dbr(supData()))),(SUP===false||!SUP||!SUP.length)?'var(--muted)':(supQt()?'var(--good)':'var(--warn)'),'sup')+
+    kpi('Erro cozinha',_rc,_rc?((_ehDono()?_rs(_vcz)+' perdidos · ':'')+'veio errado ou impróprio'):(_cAtraso?'iFood publicou até '+_dbr(_cmax):'nenhum 🎉'),_rc?'var(--bad)':(_cAtraso?'var(--muted)':'var(--good)'),'coz')+
+    kpi('Erro despacho',_rp,_rp?((_ehDono()?_rs(_vds)+' perdidos · ':'')+'faltou item na sacola'):(_cAtraso?'iFood publicou até '+_dbr(_cmax):'nenhum 🎉'),_rp?'var(--bad)':(_cAtraso?'var(--muted)':'var(--good)'),'des')+kpi('Chamados',_chSem?'—':_chL.length,_chSem?'iFood ainda não publicou nada':(_chAtraso?('📅 dado de '+_dbr(_chMax)+' — iFood não publicou hoje'):(_chL.length?(_chEv?_chEv+' cancelamento'+(_chEv>1?'s':'')+' evitado'+(_chEv>1?'s':''):'nenhum evitado'):'nenhum 🎉')),_chSem?'var(--muted)':(_chAtraso?'var(--muted)':(_chL.length?'var(--warn)':'var(--good)')),'cha')+kpi('Taxa de resposta',(_chSem||!_chL.length)?'—':_chPct+'%',_chSem?'iFood ainda não publicou nada':(_chAtraso?('📅 dado de '+_dbr(_chMax)+' · '+(_chNR?_chNR+' sem resposta':'respondeu todos 🎉')):(!_chL.length?'nenhum chamado no dia':(_chNR?_chNR+' sem resposta':'respondeu todos 🎉'))),(_chSem||!_chL.length)?'var(--muted)':(_chAtraso?'var(--muted)':(_chNR?'var(--bad)':'var(--good)')),'resp')+kpi('Selo Super',(SUP===false||!SUP||!SUP.length)?'—':(supQt()+' de '+SUP.length),(SUP===false)?'não consegui buscar':((!SUP||!SUP.length)?'ainda não capturado':('marcas com o selo · calculado até '+_dbr(supData()))),(SUP===false||!SUP||!SUP.length)?'var(--muted)':(supQt()?'var(--good)':'var(--warn)'),'sup')+
     '</div>'+kPainel();
   
   
@@ -613,7 +613,7 @@ function aggMoto(rows){
     if(r.horas_qr!=null)o.qr++;});
   return Object.values(m).map(o=>({...o,p:pctS(o.ok,o.at)}));
 }
-const rM=v=>'R$ '+Math.round(v).toLocaleString('pt-BR');
+const rM=v=>(_ehDono()?'R$ '+Math.round(v).toLocaleString('pt-BR'):'—');
 function copiarWpp(){
   const t=window.__WPP||'';navigator.clipboard.writeText(t).then(()=>{const b=document.getElementById('wppbtn');if(b){b.textContent='✓ Copiado!';setTimeout(()=>b.textContent='📱 Resumo p/ WhatsApp',1800)}});
 }
