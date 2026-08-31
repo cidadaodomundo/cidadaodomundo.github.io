@@ -61,8 +61,9 @@ async function get(q){try{const r=await fetch(SB+q,{headers:H});return r.ok?awai
 
 async function boot(){
   const d0=new Date();d0.setDate(d0.getDate()-7);
-  const rows=await get('bf_pedido?select=pedido_guid,numero,cliente_nome,valor_total,qtd_itens,itens_resumo,tipo_pedido,status,origem,forma_pagamento,data_cadastro,entrega_texto,data_entrega,hora_entrega,observacao,atualizado_em&data_entrega=gte.'+d0.toLocaleDateString('sv-SE')+'&order=data_entrega.asc&limit=100');
-  const hoje=hojeISO();
+  const rows=await get('bf_pedido?select=pedido_guid,numero,cliente_nome,qtd_itens,itens_resumo,tipo_pedido,status,origem,forma_pagamento,data_cadastro,entrega_texto,data_entrega,hora_entrega,observacao,atualizado_em&data_entrega=gte.'+d0.toLocaleDateString('sv-SE')+'&order=data_entrega.asc&limit=100');
+  try{if((function(){try{return sessionStorage.getItem("cdm_admin")==="1"}catch(e){return false}})()){const _r=await fetch(SB+'rpc/dinheiro_consulta',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_token:cdmTok(),p_acao:'brasa'})});if(_r.ok){const _m=(await _r.json())||[];const _k={};_m.forEach(function(x){_k[x.g]=x.v});rows.forEach(function(r){if(_k[r.pedido_guid]!=null)r.valor_total=_k[r.pedido_guid]})}}}catch(e){}
+const hoje=hojeISO();
   const atrasados=rows.filter(r=>r.data_entrega&&r.data_entrega<hoje);
   const futuros=rows.filter(r=>!r.data_entrega||r.data_entrega>=hoje);
   const total=rows.reduce((a,r)=>a+Number(r.valor_total||0),0);

@@ -56,8 +56,9 @@ const ST={anotada:['anotada — SEM DONO','p-ano'],confirmada:['confirmada','p-c
 
 async function boot(){
   const d0=new Date();d0.setDate(d0.getDate()-14);
-  const rows=await get('encomenda?select=id,unidade,data_entrega,hora,descricao,qtd_itens,valor,status,responsavel,origem,criado_em,obs&data_entrega=gte.'+d0.toLocaleDateString('sv-SE')+'&order=data_entrega.asc&limit=100');
-  const rowsF=SOLOJA?rows.filter(function(r){return r.unidade===SOLOJA}):rows;
+  const rows=await get('encomenda?select=id,unidade,data_entrega,hora,descricao,qtd_itens,status,responsavel,origem,criado_em,obs&data_entrega=gte.'+d0.toLocaleDateString('sv-SE')+'&order=data_entrega.asc&limit=100');
+  try{if((function(){try{return sessionStorage.getItem("cdm_admin")==="1"}catch(e){return false}})()){const _r=await fetch(SB+'rpc/dinheiro_consulta',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_token:cdmTok(),p_acao:'encomenda'})});if(_r.ok){const _m=(await _r.json())||[];const _k={};_m.forEach(function(x){_k[x.id]=x.valor});rows.forEach(function(r){if(_k[r.id]!=null)r.valor=_k[r.id]})}}}catch(e){}
+const rowsF=SOLOJA?rows.filter(function(r){return r.unidade===SOLOJA}):rows;
   const futuras=rowsF.filter(r=>r.status!=='entregue'&&r.status!=='cancelada'&&r.data_entrega>=hojeISO());
   const passadas=rowsF.filter(r=>!futuras.includes(r));
   let h='';
