@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#c8102e">
+<title>Central da Produção · Cidadão do Mundo</title>
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#c8102e;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1180px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:16px}
+.top .rt{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.dot{width:40px;height:40px;border-radius:11px;background:var(--brand);display:grid;place-items:center;font-weight:800;font-size:16px}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+button.b:hover{border-color:var(--muted)}
+button.p{background:var(--brand);border-color:var(--brand)}
+button.p:disabled{opacity:.5;cursor:default}
+h2{font-size:15px;font-weight:800;margin:22px 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+h2 .hint{font-weight:500;font-size:11.5px;color:var(--muted)}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:16px;margin-bottom:14px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:6px}
+.kpi{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:14px 16px}
+.kpi .t{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+.kpi .v{font-size:26px;font-weight:800;line-height:1.15;margin-top:4px}
+.kpi .d{color:var(--muted);font-size:11.5px;margin-top:2px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.f label{display:block;color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:4px}
+.f input,.f select,.f textarea{width:100%;background:var(--s2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;color:var(--text);font-size:13.5px;outline:none;font-family:inherit}
+.f input:focus,.f select:focus,.f textarea:focus{border-color:var(--brand)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px 10px;text-align:left;font-size:13px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+tr:last-child td{border-bottom:none}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.wrap{overflow-x:auto}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap}
+.p-ok{background:rgba(47,174,106,.15);color:var(--ok)}
+.p-bad{background:rgba(230,103,103,.15);color:var(--bad)}
+.p-mute{background:var(--s2);color:var(--muted)}
+.aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:11px 14px;font-size:12.5px;margin:12px 0}
+.load{color:var(--muted);padding:26px;text-align:center}
+.empty{color:var(--muted);padding:22px;text-align:center;font-size:13px}
+.msg{font-size:12.5px;margin-top:10px;min-height:18px}
+.msg.ok{color:var(--ok)}
+.msg.err{color:var(--bad)}
+.x{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:0 4px}
+.x:hover{color:var(--bad)}
+@media(max-width:640px){body{padding:12px}h1{font-size:19px}}
+</style>
+</head>
+<body>
+
+<div class="top">
+<div style="display:flex;gap:10px;align-items:center">
+<div class="dot">CM</div>
+<div><h1>🍳 Central da Produção</h1><div class="sub">o que produzir hoje, o que já saiu e o que está perto de vencer</div></div>
+</div>
+<div class="rt">
+<span id="quem" style="color:var(--muted);font-size:12.5px"></span>
+<button class="b" onclick="location.reload()">↻ Atualizar</button>
+</div>
+</div>
+
+<div id="conteudo"><div class="load">Carregando…</div></div>
+
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const H={apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'};
+const $=i=>document.getElementById(i);
+var EMBUTIDO=false;try{EMBUTIDO=!!new URLSearchParams(location.search).get('embed')}catch(e){}
+if(EMBUTIDO){var _t=document.querySelector('.top');if(_t)_t.style.display='none';document.body.style.padding='0';document.body.style.maxWidth='none';}
+
+/* ===== porta unica do portal: sessao por usuario ===== */
+const CDMMODS=['producao'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmNome(){try{return sessionStorage.getItem('cdm_nome')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:H,body:JSON.stringify({p_token:t,p_tela:'producao'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+
+/* ===== base ===== */
+const UNI=['Água Verde','São Braz','Ahú','Boqueirão'];
+const TURNOS=['Manhã','Almoço','Tarde','Jantar','Madrugada'];
+const MEDIDAS=['un','kg','g','L','ml','porção','bandeja'];
+let D={plano:[],hoje:[],vencendo:[],historico:[]};
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function hojeISO(){return new Date().toLocaleDateString('sv-SE')}
+function brDia(s){return s?String(s).slice(8,10)+'/'+String(s).slice(5,7):'—'}
+function num(v){return v==null?'—':Number(v).toLocaleString('pt-BR')}
+function arrOk(x){return Array.isArray(x)?x:[]}
+function setMsg(id,txt,erro){const e=$(id);if(!e)return;e.className='msg '+(erro?'err':'ok');e.textContent=txt||''}
+
+async function pr(acao,dados){
+  const r=await fetch(SB+'rpc/producao_consulta',{method:'POST',headers:H,
+    body:JSON.stringify({p_cred:cdmTok(),p_acao:acao,p_dados:dados||{}})});
+  let j=null;try{j=await r.json()}catch(e){}
+  if(!r.ok)throw new Error((j&&j.message)||('falha na consulta (HTTP '+r.status+')'));
+  return j;
+}
+
+async function carrega(){
+  $('conteudo').innerHTML='<div class="load">Carregando…</div>';
+  try{
+    const j=await pr('painel',{});
+    D={plano:arrOk(j.plano),hoje:arrOk(j.hoje),vencendo:arrOk(j.vencendo),historico:arrOk(j.historico)};
+    render();
+  }catch(e){$('conteudo').innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
+}
+
+function render(){
+  const feitos=D.plano.filter(function(p){return Number(p.feito||0)>0}).length;
+  const faltam=D.plano.length-feitos;
+  let h='<div class="cards">'+
+    '<div class="kpi"><div class="t">No plano de hoje</div><div class="v">'+num(D.plano.length)+'</div><div class="d">itens fixos</div></div>'+
+    '<div class="kpi"><div class="t">Já produzidos</div><div class="v">'+num(feitos)+'</div><div class="d">'+(D.plano.length?Math.round(feitos/D.plano.length*100)+'% do plano':'sem plano ainda')+'</div></div>'+
+    '<div class="kpi"><div class="t">Ainda faltam</div><div class="v">'+num(faltam)+'</div><div class="d">itens do plano sem lançamento</div></div>'+
+    '<div class="kpi"><div class="t">Vence em até 2 dias</div><div class="v">'+num(D.vencendo.length)+'</div><div class="d">lotes com validade</div></div>'+
+    '</div>';
+
+  h+='<h2>Lançar o que foi produzido</h2><div class="card f"><div class="form">'+
+    '<div><label>Loja</label><select id="p_uni">'+UNI.map(function(u){return '<option>'+esc(u)+'</option>'}).join('')+'</select></div>'+
+    '<div><label>Data</label><input type="date" id="p_data" value="'+hojeISO()+'"></div>'+
+    '<div><label>Turno</label><select id="p_turno"><option value="">—</option>'+TURNOS.map(function(t){return '<option>'+t+'</option>'}).join('')+'</select></div>'+
+    '<div><label>O que foi produzido</label><input id="p_item" placeholder="ex: molho da casa" autocomplete="off" list="p_lista"></div>'+
+    '<div><label>Quantidade</label><input id="p_qtd" type="number" step="0.01" min="0" value="1"></div>'+
+    '<div><label>Medida</label><select id="p_med">'+MEDIDAS.map(function(m){return '<option>'+m+'</option>'}).join('')+'</select></div>'+
+    '<div><label>Vence em (opcional)</label><input type="date" id="p_val"></div>'+
+    '<div style="grid-column:1/-1"><label>Observação (opcional)</label><input id="p_obs" placeholder="lote, quem ajudou, o que deu errado"></div>'+
+    '</div><div style="margin-top:12px;display:flex;gap:8px;align-items:center">'+
+    '<button class="b p" id="p_btn" onclick="salva()">Lançar produção</button>'+
+    '<span class="msg" id="p_msg"></span></div></div>';
+
+  h+='<datalist id="p_lista">'+D.plano.map(function(p){return '<option value="'+esc(p.item)+'">'}).join('')+'</datalist>';
+
+  h+='<h2>O que produzir hoje <span class="hint">plano fixo por loja</span></h2>';
+  if(!D.plano.length){
+    h+='<div class="card"><div class="empty">Nenhum item no plano ainda. Cadastre lá embaixo o que a cozinha produz todo dia — aí esta lista vira a conferência do turno.</div></div>';
+  }else{
+    h+='<div class="card"><div class="wrap"><table><tr><th>Loja</th><th>Item</th><th class="n">Meta</th><th class="n">Já saiu</th><th>Situação</th></tr>';
+    D.plano.forEach(function(p){
+      const fez=Number(p.feito||0), meta=Number(p.quantidade||0);
+      const ok=meta>0?(fez>=meta):(fez>0);
+      h+='<tr><td>'+esc(p.unidade)+'</td><td>'+esc(p.item)+'</td>'+
+         '<td class="n">'+(meta?num(meta)+' '+esc(p.medida||''):'—')+'</td>'+
+         '<td class="n">'+num(fez)+' '+esc(p.medida||'')+'</td>'+
+         '<td>'+(ok?'<span class="pill p-ok">feito</span>':(fez>0?'<span class="pill p-mute">começou</span>':'<span class="pill p-bad">falta</span>'))+'</td></tr>';
+    });
+    h+='</table></div></div>';
+  }
+
+  if(D.vencendo.length){
+    h+='<h2>Perto de vencer <span class="hint">até 2 dias</span></h2><div class="card"><div class="wrap"><table><tr><th>Vence</th><th>Loja</th><th>Item</th><th class="n">Qtd</th><th>Produzido em</th></tr>';
+    D.vencendo.forEach(function(v){
+      h+='<tr><td><b>'+brDia(v.validade_ate)+'</b></td><td>'+esc(v.unidade)+'</td><td>'+esc(v.item)+'</td>'+
+         '<td class="n">'+num(v.quantidade)+' '+esc(v.medida||'')+'</td><td>'+brDia(v.data)+'</td></tr>';
+    });
+    h+='</table></div></div>';
+  }
+
+  h+='<h2>Produzido hoje <span class="hint">'+num(D.hoje.length)+' lançamento(s)</span></h2>';
+  if(!D.hoje.length){
+    h+='<div class="card"><div class="empty">Nada lançado hoje ainda.</div></div>';
+  }else{
+    h+='<div class="card"><div class="wrap"><table><tr><th>Loja</th><th>Turno</th><th>Item</th><th class="n">Qtd</th><th>Vence</th><th>Quem</th><th></th></tr>';
+    D.hoje.forEach(function(l){
+      h+='<tr><td>'+esc(l.unidade)+'</td><td>'+esc(l.turno||'—')+'</td>'+
+         '<td>'+esc(l.item)+(l.obs?'<div style="color:var(--muted);font-size:11.5px">'+esc(l.obs)+'</div>':'')+'</td>'+
+         '<td class="n">'+num(l.quantidade)+' '+esc(l.medida||'')+'</td>'+
+         '<td>'+brDia(l.validade_ate)+'</td><td>'+esc(l.lancado_por||'—')+'</td>'+
+         '<td class="n"><button class="x" title="apagar" onclick="apaga('+l.id+')">✕</button></td></tr>';
+    });
+    h+='</table></div></div>';
+  }
+
+  if(D.historico.length){
+    h+='<h2>Últimos 14 dias</h2><div class="card"><div class="wrap"><table><tr><th>Dia</th><th>Loja</th><th>Item</th><th class="n">Total</th></tr>';
+    D.historico.forEach(function(x){
+      h+='<tr><td>'+brDia(x.data)+'</td><td>'+esc(x.unidade)+'</td><td>'+esc(x.item)+'</td><td class="n">'+num(x.quantidade)+' '+esc(x.medida||'')+'</td></tr>';
+    });
+    h+='</table></div></div>';
+  }
+
+  h+='<h2>Plano fixo <span class="hint">o que a cozinha produz todo dia</span></h2><div class="card f"><div class="form">'+
+    '<div><label>Loja</label><select id="n_uni">'+UNI.map(function(u){return '<option>'+esc(u)+'</option>'}).join('')+'</select></div>'+
+    '<div><label>Item</label><input id="n_item" placeholder="ex: pão brioche" autocomplete="off"></div>'+
+    '<div><label>Meta por dia</label><input id="n_qtd" type="number" step="0.01" min="0" placeholder="opcional"></div>'+
+    '<div><label>Medida</label><select id="n_med">'+MEDIDAS.map(function(m){return '<option>'+m+'</option>'}).join('')+'</select></div>'+
+    '</div><div style="margin-top:12px;display:flex;gap:8px;align-items:center">'+
+    '<button class="b" id="n_btn" onclick="addPlano()">Colocar no plano</button>'+
+    '<span class="msg" id="n_msg"></span></div>';
+  if(D.plano.length){
+    h+='<div class="wrap" style="margin-top:12px"><table><tr><th>Loja</th><th>Item</th><th class="n">Meta</th><th></th></tr>';
+    D.plano.forEach(function(p){
+      h+='<tr><td>'+esc(p.unidade)+'</td><td>'+esc(p.item)+'</td><td class="n">'+(p.quantidade?num(p.quantidade)+' '+esc(p.medida||''):'—')+'</td>'+
+         '<td class="n"><button class="x" title="tirar do plano" onclick="delPlano('+p.id+')">✕</button></td></tr>';
+    });
+    h+='</table></div>';
+  }
+  h+='</div>';
+
+  h+='<div class="aviso">A validade é opcional, mas é ela que faz o quadro "perto de vencer" funcionar. Sem ela o lançamento continua valendo para contar quanto se produziu.</div>';
+  $('conteudo').innerHTML=h;
+}
+
+async function salva(){
+  const item=$('p_item').value.trim();
+  if(!item){setMsg('p_msg','Escreva o que foi produzido.',1);return}
+  const qtd=Number($('p_qtd').value||0);
+  if(!(qtd>0)){setMsg('p_msg','A quantidade tem que ser maior que zero.',1);return}
+  $('p_btn').disabled=true;setMsg('p_msg','Salvando…');
+  try{
+    await pr('lancar',{unidade:$('p_uni').value,data:$('p_data').value,turno:$('p_turno').value,
+      item:item,quantidade:String(qtd),medida:$('p_med').value,
+      validade_ate:$('p_val').value||'',obs:$('p_obs').value.trim(),lancado_por:cdmNome()});
+    await carrega();
+    setMsg('p_msg','✅ Lançado.');
+  }catch(e){setMsg('p_msg',e.message,1)}
+  const b=$('p_btn');if(b)b.disabled=false;
+}
+
+async function apaga(id){
+  if(!confirm('Apagar este lançamento?'))return;
+  try{await pr('apagar',{id:String(id)});await carrega()}catch(e){alert(e.message)}
+}
+
+async function addPlano(){
+  const item=$('n_item').value.trim();
+  if(!item){setMsg('n_msg','Escreva o item.',1);return}
+  $('n_btn').disabled=true;setMsg('n_msg','Salvando…');
+  try{
+    await pr('plano_add',{unidade:$('n_uni').value,item:item,quantidade:$('n_qtd').value||'',medida:$('n_med').value});
+    await carrega();
+  }catch(e){setMsg('n_msg',e.message,1)}
+  const b=$('n_btn');if(b)b.disabled=false;
+}
+
+async function delPlano(id){
+  if(!confirm('Tirar este item do plano?'))return;
+  try{await pr('plano_del',{id:String(id)});await carrega()}catch(e){alert(e.message)}
+}
+
+cdmGuarda().then(function(ok){
+  if(!ok)return;
+  const n=cdmNome();if(n)$('quem').textContent=n;
+  carrega();
+});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>

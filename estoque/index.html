@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#c8102e">
+<title>Central do Estoque · Cidadão do Mundo</title>
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#c8102e;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1180px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:16px}
+.top .rt{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.dot{width:40px;height:40px;border-radius:11px;background:var(--brand);display:grid;place-items:center;font-weight:800;font-size:16px}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+button.b:hover{border-color:var(--muted)}
+button.p{background:var(--brand);border-color:var(--brand)}
+button.p:disabled{opacity:.5;cursor:default}
+h2{font-size:15px;font-weight:800;margin:22px 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+h2 .hint{font-weight:500;font-size:11.5px;color:var(--muted)}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:16px;margin-bottom:14px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:6px}
+.kpi{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:14px 16px}
+.kpi .t{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+.kpi .v{font-size:26px;font-weight:800;line-height:1.15;margin-top:4px}
+.kpi .d{color:var(--muted);font-size:11.5px;margin-top:2px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.f label{display:block;color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:4px}
+.f input,.f select,.f textarea{width:100%;background:var(--s2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;color:var(--text);font-size:13.5px;outline:none;font-family:inherit}
+.f input:focus,.f select:focus,.f textarea:focus{border-color:var(--brand)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px 10px;text-align:left;font-size:13px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+tr:last-child td{border-bottom:none}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.wrap{overflow-x:auto}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap}
+.p-ok{background:rgba(47,174,106,.15);color:var(--ok)}
+.p-bad{background:rgba(230,103,103,.15);color:var(--bad)}
+.p-mute{background:var(--s2);color:var(--muted)}
+.aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:11px 14px;font-size:12.5px;margin:12px 0}
+.load{color:var(--muted);padding:26px;text-align:center}
+.empty{color:var(--muted);padding:22px;text-align:center;font-size:13px}
+.msg{font-size:12.5px;margin-top:10px;min-height:18px}
+.msg.ok{color:var(--ok)}
+.msg.err{color:var(--bad)}
+.x{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:0 4px}
+.x:hover{color:var(--bad)}
+@media(max-width:640px){body{padding:12px}h1{font-size:19px}}
+</style>
+</head>
+<body>
+
+<div class="top">
+<div style="display:flex;gap:10px;align-items:center">
+<div class="dot">CM</div>
+<div><h1>📦 Central do Estoque</h1><div class="sub">o que tem, o que está acabando e o que chegou</div></div>
+</div>
+<div class="rt">
+<span id="quem" style="color:var(--muted);font-size:12.5px"></span>
+<button class="b" onclick="location.reload()">↻ Atualizar</button>
+</div>
+</div>
+
+<div id="conteudo"><div class="load">Carregando…</div></div>
+
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const H={apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'};
+const $=i=>document.getElementById(i);
+var EMBUTIDO=false;try{EMBUTIDO=!!new URLSearchParams(location.search).get('embed')}catch(e){}
+if(EMBUTIDO){var _t=document.querySelector('.top');if(_t)_t.style.display='none';document.body.style.padding='0';document.body.style.maxWidth='none';}
+
+/* ===== porta unica do portal: sessao por usuario ===== */
+const CDMMODS=['estoque'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmNome(){try{return sessionStorage.getItem('cdm_nome')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:H,body:JSON.stringify({p_token:t,p_tela:'estoque'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+
+/* ===== base ===== */
+const UNI=['Água Verde','São Braz','Ahú','Boqueirão'];
+const MEDIDAS=['un','kg','g','L','ml','caixa','pacote','fardo'];
+let D={itens:[],entradas:[],contagens:[]};
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function hojeISO(){return new Date().toLocaleDateString('sv-SE')}
+function brDia(s){return s?String(s).slice(8,10)+'/'+String(s).slice(5,7):'—'}
+function num(v){return v==null?'—':Number(v).toLocaleString('pt-BR')}
+function arrOk(x){return Array.isArray(x)?x:[]}
+function setMsg(id,txt,erro){const e=$(id);if(!e)return;e.className='msg '+(erro?'err':'ok');e.textContent=txt||''}
+
+async function es(acao,dados){
+  const r=await fetch(SB+'rpc/estoque_consulta',{method:'POST',headers:H,
+    body:JSON.stringify({p_cred:cdmTok(),p_acao:acao,p_dados:dados||{}})});
+  let j=null;try{j=await r.json()}catch(e){}
+  if(!r.ok)throw new Error((j&&j.message)||('falha na consulta (HTTP '+r.status+')'));
+  return j;
+}
+
+async function carrega(){
+  $('conteudo').innerHTML='<div class="load">Carregando…</div>';
+  try{
+    const j=await es('painel',{});
+    D={itens:arrOk(j.itens),entradas:arrOk(j.entradas),contagens:arrOk(j.contagens)};
+    render();
+  }catch(e){$('conteudo').innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
+}
+
+function render(){
+  const faltando=D.itens.filter(function(i){return i.falta});
+  const semContagem=D.itens.filter(function(i){return i.sem_contagem});
+  let h='<div class="cards">'+
+    '<div class="kpi"><div class="t">Itens no controle</div><div class="v">'+num(D.itens.length)+'</div><div class="d">cadastrados</div></div>'+
+    '<div class="kpi"><div class="t">Abaixo do mínimo</div><div class="v">'+num(faltando.length)+'</div><div class="d">precisa comprar</div></div>'+
+    '<div class="kpi"><div class="t">Nunca contados</div><div class="v">'+num(semContagem.length)+'</div><div class="d">sem contagem ainda</div></div>'+
+    '<div class="kpi"><div class="t">Entradas em 30 dias</div><div class="v">'+num(D.entradas.length)+'</div><div class="d">mercadoria que chegou</div></div>'+
+    '</div>';
+
+  if(faltando.length){
+    h+='<h2>Está acabando <span class="hint">abaixo do mínimo</span></h2><div class="card"><div class="wrap"><table><tr><th>Loja</th><th>Item</th><th class="n">Tem</th><th class="n">Mínimo</th><th>Contado em</th></tr>';
+    faltando.forEach(function(i){
+      h+='<tr><td>'+esc(i.unidade)+'</td><td><b>'+esc(i.item)+'</b></td>'+
+         '<td class="n" style="color:var(--bad)"><b>'+num(i.ultima)+' '+esc(i.medida||'')+'</b></td>'+
+         '<td class="n">'+num(i.minimo)+' '+esc(i.medida||'')+'</td>'+
+         '<td>'+brDia(i.contado_em)+'</td></tr>';
+    });
+    h+='</table></div></div>';
+  }
+
+  h+='<h2>Contar item</h2><div class="card f"><div class="form">'+
+    '<div><label>Loja</label><select id="c_uni">'+UNI.map(function(u){return '<option>'+esc(u)+'</option>'}).join('')+'</select></div>'+
+    '<div><label>Data</label><input type="date" id="c_data" value="'+hojeISO()+'"></div>'+
+    '<div><label>Item</label><input id="c_item" placeholder="ex: hambúrguer 180g" autocomplete="off" list="lista_itens"></div>'+
+    '<div><label>Quantidade contada</label><input id="c_qtd" type="number" step="0.01" min="0" value="0"></div>'+
+    '</div><div style="margin-top:12px;display:flex;gap:8px;align-items:center">'+
+    '<button class="b p" id="c_btn" onclick="conta()">Salvar contagem</button>'+
+    '<span class="msg" id="c_msg"></span></div></div>';
+
+  h+='<datalist id="lista_itens">'+D.itens.map(function(i){return '<option value="'+esc(i.item)+'">'}).join('')+'</datalist>';
+
+  h+='<h2>Chegou mercadoria</h2><div class="card f"><div class="form">'+
+    '<div><label>Loja</label><select id="e_uni">'+UNI.map(function(u){return '<option>'+esc(u)+'</option>'}).join('')+'</select></div>'+
+    '<div><label>Data</label><input type="date" id="e_data" value="'+hojeISO()+'"></div>'+
+    '<div><label>Item</label><input id="e_item" placeholder="o que chegou" autocomplete="off" list="lista_itens"></div>'+
+    '<div><label>Quantidade</label><input id="e_qtd" type="number" step="0.01" min="0" value="1"></div>'+
+    '<div><label>Fornecedor</label><input id="e_forn" placeholder="opcional"></div>'+
+    '<div><label>Nota (opcional)</label><input id="e_nota" placeholder="número da nota"></div>'+
+    '</div><div style="margin-top:12px;display:flex;gap:8px;align-items:center">'+
+    '<button class="b p" id="e_btn" onclick="entrada()">Registrar entrada</button>'+
+    '<span class="msg" id="e_msg"></span></div></div>';
+
+  h+='<h2>Tudo que está no controle</h2>';
+  if(!D.itens.length){
+    h+='<div class="card"><div class="empty">Nenhum item cadastrado ainda. Cadastre lá embaixo o que você quer controlar, com o mínimo de cada um — aí a tela passa a avisar o que está acabando.</div></div>';
+  }else{
+    h+='<div class="card"><div class="wrap"><table><tr><th>Loja</th><th>Item</th><th class="n">Última contagem</th><th class="n">Mínimo</th><th>Contado em</th><th>Quem contou</th><th>Situação</th></tr>';
+    D.itens.forEach(function(i){
+      h+='<tr><td>'+esc(i.unidade)+'</td><td>'+esc(i.item)+'</td>'+
+         '<td class="n">'+num(i.ultima)+' '+esc(i.medida||'')+'</td>'+
+         '<td class="n">'+(i.minimo==null?'—':num(i.minimo)+' '+esc(i.medida||''))+'</td>'+
+         '<td>'+brDia(i.contado_em)+'</td><td>'+esc(i.contado_por||'—')+'</td>'+
+         '<td>'+(i.sem_contagem?'<span class="pill p-mute">sem contagem</span>':(i.falta?'<span class="pill p-bad">acabando</span>':'<span class="pill p-ok">ok</span>'))+'</td></tr>';
+    });
+    h+='</table></div></div>';
+  }
+
+  if(D.entradas.length){
+    h+='<h2>Entradas recentes <span class="hint">30 dias</span></h2><div class="card"><div class="wrap"><table><tr><th>Dia</th><th>Loja</th><th>Item</th><th class="n">Qtd</th><th>Fornecedor</th><th>Nota</th><th>Quem</th><th></th></tr>';
+    D.entradas.forEach(function(e){
+      h+='<tr><td>'+brDia(e.data)+'</td><td>'+esc(e.unidade)+'</td><td>'+esc(e.item)+'</td>'+
+         '<td class="n">'+num(e.quantidade)+'</td><td>'+esc(e.fornecedor||'—')+'</td><td>'+esc(e.nota||'—')+'</td>'+
+         '<td>'+esc(e.lancado_por||'—')+'</td>'+
+         '<td class="n"><button class="x" title="apagar" onclick="apagaEntrada('+e.id+')">✕</button></td></tr>';
+    });
+    h+='</table></div></div>';
+  }
+
+  if(D.contagens.length){
+    h+='<h2>Contagens recentes <span class="hint">30 dias</span></h2><div class="card"><div class="wrap"><table><tr><th>Dia</th><th>Loja</th><th>Item</th><th class="n">Qtd</th><th>Quem</th><th></th></tr>';
+    D.contagens.forEach(function(c){
+      h+='<tr><td>'+brDia(c.data)+'</td><td>'+esc(c.unidade)+'</td><td>'+esc(c.item)+'</td>'+
+         '<td class="n">'+num(c.quantidade)+'</td><td>'+esc(c.lancado_por||'—')+'</td>'+
+         '<td class="n"><button class="x" title="apagar" onclick="apagaContagem('+c.id+')">✕</button></td></tr>';
+    });
+    h+='</table></div></div>';
+  }
+
+  h+='<h2>Cadastrar item no controle <span class="hint">e o mínimo dele</span></h2><div class="card f"><div class="form">'+
+    '<div><label>Loja</label><select id="i_uni">'+UNI.map(function(u){return '<option>'+esc(u)+'</option>'}).join('')+'</select></div>'+
+    '<div><label>Item</label><input id="i_item" placeholder="ex: queijo cheddar" autocomplete="off"></div>'+
+    '<div><label>Medida</label><select id="i_med">'+MEDIDAS.map(function(m){return '<option>'+m+'</option>'}).join('')+'</select></div>'+
+    '<div><label>Mínimo</label><input id="i_min" type="number" step="0.01" min="0" placeholder="abaixo disso, avisar"></div>'+
+    '</div><div style="margin-top:12px;display:flex;gap:8px;align-items:center">'+
+    '<button class="b" id="i_btn" onclick="addItem()">Cadastrar item</button>'+
+    '<span class="msg" id="i_msg"></span></div>';
+  if(D.itens.length){
+    h+='<div class="wrap" style="margin-top:12px"><table><tr><th>Loja</th><th>Item</th><th class="n">Mínimo</th><th></th></tr>';
+    D.itens.forEach(function(i){
+      h+='<tr><td>'+esc(i.unidade)+'</td><td>'+esc(i.item)+'</td><td class="n">'+(i.minimo==null?'—':num(i.minimo)+' '+esc(i.medida||''))+'</td>'+
+         '<td class="n"><button class="x" title="tirar do controle" onclick="delItem('+i.id+')">✕</button></td></tr>';
+    });
+    h+='</table></div>';
+  }
+  h+='</div>';
+
+  h+='<div class="aviso">A contagem é a foto do que tem na hora. O mínimo é o que faz a tela avisar sozinha que está acabando — item sem mínimo nunca aparece no quadro vermelho.</div>';
+  $('conteudo').innerHTML=h;
+}
+
+async function conta(){
+  const item=$('c_item').value.trim();
+  if(!item){setMsg('c_msg','Escreva o item.',1);return}
+  const qtd=Number($('c_qtd').value);
+  if(!(qtd>=0)){setMsg('c_msg','A quantidade não pode ficar em branco.',1);return}
+  $('c_btn').disabled=true;setMsg('c_msg','Salvando…');
+  try{
+    await es('contar',{unidade:$('c_uni').value,data:$('c_data').value,item:item,quantidade:String(qtd),lancado_por:cdmNome()});
+    await carrega();
+    setMsg('c_msg','✅ Contagem salva.');
+  }catch(e){setMsg('c_msg',e.message,1)}
+  const b=$('c_btn');if(b)b.disabled=false;
+}
+
+async function entrada(){
+  const item=$('e_item').value.trim();
+  if(!item){setMsg('e_msg','Escreva o que chegou.',1);return}
+  const qtd=Number($('e_qtd').value||0);
+  if(!(qtd>0)){setMsg('e_msg','A quantidade tem que ser maior que zero.',1);return}
+  $('e_btn').disabled=true;setMsg('e_msg','Salvando…');
+  try{
+    await es('entrada',{unidade:$('e_uni').value,data:$('e_data').value,item:item,quantidade:String(qtd),
+      fornecedor:$('e_forn').value.trim(),nota:$('e_nota').value.trim(),lancado_por:cdmNome()});
+    await carrega();
+    setMsg('e_msg','✅ Entrada registrada.');
+  }catch(e){setMsg('e_msg',e.message,1)}
+  const b=$('e_btn');if(b)b.disabled=false;
+}
+
+async function addItem(){
+  const item=$('i_item').value.trim();
+  if(!item){setMsg('i_msg','Escreva o item.',1);return}
+  $('i_btn').disabled=true;setMsg('i_msg','Salvando…');
+  try{
+    await es('item_add',{unidade:$('i_uni').value,item:item,medida:$('i_med').value,minimo:$('i_min').value||''});
+    await carrega();
+  }catch(e){setMsg('i_msg',e.message,1)}
+  const b=$('i_btn');if(b)b.disabled=false;
+}
+
+async function delItem(id){
+  if(!confirm('Tirar este item do controle?'))return;
+  try{await es('item_del',{id:String(id)});await carrega()}catch(e){alert(e.message)}
+}
+async function apagaContagem(id){
+  if(!confirm('Apagar esta contagem?'))return;
+  try{await es('del_contagem',{id:String(id)});await carrega()}catch(e){alert(e.message)}
+}
+async function apagaEntrada(id){
+  if(!confirm('Apagar esta entrada?'))return;
+  try{await es('del_entrada',{id:String(id)});await carrega()}catch(e){alert(e.message)}
+}
+
+cdmGuarda().then(function(ok){
+  if(!ok)return;
+  const n=cdmNome();if(n)$('quem').textContent=n;
+  carrega();
+});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
