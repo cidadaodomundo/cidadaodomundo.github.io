@@ -96,16 +96,30 @@ function desenhaCheck(){
 }
 function desenhaMaq(){
   const l=D.maquininhas||[];
-  if(!l.length)return '<div class="c vazio">Nenhuma maquininha cadastrada nesta loja. Por enquanto só a Água Verde tem as 6.</div>';
+  if(!l.length)return '<div class="c vazio">Nenhuma maquininha cadastrada nesta loja. Por enquanto só a Água Verde tem as 7 de motoboy.</div>';
   const ops=['<option value="">— ninguém —</option>'].concat((D.motoboys||[]).map(function(m){return '<option value="'+esc(m)+'">'+esc(m)+'</option>'})).join('');
   let h='<div class="grid">';
   l.forEach(function(o){
+    const sops=['<option value="">— sem número de série —</option>'].concat((D.series||[]).map(function(s){
+      return '<option value="'+esc(s.serie)+'">'+esc(s.serie)+' · '+s.vendas+' vendas'+(s.usada_por&&s.usada_por!==o.apelido?' (já é a '+esc(s.usada_por)+')':'')+'</option>';
+    })).join('');
     h+='<div class="mq"><b>'+esc(o.apelido)+'</b>'+
-       '<select data-maq="'+o.id+'">'+ops+'</select>'+
-       (o.quem?'<div class="assin">quem anotou: '+esc(o.quem)+' · '+esc(o.quando||'')+'</div>':'<div class="assin">ainda não anotado</div>')+
+       (o.tipo==='motoboy'?'<select data-maq="'+o.id+'">'+ops+'</select>':'<div class="assin" style="margin-top:6px">fica na loja, não entra na escala</div>')+
+       '<select data-serie="'+o.id+'" style="margin-top:6px">'+sops+'</select>'+
+       '<div class="assin" style="margin-top:6px">'+(o.serie?('passou <b style="color:#fff">'+o.vendas+'</b> cartão'+(o.vendas===1?'':'es')+' neste turno'+(D.dono&&o.valor!=null?' · '+moeda(o.valor):'')):'ligue o número de série para saber o que ela cobrou')+'</div>'+
+       (o.quem?'<div class="assin">quem anotou: '+esc(o.quem)+' · '+esc(o.quando||'')+'</div>':(o.tipo==='motoboy'?'<div class="assin">ainda não anotado</div>':''))+
        '</div>';
   });
   h+='</div>';
+  const orfas=(D.series||[]).filter(function(s){return !s.usada_por});
+  if(orfas.length){
+    h+='<h2>Séries que a Rede viu e ninguém ligou ainda (' + orfas.length + ')</h2>';
+    h+='<div class="c"><div class="assin" style="margin-bottom:8px">Enquanto uma série não estiver ligada a uma maquininha, o que ela cobrou não entra na conferência. Ligue cada uma acima, ou avise se o aparelho não é mais da casa.</div>';
+    orfas.forEach(function(s){
+      h+='<div class="linha" style="cursor:default"><span class="cx">•</span><span><b>'+esc(s.serie)+'</b> — '+s.vendas+' vendas em 30 dias · última em '+esc(s.ultimo||'')+'</span></div>';
+    });
+    h+='</div>';
+  }
   return h;
 }
 function desenhaCancel(){
@@ -140,6 +154,8 @@ function desenha(){
     (D.maquininhas||[]).forEach(function(o){
       const s=document.querySelector('[data-maq="'+o.id+'"]');
       if(s)s.value=o.motoboy||'';
+      const t=document.querySelector('[data-serie="'+o.id+'"]');
+      if(t)t.value=o.serie||'';
     });
   }
 }
@@ -176,6 +192,11 @@ document.addEventListener('click',async function(ev){
   }
 });
 document.addEventListener('change',async function(ev){
+  if(ev.target.dataset&&ev.target.dataset.serie){
+    try{ await porta('maq_serie',{maquininha_id:Number(ev.target.dataset.serie),serie:ev.target.value}); await boot(); }
+    catch(e){ alert('Não deu para ligar o número de série.') }
+    return;
+  }
   if(ev.target.dataset&&ev.target.dataset.maq){
     try{ await porta('maq_definir',{maquininha_id:Number(ev.target.dataset.maq),motoboy:ev.target.value}); await boot(); }
     catch(e){ alert('Não deu para anotar a maquininha.') }
