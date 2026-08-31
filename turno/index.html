@@ -122,9 +122,31 @@ function desenhaMaq(){
   }
   return h;
 }
+function blocoIfood(dono){
+  const l=D.cancel_ifood||[];
+  if(!l.length)return '<div class="c"><b>🍔 O iFood já contou</b><div class="vazio">Nenhum cancelamento do iFood nestes 7 dias.</div></div>';
+  let h='<div class="c"><b>🍔 O iFood já contou ('+l.length+')</b>'+
+    '<div class="assin">Estes chegaram sozinhos, direto do iFood. Você só precisa dizer o que houve de verdade.</div>'+
+    '<table><tr><th>Dia</th><th>Hora</th><th>Marca</th><th>Pedido</th><th>Motivo do iFood</th>'+
+    (dono?'<th>Valor</th><th>Reembolso</th>':'')+'<th></th></tr>';
+  l.forEach(function(o){
+    h+='<tr><td>'+esc(o.dia)+'</td><td>'+esc(o.hora)+'</td><td>'+esc(o.marca)+'</td>'+
+       '<td>'+esc(o.n_pedido)+'</td><td>'+esc(o.motivo_ifood||'—')+'</td>';
+    if(dono){
+      h+='<td>'+(o.valor==null?'—':'R$ '+Number(o.valor).toFixed(2).replace('.',','))+'</td>'+
+         '<td><span style="color:'+(o.reembolsado?'var(--ok)':'var(--bad)')+'">'+
+         (o.reembolsado?'reembolsado '+(o.reembolso==null?'':'R$ '+Number(o.reembolso).toFixed(2).replace('.',',')):'sem reembolso')+'</span></td>';
+    }
+    h+='<td>'+(o.explicado
+        ?'<span style="color:var(--ok)">explicado</span>'
+        :'<button class="b" data-expl="'+esc(o.n_pedido)+'" data-mot="'+esc(o.motivo_ifood||'')+'">explicar</button>')+'</td></tr>';
+  });
+  return h+'<div class="assin">Reembolso é o que o iFood devolveu para a loja neste pedido. Sem reembolso quer dizer que a comida saiu e o dinheiro não entrou. O valor pode mudar nos primeiros dias, porque o reembolso demora a cair.</div></div>';
+}
 function desenhaCancel(){
   const dono=!!D.dono;
-  let h='<div class="c"><b>Lançar um cancelamento</b><div class="form">'+
+  let h=blocoIfood(dono);
+  h+='<div class="c"><b>Lançar um cancelamento</b><div class="form">'+
     '<div><label>Canal</label><select id="fCanal"><option>iFood</option><option>Foody</option><option>Balcão</option><option>Telefone</option><option>Outro</option></select></div>'+
     '<div><label>Número do pedido</label><input type="text" id="fPedido" placeholder="ex.: 6558"></div>'+
     '<div><label>Cliente</label><input type="text" id="fCliente" placeholder="nome do cliente"><div class="assin">na lista aparece só as iniciais</div></div>'+
@@ -182,6 +204,15 @@ document.addEventListener('click',async function(ev){
     if($('fValor'))dd.valor=$('fValor').value;
     try{ await porta('cancel_novo',dd); await boot(); }
     catch(e){ alert('Não deu para salvar.') }
+    return;
+  }
+  if(ev.target.dataset&&ev.target.dataset.expl){
+    const p=ev.target.dataset.expl, m=ev.target.dataset.mot||'';
+    if($('fPedido'))$('fPedido').value=p;
+    if($('fCanal'))$('fCanal').value='iFood';
+    if($('fMotivo'))$('fMotivo').value=m;
+    if($('fQuem'))$('fQuem').value='iFood';
+    if($('fObs'))$('fObs').focus();
     return;
   }
   if(ev.target.dataset&&ev.target.dataset.apaga){
