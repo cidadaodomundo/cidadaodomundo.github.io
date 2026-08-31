@@ -40,6 +40,10 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .bar{background:var(--s2);border-radius:5px;height:9px;overflow:hidden;min-width:70px}
 .bar i{display:block;height:100%;background:var(--brand)}
 .dot{width:40px;height:40px;border-radius:11px;background:var(--brand);display:grid;place-items:center;font-weight:800;font-size:16px}
+.abas{display:flex;gap:8px;margin:14px 0 0;border-bottom:1px solid var(--line)}
+.ab{background:none;border:1px solid transparent;color:var(--muted);font:inherit;font-weight:700;font-size:14px;padding:9px 14px;border-radius:9px 9px 0 0;cursor:pointer}
+.ab.on{color:var(--text);background:var(--s1);border-color:var(--line);border-bottom-color:var(--s1);margin-bottom:-1px}
+#ifr-desp{width:100%;border:0;height:calc(100vh - 210px);min-height:560px;display:block}
 </style>
 </head>
 <body>
@@ -51,7 +55,9 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
     <button class="b" onclick="location.reload()">↻ Atualizar</button>
   </div>
 </div>
-<div id="app"><div class="load">Carregando cozinha…</div></div>
+<div class="abas"><button class="ab on" id="aba-b-cozinha" onclick="mostraAba('cozinha')">👨‍🍳 Cozinha</button><button class="ab" id="aba-b-desp" onclick="mostraAba('desp')">🗑 Desperdício</button></div>
+<div id="pane-cozinha"><div id="app"><div class="load">Carregando cozinha…</div></div></div>
+<div id="pane-desp" style="display:none"><iframe id="ifr-desp" src="about:blank" title="Desperdicio"></iframe></div>
 
 <script>
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
@@ -293,6 +299,13 @@ async function cdmGuarda(){
   if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
+function mostraAba(q){var d=(q==='desp');
+$('pane-cozinha').style.display=d?'none':'';
+$('pane-desp').style.display=d?'':'none';
+$('aba-b-cozinha').className=d?'ab':'ab on';
+$('aba-b-desp').className=d?'ab on':'ab';
+var fl=$('filtros');if(fl)fl.style.display=d?'none':'';
+if(d){var f=$('ifr-desp');if(f.getAttribute('src')==='about:blank')f.setAttribute('src','/operacao/?embed=1');}}
 cdmGuarda().then(function(ok){if(ok)boot()});
 </script>
 <script src="/assets/portal.js?v=3"></script>
