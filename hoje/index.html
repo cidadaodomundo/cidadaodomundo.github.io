@@ -30,6 +30,15 @@ h2{font-size:14px;font-weight:800;margin:24px 0 10px;display:flex;align-items:ce
 .c .txt{color:var(--text2);font-size:13.5px;margin-top:4px;line-height:1.45}
 .c .onde{color:var(--muted);font-size:11.5px;margin-top:6px}
 .tag{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;background:var(--s2);color:var(--muted);margin-right:7px;vertical-align:2px}
+.fila{background:var(--s1);border:1px solid var(--brand);border-radius:13px;padding:13px 15px;margin-bottom:9px;display:flex;gap:13px;align-items:center}
+.fila .corpo{flex:1;min-width:0}
+.fila .tit{font-weight:700;font-size:14.5px}
+.fila .txt{color:var(--text2);font-size:13.5px;margin-top:4px;line-height:1.45}
+.quem{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;margin-right:7px;vertical-align:2px}
+.q-voce{background:rgba(200,16,46,.18);color:#ff7b8f}
+.q-pc{background:rgba(47,174,106,.15);color:var(--ok)}
+button.ok{background:var(--s2);border:1px solid var(--line);color:var(--text2);border-radius:9px;padding:7px 11px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+button.ok:hover{border-color:var(--ok);color:var(--ok)}
 .limpo{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:38px 20px;text-align:center}
 .limpo .big{font-size:38px}
 .limpo .t{font-weight:800;font-size:18px;margin-top:10px}
@@ -60,6 +69,25 @@ async function porta(){
   return await r.json();
 }
 
+function itemFila(f){
+  const ehVoce = f.quem==='fabio';
+  return '<div class="fila"><div class="corpo">'+
+    '<div class="tit"><span class="quem '+(ehVoce?'q-voce':'q-pc')+'">'+(ehVoce?'você':'computador')+'</span>'+esc(f.titulo)+'</div>'+
+    '<div class="txt">'+esc(f.detalhe||'')+'</div></div>'+
+    (ehVoce?'<button class="ok" data-t="'+esc(f.tarefa)+'">já fiz</button>':'')+
+    '</div>';
+}
+
+async function marcarFeito(tarefa){
+  try{
+    const r=await fetch(SB+'rpc/painel_hoje_feito',{method:'POST',
+      headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({p_token:tok(),p_tarefa:tarefa})});
+    if(!r.ok)throw new Error(r.status);
+  }catch(e){ alert('Não deu para marcar. Tente de novo.'); return }
+  boot();
+}
+
 function cartao(a){
   const cls=(a.grave===1)?'v':'a';
   return '<div class="c '+cls+'"><div class="corpo">'+
@@ -82,10 +110,17 @@ async function boot(){
   let h='<div class="grid">'+
     '<div class="q"><div class="n" style="color:'+(vermelhos.length?'var(--bad)':'var(--ok)')+'">'+vermelhos.length+'</div><div class="l">para agir hoje</div></div>'+
     '<div class="q"><div class="n" style="color:'+(amarelos.length?'var(--warn)':'var(--ok)')+'">'+amarelos.length+'</div><div class="l">para dar uma olhada</div></div>'+
+    '<div class="q"><div class="n" style="color:'+((d.fila||[]).length?'var(--brand)':'var(--ok)')+'">'+(d.fila||[]).length+'</div><div class="l">esperando você e o computador</div></div>'+
     '<div class="q"><div class="n">'+esc(d.ontem)+'</div><div class="l">o dia comparado</div></div>'+
     '</div>';
 
-  if(!todos.length){
+  const fila=Array.isArray(d.fila)?d.fila:[];
+  if(fila.length){
+    h+='<h2>O que ficou esperando você'+(d.dia_comecou?' — desde '+esc(d.dia_comecou):'')+'</h2>';
+    fila.forEach(function(f){h+=itemFila(f)});
+  }
+
+  if(!todos.length && !fila.length){
     h+='<div class="limpo"><div class="big">☕</div><div class="t">Nada fora do lugar.</div>'+
        '<div class="s">As vendas, o prazo, o ponto, o cardápio e os robôs estão dentro do que costumam ser.</div></div>';
   }else{
@@ -99,7 +134,7 @@ async function boot(){
     }
   }
 
-  h+='<div class="nota">Esta tela compara cada loja com <b>ela mesma</b>: a venda de ontem contra a média dos 4 mesmos dias da semana, e o prazo de entrega contra a média dos últimos 28 dias dela. Não existe meta fixa. Quando o dado de uma loja ainda não chegou, a tela avisa em vez de acusar a loja. O ponto mostra a quantidade de casos por loja, sem nome de pessoa e sem quem tem cargo de confiança. <b>O Boqueirão não aparece na parte de vendas</b> porque ainda não tem a senha do Saipos — é a única loja fora dessa conta.</div>';
+  h+='<div class="nota">Esta tela compara cada loja com <b>ela mesma</b>: a venda de ontem contra a média dos 4 mesmos dias da semana, e o prazo de entrega contra a média dos últimos 28 dias dela. Não existe meta fixa. Quando o dado de uma loja ainda não chegou, a tela avisa em vez de acusar a loja. A lista de cima é a <b>fila do seu dia</b>: ela não segue relógio — ela nasce quando você aparece no portal depois de uma pausa, e some conforme as coisas vão sendo feitas. O ponto mostra a quantidade de casos por loja, sem nome de pessoa e sem quem tem cargo de confiança. <b>O Boqueirão não aparece na parte de vendas</b> porque ainda não tem a senha do Saipos — é a única loja fora dessa conta.</div>';
   $('app').innerHTML=h;
 }
 
@@ -121,6 +156,11 @@ async function cdmGuarda(){
   if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
+document.addEventListener('click', function(ev){
+  var b = ev.target && ev.target.closest ? ev.target.closest('button.ok[data-t]') : null;
+  if(b) marcarFeito(b.getAttribute('data-t'));
+});
+
 cdmGuarda().then(function(ok){ if(ok) boot(); });
 </script>
 <script src="/assets/portal.js?v=3"></script>
