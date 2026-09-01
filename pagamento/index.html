@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#c8102e">
+<title>Pagar Motoboys · Cidadão do Mundo</title>
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#c8102e;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:980px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:14px}
+.top .rt{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+button.b:hover{border-color:var(--brand)}
+input[type=date]{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 10px;font-size:13px;font-family:inherit}
+h2{font-size:14px;font-weight:800;margin:20px 0 8px;color:var(--text2)}
+.c{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:10px}
+.assin{color:var(--muted);font-size:11.5px;margin-top:2px}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px}
+th{text-align:left;color:var(--muted);font-size:11px;font-weight:700;padding:6px 8px;border-bottom:1px solid var(--line);text-transform:uppercase}
+td{padding:8px;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:top}
+td.num,th.num{text-align:right;white-space:nowrap}
+.pagar{font-weight:800;font-size:15px}
+.pill{display:inline-block;border-radius:999px;padding:1px 8px;font-size:10.5px;font-weight:700;background:var(--s2);color:var(--muted)}
+.pill.bad{color:var(--bad)}
+.pill.warn{color:var(--warn)}
+.pix{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--text2);cursor:pointer}
+.pix:hover{color:#fff}
+.tot{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.tc{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:12px 16px;flex:1;min-width:150px}
+.tc b{font-size:20px;display:block}
+.tc span{color:var(--muted);font-size:11px;text-transform:uppercase;font-weight:700}
+.aviso{color:var(--muted);font-size:12px;margin:18px 0 30px;line-height:1.5}
+.vazio{color:var(--muted);font-size:13px;padding:8px 0}
+.abater{color:var(--ok);cursor:pointer;font-weight:700;font-size:12px}
+.abater:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="top">
+  <div><h1>💰 Pagar Motoboys</h1><div class="sub">quanto pagar a cada um, com a chave Pix — entregas, garantido, ajustes e descontos aprovados, tudo já conferido</div></div>
+  <div class="rt">
+    <input type="date" id="dia">
+    <button class="b" id="btAtualiza">⟳ Atualizar</button>
+  </div>
+</div>
+<div id="app">Carregando…</div>
+<div class="aviso">A conta nasce das entregas do dia (maior entre taxas e garantido, quando há escala), mais ajustes lançados, menos os descontos que alguém <b>aprovou</b> na apuração. Caso ainda em apuração nunca desconta. Clique na chave Pix para copiá-la. Depois de abater um desconto num pagamento, marque "abati" para ele não aparecer duas vezes. ⚠️ Ahú e São Braz migraram para o TrackEat — as entregas deles depois de 26/08 ainda não entram sozinhas nesta conta.</div>
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const moeda=v=>'R$ '+Number(v||0).toFixed(2).replace('.',',');
+let D=null;
+async function porta(acao,dados){
+  const d=Object.assign({dia:$('dia').value},dados||{});
+  const r=await fetch(SB+'rpc/pagar_motoboy_painel',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:cdmTok(),p_acao:acao,p_dados:d})});
+  if(!r.ok)throw new Error('porta '+r.status);
+  return await r.json();
+}
+function desenha(){
+  if(!D){$('app').innerHTML='<div class="c vazio">Carregando…</div>';return}
+  const f=D.fechamento||[];
+  let h='';
+  const totPagar=f.reduce(function(s,o){return s+Number(o.pagar_final||0)-Number(o.desconto_pendente||0)},0);
+  const totDesc=f.reduce(function(s,o){return s+Number(o.desconto_pendente||0)},0);
+  h+='<div class="tot">'+
+     '<div class="tc"><span>'+esc(D.dia_semana||'')+' '+esc(D.dia)+'</span><b>'+f.length+' motoboys</b></div>'+
+     '<div class="tc"><span>Total a pagar</span><b>'+moeda(totPagar)+'</b></div>'+
+     (totDesc>0?'<div class="tc"><span>Descontos a abater</span><b style="color:var(--bad)">−'+moeda(totDesc)+'</b></div>':'')+
+     '</div>';
+  if(!f.length){ h+='<div class="c vazio">Nenhuma entrega registrada neste dia. Escolha outro dia lá em cima.</div>'; }
+  const unis=[];
+  f.forEach(function(o){if(unis.indexOf(o.unidade)<0)unis.push(o.unidade)});
+  unis.forEach(function(uni){
+    h+='<h2>'+esc(uni)+'</h2><div class="c"><table>'+
+       '<tr><th>Motoboy</th><th class="num">Entregas</th><th class="num">Pelas taxas</th><th class="num">Garantido</th><th class="num">Ajustes</th><th class="num">Desconto</th><th class="num">A pagar</th><th>Pix</th></tr>';
+    f.filter(function(o){return o.unidade===uni}).forEach(function(o){
+      const desc=Number(o.desconto_pendente||0);
+      const liq=Number(o.pagar_final||0)-desc;
+      h+='<tr><td>'+esc(o.entregador)+
+         (o.alerta?'<div><span class="pill '+(o.alerta.indexOf('PIX')>=0?'bad':'warn')+'">'+esc(o.alerta)+'</span></div>':'')+
+         (o.motivos?'<div class="assin">'+esc(o.motivos)+'</div>':'')+
+         '</td>'+
+         '<td class="num">'+esc(o.entregas)+'</td>'+
+         '<td class="num">'+moeda(o.r_entregas)+'</td>'+
+         '<td class="num">'+(Number(o.r_garantido)>0?moeda(o.r_garantido):'—')+'</td>'+
+         '<td class="num">'+(Number(o.ajustes)!==0?moeda(o.ajustes):'—')+'</td>'+
+         '<td class="num">'+(desc>0?'<span style="color:var(--bad)">−'+moeda(desc)+'</span>':'—')+'</td>'+
+         '<td class="num pagar">'+moeda(liq)+'</td>'+
+         '<td>'+(o.chave_pix?'<span class="pix" data-pix="'+esc(o.chave_pix)+'">'+esc(o.chave_pix)+'</span>':'<span class="pill bad">SEM PIX</span>')+'</td>'+
+         '</tr>';
+    });
+    h+='</table></div>';
+  });
+  const ds=D.descontos||[];
+  if(ds.length){
+    h+='<h2>Descontos aprovados esperando ser abatidos ('+ds.length+')</h2><div class="c"><table>'+
+       '<tr><th>Dia</th><th>Loja</th><th>Pedido</th><th>Motoboy</th><th class="num">Valor</th><th>Quem aprovou</th><th></th></tr>';
+    ds.forEach(function(k){
+      h+='<tr><td>'+esc(k.dia)+'</td><td>'+esc(k.unidade)+'</td><td>'+esc(k.n_pedido||'—')+'</td><td>'+esc(k.entregador||'—')+'</td>'+
+         '<td class="num">'+moeda(k.valor)+'</td><td>'+esc(k.quem||'—')+'</td>'+
+         '<td><span class="abater" data-abate="'+k.id+'">✓ abati no pagamento</span></td></tr>';
+    });
+    h+='</table><div class="assin" style="margin-top:8px">Esses valores já foram apurados e aprovados na aba "O cliente pagou?" do Turno do Delivery. Abata do próximo pagamento do motoboy e marque aqui.</div></div>';
+  }
+  const ap=D.em_apuracao||[];
+  if(ap.length){
+    h+='<h2>Ainda em apuração — NÃO descontar ('+ap.length+')</h2><div class="c">';
+    ap.forEach(function(k){
+      h+='<div class="assin">'+esc(k.dia)+' · '+esc(k.unidade)+' · pedido '+esc(k.n_pedido||'—')+' · '+esc(k.entregador||'—')+' · '+moeda(k.valor)+'</div>';
+    });
+    h+='<div class="assin" style="margin-top:8px">Enquanto ninguém apurar na aba "O cliente pagou?", nada disso é descontado de ninguém.</div></div>';
+  }
+  $('app').innerHTML=h;
+}
+async function boot(){
+  try{ D=await porta('carregar'); desenha(); }
+  catch(e){ $('app').innerHTML='<div class="c vazio">Não deu para carregar. Esta tela é só do dono e da Hellen — entre no portal de novo.</div>' }
+}
+document.addEventListener('click',async function(ev){
+  if(ev.target.id==='btAtualiza'){boot();return}
+  if(ev.target.dataset&&ev.target.dataset.pix){
+    try{ await navigator.clipboard.writeText(ev.target.dataset.pix);
+      ev.target.textContent='✓ copiada'; setTimeout(boot,900);
+    }catch(e){ alert('Copie manualmente: '+ev.target.dataset.pix) }
+    return;
+  }
+  if(ev.target.dataset&&ev.target.dataset.abate){
+    if(!confirm('Confirmar: este desconto já foi abatido num pagamento?'))return;
+    try{ await porta('abater',{id:Number(ev.target.dataset.abate)}); boot(); }
+    catch(e){ alert('Não deu para marcar.') }
+    return;
+  }
+});
+document.addEventListener('change',function(ev){ if(ev.target.id==='dia')boot(); });
+/* ===== porta unica do portal ===== */
+const CDMMODS=['pagamento'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'pagamento'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+(function(){
+  var d=new Date(Date.now()-3*3600*1000); d.setDate(d.getDate()-1);
+  $('dia').value=d.toISOString().slice(0,10);
+})();
+cdmGuarda().then(function(ok){if(!ok)return;boot();});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
