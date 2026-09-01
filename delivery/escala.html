@@ -92,6 +92,9 @@ select{background:var(--s2);border:1px solid var(--line);border-radius:8px;color
 .stat.par{background:rgba(201,133,0,.15);color:#e0a93a;border:1px solid rgba(201,133,0,.45)}
 .stat.no{background:rgba(200,16,46,.15);color:#f08d8d;border:1px solid rgba(200,16,46,.45)}
 .tamb{font-size:11.5px;color:var(--muted);margin:6px 0 0}
+.lojasel{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.lsb{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:var(--text2);border-radius:10px;padding:8px 14px;font-size:14px;font-weight:700;cursor:pointer}
+.lsb.on{background:#e0a93a;border-color:#e0a93a;color:#141414}
 </style>
 </head>
 <body>
@@ -141,6 +144,10 @@ async function cdmGuarda(){
 }
 
 const LOJAS=['Água Verde','São Braz','Ahú'];
+var LOJA_PREV=(function(){try{var v=sessionStorage.getItem('cdm_esc_loja');return LOJAS.indexOf(v)>=0?v:LOJAS[0]}catch(e){return LOJAS[0]}})();
+var NOMES_AB={};
+function setLojaPrev(l){if(LOJAS.indexOf(l)<0)return;LOJA_PREV=l;try{sessionStorage.setItem('cdm_esc_loja',l)}catch(e){}render()}
+function toggleNomes(k){NOMES_AB[k]=!NOMES_AB[k];render()}
 const DONO=(function(){try{return sessionStorage.getItem('cdm_admin')==='1'}catch(e){return false}})();
 const DOWNS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 function periodoAderDow(k){var d=new Date();d.setHours(12,0,0,0);var i=0;while(d.getDay()!==k&&i<8){d.setDate(d.getDate()-1);i++}if(iso(d)===iso(new Date())){d.setDate(d.getDate()-7)}var v=iso(d);ADER_INI=v;ADER_FIM=v;var x=document.getElementById('aderIni'),y=document.getElementById('aderFim');if(x)x.value=v;if(y)y.value=v;aplicarPeriodoAder();}
@@ -211,11 +218,12 @@ function viewPrev(){
   const escBy={};ESC.forEach(e=>{const k=e.data+'|'+e.unidade+'|'+(e.turno||'');escBy[k]=(escBy[k]||0)+1});
   let totMoto=0,totCusto=0,totCompl=0,diasChuva=0;
   ds.forEach(d=>{const c=climaBy[d];if(c&&c.clima!=='Seco')diasChuva++;});
-  SUG.forEach(s=>{totMoto+=s.motoboys_sug;totCusto+=Number(s.custo_prev||0);totCompl+=Number(s.complemento_prev||0)});
+  SUG.filter(s=>s.unidade===LOJA_PREV).forEach(s=>{totMoto+=s.motoboys_sug;totCusto+=Number(s.custo_prev||0);totCompl+=Number(s.complemento_prev||0)});
 
-  let h='<div class="kpis">'+
+  let h='<div class="lojasel">'+LOJAS.map(function(l){return '<button class="lsb'+(l===LOJA_PREV?' on':'')+'" data-l="'+esc(l)+'" onclick="setLojaPrev(this.dataset.l)">'+esc(l)+'</button>'}).join('')+'</div>';
+  h+='<div class="kpis">'+
     kpi('Dias com chuva','b',diasChuva+'/8','na previsão dos próximos 8 dias')+
-    kpi('Turnos a escalar','','' +SUG.filter(s=>s.motoboys_sug>0).length,'em 3 lojas')+
+    kpi('Turnos a escalar','','' +SUG.filter(s=>s.motoboys_sug>0&&s.unidade===LOJA_PREV).length,'em '+LOJA_PREV)+
     kpi('Motoboy-turnos','','' +totMoto,'soma sugerida da semana')+
   '</div>';
 
@@ -223,13 +231,13 @@ function viewPrev(){
 
   ds.forEach(d=>{
     const c=climaBy[d]||{};
-    const rows=SUG.filter(s=>s.dia===d&&(s.motoboys_sug>0||s.motoboys_hist>0));
+    const rows=SUG.filter(s=>s.dia===d&&s.unidade===LOJA_PREV&&(s.motoboys_sug>0||s.motoboys_hist>0));
     const mot=rows.reduce((a,b)=>a+b.motoboys_sug,0);
-    const jaMont=ESC.filter(e=>e.data===d).length;
-    const lojasEsc=[...new Set(ESC.filter(e=>e.data===d).map(e=>e.unidade))];
+    const jaMont=ESC.filter(e=>e.data===d&&e.unidade===LOJA_PREV).length;
+    const lojasEsc=[...new Set(ESC.filter(e=>e.data===d&&e.unidade===LOJA_PREV).map(e=>e.unidade))];
     const motComp=lojasEsc.length?rows.filter(x=>lojasEsc.indexOf(x.unidade)>=0).reduce((a,b)=>a+b.motoboys_sug,0):mot;
     const semEsc=LOJAS.filter(l=>lojasEsc.indexOf(l)<0&&rows.some(x=>x.unidade===l));
-    const alvoTxt=(lojasEsc.length===1?' ('+lojasEsc[0]+')':'')+(semEsc.length?' <span style="color:#e0a93a">· sem escala: '+semEsc.join(', ')+'</span>':'');
+    const alvoTxt=''+(semEsc.length?' <span style="color:#e0a93a">· sem escala: '+semEsc.join(', ')+'</span>':'');
     const open=ABERTO[d]!==undefined?ABERTO[d]:(d===ds[1]);
     h+='<div class="day"><div class="dayh" onclick="ABERTO[\''+d+'\']='+(!open)+';render()">'+
       '<div class="ico">'+wxIcon(c.wcode_pico,Number(c.chuva_mm||0))+'</div>'+
@@ -240,7 +248,7 @@ function viewPrev(){
       '</div>';
     if(open){
       h+='<div class="dayb">';
-      LOJAS.forEach(l=>{
+      [LOJA_PREV].forEach(l=>{
         const rs=rows.filter(x=>x.unidade===l).sort((a,b)=>TORD[a.turno]-TORD[b.turno]);
         if(!rs.length)return;
         h+='<div class="loja"><div class="ln">'+l+'</div><table><tr><th onclick="sortTbl(this)" style="cursor:pointer">Turno \u21C5</th><th>Tempo</th><th class="num" onclick="sortTbl(this)" style="cursor:pointer">Entregas prev. \u21C5</th><th class="num" onclick="sortTbl(this)" style="cursor:pointer">Sugerido \u21C5</th><th class="num" onclick="sortTbl(this)" style="cursor:pointer">Histórico \u21C5</th><th>Por quê</th></tr>';
@@ -254,9 +262,9 @@ function viewPrev(){
              '<td class="small">'+esc(s.motivo)+(s.h_cada?' · ~'+s.h_cada+'h cada':'')+'</td></tr>';
         });
         const esl=ESC.filter(e=>e.data===d&&e.unidade===l).map(e=>({nome:e.nome,entrada:String(e.entrada).slice(0,5),saida:String(e.saida).slice(0,5)}));
-        h+='</table>'+(esl.length?quadroNomes(esl,rs)+barraCobertura(esl):'<div class="hs" style="color:#e0a93a">escala desta loja ainda não foi feita</div>')+'</div>';
+        h+='</table>'+(esl.length?quadroNomes(esl,rs,d+'|'+l)+barraCobertura(esl):'<div class="hs" style="color:#e0a93a">escala desta loja ainda não foi feita</div>')+'</div>';
       });
-      const feito=ESC.filter(e=>e.data===d).length;
+      const feito=ESC.filter(e=>e.data===d&&e.unidade===LOJA_PREV).length;
       h+='<button class="'+(feito?'btnb':'btnr')+'" style="margin-top:12px" onclick="event.stopPropagation();DATA=\''+d+'\';setView(\'mont\')">'+(feito?'👁 VER A ESCALA DESTE DIA →':'✍️ FALTA FAZER A ESCALA — montar agora →')+'</button>';
       h+='</div>';
     }
@@ -384,7 +392,7 @@ function _alvoTurno(sug){
   });
   return a;
 }
-function quadroNomes(rows,sug){
+function quadroNomes(rows,sug,key){
   var alvo=_alvoTurno(sug), h='<div style="margin:6px 0 10px">';
   TURNOS_ESC.forEach(function(t){
     var rs=(rows||[]).filter(function(r){return cobre(r,t)})
@@ -393,15 +401,17 @@ function quadroNomes(rows,sug){
     var rot=_rotulos(rs);
     var falta=(alvo[t]||0)-rs.length;
     var selo=alvo[t]?(falta>0?'<span class="pill pw">⚠ sugiro mais '+falta+'</span>':'<span class="pill pg">✅ no alvo de '+alvo[t]+'</span>'):'';
-    h+='<div style="margin:8px 0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+
-       '<b>'+tit+'</b><span class="pill '+(rs.length?'pg':'pw')+'">'+rs.length+'</span>'+selo+'</div>'+
-       '<div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap">'+
+    var kk=key?(key+'|'+t):'';
+    var ab=kk?!!NOMES_AB[kk]:true;
+    h+='<div style="margin:8px 0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap'+(kk?';cursor:pointer':'')+'"'+(kk?' data-k="'+esc(kk)+'" onclick="toggleNomes(this.dataset.k)"':'')+'>'+
+       '<b>'+tit+'</b><span class="pill '+(rs.length?'pg':'pw')+'">'+rs.length+'</span>'+selo+(kk?'<span style="opacity:.55;font-size:12px">'+(ab?'▾ esconder':'▸ ver nomes')+'</span>':'')+'</div>'+
+       (!ab?'':'<div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap">'+
        (rs.length?rs.map(function(r,i){
          return '<span style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.10);border-radius:9px;padding:4px 9px;font-size:13px"><b>'+
            esc(rot[i])+'</b> <span style="opacity:.75">'+
            String(r.entrada).slice(0,5)+'–'+String(r.saida).slice(0,5)+'</span></span>';
        }).join(''):'<span class="empty">ninguém escalado</span>')+
-       '</div></div>';
+       '</div>')+'</div>';
   });
   return h+'</div>';
 }
