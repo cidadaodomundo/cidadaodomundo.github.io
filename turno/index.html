@@ -48,7 +48,7 @@ td{padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:
 </head>
 <body>
 <div class="top">
-  <div><h1>🧾 Turno do Delivery</h1><div class="sub">o que precisa ser conferido no turno, os cancelamentos do dia e qual maquininha ficou com quem</div></div>
+  <div><h1>🧾 Turno do Delivery</h1><div class="sub">o que precisa ser conferido no turno, os cancelamentos do dia e as cobranças que não fecharam</div></div>
   <div class="rt">
     <input type="date" id="dia">
     <select id="turno"><option value="manha">☀ Manhã</option><option value="noite" selected>🌙 Noite</option></select>
@@ -59,7 +59,7 @@ td{padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:
 <div class="abas">
   <span class="aba on" data-aba="check">✅ Checklist do turno</span>
   <span class="aba" data-aba="cancel">🚫 Cancelamentos</span>
-  <span class="aba" data-aba="maq">💳 Maquininhas</span>
+  <span class="aba" data-aba="cob">💳 O cliente pagou?</span>
 </div>
 <div id="app">Carregando…</div>
 <div class="aviso">Cada marcação guarda o seu nome e a hora. O que você marcar fica valendo para o dia, o turno e a loja escolhidos lá em cima. Tela em construção — fale o que falta que a gente arruma.</div>
@@ -168,10 +168,55 @@ function desenhaCancel(){
   });
   return h+'</table></div>';
 }
+const RESULTADOS=[
+  ['canhoto','✅ Achei o canhoto — ele cobrou'],
+  ['dinheiro','💵 Cliente pagou em dinheiro ou Pix'],
+  ['nao_entregue','🚫 O pedido não foi entregue'],
+  ['loja','🏪 Erro da loja, não do motoboy'],
+  ['descontar','🔴 Ele não cobrou — descontar dele']
+];
+let COB=null;
+async function carregaCob(){ try{ COB=await porta('cob_listar',{}); }catch(e){ COB={casos:[]} } desenha(); }
+function desenhaCob(){
+  let h='<div class="c"><b>Como conferir um sumiço, em 4 passos</b>'+
+   '<div class="linha" style="cursor:default"><span class="cx">1</span><span>Ache o <b>canhoto</b> daquele pedido — o comprovante que sai da maquininha. Confira o dia, a hora e o valor.</span></div>'+
+   '<div class="linha" style="cursor:default"><span class="cx">2</span><span>Não achou o canhoto? Pergunte ao motoboy o que aconteceu naquela entrega e anote a resposta dele aqui.</span></div>'+
+   '<div class="linha" style="cursor:default"><span class="cx">3</span><span>Procure no <b>grupo do WhatsApp</b> daquele dia — muita coisa foi avisada lá na hora: cliente que não estava, endereço errado, pagou em dinheiro.</span></div>'+
+   '<div class="linha" style="cursor:default"><span class="cx">4</span><span>Marque abaixo o que aconteceu. Enquanto ninguém marcar, o caso fica aberto e <b>ninguém é descontado</b>.</span></div>'+
+   '<div class="assin" style="margin-top:10px">O sistema só aponta o que não fechou: o pedido dizia cartão e a máquina não registrou nada daquele valor. Isso <b>não</b> quer dizer que o motoboy ficou com o dinheiro — quer dizer que falta explicação.</div>'+
+   '</div>';
+  if(!COB){ carregaCob(); return h+'<div class="c vazio">Carregando os casos…</div>'; }
+  const l=COB.casos||[];
+  const abertos=l.filter(function(o){return !o.resultado});
+  const fechados=l.filter(function(o){return o.resultado});
+  h+='<h2>Esperando explicação ('+abertos.length+')</h2>';
+  if(!abertos.length) h+='<div class="c vazio">Nada em aberto. 🎉</div>';
+  abertos.forEach(function(o){ h+=cartaoCob(o,true) });
+  if(fechados.length){
+    h+='<h2>Já explicados ('+fechados.length+')</h2>';
+    fechados.forEach(function(o){ h+=cartaoCob(o,false) });
+  }
+  return h;
+}
+function cartaoCob(o,aberto){
+  const rot={canhoto:'✅ achei o canhoto',dinheiro:'💵 pagou em dinheiro ou Pix',nao_entregue:'🚫 não foi entregue',loja:'🏪 erro da loja',descontar:'🔴 descontar do motoboy'};
+  let h='<div class="c">'+
+   '<div><b>'+esc(o.unidade)+' · pedido '+esc(o.n_pedido||'—')+'</b> · '+esc(o.dia)+(o.hora_entrega?' às '+esc(o.hora_entrega):'')+'</div>'+
+   '<div class="assin">motoboy: '+esc(o.entregador||'—')+' · cliente: '+esc(o.cliente||'—')+' · era para cobrar: '+esc(o.meio||'—')+(o.valor!=null?' '+moeda(o.valor):'')+'</div>'+
+   '<div class="assin">'+(o.origem==='COMANDA NAO COBRADA'?'a comanda ficou pendente no Saipos — quem não cobrou foi o atendente':'o pedido dizia cartão e a máquina não tem essa venda')+'</div>';
+  if(aberto){
+    h+='<div class="stbar" style="margin-top:10px">'+RESULTADOS.map(function(r){
+      return '<span class="aba" data-cob="'+o.id+'" data-res="'+r[0]+'">'+r[1]+'</span>';
+    }).join('')+'</div>';
+  }else{
+    h+='<div class="assin" style="margin-top:8px"><b>'+esc(rot[o.resultado]||o.resultado)+'</b> — '+esc(o.quem||'')+' · '+esc(o.quando||'')+(o.observacao?' · '+esc(o.observacao):'')+'</div>';
+  }
+  return h+'</div>';
+}
 function desenha(){
   document.querySelectorAll('.aba').forEach(function(a){a.classList.toggle('on',a.dataset.aba===ABA)});
   if(!D){$('app').innerHTML='<div class="c vazio">Carregando…</div>';return}
-  $('app').innerHTML = ABA==='check'?desenhaCheck():(ABA==='cancel'?desenhaCancel():desenhaMaq());
+  $('app').innerHTML = ABA==='check'?desenhaCheck():(ABA==='cancel'?desenhaCancel():desenhaCob());
   if(ABA==='maq'){
     (D.maquininhas||[]).forEach(function(o){
       const s=document.querySelector('[data-maq="'+o.id+'"]');
@@ -186,8 +231,15 @@ async function boot(){
   catch(e){ $('app').innerHTML='<div class="c">Não deu para carregar. Entre no portal de novo e tente outra vez.</div>' }
 }
 document.addEventListener('click',async function(ev){
+  const bc=ev.target.closest('[data-cob]');
+  if(bc){
+    const obs=prompt('O que aconteceu? (pode deixar em branco)')||'';
+    try{ await porta('cob_decidir',{id:Number(bc.dataset.cob),resultado:bc.dataset.res,observacao:obs}); await carregaCob(); }
+    catch(e){ alert('Não deu para marcar.') }
+    return;
+  }
   const aba=ev.target.closest('.aba');
-  if(aba){ABA=aba.dataset.aba;desenha();return}
+  if(aba&&aba.dataset.aba){ABA=aba.dataset.aba;if(ABA==='cob'&&!COB){carregaCob();return}desenha();return}
   if(ev.target.id==='btAtualiza'){boot();return}
   const li=ev.target.closest('.linha');
   if(li){
