@@ -361,6 +361,21 @@ h+='</div>';
 return h;
 }
 /* ===== quem esta em cada horario, e o sinal de faltar gente (01/09/2026) ===== */
+function _pedacos(n){
+  var t=String(n||'').split(/\s+/).filter(function(x){return /[A-Za-zÀ-ÿ]/.test(x)});
+  var b=t.filter(function(x){return !(x.length<=4&&x===x.toUpperCase())});
+  return b.length?b:t;
+}
+function _primeiro(n){var p=_pedacos(n);return p.length?p[0]:String(n||'?')}
+function _rotulos(rs){
+  var c={};
+  rs.forEach(function(r){var p=_primeiro(r.nome);c[p]=(c[p]||0)+1});
+  return rs.map(function(r){
+    var p=_pedacos(r.nome), pri=p.length?p[0]:String(r.nome||'?');
+    if(c[pri]>1&&p.length>1)return pri+' '+p[1].charAt(0).toUpperCase()+'.';
+    return pri;
+  });
+}
 function _alvoTurno(sug){
   var a={'Almoço':0,'Jantar':0,'Fecha':0};
   (sug||[]).forEach(function(s){
@@ -375,14 +390,15 @@ function quadroNomes(rows,sug){
     var rs=(rows||[]).filter(function(r){return cobre(r,t)})
       .sort(function(a,b){return String(a.entrada).localeCompare(String(b.entrada))});
     var tit=(t==='Almoço')?'☀️ Almoço':((t==='Jantar')?'🌙 Janta':'🌃 Fecha');
+    var rot=_rotulos(rs);
     var falta=(alvo[t]||0)-rs.length;
     var selo=alvo[t]?(falta>0?'<span class="pill pw">⚠ sugiro mais '+falta+'</span>':'<span class="pill pg">✅ no alvo de '+alvo[t]+'</span>'):'';
     h+='<div style="margin:8px 0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+
        '<b>'+tit+'</b><span class="pill '+(rs.length?'pg':'pw')+'">'+rs.length+'</span>'+selo+'</div>'+
        '<div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap">'+
-       (rs.length?rs.map(function(r){
+       (rs.length?rs.map(function(r,i){
          return '<span style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.10);border-radius:9px;padding:4px 9px;font-size:13px"><b>'+
-           esc(String(r.nome||'?').split(' ')[0])+'</b> <span style="opacity:.75">'+
+           esc(rot[i])+'</b> <span style="opacity:.75">'+
            String(r.entrada).slice(0,5)+'–'+String(r.saida).slice(0,5)+'</span></span>';
        }).join(''):'<span class="empty">ninguém escalado</span>')+
        '</div></div>';
