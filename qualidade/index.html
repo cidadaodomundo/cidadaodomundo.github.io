@@ -178,7 +178,7 @@ function filtros(){
   h+='</div>';
   const abas=[['resumo','📈 Resumo'],['lojas','🏪 Por loja'],['turnos','🕐 Por turno'],['pausados','📵 Fora do ar'],['dia','🗓 O dia']];
   if(D.modo==='dono')abas.push(['dinheiro','💰 Dinheiro'],['pessoas','🛵 Entregadores']);
-  abas.push(['cancel','🚫 Cancelamentos'],['motivos','📞 Por que reclamaram'],['cliente','💬 O que o cliente falou'],['super','🏆 Selo Super']);
+  abas.push(['cancel','🚫 Cancelamentos'],['cliente','⭐ Avaliações'],['super','🏆 Selo Super']);
   h+='<div class="fil">';
   abas.forEach(function(a){h+='<button class="'+(ABA===a[0]?'on':'')+'" onclick="vaiPara(\''+a[0]+'\')">'+a[1]+'</button>'});
   h+='</div>';
@@ -202,7 +202,7 @@ function vaiPara(a){
   if(a==='dia'&&!DD){desenha();puxaDia();return}
   if(a==='super'&&!SU){desenha();puxaSuper();return}
   if(a==='cancel'&&!CC){desenha();puxaCanc();return}
-  if(a==='motivos'&&!SU){desenha();puxaSuper();return}
+  if(a==='cliente'&&!SU){desenha();puxaSuper();return}
   desenha();
 }
 
@@ -216,7 +216,21 @@ function cartaoVivo(t,v,d,k){
 function painelVivo(){
   if(!VIVO)return '';
   let h='<div class="detalhe">';
-  if(VIVO==='prazo'||VIVO==='entregas'){
+  if(VIVO==='nota'||VIVO==='evitado'){
+    const L=D.por_loja||[];
+    if(!L.length)h+='<div class="c"><div class="vazio">sem dado por loja</div></div>';
+    else{
+      h+='<div class="c"><b>'+(VIVO==='nota'?'Nota e notas baixas por loja':'Chamados e cancelamento evitado por loja')+'</b><div class="rolar"><table>';
+      if(VIVO==='nota'){
+        h+='<tr><th>Loja</th><th>Nota</th><th>Notas baixas</th></tr>';
+        L.forEach(function(l){h+='<tr><td>'+esc(l.unidade)+'</td><td>'+(l.nota==null?'—':'★ '+l.nota)+'</td><td>'+n(l.notas_baixas)+'</td></tr>'});
+      } else {
+        h+='<tr><th>Loja</th><th>Chamados</th><th>Cancelamento evitado</th></tr>';
+        L.forEach(function(l){h+='<tr><td>'+esc(l.unidade)+'</td><td>'+n(l.chamados)+'</td><td>'+n(l.evitados)+'</td></tr>'});
+      }
+      h+='</table></div><div class="m">Vem do relatório do iFood, que chega no dia seguinte.</div></div>';
+    }
+  } else if(VIVO==='prazo'||VIVO==='entregas'){
     const L=D.por_loja||[];
     if(!L.length)h+='<div class="c"><div class="vazio">sem dado por loja</div></div>';
     else{
@@ -327,27 +341,27 @@ function resumo(){
   let h='<div class="cards">';
   h+=cartaoVivo('No prazo', (a.pct_prazo==null?'—':a.pct_prazo+'%'), delta(a.pct_prazo,b.pct_prazo,true,'%'), 'prazo');
   const ift=iFoodTem();
-  const semIf='<div class="d flat">o iFood ainda não mandou</div>';
-  h+=cartao('Nota do iFood', ift?(a.nota==null?'—':'★ '+a.nota):'—', ift?delta(a.nota,b.nota,true,''):semIf);
-  h+=cartaoVivo('Notas baixas (1–3)', ift?n(a.notas_baixas):'—', ift?delta(a.notas_baixas,b.notas_baixas,false,''):semIf, 'baixas');
-  h+=cartaoVivo('Cancelamentos', ift?n(a.cancelamentos):'—', ift?delta(a.cancelamentos,b.cancelamentos,false,''):semIf, 'cancel');
-  h+=cartao('Chamados do cliente', n(a.chamados), delta(a.chamados,b.chamados,false,''));
-  h+=cartao('Cancelamento evitado', n(a.evitados), '<div class="d flat">de '+n(a.chamados)+' chamados</div>');
+  const U=D.ultimo||{};
+  function velho(dt){return '<div class="d flat">últimos 7 dias até '+dData(dt)+'</div>'}
+  h+=cartaoVivo('Nota do iFood', ift?(a.nota==null?'—':'★ '+a.nota):(U.nota==null?'—':'★ '+U.nota), ift?delta(a.nota,b.nota,true,''):velho(U.avaliacao_ate), 'nota');
+  h+=cartaoVivo('Notas baixas (1–3)', ift?n(a.notas_baixas):n(U.notas_baixas), ift?delta(a.notas_baixas,b.notas_baixas,false,''):velho(U.avaliacao_ate), 'baixas');
+  h+=cartaoVivo('Cancelamentos', ift?n(a.cancelamentos):n(U.cancelamentos), ift?delta(a.cancelamentos,b.cancelamentos,false,''):velho(U.cancelamento_ate), 'cancel');
+  h+=cartaoVivo('Cancelamento evitado', ift?n(a.evitados):n(U.evitados), ift?('<div class="d flat">de '+n(a.chamados)+' chamados</div>'):velho(U.negociacao_ate), 'evitado');
   h+=cartaoVivo('Entregas', n(a.entregas), delta(a.entregas,b.entregas,true,''), 'entregas');
   h+=cartaoVivo('Atraso médio', (a.atraso_medio==null?'—':a.atraso_medio+' min'), delta(a.atraso_medio,b.atraso_medio,false,' min'), 'atraso');
   if(CC&&CC.resumo&&CC.resumo.agora){
     const rc=CC.resumo.agora, bc2=CC.resumo.antes||{};
-    h+=cartaoVivo('Erro da cozinha', ift?n(rc.erro_cozinha):'—', ift?delta(rc.erro_cozinha,bc2.erro_cozinha,false,''):semIf, 'ecoz');
-    h+=cartaoVivo('Erro na entrega', ift?n(rc.erro_entrega):'—', ift?delta(rc.erro_entrega,bc2.erro_entrega,false,''):semIf, 'eent');
+    h+=cartaoVivo('Erro da cozinha', ift?n(rc.erro_cozinha):n(U.erro_cozinha), ift?delta(rc.erro_cozinha,bc2.erro_cozinha,false,''):velho(U.cancelamento_ate), 'ecoz');
+    h+=cartaoVivo('Erro na entrega', ift?n(rc.erro_entrega):n(U.erro_entrega), ift?delta(rc.erro_entrega,bc2.erro_entrega,false,''):velho(U.cancelamento_ate), 'eent');
   }
   h+='</div>';
   h+=painelVivo();
 
   if(!iFoodTem()){
     h+='<div class="aviso"><b>Os números do iFood ainda não chegaram para este período.</b> '+
-       'Nota, notas baixas, cancelamentos e os dois cartões de erro aparecem com traço em vez de zero, '+
-       'porque o iFood só manda o relatório no dia seguinte — o último que temos é de '+dData(CC&&CC.ifood_ate)+'. '+
-       'Zero aqui seria mentira. <b>Entregas, no prazo e atraso</b> são do nosso sistema e estão atualizados.</div>';
+       'Nota, notas baixas, cancelamentos, cancelamento evitado e os dois cartões de erro mostram os ÚLTIMOS 7 DIAS que já chegaram, '+
+       'com a data escrita embaixo de cada um, porque o iFood só manda o relatório no dia seguinte. '+
+       'Nunca zero: zero aqui seria mentira. <b>Entregas, no prazo e atraso</b> são do nosso sistema e estão atualizados agora.</div>';
   }
   if(!a.entregas){
     h+='<div class="aviso"><b>Ainda não há entrega neste período.</b> '+
@@ -588,15 +602,15 @@ function motivos(){
 function desenha(){
   if(!D){$('app').innerHTML='<div class="load">Carregando…</div>';return}
   let h=filtros();
-  if((ABA==='super'||ABA==='motivos')&&PER!=='d7'&&PER!=='d30')
+  if((ABA==='super'||ABA==='cliente')&&PER!=='d7'&&PER!=='d30')
     h+='<div class="aviso">Estas duas abas sempre olham os últimos '+DIAS+' dias, não o período escolhido acima.</div>';
   if(ABA==='dia')h+=odia();
   else if(ABA==='super')h+=selo();
-  else if(ABA==='motivos')h+=motivos();
+
   else if(ABA==='resumo')h+=resumo();
   else if(ABA==='lojas')h+=tabelaLojas();
   else if(ABA==='turnos')h+=tabelaTurnos();
-  else if(ABA==='cliente')h+=falas();
+  else if(ABA==='cliente')h+=falas()+motivos();
   else if(ABA==='pausados')h+=pausados();
   else if(ABA==='dinheiro')h+=dinheiro();
   else if(ABA==='pessoas')h+=pessoas();
