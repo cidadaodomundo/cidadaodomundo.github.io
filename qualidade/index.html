@@ -79,7 +79,7 @@ const $=i=>document.getElementById(i);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
 
-let D=null,DD=null,SU=null,DIAS=30,UNI='',ABA='resumo',DIA='',PER='d30',CC=null,VIVO='';
+let D=null,DD=null,SU=null,DIAS=30,UNI='',ABA='resumo',DIA='',PER='quinzena',CC=null,VIVO='';
 
 function hoje(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)}
 function ontem(){const d=new Date();d.setDate(d.getDate()-1);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)}
@@ -127,7 +127,7 @@ async function puxaCanc(){
   catch(e){ CC={erro:(e&&e.message)||'não deu para buscar'}; }
   desenha();
 }
-function vaiPeriodo(p){PER=p;if(p==='d7')DIAS=7;if(p==='d30')DIAS=30;CC=null;VIVO='';boot()}
+function vaiPeriodo(p){PER=p;CC=null;VIVO='';boot()}
 function vivo(k){
   VIVO=(VIVO===k?'':k);
   if(VIVO&&(VIVO==='cancel'||VIVO==='ecoz'||VIVO==='eent')&&!CC){desenha();puxaCanc();return}
@@ -164,7 +164,7 @@ function barra(pct){
 
 function filtros(){
   let h='<div class="fil">';
-  [['hoje','Hoje'],['ontem','Ontem'],['quinzena','Quinzena'],['mes','Este mês'],['d7','7 dias'],['d30','30 dias']].forEach(function(o){
+  [['hoje','Hoje'],['ontem','Ontem'],['quinzena','Quinzena'],['mes','Este mês']].forEach(function(o){
     h+='<button class="'+(PER===o[0]?'on':'')+'" onclick="vaiPeriodo(\''+o[0]+'\')">'+o[1]+'</button>';
   });
   h+='</div>';
@@ -176,10 +176,9 @@ function filtros(){
     h+='<button class="'+(UNI===l.unidade?'on':'')+'" onclick="UNI=\''+esc(l.unidade).replace(/'/g,"\\'")+'\';boot()">'+esc(l.unidade)+'</button>';
   });
   h+='</div>';
-  const abas=[['resumo','📈 Resumo'],['dia','🗓 O dia'],['super','🏆 Selo Super'],
-              ['motivos','📞 Por que reclamaram'],['lojas','🏪 Por loja'],['turnos','🕐 Por turno'],
-              ['cliente','💬 O que o cliente falou'],['cancel','🚫 Cancelamentos'],['pausados','📵 Fora do ar']];
+  const abas=[['resumo','📈 Resumo'],['lojas','🏪 Por loja'],['turnos','🕐 Por turno'],['pausados','📵 Fora do ar'],['dia','🗓 O dia']];
   if(D.modo==='dono')abas.push(['dinheiro','💰 Dinheiro'],['pessoas','🛵 Entregadores']);
+  abas.push(['cancel','🚫 Cancelamentos'],['motivos','📞 Por que reclamaram'],['cliente','💬 O que o cliente falou'],['super','🏆 Selo Super']);
   h+='<div class="fil">';
   abas.forEach(function(a){h+='<button class="'+(ABA===a[0]?'on':'')+'" onclick="vaiPara(\''+a[0]+'\')">'+a[1]+'</button>'});
   h+='</div>';
