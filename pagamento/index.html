@@ -77,6 +77,7 @@ tr.aviso td{color:#e8bb62}
 
 <div class="hs">O valor pago é o <b>maior</b> entre o que ele fez de taxa e o piso garantido pelas horas —
 nunca a soma, e nunca com desconto automático. Quem decide qualquer ajuste é você.<br>
+<b>A régua:</b> Água Verde paga as horas rodadas a R$ 20, e R$ 25 no sábado e domingo. São Braz é diária de R$ 80 no dia e R$ 100 na noite. Ahú é diária de R$ 100.<br>
 <b>Entregas pagas</b> é a contagem que gerou taxa no fechamento do turno — é o que sustenta o valor a pagar,
 e <b>não</b> é a medida de quantas entregas a loja fez no dia. Para volume de entrega, olhe a Central do Delivery.</div>
 
@@ -90,7 +91,6 @@ function rs(n){return 'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFraction
 function num(n){return Number(n||0).toLocaleString('pt-BR',{maximumFractionDigits:1})}
 let VIEW='moto', D=null;
 
-function estimada(u){var s=String(u||'');return s.indexOf('São Braz')>=0||s.indexOf('Ahú')>=0}
 
 async function porta(de,ate){
   const b={p_token:cdmTok()};
@@ -128,9 +128,10 @@ async function carrega(){
 
 function faixa(){
   const r=D.resumo||{}, av=[];
-  if(r.sem_hora>0)av.push('<b>'+r.sem_hora+'</b> pagamento'+(r.sem_hora==1?' saiu':'s saíram')+' sem o piso garantido, porque não havia escala lançada naquele dia — sem escala não há hora, e sem hora não há piso');
+  if(r.sem_hora>0)av.push('<b>'+r.sem_hora+'</b> pagamento'+(r.sem_hora==1?' ficou':'s ficaram')+' sem hora medida — o piso não pôde ser calculado');
   if(r.sem_pix>0)av.push('<b>'+r.sem_pix+'</b> pagamento'+(r.sem_pix==1?'':'s')+' de motoboy <b>sem chave PIX cadastrada</b>');
-  av.push('no <b>São Braz</b> e no <b>Ahú</b> a hora é estimada: o Jaison publica essas duas lojas só com os nomes, e o sistema completa com 6 horas por turno');
+  av.push('a hora usada é a de quem <b>realmente rodou</b>, da primeira à última entrega — ela <b>subestima</b>, porque o motoboy chega antes e fica depois');
+  if(r.total_antigo&&Math.abs(r.total-r.total_antigo)>0.01)av.push('a conta mudou em 01/09: antes o sistema pagava R$ 20 por hora em todas as lojas, sobre as horas da <b>escala</b>; agora vale a régua da casa sobre a hora real');
   $('faixa').innerHTML='<div class="faixa">⚠️ Antes de pagar, olhe isto:<br>· '+av.join('<br>· ')+'</div>';
 }
 
@@ -139,7 +140,7 @@ function kpis(){
   $('kpis').innerHTML='<div class="kpis">'+
     kpi('Total a pagar','g',rs(r.total),(r.pagamentos||0)+' pagamentos no período')+
     kpi('Motoboys','',r.motoboys||0,'pessoas diferentes')+
-    kpi('Sem escala no dia','w',r.sem_hora||0,'de '+(r.pagamentos||0)+' pagamentos — piso não aplicado')+
+    kpi('Conta antiga','w',rs(r.total_antigo),'diferença de '+rs((r.total||0)-(r.total_antigo||0))+' a mais para os motoboys')+
   '</div>';
 }
 function kpi(k,c,v,d){return '<div class="kpi '+(c||'')+'"><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="d">'+d+'</div></div>'}
@@ -157,20 +158,18 @@ function viewMoto(){
   if(!l.length){$('conteudo').innerHTML='<div class="c empty">Nenhum motoboy rodou neste período.</div>';return}
   let h='';
   l.forEach(function(m,i){
-    const est=estimada(m.unidades);
     h+='<div class="c"><div class="lin">'+
        '<span class="nm">'+esc(m.entregador)+'</span>'+
        '<span class="vl">'+rs(m.pagar)+'</span></div>'+
        '<div class="det">'+esc(m.unidades)+' · '+m.dias+' dia'+(m.dias==1?'':'s')+' · '+
-       m.entregas+' entregas pagas · '+(m.horas?num(m.horas)+'h':'sem hora')+' · '+rs(m.taxas)+' de taxa</div>';
+       m.entregas+' entregas pagas · '+(m.horas?num(m.horas)+'h rodando':'sem hora')+' · '+rs(m.taxas)+' de taxa'+(m.pagar_antigo&&Math.abs(m.pagar-m.pagar_antigo)>0.01?' · <span style="opacity:.7">antes seria '+rs(m.pagar_antigo)+'</span>':'')+'</div>';
     if(m.pix&&!m.sem_pix){
       h+='<div class="pix">🔑 <code id="pix'+i+'">'+esc(m.pix)+'</code>'+
          '<button class="b" onclick="copiar(document.getElementById(\'pix'+i+'\').textContent)">copiar</button></div>';
     }
     const av=[];
     if(m.sem_pix||!m.pix)av.push('<span class="pill bad">sem chave PIX</span>');
-    if(m.dias_sem_hora>0)av.push('<span class="pill warn">'+m.dias_sem_hora+' dia'+(m.dias_sem_hora==1?'':'s')+' sem escala — piso não aplicado</span>');
-    if(est)av.push('<span class="pill warn">hora estimada</span>');
+    if(m.dias_sem_hora>0)av.push('<span class="pill warn">'+m.dias_sem_hora+' dia'+(m.dias_sem_hora==1?'':'s')+' sem hora medida</span>');
     if(av.length)h+='<div class="avisos">'+av.join('')+'</div>';
     h+='</div>';
   });
@@ -221,7 +220,7 @@ function viewDia(){
   let h='<div class="c wrap"><table><tr>'+
     '<th>Dia</th><th>Loja</th><th>Motoboy</th><th>Turno</th>'+
     '<th class="num">Entregas pagas</th><th class="num">Horas</th><th class="num">Taxas</th>'+
-    '<th class="num">Piso</th><th class="num">Ajuste</th><th class="num">A pagar</th><th>Aviso</th></tr>';
+    '<th class="num">Piso</th><th class="num">Ajuste</th><th class="num">A pagar</th><th class="num">Conta antiga</th><th>Aviso</th></tr>';
   l.forEach(function(r){
     h+='<tr'+(r.alerta?' class="aviso"':'')+'>'+
        '<td>'+esc(r.dia)+' <span class="rel">'+esc(String(r.dow||'').slice(0,3))+'</span></td>'+
@@ -232,6 +231,7 @@ function viewDia(){
        '<td class="num">'+(Number(r.piso)?rs(r.piso):'—')+'</td>'+
        '<td class="num">'+(Number(r.ajustes)?rs(r.ajustes):'—')+'</td>'+
        '<td class="num"><b>'+rs(r.pagar)+'</b></td>'+
+       '<td class="num" style="opacity:.7">'+(r.pagar_antigo?rs(r.pagar_antigo):'—')+'</td>'+
        '<td>'+esc(r.alerta||'')+'</td></tr>';
   });
   $('conteudo').innerHTML=h+'</table></div>';
