@@ -101,7 +101,7 @@ select{background:var(--s2);border:1px solid var(--line);border-radius:8px;color
   <div class="dot">CM</div>
   <div style="flex:1"><h1>🗓 Escala do Delivery</h1><div class="sub" id="hsub">carregando…</div></div>
   <button id="instalar" onclick="instalarApp()" class="btnr" style="display:none">📲 Instalar</button>
-  <button class="btnr" onclick="loadAll()">↻</button>
+  <button class="btnr" onclick="loadAll()">🔄 Atualizar</button>
 </header>
 
 <div class="tabs nav">
@@ -179,7 +179,7 @@ function climaPill(c){
   return '<span class="pill pm">Seco</span>';
 }
 
-let VIEW='prev', SUG=[], CLIMA=[], ESC=[], ADER=[], FORA=[], NOMES=[], DATA=null, LOJA='Água Verde', ROWS=[], ABERTO={}, RESUMO=false, ADER_INI=null, ADER_FIM=null, LOJA_ADER='Todas';
+let VIEW='prev', SUG=[], CLIMA=[], ESC=[], ADER=[], FORA=[], NOMES=[], DATA=null, LOJA='Água Verde', ROWS=[], ABERTO={}, RESUMO=true, ULT=0, ADER_INI=null, ADER_FIM=null, LOJA_ADER='Todas';
 const hoje=()=>iso(new Date());
 function dias(n,off){const b=new Date();const a=[];for(let i=(off||0);i<(off||0)+n;i++)a.push(iso(new Date(b.getTime()+i*864e5)));return a}
 
@@ -194,8 +194,9 @@ if(!ADER_INI){ADER_INI=dm7;ADER_FIM=iso(new Date(Date.now()-864e5))}
       escRPC('aderencia',{de:ADER_INI,ate:ADER_FIM})
     ]);
     SUG=r[0];CLIMA=r[1];ESC=r[2];ADER=r[3].aderencia||[];FORA=r[3].fora||[];
+    ULT=Date.now();
     const at=CLIMA.length?CLIMA[CLIMA.length-1].atualizado_em:null;
-    $('hsub').textContent='previsão do tempo + histórico do Foody · clima atualizado '+(at?hm(at):'—');
+    $('hsub').textContent='previsão do tempo + histórico do Foody · clima atualizado '+(at?hm(at):'—')+' · esta tela: '+hm(ULT);
     if(!DATA)DATA=dias(8)[1];
     render();
   }catch(e){$('conteudo').innerHTML='<div class="sec"><div class="empty">Erro ao carregar: '+esc(e.message)+'</div></div>'}
@@ -216,7 +217,6 @@ function viewPrev(){
     kpi('Dias com chuva','b',diasChuva+'/8','na previsão dos próximos 8 dias')+
     kpi('Turnos a escalar','','' +SUG.filter(s=>s.motoboys_sug>0).length,'em 3 lojas')+
     kpi('Motoboy-turnos','','' +totMoto,'soma sugerida da semana')+
-    kpi('Custo previsto','g',((function(){try{return sessionStorage.getItem("cdm_admin")==="1"}catch(e){return false}})()?'R$ '+fmt(totCusto):'—'),'entregas + complemento')+
   '</div>';
 
   h+='<div class="hint">O número sugerido busca <b>4 entregas por motoboy-hora</b> — é o alvo com folga. A medição de 11.980 pedidos (30/08) mostrou onde o atraso dispara de verdade: <b>acima de 5,5 por motoboy no seco, e acima de 4 na chuva</b> — na chuva passando de 5,5, só 33% chegam no prazo. Abaixo de 3,5 a loja paga complemento por gente parada. Em chuva a demanda do almoço sobe ~20% e vem menos motoboy — por isso a sugestão aumenta. O retrato ao vivo, minuto a minuto, está na tela ⏱ Tempo de Entrega.<br>A chuva vem de <b>dois modelos independentes</b> (Open-Meteo e MET Norway) — quando os dois concordam a previsão é confiável; quando discordam, escale pelo cenário de chuva e libere quem sobrar.</div>';
@@ -253,8 +253,8 @@ function viewPrev(){
              '<td class="num small">'+(s.motoboys_hist||0)+'</td>'+
              '<td class="small">'+esc(s.motivo)+(s.h_cada?' · ~'+s.h_cada+'h cada':'')+'</td></tr>';
         });
-        const esl=ESC.filter(e=>e.data===d&&e.unidade===l).map(e=>({entrada:String(e.entrada).slice(0,5),saida:String(e.saida).slice(0,5)}));
-        h+='</table>'+(esl.length?barraCobertura(esl):'<div class="hs" style="color:#e0a93a">escala desta loja ainda não foi feita</div>')+'</div>';
+        const esl=ESC.filter(e=>e.data===d&&e.unidade===l).map(e=>({nome:e.nome,entrada:String(e.entrada).slice(0,5),saida:String(e.saida).slice(0,5)}));
+        h+='</table>'+(esl.length?quadroNomes(esl,rs)+barraCobertura(esl):'<div class="hs" style="color:#e0a93a">escala desta loja ainda não foi feita</div>')+'</div>';
       });
       const feito=ESC.filter(e=>e.data===d).length;
       h+='<button class="'+(feito?'btnb':'btnr')+'" style="margin-top:12px" onclick="event.stopPropagation();DATA=\''+d+'\';setView(\'mont\')">'+(feito?'👁 VER A ESCALA DESTE DIA →':'✍️ FALTA FAZER A ESCALA — montar agora →')+'</button>';
@@ -359,6 +359,40 @@ h+='<div style="margin:10px 0"><b>'+tit+'</b> <span class="pill '+(rs.length?'pg
 });
 h+='</div>';
 return h;
+}
+/* ===== quem esta em cada horario, e o sinal de faltar gente (01/09/2026) ===== */
+function _alvoTurno(sug){
+  var a={'Almoço':0,'Jantar':0,'Fecha':0};
+  (sug||[]).forEach(function(s){
+    var k=(s.turno==='Madrugada')?'Fecha':((s.turno==='Tarde')?'Almoço':s.turno);
+    if(a[k]!==undefined&&Number(s.motoboys_sug||0)>a[k])a[k]=Number(s.motoboys_sug||0);
+  });
+  return a;
+}
+function quadroNomes(rows,sug){
+  var alvo=_alvoTurno(sug), h='<div style="margin:6px 0 10px">';
+  TURNOS_ESC.forEach(function(t){
+    var rs=(rows||[]).filter(function(r){return cobre(r,t)})
+      .sort(function(a,b){return String(a.entrada).localeCompare(String(b.entrada))});
+    var tit=(t==='Almoço')?'☀️ Almoço':((t==='Jantar')?'🌙 Janta':'🌃 Fecha');
+    var falta=(alvo[t]||0)-rs.length;
+    var selo=alvo[t]?(falta>0?'<span class="pill pw">⚠ sugiro mais '+falta+'</span>':'<span class="pill pg">✅ no alvo de '+alvo[t]+'</span>'):'';
+    h+='<div style="margin:8px 0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+
+       '<b>'+tit+'</b><span class="pill '+(rs.length?'pg':'pw')+'">'+rs.length+'</span>'+selo+'</div>'+
+       '<div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap">'+
+       (rs.length?rs.map(function(r){
+         return '<span style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.10);border-radius:9px;padding:4px 9px;font-size:13px"><b>'+
+           esc(String(r.nome||'?').split(' ')[0])+'</b> <span style="opacity:.75">'+
+           String(r.entrada).slice(0,5)+'–'+String(r.saida).slice(0,5)+'</span></span>';
+       }).join(''):'<span class="empty">ninguém escalado</span>')+
+       '</div></div>';
+  });
+  return h+'</div>';
+}
+function resumoDia(){
+  var sug=SUG.filter(function(s){return s.dia===DATA&&s.unidade===LOJA});
+  return '<div class="sec"><h2>👁 Quem está escalado</h2>'+quadroNomes(ROWS,sug)+
+    '<div class="hs" style="margin:0">nome e horário de cada motoboy · o sinal compara com o número sugerido do dia</div></div>';
 }
 async function carregaAtivos(){
   var corte=iso(new Date(Date.now()-30*864e5));
@@ -610,6 +644,12 @@ function sortT(id,col){
   rows.forEach(r=>t.tBodies[0].appendChild(r));
 }
 
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState!=='visible')return;
+  if(VIEW==='mont')return;
+  if(!ULT||Date.now()-ULT<60000)return;
+  loadAll();
+});
 cdmGuarda().then(function(ok){if(ok)loadAll()});
 </script>
 <script>
