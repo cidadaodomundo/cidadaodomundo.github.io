@@ -260,19 +260,23 @@ function cancVivo(){
   if(CV===null)return h+'<div class="c"><div class="load">Buscando as fontes vivas…</div></div>';
   if(CV===false)return h+'<div class="c"><div class="vazio">não deu para carregar as fontes vivas — tente Atualizar</div></div>'+'<h2>📋 O quadro oficial do iFood (atrasa 1 dia)</h2>';
   const f=CV.fontes||{};
-  h+='<div class="m" style="margin:0 0 8px">Este bloco é sempre <b>HOJE</b>, não segue o período dos botões · Saipos atualizado '+(f.saipos?String(f.saipos).slice(11,16):'—')+' · última conversa do iFood '+(f.chat?String(f.chat).slice(11,16):'—')+' · Foody marca cancelado em 15 min.</div>';
+  h+='<div class="m" style="margin:0 0 8px">Este bloco é sempre <b>HOJE</b>, não segue o período dos botões · Saipos atualizado '+(f.saipos?String(f.saipos).slice(11,16):'—')+' · última conversa do iFood '+(f.chat?String(f.chat).slice(11,16):'—')+' · porta oficial '+(f.api?String(f.api).slice(11,16):'—')+' · Gestor Web '+(f.gw?String(f.gw).slice(11,16):'—')+' · Foody de 15 em 15 min.</div>';
   const L=CV.por_loja||[];
   if(!L.length)h+='<div class="c"><div class="vazio">Nenhum cancelamento (total ou parcial) registrado hoje até agora.</div></div>';
   else{
-    h+='<div class="c"><div class="rolar"><table><tr><th>Loja</th><th>Cancelados (Saipos)</th><th>Parciais (itens tirados)</th><th>Foody cancelado</th></tr>';
-    L.forEach(function(l){h+='<tr><td><b>'+esc(l.unidade)+'</b></td><td>'+n(l.totais)+'</td><td>'+n(l.parciais)+(l.itens?' <span class="m">('+n(l.itens)+' itens)</span>':'')+'</td><td>'+n(l.foody)+'</td></tr>'});
+    h+='<div class="c"><div class="rolar"><table><tr><th>Loja</th><th>Cancelados (Saipos)</th><th>Parciais (itens tirados)</th><th>Foody cancelado</th><th>Porta oficial</th><th>Gestor Web</th></tr>';
+    L.forEach(function(l){h+='<tr><td><b>'+esc(l.unidade)+'</b></td><td>'+n(l.totais)+'</td><td>'+n(l.parciais)+(l.itens?' <span class="m">('+n(l.itens)+' itens)</span>':'')+'</td><td>'+n(l.foody)+'</td><td>'+n(l.api_cancel)+'</td><td>'+n(l.gw_cancel)+'</td></tr>'});
     h+='</table></div></div>';
   }
   const ch=CV.chats||{};
   h+='<div class="c">💬 Conversas de clientes hoje: <b>'+n(ch.total)+'</b> · sem resposta da loja: <b>'+n(ch.sem_resposta)+'</b> · mensagens não lidas: <b>'+n(ch.nao_lidas)+'</b></div>';
-  if((CV.lista||[]).length){
-    h+='<div class="c"><div class="rolar"><table><tr><th>Loja</th><th>Pedido</th><th>Tipo</th><th>Itens tirados</th><th>Canal</th></tr>';
-    (CV.lista||[]).forEach(function(r){h+='<tr><td>'+esc(r.unidade)+'</td><td><b>'+esc(r.n_pedido)+'</b></td><td>'+(r.total?'<span class="pill p-bad">cancelado</span>':'<span class="pill p-warn">parcial</span>')+'</td><td>'+n(r.itens_cancelados)+'</td><td>'+esc(r.canal||'—')+'</td></tr>'});
+  if((CV.cruzada||[]).length){
+    h+='<div class="m" style="margin:0 0 6px">Cada linha é um pedido; a coluna <b>Fontes</b> diz quais armas viram o cancelamento.</div>';
+    h+='<div class="c"><div class="rolar"><table><tr><th>Hora</th><th>Loja</th><th>Pedido</th><th>Tipo</th><th>Itens</th><th>Canal</th><th>Motivo (Gestor Web)</th><th>Fontes</th>'+(CV.dono?'<th>Reembolso da loja</th><th>Retenção</th>':'')+'</tr>';
+    (CV.cruzada||[]).forEach(function(r){
+      var tp=r.tipo==='total'?'<span class="pill p-bad">cancelado</span>':(r.tipo==='parcial'?'<span class="pill p-warn">parcial</span>':'<span class="m">só iFood</span>');
+      h+='<tr><td>'+esc(r.hora||'—')+'</td><td>'+esc(r.unidade||'—')+'</td><td><b>'+esc(r.pedido)+'</b></td><td>'+tp+'</td><td>'+n(r.itens)+'</td><td>'+esc(r.canal||'—')+'</td><td>'+esc(r.motivo||'—')+'</td><td>'+esc((r.fontes||[]).join(' · '))+'</td>'+(CV.dono?('<td>'+br(r.reembolso_loja)+'</td><td>'+br(r.retencao)+'</td>'):'')+'</tr>';
+    });
     h+='</table></div></div>';
   }
   h+='<h2>📋 O quadro oficial do iFood (atrasa 1 dia)</h2>';
