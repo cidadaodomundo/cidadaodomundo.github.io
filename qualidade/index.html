@@ -176,10 +176,9 @@ function filtros(){
     h+='<button class="'+(UNI===l.unidade?'on':'')+'" onclick="UNI=\''+esc(l.unidade).replace(/'/g,"\\'")+'\';boot()">'+esc(l.unidade)+'</button>';
   });
   h+='</div>';
-  const vivas=[['resumo','⚡ O dia + Resumo'],['turnos','🕐 Por turno'],['cancel','🚫 Cancelamentos'],['ree','🔁 Reentregas']];
+  const vivas=[['resumo','⚡ O dia + Resumo'],['pessoas','🛵 Motoboys'],['turnos','🕐 Por turno'],['cancel','🚫 Cancelamentos'],['ree','🔁 Reentregas']];
   const analise=[['cliente','⭐ Avaliações'],['super','🏆 Selo Super'],['pausados','📵 Fora do ar']];
-  if(D.modo==='dono')analise.push(['pessoas','🛵 Entregadores']);
-  const abaBtn=function(a){return '<button class="'+(ABA===a[0]?'on':'')+'" onclick="vaiPara(\''+a[0]+'\')">'+a[1]+'</button>'};
+    const abaBtn=function(a){return '<button class="'+(ABA===a[0]?'on':'')+'" onclick="vaiPara(\''+a[0]+'\')">'+a[1]+'</button>'};
   h+='<div class="fil"><span style="color:var(--muted);font-size:10.5px;font-weight:800;align-self:center;letter-spacing:.5px">AO VIVO</span>';
   vivas.forEach(function(a){h+=abaBtn(a)});
   h+='</div><div class="fil"><span style="color:var(--muted);font-size:10.5px;font-weight:800;align-self:center;letter-spacing:.5px">ANÁLISE</span>';
@@ -249,6 +248,10 @@ function reeLinha(r){
   var rsel=(eq&&eq.length&&r.motivo)?('<select data-u="'+esc(r.unidade)+'" data-t="'+esc(r.data_hora_pedido)+'" data-m="'+esc(r.motivo)+'" onchange="reeResp(this)"><option value="">— quem foi? —</option>'+eq.map(function(n){return '<option'+(r.responsavel===n?' selected':'')+'>'+esc(n)+'</option>'}).join('')+'</select>'):'<span style="color:var(--muted)">—</span>';
   var sel='<select data-u="'+esc(r.unidade)+'" data-t="'+esc(r.data_hora_pedido)+'" onchange="reeMarcar(this)"><option value="">— escolher —</option>'+(REEMOT||[]).map(function(m){return '<option'+(r.motivo===m.motivo?' selected':'')+'>'+esc(m.motivo)+'</option>'}).join('')+'</select>';
   return '<tr><td>'+reeHora(r.data_hora_pedido)+'</td><td><b>'+esc(r.n_pedido||'—')+'</b>'+_cz('canal: '+esc(r.canal||'não identificado'))+_cz('cliente '+esc(r.cliente_ini||'—'))+'</td><td>'+esc(r.unidade)+'</td><td>'+esc(r.turno||'—')+'</td><td>'+esc(r.entregador||'—')+'</td><td>'+_par+'</td><td>'+sel+'</td><td>'+fam+'</td><td>'+eqs+'</td><td>'+rsel+'</td></tr>';
+}
+function motoVivo(){
+  return '<div class="c" style="padding:6px"><iframe src="/delivery/central.html?embed=equipe&cb='+Date.now()+'" style="width:100%;height:78vh;min-height:640px;border:0;border-radius:9px;background:var(--s0)" title="Motoboys ao vivo"></iframe></div>'+
+    '<div class="m" style="margin:6px 0 10px">O quadro acima é a máquina da Central rodando aqui dentro, ao vivo — mesma informação, mesmo login.</div>';
 }
 function reeAba(){
   if(REE===null)return '<div class="c"><div class="vazio">Carregando reentregas…</div></div>';
@@ -686,7 +689,7 @@ function desenha(){
   else if(ABA==='cliente')h+=falas()+motivos();
   else if(ABA==='pausados')h+=pausados();
   else if(ABA==='dinheiro')h+=dinheiro();
-  else if(ABA==='pessoas')h+=pessoas();
+  else if(ABA==='pessoas')h+=motoVivo()+(D.modo==='dono'?'<h2>🛵 Análise dos entregadores (só você)</h2>'+pessoas():'');
   else if(ABA==='ree')h+=reeAba();
   else if(ABA==='cancel')h+=cancelamentos();
   $('app').innerHTML=h;
