@@ -87,6 +87,7 @@ tr.aviso td{color:#e8bb62}
 <div class="tabs">
   <span class="tab on" id="t_pag" onclick="setView('pag')">💵 Pagamento do dia anterior</span>
   <span class="tab" id="t_ag" onclick="setView('ag')">🔴 Agora, ao vivo</span>
+  <span class="tab" id="t_maq" onclick="setView('maq')">🧾 Maquininha do dia</span>
 </div>
 
 <div id="conteudo"><div class="empty">Carregando…</div></div>
@@ -171,9 +172,10 @@ function kpi(k,c,v,d){return '<div class="kpi '+(c||'')+'"><div class="k">'+k+'<
 function setView(v){VIEW=v;
   $('t_pag').className='tab'+(v==='pag'?' on':'');
   $('t_ag').className='tab'+(v==='ag'?' on':'');
+  $('t_maq').className='tab'+(v==='maq'?' on':'');
   if(v!=='ag'&&AGT){clearInterval(AGT);AGT=null}
   render()}
-function render(){if(VIEW==='ag'){viewAgora();return}viewPag()}
+function render(){if(VIEW==='ag'){viewAgora();return}if(VIEW==='maq'){viewMaq();return}viewPag()}
 
 async function portaPagDia(dia){
   const b={p_token:cdmTok()};
@@ -194,7 +196,7 @@ async function puxaPagDia(dia){
     $('conteudo').innerHTML='<div class="c">Não deu para carregar o pagamento do dia. Entre no portal de novo e tente outra vez.</div>';
   }
 }
-function pagDiaMuda(v){PDDIA=v;puxaPagDia(v)}
+function pagDiaMuda(v){PDDIA=v;if(VIEW==='maq'){viewMaq();return}puxaPagDia(v)}
 function pagDiaPula(n){const d=new Date((PDDIA||iso(new Date()))+'T12:00:00');d.setDate(d.getDate()+n);pagDiaMuda(iso(d))}
 function copiar(t){
   try{navigator.clipboard.writeText(t);alert('Chave PIX copiada:\n\n'+t)}
@@ -332,7 +334,8 @@ function viewPag(){
   let h='<div class="c"><div class="hs" style="margin:0 0 8px"><b>Pagamento do dia '+esc(PD.dia_texto)+'</b> ('+esc(PD.dia_semana)+') · '+(PD.fim_de_semana?'fim de semana, R$ 25 a hora':'dia de semana, R$ 20 a hora')+' · lido '+esc(PD.agora)+'</div>'+
     '<button class="b" onclick="pagDiaPula(-1)">◀ dia anterior</button> '+
     '<input type="date" id="pd_dia" value="'+esc(PD.dia)+'" onchange="pagDiaMuda(this.value)"> '+
-    '<button class="b" onclick="pagDiaPula(1)">dia seguinte ▶</button></div>';
+    '<button class="b" onclick="pagDiaPula(1)">dia seguinte ▶</button> '+
+    '<button class="b" style="margin-left:10px" onclick="setView(\'maq\')">🧾 conferir a maquininha deste dia</button></div>';
   h+=botoesLoja(PD);
   h+=totaisTxt(t,false);
   h+=semDono(PD,false);
@@ -342,6 +345,96 @@ function viewPag(){
   h+='</table></div>';
   h+='<div class="hs">A hora conta da <b>chegada no pátio pelo GPS</b> até a <b>última entrega</b>. Quem chega mais de '+num(PD.tolerancia_min)+' minutos depois do horário combinado perde o almoço e o garantido do dia — e, se mesmo assim pegou o lanche, <b>paga por ele</b>. Sem carimbo de GPS não se corta nada. Quem decide é você.</div>';
   $('conteudo').innerHTML=h;
+}
+
+
+// === 🧾 MAQUININHA — cruza Foody → Saipos → Rede → extrato/cofre → GPS, pedido por pedido ===
+const MAQ_SIT={
+  COBRADO:['✅ Cobrado','#2fae6a','A Rede tem esta cobrança, no valor certo, perto da hora da entrega.'],
+  OUTRO_METODO:['💳 Pago de outro jeito','#2fae6a','O dinheiro entrou — mas por um meio diferente do que o Saipos anotou.'],
+  COBROU_A_MAIS:['⚠️ Cobrou a mais','#c98500','Passou o total na maquininha, mas parte já estava paga pelo app (voucher). O cliente pagou duas vezes essa parte.'],
+  SO_A_COMIDA:['⚠️ Só a comida','#c98500','Passou o valor sem a taxa de entrega. Faltou cobrar a taxa.'],
+  NAO_COBROU:['🔴 Não cobrou','#e66767','O motoboy esteve no endereço (GPS) e não existe cobrança em lugar nenhum: nem Rede, nem Pix, nem cofre.'],
+  SEM_COBRANCA_LONGE:['❓ Sem cobrança e GPS longe','#e66767','Nenhuma cobrança achada, e o GPS não mostra o motoboy no endereço na hora da entrega.'],
+  SEM_COBRANCA_SEM_GPS:['❓ Sem cobrança e sem GPS','#c98500','Nenhuma cobrança achada e não há leitura de GPS para provar a entrega.'],
+  AGUARDANDO_REDE:['⏳ Rede ainda não chegou','#8a897e','A Rede só entrega as vendas do dia no dia seguinte, às 9h. Volte depois.'],
+  PIX_ACHADO:['✅ Pix no extrato','#2fae6a','O Pix entrou no extrato com o valor exato.'],
+  PIX_SEM_RASTRO:['❓ Pix sem rastro','#c98500','O Saipos diz Pix, mas não achei esse valor no extrato (dia ou dia seguinte).'],
+  DINHEIRO:['💵 Dinheiro','#8a897e','Dinheiro se confere pelo cofre do dia, não por pedido.']
+};
+function maqSit(s){return MAQ_SIT[s]||[s,'#8a897e','']}
+function maqPill(s){const x=maqSit(s);return '<span style="display:inline-block;border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:700;background:'+x[1]+'22;color:'+x[1]+';white-space:nowrap">'+x[0]+'</span>'}
+function maqRs(n){return n==null?'—':'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function maqModo(m){if(!m)return '';m=String(m);return m.indexOf('CREDIT')===0?'crédito':(m.indexOf('DEBIT')===0?'débito':(m.indexOf('VAN')===0?'vale':m))}
+function maqHtml(j){
+  if(!j)return '<div class="c">Não deu para carregar a conferência da maquininha. Entre no portal de novo e tente outra vez.</div>';
+  const L=j.linhas||[], R=j.resumo||{}, dono=!!j.dono;
+  const ordem=['NAO_COBROU','SEM_COBRANCA_LONGE','SEM_COBRANCA_SEM_GPS','SO_A_COMIDA','COBROU_A_MAIS','PIX_SEM_RASTRO','OUTRO_METODO','COBRADO','PIX_ACHADO','DINHEIRO','AGUARDANDO_REDE'];
+  let h='<div class="c"><div style="font-size:12.5px;color:#c3c2b7;margin-bottom:8px"><b style="color:#fff">🧾 Maquininha do dia '+esc(j.dia_texto)+'</b> · '+L.length+' entrega'+(L.length===1?'':'s')+' paga'+(L.length===1?'':'s')+' na porta · Rede lida até '+esc(j.rede_ate||'—')+' · lido '+esc(j.agora)+'</div>';
+  h+='<div style="display:flex;gap:6px;flex-wrap:wrap">';
+  ordem.forEach(function(k){if(R[k])h+=maqPill(k).replace('</span>',' · <b>'+R[k]+'</b></span>')});
+  h+='</div></div>';
+  if(!L.length)return h+'<div class="c" style="color:#8a897e">Nenhuma entrega paga na porta neste dia (cartão, vale, Pix ou dinheiro). Tudo veio pago pelo app.</div>';
+  const pri=L.slice().sort(function(a,b){return ordem.indexOf(a.situacao)-ordem.indexOf(b.situacao)});
+  h+='<div class="c" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:700px"><tr>'+
+    '<th style="text-align:left;color:#8a897e;font-size:11px;padding:0 8px 6px 0">Loja</th><th style="text-align:left;color:#8a897e;font-size:11px;padding:0 8px 6px 0">Pedido</th><th style="text-align:left;color:#8a897e;font-size:11px;padding:0 8px 6px 0">Motoboy</th><th style="text-align:left;color:#8a897e;font-size:11px;padding:0 8px 6px 0">Entregue</th><th style="text-align:left;color:#8a897e;font-size:11px;padding:0 8px 6px 0">O Saipos diz</th>'+
+    (dono?'<th style="text-align:right;color:#8a897e;font-size:11px;padding:0 8px 6px 0">Na porta</th>':'')+
+    '<th style="text-align:left;color:#8a897e;font-size:11px;padding:0 8px 6px 0">Rede</th><th style="text-align:left;color:#8a897e;font-size:11px;padding:0 8px 6px 0">GPS</th><th style="text-align:left;color:#8a897e;font-size:11px;padding:0 8px 6px 0">Situação</th></tr>';
+  pri.forEach(function(l,i){
+    const x=maqSit(l.situacao), r=l.rede, g=l.gps, p=l.pix;
+    let rede='—';
+    if(r)rede='<b>'+esc(r.hora)+'</b> '+esc(maqModo(r.modalidade))+(dono&&r.valor!=null?' · '+maqRs(r.valor):'')+(r.dif_min>15?' <span style="color:#8a897e">('+r.dif_min+' min da entrega)</span>':'');
+    else if(p)rede='Pix '+esc(p.data)+(dono?' · '+esc(p.desc||''):'');
+    let gps='—';
+    if(g&&g.dist_m!=null)gps=(g.dist_m<=g.raio?'<b style="color:#2fae6a">no endereço</b>':'<b style="color:#e66767">longe</b>')+' · '+g.dist_m+' m às '+esc(g.hora);
+    else if(g&&g.sem_endereco)gps='<span style="color:#8a897e">sem endereço do cliente</span>';
+    else gps='<span style="color:#8a897e">sem leitura</span>';
+    const forma=esc(l.forma)+(l.promessa?' <span title="a forma foi anotada no mesmo minuto do pedido: é o que o cliente PROMETEU, não o que a maquininha confirmou" style="color:#8a897e;font-size:11px">(prometida)</span>':'');
+    h+='<tr style="'+(i%2?'background:rgba(255,255,255,.02)':'')+'">'+
+      '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top">'+esc(l.unidade==='Água Verde'?'AV':(l.unidade==='São Braz'?'SB':l.unidade))+'</td>'+
+      '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top"><b>#'+esc(l.pedido)+'</b>'+(l.curto?' <span style="color:#8a897e;font-size:11px">('+esc(l.curto)+')</span>':'')+'<div style="color:#8a897e;font-size:11px">'+esc(l.cliente||'')+(l.bairro?' · '+esc(l.bairro):'')+'</div></td>'+
+      '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top">'+esc(l.motoboy||'—')+'</td>'+
+      '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top">'+esc(l.entregue_em||'—')+'<div style="color:#8a897e;font-size:11px">pedido '+esc(l.pedido_em||'')+'</div></td>'+
+      '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top">'+forma+'</td>'+
+      (dono?'<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top;text-align:right;white-space:nowrap"><b>'+maqRs(l.na_porta)+'</b>'+(l.taxa>0?'<div style="color:#8a897e;font-size:11px">taxa '+maqRs(l.taxa)+'</div>':'')+'</td>':'')+
+      '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top">'+rede+'</td>'+
+      '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top">'+gps+'</td>'+
+      '<td style="padding:8px 0 2px 0;border-top:1px solid #34332f;vertical-align:top">'+maqPill(l.situacao)+'</td></tr>';
+    h+='<tr style="'+(i%2?'background:rgba(255,255,255,.02)':'')+'"><td colspan="'+(dono?9:8)+'" style="padding:0 0 8px 0;color:#8a897e;font-size:11.5px">'+esc(x[2])+'</td></tr>';
+  });
+  h+='</table></div>';
+  h+='<div class="c" style="font-size:12px;color:#c3c2b7">Como eu confiro: pego cada entrega que o <b>Saipos</b> diz que foi paga na porta (cartão, vale, Pix, dinheiro), procuro o valor exato na <b>Rede</b> da mesma loja em até '+esc(j.janela_min||240)+' minutos da hora da entrega (cada cobrança da Rede só pode casar com <b>um</b> pedido — a mesa do salão paga na mesma hora não conta duas vezes), depois no <b>extrato</b> (Pix) e, por último, olho o <b>GPS</b> do motoboy: estar a menos de '+esc(j.raio_m||150)+' m da casa do cliente prova que ele entregou. Regra da casa: <b>o preço já inclui a taxa — nada é cobrado por fora</b>.</div>';
+  return h;
+}
+
+let MQ=null, MQK='';
+async function portaMaq(dia,loja){
+  const r=await fetch(SB+'rpc/maquininha_conferir',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:cdmTok(),p_dia:dia||null,p_unidade:loja||null})});
+  if(!r.ok)throw new Error('porta '+r.status);
+  return await r.json();
+}
+function maqLojas(){
+  let h='<div class="c" style="padding:9px 12px"><b style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">Loja</b> ';
+  [['','todas'],['Água Verde','Água Verde'],['São Braz','São Braz'],['Ahú','Ahú']].forEach(function(u){
+    h+='<button class="b" onclick="setLoja(\''+u[0]+'\')" style="'+(LOJA===u[0]?'background:#ff2d55;color:#fff;border-color:#ff2d55':'')+'">'+u[1]+'</button> ';
+  });
+  return h+'</div>';
+}
+function viewMaq(){
+  const dia=PDDIA||iso(new Date(Date.now()-864e5)), k=dia+'|'+LOJA;
+  let h='<div class="c"><div class="hs" style="margin:0 0 8px"><b>🧾 Maquininha</b> · cada entrega paga na porta, cruzada com a Rede, o extrato e o GPS do motoboy</div>'+
+    '<button class="b" onclick="pagDiaPula(-1)">◀ dia anterior</button> '+
+    '<input type="date" id="pd_dia" value="'+esc(dia)+'" onchange="pagDiaMuda(this.value)"> '+
+    '<button class="b" onclick="pagDiaPula(1)">dia seguinte ▶</button></div>'+maqLojas();
+  if(MQK!==k||!MQ){
+    MQ=null;MQK=k;
+    $('conteudo').innerHTML=h+'<div class="empty">Cruzando Saipos, Rede, extrato e GPS…</div>';
+    portaMaq(dia,LOJA).then(function(j){if(MQK===k){MQ=j;viewMaq()}}).catch(function(){if(MQK===k){$('conteudo').innerHTML=h+maqHtml(null)}});
+    return;
+  }
+  $('conteudo').innerHTML=h+maqHtml(MQ);
 }
 
 async function portaAgora(){
