@@ -104,11 +104,11 @@ function carimbo(){
 }
 function ligaTimer(){
   if(TIMER){clearInterval(TIMER);TIMER=null}
-  if(ABA!=='dia')return;
+  if(ABA!=='dia'&&ABA!=='resumo')return;
   /* 3 minutos, e so enquanto a aba estiver na frente */
   TIMER=setInterval(function(){
     if(document.visibilityState!=='visible')return;
-    if(ABA!=='dia'){clearInterval(TIMER);TIMER=null;return}
+    if(ABA!=='dia'&&ABA!=='resumo'){clearInterval(TIMER);TIMER=null;return}
     puxaDia();
   },180000);
 }
@@ -176,13 +176,16 @@ function filtros(){
     h+='<button class="'+(UNI===l.unidade?'on':'')+'" onclick="UNI=\''+esc(l.unidade).replace(/'/g,"\\'")+'\';boot()">'+esc(l.unidade)+'</button>';
   });
   h+='</div>';
-  const abas=[['resumo','📈 Resumo'],['lojas','🏪 Por loja'],['turnos','🕐 Por turno'],['pausados','📵 Fora do ar'],['dia','🗓 O dia'],['ree','🔁 Reentregas']];
-  if(D.modo==='dono')abas.push(['dinheiro','💰 Dinheiro'],['pessoas','🛵 Entregadores']);
-  abas.push(['cancel','🚫 Cancelamentos'],['cliente','⭐ Avaliações'],['super','🏆 Selo Super']);
-  h+='<div class="fil">';
-  abas.forEach(function(a){h+='<button class="'+(ABA===a[0]?'on':'')+'" onclick="vaiPara(\''+a[0]+'\')">'+a[1]+'</button>'});
+  const vivas=[['resumo','⚡ O dia + Resumo'],['turnos','🕐 Por turno'],['cancel','🚫 Cancelamentos'],['ree','🔁 Reentregas']];
+  const analise=[['cliente','⭐ Avaliações'],['super','🏆 Selo Super'],['pausados','📵 Fora do ar']];
+  if(D.modo==='dono')analise.push(['pessoas','🛵 Entregadores']);
+  const abaBtn=function(a){return '<button class="'+(ABA===a[0]?'on':'')+'" onclick="vaiPara(\''+a[0]+'\')">'+a[1]+'</button>'};
+  h+='<div class="fil"><span style="color:var(--muted);font-size:10.5px;font-weight:800;align-self:center;letter-spacing:.5px">AO VIVO</span>';
+  vivas.forEach(function(a){h+=abaBtn(a)});
+  h+='</div><div class="fil"><span style="color:var(--muted);font-size:10.5px;font-weight:800;align-self:center;letter-spacing:.5px">ANÁLISE</span>';
+  analise.forEach(function(a){h+=abaBtn(a)});
   h+='</div>';
-  if(ABA==='dia'){
+  if(ABA==='dia'||ABA==='resumo'){
     h+='<div class="fil" style="align-items:center">'+
        '<span style="color:var(--muted);font-size:12.5px;font-weight:700">Escolha o dia:</span>'+
        '<input type="date" id="qdia" value="'+(DIA||hoje())+'" max="'+hoje()+'" '+
@@ -268,6 +271,7 @@ function vaiPara(a){
   ligaTimer();
   if(a==='dia'&&!DD){desenha();puxaDia();return}
   if(a==='super'&&!SU){desenha();puxaSuper();return}
+  if(a==='resumo'&&!DD){desenha();puxaDia();return}
   if(a==='ree'&&REE===null){desenha();reePuxa();return}
   if(a==='cancel'&&!CC){desenha();puxaCanc();return}
   if(a==='cliente'&&!SU){desenha();puxaSuper();return}
@@ -676,7 +680,7 @@ function desenha(){
   if(ABA==='dia')h+=odia();
   else if(ABA==='super')h+=selo();
 
-  else if(ABA==='resumo')h+=resumo();
+  else if(ABA==='resumo')h+=resumo()+'<h2>🏪 Por loja</h2>'+tabelaLojas()+'<h2>🗓 O dia, ao vivo</h2>'+odia();
   else if(ABA==='lojas')h+=tabelaLojas();
   else if(ABA==='turnos')h+=tabelaTurnos();
   else if(ABA==='cliente')h+=falas()+motivos();
@@ -699,6 +703,7 @@ async function boot(){
   $('sub').textContent='Cidadão do Mundo Burgers & Arts · '+f+' a '+t+' · '+
     (D.modo==='dono'?'visão completa':'visão da equipe')+(D.unidade?' · '+D.unidade:'');
   desenha();
+  if(ABA==='resumo'&&!DD)puxaDia();
 }
 
 /* ===== porta unica do portal ===== */
