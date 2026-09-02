@@ -8,7 +8,7 @@
 <style>
 :root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#c8102e;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--s0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:980px;margin:0 auto}
+body{background:var(--s0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1480px;margin:0 auto}
 h1{font-size:22px;font-weight:800}
 .sub{color:var(--muted);font-size:12.5px;margin-top:2px}
 .top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:16px}
@@ -41,6 +41,22 @@ input[type=date]{background:var(--s2);border:1px solid var(--line);color:var(--t
 .pill.bad{background:rgba(230,103,103,.16);color:#f0a0a0}
 .pill.warn{background:rgba(201,133,0,.18);color:#e8bb62}
 .wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.kpis{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:9px}
+.kpi{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:11px 15px;min-width:120px;flex:1 1 auto}
+.kpi .n{font-size:21px;font-weight:800;line-height:1.15}
+.kpi .l{color:var(--muted);font-size:11px;text-transform:uppercase;font-weight:700;letter-spacing:.3px;margin-top:3px}
+.kpi.big .n{font-size:26px;color:#4ade80}
+.kpi.warn .n{color:#f87171}
+tbody tr.par td{background:rgba(255,255,255,.02)}
+td.money{text-align:right;font-variant-numeric:tabular-nums}
+th.money{text-align:right}
+td.pagar{text-align:right;font-size:15px;font-weight:800;background:rgba(74,222,128,.09);border-left:2px solid rgba(74,222,128,.35)}
+td.grupo{border-left:1px solid var(--line)}
+th.grupo{border-left:1px solid var(--line)}
+tr.obs td{background:rgba(251,191,36,.06);border-bottom:1px solid var(--line);color:var(--muted);font-size:12px;padding:5px 9px 9px 9px;white-space:normal;line-height:1.55}
+table.enxuta{min-width:0}
+table.enxuta td,table.enxuta th{padding:6px 7px}
+td.nome{white-space:normal;min-width:120px;max-width:190px}
 table{border-collapse:collapse;width:100%;font-size:13px;min-width:720px}
 th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
 th{color:var(--muted);font-size:11.5px;font-weight:700;text-transform:uppercase}
@@ -178,19 +194,17 @@ function copiar(t){
   catch(e){alert('Copie na mão:\n\n'+t)}
 }
 
+function sigla(u){return u==='Água Verde'?'AV':(u==='São Braz'?'SB':(u==='Ahú'?'Ahú':u))}
 function selo(m){
   const d=m.direito_refeicoes||0, p=m.lanches||0;
-  let t='';
-  if(d===0) t='<span style="color:#f87171">❌ sem direito</span>';
-  else if(d===1) t='<span style="color:#4ade80">✅ 1 refeição</span>';
-  else t='<span style="color:#4ade80">✅ '+d+' refeições</span>';
-  if(p>0) t+=' · <b>pegou '+p+'</b>';
-  if(m.cobrar_refeicao>0) t+=' <span style="color:#f87171">→ cobrar '+rs(m.cobrar_refeicao)+'</span>';
-  else if(m.lanche_sem_preco>0) t+=' <span style="color:#fbbf24">→ <b>falta o preço</b></span>';
+  const cor = d===0 ? '#f87171' : '#4ade80';
+  let t='<span style="color:'+cor+'"><b>'+d+'</b> de direito</span>';
+  if(p>0) t+=' · pegou <b>'+p+'</b>';
+  if(m.lanche_sem_preco>0) t+=' <span style="color:#fbbf24" title="falta cadastrar o preço deste lanche">⚠</span>';
   return t;
 }
 function atrasoTxt(m){
-  if(m.atraso_min===null||m.atraso_min===undefined) return '—';
+  if(m.atraso_min===null||m.atraso_min===undefined) return 'sem hora combinada';
   if(m.atraso_min>0) return '+'+m.atraso_min+' min';
   if(m.atraso_min<0) return m.atraso_min+' min';
   return 'na hora';
@@ -201,40 +215,47 @@ function turnoTxt(m){
   const f=m.turnos_furados||0;
   return '<b>'+t+'</b>'+(f>0?' <span style="color:#f87171">('+f+' atrasado)</span>':'');
 }
+function cabecalho(){
+  return '<div class="c wrap"><table class="enxuta"><tr>'+
+    '<th>Loja</th><th>Motoboy</th><th>Turnos</th><th class="money">Horas</th>'+
+    '<th class="grupo">Almoço</th><th class="money grupo">Entregas</th>'+
+    '<th class="money">A pagar</th><th>PIX</th></tr>';
+}
 function linhaMoto(m,i,vivo){
-  let h='<tr>'+
-    '<td>'+esc(m.unidade)+'</td>'+
-    '<td>'+esc(m.entregador)+(vivo&&m.no_patio_agora?' <span title="no pátio agora">🟢</span>':(vivo&&m.ligado_agora?' <span title="na rua">🛵</span>':''))+'</td>'+
+  const par = (i%2===1) ? ' class="par"' : '';
+  let h='<tr'+par+'>'+
+    '<td>'+esc(sigla(m.unidade))+'</td>'+
+    '<td class="nome"><b>'+esc(m.entregador)+'</b>'+(vivo&&m.no_patio_agora?' <span title="no pátio agora">🟢</span>':(vivo&&m.ligado_agora?' <span title="na rua">🛵</span>':''))+'</td>'+
     '<td>'+turnoTxt(m)+'</td>'+
-    '<td>'+esc(m.combinado||'—')+'</td>'+
-    '<td>'+esc(m.chegada||'—')+(m.tem_gps?'':' <span title="sem GPS, hora estimada">⚠️</span>')+'</td>'+
-    '<td>'+esc(m.ultima_entrega||'—')+'</td>'+
-    '<td>'+num(m.horas)+'</td>'+
-    '<td>'+atrasoTxt(m)+'</td>'+
-    '<td>'+selo(m)+'</td>'+
-    '<td>'+(m.garantido?'✅ sim':'❌ não')+'</td>'+
-    '<td>'+num(m.entregas)+'</td>'+
-    '<td>'+rs(m.taxas)+'</td>'+
-    '<td>'+rs(m.garantido_valido)+'</td>'+
-    '<td>'+(m.cobrar_refeicao>0?'<span style="color:#f87171">− '+rs(m.cobrar_refeicao)+'</span>':'—')+'</td>'+
-    '<td><b>'+rs(m.pagar)+'</b></td>'+
-    '<td>'+(m.chave_pix?'<span id="pdpix'+i+'" style="display:none">'+esc(m.chave_pix)+'</span><button class="b" onclick="copiar(document.getElementById(\'pdpix'+i+'\').textContent)">copiar</button>':'<span style="color:#f87171">sem PIX</span>')+'</td>'+
+    '<td class="money">'+num(m.horas)+'</td>'+
+    '<td class="grupo">'+selo(m)+'</td>'+
+    '<td class="money grupo">'+num(m.entregas)+'</td>'+
+    '<td class="pagar">'+rs(m.pagar)+'</td>'+
+    '<td>'+(m.chave_pix?'<button class="b" onclick="copiar(this.dataset.p)" data-p="'+esc(m.chave_pix)+'">PIX</button>':'<span style="color:#f87171">sem</span>')+'</td>'+
     '</tr>';
-  if(m.aviso) h+='<tr><td colspan="16" class="hs">'+esc(m.entregador)+': '+esc(m.aviso)+'</td></tr>';
+  let d='<b>'+esc(m.combinado||'—')+'</b> combinado → chegou <b>'+esc(m.chegada||'—')+'</b>'+(m.tem_gps?'':' <span title="sem carimbo de GPS">⚠️</span>')+
+        ' ('+atrasoTxt(m)+') · última entrega <b>'+esc(m.ultima_entrega||'—')+'</b>'+
+        ' · taxas '+rs(m.taxas)+' · garantido '+rs(m.garantido_valido)+
+        (m.cobrar_refeicao>0 ? ' · <span style="color:#f87171">lanche −'+rs(m.cobrar_refeicao)+'</span>' : '')+
+        (m.ajustes&&m.ajustes!=0 ? ' · ajuste '+rs(m.ajustes) : '');
+  if(m.aviso) d+='<br>↳ '+esc(m.aviso);
+  h+='<tr class="obs"><td colspan="8">'+d+'</td></tr>';
   return h;
 }
-function cabecalho(){
-  return '<div class="c wrap"><table><tr><th>Loja</th><th>Motoboy</th><th>Turnos</th><th>Combinado</th><th>Chegou</th><th>Última entrega</th><th>Horas</th><th>Atraso</th><th>Almoço</th><th>Garantido</th><th>Entregas</th><th>Taxas</th><th>Garantido R$</th><th>Cobrado</th><th>A pagar</th><th>PIX</th></tr>';
-}
+function cartao(n,l,cls){return '<div class="kpi'+(cls?' '+cls:'')+'"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>'}
 function totaisTxt(t,vivo){
-  let h='<div class="c"><b>'+num(t.gente||0)+'</b> motoboy(s) · '+(vivo?'até agora':'total a pagar')+' <b>'+rs(t.pagar)+'</b>';
-  if(t.dobrados>0) h+=' · <b>'+num(t.dobrados)+'</b> fizeram dois turnos';
-  h+=' · <b>'+num(t.almocos||0)+'</b> refeições de direito';
-  if(t.sem_almoco>0) h+=' · <b>'+num(t.sem_almoco)+'</b> sem direito nenhum';
-  if(t.cobrados>0) h+=' · <b style="color:#f87171">'+num(t.cobrados)+'</b> pagando lanche ('+rs(t.cobrado_total)+')';
-  if(t.sem_preco>0) h+=' · <b style="color:#fbbf24">'+num(t.sem_preco)+'</b> lanche(s) sem preço cadastrado';
-  if(t.sem_gps>0) h+=' · '+num(t.sem_gps)+' sem carimbo de GPS';
-  if(t.sem_pix>0) h+=' · <b style="color:#f87171">'+num(t.sem_pix)+'</b> sem chave PIX';
+  let h='<div class="kpis">';
+  h+=cartao(rs(t.pagar), vivo?'a pagar até agora':'total a pagar','big');
+  h+=cartao(num(t.gente||0), 'motoboys');
+  h+=cartao(num(t.entregas||0), 'entregas');
+  h+=cartao(num(t.horas||0)+'h', 'horas rodadas');
+  h+=cartao(num(t.almocos||0), 'refeições de direito');
+  if(t.dobrados>0) h+=cartao(num(t.dobrados), 'fizeram 2 turnos');
+  if(t.cobrados>0) h+=cartao(rs(t.cobrado_total), num(t.cobrados)+' pagando lanche','warn');
+  if(t.sem_pix>0) h+=cartao(num(t.sem_pix), 'sem chave PIX','warn');
+  if(t.sem_preco>0) h+=cartao(num(t.sem_preco), 'lanche sem preço','warn');
+  if(t.sem_gps>0) h+=cartao(num(t.sem_gps), 'sem carimbo de GPS');
+  if(vivo&&t.rodando_agora>0) h+=cartao(num(t.rodando_agora), 'rodando agora');
   return h+'</div>';
 }
 function semDono(D2,vivo){
