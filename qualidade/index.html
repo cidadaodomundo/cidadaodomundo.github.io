@@ -269,7 +269,12 @@ function cancVivo(){
     h+='</table></div></div>';
   }
   const ch=CV.chats||{};
-  h+='<div class="c">💬 Conversas de clientes hoje: <b>'+n(ch.total)+'</b> · sem resposta da loja: <b>'+n(ch.sem_resposta)+'</b> · mensagens não lidas: <b>'+n(ch.nao_lidas)+'</b></div>';
+  h+='<div class="c">💬 Conversas de clientes hoje: <b>'+n(ch.total)+'</b> · sem resposta da loja: <b>'+n(ch.sem_resposta)+'</b> · mensagens não lidas: <b>'+n(ch.nao_lidas)+'</b>'+(ch.tempo_medio_min!=null?' · tempo médio de resposta: <b>'+n(ch.tempo_medio_min)+' min</b>':'')+'</div>';
+  if((ch.por_loja||[]).length){
+    h+='<h2>💬 Taxa de resposta da loja, hoje</h2><div class="c"><div class="rolar"><table><tr><th>Loja</th><th>Clientes que escreveram</th><th>Respondidas</th><th>Sem resposta</th><th>Tempo médio</th></tr>';
+    (ch.por_loja||[]).forEach(function(l){h+='<tr><td><b>'+esc(l.unidade)+'</b></td><td>'+n(l.com_cliente)+'</td><td>'+n(l.respondidas)+'</td><td>'+(l.sem_resposta>0?'<span class="pill p-bad">'+n(l.sem_resposta)+'</span>':n(l.sem_resposta))+'</td><td>'+(l.tempo_medio_min!=null?n(l.tempo_medio_min)+' min':'—')+'</td></tr>'});
+    h+='</table></div></div>';
+  }
   if((CV.cruzada||[]).length){
     h+='<div class="m" style="margin:0 0 6px">Cada linha é um pedido; a coluna <b>Fontes</b> diz quais armas viram o cancelamento.</div>';
     h+='<div class="c"><div class="rolar"><table><tr><th>Hora</th><th>Loja</th><th>Pedido</th><th>Tipo</th><th>Itens</th><th>Canal</th><th>Motivo (Gestor Web)</th><th>Fontes</th>'+(CV.dono?'<th>Reembolso da loja</th><th>Retenção</th>':'')+'</tr>';
