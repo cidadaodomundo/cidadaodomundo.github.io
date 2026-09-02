@@ -176,7 +176,7 @@ function filtros(){
     h+='<button class="'+(UNI===l.unidade?'on':'')+'" onclick="UNI=\''+esc(l.unidade).replace(/'/g,"\\'")+'\';boot()">'+esc(l.unidade)+'</button>';
   });
   h+='</div>';
-  const abas=[['resumo','📈 Resumo'],['lojas','🏪 Por loja'],['turnos','🕐 Por turno'],['pausados','📵 Fora do ar'],['dia','🗓 O dia']];
+  const abas=[['resumo','📈 Resumo'],['lojas','🏪 Por loja'],['turnos','🕐 Por turno'],['pausados','📵 Fora do ar'],['dia','🗓 O dia'],['ree','🔁 Reentregas']];
   if(D.modo==='dono')abas.push(['dinheiro','💰 Dinheiro'],['pessoas','🛵 Entregadores']);
   abas.push(['cancel','🚫 Cancelamentos'],['cliente','⭐ Avaliações'],['super','🏆 Selo Super']);
   h+='<div class="fil">';
@@ -196,11 +196,79 @@ function filtros(){
   return h;
 }
 
+/* ===== 🔁 Reentregas — 1ª ferramenta trazida da Central (fusão Central→Qualidade, 01/09/2026) ===== */
+let REE=null,REEMOT=null,REEbusy=false,REEERRO='';
+function reeHora(t){return t?String(t).slice(11,16):'—'}
+function reeCor(f){return f==='COZINHA'?'var(--bad)':f==='DESPACHO'?'var(--warn)':'var(--muted)'}
+async function reeRPC(acao,dados){
+  const r=await fetch(SB+'rpc/reentrega_consulta',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_cred:tok(),p_acao:acao,p_dados:dados||{}})});
+  const j=await r.json().catch(function(){return null});
+  if(!r.ok)throw new Error((j&&j.message)||('HTTP '+r.status));
+  return j;
+}
+function reePuxa(){
+  if(REEbusy)return;
+  REEbusy=true;REEERRO='';
+  const d=new Date();d.setDate(d.getDate()-7);
+  const de=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+  Promise.all([reeRPC('listar',{de:de}),reeRPC('motivos')]).then(function(a){
+    REE=Array.isArray(a[0])?a[0]:[];REEMOT=Array.isArray(a[1])?a[1]:[];REEbusy=false;desenha();
+  }).catch(function(e){
+    REE=[];REEMOT=[];REEbusy=false;REEERRO=(e&&e.message)||'não deu para carregar';desenha();
+  });
+}
+function reeMarcar(el){
+  var u=el.getAttribute('data-u'),t=el.getAttribute('data-t'),mo=el.value;
+  if(!mo)return;
+  el.disabled=true;
+  reeRPC('marcar',{unidade:u,data_hora_pedido:t,motivo:mo,lancado_por:(sessionStorage.getItem('cdm_papel')||'portal')})
+    .then(function(){REE=null;REEbusy=false;reePuxa()})
+    .catch(function(e){el.disabled=false;alert('Não consegui gravar: '+e.message)});
+}
+function reeResp(el){
+  var u=el.getAttribute('data-u'),t=el.getAttribute('data-t'),mo=el.getAttribute('data-m'),re=el.value;
+  if(!mo){el.value='';return}
+  el.disabled=true;
+  reeRPC('marcar',{unidade:u,data_hora_pedido:t,motivo:mo,responsavel:re,lancado_por:(sessionStorage.getItem('cdm_papel')||'portal')})
+    .then(function(){REE=null;REEbusy=false;reePuxa()})
+    .catch(function(e){el.disabled=false;alert('Não consegui gravar: '+e.message)});
+}
+function reeLinha(r){
+  var _cz=function(t){return '<div style="color:var(--muted);font-size:11.5px">'+t+'</div>'};
+  var _selo=(r.mesmo_cliente===true)?'<span class="pill p-bad">mesmo cliente</span>':(r.mesmo_cliente===false?'<span class="pill">cliente diferente</span>':'<span class="pill">nome não identificado</span>');
+  var _tm=function(m){return (m==null)?'—':(m<60?(m+' min antes'):(Math.floor(m/60)+'h'+(m%60<10?'0':'')+(m%60)+' antes'))};
+  var _par=r.par_n_pedido?('<b>'+esc(r.par_n_pedido)+'</b> às '+reeHora(r.par_data_hora)+' · '+_tm(r.par_minutos)+_cz('canal: '+esc(r.par_canal||'não identificado'))+_cz('motoboy: '+esc(r.par_entregador||'—')+' · cliente '+esc(r.par_cliente_ini||'—')+' ')+_selo+_cz('mesmo endereço dos dois: '+esc(r.endereco||'—'))):'<span style="color:var(--muted)">sem par — a equipe lançou este com # no número</span>';
+  var eq=r.familia==='COZINHA'?r.equipe_cozinha:r.familia==='DESPACHO'?r.equipe_despacho:null;
+  var eqs=(eq&&eq.length)?eq.map(esc).join(', '):(r.familia?'<span style="color:var(--muted)">escala não lançada</span>':'—');
+  var fam=r.familia?'<span class="pill" style="background:'+reeCor(r.familia)+';color:#fff">'+esc(r.familia)+'</span>':(r.detectada_por_endereco?(r.mesmo_cliente===true?'<span class="pill p-warn">suspeita: mesmo cliente, mesmo endereço — confirmar</span>':'<span class="pill p-warn">suspeita: mesmo endereço, nome não identificado — confirmar</span>'):'<span style="color:var(--muted)">a classificar</span>');
+  var rsel=(eq&&eq.length&&r.motivo)?('<select data-u="'+esc(r.unidade)+'" data-t="'+esc(r.data_hora_pedido)+'" data-m="'+esc(r.motivo)+'" onchange="reeResp(this)"><option value="">— quem foi? —</option>'+eq.map(function(n){return '<option'+(r.responsavel===n?' selected':'')+'>'+esc(n)+'</option>'}).join('')+'</select>'):'<span style="color:var(--muted)">—</span>';
+  var sel='<select data-u="'+esc(r.unidade)+'" data-t="'+esc(r.data_hora_pedido)+'" onchange="reeMarcar(this)"><option value="">— escolher —</option>'+(REEMOT||[]).map(function(m){return '<option'+(r.motivo===m.motivo?' selected':'')+'>'+esc(m.motivo)+'</option>'}).join('')+'</select>';
+  return '<tr><td>'+reeHora(r.data_hora_pedido)+'</td><td><b>'+esc(r.n_pedido||'—')+'</b>'+_cz('canal: '+esc(r.canal||'não identificado'))+_cz('cliente '+esc(r.cliente_ini||'—'))+'</td><td>'+esc(r.unidade)+'</td><td>'+esc(r.turno||'—')+'</td><td>'+esc(r.entregador||'—')+'</td><td>'+_par+'</td><td>'+sel+'</td><td>'+fam+'</td><td>'+eqs+'</td><td>'+rsel+'</td></tr>';
+}
+function reeAba(){
+  if(REE===null)return '<div class="c"><div class="vazio">Carregando reentregas…</div></div>';
+  var rs=(REE||[]).filter(function(r){return !UNI||r.unidade===UNI});
+  var h='<div class="m" style="margin:0 0 8px">🔁 A ferramenta da Central, agora aqui · <b>últimos 7 dias</b> · a lista junta o que a equipe lançou com # e o 2º pedido no mesmo endereço, no mesmo dia, até 3 horas depois, com o mesmo primeiro nome. Marcar o motivo e o responsável grava de verdade.</div>';
+  if(REEERRO)h+='<div class="aviso">'+esc(REEERRO)+'</div>';
+  if(!rs.length)return h+'<div class="c"><div class="vazio">Nenhuma reentrega nos últimos 7 dias'+(UNI?' na '+esc(UNI):'')+'.</div></div>';
+  var dias=[];rs.forEach(function(r){if(dias.indexOf(r.dia_operacional)<0)dias.push(r.dia_operacional)});
+  dias.sort();dias.reverse();
+  dias.forEach(function(d){
+    h+='<h2>'+dData(d)+'</h2><div class="c"><div class="rolar"><table><tr><th>Hora</th><th>Pedido</th><th>Loja</th><th>Turno</th><th>Motoboy</th><th>1º pedido (o par)</th><th>Motivo</th><th>Família</th><th>Equipe do turno</th><th>Quem foi</th></tr>';
+    rs.forEach(function(r){if(r.dia_operacional===d)h+=reeLinha(r)});
+    h+='</table></div></div>';
+  });
+  return h;
+}
+
 function vaiPara(a){
   ABA=a;
   ligaTimer();
   if(a==='dia'&&!DD){desenha();puxaDia();return}
   if(a==='super'&&!SU){desenha();puxaSuper();return}
+  if(a==='ree'&&REE===null){desenha();reePuxa();return}
   if(a==='cancel'&&!CC){desenha();puxaCanc();return}
   if(a==='cliente'&&!SU){desenha();puxaSuper();return}
   desenha();
@@ -615,6 +683,7 @@ function desenha(){
   else if(ABA==='pausados')h+=pausados();
   else if(ABA==='dinheiro')h+=dinheiro();
   else if(ABA==='pessoas')h+=pessoas();
+  else if(ABA==='ree')h+=reeAba();
   else if(ABA==='cancel')h+=cancelamentos();
   $('app').innerHTML=h;
 }
