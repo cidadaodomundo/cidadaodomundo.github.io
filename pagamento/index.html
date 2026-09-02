@@ -112,7 +112,7 @@ const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 const iso=d=>d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
 function rs(n){return 'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function num(n){return Number(n||0).toLocaleString('pt-BR',{maximumFractionDigits:1})}
-let VIEW='pag', D=null, PD=null, PDDIA=null, AG=null, AGT=null;
+let VIEW='pag', D=null, PD=null, PDDIA=null, AG=null, AGT=null, LOJA='';
 
 
 async function porta(de,ate){
@@ -249,6 +249,42 @@ function linhaMoto(m,i,vivo){
   h+='<tr class="obs"><td colspan="8">'+d+'</td></tr>';
   return h;
 }
+function setLoja(u){LOJA=u;render()}
+function lojasDe(D2){
+  const s=new Set(); (D2.linhas||[]).forEach(x=>s.add(x.unidade));
+  (D2.lanches_sem_dono||[]).forEach(x=>s.add(x.unidade));
+  return [...s].sort();
+}
+function botoesLoja(D2){
+  const ls=lojasDe(D2);
+  if(ls.length<2) return '';
+  let h='<div class="c" style="padding:9px 12px"><b style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">Loja</b> ';
+  h+='<button class="b'+(LOJA===''?' on':'')+'" onclick="setLoja(\'\')" style="'+(LOJA===''?'background:#ff2d55;color:#fff;border-color:#ff2d55':'')+'">todas</button> ';
+  ls.forEach(function(u){
+    const sel = LOJA===u;
+    h+='<button class="b" onclick="setLoja(\''+esc(u).replace(/'/g,"\\'")+'\')" style="'+(sel?'background:#ff2d55;color:#fff;border-color:#ff2d55':'')+'">'+esc(u)+'</button> ';
+  });
+  return h+'</div>';
+}
+function soDaLoja(lista){ return LOJA ? (lista||[]).filter(x=>x.unidade===LOJA) : (lista||[]) }
+function somaTotais(l){
+  const t={gente:l.length, pagar:0, almocos:0, sem_almoco:0, dobrados:0, sem_gps:0, sem_pix:0,
+           cobrados:0, cobrado_total:0, sem_preco:0, entregas:0, horas:0, rodando_agora:0};
+  l.forEach(function(m){
+    t.pagar+=Number(m.pagar||0); t.almocos+=Number(m.direito_refeicoes||0);
+    if(!m.direito_refeicoes) t.sem_almoco++;
+    if(m.turnos>1) t.dobrados++;
+    if(!m.tem_gps) t.sem_gps++;
+    if(!m.chave_pix) t.sem_pix++;
+    if(m.cobrar_refeicao>0){t.cobrados++; t.cobrado_total+=Number(m.cobrar_refeicao)}
+    t.sem_preco+=Number(m.lanche_sem_preco||0);
+    t.entregas+=Number(m.entregas||0); t.horas+=Number(m.horas||0);
+    if(m.ligado_agora) t.rodando_agora++;
+  });
+  t.pagar=Math.round(t.pagar*100)/100; t.cobrado_total=Math.round(t.cobrado_total*100)/100;
+  t.horas=Math.round(t.horas*10)/10;
+  return t;
+}
 function cartao(n,l,cls){return '<div class="kpi'+(cls?' '+cls:'')+'"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>'}
 function totaisTxt(t,vivo){
   let h='<div class="kpis">';
@@ -292,11 +328,12 @@ async function apontar(i,unidade,idSale,dia){
 
 function viewPag(){
   if(!PD){puxaPagDia();return}
-  const t=PD.totais||{}, l=PD.linhas||[];
+  const l=soDaLoja(PD.linhas), t=(LOJA? somaTotais(l) : (PD.totais||{}));
   let h='<div class="c"><div class="hs" style="margin:0 0 8px"><b>Pagamento do dia '+esc(PD.dia_texto)+'</b> ('+esc(PD.dia_semana)+') · '+(PD.fim_de_semana?'fim de semana, R$ 25 a hora':'dia de semana, R$ 20 a hora')+' · lido '+esc(PD.agora)+'</div>'+
     '<button class="b" onclick="pagDiaPula(-1)">◀ dia anterior</button> '+
     '<input type="date" id="pd_dia" value="'+esc(PD.dia)+'" onchange="pagDiaMuda(this.value)"> '+
     '<button class="b" onclick="pagDiaPula(1)">dia seguinte ▶</button></div>';
+  h+=botoesLoja(PD);
   h+=totaisTxt(t,false);
   h+=semDono(PD,false);
   if(!l.length){$('conteudo').innerHTML=h+'<div class="c empty">Ninguém rodou neste dia.</div>';return}
@@ -326,7 +363,7 @@ async function puxaAgora(){
 }
 function viewAgora(){
   if(!AG){puxaAgora();return}
-  const t=AG.totais||{}, l=AG.linhas||[], p=AG.no_patio||[];
+  const l=soDaLoja(AG.linhas), t=(LOJA? somaTotais(l) : (AG.totais||{})), p=soDaLoja(AG.no_patio);
   let h='<div class="c"><div class="hs" style="margin:0"><b>🔴 AO VIVO — hoje, '+esc(AG.dia_texto)+'</b> ('+esc(AG.dia_semana)+') · '+(AG.fim_de_semana?'R$ 25 a hora':'R$ 20 a hora')+' · atualiza sozinho a cada minuto · lido '+esc(AG.agora)+'</div></div>';
   if(p.length){
     h+='<div class="c"><b>🛵 Quem está com o aplicativo ligado neste minuto</b><div class="wrap"><table><tr><th>Loja</th><th>Motoboy</th><th>Onde está</th><th>Distância da loja</th><th>Situação</th><th>Visto</th></tr>';
@@ -340,6 +377,7 @@ function viewAgora(){
   }else{
     h+='<div class="c empty">Ninguém com o aplicativo ligado neste minuto.</div>';
   }
+  h+=botoesLoja(AG);
   h+=totaisTxt(t,true);
   h+=semDono(AG,true);
   if(l.length){
