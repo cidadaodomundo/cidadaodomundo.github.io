@@ -200,6 +200,7 @@ function filtros(){
 
 /* ===== 🔁 Reentregas — 1ª ferramenta trazida da Central (fusão Central→Qualidade, 01/09/2026) ===== */
 let REE=null,REEMOT=null,REEbusy=false,REEERRO='';
+let CV=null;
 function reeHora(t){return t?String(t).slice(11,16):'—'}
 function reeCor(f){return f==='COZINHA'?'var(--bad)':f==='DESPACHO'?'var(--warn)':'var(--muted)'}
 async function reeRPC(acao,dados){
@@ -249,6 +250,34 @@ function reeLinha(r){
   var sel='<select data-u="'+esc(r.unidade)+'" data-t="'+esc(r.data_hora_pedido)+'" onchange="reeMarcar(this)"><option value="">— escolher —</option>'+(REEMOT||[]).map(function(m){return '<option'+(r.motivo===m.motivo?' selected':'')+'>'+esc(m.motivo)+'</option>'}).join('')+'</select>';
   return '<tr><td>'+reeHora(r.data_hora_pedido)+'</td><td><b>'+esc(r.n_pedido||'—')+'</b>'+_cz('canal: '+esc(r.canal||'não identificado'))+_cz('cliente '+esc(r.cliente_ini||'—'))+'</td><td>'+esc(r.unidade)+'</td><td>'+esc(r.turno||'—')+'</td><td>'+esc(r.entregador||'—')+'</td><td>'+_par+'</td><td>'+sel+'</td><td>'+fam+'</td><td>'+eqs+'</td><td>'+rsel+'</td></tr>';
 }
+async function puxaCancVivo(){
+  if(CV!==null)return;
+  try{ CV=await porta('qualidade_cancel_vivo',{unidade:UNI||null}); }catch(e){ CV=false }
+  desenha();
+}
+function cancVivo(){
+  let h='<h2>🔴 Agora, das fontes vivas</h2>';
+  if(CV===null)return h+'<div class="c"><div class="load">Buscando as fontes vivas…</div></div>';
+  if(CV===false)return h+'<div class="c"><div class="vazio">não deu para carregar as fontes vivas — tente Atualizar</div></div>'+'<h2>📋 O quadro oficial do iFood (atrasa 1 dia)</h2>';
+  const f=CV.fontes||{};
+  h+='<div class="m" style="margin:0 0 8px">Este bloco é sempre <b>HOJE</b>, não segue o período dos botões · Saipos atualizado '+(f.saipos?String(f.saipos).slice(11,16):'—')+' · última conversa do iFood '+(f.chat?String(f.chat).slice(11,16):'—')+' · Foody marca cancelado em 15 min.</div>';
+  const L=CV.por_loja||[];
+  if(!L.length)h+='<div class="c"><div class="vazio">Nenhum cancelamento (total ou parcial) registrado hoje até agora.</div></div>';
+  else{
+    h+='<div class="c"><div class="rolar"><table><tr><th>Loja</th><th>Cancelados (Saipos)</th><th>Parciais (itens tirados)</th><th>Foody cancelado</th></tr>';
+    L.forEach(function(l){h+='<tr><td><b>'+esc(l.unidade)+'</b></td><td>'+n(l.totais)+'</td><td>'+n(l.parciais)+(l.itens?' <span class="m">('+n(l.itens)+' itens)</span>':'')+'</td><td>'+n(l.foody)+'</td></tr>'});
+    h+='</table></div></div>';
+  }
+  const ch=CV.chats||{};
+  h+='<div class="c">💬 Conversas de clientes hoje: <b>'+n(ch.total)+'</b> · sem resposta da loja: <b>'+n(ch.sem_resposta)+'</b> · mensagens não lidas: <b>'+n(ch.nao_lidas)+'</b></div>';
+  if((CV.lista||[]).length){
+    h+='<div class="c"><div class="rolar"><table><tr><th>Loja</th><th>Pedido</th><th>Tipo</th><th>Itens tirados</th><th>Canal</th></tr>';
+    (CV.lista||[]).forEach(function(r){h+='<tr><td>'+esc(r.unidade)+'</td><td><b>'+esc(r.n_pedido)+'</b></td><td>'+(r.total?'<span class="pill p-bad">cancelado</span>':'<span class="pill p-warn">parcial</span>')+'</td><td>'+n(r.itens_cancelados)+'</td><td>'+esc(r.canal||'—')+'</td></tr>'});
+    h+='</table></div></div>';
+  }
+  h+='<h2>📋 O quadro oficial do iFood (atrasa 1 dia)</h2>';
+  return h;
+}
 function motoVivo(){
   return '<div class="c" style="padding:6px"><iframe src="/delivery/central.html?embed=equipe&cb='+Date.now()+'" style="width:100%;height:78vh;min-height:640px;border:0;border-radius:9px;background:var(--s0)" title="Motoboys ao vivo"></iframe></div>'+
     '<div class="m" style="margin:6px 0 10px">O quadro acima é a máquina da Central rodando aqui dentro, ao vivo — mesma informação, mesmo login.</div>';
@@ -276,7 +305,7 @@ function vaiPara(a){
   if(a==='super'&&!SU){desenha();puxaSuper();return}
   if(a==='resumo'&&!DD){desenha();puxaDia();return}
   if(a==='ree'&&REE===null){desenha();reePuxa();return}
-  if(a==='cancel'&&!CC){desenha();puxaCanc();return}
+  if(a==='cancel'&&(!CC||!CV)){desenha();puxaCanc();puxaCancVivo();return}
   if(a==='cliente'&&!SU){desenha();puxaSuper();return}
   desenha();
 }
@@ -691,13 +720,13 @@ function desenha(){
   else if(ABA==='dinheiro')h+=dinheiro();
   else if(ABA==='pessoas')h+=motoVivo()+(D.modo==='dono'?'<h2>🛵 Análise dos entregadores (só você)</h2>'+pessoas():'');
   else if(ABA==='ree')h+=reeAba();
-  else if(ABA==='cancel')h+=cancelamentos();
+  else if(ABA==='cancel')h+=cancVivo()+cancelamentos();
   $('app').innerHTML=h;
 }
 
 async function boot(){
   $('app').innerHTML='<div class="load">Carregando…</div>';
-  DD=null;SU=null;CC=null;
+  DD=null;SU=null;CC=null;CV=null;
   try{ D=await puxa(); }
   catch(e){ $('app').innerHTML='<div class="c">Não deu para carregar. '+esc(e.message||'')+'</div>'; return }
   try{ CC=await porta('qualidade_cancelamentos',{periodo:perNome(),dias:DIAS,unidade:UNI||null}); }catch(e){ CC=null }
@@ -707,6 +736,7 @@ async function boot(){
     (D.modo==='dono'?'visão completa':'visão da equipe')+(D.unidade?' · '+D.unidade:'');
   desenha();
   if(ABA==='resumo'&&!DD)puxaDia();
+  if(ABA==='cancel'&&!CV)puxaCancVivo();
 }
 
 /* ===== porta unica do portal ===== */
