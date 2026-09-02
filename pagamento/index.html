@@ -69,9 +69,8 @@ tr.aviso td{color:#e8bb62}
 <div id="kpis"></div>
 
 <div class="tabs">
-  <span class="tab on" id="t_pag" onclick="setView('pag')">💵 Pagamento do dia</span>
-  <span class="tab" id="t_moto" onclick="setView('moto')">👤 Por motoboy · para pagar</span>
-  <span class="tab" id="t_dia" onclick="setView('dia')">📋 Dia a dia</span>
+  <span class="tab on" id="t_pag" onclick="setView('pag')">💵 Pagamento do dia anterior</span>
+  <span class="tab" id="t_ag" onclick="setView('ag')">🔴 Agora, ao vivo</span>
 </div>
 
 <div id="conteudo"><div class="empty">Carregando…</div></div>
@@ -90,7 +89,7 @@ const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 const iso=d=>d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
 function rs(n){return 'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function num(n){return Number(n||0).toLocaleString('pt-BR',{maximumFractionDigits:1})}
-let VIEW='pag', D=null, PD=null, PDDIA=null;
+let VIEW='pag', D=null, PD=null, PDDIA=null, AG=null, AGT=null;
 
 
 async function porta(de,ate){
@@ -146,8 +145,12 @@ function kpis(){
 }
 function kpi(k,c,v,d){return '<div class="kpi '+(c||'')+'"><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="d">'+d+'</div></div>'}
 
-function setView(v){VIEW=v;$('t_pag').className='tab'+(v==='pag'?' on':'');$('t_moto').className='tab'+(v==='moto'?' on':'');$('t_dia').className='tab'+(v==='dia'?' on':'');render()}
-function render(){if(VIEW==='pag'){viewPag();return}D&&(VIEW==='moto'?viewMoto():viewDia())}
+function setView(v){VIEW=v;
+  $('t_pag').className='tab'+(v==='pag'?' on':'');
+  $('t_ag').className='tab'+(v==='ag'?' on':'');
+  if(v!=='ag'&&AGT){clearInterval(AGT);AGT=null}
+  render()}
+function render(){if(VIEW==='ag'){viewAgora();return}viewPag()}
 
 async function portaPagDia(dia){
   const b={p_token:cdmTok()};
@@ -170,6 +173,83 @@ async function puxaPagDia(dia){
 }
 function pagDiaMuda(v){PDDIA=v;puxaPagDia(v)}
 function pagDiaPula(n){const d=new Date((PDDIA||iso(new Date()))+'T12:00:00');d.setDate(d.getDate()+n);pagDiaMuda(iso(d))}
+function copiar(t){
+  try{navigator.clipboard.writeText(t);alert('Chave PIX copiada:\n\n'+t)}
+  catch(e){alert('Copie na mão:\n\n'+t)}
+}
+
+function selo(m){
+  if(m.tem_direito_almoco && m.lanches>0) return '<span style="color:#4ade80">✅ tem direito · pegou</span>';
+  if(m.tem_direito_almoco) return '<span style="color:#4ade80">✅ tem direito</span>';
+  if(m.lanches>0 && m.cobrar_refeicao>0) return '<span style="color:#f87171">❌ sem direito · <b>pegou</b> → cobrar '+rs(m.cobrar_refeicao)+'</span>';
+  if(m.lanches>0) return '<span style="color:#fbbf24">❌ sem direito · pegou · <b>falta o preço</b></span>';
+  return '<span style="color:#f87171">❌ sem direito</span>';
+}
+function atrasoTxt(m){
+  if(m.atraso_min===null||m.atraso_min===undefined) return '—';
+  if(m.atraso_min>0) return '+'+m.atraso_min+' min';
+  if(m.atraso_min<0) return m.atraso_min+' min';
+  return 'na hora';
+}
+function linhaMoto(m,i,vivo){
+  let h='<tr>'+
+    '<td>'+esc(m.unidade)+'</td>'+
+    '<td>'+esc(m.entregador)+(vivo&&m.no_patio_agora?' <span title="no pátio agora">🟢</span>':(vivo&&m.ligado_agora?' <span title="na rua">🛵</span>':''))+'</td>'+
+    '<td>'+esc(m.combinado||'—')+'</td>'+
+    '<td>'+esc(m.chegada||'—')+(m.tem_gps?'':' <span title="sem GPS, hora estimada">⚠️</span>')+'</td>'+
+    '<td>'+esc(m.ultima_entrega||'—')+'</td>'+
+    '<td>'+num(m.horas)+'</td>'+
+    '<td>'+atrasoTxt(m)+'</td>'+
+    '<td>'+selo(m)+'</td>'+
+    '<td>'+(m.garantido?'✅ sim':'❌ não')+'</td>'+
+    '<td>'+num(m.entregas)+'</td>'+
+    '<td>'+rs(m.taxas)+'</td>'+
+    '<td>'+rs(m.garantido_valido)+'</td>'+
+    '<td>'+(m.cobrar_refeicao>0?'<span style="color:#f87171">− '+rs(m.cobrar_refeicao)+'</span>':'—')+'</td>'+
+    '<td><b>'+rs(m.pagar)+'</b></td>'+
+    '<td>'+(m.chave_pix?'<span id="pdpix'+i+'" style="display:none">'+esc(m.chave_pix)+'</span><button class="b" onclick="copiar(document.getElementById(\'pdpix'+i+'\').textContent)">copiar</button>':'<span style="color:#f87171">sem PIX</span>')+'</td>'+
+    '</tr>';
+  if(m.aviso) h+='<tr><td colspan="15" class="hs">'+esc(m.entregador)+': '+esc(m.aviso)+'</td></tr>';
+  return h;
+}
+function cabecalho(){
+  return '<div class="c wrap"><table><tr><th>Loja</th><th>Motoboy</th><th>Combinado</th><th>Chegou</th><th>Última entrega</th><th>Horas</th><th>Atraso</th><th>Almoço</th><th>Garantido</th><th>Entregas</th><th>Taxas</th><th>Garantido R$</th><th>Cobrado</th><th>A pagar</th><th>PIX</th></tr>';
+}
+function totaisTxt(t,vivo){
+  let h='<div class="c"><b>'+num(t.gente||0)+'</b> motoboy(s) · '+(vivo?'até agora':'total a pagar')+' <b>'+rs(t.pagar)+'</b>';
+  h+=' · <b>'+num(t.almocos||0)+'</b> com direito ao almoço';
+  if(t.sem_almoco>0) h+=' · <b>'+num(t.sem_almoco)+'</b> sem direito';
+  if(t.cobrados>0) h+=' · <b style="color:#f87171">'+num(t.cobrados)+'</b> pagando o lanche ('+rs(t.cobrado_total)+')';
+  if(t.sem_preco>0) h+=' · <b style="color:#fbbf24">'+num(t.sem_preco)+'</b> lanche(s) sem preço cadastrado';
+  if(t.sem_gps>0) h+=' · '+num(t.sem_gps)+' sem carimbo de GPS';
+  if(t.sem_pix>0) h+=' · <b style="color:#f87171">'+num(t.sem_pix)+'</b> sem chave PIX';
+  return h+'</div>';
+}
+function semDono(D2,vivo){
+  const l=D2.lanches_sem_dono||[];
+  if(!l.length) return '';
+  const cand=(D2.candidatos||[]);
+  let h='<div class="c"><b style="color:#fbbf24">🍔 '+l.length+' lanche(s) lançado(s) sem o nome do motoboy na observação.</b> Ninguém está sendo cobrado por eles. Diga de quem foi:<div class="wrap"><table><tr><th>Loja</th><th>Comanda</th><th>Lanche</th><th>De quem foi?</th></tr>';
+  l.forEach(function(x,i){
+    let op='<option value="">— escolha —</option>';
+    cand.forEach(function(c){ if(c.unidade===x.unidade) op+='<option value="'+esc(c.entregador)+'">'+esc(c.entregador)+'</option>'; });
+    h+='<tr><td>'+esc(x.unidade)+'</td><td>#'+esc(x.numero_venda)+'</td><td>'+esc(x.produto)+'</td>'+
+       '<td><select id="sd'+i+'">'+op+'</select> <button class="b" onclick="apontar('+i+',\''+esc(x.unidade)+'\',\''+esc(x.id_sale)+'\',\''+esc(D2.dia)+'\')">gravar</button></td></tr>';
+  });
+  return h+'</table></div></div>';
+}
+async function apontar(i,unidade,idSale,dia){
+  const v=$('sd'+i).value;
+  if(!v){alert('Escolha o motoboy primeiro.');return}
+  try{
+    const r=await fetch(SB+'rpc/pagamento_apontar',{method:'POST',
+      headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({p_token:cdmTok(),p_dados:{unidade:unidade,id_sale:idSale,dia:dia,entregador:v}})});
+    if(!r.ok)throw 0;
+    if(VIEW==='ag'){AG=null;puxaAgora()}else{PD=null;puxaPagDia(dia)}
+  }catch(e){alert('Não deu para gravar. Entre no portal de novo.')}
+}
+
 function viewPag(){
   if(!PD){puxaPagDia();return}
   const t=PD.totais||{}, l=PD.linhas||[];
@@ -177,125 +257,61 @@ function viewPag(){
     '<button class="b" onclick="pagDiaPula(-1)">◀ dia anterior</button> '+
     '<input type="date" id="pd_dia" value="'+esc(PD.dia)+'" onchange="pagDiaMuda(this.value)"> '+
     '<button class="b" onclick="pagDiaPula(1)">dia seguinte ▶</button></div>';
-  h+='<div class="c"><b>'+num(t.gente||0)+'</b> motoboy(s) · total a pagar <b>'+rs(t.pagar)+'</b> · <b>'+num(t.almocos||0)+'</b> com direito ao almoço';
-  if(t.sem_almoco>0)h+=' · <b>'+num(t.sem_almoco)+'</b> perderam almoço e garantido';
-  if(t.sem_gps>0)h+=' · '+num(t.sem_gps)+' sem carimbo de GPS';
-  if(t.sem_pix>0)h+=' · <b>'+num(t.sem_pix)+'</b> sem chave PIX cadastrada';
-  h+='</div>';
+  h+=totaisTxt(t,false);
+  h+=semDono(PD,false);
   if(!l.length){$('conteudo').innerHTML=h+'<div class="c empty">Ninguém rodou neste dia.</div>';return}
-  h+='<div class="c wrap"><table><tr><th>Loja</th><th>Motoboy</th><th>Combinado</th><th>Chegou</th><th>Última entrega</th><th>Horas</th><th>Atraso</th><th>Almoço</th><th>Garantido</th><th>Entregas</th><th>Taxas</th><th>Garantido R$</th><th>A pagar</th><th>PIX</th></tr>';
-  l.forEach(function(m,i){
-    const at=(m.atraso_min===null||m.atraso_min===undefined)?'—':(m.atraso_min>0?'+'+m.atraso_min+' min':(m.atraso_min<0?m.atraso_min+' min':'na hora'));
-    h+='<tr>'+
-      '<td>'+esc(m.unidade)+'</td>'+
-      '<td>'+esc(m.entregador)+'</td>'+
-      '<td>'+esc(m.combinado||'—')+'</td>'+
-      '<td>'+esc(m.chegada||'—')+'</td>'+
-      '<td>'+esc(m.ultima_entrega||'—')+'</td>'+
-      '<td>'+num(m.horas)+'</td>'+
-      '<td>'+at+'</td>'+
-      '<td>'+(m.almoco?'✅ sim':'❌ não')+'</td>'+
-      '<td>'+(m.garantido?'✅ sim':'❌ não')+'</td>'+
-      '<td>'+num(m.entregas)+'</td>'+
-      '<td>'+rs(m.taxas)+'</td>'+
-      '<td>'+rs(m.garantido_valido)+'</td>'+
-      '<td><b>'+rs(m.pagar)+'</b></td>'+
-      '<td>'+(m.chave_pix?'<span id="pdpix'+i+'" style="display:none">'+esc(m.chave_pix)+'</span><button class="b" onclick="copiar(document.getElementById(\'pdpix'+i+'\').textContent)">copiar</button>':'—')+'</td>'+
-      '</tr>';
-    if(m.aviso&&m.aviso!=='ok')h+='<tr><td colspan="14" class="hs">'+esc(m.entregador)+': '+esc(m.aviso)+'</td></tr>';
-  });
+  h+=cabecalho();
+  l.forEach(function(m,i){h+=linhaMoto(m,i,false)});
   h+='</table></div>';
-  h+='<div class="hs">A hora conta da <b>chegada no pátio pelo GPS</b> até a <b>última entrega</b>. Quem chega mais de '+num(PD.tolerancia_min)+' minutos depois do horário combinado perde o almoço e o garantido do dia — recebe só as taxas de entrega. Quem decide é você.</div>';
+  h+='<div class="hs">A hora conta da <b>chegada no pátio pelo GPS</b> até a <b>última entrega</b>. Quem chega mais de '+num(PD.tolerancia_min)+' minutos depois do horário combinado perde o almoço e o garantido do dia — e, se mesmo assim pegou o lanche, <b>paga por ele</b>. Sem carimbo de GPS não se corta nada. Quem decide é você.</div>';
   $('conteudo').innerHTML=h;
 }
 
-function copiar(t){
-  try{navigator.clipboard.writeText(t);alert('Chave PIX copiada:\n\n'+t)}
-  catch(e){alert('Copie na mão:\n\n'+t)}
+async function portaAgora(){
+  const r=await fetch(SB+'rpc/pagamento_agora',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:cdmTok()})});
+  if(!r.ok)throw new Error('porta '+r.status);
+  return await r.json();
 }
-
-function viewMoto(){
-  const l=D.por_motoboy||[];
-  if(!l.length){$('conteudo').innerHTML='<div class="c empty">Nenhum motoboy rodou neste período.</div>';return}
-  let h='';
-  l.forEach(function(m,i){
-    h+='<div class="c"><div class="lin">'+
-       '<span class="nm">'+esc(m.entregador)+'</span>'+
-       '<span class="vl">'+rs(m.pagar)+'</span></div>'+
-       '<div class="det">'+esc(m.unidades)+' · '+m.dias+' dia'+(m.dias==1?'':'s')+' · '+
-       m.entregas+' entregas pagas · '+(m.horas?num(m.horas)+'h rodando':'sem hora')+' · '+rs(m.taxas)+' de taxa'+(m.pagar_antigo&&Math.abs(m.pagar-m.pagar_antigo)>0.01?' · <span style="opacity:.7">antes seria '+rs(m.pagar_antigo)+'</span>':'')+'</div>';
-    if(m.pix&&!m.sem_pix){
-      h+='<div class="pix">🔑 <code id="pix'+i+'">'+esc(m.pix)+'</code>'+
-         '<button class="b" onclick="copiar(document.getElementById(\'pix'+i+'\').textContent)">copiar</button></div>';
-    }
-    const av=[];
-    if(m.sem_pix||!m.pix)av.push('<span class="pill bad">sem chave PIX</span>');
-    if(m.dias_sem_hora>0)av.push('<span class="pill warn">'+m.dias_sem_hora+' dia'+(m.dias_sem_hora==1?'':'s')+' sem hora medida</span>');
-    if(av.length)h+='<div class="avisos">'+av.join('')+'</div>';
-    h+='</div>';
-  });
-  const tk=D.trackeat||[];
-  if(tk.length){
-    h+='<div class="c" style="border-left:3px solid var(--brand)"><b>TrackEat — São Braz e Ahú</b><div class="det">extraído da tela do TrackEat; o piso (SB 80 na semana / 100 no fim de semana, Ahú 100) é aplicado quando as taxas não chegam lá</div></div>';
-    tk.forEach(function(m,i){
-      h+='<div class="c"><div class="lin"><span class="nm">'+esc(m.entregador)+' <span class="pill">'+esc(m.unidade)+'</span></span><span class="vl">'+rs(m.pagar)+'</span></div>'+
-         '<div class="det">'+m.dias+' dia'+(m.dias==1?'':'s')+' · '+m.entregas+' entregas · '+rs(m.taxas)+' de taxa'+(m.reprovadas?' · '+m.reprovadas+' reprovada'+(m.reprovadas==1?'':'s'):'')+'</div>';
-      if(m.pix){h+='<div class="pix">🔑 <code id="tkpix'+i+'">'+esc(m.pix)+'</code><button class="b" onclick="copiar(document.getElementById(\'tkpix'+i+'\').textContent)">copiar</button></div>';}
-      else{h+='<div class="avisos"><span class="pill bad">sem chave PIX no cadastro</span></div>';}
-      h+='</div>';
-    });
-  }
-  const dsx=D.descontos||[];
-  if(dsx.length){
-    h+='<div class="c"><b>Descontos aprovados esperando ser abatidos ('+dsx.length+')</b>';
-    dsx.forEach(function(k){
-      h+='<div class="det">'+esc(k.dia)+' · '+esc(k.unidade)+' · pedido '+esc(k.n_pedido||'—')+' · '+esc(k.entregador||'—')+' · <b>'+rs(k.valor)+'</b> · aprovado por '+esc(k.quem||'—')+' <button class="b" onclick="abater('+k.id+')">✓ abati no pagamento</button></div>';
-    });
-    h+='<div class="det" style="margin-top:6px">Aprovados na aba “O cliente pagou?” do Turno do Delivery. Abata do próximo pagamento e marque aqui.</div></div>';
-  }
-  const apx=D.em_apuracao||[];
-  if(apx.length){
-    h+='<div class="c"><b>Ainda em apuração — NÃO descontar ('+apx.length+')</b>';
-    apx.forEach(function(k){
-      h+='<div class="det">'+esc(k.dia)+' · '+esc(k.unidade)+' · pedido '+esc(k.n_pedido||'—')+' · '+esc(k.entregador||'—')+' · '+rs(k.valor)+'</div>';
-    });
-    h+='</div>';
-  }
-  $('conteudo').innerHTML=h;
-}
-
-async function abater(id){
-  if(!confirm('Confirmar: este desconto já foi abatido num pagamento?'))return;
+async function puxaAgora(){
   try{
-    const r=await fetch(SB+'rpc/pagar_motoboy_painel',{method:'POST',
-      headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({p_token:cdmTok(),p_acao:'abater',p_dados:{id:id}})});
-    if(!r.ok)throw 0;
-    carrega();
-  }catch(e){alert('Não deu para marcar.')}
+    if(!AG)$('conteudo').innerHTML='<div class="empty">Carregando o dia de hoje…</div>';
+    AG=await portaAgora();
+    viewAgora();
+    if(!AGT)AGT=setInterval(function(){if(VIEW==='ag')puxaAgora()},60000);
+  }catch(e){
+    $('conteudo').innerHTML='<div class="c">Não deu para carregar o quadro ao vivo. Entre no portal de novo e tente outra vez.</div>';
+  }
 }
-
-function viewDia(){
-  const l=D.por_dia||[];
-  if(!l.length){$('conteudo').innerHTML='<div class="c empty">Nenhum pagamento neste período.</div>';return}
-  let h='<div class="c wrap"><table><tr>'+
-    '<th>Dia</th><th>Loja</th><th>Motoboy</th><th>Turno</th>'+
-    '<th class="num">Entregas pagas</th><th class="num">Horas</th><th class="num">Taxas</th>'+
-    '<th class="num">Piso</th><th class="num">Ajuste</th><th class="num">A pagar</th><th class="num">Conta antiga</th><th>Aviso</th></tr>';
-  l.forEach(function(r){
-    h+='<tr'+(r.alerta?' class="aviso"':'')+'>'+
-       '<td>'+esc(r.dia)+' <span class="rel">'+esc(String(r.dow||'').slice(0,3))+'</span></td>'+
-       '<td>'+esc(r.unidade)+'</td><td>'+esc(r.entregador)+'</td><td>'+esc(r.turno||'')+'</td>'+
-       '<td class="num">'+r.entregas+'</td>'+
-       '<td class="num">'+(r.horas?num(r.horas):'—')+'</td>'+
-       '<td class="num">'+rs(r.taxas)+'</td>'+
-       '<td class="num">'+(Number(r.piso)?rs(r.piso):'—')+'</td>'+
-       '<td class="num">'+(Number(r.ajustes)?rs(r.ajustes):'—')+'</td>'+
-       '<td class="num"><b>'+rs(r.pagar)+'</b></td>'+
-       '<td class="num" style="opacity:.7">'+(r.pagar_antigo?rs(r.pagar_antigo):'—')+'</td>'+
-       '<td>'+esc(r.alerta||'')+'</td></tr>';
-  });
-  $('conteudo').innerHTML=h+'</table></div>';
+function viewAgora(){
+  if(!AG){puxaAgora();return}
+  const t=AG.totais||{}, l=AG.linhas||[], p=AG.no_patio||[];
+  let h='<div class="c"><div class="hs" style="margin:0"><b>🔴 AO VIVO — hoje, '+esc(AG.dia_texto)+'</b> ('+esc(AG.dia_semana)+') · '+(AG.fim_de_semana?'R$ 25 a hora':'R$ 20 a hora')+' · atualiza sozinho a cada minuto · lido '+esc(AG.agora)+'</div></div>';
+  if(p.length){
+    h+='<div class="c"><b>🛵 Quem está com o aplicativo ligado neste minuto</b><div class="wrap"><table><tr><th>Loja</th><th>Motoboy</th><th>Onde está</th><th>Distância da loja</th><th>Situação</th><th>Visto</th></tr>';
+    p.forEach(function(x){
+      const onde = x.no_patio ? '<span style="color:#4ade80">🟢 no pátio</span>' : (x.dist_loja_m!==null&&x.dist_loja_m<3000 ? '<span style="color:#fbbf24">🛵 na rua</span>' : '<span style="opacity:.6">⚪ longe</span>');
+      h+='<tr><td>'+esc(x.unidade)+'</td><td>'+esc(x.entregador)+'</td><td>'+onde+'</td>'+
+         '<td>'+(x.dist_loja_m===null?'—':(x.dist_loja_m<1000?x.dist_loja_m+' m':(x.dist_loja_m/1000).toFixed(1)+' km'))+'</td>'+
+         '<td>'+(x.na_fila?'na fila':(x.disponivel?'disponível':'indisponível'))+'</td><td>'+esc(x.visto)+'</td></tr>';
+    });
+    h+='</table></div></div>';
+  }else{
+    h+='<div class="c empty">Ninguém com o aplicativo ligado neste minuto.</div>';
+  }
+  h+=totaisTxt(t,true);
+  h+=semDono(AG,true);
+  if(l.length){
+    h+='<div class="c"><b>💰 Quanto já vale o dia de hoje, se fechasse agora</b></div>';
+    h+=cabecalho();
+    l.forEach(function(m,i){h+=linhaMoto(m,i,true)});
+    h+='</table></div>';
+  }else{
+    h+='<div class="c empty">Nenhuma entrega registrada hoje ainda.</div>';
+  }
+  h+='<div class="hs">Este quadro é <b>parcial</b>: o turno ainda não fechou. A hora conta da chegada no pátio até a última entrega <b>até agora</b>, então o valor sobe conforme o motoboy entrega. O corte de almoço e garantido já vale, porque o atraso na chegada já aconteceu.</div>';
+  $('conteudo').innerHTML=h;
 }
 
 /* ===== porta unica do portal ===== */
@@ -317,7 +333,7 @@ async function cdmGuarda(){
   if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){if(!ok)return;rapido('sem');});
+cdmGuarda().then(function(ok){if(!ok)return;try{$('p_sem').parentElement.style.display='none'}catch(e){}puxaPagDia();});
 </script>
 <script src="/assets/portal.js?v=3"></script>
 </body>
