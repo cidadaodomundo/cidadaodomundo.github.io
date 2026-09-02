@@ -69,7 +69,8 @@ tr.aviso td{color:#e8bb62}
 <div id="kpis"></div>
 
 <div class="tabs">
-  <span class="tab on" id="t_moto" onclick="setView('moto')">👤 Por motoboy · para pagar</span>
+  <span class="tab on" id="t_pag" onclick="setView('pag')">💵 Pagamento do dia</span>
+  <span class="tab" id="t_moto" onclick="setView('moto')">👤 Por motoboy · para pagar</span>
   <span class="tab" id="t_dia" onclick="setView('dia')">📋 Dia a dia</span>
 </div>
 
@@ -89,7 +90,7 @@ const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 const iso=d=>d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
 function rs(n){return 'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function num(n){return Number(n||0).toLocaleString('pt-BR',{maximumFractionDigits:1})}
-let VIEW='moto', D=null;
+let VIEW='pag', D=null, PD=null, PDDIA=null;
 
 
 async function porta(de,ate){
@@ -145,8 +146,68 @@ function kpis(){
 }
 function kpi(k,c,v,d){return '<div class="kpi '+(c||'')+'"><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="d">'+d+'</div></div>'}
 
-function setView(v){VIEW=v;$('t_moto').className='tab'+(v==='moto'?' on':'');$('t_dia').className='tab'+(v==='dia'?' on':'');render()}
-function render(){D&&(VIEW==='moto'?viewMoto():viewDia())}
+function setView(v){VIEW=v;$('t_pag').className='tab'+(v==='pag'?' on':'');$('t_moto').className='tab'+(v==='moto'?' on':'');$('t_dia').className='tab'+(v==='dia'?' on':'');render()}
+function render(){if(VIEW==='pag'){viewPag();return}D&&(VIEW==='moto'?viewMoto():viewDia())}
+
+async function portaPagDia(dia){
+  const b={p_token:cdmTok()};
+  if(dia)b.p_dia=dia;
+  const r=await fetch(SB+'rpc/pagamento_do_dia',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify(b)});
+  if(!r.ok)throw new Error('porta '+r.status);
+  return await r.json();
+}
+async function puxaPagDia(dia){
+  try{
+    $('conteudo').innerHTML='<div class="empty">Carregando o dia…</div>';
+    PD=await portaPagDia(dia||PDDIA);
+    PDDIA=PD.dia;
+    viewPag();
+  }catch(e){
+    $('conteudo').innerHTML='<div class="c">Não deu para carregar o pagamento do dia. Entre no portal de novo e tente outra vez.</div>';
+  }
+}
+function pagDiaMuda(v){PDDIA=v;puxaPagDia(v)}
+function pagDiaPula(n){const d=new Date((PDDIA||iso(new Date()))+'T12:00:00');d.setDate(d.getDate()+n);pagDiaMuda(iso(d))}
+function viewPag(){
+  if(!PD){puxaPagDia();return}
+  const t=PD.totais||{}, l=PD.linhas||[];
+  let h='<div class="c"><div class="hs" style="margin:0 0 8px"><b>Pagamento do dia '+esc(PD.dia_texto)+'</b> ('+esc(PD.dia_semana)+') · '+(PD.fim_de_semana?'fim de semana, R$ 25 a hora':'dia de semana, R$ 20 a hora')+' · lido '+esc(PD.agora)+'</div>'+
+    '<button class="b" onclick="pagDiaPula(-1)">◀ dia anterior</button> '+
+    '<input type="date" id="pd_dia" value="'+esc(PD.dia)+'" onchange="pagDiaMuda(this.value)"> '+
+    '<button class="b" onclick="pagDiaPula(1)">dia seguinte ▶</button></div>';
+  h+='<div class="c"><b>'+num(t.gente||0)+'</b> motoboy(s) · total a pagar <b>'+rs(t.pagar)+'</b> · <b>'+num(t.almocos||0)+'</b> com direito ao almoço';
+  if(t.sem_almoco>0)h+=' · <b>'+num(t.sem_almoco)+'</b> perderam almoço e garantido';
+  if(t.sem_gps>0)h+=' · '+num(t.sem_gps)+' sem carimbo de GPS';
+  if(t.sem_pix>0)h+=' · <b>'+num(t.sem_pix)+'</b> sem chave PIX cadastrada';
+  h+='</div>';
+  if(!l.length){$('conteudo').innerHTML=h+'<div class="c empty">Ninguém rodou neste dia.</div>';return}
+  h+='<div class="c wrap"><table><tr><th>Loja</th><th>Motoboy</th><th>Combinado</th><th>Chegou</th><th>Última entrega</th><th>Horas</th><th>Atraso</th><th>Almoço</th><th>Garantido</th><th>Entregas</th><th>Taxas</th><th>Garantido R$</th><th>A pagar</th><th>PIX</th></tr>';
+  l.forEach(function(m,i){
+    const at=(m.atraso_min===null||m.atraso_min===undefined)?'—':(m.atraso_min>0?'+'+m.atraso_min+' min':(m.atraso_min<0?m.atraso_min+' min':'na hora'));
+    h+='<tr>'+
+      '<td>'+esc(m.unidade)+'</td>'+
+      '<td>'+esc(m.entregador)+'</td>'+
+      '<td>'+esc(m.combinado||'—')+'</td>'+
+      '<td>'+esc(m.chegada||'—')+'</td>'+
+      '<td>'+esc(m.ultima_entrega||'—')+'</td>'+
+      '<td>'+num(m.horas)+'</td>'+
+      '<td>'+at+'</td>'+
+      '<td>'+(m.almoco?'✅ sim':'❌ não')+'</td>'+
+      '<td>'+(m.garantido?'✅ sim':'❌ não')+'</td>'+
+      '<td>'+num(m.entregas)+'</td>'+
+      '<td>'+rs(m.taxas)+'</td>'+
+      '<td>'+rs(m.garantido_valido)+'</td>'+
+      '<td><b>'+rs(m.pagar)+'</b></td>'+
+      '<td>'+(m.chave_pix?'<span id="pdpix'+i+'" style="display:none">'+esc(m.chave_pix)+'</span><button class="b" onclick="copiar(document.getElementById(\'pdpix'+i+'\').textContent)">copiar</button>':'—')+'</td>'+
+      '</tr>';
+    if(m.aviso&&m.aviso!=='ok')h+='<tr><td colspan="14" class="hs">'+esc(m.entregador)+': '+esc(m.aviso)+'</td></tr>';
+  });
+  h+='</table></div>';
+  h+='<div class="hs">A hora conta da <b>chegada no pátio pelo GPS</b> até a <b>última entrega</b>. Quem chega mais de '+num(PD.tolerancia_min)+' minutos depois do horário combinado perde o almoço e o garantido do dia — recebe só as taxas de entrega. Quem decide é você.</div>';
+  $('conteudo').innerHTML=h;
+}
 
 function copiar(t){
   try{navigator.clipboard.writeText(t);alert('Chave PIX copiada:\n\n'+t)}
