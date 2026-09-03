@@ -85,17 +85,25 @@ function pinta(d){
   const motos=Number(d.motoboys||0), faltam=Number(d.motoboys_faltam||0), precisa=Number(d.motoboys_precisa||0);
   const prontos=Number(d.prontos_sem_motoboy||0), antigo=Number(d.mais_antigo_min||0);
 
+  const pAtual=d.preset_atual||null, pSug=d.preset_sugerido||null, pDe=d.preset_sugerido_de, pAte=d.preset_sugerido_ate, aco=d.acao||null;
+  const presets=Array.isArray(d.presets)?d.presets:[];
+  const faixa=(n,de,ate)=>'<b>'+esc(n)+'</b> ('+de+'–'+ate+' min)';
+  const onde='Onde: Gestor de Pedidos → Ajustes → Gestão de lojas → Gerenciar pré-configurações → escolha a faixa → Salvar.';
+
   let acao,cls;
-  if(dif>4){acao='<div class="acao a-sobe">🔺 SUBA o tempo para '+sug+' minutos<span class="p">'+esc(d.motivo)+'. Hoje está em '+prom+', e o cliente enxerga '+(prom+10)+'.</span></div>';cls='vermelho'}
+  if(aco==='subir'&&pSug){acao='<div class="acao a-sobe">🔺 TROQUE para '+faixa(pSug,pDe,pAte)+'<span class="p">'+esc(d.motivo)+'. A conta pede '+sug+' min; hoje está '+(pAtual?'na '+esc(pAtual):'em '+prom+' min')+' e o cliente enxerga '+(prom+10)+'. '+onde+'</span></div>';cls='vermelho'}
+  else if(aco==='baixar'&&pSug){acao='<div class="acao a-desce">🔻 Dá para VOLTAR para '+faixa(pSug,pDe,pAte)+'<span class="p">'+esc(d.motivo)+'. Está em '+prom+' e a conta pede '+sug+' — tempo alto à toa espanta cliente. Confira daqui a meia hora antes de mexer. '+onde+'</span></div>';cls='azul'}
+  else if(aco==='fica'){acao='<div class="acao a-ok">✅ Fique na '+esc(pAtual||pSug||(prom+' min'))+'<span class="p">'+esc(d.motivo)+'.</span></div>';cls='verde'}
+  else if(dif>4){acao='<div class="acao a-sobe">🔺 SUBA o tempo para '+sug+' minutos<span class="p">'+esc(d.motivo)+'. Hoje está em '+prom+', e o cliente enxerga '+(prom+10)+'.</span></div>';cls='vermelho'}
   else if(dif<-8){acao='<div class="acao a-desce">🔻 Dá para BAIXAR para '+sug+' minutos<span class="p">'+esc(d.motivo)+'. Está em '+prom+' e a conta pede '+sug+' — tempo alto à toa espanta cliente.</span></div>';cls='azul'}
   else{acao='<div class="acao a-ok">✅ Está bom assim<span class="p">'+esc(d.motivo)+'.</span></div>';cls='verde'}
 
-  if(faltam>0){cls='vermelho';acao='<div class="acao a-sobe">🛵 CHAME '+faltam+' MOTOBOY'+(faltam>1?'S':'')+' — são '+motos+' na rua e o ritmo pede '+precisa+'<span class="p">'+prontos+' pedidos prontos esperando quem leve. Se não conseguir ninguém agora, suba o tempo para '+sug+' minutos.</span></div>';}
+  if(faltam>0&&Number(d.pedidos_hora||0)>0){cls='vermelho';acao='<div class="acao a-sobe">🛵 CHAME '+faltam+' MOTOBOY'+(faltam>1?'S':'')+' — são '+motos+' na rua e o ritmo pede '+precisa+'<span class="p">'+prontos+' pedidos prontos esperando quem leve. Se não conseguir ninguém agora, troque para '+(pSug&&aco==='subir'?faixa(pSug,pDe,pAte):'a próxima faixa')+'.</span></div>';}
 else if(prontos>=10&&dif<-8){cls='verde';acao='<div class="acao a-ok">⏸ SEGURE o tempo em '+prom+' por enquanto<span class="p">A conta pede '+sug+', mas há '+prontos+' pedidos prontos parados no balcão — resolva a prateleira primeiro: baixar agora colocaria mais pedido numa fila que não anda. Quando os prontos caírem abaixo de 10, aí sim baixe.</span></div>';}
 let moto='';
-  if(faltam>0){
+  if(faltam>0&&Number(d.pedidos_hora||0)>0){
     moto='<div class="moto">🛵 Faltam '+faltam+' motoboy'+(faltam>1?'s':'')+' agora — são '+motos+' na rua e o ritmo pede '+precisa+'.'+
-      '<span class="p">Este é o caminho barato: com motoboy suficiente, '+(clima==='seco'?'o tempo se segura em 44':'até dia de chuva se comporta quase como dia seco (73% no prazo contra 33%)')+'. Um almoço de chuva traz cerca de 14 pedidos a mais'+((function(){try{return sessionStorage.getItem("cdm_admin")==="1"}catch(e){return false}})()?', que ao ticket medido de R$ 61 viram R$ 860 de venda':'')+'.</span></div>';
+      '<span class="p">Este é o caminho barato: com motoboy suficiente, '+(clima==='seco'?'o tempo se segura em 44':'até dia de chuva se comporta quase como dia seco (73% no prazo contra 33%)')+'. Um almoço de chuva traz cerca de 14 pedidos a mais'+'.</span></div>';
   } else if(prontos>=10){
     moto='<div class="moto">🛵 '+prontos+' pedidos prontos parados esperando quem leve.'+
       '<span class="p">O ritmo de entrada está bom ('+ppm+' por motoboy), mas a comida está esfriando no balcão. Vale olhar se alguém saiu para uma rota longa.</span></div>';
@@ -103,8 +111,8 @@ let moto='';
 
   let h='<div class="'+cls+'">'+
    '<div class="tri">'+
-    '<div class="big"><div class="n">'+prom+'<span> min</span></div><div class="l">prometido no iFood</div><div class="x">o cliente enxerga '+(prom+10)+' min</div></div>'+
-    '<div class="big alvo"><div class="n">'+sug+'<span> min</span></div><div class="l">a conta pede</div><div class="x">cobre 8 de cada 10 pedidos</div></div>'+
+    '<div class="big"><div class="n">'+prom+'<span> min</span></div><div class="l">'+(pAtual?'faixa '+esc(pAtual)+' no iFood':'prometido no iFood')+'</div><div class="x">o cliente enxerga '+(prom+10)+' min</div></div>'+
+    '<div class="big alvo"><div class="n">'+(pSug?esc(pSug):sug+'<span> min</span>')+'</div><div class="l">'+(pSug?'a faixa que a conta pede':'a conta pede')+'</div><div class="x">'+(pSug?'a conta pede '+sug+' min · faixa '+pDe+'–'+pAte:'cobre 8 de cada 10 pedidos')+'</div></div>'+
     '<div class="big"><div class="n">'+(ppm==null?'—':ppm)+'</div><div class="l">pedidos por motoboy</div><div class="x">'+clima+' · o limite hoje é '+lim+'</div></div>'+
    '</div>'+acao+moto+'</div>';
 
@@ -130,12 +138,13 @@ let moto='';
    linha(chuva&&p>4&&p<=5.5,'Chuva, de 4 a 5,5 por motoboy','58 min')+
    linha(chuva&&p>5.5,'Chuva, acima de 5,5 por motoboy','70 min')+
   '</table>'+
+  (presets.length?'<div class="m"><b>As faixas salvas no iFood</b> — a loja só troca entre elas, não digita minuto: '+presets.map(p=>(p.nome===pAtual?'<b>▶ ':'')+esc(p.nome)+' '+p.de+'–'+p.ate+(p.nome===pAtual?' (agora)</b>':'')).join(' · ')+'.</div>':'')+
   '<div class="m"><b>O que a medição mostrou, e é o contrário do que parece.</b> A chuva sozinha quase não atrapalha: em dia de chuva <b>com até 4 pedidos por motoboy, 73% dos pedidos chegam no prazo</b> — quase o mesmo dos 82% de um dia seco. O que derruba tudo é passar de 5,5 pedidos por motoboy debaixo de chuva: aí cai para <b>33%</b>, e a espera pelo motoboy salta de 13 para 29 minutos. A cozinha sobe só de 14 para 19 minutos, e a rua nem muda (18 para 21).<br><br>' +
   '<b>Por que sobra pedido e falta motoboy justamente na chuva:</b> no almoço de chuva entram <b>20% mais pedidos</b> (os concorrentes que dependem da entrega do iFood ficam sem entregador e caem), e ao mesmo tempo <b>vem menos motoboy trabalhar</b>. As duas coisas empurram para o mesmo lado.<br><br>'+
-  '<b>Por isso a primeira resposta nunca é subir o tempo, é repor motoboy.</b> O almoço de chuva traz cerca de 14 pedidos a mais'+((function(){try{return sessionStorage.getItem("cdm_admin")==="1"}catch(e){return false}})()?', que ao ticket medido de R$ 61 viram <b>R$ 860</b> de venda':'')+' — e sem quem leve, esses pedidos chegam frios. Subir o tempo é o remédio de quando já não dá para repor ninguém.<br><br>'+
-  'Onde mudar o tempo: no Gestor de Pedidos do iFood, em <b>Ajustes → Ajuste de tempo de entrega</b>.</div></div>';
+  '<b>Por isso a primeira resposta nunca é subir o tempo, é repor motoboy.</b> O almoço de chuva traz cerca de 14 pedidos a mais'+' — e sem quem leve, esses pedidos chegam frios. Subir o tempo é o remédio de quando já não dá para repor ninguém.<br><br>'+
+  'Onde mudar: no Gestor de Pedidos do iFood, em <b>Ajustes → Gestão de lojas → Gerenciar pré-configurações</b> — escolha a faixa e salve. Faixa nova se cria no Portal do Parceiro.</div></div>';
 
-  h+='<div class="m">Atualizado às '+esc(d.agora)+'. A tela se atualiza sozinha de 3 em 3 minutos. <b>Quando fica vermelha, ela pisca</b> até a situação resolver — <b>sem som</b> (o botão no canto pausa o vermelho por 15 minutos). O iFood dá <b>10 minutos de tolerância</b> em cima do que você promete — por isso os 44 min viram 54 na conta do cliente, e é essa a régua usada aqui. O "prometido" vem do último pedido que entrou pelo Foody, então demora alguns minutos para acompanhar uma mudança feita agora no iFood. Só a Água Verde: o Ahú e o São Braz entregam pelo TrackEat e ainda não têm dado aqui.</div>';
+  h+='<div class="m">Atualizado às '+esc(d.agora)+'. A tela se atualiza sozinha de 3 em 3 minutos. <b>Quando fica vermelha, ela pisca</b> até a situação resolver — <b>sem som</b> (o botão no canto pausa o vermelho por 15 minutos). O iFood dá <b>10 minutos de tolerância</b> em cima do que você promete — por isso os 44 min viram 54 na conta do cliente, e é essa a régua usada aqui. O "prometido" é lido direto na configuração do iFood pelo robô, uma vez por hora — uma mudança feita agora pode levar até 1 hora para aparecer aqui. Só a Água Verde: o Ahú e o São Braz entregam pelo TrackEat e ainda não têm dado aqui.</div>';
 
   $('app').innerHTML=h;
   alarme(cls==='vermelho');
@@ -172,7 +181,7 @@ async function cdmGuarda(){
   if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){if(ok){boot();setInterval(boot,180000)}});
+cdmGuarda().then(function(ok){if(ok){boot();var cdmT=setInterval(boot,180000);document.addEventListener('visibilitychange',function(){if(document.hidden){clearInterval(cdmT);cdmT=null}else if(!cdmT){boot();cdmT=setInterval(boot,180000)}})}});
 </script>
 <script src="/assets/portal.js?v=3"></script>
 </body>
