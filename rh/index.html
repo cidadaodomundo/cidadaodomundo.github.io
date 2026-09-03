@@ -66,6 +66,8 @@ h1{font-size:17px;font-weight:800}
 .cunit{color:var(--muted);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
 .badge{border-radius:7px;padding:4px 9px;font-size:10.5px;font-weight:800;color:#fff;white-space:nowrap;background:var(--cc)}
 .mk{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;color:#b6c2d4;margin:5px 0 3px}
+.mkic{display:inline-block;width:1.7em}
+.mkesc{white-space:pre;color:#7d8ea6;margin:0 0 4px;font-size:12.5px}
 .jr{font-size:11px;color:var(--muted)}
 .det{font-size:11.5px;color:#d3b544;margin-top:5px}
 .acao{font-size:11.5px;color:#7ec8a3;margin-top:5px;background:#12241933;border-left:2px solid var(--sem);padding:4px 8px;border-radius:0 6px 6px 0}
@@ -546,13 +548,14 @@ function renderDay(){
     return `<div class="card" data-nome="${r.nome}" style="--cc:${C[NV(r)]}">
       <div class="chead"><div><div class="cname">${title(r.nome)}</div><div class="cunit">${r.unidade}</div></div>
       <span class="badge">${L[NV(r)]}</span>${NV(r)!=='SEM'&&r.tag?`<span class="cunit" style="margin-left:6px">${r.tag}</span>`:''}</div>
-      <div class="mk">🕒 ${r.marcacoes_txt||(RH_SEM_SENHA?'— <span style="opacity:.65;font-size:11px">(entre com a senha do escritório para ver as batidas)</span>':'—')}</div>
-      ${r.esc_entrada?`<div class="mk" style="opacity:.72;font-size:12px">📋 Escala oficial ${String(r.esc_entrada).slice(0,5)} → ${String(r.esc_saida||'').slice(0,5)} · intervalo ${r.esc_intervalo_min==null?'—':r.esc_intervalo_min+' min'}</div>`:''}
+      <div class="mk"><span class="mkic">🕒</span>${r.marcacoes_txt||(RH_SEM_SENHA?'— <span style="opacity:.65;font-size:11px">(entre com a senha do escritório para ver as batidas)</span>':'—')}</div>
+      ${r.esc_entrada?`<div class="mk mkesc"><span class="mkic">📋</span>${escLinha(r)}</div>`:''}
       <div class="jr">Trabalhou <b>${fmt(r.jornada_liquida_min)}</b> · Intervalo <b>${r.intervalo_real_min==null?'—':r.intervalo_real_min+' min'}</b> · Deveria <b>${fmt(r.jornada_contratada_min)}</b>${r.extra_min>10?' · <b style="color:var(--grave)">'+r.extra_min+' min a mais</b>':r.extra_min<-10?' · <b style="color:var(--verbal)">'+Math.abs(r.extra_min)+' min a menos</b>':r.extra_min?' · <span style="color:var(--muted)">'+Math.abs(r.extra_min)+' min '+(r.extra_min>0?'a mais':'a menos')+' · dentro da tolerância</span>':''}</div>
       ${r.detalhe?`<div class="det">▸ ${r.detalhe}</div>`:(RH_SEM_SENHA&&NV(r)!=='SEM'?'<div class="det" style="opacity:.65">▸ — detalhe protegido; entre com a senha do escritório</div>':'')}
       ${acao}</div>`}).join('')+'</div>';
   rfPintaRefeicao(DAYS[DI]);
 }
+function escLinha(r){var e=String(r.esc_entrada).slice(0,5),s=String(r.esc_saida||'').slice(0,5);var iv=(r.esc_intervalo_min==null?'':'   · intervalo '+r.esc_intervalo_min+' min');var t=(r.marcacoes_txt||'').trim();var n=t?t.split(/\s+/).length:0;if(!s)return e+iv;if(n>=2)return e+' '+' '.repeat(6*(n-2))+s+iv;return e+' → '+s+iv;}
 function renderGuia(){
   $('kpis').innerHTML='';$('units').innerHTML='';
   $('content').innerHTML=`
