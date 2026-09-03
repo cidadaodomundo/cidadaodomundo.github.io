@@ -88,6 +88,7 @@ tr.aviso td{color:#e8bb62}
   <span class="tab on" id="t_pag" onclick="setView('pag')">💵 Pagamento do dia anterior</span>
   <span class="tab" id="t_ag" onclick="setView('ag')">🔴 Agora, ao vivo</span>
   <span class="tab" id="t_maq" onclick="setView('maq')">🧾 Maquininha do dia</span>
+  <span class="tab" id="t_cmp" onclick="setView('cmp')">⚖️ Nossa × a do grupo</span>
   <span class="tab" id="t_reg" onclick="setView('reg')">📜 As regras</span>
 </div>
 
@@ -180,10 +181,74 @@ function setView(v){VIEW=v;
   $('t_ag').className='tab'+(v==='ag'?' on':'');
   $('t_maq').className='tab'+(v==='maq'?' on':'');
   $('t_reg').className='tab'+(v==='reg'?' on':'');
+  $('t_cmp').className='tab'+(v==='cmp'?' on':'');
   if(v!=='ag'&&AGT){clearInterval(AGT);AGT=null}
   render()}
 function viewRegras(){$('kpis').innerHTML='';$('faixa').innerHTML='';$('conteudo').innerHTML=REGRAS_HTML}
-function render(){if(VIEW==='ag'){viewAgora();return}if(VIEW==='maq'){viewMaq();return}if(VIEW==='reg'){viewRegras();return}viewPag()}
+function render(){if(VIEW==='ag'){viewAgora();return}if(VIEW==='maq'){viewMaq();return}if(VIEW==='reg'){viewRegras();return}if(VIEW==='cmp'){viewComparar();return}viewPag()}
+async function viewComparar(){
+  $('faixa').innerHTML='';
+  if(!PD){ $('conteudo').innerHTML='<div class="empty">Carregando…</div>'; await puxaPagDia(); }
+  if(!DELES){ try{ DELES=await portaDeles(PDDIA); MAPD=mapaDeles(); }catch(e){ DELES=null } }
+  const t=(DELES&&DELES.totais)||{};
+  let h='<div class="c"><div class="hs" style="margin:0 0 8px"><b>A nossa conta × a planilha do grupo</b> · dia '+esc((PD&&PD.dia_texto)||PDDIA)+' · a planilha chega no grupo FECHAMENTO MOTOBOYS por volta de 1h30 da manhã seguinte</div>'+
+    '<button class="b" onclick="pagDiaPula(-1)">◀ dia anterior</button> '+
+    '<input type="date" value="'+esc(PDDIA)+'" onchange="pagDiaMuda(this.value)"> '+
+    '<button class="b" onclick="pagDiaPula(1)">dia seguinte ▶</button></div>';
+  if(!DELES||!DELES.tem){
+    $('kpis').innerHTML='';
+    $('conteudo').innerHTML=h+'<div class="c"><b style="color:#fbbf24">🧾 A planilha do grupo deste dia ainda não foi lida.</b> O robô lê as fotos todo dia às 3h15 da manhã. Se o dia é antigo e mesmo assim está vazio, é porque ninguém mandou a foto naquele dia.</div>';
+    return;
+  }
+  const dif=Number(t.dif||0), cor=Math.abs(dif)<0.01?'#4ade80':(dif<0?'#fbbf24':'#60a5fa');
+  let k='<div class="kpis">';
+  k+=cartao(rs(t.deles), 'a planilha do grupo manda pagar','big');
+  k+=cartao(rs(t.nosso), 'a nossa conta dá');
+  k+=cartao((dif>0?'+':'')+rs(dif), 'diferença do dia', Math.abs(dif)<0.01?'':'warn');
+  k+=cartao(num(t.deles_entregas)+' × '+num(t.nosso_entregas), 'entregas: deles × nossa');
+  if(Number(t.pendentes||0)>0) k+=cartao(num(t.pendentes), 'entregas ainda PENDENTES no TrackEat','warn');
+  if(Number(t.reprovadas||0)>0) k+=cartao(num(t.reprovadas), 'reprovadas (duplicadas) que não pagamos');
+  $('kpis').innerHTML=k+'</div>';
+  h+='<div class="c wrap"><table class="enxuta"><tr>'+
+     '<th>Loja</th><th>Motoboy</th>'+
+     '<th class="money grupo">Entregas deles</th><th class="money grupo">A planilha paga</th>'+
+     '<th class="money">Entregas nossas</th><th class="money">Horas</th><th class="money">A nossa conta</th>'+
+     '<th class="money">Diferença</th><th>Por que difere</th></tr>';
+  const tr='<span style="color:var(--muted)">—</span>';
+  (DELES.linhas||[]).forEach(function(x,i){
+    const d=Number(x.dif||0);
+    const c2 = x.onde!=='nos dois' ? '#fbbf24' : (Math.abs(d)<0.01?'#4ade80':(d<0?'#fbbf24':'#60a5fa'));
+    let porque='';
+    if(x.onde==='só na planilha deles') porque='<span style="color:#fbbf24">está na planilha e o sistema não viu rodar</span>';
+    else if(x.onde==='só no sistema') porque='<span style="color:#fbbf24">rodou pelo sistema e não está na planilha</span>';
+    else {
+      const p=[];
+      if(Number(x.pendentes||0)>0) p.push('<span style="color:#fbbf24">'+x.pendentes+' entrega(s) ainda pendente(s) no TrackEat</span>');
+      if(Number(x.reprovadas||0)>0) p.push('<span style="color:var(--muted)">'+x.reprovadas+' reprovada(s) por duplicidade, não pagamos</span>');
+      if(Number(x.deles_entregas||0)!==Number(x.nosso_entregas||0)) p.push('contagem de entregas diferente');
+      if(Math.abs(d)>0.01 && !p.length) p.push('a planilha paga diária, a régua da casa paga por hora');
+      porque = p.join(' · ') || '<span style="color:#4ade80">bate</span>';
+    }
+    h+='<tr'+((i%2===1)?' class="par"':'')+'>'+
+      '<td>'+esc(sigla(x.unidade))+'</td>'+
+      '<td class="nome" data-k="'+esc(x.motoboy)+'"><b>'+esc(x.motoboy)+'</b>'+(x.nome_deles&&x.nome_deles!==x.motoboy?'<br><span style="color:var(--muted);font-size:11px">na planilha: '+esc(x.nome_deles)+'</span>':'')+'</td>'+
+      '<td class="money grupo">'+(x.deles_entregas==null?tr:num(x.deles_entregas))+'</td>'+
+      '<td class="money grupo">'+(x.deles_pagar==null?tr:rs(x.deles_pagar))+'</td>'+
+      '<td class="money">'+(x.nosso_entregas==null?tr:num(x.nosso_entregas))+'</td>'+
+      '<td class="money">'+(x.nosso_horas==null?tr:num(x.nosso_horas))+'</td>'+
+      '<td class="money">'+(x.nosso_pagar==null?tr:rs(x.nosso_pagar))+'</td>'+
+      '<td class="money" data-k="'+d+'" style="color:'+c2+'"><b>'+(d>0?'+':'')+rs(d)+'</b></td>'+
+      '<td class="hs" style="margin:0">'+porque+'</td>'+
+      '</tr>';
+  });
+  h+='<tr style="border-top:2px solid var(--linha)"><td></td><td><b>TOTAL</b></td>'+
+     '<td class="money grupo"><b>'+num(t.deles_entregas)+'</b></td><td class="money grupo"><b>'+rs(t.deles)+'</b></td>'+
+     '<td class="money"><b>'+num(t.nosso_entregas)+'</b></td><td></td><td class="money"><b>'+rs(t.nosso)+'</b></td>'+
+     '<td class="money" style="color:'+cor+'"><b>'+(dif>0?'+':'')+rs(dif)+'</b></td><td></td></tr>';
+  h+='</table></div>';
+  h+='<div class="hs">Quem paga é a Hellen, olhando a coluna que você mandar. Esta tela não paga nada sozinha — ela só mostra as duas contas lado a lado para você medir a diferença dia após dia.</div>';
+  $('conteudo').innerHTML=h;
+}
 
 async function portaPagDia(dia){
   const b={p_token:cdmTok()};
@@ -205,7 +270,7 @@ async function portaDeles(dia){
 function chaveDeles(unidade,nome){return String(unidade||'')+'|'+String(nome||'').trim().toLowerCase()}
 function mapaDeles(){
   const m={};
-  if(DELES&&DELES.linhas)DELES.linhas.forEach(function(x){ if(x.nome_nosso) m[chaveDeles(x.unidade,x.nome_nosso)]=x; });
+  if(DELES&&DELES.linhas)DELES.linhas.forEach(function(x){ if(x.onde!=='só na planilha deles') m[chaveDeles(x.unidade,x.motoboy)]=x; });
   return m;
 }
 function comparaDeles(l){
@@ -213,7 +278,7 @@ function comparaDeles(l){
   if(!DELES.tem) return '<div class="c"><b style="color:#fbbf24">🧾 A planilha dos meninos deste dia ainda não chegou.</b> Ela costuma cair no grupo FECHAMENTO MOTOBOYS por volta de 1h30 da manhã seguinte.</div>';
   var lojas={}; (l||[]).forEach(function(m){lojas[m.unidade]=1});
   var nosso=0; (l||[]).forEach(function(m){nosso+=Number(m.pagar||0)});
-  var deles=0; (DELES.linhas||[]).forEach(function(x){ if(lojas[x.unidade]) deles+=Number(x.pagar_deles||0) });
+  var deles=0; (DELES.linhas||[]).forEach(function(x){ if(lojas[x.unidade]) deles+=Number(x.deles_pagar||0) });
   nosso=Math.round(nosso*100)/100; deles=Math.round(deles*100)/100;
   var t={deles:deles, nosso:nosso}, dif=Math.round((nosso-deles)*100)/100;
   var cor = Math.abs(dif)<0.01 ? '#4ade80' : (dif<0 ? '#fbbf24' : '#60a5fa');
@@ -229,16 +294,16 @@ function comparaDeles(l){
 }
 function difDeles(m){
   const d=(MAPD||{})[chaveDeles(m.unidade,m.entregador)];
-  if(!d||d.pagar_deles==null) return '';
-  return String(Math.round((Number(m.pagar||0)-Number(d.pagar_deles||0))*100)/100);
+  if(!d||d.deles_pagar==null) return '';
+  return String(Math.round((Number(m.pagar||0)-Number(d.deles_pagar||0))*100)/100);
 }
 function celulaDeles(m){
   const d=(MAPD||{})[chaveDeles(m.unidade,m.entregador)];
-  if(!d||d.pagar_deles==null) return '<span style="color:var(--muted)">—</span>';
-  const dif=Math.round((Number(m.pagar||0)-Number(d.pagar_deles||0))*100)/100;
+  if(!d||d.deles_pagar==null) return '<span style="color:var(--muted)">—</span>';
+  const dif=Math.round((Number(m.pagar||0)-Number(d.deles_pagar||0))*100)/100;
   const cor = Math.abs(dif)<0.01 ? '#4ade80' : (dif<0 ? '#fbbf24' : '#60a5fa');
   const sinal = dif>0?'+':'';
-  return rs(d.pagar_deles)+'<br><span style="color:'+cor+';font-size:11px" title="quanto o sistema paga a mais ou a menos que a planilha deles">'+(Math.abs(dif)<0.01?'igual':sinal+rs(dif))+'</span>';
+  return rs(d.deles_pagar)+'<br><span style="color:'+cor+';font-size:11px" title="quanto o sistema paga a mais ou a menos que a planilha deles">'+(Math.abs(dif)<0.01?'igual':sinal+rs(dif))+'</span>';
 }
 var MAPD={};
 async function puxaPagDia(dia){
