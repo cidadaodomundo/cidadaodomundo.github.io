@@ -88,27 +88,32 @@ tr.aviso td{color:#e8bb62}
   <span class="tab on" id="t_pag" onclick="setView('pag')">💵 Pagamento do dia anterior</span>
   <span class="tab" id="t_ag" onclick="setView('ag')">🔴 Agora, ao vivo</span>
   <span class="tab" id="t_maq" onclick="setView('maq')">🧾 Maquininha do dia</span>
+  <span class="tab" id="t_reg" onclick="setView('reg')">📜 As regras</span>
 </div>
 
 <div id="conteudo"><div class="empty">Carregando…</div></div>
 
-<div class="hs"><b>A régua, valendo desde 02/09/2026 nas três lojas:</b> <b>R$ 20 por hora</b> de segunda a sexta e
-<b>R$ 25</b> sábado e domingo. Acabaram as diárias de São Braz e do Ahú. A hora conta da
-<b>chegada no pátio pelo GPS</b> até a <b>hora da última entrega</b>. Paga-se o <b>maior</b> entre as taxas
-e o piso por hora — nunca a soma.<br>
-<b>Almoço:</b> uma refeição por turno cumprido. Quem chega <b>mais de 30 minutos</b> depois do horário
-combinado (a escala do Jaison) perde a refeição daquele turno e o piso garantido do dia inteiro — e,
-se mesmo assim pegou o lanche, <b>paga por ele</b> pelo preço de cardápio.<br>
-🔴 <b>Só se corta com prova:</b> sem carimbo de GPS do pátio o atraso não está provado e
-<b>nada é cortado nem cobrado</b> — a linha avisa que a chegada foi estimada.<br>
-<b>Entregas</b> é a contagem que gerou taxa — é o que sustenta o valor a pagar, e <b>não</b> é a medida de
-quantas entregas a loja fez no dia. Para volume, olhe a Qualidade do Delivery.
-Qualquer outro ajuste é decisão sua, na mão.</div>
+
 
 <script>
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const $=i=>document.getElementById(i);
+const REGRAS_HTML='<div class="c"><h3 style="margin:0 0 12px;font-size:16px">📜 Como a conta do motoboy é feita</h3>'+
+'<div class="hs" style="margin:0"><b>O valor da hora, valendo desde 02/09/2026 nas três lojas:</b> <b>R$ 20 por hora</b> de segunda a sexta e <b>R$ 25</b> sábado e domingo. Acabaram as diárias de São Braz e do Ahú. A hora conta da <b>chegada no pátio pelo GPS</b> até a <b>hora da última entrega</b>. Paga-se o <b>maior</b> entre as taxas e o piso por hora — nunca a soma.<br><br>'+
+'<b>Almoço:</b> uma refeição por turno cumprido. Quem chega <b>mais de 30 minutos</b> depois do horário combinado (a escala do Jaison) perde a refeição daquele turno e o piso garantido do dia inteiro — e, se mesmo assim pegou o lanche, <b>paga por ele</b> pelo preço de cardápio.<br><br>'+
+'🔴 <b>Só se corta com prova:</b> sem carimbo de GPS do pátio o atraso não está provado e <b>nada é cortado nem cobrado</b> — a linha mostra um sinal de alerta avisando que a chegada foi estimada.<br><br>'+
+'<b>Entregas</b> é a contagem que gerou taxa — é o que sustenta o valor a pagar, e <b>não</b> é a medida de quantas entregas a loja fez no dia. Para volume, olhe a Qualidade do Delivery. Qualquer outro ajuste é decisão sua, na mão.</div></div>'+
+'<div class="c"><h3 style="margin:0 0 12px;font-size:16px">📋 O que cada coluna quer dizer</h3><div class="wrap"><table>'+
+'<tr><th>Coluna</th><th>O que é</th></tr>'+
+'<tr><td><b>Escala</b></td><td>A hora que ficou combinada com ele, pela escala do Jaison.</td></tr>'+
+'<tr><td><b>Real</b></td><td>A hora que o GPS carimbou a chegada no pátio, o atraso entre parênteses, e a hora da última entrega. O sinal de alerta quer dizer que não houve carimbo de GPS — a chegada é estimada e por isso nada é cortado.</td></tr>'+
+'<tr><td><b>Almoço</b></td><td><b>sim</b> = tem direito à refeição. <b>não</b> = perdeu por ter chegado mais de 30 minutos atrasado. O número entre parênteses aparece quando fez dois turnos e tem direito a duas.</td></tr>'+
+'<tr><td><b>Prato</b></td><td>O que ele efetivamente pegou na comanda Z Motoboys. Se aparece um valor em vermelho, é porque pegou sem ter direito e está pagando por ele.</td></tr>'+
+'<tr><td><b>Entregas</b></td><td>Quantas entregas geraram taxa para ele no dia.</td></tr>'+
+'<tr><td><b>Garantido</b></td><td>O piso por hora a que ele teria direito. <b>não</b> = perdeu o garantido por atraso, e recebe só as taxas.</td></tr>'+
+'<tr><td><b>A pagar</b></td><td>O maior entre as taxas e o garantido, menos o lanche cobrado e mais ou menos os ajustes feitos a mão.</td></tr>'+
+'</table></div></div>';
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const iso=d=>d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
 function rs(n){return 'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
@@ -155,7 +160,7 @@ function faixa(){
   if(r.sem_hora>0)av.push('<b>'+r.sem_hora+'</b> pagamento'+(r.sem_hora==1?' ficou':'s ficaram')+' sem hora medida — o piso não pôde ser calculado');
   if(r.sem_pix>0)av.push('<b>'+r.sem_pix+'</b> pagamento'+(r.sem_pix==1?'':'s')+' de motoboy <b>sem chave PIX cadastrada</b>');
   av.push('a hora usada é a de quem <b>realmente rodou</b>, da primeira à última entrega — ela <b>subestima</b>, porque o motoboy chega antes e fica depois');
-  if(r.total_antigo&&Math.abs(r.total-r.total_antigo)>0.01)av.push('a conta mudou em 01/09: antes o sistema pagava R$ 20 por hora em todas as lojas, sobre as horas da <b>escala</b>; agora vale a régua da casa sobre a hora real');
+  if(r.total_antigo&&Math.abs(r.total-r.total_antigo)>0.01)av.push('a conta mudou: antes o sistema pagava R$ 20 por hora em todas as lojas, sobre as horas da <b>escala</b>; agora vale a régua da casa sobre a hora real');
   $('faixa').innerHTML='<div class="faixa">⚠️ Antes de pagar, olhe isto:<br>· '+av.join('<br>· ')+'</div>';
 }
 
@@ -173,9 +178,11 @@ function setView(v){VIEW=v;
   $('t_pag').className='tab'+(v==='pag'?' on':'');
   $('t_ag').className='tab'+(v==='ag'?' on':'');
   $('t_maq').className='tab'+(v==='maq'?' on':'');
+  $('t_reg').className='tab'+(v==='reg'?' on':'');
   if(v!=='ag'&&AGT){clearInterval(AGT);AGT=null}
   render()}
-function render(){if(VIEW==='ag'){viewAgora();return}if(VIEW==='maq'){viewMaq();return}viewPag()}
+function viewRegras(){$('kpis').innerHTML='';$('faixa').innerHTML='';$('conteudo').innerHTML=REGRAS_HTML}
+function render(){if(VIEW==='ag'){viewAgora();return}if(VIEW==='maq'){viewMaq();return}if(VIEW==='reg'){viewRegras();return}viewPag()}
 
 async function portaPagDia(dia){
   const b={p_token:cdmTok()};
@@ -226,29 +233,38 @@ function turnoTxt(m){
 }
 function cabecalho(){
   return '<div class="c wrap"><table class="enxuta"><tr>'+
-    '<th>Loja</th><th>Motoboy</th><th>Turnos</th><th class="money">Horas</th>'+
-    '<th class="grupo">Almoço</th><th class="money grupo">Entregas</th>'+
+    '<th>Loja</th><th>Motoboy</th><th>Escala</th><th>Real (chegou → última)</th>'+
+    '<th class="grupo">Almoço</th><th class="grupo">Prato</th>'+
+    '<th class="money">Entregas</th><th class="money">Garantido</th>'+
     '<th class="money">A pagar</th><th>PIX</th></tr>';
 }
 function linhaMoto(m,i,vivo){
   const par = (i%2===1) ? ' class="par"' : '';
+  const alm = (m.direito_refeicoes||0)>0
+      ? '<span style="color:#4ade80">sim</span>'+((m.direito_refeicoes||0)>1?' <span style="color:var(--muted)">('+m.direito_refeicoes+')</span>':'')
+      : '<span style="color:#f87171">não</span>';
+  const prato = m.lanche_produto
+      ? esc(m.lanche_produto)+(m.cobrar_refeicao>0?' <span style="color:#f87171" title="pegou sem direito, está pagando por ele">−'+rs(m.cobrar_refeicao)+'</span>':'')
+      : '<span style="color:var(--muted)">—</span>';
+  const gar = Number(m.garantido_valido||0)>0 ? rs(m.garantido_valido) : '<span style="color:#f87171">não</span>';
+  const real = esc(m.chegada||'—')+(m.tem_gps?'':' <span title="sem carimbo de GPS: chegada estimada, nada foi cortado">⚠️</span>')+
+      ' <span style="color:var(--muted)">('+atrasoTxt(m)+')</span> → '+esc(m.ultima_entrega||'—');
   let h='<tr'+par+'>'+
     '<td>'+esc(sigla(m.unidade))+'</td>'+
-    '<td class="nome"><b>'+esc(m.entregador)+'</b>'+(vivo&&m.no_patio_agora?' <span title="no pátio agora">🟢</span>':(vivo&&m.ligado_agora?' <span title="na rua">🛵</span>':''))+'</td>'+
-    '<td>'+turnoTxt(m)+'</td>'+
-    '<td class="money">'+num(m.horas)+'</td>'+
-    '<td class="grupo">'+selo(m)+'</td>'+
-    '<td class="money grupo">'+num(m.entregas)+'</td>'+
+    '<td class="nome"><b>'+esc(m.entregador)+'</b>'+(vivo&&m.no_patio_agora?' <span title="no pátio agora">🟢</span>':(vivo&&m.ligado_agora?' <span title="na rua">🛵</span>':''))+((m.turnos||1)>1?' <span style="color:#fbbf24" title="fez '+m.turnos+' turnos, então tem direito a '+m.turnos+' refeições">'+m.turnos+'×</span>':'')+((m.turnos_furados||0)>0?' <span style="color:#f87171" title="chegou atrasado em '+m.turnos_furados+' turno(s)">atrasou</span>':'')+'</td>'+
+    '<td>'+esc(m.combinado||'—')+'</td>'+
+    '<td>'+real+'</td>'+
+    '<td class="grupo">'+alm+'</td>'+
+    '<td class="grupo">'+prato+'</td>'+
+    '<td class="money">'+num(m.entregas)+'</td>'+
+    '<td class="money">'+gar+'</td>'+
     '<td class="pagar">'+rs(m.pagar)+'</td>'+
     '<td>'+(m.chave_pix?'<button class="b" onclick="copiar(this.dataset.p)" data-p="'+esc(m.chave_pix)+'">PIX</button>':'<span style="color:#f87171">sem</span>')+'</td>'+
     '</tr>';
-  let d='<b>'+esc(m.combinado||'—')+'</b> combinado → chegou <b>'+esc(m.chegada||'—')+'</b>'+(m.tem_gps?'':' <span title="sem carimbo de GPS">⚠️</span>')+
-        ' ('+atrasoTxt(m)+') · última entrega <b>'+esc(m.ultima_entrega||'—')+'</b>'+
-        ' · taxas '+rs(m.taxas)+' · garantido '+rs(m.garantido_valido)+
-        (m.cobrar_refeicao>0 ? ' · <span style="color:#f87171">lanche −'+rs(m.cobrar_refeicao)+'</span>' : '')+
-        (m.ajustes&&m.ajustes!=0 ? ' · ajuste '+rs(m.ajustes) : '');
-  if(m.aviso) d+='<br>↳ '+esc(m.aviso);
-  h+='<tr class="obs"><td colspan="8">'+d+'</td></tr>';
+  let d='';
+  if(m.aviso) d+='↳ '+esc(m.aviso);
+  if(m.ajustes&&m.ajustes!=0) d+=(d?' · ':'')+'ajuste feito a mão '+rs(m.ajustes);
+  if(d) h+='<tr class="obs"><td colspan="10">'+d+'</td></tr>';
   return h;
 }
 function setLoja(u){LOJA=u;render()}
@@ -307,14 +323,14 @@ function semDono(D2,vivo){
   const l=D2.lanches_sem_dono||[];
   if(!l.length) return '';
   const cand=(D2.candidatos||[]);
-  let h='<div class="c"><b style="color:#fbbf24">🍔 '+l.length+' lanche(s) lançado(s) sem o nome do motoboy na observação.</b> Ninguém está sendo cobrado por eles. Diga de quem foi:<div class="wrap"><table><tr><th>Loja</th><th>Comanda</th><th>Lanche</th><th>De quem foi?</th></tr>';
+  let h='<div class="c"><details><summary style="cursor:pointer;color:#fbbf24;font-size:13px"><b>🍔 '+l.length+' lanche(s) sem dono</b> — ninguém está sendo cobrado. Clique aqui para dizer de quem foi.</summary><div class="wrap" style="margin-top:10px"><table><tr><th>Loja</th><th>Comanda</th><th>Lanche</th><th>De quem foi?</th></tr>';
   l.forEach(function(x,i){
     let op='<option value="">— escolha —</option>';
     cand.forEach(function(c){ if(c.unidade===x.unidade) op+='<option value="'+esc(c.entregador)+'">'+esc(c.entregador)+'</option>'; });
     h+='<tr><td>'+esc(x.unidade)+'</td><td>#'+esc(x.numero_venda)+'</td><td>'+esc(x.produto)+'</td>'+
        '<td><select id="sd'+i+'">'+op+'</select> <button class="b" onclick="apontar('+i+',\''+esc(x.unidade)+'\',\''+esc(x.id_sale)+'\',\''+esc(D2.dia)+'\')">gravar</button></td></tr>';
   });
-  return h+'</table></div></div>';
+  return h+'</table></div></details></div>';
 }
 async function apontar(i,unidade,idSale,dia){
   const v=$('sd'+i).value;
@@ -343,7 +359,7 @@ function viewPag(){
   h+=cabecalho();
   l.forEach(function(m,i){h+=linhaMoto(m,i,false)});
   h+='</table></div>';
-  h+='<div class="hs">A hora conta da <b>chegada no pátio pelo GPS</b> até a <b>última entrega</b>. Quem chega mais de '+num(PD.tolerancia_min)+' minutos depois do horário combinado perde o almoço e o garantido do dia — e, se mesmo assim pegou o lanche, <b>paga por ele</b>. Sem carimbo de GPS não se corta nada. Quem decide é você.</div>';
+  h+='<div class="hs">Tolerância de <b>'+num(PD.tolerancia_min)+' minutos</b> na chegada. A conta inteira, explicada, está na aba <b><a href="#" onclick="setView(\'reg\');return false" style="color:#ff2d55">📜 As regras</a></b>. Quem decide é você.</div>';
   $('conteudo').innerHTML=h;
 }
 
