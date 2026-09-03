@@ -63,7 +63,7 @@ body.alarme{animation:fundoAl .9s ease-in-out infinite alternate}
   <div class="rt"><button class="b" onclick="location.reload()">↻ Atualizar</button></div>
 </div>
 <div id="app"><div class="load">Carregando…</div></div>
-<button id="sil" class="sil" onclick="silAte=Date.now()+15*60000;document.body.classList.remove('alarme')">⏸ Pausar o vermelho 15 min</button>
+<button id="sil" class="sil" onclick="silAte=Date.now()+15*60000;document.body.classList.remove('alarme');if(apitador){clearInterval(apitador);apitador=null}">⏸ Pausar o vermelho 15 min</button>
 <div id="somaviso" class="somaviso">🔊 Toque na tela UMA VEZ para ligar o som do alarme</div>
 
 <script>
@@ -144,7 +144,7 @@ let moto='';
   '<b>Por isso a primeira resposta nunca é subir o tempo, é repor motoboy.</b> O almoço de chuva traz cerca de 14 pedidos a mais'+' — e sem quem leve, esses pedidos chegam frios. Subir o tempo é o remédio de quando já não dá para repor ninguém.<br><br>'+
   'Onde mudar: no Gestor de Pedidos do iFood, em <b>Ajustes → Gestão de lojas → Gerenciar pré-configurações</b> — escolha a faixa e salve. Faixa nova se cria no Portal do Parceiro.</div></div>';
 
-  h+='<div class="m">Atualizado às '+esc(d.agora)+'. A tela se atualiza sozinha de 3 em 3 minutos. <b>Quando fica vermelha, ela pisca</b> até a situação resolver — <b>sem som</b> (o botão no canto pausa o vermelho por 15 minutos). O iFood dá <b>10 minutos de tolerância</b> em cima do que você promete — por isso os 44 min viram 54 na conta do cliente, e é essa a régua usada aqui. O "prometido" é lido direto na configuração do iFood pelo robô, uma vez por hora — uma mudança feita agora pode levar até 1 hora para aparecer aqui. Só a Água Verde: o Ahú e o São Braz entregam pelo TrackEat e ainda não têm dado aqui.</div>';
+  h+='<div class="m">Atualizado às '+esc(d.agora)+'. A tela se atualiza sozinha de 3 em 3 minutos. <b>Quando fica vermelha, ela pisca e apita</b> a cada 10 segundos até a situação resolver (o botão no canto pausa o vermelho e o apito por 15 minutos). Na primeira vez, toque uma vez na tela para liberar o som. O iFood dá <b>10 minutos de tolerância</b> em cima do que você promete — por isso os 44 min viram 54 na conta do cliente, e é essa a régua usada aqui. O "prometido" é lido direto na configuração do iFood pelo robô, uma vez por hora — uma mudança feita agora pode levar até 1 hora para aparecer aqui. Só a Água Verde: o Ahú e o São Braz entregam pelo TrackEat e ainda não têm dado aqui.</div>';
 
   $('app').innerHTML=h;
   alarme(cls==='vermelho');
@@ -152,10 +152,12 @@ let moto='';
 
 let AC=null,somOk=false,silAte=0,apitador=null;
 function ligaSom(){try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();somOk=true;var av=document.getElementById('somaviso');if(av)av.style.display='none';}catch(e){}}
-/* som desligado a pedido do Fabio em 31/08/2026 */
+/* som RELIGADO a pedido do Fabio em 03/09/2026: "quero que apite a partir de agora". Ficou mudo de 31/08 ate 03/09 por pedido dele. O apito so toca com a tela VERMELHA, depois do primeiro toque na tela (regra dos navegadores), a cada 10s, e para sozinho quando sai o vermelho, quando a aba esconde ou quando aperta Silenciar 15 min. */
 function apita(){if(!somOk||!AC)return;if(Date.now()<silAte)return;try{var t=AC.currentTime;var o=AC.createOscillator(),g=AC.createGain();o.type='square';o.frequency.value=880;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.5,t+0.05);g.gain.exponentialRampToValueAtTime(0.0001,t+0.55);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+0.6);var o2=AC.createOscillator(),g2=AC.createGain();o2.type='square';o2.frequency.value=660;g2.gain.setValueAtTime(0.0001,t+0.6);g2.gain.exponentialRampToValueAtTime(0.5,t+0.65);g2.gain.exponentialRampToValueAtTime(0.0001,t+1.15);o2.connect(g2);g2.connect(AC.destination);o2.start(t+0.6);o2.stop(t+1.2);}catch(e){}}
-function alarme(liga){if(Date.now()<silAte)liga=false;document.body.classList.toggle('alarme',liga);var b=document.getElementById('sil');if(b)b.style.display=liga?'block':'none';var av=document.getElementById('somaviso');if(av)av.style.display='none';if(apitador){clearInterval(apitador);apitador=null}}
+function alarme(liga){if(Date.now()<silAte)liga=false;document.body.classList.toggle('alarme',liga);var b=document.getElementById('sil');if(b)b.style.display=liga?'block':'none';var av=document.getElementById('somaviso');if(av)av.style.display=(liga&&!somOk)?'block':'none';if(liga&&somOk){if(!apitador){apita();apitador=setInterval(apita,10000)}}else if(apitador){clearInterval(apitador);apitador=null}}
 try{if(navigator.wakeLock)navigator.wakeLock.request('screen').catch(function(){})}catch(e){}
+function cdmPrimeiroToque(){ligaSom();if(somOk){['click','touchstart','keydown'].forEach(function(ev){document.removeEventListener(ev,cdmPrimeiroToque)});if(document.body.classList.contains('alarme')&&!apitador){apita();apitador=setInterval(apita,10000)}}}
+['click','touchstart','keydown'].forEach(function(ev){document.addEventListener(ev,cdmPrimeiroToque,{passive:true})});
 async function boot(){
   const t=cdmTok();
   const d=await rpc('delivery_tempo',{p_token:t});
@@ -181,7 +183,7 @@ async function cdmGuarda(){
   if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){if(ok){boot();var cdmT=setInterval(boot,180000);document.addEventListener('visibilitychange',function(){if(document.hidden){clearInterval(cdmT);cdmT=null}else if(!cdmT){boot();cdmT=setInterval(boot,180000)}})}});
+cdmGuarda().then(function(ok){if(ok){boot();var cdmT=setInterval(boot,180000);document.addEventListener('visibilitychange',function(){if(document.hidden){clearInterval(cdmT);cdmT=null;if(apitador){clearInterval(apitador);apitador=null}}else if(!cdmT){boot();cdmT=setInterval(boot,180000)}})}});
 </script>
 <script src="/assets/portal.js?v=3"></script>
 </body>
