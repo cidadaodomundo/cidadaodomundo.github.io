@@ -113,6 +113,7 @@ const REGRAS_HTML='<div class="c"><h3 style="margin:0 0 12px;font-size:16px">�
 '<tr><td><b>Entregas</b></td><td>Quantas entregas geraram taxa para ele no dia.</td></tr>'+
 '<tr><td><b>Garantido</b></td><td>O piso por hora a que ele teria direito. <b>não</b> = perdeu o garantido por atraso, e recebe só as taxas.</td></tr>'+
 '<tr><td><b>A pagar</b></td><td>O maior entre as taxas e o garantido, menos o lanche cobrado e mais ou menos os ajustes feitos a mão.</td></tr>'+
+'<tr><td><b>Planilha deles</b></td><td>O que a planilha que os meninos mandam no grupo FECHAMENTO MOTOBOYS manda pagar, e embaixo a diferença para a nossa conta. Verde = igual. Amarelo = o sistema paga menos que eles (quase sempre porque eles ainda usam diária cheia). Azul = o sistema paga mais. É só para conferir — quem paga é você.</td></tr>'+
 '</table></div></div>';
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const iso=d=>d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
@@ -193,11 +194,51 @@ async function portaPagDia(dia){
   if(!r.ok)throw new Error('porta '+r.status);
   return await r.json();
 }
+var DELES=null;
+async function portaDeles(dia){
+  const r=await fetch(SB+'rpc/fechamento_deles_do_dia',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:cdmTok(),p_dia:dia})});
+  if(!r.ok)return null;
+  return await r.json();
+}
+function chaveDeles(unidade,nome){return String(unidade||'')+'|'+String(nome||'').trim().toLowerCase()}
+function mapaDeles(){
+  const m={};
+  if(DELES&&DELES.linhas)DELES.linhas.forEach(function(x){ if(x.nome_nosso) m[chaveDeles(x.unidade,x.nome_nosso)]=x; });
+  return m;
+}
+function comparaDeles(){
+  if(!DELES) return '<div class="c"><span style="color:var(--muted)">A planilha dos meninos deste dia ainda não foi lida.</span></div>';
+  if(!DELES.tem) return '<div class="c"><b style="color:#fbbf24">🧾 A planilha dos meninos deste dia ainda não chegou.</b> Ela costuma cair no grupo FECHAMENTO MOTOBOYS por volta de 1h30 da manhã seguinte.</div>';
+  var t=DELES.totais||{}, dif=Number(t.dif||0);
+  var cor = Math.abs(dif)<0.01 ? '#4ade80' : (dif<0 ? '#fbbf24' : '#60a5fa');
+  var sos=(DELES.linhas||[]).filter(function(x){return x.onde!=='nos dois'});
+  var h='<div class="c"><b>🧾 A conta deles × a nossa</b> · a planilha manda pagar <b>'+rs(t.deles)+'</b>, o sistema calcula <b>'+rs(t.nosso)+'</b>, diferença <b style="color:'+cor+'">'+(dif>0?'+':'')+rs(dif)+'</b>';
+  h+='<div class="hs" style="margin:6px 0 0">Quando o sistema dá menos, é porque a planilha ainda paga a diária cheia e a régua da casa paga por hora rodada.</div>';
+  if(sos.length){
+    h+='<div style="margin-top:8px;color:#fbbf24">⚠️ '+sos.length+' nome(s) que não casaram: ';
+    h+=sos.map(function(x){return esc(x.motoboy)+' <span style="color:var(--muted)">('+esc(x.onde)+')</span>'}).join(' · ');
+    h+='</div>';
+  }
+  return h+'</div>';
+}
+function celulaDeles(m){
+  const d=(MAPD||{})[chaveDeles(m.unidade,m.entregador)];
+  if(!d||d.pagar_deles==null) return '<span style="color:var(--muted)">—</span>';
+  const dif=Number(d.dif_pagar||0);
+  const cor = Math.abs(dif)<0.01 ? '#4ade80' : (dif<0 ? '#fbbf24' : '#60a5fa');
+  const sinal = dif>0?'+':'';
+  return rs(d.pagar_deles)+'<br><span style="color:'+cor+';font-size:11px" title="quanto o sistema paga a mais ou a menos que a planilha deles">'+(Math.abs(dif)<0.01?'igual':sinal+rs(dif))+'</span>';
+}
+var MAPD={};
 async function puxaPagDia(dia){
   try{
     $('conteudo').innerHTML='<div class="empty">Carregando o dia…</div>';
     PD=await portaPagDia(dia||PDDIA);
     PDDIA=PD.dia;
+    try{ DELES=await portaDeles(PDDIA); }catch(e){ DELES=null }
+    MAPD=mapaDeles();
     viewPag();
   }catch(e){
     $('conteudo').innerHTML='<div class="c">Não deu para carregar o pagamento do dia. Entre no portal de novo e tente outra vez.</div>';
@@ -236,7 +277,7 @@ function cabecalho(){
     '<th>Loja</th><th>Motoboy</th><th>Escala</th><th>Real (chegou → última)</th>'+
     '<th class="grupo">Almoço</th><th class="grupo">Prato</th>'+
     '<th class="money">Entregas</th><th class="money">Garantido</th>'+
-    '<th class="money">A pagar</th><th>PIX</th></tr>';
+    '<th class="money">A pagar</th><th class="money grupo" title="o que a planilha dos meninos manda pagar, e a diferenca para a nossa conta">Planilha deles</th><th>PIX</th></tr>';
 }
 function linhaMoto(m,i,vivo){
   const par = (i%2===1) ? ' class="par"' : '';
@@ -259,12 +300,13 @@ function linhaMoto(m,i,vivo){
     '<td class="money">'+num(m.entregas)+'</td>'+
     '<td class="money">'+gar+'</td>'+
     '<td class="pagar">'+rs(m.pagar)+'</td>'+
+    '<td class="money grupo">'+(vivo?'<span style="color:var(--muted)">—</span>':celulaDeles(m))+'</td>'+
     '<td>'+(m.chave_pix?'<button class="b" onclick="copiar(this.dataset.p)" data-p="'+esc(m.chave_pix)+'">PIX</button>':'<span style="color:#f87171">sem</span>')+'</td>'+
     '</tr>';
   let d='';
   if(m.aviso) d+='↳ '+esc(m.aviso);
   if(m.ajustes&&m.ajustes!=0) d+=(d?' · ':'')+'ajuste feito a mão '+rs(m.ajustes);
-  if(d) h+='<tr class="obs"><td colspan="10">'+d+'</td></tr>';
+  if(d) h+='<tr class="obs"><td colspan="11">'+d+'</td></tr>';
   return h;
 }
 function setLoja(u){LOJA=u;render()}
@@ -354,6 +396,7 @@ function viewPag(){
     '<button class="b" style="margin-left:10px" onclick="setView(\'maq\')">🧾 conferir a maquininha deste dia</button></div>';
   h+=botoesLoja(PD);
   h+=totaisTxt(t,false);
+  h+=comparaDeles();
   h+=semDono(PD,false);
   if(!l.length){$('conteudo').innerHTML=h+'<div class="c empty">Ninguém rodou neste dia.</div>';return}
   h+=cabecalho();
