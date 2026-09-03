@@ -208,10 +208,14 @@ function mapaDeles(){
   if(DELES&&DELES.linhas)DELES.linhas.forEach(function(x){ if(x.nome_nosso) m[chaveDeles(x.unidade,x.nome_nosso)]=x; });
   return m;
 }
-function comparaDeles(){
+function comparaDeles(l){
   if(!DELES) return '<div class="c"><span style="color:var(--muted)">A planilha dos meninos deste dia ainda não foi lida.</span></div>';
   if(!DELES.tem) return '<div class="c"><b style="color:#fbbf24">🧾 A planilha dos meninos deste dia ainda não chegou.</b> Ela costuma cair no grupo FECHAMENTO MOTOBOYS por volta de 1h30 da manhã seguinte.</div>';
-  var t=DELES.totais||{}, dif=Number(t.dif||0);
+  var lojas={}; (l||[]).forEach(function(m){lojas[m.unidade]=1});
+  var nosso=0; (l||[]).forEach(function(m){nosso+=Number(m.pagar||0)});
+  var deles=0; (DELES.linhas||[]).forEach(function(x){ if(lojas[x.unidade]) deles+=Number(x.pagar_deles||0) });
+  nosso=Math.round(nosso*100)/100; deles=Math.round(deles*100)/100;
+  var t={deles:deles, nosso:nosso}, dif=Math.round((nosso-deles)*100)/100;
   var cor = Math.abs(dif)<0.01 ? '#4ade80' : (dif<0 ? '#fbbf24' : '#60a5fa');
   var sos=(DELES.linhas||[]).filter(function(x){return x.onde!=='nos dois'});
   var h='<div class="c"><b>🧾 A conta deles × a nossa</b> · a planilha manda pagar <b>'+rs(t.deles)+'</b>, o sistema calcula <b>'+rs(t.nosso)+'</b>, diferença <b style="color:'+cor+'">'+(dif>0?'+':'')+rs(dif)+'</b>';
@@ -223,10 +227,15 @@ function comparaDeles(){
   }
   return h+'</div>';
 }
+function difDeles(m){
+  const d=(MAPD||{})[chaveDeles(m.unidade,m.entregador)];
+  if(!d||d.pagar_deles==null) return '';
+  return String(Math.round((Number(m.pagar||0)-Number(d.pagar_deles||0))*100)/100);
+}
 function celulaDeles(m){
   const d=(MAPD||{})[chaveDeles(m.unidade,m.entregador)];
   if(!d||d.pagar_deles==null) return '<span style="color:var(--muted)">—</span>';
-  const dif=Number(d.dif_pagar||0);
+  const dif=Math.round((Number(m.pagar||0)-Number(d.pagar_deles||0))*100)/100;
   const cor = Math.abs(dif)<0.01 ? '#4ade80' : (dif<0 ? '#fbbf24' : '#60a5fa');
   const sinal = dif>0?'+':'';
   return rs(d.pagar_deles)+'<br><span style="color:'+cor+';font-size:11px" title="quanto o sistema paga a mais ou a menos que a planilha deles">'+(Math.abs(dif)<0.01?'igual':sinal+rs(dif))+'</span>';
@@ -288,25 +297,24 @@ function linhaMoto(m,i,vivo){
       ? esc(m.lanche_produto)+(m.cobrar_refeicao>0?' <span style="color:#f87171" title="pegou sem direito, está pagando por ele">−'+rs(m.cobrar_refeicao)+'</span>':'')
       : '<span style="color:var(--muted)">—</span>';
   const gar = Number(m.garantido_valido||0)>0 ? rs(m.garantido_valido) : '<span style="color:#f87171">não</span>';
+  var nota='';
+  if(m.aviso) nota+=m.aviso;
+  if(m.ajustes&&m.ajustes!=0) nota+=(nota?' · ':'')+'ajuste feito a mão de '+rs(m.ajustes);
   const real = esc(m.chegada||'—')+(m.tem_gps?'':' <span title="sem carimbo de GPS: chegada estimada, nada foi cortado">⚠️</span>')+
       ' <span style="color:var(--muted)">('+atrasoTxt(m)+')</span> → '+esc(m.ultima_entrega||'—');
   let h='<tr'+par+'>'+
     '<td>'+esc(sigla(m.unidade))+'</td>'+
-    '<td class="nome"><b>'+esc(m.entregador)+'</b>'+(vivo&&m.no_patio_agora?' <span title="no pátio agora">🟢</span>':(vivo&&m.ligado_agora?' <span title="na rua">🛵</span>':''))+((m.turnos||1)>1?' <span style="color:#fbbf24" title="fez '+m.turnos+' turnos, então tem direito a '+m.turnos+' refeições">'+m.turnos+'×</span>':'')+((m.turnos_furados||0)>0?' <span style="color:#f87171" title="chegou atrasado em '+m.turnos_furados+' turno(s)">atrasou</span>':'')+'</td>'+
+    '<td class="nome" data-k="'+esc(m.entregador)+'"'+(nota?' title="'+esc(nota)+'"':'')+'><b>'+esc(m.entregador)+'</b>'+(nota?' <span style="color:#fbbf24;cursor:help">ⓘ</span>':'')+(vivo&&m.no_patio_agora?' <span title="no pátio agora">🟢</span>':(vivo&&m.ligado_agora?' <span title="na rua">🛵</span>':''))+((m.turnos||1)>1?' <span style="color:#fbbf24" title="fez '+m.turnos+' turnos, então tem direito a '+m.turnos+' refeições">'+m.turnos+'×</span>':'')+((m.turnos_furados||0)>0?' <span style="color:#f87171" title="chegou atrasado em '+m.turnos_furados+' turno(s)">atrasou</span>':'')+'</td>'+
     '<td>'+esc(m.combinado||'—')+'</td>'+
-    '<td>'+real+'</td>'+
+    '<td data-k="'+esc(m.chegada||'')+'">'+real+'</td>'+
     '<td class="grupo">'+alm+'</td>'+
     '<td class="grupo">'+prato+'</td>'+
     '<td class="money">'+num(m.entregas)+'</td>'+
     '<td class="money">'+gar+'</td>'+
     '<td class="pagar">'+rs(m.pagar)+'</td>'+
-    '<td class="money grupo">'+(vivo?'<span style="color:var(--muted)">—</span>':celulaDeles(m))+'</td>'+
+    '<td class="money grupo" data-k="'+(vivo?'':difDeles(m))+'">'+(vivo?'<span style="color:var(--muted)">—</span>':celulaDeles(m))+'</td>'+
     '<td>'+(m.chave_pix?'<button class="b" onclick="copiar(this.dataset.p)" data-p="'+esc(m.chave_pix)+'">PIX</button>':'<span style="color:#f87171">sem</span>')+'</td>'+
     '</tr>';
-  let d='';
-  if(m.aviso) d+='↳ '+esc(m.aviso);
-  if(m.ajustes&&m.ajustes!=0) d+=(d?' · ':'')+'ajuste feito a mão '+rs(m.ajustes);
-  if(d) h+='<tr class="obs"><td colspan="11">'+d+'</td></tr>';
   return h;
 }
 function setLoja(u){LOJA=u;render()}
@@ -396,7 +404,7 @@ function viewPag(){
     '<button class="b" style="margin-left:10px" onclick="setView(\'maq\')">🧾 conferir a maquininha deste dia</button></div>';
   h+=botoesLoja(PD);
   h+=totaisTxt(t,false);
-  h+=comparaDeles();
+  h+=comparaDeles(l);
   h+=semDono(PD,false);
   if(!l.length){$('conteudo').innerHTML=h+'<div class="c empty">Ninguém rodou neste dia.</div>';return}
   h+=cabecalho();
