@@ -79,7 +79,7 @@ const $=i=>document.getElementById(i);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
 
-let D=null,DD=null,SU=null,DIAS=30,UNI='',ABA='resumo',DIA='',PER='quinzena',CC=null,VIVO='';
+let D=null,DD=null,SU=null,DIAS=30,UNI='',ABA='resumo',DIA='',PER='hoje',CC=null,VIVO='';
 
 function hoje(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)}
 function ontem(){const d=new Date();d.setDate(d.getDate()-1);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)}
@@ -164,11 +164,11 @@ function barra(pct){
 
 function filtros(){
   let h='<div class="fil">';
-  [['hoje','Hoje'],['ontem','Ontem'],['quinzena','Quinzena'],['mes','Este mês']].forEach(function(o){
+  [['turno','⏱ Turno de agora'],['hoje','Hoje'],['ontem','Ontem'],['semana','Semana'],['mes','Este mês']].forEach(function(o){
     h+='<button class="'+(PER===o[0]?'on':'')+'" onclick="vaiPeriodo(\''+o[0]+'\')">'+o[1]+'</button>';
   });
   h+='</div>';
-  if(D&&D.de&&D.ate)h+='<div class="m" style="margin:-2px 0 8px">Mostrando de <b>'+dData(D.de)+'</b> a <b>'+dData(D.ate)+'</b>'+
+  if(D&&D.de&&D.ate)h+='<div class="m" style="margin:-2px 0 8px">'+(D.turno_atual?'<b>Turno de agora: '+esc(D.turno_atual)+'</b> · ':'')+'Mostrando de <b>'+dData(D.de)+'</b> a <b>'+dData(D.ate)+'</b>'+
     (D.de_antes?' · comparando com '+dData(D.de_antes)+' a '+dData(D.ate_antes):'')+'</div>';
   h+='<div class="fil">';
   h+='<button class="'+(UNI===''?'on':'')+'" onclick="UNI=\'\';boot()">🏠 Todas as lojas</button>';
@@ -176,15 +176,15 @@ function filtros(){
     h+='<button class="'+(UNI===l.unidade?'on':'')+'" onclick="UNI=\''+esc(l.unidade).replace(/'/g,"\\'")+'\';boot()">'+esc(l.unidade)+'</button>';
   });
   h+='</div>';
-  const vivas=[['resumo','⚡ O dia + Resumo'],['pessoas','🛵 Motoboys'],['turnos','🕐 Por turno'],['cancel','🚫 Cancelamentos'],['ree','🔁 Reentregas'],['maq','🧾 Maquininha']];
-  const analise=[['cliente','⭐ Avaliações'],['super','🏆 Selo Super'],['pausados','📵 Fora do ar']];
+  const vivas=[['resumo','⚡ Resumo'],['dia','🗓 Dia a dia'],['pessoas','🛵 Motoboys'],['turnos','🕐 Por turno'],['cancel','🚫 Cancelamentos'],['ree','🔁 Reentregas'],['maq','🧾 Maquininha']];
+  const analise=[['cliente','⭐ Avaliações'],['super','🏆 Selo Super'],['neg','🤝 Negociações'],['pausados','📵 Fora do ar (cardápios online)']];
     const abaBtn=function(a){return '<button class="'+(ABA===a[0]?'on':'')+'" onclick="vaiPara(\''+a[0]+'\')">'+a[1]+'</button>'};
   h+='<div class="fil"><span style="color:var(--muted);font-size:10.5px;font-weight:800;align-self:center;letter-spacing:.5px">AO VIVO</span>';
   vivas.forEach(function(a){h+=abaBtn(a)});
   h+='</div><div class="fil"><span style="color:var(--muted);font-size:10.5px;font-weight:800;align-self:center;letter-spacing:.5px">ANÁLISE</span>';
   analise.forEach(function(a){h+=abaBtn(a)});
   h+='</div>';
-  if(ABA==='dia'||ABA==='resumo'){
+  if(ABA==='dia'){
     h+='<div class="fil" style="align-items:center">'+
        '<span style="color:var(--muted);font-size:12.5px;font-weight:700">Escolha o dia:</span>'+
        '<input type="date" id="qdia" value="'+(DIA||hoje())+'" max="'+hoje()+'" '+
@@ -392,7 +392,7 @@ function vaiPara(a){
   ligaTimer();
   if(a==='dia'&&!DD){desenha();puxaDia();return}
   if(a==='super'&&!SU){desenha();puxaSuper();return}
-  if(a==='resumo'&&!DD){desenha();puxaDia();return}
+  if(a==='neg'&&NEG===null){desenha();negPuxa();return}
   if(a==='ree'&&REE===null){desenha();reePuxa();return}
   if(a==='cancel'&&(!CC||!CV)){desenha();puxaCanc();puxaCancVivo();return}
   if(a==='cliente'&&!SU){desenha();puxaSuper();return}
@@ -533,7 +533,7 @@ function cancelamentos(){
 function resumo(){
   const a=D.agora,b=D.antes;
   let h='<div class="cards">';
-  h+=cartaoVivo('No prazo', (a.pct_prazo==null?'—':a.pct_prazo+'%'), delta(a.pct_prazo,b.pct_prazo,true,'%'), 'prazo');
+  h+=cartaoVivo('No prazo', (a.pct_prazo==null?'—':a.pct_prazo+'%'), delta(a.pct_prazo,b.pct_prazo,true,'%')+(a.sem_prazo?'<div class="d flat">'+n(a.sem_prazo)+' entregas sem hora prometida ainda</div>':''), 'prazo');
   const ift=iFoodTem();
   const U=D.ultimo||{};
   function velho(dt){return '<div class="d flat">últimos 7 dias até '+dData(dt)+'</div>'}
@@ -793,6 +793,80 @@ function motivos(){
   return h;
 }
 
+let NEG=null;
+async function negPuxa(){
+  try{ NEG=await porta('qualidade_negociacoes',{periodo:perNome(),dias:DIAS,unidade:UNI||null}); }
+  catch(e){ NEG={erro:(e&&e.message)||'falhou'} }
+  desenha();
+}
+function negAba(){
+  if(NEG===null)return '<div class="c"><div class="load">Buscando as negociações…</div></div>';
+  if(NEG.erro)return '<div class="c"><b>Não deu para buscar as negociações.</b><div class="m">'+esc(NEG.erro)+'</div></div>';
+  const r=NEG.resumo||{}, b=NEG.antes||{}, dono=(NEG.modo==='dono');
+  let h='<div class="m" style="margin:0 0 8px">Relatório oficial do iFood — <b>atrasa 1 dia</b> · dados até <b>'+dData(NEG.ifood_ate)+'</b>'+
+    (NEG.atraso_dias>1?' · <span class="pill p-warn">'+NEG.atraso_dias+' dias sem relatório novo</span>':'')+'</div>';
+  h+='<div class="cards">';
+  h+=cartao('Chamados', n(r.chamados), delta(r.chamados,b.chamados,false,''));
+  h+=cartao('Cancelamento evitado', n(r.evitados), delta(r.evitados,b.evitados,true,''));
+  h+=cartao('Virou cancelamento', n(r.virou_cancelamento), delta(r.virou_cancelamento,b.virou_cancelamento,false,''));
+  h+=cartao('Loja não respondeu', n(r.loja_nao_respondeu), delta(r.loja_nao_respondeu,b.loja_nao_respondeu,false,''));
+  h+=cartao('Com reembolso', n(r.com_reembolso), delta(r.com_reembolso,b.com_reembolso,false,''));
+  h+=cartao('Pesou no Selo Super', n(r.impactou_super), delta(r.impactou_super,b.impactou_super,false,''));
+  if(dono){
+    h+=cartao('Reembolsado', br(r.reembolsado), '<div class="d flat">antes '+br(b.reembolsado)+'</div>');
+    h+=cartao('Salvo ao negociar', br(r.salvo), '<div class="d flat">de '+br(r.valor_em_jogo)+' em jogo</div>');
+  }
+  h+='</div>';
+  const M=NEG.por_motivo||[];
+  if(M.length){
+    h+='<h2>📞 Por que o cliente abriu chamado</h2><div class="c"><div class="rolar"><table><tr><th>Motivo</th><th>Quando</th><th>Chamados</th><th>Evitados</th>'+(dono?'<th>Reembolsado</th>':'')+'</tr>';
+    M.forEach(function(m){h+='<tr><td><b>'+esc(m.motivo)+'</b></td><td>'+esc(m.momento||'')+'</td><td>'+n(m.n)+'</td><td>'+n(m.evitados)+'</td>'+(dono?'<td>'+br(m.reembolsado)+'</td>':'')+'</tr>'});
+    h+='</table></div></div>';
+  }
+  const L=NEG.por_loja||[];
+  if(L.length){
+    h+='<h2>🏪 Por marca</h2><div class="c"><div class="rolar"><table><tr><th>Loja</th><th>Marca</th><th>Chamados</th><th>Evitados</th><th>Sem resposta</th>'+(dono?'<th>Reembolsado</th>':'')+'</tr>';
+    L.forEach(function(l){h+='<tr><td>'+esc(l.unidade)+'</td><td>'+esc(l.marca)+'</td><td>'+n(l.n)+'</td><td>'+n(l.evitados)+'</td><td>'+n(l.nao_respondeu)+'</td>'+(dono?'<td>'+br(l.reembolsado)+'</td>':'')+'</tr>'});
+    h+='</table></div></div>';
+  }
+  const X=NEG.lista||[];
+  h+='<h2>🤝 Cada negociação, uma por uma</h2>';
+  if(!X.length)h+='<div class="c"><div class="vazio">nenhuma negociação no período</div></div>';
+  else{
+    h+='<div class="c"><div class="rolar"><table><tr><th>Data</th><th>Hora</th><th>Loja</th><th>Pedido</th><th>Motivo</th><th>Quem abriu</th><th>A loja</th><th>O cliente</th><th>Resultado</th>'+(dono?'<th>Pedido R$</th><th>Reembolso</th>':'')+'</tr>';
+    X.forEach(function(x){
+      const res=x.evitado?'<span class="pill p-ok">evitado</span>':(x.status_pedido==='CANCELADO'?'<span class="pill p-bad">cancelou</span>':esc(x.status_pedido||''));
+      h+='<tr><td>'+dData(x.data)+'</td><td>'+esc(x.hora||'')+'</td><td>'+esc(x.unidade||'')+'<div class="m">'+esc(x.marca||'')+'</div></td><td>'+esc(x.pedido||'')+'</td>'+
+         '<td>'+esc(x.motivo||'')+(x.momento?'<div class="m">'+esc(x.momento)+'</div>':'')+'</td><td>'+esc(x.quem_iniciou||'')+'</td>'+
+         '<td>'+esc(x.resposta_loja||'')+(x.tempo_ofertado_min?'<div class="m">ofereceu +'+n(x.tempo_ofertado_min)+' min</div>':'')+'</td><td>'+esc(x.resposta_cliente||'')+'</td>'+
+         '<td>'+res+(x.arbitragem?' <span class="pill p-warn">arbitragem'+(x.resultado_arbitragem?': '+esc(x.resultado_arbitragem):'')+'</span>':'')+(x.impactou_super?' <span class="pill p-warn">selo</span>':'')+(x.tem_fotos?' 📷':'')+'</td>'+
+         (dono?'<td>'+br(x.valor_pedido)+'</td><td>'+br(x.valor_reembolso)+'</td>':'')+'</tr>';
+    });
+    h+='</table></div></div>';
+  }
+  return h;
+}
+function parciais(){
+  let h='';
+  const hoje=(CV&&CV.parciais)||[];
+  h+='<h2>✂️ Cancelamentos parciais de hoje (Gestor Web)</h2>';
+  if(!hoje.length)h+='<div class="c"><div class="vazio">nenhum item devolvido hoje até a última leitura do Gestor Web (1h, 12h e 18h)</div></div>';
+  else{
+    h+='<div class="c"><div class="rolar"><table><tr><th>Hora</th><th>Loja</th><th>Pedido</th><th>O que faltou / veio errado</th><th>O que a loja fez</th><th>Loja escreveu?</th>'+(CV.dono?'<th>Devolvido</th>':'')+'</tr>';
+    hoje.forEach(function(p){h+='<tr><td>'+esc(p.hora||'')+'</td><td>'+esc(p.unidade||'')+'<div class="m">'+esc(p.marca||'')+'</div></td><td>'+esc(p.pedido||'')+'</td><td><b>'+esc(p.item||'—')+'</b></td><td>'+esc(p.o_que_a_loja_fez||'—')+'</td><td>'+(String(p.loja_escreveu)==='true'?'sim':'<span class="pill p-warn">não</span>')+'</td>'+(CV.dono?'<td>'+br(p.valor_devolvido)+'</td>':'')+'</tr>'});
+    h+='</table></div></div>';
+  }
+  const per=(CC&&CC.parciais)||[];
+  h+='<h2>✂️ Cancelamentos parciais do período (relatório do iFood, atrasa 1 dia)</h2>';
+  if(!per.length)h+='<div class="c"><div class="vazio">nenhum parcial no período'+(CC&&CC.parciais_antes?' · no período anterior foram '+n(CC.parciais_antes):'')+'</div></div>';
+  else{
+    h+='<div class="c"><div class="m" style="margin:0 0 6px">'+per.length+' no período · antes: '+n(CC.parciais_antes)+'</div><div class="rolar"><table><tr><th>Data</th><th>Hora</th><th>Loja</th><th>Pedido</th><th>Turno</th><th>Itens devolvidos</th><th>Motivo</th><th>Quem</th>'+(CC.modo==='dono'?'<th>Pedido R$</th><th>Devolvido</th><th>Motoboy</th>':'')+'</tr>';
+    per.forEach(function(p){h+='<tr><td>'+dData(p.data)+'</td><td>'+esc(p.hora||'')+'</td><td>'+esc(p.unidade||'')+'<div class="m">'+esc(p.marca||'')+'</div></td><td>'+esc(p.pedido||'')+'</td><td>'+esc(p.turno||'')+'</td><td><b>'+esc(p.itens||'—')+'</b></td><td>'+esc(p.motivo||'')+'</td><td>'+esc(p.origem||'')+'</td>'+(CC.modo==='dono'?'<td>'+br(p.valor_pedido)+'</td><td>'+br(p.valor_devolvido)+'</td><td>'+esc(p.entregador||'')+'</td>':'')+'</tr>'});
+    h+='</table></div></div>';
+  }
+  return h;
+}
+
 function desenha(){
   if(!D){$('app').innerHTML='<div class="load">Carregando…</div>';return}
   let h=filtros();
@@ -801,7 +875,7 @@ function desenha(){
   if(ABA==='dia')h+=odia();
   else if(ABA==='super')h+=selo();
 
-  else if(ABA==='resumo')h+=resumo()+'<h2>🏪 Por loja</h2>'+tabelaLojas()+'<h2>🗓 O dia, ao vivo</h2>'+odia();
+  else if(ABA==='resumo')h+=resumo()+'<h2>🏪 Por loja</h2>'+tabelaLojas();
   else if(ABA==='lojas')h+=tabelaLojas();
   else if(ABA==='turnos')h+=tabelaTurnos();
   else if(ABA==='cliente')h+=falas()+motivos();
@@ -809,14 +883,15 @@ function desenha(){
   else if(ABA==='dinheiro')h+=dinheiro();
   else if(ABA==='pessoas')h+=motoVivo()+(D.modo==='dono'?'<h2>🛵 Análise dos entregadores (só você)</h2>'+pessoas():'');
   else if(ABA==='ree')h+=reeAba();
-  else if(ABA==='cancel')h+=cancVivo()+cancelamentos();
+  else if(ABA==='cancel')h+=cancVivo()+parciais()+cancelamentos();
   else if(ABA==='maq')h+=maqAba();
+  else if(ABA==='neg')h+=negAba();
   $('app').innerHTML=h;
 }
 
 async function boot(){
   $('app').innerHTML='<div class="load">Carregando…</div>';
-  DD=null;SU=null;CC=null;CV=null;
+  DD=null;SU=null;CC=null;CV=null;NEG=null;
   try{ D=await puxa(); }
   catch(e){ $('app').innerHTML='<div class="c">Não deu para carregar. '+esc(e.message||'')+'</div>'; return }
   try{ CC=await porta('qualidade_cancelamentos',{periodo:perNome(),dias:DIAS,unidade:UNI||null}); }catch(e){ CC=null }
@@ -825,7 +900,8 @@ async function boot(){
   $('sub').textContent='Cidadão do Mundo Burgers & Arts · '+f+' a '+t+' · '+
     (D.modo==='dono'?'visão completa':'visão da equipe')+(D.unidade?' · '+D.unidade:'');
   desenha();
-  if(ABA==='resumo'&&!DD)puxaDia();
+  if(ABA==='dia'&&!DD)puxaDia();
+  if(ABA==='neg'&&NEG===null)negPuxa();
   if(ABA==='cancel'&&!CV)puxaCancVivo();
 }
 
