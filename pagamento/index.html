@@ -349,6 +349,7 @@ function turnoTxt(m){
 function cabecalho(){
   return '<div class="c wrap"><table class="enxuta"><tr>'+
     '<th>Loja</th><th>Motoboy</th><th>Escala</th><th>Real (chegou → última)</th>'+
+    '<th class="money">Horas</th>'+
     '<th class="grupo">Almoço</th><th class="grupo">Prato</th>'+
     '<th class="money">Entregas</th><th class="money">Garantido</th>'+
     '<th class="money">A pagar</th><th class="money grupo" title="o que a planilha dos meninos manda pagar, e a diferenca para a nossa conta">Planilha deles</th><th>PIX</th></tr>';
@@ -362,6 +363,8 @@ function linhaMoto(m,i,vivo){
       ? esc(m.lanche_produto)+(m.cobrar_refeicao>0?' <span style="color:#f87171" title="pegou sem direito, está pagando por ele">−'+rs(m.cobrar_refeicao)+'</span>':'')
       : '<span style="color:var(--muted)">—</span>';
   const gar = Number(m.garantido_valido||0)>0 ? rs(m.garantido_valido) : '<span style="color:#f87171">não</span>';
+  const maq=(DELES&&DELES.maquininha)?DELES.maquininha[chaveDeles(m.unidade,m.entregador)]:null;
+  const selomaq = (maq&&!vivo) ? ' <span style="color:#f87171;cursor:help" title="cobrança na porta para conferir: '+esc(maq.texto)+'">🧾</span>' : '';
   var nota='';
   if(m.aviso) nota+=m.aviso;
   if(m.ajustes&&m.ajustes!=0) nota+=(nota?' · ':'')+'ajuste feito a mão de '+rs(m.ajustes);
@@ -369,9 +372,10 @@ function linhaMoto(m,i,vivo){
       ' <span style="color:var(--muted)">('+atrasoTxt(m)+')</span> → '+esc(m.ultima_entrega||'—');
   let h='<tr'+par+'>'+
     '<td>'+esc(sigla(m.unidade))+'</td>'+
-    '<td class="nome" data-k="'+esc(m.entregador)+'"'+(nota?' title="'+esc(nota)+'"':'')+'><b>'+esc(m.entregador)+'</b>'+(nota?' <span style="color:#fbbf24;cursor:help">ⓘ</span>':'')+(vivo&&m.no_patio_agora?' <span title="no pátio agora">🟢</span>':(vivo&&m.ligado_agora?' <span title="na rua">🛵</span>':''))+((m.turnos||1)>1?' <span style="color:#fbbf24" title="fez '+m.turnos+' turnos, então tem direito a '+m.turnos+' refeições">'+m.turnos+'×</span>':'')+((m.turnos_furados||0)>0?' <span style="color:#f87171" title="chegou atrasado em '+m.turnos_furados+' turno(s)">atrasou</span>':'')+'</td>'+
+    '<td class="nome" data-k="'+esc(m.entregador)+'"'+(nota?' title="'+esc(nota)+'"':'')+'><b>'+esc(m.entregador)+'</b>'+selomaq+(nota?' <span style="color:#fbbf24;cursor:help">ⓘ</span>':'')+(vivo&&m.no_patio_agora?' <span title="no pátio agora">🟢</span>':(vivo&&m.ligado_agora?' <span title="na rua">🛵</span>':''))+((m.turnos||1)>1?' <span style="color:#fbbf24" title="fez '+m.turnos+' turnos, então tem direito a '+m.turnos+' refeições">'+m.turnos+'×</span>':'')+((m.turnos_furados||0)>0?' <span style="color:#f87171" title="chegou atrasado em '+m.turnos_furados+' turno(s)">atrasou</span>':'')+'</td>'+
     '<td>'+esc(m.combinado||'—')+'</td>'+
     '<td data-k="'+esc(m.chegada||'')+'">'+real+'</td>'+
+    '<td class="money" data-k="'+(m.horas==null?'':m.horas)+'">'+(m.horas==null?'<span style="color:var(--muted)">—</span>':num(m.horas)+'h')+'</td>'+
     '<td class="grupo">'+alm+'</td>'+
     '<td class="grupo">'+prato+'</td>'+
     '<td class="money">'+num(m.entregas)+'</td>'+
@@ -531,8 +535,7 @@ function maqHtml(j){
       (dono?'<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top;text-align:right;white-space:nowrap"><b>'+maqRs(l.na_porta)+'</b>'+(l.taxa>0?'<div style="color:#8a897e;font-size:11px">taxa '+maqRs(l.taxa)+'</div>':'')+'</td>':'')+
       '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top">'+rede+'</td>'+
       '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top">'+gps+'</td>'+
-      '<td style="padding:8px 0 2px 0;border-top:1px solid #34332f;vertical-align:top">'+maqPill(l.situacao)+'</td></tr>';
-    h+='<tr style="'+(i%2?'background:rgba(255,255,255,.02)':'')+'"><td colspan="'+(dono?9:8)+'" style="padding:0 0 8px 0;color:#8a897e;font-size:11.5px">'+esc(x[2])+'</td></tr>';
+      '<td style="padding:8px 0 8px 0;border-top:1px solid #34332f;vertical-align:top" title="'+esc(x[2])+'">'+maqPill(l.situacao)+' <span style="color:#8a897e;cursor:help">ⓘ</span></td></tr>';
   });
   h+='</table></div>';
   h+='<div class="c" style="font-size:12px;color:#c3c2b7">Como eu confiro: pego cada entrega que o <b>Saipos</b> diz que foi paga na porta (cartão, vale, Pix, dinheiro), procuro o valor exato na <b>Rede</b> da mesma loja em até '+esc(j.janela_min||240)+' minutos da hora da entrega (cada cobrança da Rede só pode casar com <b>um</b> pedido — a mesa do salão paga na mesma hora não conta duas vezes), depois no <b>extrato</b> (Pix) e, por último, olho o <b>GPS</b> do motoboy: estar a menos de '+esc(j.raio_m||150)+' m da casa do cliente prova que ele entregou. Regra da casa: <b>o preço já inclui a taxa — nada é cobrado por fora</b>.</div>';
