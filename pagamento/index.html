@@ -206,6 +206,8 @@ async function viewComparar(){
   k+=cartao(rs(t.nosso), 'a nossa conta dá');
   k+=cartao((dif>0?'+':'')+rs(dif), 'diferença do dia', Math.abs(dif)<0.01?'':'warn');
   k+=cartao(num(t.deles_entregas)+' × '+num(t.nosso_entregas), 'entregas: deles × nossa');
+  if(Number(DELES.com_hora_exata||0)>0) k+=cartao(num(DELES.com_hora_exata)+' de '+num((DELES.linhas||[]).length), 'com carimbo de chegada EXATO');
+  if(Number(t.minutos_a_mais||0)>0) k+=cartao(num(t.minutos_a_mais)+' min', 'que o radar não viu (≈ '+rs(Math.round(Number(t.minutos_a_mais)/60*Number(DELES.valor_hora||20)*100)/100)+')','warn');
   if(Number(t.pendentes||0)>0) k+=cartao(num(t.pendentes), 'entregas ainda PENDENTES no TrackEat','warn');
   if(Number(t.reprovadas||0)>0) k+=cartao(num(t.reprovadas), 'reprovadas (duplicadas) que não pagamos');
   $('kpis').innerHTML=k+'</div>';
@@ -248,6 +250,7 @@ async function viewComparar(){
         p.push(pt('Fica <b>'+rs(x.nosso_pagar)+'</b>. A planilha pagou <b>'+rs(x.deles_pagar)+'</b> — <b style="color:'+(d<0?'#fbbf24':'#60a5fa')+'">'+rs(Math.abs(d))+(d<0?' a mais do que devia':' a menos do que devia')+'</b>.'));
       }
       if(Number(x.refeicoes||0)===0 && Number(x.atraso_min||0)>30) p.push(pt('<span style="color:#f87171">Chegou '+x.atraso_min+' minutos depois da hora combinada: por isso perdeu o almoço e o garantido.</span>'));
+      if(x.hora_exata && Number(x.minutos_a_mais||0)>0.1) p.push(pt('<span style="color:#4ade80">O próprio aplicativo carimbou a chegada dele às <b>'+esc(x.hora_exata)+'</b>. A gente está contando a partir de '+esc(x.chegada)+', ou seja <b>'+String(x.minutos_a_mais).replace('.',',')+' minutos depois</b> — esse tempo ele rodou e não está sendo pago.</span>'));
       if(x.tem_gps===false) p.push(pt('<span style="color:#fbbf24">O GPS não carimbou a chegada dele, então a hora é estimada e nada foi cortado.</span>'));
       porque = p.join('') || '<span style="color:#4ade80">As duas contas batem.</span>';
     }
@@ -258,6 +261,7 @@ async function viewComparar(){
         (x.nome_deles&&x.nome_deles!==x.motoboy?'<br><span style="color:var(--muted);font-size:11px">na planilha: '+esc(x.nome_deles)+'</span>':'')+'</td>'+
       '<td data-k="'+esc(x.chegada||'')+'">'+(x.combinado?'<b>'+esc(x.combinado)+'</b> → '+esc(x.chegada||'—')+(x.tem_gps===false?' <span title="sem carimbo de GPS: chegada estimada">⚠️</span>':'')+
         (x.atraso_min!=null?' <span style="color:'+(Number(x.atraso_min)>30?'#f87171':'var(--muted)')+'">('+(Number(x.atraso_min)>0?'+':'')+x.atraso_min+' min)</span>':'')+
+        (x.hora_exata?'<div style="font-size:11px;color:#4ade80">⏱ exata <b>'+esc(x.hora_exata)+'</b>'+(Number(x.minutos_a_mais||0)>0.1?' <span style="color:#fbbf24">('+String(x.minutos_a_mais).replace('.',',')+' min antes do que a gente conta)</span>':'')+'<br><span style="color:var(--muted)">carimbo do '+esc(x.fonte_exata||'')+'</span></div>':'<div style="font-size:11px;color:var(--muted)">sem carimbo exato neste dia</div>')+
         (x.ultima?'<div style="color:var(--muted);font-size:11px">última entrega '+esc(x.ultima)+'</div>':'') : tr)+'</td>'+
       '<td class="grupo">'+(x.refeicoes==null?tr:(Number(x.refeicoes)>0?'<span style="color:#4ade80">sim</span>'+(Number(x.refeicoes)>1?' ('+x.refeicoes+')':'')+(x.prato?'<div style="color:var(--muted);font-size:11px">'+esc(x.prato)+'</div>':''):'<span style="color:#f87171">não</span>'+(Number(x.lanche_cobrado||0)>0?'<div style="color:#f87171;font-size:11px">pagou '+rs(x.lanche_cobrado)+'</div>':'')))+'</td>'+
       '<td class="grupo money">'+(x.garantido==null?tr:(Number(x.garantido)>0?rs(x.garantido):'<span style="color:#f87171">não</span>'+(Number(x.garantido_calc||0)>0?'<div style="color:var(--muted);font-size:11px">perdeu '+rs(x.garantido_calc)+'</div>':'')))+'</td>'+
