@@ -210,8 +210,9 @@ async function viewComparar(){
   if(Number(t.reprovadas||0)>0) k+=cartao(num(t.reprovadas), 'reprovadas (duplicadas) que não pagamos');
   $('kpis').innerHTML=k+'</div>';
   h+='<div class="c wrap"><table class="enxuta"><tr>'+
-     '<th>Loja</th><th>Motoboy</th>'+
-     '<th class="money grupo">Entregas deles</th><th class="money grupo">A planilha paga</th>'+
+     '<th>Loja</th><th>Motoboy</th><th>Escala → chegou</th>'+
+     '<th class="grupo">Almoço</th><th class="grupo">Garantido</th>'+
+     '<th class="money">Entregas deles</th><th class="money">A planilha paga</th>'+
      '<th class="money">Entregas nossas</th><th class="money">Horas</th><th class="money">A nossa conta</th>'+
      '<th class="money">Diferença</th><th>Por que difere</th></tr>';
   const tr='<span style="color:var(--muted)">—</span>';
@@ -223,15 +224,40 @@ async function viewComparar(){
     else if(x.onde==='só no sistema') porque='<span style="color:#fbbf24">rodou pelo sistema e não está na planilha</span>';
     else {
       const p=[];
-      if(Number(x.pendentes||0)>0) p.push('<span style="color:#fbbf24">'+x.pendentes+' entrega(s) ainda pendente(s) no TrackEat</span>');
-      if(Number(x.reprovadas||0)>0) p.push('<span style="color:var(--muted)">'+x.reprovadas+' reprovada(s) por duplicidade, não pagamos</span>');
-      if(Number(x.deles_entregas||0)!==Number(x.nosso_entregas||0)) p.push('contagem de entregas diferente');
-      if(Math.abs(d)>0.01 && !p.length) p.push('a planilha paga diária, a régua da casa paga por hora');
-      porque = p.join(' · ') || '<span style="color:#4ade80">bate</span>';
+      const vh=Number((DELES&&DELES.valor_hora)||20);
+      const piso=Math.round(Number(x.nosso_horas||0)*vh*100)/100;
+      if(Number(x.deles_entregas||0)!==Number(x.nosso_entregas||0)){
+        let m='<b>entregas:</b> eles contaram '+num(x.deles_entregas)+' e nós '+num(x.nosso_entregas);
+        const ex=[];
+        if(Number(x.pendentes||0)>0) ex.push('<span style="color:#fbbf24">'+x.pendentes+' ainda PENDENTE(S) no TrackEat</span>');
+        if(Number(x.reprovadas||0)>0) ex.push('<span style="color:var(--muted)">'+x.reprovadas+' reprovada(s) por duplicidade, que não pagamos</span>');
+        if(ex.length) m+=' — '+ex.join(' e ');
+        p.push(m);
+      } else if(Number(x.pendentes||0)>0 || Number(x.reprovadas||0)>0){
+        const ex=[];
+        if(Number(x.pendentes||0)>0) ex.push('<span style="color:#fbbf24">'+x.pendentes+' entrega(s) ainda PENDENTE(S) no TrackEat</span>');
+        if(Number(x.reprovadas||0)>0) ex.push('<span style="color:var(--muted)">'+x.reprovadas+' reprovada(s) por duplicidade, não pagamos</span>');
+        p.push(ex.join(' · '));
+      }
+      if(Math.abs(d)>0.01){
+        p.push('<b>dinheiro:</b> eles pagam '+rs(x.deles_pagar)+' de diária; a casa paga o maior entre as taxas ('+rs(x.taxas)+') e '+num(x.nosso_horas)+'h × '+rs(vh)+' = '+rs(piso)+
+               (Number(x.lanche_cobrado||0)>0 ? ', menos '+rs(x.lanche_cobrado)+' do lanche que ele pegou sem direito' : '')+
+               ' → '+rs(x.nosso_pagar));
+      }
+      if(Number(x.refeicoes||0)===0 && Number(x.atraso_min||0)>30) p.push('<span style="color:#f87171">chegou '+x.atraso_min+' min atrasado: perdeu o almoço e o garantido</span>');
+      if(x.tem_gps===false) p.push('<span style="color:#fbbf24">sem carimbo de GPS: chegada estimada, nada foi cortado</span>');
+      porque = p.join('<br>') || '<span style="color:#4ade80">bate</span>';
     }
     h+='<tr'+((i%2===1)?' class="par"':'')+'>'+
       '<td>'+esc(sigla(x.unidade))+'</td>'+
-      '<td class="nome" data-k="'+esc(x.motoboy)+'"><b>'+esc(x.motoboy)+'</b>'+(x.nome_deles&&x.nome_deles!==x.motoboy?'<br><span style="color:var(--muted);font-size:11px">na planilha: '+esc(x.nome_deles)+'</span>':'')+'</td>'+
+      '<td class="nome" data-k="'+esc(x.motoboy)+'"><b>'+esc(x.motoboy)+'</b>'+
+        ((DELES.maquininha&&DELES.maquininha[chaveDeles(x.unidade,x.motoboy)])?' <span style="color:#f87171;cursor:help" title="cobrança na porta para conferir: '+esc(DELES.maquininha[chaveDeles(x.unidade,x.motoboy)].texto)+'">🧾</span>':'')+
+        (x.nome_deles&&x.nome_deles!==x.motoboy?'<br><span style="color:var(--muted);font-size:11px">na planilha: '+esc(x.nome_deles)+'</span>':'')+'</td>'+
+      '<td data-k="'+esc(x.chegada||'')+'">'+(x.combinado?'<b>'+esc(x.combinado)+'</b> → '+esc(x.chegada||'—')+(x.tem_gps===false?' <span title="sem carimbo de GPS: chegada estimada">⚠️</span>':'')+
+        (x.atraso_min!=null?' <span style="color:'+(Number(x.atraso_min)>30?'#f87171':'var(--muted)')+'">('+(Number(x.atraso_min)>0?'+':'')+x.atraso_min+' min)</span>':'')+
+        (x.ultima?'<div style="color:var(--muted);font-size:11px">última entrega '+esc(x.ultima)+'</div>':'') : tr)+'</td>'+
+      '<td class="grupo">'+(x.refeicoes==null?tr:(Number(x.refeicoes)>0?'<span style="color:#4ade80">sim</span>'+(Number(x.refeicoes)>1?' ('+x.refeicoes+')':'')+(x.prato?'<div style="color:var(--muted);font-size:11px">'+esc(x.prato)+'</div>':''):'<span style="color:#f87171">não</span>'+(Number(x.lanche_cobrado||0)>0?'<div style="color:#f87171;font-size:11px">pagou '+rs(x.lanche_cobrado)+'</div>':'')))+'</td>'+
+      '<td class="grupo money">'+(x.garantido==null?tr:(Number(x.garantido)>0?rs(x.garantido):'<span style="color:#f87171">não</span>'+(Number(x.garantido_calc||0)>0?'<div style="color:var(--muted);font-size:11px">perdeu '+rs(x.garantido_calc)+'</div>':'')))+'</td>'+
       '<td class="money grupo">'+(x.deles_entregas==null?tr:num(x.deles_entregas))+'</td>'+
       '<td class="money grupo">'+(x.deles_pagar==null?tr:rs(x.deles_pagar))+'</td>'+
       '<td class="money">'+(x.nosso_entregas==null?tr:num(x.nosso_entregas))+'</td>'+
@@ -241,7 +267,8 @@ async function viewComparar(){
       '<td class="hs" style="margin:0">'+porque+'</td>'+
       '</tr>';
   });
-  h+='<tr style="border-top:2px solid var(--linha)"><td></td><td><b>TOTAL</b></td>'+
+  h+='<tr style="border-top:2px solid var(--linha)"><td></td><td><b>TOTAL</b></td><td></td>'+
+     '<td class="grupo"><b>'+num(t.refeicoes)+'</b> refeições</td><td></td>'+
      '<td class="money grupo"><b>'+num(t.deles_entregas)+'</b></td><td class="money grupo"><b>'+rs(t.deles)+'</b></td>'+
      '<td class="money"><b>'+num(t.nosso_entregas)+'</b></td><td></td><td class="money"><b>'+rs(t.nosso)+'</b></td>'+
      '<td class="money" style="color:'+cor+'"><b>'+(dif>0?'+':'')+rs(dif)+'</b></td><td></td></tr>';
