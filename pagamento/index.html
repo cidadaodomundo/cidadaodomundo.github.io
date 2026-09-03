@@ -213,40 +213,43 @@ async function viewComparar(){
      '<th>Loja</th><th>Motoboy</th><th>Escala → chegou</th>'+
      '<th class="grupo">Almoço</th><th class="grupo">Garantido</th>'+
      '<th class="money">Entregas deles</th><th class="money">A planilha paga</th>'+
-     '<th class="money">Entregas nossas</th><th class="money">Horas</th><th class="money">A nossa conta</th>'+
+     '<th class="money">Entregas nossas</th><th class="money">Horas rodadas</th><th class="money">A nossa conta</th>'+
      '<th class="money">Diferença</th><th>Por que difere</th></tr>';
   const tr='<span style="color:var(--muted)">—</span>';
   (DELES.linhas||[]).forEach(function(x,i){
     const d=Number(x.dif||0);
+    const vh=Number((DELES&&DELES.valor_hora)||20);
+    const piso=Math.round(Number(x.nosso_horas||0)*vh*100)/100;
+    const hd=(x.deles_pagar==null||!vh)?null:Math.round((Number(x.deles_pagar)/vh)*100)/100;
     const c2 = x.onde!=='nos dois' ? '#fbbf24' : (Math.abs(d)<0.01?'#4ade80':(d<0?'#fbbf24':'#60a5fa'));
     let porque='';
     if(x.onde==='só na planilha deles') porque='<span style="color:#fbbf24">está na planilha e o sistema não viu rodar</span>';
     else if(x.onde==='só no sistema') porque='<span style="color:#fbbf24">rodou pelo sistema e não está na planilha</span>';
     else {
       const p=[];
-      const vh=Number((DELES&&DELES.valor_hora)||20);
-      const piso=Math.round(Number(x.nosso_horas||0)*vh*100)/100;
+      const pt=function(t){return '<div style="margin:2px 0">'+t+'</div>'};
       if(Number(x.deles_entregas||0)!==Number(x.nosso_entregas||0)){
-        let m='<b>entregas:</b> eles contaram '+num(x.deles_entregas)+' e nós '+num(x.nosso_entregas);
-        const ex=[];
-        if(Number(x.pendentes||0)>0) ex.push('<span style="color:#fbbf24">'+x.pendentes+' ainda PENDENTE(S) no TrackEat</span>');
-        if(Number(x.reprovadas||0)>0) ex.push('<span style="color:var(--muted)">'+x.reprovadas+' reprovada(s) por duplicidade, que não pagamos</span>');
-        if(ex.length) m+=' — '+ex.join(' e ');
-        p.push(m);
+        let m='Ele fez <b>'+num(x.nosso_entregas)+'</b> entregas. A planilha contou <b>'+num(x.deles_entregas)+'</b>.';
+        if(Number(x.pendentes||0)>0) m+=' <span style="color:#fbbf24">'+(Number(x.pendentes)===1?'Uma delas o TrackEat ainda não aprovou.':x.pendentes+' delas o TrackEat ainda não aprovou.')+'</span>';
+        if(Number(x.reprovadas||0)>0) m+=' <span style="color:var(--muted)">'+(Number(x.reprovadas)===1?'1 foi marcada como repetida':x.reprovadas+' foram marcadas como repetidas')+' e a gente não paga.</span>';
+        p.push(pt(m));
       } else if(Number(x.pendentes||0)>0 || Number(x.reprovadas||0)>0){
-        const ex=[];
-        if(Number(x.pendentes||0)>0) ex.push('<span style="color:#fbbf24">'+x.pendentes+' entrega(s) ainda PENDENTE(S) no TrackEat</span>');
-        if(Number(x.reprovadas||0)>0) ex.push('<span style="color:var(--muted)">'+x.reprovadas+' reprovada(s) por duplicidade, não pagamos</span>');
-        p.push(ex.join(' · '));
+        let m='As entregas batem ('+num(x.nosso_entregas)+').';
+        if(Number(x.pendentes||0)>0) m+=' <span style="color:#fbbf24">Mas '+(Number(x.pendentes)===1?'1 ainda não foi aprovada':x.pendentes+' ainda não foram aprovadas')+' no TrackEat.</span>';
+        if(Number(x.reprovadas||0)>0) m+=' <span style="color:var(--muted)">'+(Number(x.reprovadas)===1?'1 foi marcada como repetida':x.reprovadas+' foram marcadas como repetidas')+' e a gente não paga.</span>';
+        p.push(pt(m));
+      }
+      if(hd!=null && Math.abs(hd-Number(x.nosso_horas||0))>0.25){
+        p.push(pt('Ele rodou <b>'+hhmm(x.nosso_horas)+'</b> de verdade. A planilha pagou como se ele tivesse rodado <b style="color:#fbbf24">'+hhmm(hd)+'</b>.'));
       }
       if(Math.abs(d)>0.01){
-        p.push('<b>dinheiro:</b> eles pagam '+rs(x.deles_pagar)+' de diária; a casa paga o maior entre as taxas ('+rs(x.taxas)+') e '+num(x.nosso_horas)+'h × '+rs(vh)+' = '+rs(piso)+
-               (Number(x.lanche_cobrado||0)>0 ? ', menos '+rs(x.lanche_cobrado)+' do lanche que ele pegou sem direito' : '')+
-               ' → '+rs(x.nosso_pagar));
+        p.push(pt('Cada hora vale '+rs(vh)+'. '+hhmm(x.nosso_horas)+' dá <b>'+rs(piso)+'</b>. As '+num(x.nosso_entregas)+' entregas renderam <b>'+rs(x.taxas)+'</b> de taxa. A casa paga o maior dos dois: <b>'+rs(Math.max(piso, Number(x.taxas||0)))+'</b>.'));
+        if(Number(x.lanche_cobrado||0)>0) p.push(pt('<span style="color:#f87171">Pegou lanche sem ter direito: menos '+rs(x.lanche_cobrado)+'.</span>'));
+        p.push(pt('Fica <b>'+rs(x.nosso_pagar)+'</b>. A planilha pagou <b>'+rs(x.deles_pagar)+'</b> — <b style="color:'+(d<0?'#fbbf24':'#60a5fa')+'">'+rs(Math.abs(d))+(d<0?' a mais do que devia':' a menos do que devia')+'</b>.'));
       }
-      if(Number(x.refeicoes||0)===0 && Number(x.atraso_min||0)>30) p.push('<span style="color:#f87171">chegou '+x.atraso_min+' min atrasado: perdeu o almoço e o garantido</span>');
-      if(x.tem_gps===false) p.push('<span style="color:#fbbf24">sem carimbo de GPS: chegada estimada, nada foi cortado</span>');
-      porque = p.join('<br>') || '<span style="color:#4ade80">bate</span>';
+      if(Number(x.refeicoes||0)===0 && Number(x.atraso_min||0)>30) p.push(pt('<span style="color:#f87171">Chegou '+x.atraso_min+' minutos depois da hora combinada: por isso perdeu o almoço e o garantido.</span>'));
+      if(x.tem_gps===false) p.push(pt('<span style="color:#fbbf24">O GPS não carimbou a chegada dele, então a hora é estimada e nada foi cortado.</span>'));
+      porque = p.join('') || '<span style="color:#4ade80">As duas contas batem.</span>';
     }
     h+='<tr'+((i%2===1)?' class="par"':'')+'>'+
       '<td>'+esc(sigla(x.unidade))+'</td>'+
@@ -261,7 +264,9 @@ async function viewComparar(){
       '<td class="money grupo">'+(x.deles_entregas==null?tr:num(x.deles_entregas))+'</td>'+
       '<td class="money grupo">'+(x.deles_pagar==null?tr:rs(x.deles_pagar))+'</td>'+
       '<td class="money">'+(x.nosso_entregas==null?tr:num(x.nosso_entregas))+'</td>'+
-      '<td class="money">'+(x.nosso_horas==null?tr:num(x.nosso_horas))+'</td>'+
+      '<td class="money" data-k="'+(x.nosso_horas==null?'':x.nosso_horas)+'">'+
+        (x.nosso_horas==null?tr:'<b>'+hhmm(x.nosso_horas)+'</b>')+
+        (hd!=null?'<div style="color:'+(hd-Number(x.nosso_horas||0)>0.25?'#fbbf24':'var(--muted)')+';font-size:11px">a planilha pagou '+hhmm(hd)+'</div>':'')+'</td>'+
       '<td class="money">'+(x.nosso_pagar==null?tr:rs(x.nosso_pagar))+'</td>'+
       '<td class="money" data-k="'+d+'" style="color:'+c2+'"><b>'+(d>0?'+':'')+rs(d)+'</b></td>'+
       '<td class="hs" style="margin:0">'+porque+'</td>'+
@@ -299,6 +304,11 @@ function mapaDeles(){
   const m={};
   if(DELES&&DELES.linhas)DELES.linhas.forEach(function(x){ if(x.onde!=='só na planilha deles') m[chaveDeles(x.unidade,x.motoboy)]=x; });
   return m;
+}
+function hhmm(h){
+  if(h==null) return '—';
+  const n=Number(h), i=Math.floor(n), m=Math.round((n-i)*60);
+  return i+'h'+(m>0?(m<10?'0':'')+m:'');
 }
 function comparaDeles(l){
   if(!DELES) return '<div class="c"><span style="color:var(--muted)">A planilha dos meninos deste dia ainda não foi lida.</span></div>';
