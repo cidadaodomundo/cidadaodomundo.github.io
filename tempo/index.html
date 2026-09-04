@@ -79,6 +79,28 @@ async function rpc(nome,corpo){
   }catch(e){return null}
 }
 
+function cdmCab(d){
+  var s='';
+  if(d.loja_status==='fechada'){s='<div class="cdmfec">🔴 A LOJA ESTÁ FECHADA no iFood — nada a ajustar agora</div>';}
+  else if(!d.loja_status){var q=Number(d.loja_status_ha_min||0);var qt=q>=2880?(Math.round(q/1440)+' dias'):(q>=120?(Math.round(q/60)+' horas'):(q+' minutos'));s='<div class="cdmsem">⚠️ Não sei dizer se a loja está aberta — esse dado não é lido há '+qt+'</div>';}
+  return '<style>.cdmcab{background:#111;color:#fff;border-radius:12px;padding:12px 16px;margin:0 0 14px}.cdmdia{font-size:20px;font-weight:800;letter-spacing:.3px}.cdmfec{margin-top:8px;background:#c62828;padding:8px 12px;border-radius:8px;font-weight:700}.cdmsem{margin-top:8px;background:#5d4037;padding:8px 12px;border-radius:8px;font-size:13px}.cdmret{margin-top:18px}.cdmret h3{font-size:17px;margin:0 0 10px}.cdmg{border:1px solid #ddd;border-radius:10px;margin-bottom:10px;overflow:hidden}.cdmgn{background:#f3f3f3;padding:8px 12px;font-weight:700;font-size:14px}.cdml{display:flex;gap:10px;align-items:center;padding:8px 12px;border-top:1px solid #eee;font-size:14px}.cdmp{font-weight:700;min-width:56px}.cdme{flex:1;color:#555}.cdmh{color:#888;font-variant-numeric:tabular-nums}.cdmm{font-weight:800;min-width:64px;text-align:right;font-variant-numeric:tabular-nums}.cdmate .cdmm{color:#e65100}.cdmmal{background:#ffebee}.cdmmal .cdmm{color:#c62828}</style><div class="cdmcab"><div class="cdmdia">'+esc(d.agora_dia||d.agora||'')+'</div>'+s+'</div>';
+}
+function cdmRetrato(d){
+  var p=d.pedidos||[];
+  if(!p.length) return '<div class="cdmret"><h3>Ninguém com pedido na mão agora</h3></div>';
+  var por={},ordem=[];
+  p.forEach(function(x){var k=x.entregador?x.entregador:'— ainda sem motoboy';if(!por[k]){por[k]=[];ordem.push(k)}por[k].push(x)});
+  var h='<div class="cdmret"><h3>O que está acontecendo agora — '+p.length+' pedido'+(p.length>1?'s':'')+'</h3>';
+  ordem.forEach(function(k){
+    h+='<div class="cdmg"><div class="cdmgn">'+esc(k)+' · '+por[k].length+'</div>';
+    por[k].forEach(function(x){
+      var c=(x.min>=60)?'cdmmal':((x.min>=45)?'cdmate':'');
+      h+='<div class="cdml '+c+'"><span class="cdmp">'+esc(x.pedido)+'</span><span class="cdme">'+esc(x.etapa)+'</span><span class="cdmh">entrou '+esc(x.entrou)+'</span><span class="cdmm">'+x.min+' min</span></div>';
+    });
+    h+='</div>';
+  });
+  return h+'</div>';
+}
 function pinta(d){
   const prom=Number(d.prometido||0), sug=Number(d.sugerido||0), dif=sug-prom;
   const clima=String(d.clima||'seco'), ppm=d.por_motoboy, lim=Number(d.limite_por_motoboy||5.5);
@@ -146,6 +168,7 @@ let moto='';
 
   h+='<div class="m">Atualizado às '+esc(d.agora)+'. A tela se atualiza sozinha de 3 em 3 minutos. <b>Quando fica vermelha, ela pisca e apita</b> a cada 10 segundos até a situação resolver (o botão no canto pausa o vermelho e o apito por 15 minutos). Na primeira vez, toque uma vez na tela para liberar o som. O iFood dá <b>10 minutos de tolerância</b> em cima do que você promete — por isso os 44 min viram 54 na conta do cliente, e é essa a régua usada aqui. O "prometido" é lido direto na configuração do iFood pelo robô, uma vez por hora — uma mudança feita agora pode levar até 1 hora para aparecer aqui. Só a Água Verde: o Ahú e o São Braz entregam pelo TrackEat e ainda não têm dado aqui.</div>';
 
+  h = cdmCab(d) + h + cdmRetrato(d);
   $('app').innerHTML=h;
   alarme(cls==='vermelho');
 }
