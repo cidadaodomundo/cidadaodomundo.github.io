@@ -108,7 +108,7 @@ tr.m-FERIAS td{background:rgba(112,48,160,.28)}
 <body>
 
 <div class="top">
-  <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>📅 Escala do Mês</h1><div class="sub">Água Verde · escala da semana e dos domingos</div></div></div>
+  <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>📅 Escala do Mês</h1><div class="sub"><span id="subloja"></span> · escala da semana e dos domingos</div><div id="lojas" style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"></div></div></div>
   <div class="rt">
     <span class="rasc">PLANEJAMENTO</span>
   </div>
@@ -120,7 +120,10 @@ const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const H={apikey:KEY,Authorization:'Bearer '+KEY};
 const $=i=>document.getElementById(i);
-const UNIDADE='Água Verde';
+const UNIDADES=['Água Verde','São Braz','Ahú'];
+let UNIDADE=decodeURIComponent(((location.search.match(/[?&]u=([^&]*)/)||[])[1]||'').replace(/\+/g,' '));
+if(UNIDADES.indexOf(UNIDADE)<0)UNIDADE='Água Verde';
+function trocaLoja(u){location.search='?u='+encodeURIComponent(u)}
 const DIAS=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const dBR=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'—';
@@ -591,5 +594,16 @@ async function cdmGuarda(){
 cdmGuarda().then(function(ok){if(ok)abreSemana()});
 </script>
 <script src="/assets/portal.js?v=3"></script>
+<script>
+(function(){
+  var s=document.getElementById('subloja'); if(s)s.textContent=UNIDADE;
+  var box=document.getElementById('lojas'); if(!box)return;
+  box.innerHTML=UNIDADES.map(function(u){
+    var on = (u===UNIDADE);
+    return '<button type="button" onclick="trocaLoja(\'' + u.replace(/'/g,"\\'") + '\')" style="cursor:pointer;border-radius:16px;padding:5px 14px;font-size:12.5px;font-weight:700;border:1px solid '
+      + (on?'#e6007e':'#2a2a2a') + ';background:' + (on?'#2a0f1f':'transparent') + ';color:' + (on?'#fff':'#9aa4b2') + '">' + u + '</button>';
+  }).join('');
+})();
+</script>
 </body>
 </html>
