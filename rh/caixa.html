@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caixa de entrada do RH · Cidadão do Mundo</title>
+<style>
+:root{--brand:#e6007e;--bg:#0b0e14;--surface:#141922;--surface2:#1b2230;--line:#242d3d;--text:#e8edf4;--muted:#8b95a5;
+--ok:#37b46c;--warn:#e8833a;--dang:#e05252;--adv:#c0392b;--atest:#8e6bc9;--folga:#3aa6a0;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Roboto,sans-serif;padding:18px;max-width:1100px;margin:0 auto;font-size:14px}
+header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding-bottom:14px;border-bottom:2px solid var(--brand);margin-bottom:14px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,var(--brand),#8b1a5e);display:grid;place-items:center;font-weight:800;font-size:15px;color:#fff}
+h1{font-size:17px;font-weight:800}
+.sub{color:var(--muted);font-size:12px;margin-top:2px}
+.btn{background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 14px;font-size:12.5px;cursor:pointer;font-weight:600}
+.btn:hover{border-color:var(--brand)}
+.abas{display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:4px;width:max-content;margin-bottom:14px;flex-wrap:wrap}
+.aba{border:none;background:none;color:var(--muted);font-weight:700;font-size:13px;padding:8px 16px;border-radius:8px;cursor:pointer}
+.aba.on{background:var(--brand);color:#fff}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;border-left:4px solid var(--cc,var(--line))}
+.chead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.tag{border-radius:7px;padding:4px 10px;font-size:10.5px;font-weight:800;color:#fff;background:var(--cc);white-space:nowrap}
+.nome{font-weight:700;font-size:14.5px}
+.linha{font-size:12.5px;color:#b6c2d4;margin-top:3px}
+.det{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.5}
+.acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.aprovar{background:#123a24;border-color:#1e6b40;color:#7fe0a8}
+.aprovar:hover{border-color:var(--ok)}
+.recusar{background:#3a1418;border-color:#6b1e26;color:#f0a0a0}
+.recusar:hover{border-color:var(--dang)}
+.doc{color:#7fb3f0;font-size:12px;text-decoration:none}
+.doc:hover{text-decoration:underline}
+select,input{background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:7px 10px;font-size:12.5px;outline:none;max-width:100%}
+select:focus,input:focus{border-color:var(--brand)}
+.vazio{text-align:center;color:var(--muted);padding:50px 16px;line-height:1.6}
+.aviso{background:#2a1e14;border:1px solid #4a2c18;color:var(--warn);border-radius:10px;padding:10px 14px;font-size:12.5px;margin-bottom:14px}
+.gate{position:fixed;inset:0;background:var(--bg);z-index:100;display:none;align-items:center;justify-content:center}
+.gate.on{display:flex}
+.gatebox{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:32px;width:340px;text-align:center}
+.gatebox input{width:100%;margin:14px 0 10px;text-align:center;font-size:14px;padding:11px 14px}
+.gatebox button{width:100%;background:var(--brand);border:none;color:#fff;border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer}
+.gerr{color:#f85149;font-size:12px;min-height:16px;margin-top:8px}
+.cont{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.pill{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 13px;font-size:12px;color:var(--muted)}
+.pill b{color:var(--text)}
+</style></head><body>
+
+<div class="gate" id="gate"><div class="gatebox">
+  <div class="logo" style="margin:0 auto 12px">CM</div>
+  <h1>Caixa de entrada do RH</h1>
+  <div class="sub">Digite a senha do escritório</div>
+  <input type="password" id="gpw" placeholder="Senha" onkeydown="if(event.key==='Enter')entrar()">
+  <button onclick="entrar()">Entrar</button>
+  <div class="gerr" id="gerr"></div>
+</div></div>
+
+<header>
+  <div class="brand"><div class="logo">CM</div>
+    <div><h1>📥 Caixa de entrada do RH</h1><div class="sub" id="sub">carregando…</div></div>
+  </div>
+  <div><button class="btn" onclick="carregar()">↻ Atualizar</button></div>
+</header>
+
+<div class="aviso">Aqui chega o que os robôs acharam e <b>ainda não virou registro</b>. Nada entra na ficha de ninguém sem alguém clicar em Aprovar. O nome de quem aprovou fica gravado.</div>
+
+<div class="cont" id="cont"></div>
+
+<div class="abas">
+  <button class="aba on" id="a_novo" onclick="verAba('novo')">📥 Esperando você</button>
+  <button class="aba" id="a_aprovado" onclick="verAba('aprovado')">✅ Aprovados</button>
+  <button class="aba" id="a_recusado" onclick="verAba('recusado')">🗑 Recusados</button>
+</div>
+
+<div id="lista"><div class="vazio">Carregando…</div></div>
+
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const H={apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'};
+const COR={ADVERTENCIA:'var(--adv)',SUSPENSAO:'var(--dang)',ATESTADO:'var(--atest)',DECLARACAO:'#4a90d9',FALTA:'var(--dang)',FERIAS:'var(--folga)',BATIDA:'var(--warn)',PARA_O_FLASH:'#6b7686'};
+const ROT={ADVERTENCIA:'📄 ADVERTÊNCIA',SUSPENSAO:'⛔ SUSPENSÃO',ATESTADO:'🩺 ATESTADO',DECLARACAO:'🕐 DECLARAÇÃO',FALTA:'🚫 FALTA A CONFIRMAR',FERIAS:'🏖 FÉRIAS',BATIDA:'⏱ BATIDA',PARA_O_FLASH:'📤 LANÇAR NO FLASH'};
+let CRED=null, ABA='novo', GENTE=[];
+const $=id=>document.getElementById(id);
+const br=d=>d?String(d).slice(0,10).split('-').reverse().join('/'):'—';
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function tok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function pw(){try{return sessionStorage.getItem('cdm_rh_pw')||''}catch(e){return ''}}
+function quem(){try{return sessionStorage.getItem('cdm_nome')||sessionStorage.getItem('cdm_usuario')||'portal'}catch(e){return 'portal'}}
+
+async function porta(acao,dados){
+  const cands = CRED ? [CRED] : [tok(),pw()].filter(function(x){return !!x});
+  for(let i=0;i<cands.length;i++){
+    try{
+      const d=Object.assign({quem:quem()},dados||{});
+      const r=await fetch(SB+'rpc/rh_caixa_porta',{method:'POST',headers:H,
+        body:JSON.stringify({p_senha:cands[i],p_acao:acao,p_dados:d})});
+      const j=await r.json().catch(function(){return null});
+      if(r.ok){CRED=cands[i];return j}
+    }catch(e){}
+  }
+  $('gate').classList.add('on');
+  return null;
+}
+async function entrar(){
+  const v=$('gpw').value;
+  try{sessionStorage.setItem('cdm_rh_pw',v)}catch(e){}
+  CRED=v;
+  const r=await porta('contagem',{});
+  if(r){$('gate').classList.remove('on');$('gerr').textContent='';carregar();}
+  else{CRED=null;$('gerr').textContent='Senha incorreta.';}
+}
+function verAba(a){
+  ABA=a;
+  ['novo','aprovado','recusado'].forEach(function(x){$('a_'+x).classList.toggle('on',x===a)});
+  carregar();
+}
+async function carregar(){
+  $('lista').innerHTML='<div class="vazio">Carregando…</div>';
+  const c=await porta('contagem',{});
+  if(c) $('cont').innerHTML='<span class="pill">Esperando você: <b>'+(c.novo||0)+'</b></span>'
+      +'<span class="pill">Aprovados: <b>'+(c.aprovado||0)+'</b></span>'
+      +'<span class="pill">Recusados: <b>'+(c.recusado||0)+'</b></span>';
+  if(!GENTE.length){const g=await porta('sugerir_nomes',{});if(Array.isArray(g))GENTE=g;}
+  const l=await porta('listar',{situacao:ABA});
+  $('sub').textContent='atualizado '+new Date().toLocaleTimeString('pt-BR');
+  if(!Array.isArray(l)||!l.length){
+    $('lista').innerHTML='<div class="vazio">'+(ABA==='novo'
+      ?'Nada esperando você. 👏<br>Quando um robô achar advertência, atestado ou batida para arrumar, aparece aqui.'
+      :'Nada aqui ainda.')+'</div>';
+    return;
+  }
+  $('lista').innerHTML=l.map(linha).join('');
+}
+function opcoes(sel){
+  return '<option value="">— escolher a pessoa —</option>'+GENTE.map(function(g){
+    const s=(g.nome===sel)?' selected':'';
+    return '<option value="'+g.nome.replace(/"/g,'&quot;')+'"'+s+'>'+g.nome+' · '+g.unidade+'</option>';
+  }).join('');
+}
+function linha(r){
+  const cor=COR[r.tipo]||'var(--line)';
+  const per=(r.data_fim&&r.data_fim!==r.data)?(br(r.data)+' a '+br(r.data_fim)):br(r.data);
+  const hora=(r.hora_ini?(' · '+String(r.hora_ini).slice(0,5)+(r.hora_fim?' às '+String(r.hora_fim).slice(0,5):'')):'');
+  const doc=r.documento_url?'<a class="doc" href="'+esc(r.documento_url)+'" target="_blank" rel="noopener">📎 abrir o documento</a>':'';
+  let acoes='';
+  if(r.situacao==='novo'){
+    acoes='<div class="acoes">'
+      +'<select id="n'+r.id+'" onchange="trocaNome('+r.id+')">'+opcoes(r.nome_oficial)+'</select>'
+      +'<button class="btn aprovar" onclick="decidir('+r.id+',1)">✓ Aprovar</button>'
+      +'<button class="btn recusar" onclick="decidir('+r.id+',0)">✕ Não é isso</button>'
+      +doc+'</div>';
+  }else{
+    acoes='<div class="acoes"><span class="det">'+(r.situacao==='aprovado'?'✅ aprovado':'🗑 recusado')
+      +' por '+(r.decidido_por||'—')+' em '+br(r.decidido_em)+(r.observacao?' · '+r.observacao:'')+'</span>'+doc+'</div>';
+  }
+  return '<div class="card" style="--cc:'+cor+'">'
+    +'<div class="chead"><div>'
+      +'<div class="nome">'+esc(r.nome_oficial||r.nome_lido)+'</div>'
+      +'<div class="linha">'+per+hora+' · '+(r.unidade||'loja não definida')+(r.motivo?' · '+esc(r.motivo):'')+'</div>'
+    +'</div><span class="tag">'+(ROT[r.tipo]||r.tipo)+'</span></div>'
+    +(r.nome_oficial&&r.nome_oficial!==r.nome_lido?'<div class="det">o robô leu <b>'+esc(r.nome_lido)+'</b> e casou com o cadastro</div>':'')
+    +(r.detalhe?'<div class="det">'+esc(r.detalhe)+'</div>':'')
+    +'<div class="det">veio de: '+(r.fonte||'—')+'</div>'
+    +acoes+'</div>';
+}
+async function trocaNome(id){
+  const sel=$('n'+id); if(!sel)return;
+  const g=GENTE.filter(function(x){return x.nome===sel.value})[0];
+  await porta('nome',{id:id,nome_oficial:sel.value,unidade:g?g.unidade:''});
+}
+async function decidir(id,ok){
+  const sel=$('n'+id);
+  if(ok&&sel&&!sel.value){alert('Escolha a pessoa antes de aprovar.');return}
+  if(ok&&sel&&sel.value){await trocaNome(id)}
+  const obs=ok?null:prompt('Por que não é isso? (opcional)');
+  const r=await porta(ok?'aprovar':'recusar',{id:id,observacao:obs||''});
+  if(r&&r.ok===false){alert(r.erro||'não deu certo');return}
+  carregar();
+}
+carregar();
+</script><script src="/assets/portal.js?v=3"></script>
+</body></html>
