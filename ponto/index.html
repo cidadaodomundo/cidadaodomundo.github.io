@@ -237,7 +237,7 @@ function gateTry(){
   loadAll();
 }
 /* senha do escritório — guardada só na sessão, nunca no HTML */
-const RH_DE='2000-01-01',RH_ATE='2099-12-31';
+const EV_DE='2000-01-01',ESP_DE=new Date(Date.now()-90*864e5).toISOString().slice(0,10),RH_DE=EV_DE,RH_ATE='2099-12-31';
 let RH_SEM_SENHA=false;
 /* o token da sessao vale como credencial; a senha antiga do escritorio continua
    valendo como reserva ate o rh_consulta passar a aceitar o token (portal_cred_ok). */
@@ -295,10 +295,10 @@ async function loadAll(){
   try{
     let ESP=[];
     [ALL,MEN,EVT,ESP,OCCAT]=await Promise.all([
-      fetch(SB+'fato_espelho_dia?ativo=eq.true&select=id,funcionario_id,nome,unidade,data,ano,semana,dia_semana,entrada,saida,saida_dia_seguinte,n_marcacoes,intervalo_real_min,jornada_liquida_min,jornada_contratada_min,extra_min,categoria,tag,nivel,importado_em,ativo&order=data.asc',{headers:H}).then(r=>r.json()),
+      fetch(SB+'fato_espelho_dia?ativo=eq.true&select=id,funcionario_id,nome,unidade,data,ano,semana,dia_semana,entrada,saida,saida_dia_seguinte,n_marcacoes,intervalo_real_min,jornada_liquida_min,jornada_contratada_min,extra_min,categoria,tag,nivel,importado_em,ativo&data=gte.'+ESP_DE+'&order=data.asc',{headers:H}).then(r=>r.json()),
       fetch(SB+'fato_ponto_mensal?ativo=eq.true&select=id,fonte,nome,empresa,unidade,ano,mes,dias_trabalhados,total_marcacoes,esquecimentos,horas_liquidas_min,importado_em,ativo&order=ano.asc,mes.asc',{headers:H}).then(r=>r.json()),
       rhRPC('eventos',{de:RH_DE,ate:RH_ATE}),
-      rhRPC('espelho',{de:RH_DE,ate:RH_ATE}),
+      rhRPC('espelho',{de:ESP_DE,ate:RH_ATE}),
       rhRPC('categorias',{})
     ]);
     if(!Array.isArray(ALL))ALL=[];if(!Array.isArray(MEN))MEN=[];if(!Array.isArray(EVT))EVT=[];if(!Array.isArray(OCCAT))OCCAT=[];
