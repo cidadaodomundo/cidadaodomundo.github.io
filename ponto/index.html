@@ -163,6 +163,7 @@ h1{font-size:17px;font-weight:800}
   <button class="view active" id="vday" onclick="setView('day')">📅 Dia a dia</button>
   <button class="view" id="vtipo" onclick="setView('tipo')">🔎 Consulta por tipo</button>
   <button class="view" id="vguia" onclick="setView('guia')">📖 Guia RH — o que fazer</button>
+  <button class="view" id="varq" onclick="setView('arq')">🗄 Já saíram</button>
   <a class="view" href="../rh/escala.html?loja=%C3%81gua%20Verde" style="text-decoration:none">📋 Escala do dia</a>
   <a class="view" href="../rh/equipe.html" style="text-decoration:none">👥 Equipe por setor</a>
   <a class="view" href="../rh/manual.html" style="text-decoration:none">📕 Manual & Regras</a>
@@ -312,10 +313,10 @@ async function loadAll(){
   }catch(e){$('content').innerHTML='<div class="err">Erro: '+e.message+'</div>'}
 }
 function setView(v){VIEW=v;FILT=null;
-  ['vday','vtipo','vguia'].forEach(id=>$(id).classList.remove('active'));
-  $(v==='day'?'vday':v==='tipo'?'vtipo':'vguia').classList.add('active');
+  ['vday','vtipo','vguia','varq'].forEach(id=>$(id).classList.remove('active'));
+  $(v==='day'?'vday':v==='tipo'?'vtipo':v==='arq'?'varq':'vguia').classList.add('active');
   $('datenav').style.display=v==='day'?'flex':'none';
-  $('toolbar').style.display=v==='guia'?'none':'flex';
+  $('toolbar').style.display=(v==='guia'||v==='arq')?'none':'flex';
   $('octipos').style.display=v==='tipo'?'flex':'none';
   $('ocfil').style.display=v==='tipo'?'flex':'none';
   render();}
@@ -353,7 +354,93 @@ function stats(nome){
   s.faltasTot=s.faltas+s.faltasEv;
   s.unidade=unitOf(nome); s.ativo=isActive(nome);
   return s;}
-function render(){ VIEW==='day'?renderDay():VIEW==='tipo'?renderTipo():renderGuia() }
+function render(){ VIEW==='day'?renderDay():VIEW==='tipo'?renderTipo():VIEW==='arq'?renderArq():renderGuia() }
+/* ---------- 🗄 Ja sairam: o arquivo de quem passou pela casa ---------- */
+const MES3=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+const mesTxt=v=>MES3[v%12]+'/'+String(Math.floor(v/12)).slice(2);
+const escAt=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+function abreFicha(el){openModal(el.getAttribute('data-n'))}
+var ACC='ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', SEM='AAAAAEEEEIIIIOOOOOUUUUC';
+function normN(s){var t=String(s==null?'':s).toUpperCase(), r='';
+  for(var i=0;i<t.length;i++){var k=ACC.indexOf(t.charAt(i)); r+=(k>=0?SEM.charAt(k):t.charAt(i))}
+  r=r.replace(/\([^)]*\)/g,' ').replace(/[^A-Z ]/g,' ').replace(/\s+/g,' ').trim();
+  return r.split(' ').filter(function(w){return w.length>1}).join(' ')}
+function contem(a,b){ /* todas as palavras de b estao em a */
+  const pa=a.split(' ');return b.split(' ').every(function(w){return pa.indexOf(w)>=0})}
+let ATIVOS=null;
+async function carregaAtivos(){
+  if(ATIVOS&&ATIVOS.length)return ATIVOS;
+  const cands=RH_CRED?[RH_CRED]:[rhTok(),rhPw()].filter(function(x){return !!x});
+  for(let i=0;i<cands.length;i++){
+    try{
+      const r=await fetch(SB+'rpc/rh_caixa_porta',{method:'POST',
+        headers:Object.assign({'Content-Type':'application/json'},H),
+        body:JSON.stringify({p_senha:cands[i],p_acao:'sugerir_nomes',p_dados:{}})});
+      const j=await r.json().catch(function(){return null});
+      if(r.ok&&Array.isArray(j)&&j.length){ATIVOS=j;return ATIVOS}
+    }catch(e){}
+  }
+  return null;
+}
+function periodoDe(nome){
+  const cd=function(d){const p=String(d).slice(0,10).split('-');return (+p[0])*12+(+p[1]-1)};
+  let ini=null,fim=null;
+  const junta=function(v){if(v==null||isNaN(v))return;if(ini===null||v<ini)ini=v;if(fim===null||v>fim)fim=v};
+  MEN.filter(function(r){return r.nome===nome}).forEach(function(r){junta(r.ano*12+(r.mes-1))});
+  EVT.filter(function(r){return r.nome===nome}).forEach(function(r){junta(cd(r.data));if(r.data_fim)junta(cd(r.data_fim))});
+  ALL.filter(function(r){return r.nome===nome}).forEach(function(r){junta(cd(r.data))});
+  if(ini===null)return null;
+  return {ini:ini,fim:fim,meses:(fim-ini)+1};
+}
+function cartaoArq(x,duvida){
+  const p=x.p, per=x.per;
+  const uni=(p.unidade&&p.unidade!=='—')?p.unidade:'loja não registrada';
+  const anos=Math.floor(per.meses/12), resto=per.meses%12;
+  const tempo=per.meses>=12
+    ? (anos+' ano'+(anos>1?'s':'')+(resto?' e '+resto+(resto>1?' meses':' mês'):''))
+    : (per.meses+(per.meses===1?' mês':' meses'));
+  const marcas=[['📄',p.adv,'advertência','advertências','var(--adv)'],
+                ['⛔',p.faltasEv,'ocorrência de falta','ocorrências de falta','var(--serio)'],
+                ['🩺',p.atest,'atestado','atestados','var(--atest)'],
+                ['🕐',p.esq2y,'batida esquecida','batidas esquecidas','var(--infra)']]
+    .filter(function(m){return m[1]>0})
+    .map(function(m){return '<span class="flag" style="color:'+m[4]+'">'+m[0]+' '+m[1]+' '+(m[1]===1?m[2]:m[3])+'</span>'}).join('');
+  return '<div class="card" style="--cc:'+(duvida?'var(--infra)':'var(--conf)')+'" data-n="'+escAt(x.nome)+'" onclick="abreFicha(this)">'
+    +'<div class="chead"><div><div class="cname">'+title(x.nome)+'</div>'
+    +'<div class="cunit">'+uni+'</div></div>'
+    +'<span class="badge" style="background:'+(duvida?'var(--infra)':'var(--conf)')+'">'+mesTxt(per.ini)+' → '+mesTxt(per.fim)+'</span></div>'
+    +(duvida?'<div class="det">▸ nome incompleto no registro antigo. Parece ser alguém da casa hoje, então NÃO tratei como quem saiu.</div>':'')
+    +'<div class="jr">passou '+tempo+' pela casa · '+(p.meses?(p.meses+' meses com folha registrada'):'sem folha registrada')+'</div>'
+    +(marcas||'<span class="flag" style="color:var(--sem)">sem ocorrência registrada</span>')
+    +'</div>';
+}
+async function renderArq(){
+  $('kpis').innerHTML='';$('units').innerHTML='';
+  $('content').innerHTML='<div class="loading">Carregando…</div>';
+  const at=await carregaAtivos();
+  if(!at){$('content').innerHTML='<div class="err">Não consegui conferir quem ainda está na casa. Sem essa conferência eu não mostro a lista, para não chamar de ex-funcionário quem trabalha aqui.</div>';return}
+  const vivos=at.map(function(a){return normN(a.nome)}).filter(function(s){return s});
+  const fora=[],duvida=[];
+  allNames().forEach(function(n){
+    const per=periodoDe(n); if(!per)return;
+    const nn=normN(n); if(!nn)return;
+    if(vivos.indexOf(nn)>=0)return;
+    const parecido=vivos.some(function(v){return contem(v,nn)||contem(nn,v)});
+    (parecido?duvida:fora).push({nome:n,p:stats(n),per:per});
+  });
+  const ord=function(a,b){return (b.per.fim-a.per.fim)||a.nome.localeCompare(b.nome)};
+  fora.sort(ord); duvida.sort(ord);
+  $('content').innerHTML='<div class="rkexpl">🗄 <b>Arquivo de quem já passou pela casa.</b> '+fora.length+' pessoas. '
+    +'Serve para consulta, não para cobrança: quem saiu, saiu. O período é o primeiro e o último registro que existe no sistema, '
+    +'não a data de admissão e de saída do contrato. Clique em alguém para abrir a ficha inteira.<br>'
+    +'⚠️ Parte destes registros é antiga e não guarda a loja: nesses casos aparece "loja não registrada".</div>'
+    +(fora.length?'<div class="grid">'+fora.map(function(x){return cartaoArq(x,false)}).join('')+'</div>'
+                 :'<div class="empty">Ninguém no arquivo ainda.</div>')
+    +(duvida.length?('<div class="rksec">🔎 Não consegui identificar ('+duvida.length+')</div>'
+       +'<div class="rkexpl">Registros antigos com o nome pela metade, que combinam com alguém que trabalha aqui hoje. '
+       +'Por segurança eu <b>não</b> chamo essas pessoas de ex-funcionárias.</div>'
+       +'<div class="grid">'+duvida.map(function(x){return cartaoArq(x,true)}).join('')+'</div>'):'');
+}
 function renderDay(){
   const rows=dayRows();
   $('curday').textContent=br(DAYS[DI])+' ('+(rows[0]?.dia_semana||'').replace('-feira','')+')';
