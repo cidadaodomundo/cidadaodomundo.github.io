@@ -18,6 +18,9 @@ h1{font-size:22px;font-weight:800}
 button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
 button.b.on{background:var(--brand);border-color:var(--brand);color:#fff}
 .abas{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.dianav{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px;background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:9px 12px}
+.dianav input[type=date]{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:7px 10px;font-size:13px;font-family:inherit}
+.dianav .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:700;margin-right:2px}
 .res{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
 .k{background:var(--s1);border:1px solid var(--line);border-left:4px solid var(--cc,var(--neutro));border-radius:12px;padding:11px 14px;min-width:170px}
 .k .n{font-size:22px;font-weight:800;line-height:1.1}
@@ -46,10 +49,19 @@ td.n{text-align:right;white-space:nowrap}
     <div class="sub">Entrega paga na porta sem dinheiro correspondente. <b>Informação, não acusação</b> — só vai ao grupo o caso já conferido em todas as fontes.</div>
   </div>
   <div class="rt">
+    <button class="b on" id="d7">Semana</button>
     <button class="b" id="d15">15 dias</button>
-    <button class="b on" id="d30">30 dias</button>
-    <button class="b" id="d60">60 dias</button>
+    <button class="b" id="d30">30 dias</button>
   </div>
+</div>
+
+<div class="dianav">
+  <span class="lbl">Um dia só</span>
+  <button class="b" id="diaAnt">◀ dia anterior</button>
+  <input type="date" id="diaSel">
+  <button class="b" id="diaProx">dia seguinte ▶</button>
+  <button class="b" id="diaLimpa">ver o período todo</button>
+  <span class="mot" id="diaTxt"></span>
 </div>
 
 <div class="abas">
@@ -71,7 +83,7 @@ const $=i=>document.getElementById(i);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const dinheiro=v=>'R$ '+Number(v||0).toFixed(2).replace('.',',');
 
-var DIAS=30, ABA='fila', D=null;
+var DIAS=7, DIA=null, ABA='fila', D=null;
 
 const CORRES={'cobrado':'var(--ok)','dinheiro':'var(--ok)','balcao':'var(--neutro)','canhoto':'var(--warn)','nao cobrou':'var(--bad)'};
 
@@ -80,7 +92,7 @@ function tok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){retur
 async function porta(){
   const r=await fetch(SB+'rpc/cobranca_consulta',{method:'POST',
     headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
-    body:JSON.stringify({p_token:tok(),p_dados:{dias:DIAS}})});
+    body:JSON.stringify({p_token:tok(),p_dados:(DIA?{dia:DIA}:{dias:DIAS})})});
   if(!r.ok)throw new Error('nao consegui ler a cobranca na porta ('+r.status+')');
   return await r.json();
 }
@@ -121,7 +133,7 @@ function linhaBase(r){
 
 function pintaFila(){
   var l=D.fila||[];
-  if(!l.length)return '<div class="vazio">Nenhuma entrega esperando resposta nos ultimos '+DIAS+' dias.</div>';
+  if(!l.length)return '<div class="vazio">Nenhuma entrega esperando resposta '+periodoTxt()+'.</div>';
   var h='<div class="wrap"><table><thead><tr><th>Dia</th><th>Pedido</th><th>Entregador</th><th>Meio</th><th>Cliente</th><th>Hora</th><th class="n">Valor</th><th>Situação · onde já procuramos</th></tr></thead><tbody>';
   l.forEach(function(r){
     var sel=r.avisado?'<span class="pill" style="background:var(--info)">avisado '+esc(r.avisado)+'</span>'
@@ -192,13 +204,42 @@ function rodape(){
   if(!D)return;
   $('rodape').innerHTML='<b>Como isto funciona.</b> Todo dia as 9h20 a varredura roda sozinha e procura o dinheiro de cada entrega paga na porta, nestas fontes: iFood, maquininha da Rede, Pix e extrato, cofre, Saipos e GPS. As etiquetas cinza em cada linha mostram onde ja se procurou naquele caso. Depois disso, o aviso vai ao grupo do delivery — e so vai caso ja conferido; caso apenas detectado nunca vai.'
    +'<br><b>O que esta tela ainda nao enxerga:</b> a resposta que o pessoal escreve no grupo do WhatsApp nao volta para ca sozinha. Quando alguem explica um caso, a conferencia precisa ser refeita para o resultado mudar aqui. A explicacao por extenso de cada conferencia tambem nao aparece: ela fica guardada, mas contem nome e endereco de cliente, e por isso nao vai para tela.'
-   +'<br>Periodo: ultimos '+DIAS+' dias, desde '+esc(D.de_texto)+'. Lido em '+esc(D.agora)+'.';
+   +'<br>Mostrando '+periodoTxt()+'. Lido em '+esc(D.agora)+'.';
+}
+
+function periodoTxt(){
+  if(!D)return '';
+  if(D.dia_texto)return 'o dia '+esc(D.dia_texto);
+  return 'de '+esc(D.de_texto)+' a '+esc(D.ate_texto)+' ('+D.dias+' dias)';
+}
+function diaBase(){
+  if(DIA)return DIA;
+  if(D&&D.hoje)return D.hoje;
+  return new Date(Date.now()-3*36e5).toISOString().slice(0,10);
+}
+function pulaDia(n){
+  var d=new Date(diaBase()+'T12:00:00');
+  d.setDate(d.getDate()+n);
+  var novo=d.toISOString().slice(0,10);
+  var hoje=(D&&D.hoje)?D.hoje:novo;
+  if(novo>hoje)novo=hoje;
+  DIA=novo; $('diaSel').value=novo;
+  pintaBotoes(); carrega();
+}
+function pintaBotoes(){
+  ['d7','d15','d30'].forEach(function(o){
+    var lig=(!DIA)&&((o==='d7'&&DIAS===7)||(o==='d15'&&DIAS===15)||(o==='d30'&&DIAS===30));
+    $(o).className='b'+(lig?' on':'');
+  });
+  $('diaTxt').textContent = DIA ? 'mostrando um dia só' : '';
 }
 
 async function carrega(){
   $('app').innerHTML='<div class="load">Carregando…</div>';
   try{
     D=await porta();
+    if(D&&D.dia&&!$('diaSel').value)$('diaSel').value=D.dia;
+    if(D&&D.hoje)$('diaSel').max=D.hoje;
     pintaResumo();pinta();rodape();
   }catch(e){
     $('app').innerHTML='<div class="vazio">'+esc(e.message)+'</div>';
@@ -206,13 +247,17 @@ async function carrega(){
 }
 
 function boot(){
-  [['d15',15],['d30',30],['d60',60]].forEach(function(p){
+  [['d7',7],['d15',15],['d30',30]].forEach(function(p){
     $(p[0]).onclick=function(){
-      DIAS=p[1];
-      ['d15','d30','d60'].forEach(function(o){$(o).className='b'+(o===p[0]?' on':'')});
+      DIAS=p[1]; DIA=null; $('diaSel').value='';
+      pintaBotoes();
       carrega();
     };
   });
+  $('diaAnt').onclick=function(){pulaDia(-1)};
+  $('diaProx').onclick=function(){pulaDia(1)};
+  $('diaSel').onchange=function(){DIA=this.value||null;pintaBotoes();carrega()};
+  $('diaLimpa').onclick=function(){DIA=null;$('diaSel').value='';pintaBotoes();carrega()};
   var abas=[['abaFila','fila'],['abaConf','conf'],['abaAvi','avi'],['abaArq','arq']];
   abas.forEach(function(p){
     $(p[0]).onclick=function(){
