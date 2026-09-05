@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Mapa do Sistema · Cidadão do Mundo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#E0A81C;--brand-ink:#111110;--ok:#2fae6a;--bad:#e66767}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1100px;margin:0 auto}
+h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.01em;line-height:1.06;font-size:24px}
+.sub{color:var(--muted);font-size:12.5px;margin-top:3px}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:16px}
+.top .rt{margin-left:auto;display:flex;gap:8px;align-items:center}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+button.b:hover{border-color:var(--brand)}
+h2{font-family:'Anton',Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:16px;margin:20px 0 10px;letter-spacing:.02em}
+.dica{background:var(--s1);border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:0 10px 10px 0;padding:10px 13px;font-size:13.5px;color:var(--text2);margin-bottom:14px;line-height:1.5}
+.fluxo{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:start}
+.col{min-width:0}
+.colt{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px}
+.n{background:var(--s1);border:1px solid var(--line);border-radius:11px;padding:8px 11px;margin-bottom:7px;font-size:13.5px;font-weight:600;cursor:pointer;transition:border-color .12s,background .12s;line-height:1.25}
+.n:hover{border-color:var(--brand)}
+.n small{display:block;color:var(--muted);font-size:11.5px;font-weight:500;margin-top:2px}
+.n.on{border-color:var(--brand);background:#2a2413}
+.n.off{opacity:.32}
+.n.fora{border-style:dashed}
+.grupo{font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 5px;text-transform:uppercase;letter-spacing:.05em}
+.detalhe{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin:14px 0}
+.detalhe h3{font-size:16px;font-weight:800;margin-bottom:6px}
+.linha{font-size:13.5px;color:var(--text2);margin-top:7px;line-height:1.5}
+.linha b{color:var(--text)}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;background:var(--s2);color:var(--text2);margin:0 6px 6px 0}
+table{border-collapse:collapse;width:100%;font-size:13px;margin-top:6px}
+th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
+th{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;font-weight:700}
+.aviso{color:var(--muted);font-size:12px;margin:20px 0 30px;line-height:1.5}
+@media (max-width:900px){.fluxo{grid-template-columns:1fr}.colt{margin-top:10px}}
+@media (max-width:640px){body{padding-left:12px;padding-right:12px}table{display:block;width:max-content;max-width:100%;overflow-x:auto}h1{font-size:clamp(18px,6.2vw,26px);word-break:break-word}}
+</style>
+</head>
+<body>
+<div class="top">
+  <div><h1>🗺 Mapa do Sistema</h1><div class="sub">o que cada tela faz e quem alimenta ela — clique em qualquer caixa</div></div>
+  <div class="rt"><button class="b" onclick="limpa()">↺ Limpar seleção</button></div>
+</div>
+
+<div class="dica">O dado <b>nasce fora de casa</b> (iFood, Saipos, Foody, TrackEat, Rede, Organizze, Flash, WhatsApp). Um <b>robô</b> vai buscar de tempos em tempos e guarda no <b>banco</b>. A <b>tela</b> só mostra o que já está guardado — ela nunca vai buscar sozinha. 🔴 Por isso, quando um robô para, a tela fica velha <b>em silêncio</b>.</div>
+
+<div class="fluxo">
+  <div class="col"><div class="colt">1 · de onde nasce</div><div id="fontes"></div></div>
+  <div class="col"><div class="colt">2 · quem vai buscar</div><div id="robos"></div></div>
+  <div class="col"><div class="colt">3 · o que você vê</div><div id="telas"></div></div>
+</div>
+
+<div id="detalhe"></div>
+
+<h2>Tela por tela</h2>
+<div id="tabela"></div>
+
+<div class="aviso">Tela só sua. Feita em 05/09/2026. Caixa <b>tracejada</b> = tela hoje fora do menu. Caixa <b>apagada</b> = não tem ligação com o que você clicou.</div>
+
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+const FONTES=[
+ ['ifood','iFood','pedido, nota, cancelamento e quanto cobrar'],
+ ['saipos','Saipos','venda, comanda e forma de pagamento'],
+ ['foody','Foody','entrega da Água Verde e posição da moto'],
+ ['trackeat','TrackEat','entrega de São Braz e Ahú, e o GPS'],
+ ['rede','Rede · maquininha','o que passou no cartão'],
+ ['organizze','Organizze','extrato do banco'],
+ ['flash','Flash','ponto, atestado e cadastro'],
+ ['whatsapp','WhatsApp dos grupos','recado, atestado e a escala do Jaison'],
+ ['epadoca','Epadoca','pedidos da Brasa e Fumaça'],
+ ['google','Google','avaliações das lojas'],
+ ['clima','Previsão do tempo','se vai chover'],
+ ['mao','A equipe digita','checklist, estoque, desperdício']
+];
+
+const ROBOS=[
+ ['nuvem','49 robôs na nuvem','rodam sozinhos, com o seu PC desligado'],
+ ['pc','13 robôs no seu PC','🔴 só rodam com o PC ligado e o Chrome aberto']
+];
+
+const TELAS=[
+ ['delivery','Delivery','🛵 Central do Delivery · Agora','Quem está rodando neste minuto e onde a moto está','1 minuto',['foody','trackeat'],'nuvem',false],
+ ['turno','Delivery','🧾 Turno do Delivery','Como foi o turno: erros, cancelamentos, quem pagou o motoboy','15 minutos',['ifood','saipos','rede'],'nuvem',false],
+ ['tempo','Delivery','⏱ Tempo de Entrega','Cada pedido com o relógio correndo; quem está sem motoboy','1 minuto',['foody','trackeat','ifood'],'nuvem',false],
+ ['qualidade','Delivery','📊 Qualidade do Delivery','O mês fechado: atraso, cancelamento e nota, por loja','10 minutos',['ifood','saipos'],'nuvem',false],
+ ['escala','Delivery','🗓 Escala & Clima','Quem trabalha hoje e se vai chover','6h10 e 6h20',['whatsapp','trackeat','clima'],'nuvem',false],
+ ['rh','Gestão','👥 Central do RH','Ponto do dia: quem bateu, quem atrasou, atestado e refeição','6× por dia',['flash'],'nuvem',false],
+ ['respostas','Gestão','📣 Precisa de Resposta','Mensagem de cliente ou da equipe sem resposta','12h e 20h',['whatsapp'],'pc',false],
+ ['manutencao','Gestão','🔧 Manutenção','O que quebrou e quem foi chamado','12h e 20h',['whatsapp'],'pc',false],
+ ['compras','Gestão','🛒 Compras & Listas','O que precisa comprar','12h e 20h',['whatsapp'],'pc',false],
+ ['encomendas','Gestão','📦 Encomendas Grandes','Pedido grande combinado no WhatsApp','12h e 20h',['whatsapp'],'pc',false],
+ ['conferencia','Gestão','💳 Conferência da Maquininha','Se o dinheiro da maquininha bate com a venda do dia','9h · 9h30 · 12h',['rede','saipos'],'nuvem',false],
+ ['operacao','Gestão','🗑 Desperdício','O que foi jogado fora','15 minutos',['saipos','mao'],'nuvem',false],
+ ['salao','Gestão','🍽 Central Salão','Salão e as avaliações do Google','semanal',['google'],'pc',false],
+ ['brasa','Gestão','🔥 Brasa e Fumaça','Pedidos da distribuidora','de hora em hora',['epadoca'],'nuvem',false],
+ ['cozinha','Gestão','👨‍🍳 Central Cozinha','Checklist e desperdício da cozinha','quando digitam',['mao'],'',false],
+ ['producao','Gestão','🍳 Central da Produção','O que cada loja produz no dia — ⚠️ abre vazia até cadastrar o plano','quando digitam',['mao'],'',false],
+ ['estoque','Gestão','📦 Central do Estoque','O que está acabando — ⚠️ só avisa item com mínimo cadastrado','quando digitam',['mao'],'',false],
+ ['escala-mensal','Gestão','📅 Escala do Mês','A escala do mês inteiro','quando alguém mexe',['flash','mao'],'nuvem',false],
+ ['freelas','Gestão','🤝 Taxas e Freelas','Quem se ofereceu para pegar taxa','quando cadastram',['mao'],'',false],
+ ['pagamento','Proprietário','💰 Pagar Motoboys','Quanto pagar hoje, com prova de GPS nas duas pontas','1 minuto (GPS)',['trackeat','saipos','rede'],'nuvem',false],
+ ['cobranca','Proprietário','🧾 Cobrança na Porta','Se o cliente pagou mesmo o motoboy','9h20 e 9h40',['ifood','rede','organizze','saipos'],'pc',false],
+ ['ponto','Proprietário','📋 Painel RH','Falta, advertência e hora extra — janela de 90 dias','6× por dia',['flash'],'nuvem',false],
+ ['rhcaixa','Proprietário','📥 Caixa de entrada do RH','O robô enfileira, você aprova','9h30',['flash'],'nuvem',false],
+ ['ifood','Proprietário','🍔 iFood · Qualidade','Nota, cancelamento e promoção do iFood','10 minutos',['ifood'],'nuvem',false],
+ ['acessos','Proprietário','🔑 Acessos','Quem entra em qual tela','na hora',[],'',false],
+ ['rhsb','São Braz','👥 Ponto · São Braz','O ponto só da loja do Diego','6× por dia',['flash'],'nuvem',false],
+ ['hoje','Proprietário','👁 Um olho no negócio','O placar do dia num lugar só','6 em 6 horas',['ifood','saipos','foody','trackeat'],'nuvem',true],
+ ['painel','Proprietário','🕹 Painel do Dono','O resumo do dono','1 minuto',['ifood','saipos'],'nuvem',true],
+ ['obra','Proprietário','🗺 Roteiro da Obra','O que está pronto, em construção e parado','na hora',[],'',true],
+ ['central','Proprietário','🎯 Central do Delivery (antiga)','A tela velha, guardada porque é o motor da aba Motoboys da Qualidade','—',[],'',true],
+ ['mapa','Proprietário','🗺 Mapa do Sistema (esta tela)','Este mapa: o que cada tela faz e quem alimenta','escrito à mão',[],'',false]
+];
+
+let SEL=null;
+
+function desenha(){
+  var hf='';
+  FONTES.forEach(function(f){
+    hf+='<div class="n" id="f_'+f[0]+'" onclick="clica(\'f\',\''+f[0]+'\')">'+esc(f[1])+'<small>'+esc(f[2])+'</small></div>';
+  });
+  $('fontes').innerHTML=hf;
+
+  var hr='';
+  ROBOS.forEach(function(r){
+    hr+='<div class="n" id="r_'+r[0]+'" onclick="clica(\'r\',\''+r[0]+'\')">'+esc(r[1])+'<small>'+esc(r[2])+'</small></div>';
+  });
+  $('robos').innerHTML=hr;
+
+  var ht='',g='';
+  TELAS.forEach(function(t){
+    if(t[1]!==g){g=t[1];ht+='<div class="grupo">'+esc(g)+'</div>';}
+    ht+='<div class="n'+(t[7]?' fora':'')+'" id="t_'+t[0]+'" onclick="clica(\'t\',\''+t[0]+'\')">'+esc(t[2])+'<small>'+esc(t[4])+(t[7]?' · fora do menu hoje':'')+'</small></div>';
+  });
+  $('telas').innerHTML=ht;
+
+  var hb='<table><tr><th>Tela</th><th>Para que serve</th><th>Quem alimenta</th><th>Ritmo</th></tr>';
+  TELAS.forEach(function(t){
+    var fs=t[5].map(function(id){var f=FONTES.filter(function(x){return x[0]===id})[0];return f?f[1]:id}).join(' · ')||'cadastro na mão';
+    hb+='<tr><td><b>'+esc(t[2])+'</b>'+(t[7]?' <span class="pill">fora do menu</span>':'')+'</td><td>'+esc(t[3])+'</td><td>'+esc(fs)+'</td><td>'+esc(t[4])+'</td></tr>';
+  });
+  $('tabela').innerHTML=hb+'</table>';
+}
+
+function clica(tipo,id){
+  if(SEL&&SEL.tipo===tipo&&SEL.id===id){limpa();return}
+  SEL={tipo:tipo,id:id};
+  pinta();
+}
+
+function limpa(){SEL=null;pinta();$('detalhe').innerHTML='';}
+
+function pinta(){
+  var ligadas={f:{},r:{},t:{}};
+  if(SEL){
+    if(SEL.tipo==='t'){
+      var t=TELAS.filter(function(x){return x[0]===SEL.id})[0];
+      if(t){ligadas.t[t[0]]=1;t[5].forEach(function(f){ligadas.f[f]=1});if(t[6])ligadas.r[t[6]]=1;}
+      detalheTela(t);
+    }else if(SEL.tipo==='f'){
+      ligadas.f[SEL.id]=1;
+      TELAS.forEach(function(t){if(t[5].indexOf(SEL.id)>=0){ligadas.t[t[0]]=1;if(t[6])ligadas.r[t[6]]=1;}});
+      detalheFonte(SEL.id,ligadas.t);
+    }else{
+      ligadas.r[SEL.id]=1;
+      TELAS.forEach(function(t){if(t[6]===SEL.id){ligadas.t[t[0]]=1;t[5].forEach(function(f){ligadas.f[f]=1})}});
+      detalheRobo(SEL.id,ligadas.t);
+    }
+  }
+  ['f','r','t'].forEach(function(p){
+    var lista=p==='f'?FONTES:(p==='r'?ROBOS:TELAS);
+    lista.forEach(function(o){
+      var el=$(p+'_'+o[0]);if(!el)return;
+      el.classList.remove('on','off');
+      if(!SEL)return;
+      if(ligadas[p][o[0]])el.classList.add('on');else el.classList.add('off');
+    });
+  });
+}
+
+function nomesTelas(map){
+  return TELAS.filter(function(t){return map[t[0]]}).map(function(t){return '<span class="pill">'+esc(t[2])+'</span>'}).join('')||'<span class="pill">nenhuma</span>';
+}
+
+function detalheTela(t){
+  if(!t){$('detalhe').innerHTML='';return}
+  var fs=t[5].map(function(id){var f=FONTES.filter(function(x){return x[0]===id})[0];return '<span class="pill">'+esc(f?f[1]:id)+'</span>'}).join('')||'<span class="pill">cadastro na mão</span>';
+  var r=ROBOS.filter(function(x){return x[0]===t[6]})[0];
+  $('detalhe').innerHTML='<div class="detalhe"><h3>'+esc(t[2])+'</h3>'+
+    '<div class="linha">'+esc(t[3])+'</div>'+
+    '<div class="linha"><b>Quem alimenta:</b> '+fs+'</div>'+
+    '<div class="linha"><b>Quem vai buscar:</b> '+(r?esc(r[1])+' — '+esc(r[2]):'ninguém: entra na mão')+'</div>'+
+    '<div class="linha"><b>Ritmo:</b> '+esc(t[4])+'</div>'+
+    (t[7]?'<div class="linha">⚠️ <b>Esta tela está fora do menu hoje.</b></div>':'')+'</div>';
+}
+
+function detalheFonte(id,map){
+  var f=FONTES.filter(function(x){return x[0]===id})[0];if(!f){$('detalhe').innerHTML='';return}
+  $('detalhe').innerHTML='<div class="detalhe"><h3>'+esc(f[1])+'</h3>'+
+    '<div class="linha">'+esc(f[2])+'</div>'+
+    '<div class="linha"><b>Se esta fonte parar, estas telas ficam velhas:</b><br>'+nomesTelas(map)+'</div></div>';
+}
+
+function detalheRobo(id,map){
+  var r=ROBOS.filter(function(x){return x[0]===id})[0];if(!r){$('detalhe').innerHTML='';return}
+  $('detalhe').innerHTML='<div class="detalhe"><h3>'+esc(r[1])+'</h3>'+
+    '<div class="linha">'+esc(r[2])+'</div>'+
+    '<div class="linha"><b>Telas que dependem deles:</b><br>'+nomesTelas(map)+'</div></div>';
+}
+
+/* ===== porta unica do portal ===== */
+const CDMMODS=['mapa'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'mapa'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(!ok)return;desenha();});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
