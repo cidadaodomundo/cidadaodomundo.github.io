@@ -349,7 +349,7 @@ function cancVivo(){
   if(CV===null)return h+'<div class="c"><div class="load">Buscando as fontes vivas…</div></div>';
   if(CV===false)return h+'<div class="c"><div class="vazio">não deu para carregar as fontes vivas — tente Atualizar</div></div>'+'<h2>📋 O quadro oficial do iFood (atrasa 1 dia)</h2>';
   const f=CV.fontes||{};
-  h+='<div class="m" style="margin:0 0 8px">Este bloco é sempre <b>HOJE</b>, não segue o período dos botões · Saipos atualizado '+(f.saipos?String(f.saipos).slice(11,16):'—')+' · última conversa do iFood '+(f.chat?String(f.chat).slice(11,16):'—')+' · porta oficial '+(f.api?String(f.api).slice(11,16):'—')+' · Gestor Web '+(f.gw?String(f.gw).slice(11,16):'—')+' · Foody de 15 em 15 min.</div>';
+  h+='<div class="m" style="margin:0 0 8px">Este bloco é o <b>' + esc((CV.janela&&CV.janela.rotulo)||'turno de hoje') + '</b>' + ((CV.janela&&CV.janela.de)?' (' + esc(CV.janela.de) + ' → ' + esc(CV.janela.ate) + ')':'') + ', não segue o período dos botões · Saipos atualizado '+(f.saipos?String(f.saipos).slice(11,16):'—')+' · última conversa do iFood '+(f.chat?String(f.chat).slice(11,16):'—')+' · porta oficial '+(f.api?String(f.api).slice(11,16):'—')+' · Gestor Web '+(f.gw?String(f.gw).slice(11,16):'—')+' · Foody de 15 em 15 min.</div>';
   const L=CV.por_loja||[];
   if(!L.length)h+='<div class="c"><div class="vazio">Nenhum cancelamento (total ou parcial) registrado hoje até agora.</div></div>';
   else{
@@ -358,9 +358,9 @@ function cancVivo(){
     h+='</table></div></div>';
   }
   const ch=CV.chats||{};
-  h+='<div class="c">💬 Conversas de clientes hoje: <b>'+n(ch.total)+'</b> · sem resposta da loja: <b>'+n(ch.sem_resposta)+'</b> · mensagens não lidas: <b>'+n(ch.nao_lidas)+'</b>'+(ch.tempo_medio_min!=null?' · tempo médio de resposta: <b>'+n(ch.tempo_medio_min)+' min</b>':'')+'</div>';
+  h+='<div class="c">💬 Conversas de clientes no turno: <b>'+n(ch.total)+'</b> · sem resposta da loja: <b>'+n(ch.sem_resposta)+'</b> · mensagens não lidas: <b>'+n(ch.nao_lidas)+'</b>'+(ch.tempo_medio_min!=null?' · tempo médio de resposta: <b>'+n(ch.tempo_medio_min)+' min</b>':'')+'</div>';
   if((ch.por_loja||[]).length){
-    h+='<h2>💬 Taxa de resposta da loja, hoje</h2><div class="c"><div class="rolar"><table><tr><th>Loja</th><th>Clientes que escreveram</th><th>Respondidas</th><th>Sem resposta</th><th>Tempo médio</th></tr>';
+    h+='<h2>💬 Taxa de resposta da loja, no turno</h2><div class="c"><div class="rolar"><table><tr><th>Loja</th><th>Clientes que escreveram</th><th>Respondidas</th><th>Sem resposta</th><th>Tempo médio</th></tr>';
     (ch.por_loja||[]).forEach(function(l){h+='<tr><td><b>'+esc(l.unidade)+'</b></td><td>'+n(l.com_cliente)+'</td><td>'+n(l.respondidas)+'</td><td>'+(l.sem_resposta>0?'<span class="pill p-bad">'+n(l.sem_resposta)+'</span>':n(l.sem_resposta))+'</td><td>'+(l.tempo_medio_min!=null?n(l.tempo_medio_min)+' min':'—')+'</td></tr>'});
     h+='</table></div></div>';
   }
