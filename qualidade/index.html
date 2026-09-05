@@ -344,6 +344,29 @@ async function puxaCancVivo(){
   try{ CV=await porta('qualidade_cancel_vivo',{unidade:UNI||null}); }catch(e){ CV=false }
   desenha();
 }
+async function verChat(ped,uni,id){
+  var tr=document.getElementById('chat_'+id); if(!tr)return;
+  if(tr.style.display!=='none'){tr.style.display='none';return;}
+  tr.style.display=''; var td=tr.firstChild; td.innerHTML='<div class="load">abrindo a conversa…</div>';
+  var d=null; try{ d=await porta('qualidade_chat_pedido',{pedido:ped,unidade:uni||null,dia:(CV&&CV.dia)||null}); }catch(e){ d=false; }
+  if(!d||d===false||!d.achou){ td.innerHTML='<div class="vazio">não achei conversa para este pedido</div>'; return; }
+  var c=d.cabecalho||{}; var msgs=d.mensagens||[];
+  var aut=msgs.filter(function(m){var p=(m.papel||'').toLowerCase(); return p!=='loja' && p!=='cliente';}).length;
+  var x='<div class="m">Cliente '+esc(c.cliente||'—')+' · '+esc(c.marca||'')+' · última mensagem '+esc(c.ultima_em||'')+(c.loja_respondeu===false?' · <span class="pill p-bad">a loja não respondeu por último</span>':'')+(d.fotos?' · '+d.fotos+' foto(s)':'')+' · '+msgs.length+' mensagens, '+aut+' automáticas do iFood'+((d.mais_de_uma>0)?' · <span class="pill p-warn">atenção: há mais '+d.mais_de_uma+' conversa(s) com este mesmo número de pedido neste turno; esta é a mais recente</span>':'')+'</div>';
+  x+='<div style="max-height:340px;overflow:auto;padding:4px 0">';
+  msgs.forEach(function(m){
+    var p=(m.papel||'').toLowerCase(); var eLoja=(p==='loja'); var eCli=(p==='cliente');
+    if(!eLoja && !eCli){
+      x+='<div style="margin:5px 0;text-align:center"><span class="m">'+esc(m.em||'')+' · aviso automático do iFood: '+esc(m.texto||'')+'</span></div>';
+    }else{
+      x+='<div style="margin:6px 0;text-align:'+(eLoja?'right':'left')+'"><span class="m">'+esc(m.em||'')+' · '+(eLoja?'a loja escreveu':'o cliente escreveu')+'</span><br><span class="pill '+(eLoja?'p-ok':'p-warn')+'" style="white-space:pre-wrap;display:inline-block;max-width:80%;text-align:left">'+esc(m.texto||'')+'</span>';
+      if(m.foto)x+='<br><a href="'+esc(m.foto)+'" target="_blank" rel="noopener"><img src="'+esc(m.foto)+'" alt="foto mandada no chat" style="max-width:220px;border-radius:8px;margin-top:4px"></a>';
+      x+='</div>';
+    }
+  });
+  x+='</div>';
+  td.innerHTML=x;
+}
 function cancVivo(){
   let h='<h2>🔴 Agora, das fontes vivas</h2>';
   if(CV===null)return h+'<div class="c"><div class="load">Buscando as fontes vivas…</div></div>';
@@ -364,15 +387,23 @@ function cancVivo(){
     (ch.por_loja||[]).forEach(function(l){h+='<tr><td><b>'+esc(l.unidade)+'</b></td><td>'+n(l.com_cliente)+'</td><td>'+n(l.respondidas)+'</td><td>'+(l.sem_resposta>0?'<span class="pill p-bad">'+n(l.sem_resposta)+'</span>':n(l.sem_resposta))+'</td><td>'+(l.tempo_medio_min!=null?n(l.tempo_medio_min)+' min':'—')+'</td></tr>'});
     h+='</table></div></div>';
   }
-  if((CV.cruzada||[]).length){
-    h+='<div class="m" style="margin:0 0 6px">Cada linha é um pedido; a coluna <b>Fontes</b> diz quais armas viram o cancelamento.</div>';
-    h+='<div class="c"><div class="rolar"><table><tr><th>Hora</th><th>Loja</th><th>Pedido</th><th>Tipo</th><th>Itens</th><th>Canal</th><th>Motivo (Gestor Web)</th><th>Fontes</th>'+(CV.dono?'<th>Reembolso da loja</th><th>Retenção</th>':'')+'</tr>';
-    (CV.cruzada||[]).forEach(function(r){
-      var tp=r.tipo==='total'?'<span class="pill p-bad">cancelado</span>':(r.tipo==='parcial'?'<span class="pill p-warn">parcial</span>':'<span class="m">só iFood</span>');
-      h+='<tr><td>'+esc(r.hora||'—')+'</td><td>'+esc(r.unidade||'—')+'</td><td><b>'+esc(r.pedido)+'</b></td><td>'+tp+'</td><td>'+n(r.itens)+'</td><td>'+esc(r.canal||'—')+'</td><td>'+esc(r.motivo||'—')+'</td><td>'+esc((r.fontes||[]).join(' · '))+'</td>'+(CV.dono?('<td>'+br(r.reembolso_loja)+'</td><td>'+br(r.retencao)+'</td>'):'')+'</tr>';
+  var CRZ=(CV.cruzada||[]);
+  var TOT=CRZ.filter(function(r){return r.tipo!=='parcial';});
+  var COMPED=TOT.filter(function(r){return r.pedido && String(r.pedido).indexOf('S#')!==0;});
+  var SEMPED=TOT.length-COMPED.length;
+  h+='<h2>🚫 Cancelamentos totais do turno</h2>';
+  if(!COMPED.length)h+='<div class="c"><div class="vazio">nenhum pedido cancelado por inteiro neste turno</div></div>';
+  else{
+    h+='<div class="m" style="margin:0 0 6px">Clique em <b>ver conversa</b> para ler o chat inteiro do pedido. O nome do cliente sai só em iniciais; se ele tiver mandado foto, ela aparece aqui. O motivo só existe quando o Gestor Web achou — quando não achou, fica escrito que não achou.</div>';
+    h+='<div class="c"><div class="rolar"><table><tr><th>Hora</th><th>Loja</th><th>Pedido</th><th>Por que cancelou</th><th>Itens</th><th>Quem viu</th>'+(CV.dono?'<th>Reembolso</th><th>Retenção</th>':'')+'<th>Conversa</th></tr>';
+    COMPED.forEach(function(r,i){
+      var tem=(r.fontes||[]).indexOf('Chat')>=0;
+      h+='<tr><td>'+esc(r.hora||'—')+'</td><td>'+esc(r.unidade||'—')+'<div class="m">'+esc(r.canal||'')+'</div></td><td><b>'+esc(r.pedido)+'</b></td><td><b>'+esc(r.motivo||'— o Gestor Web não achou o motivo')+'</b></td><td>'+n(r.itens)+'</td><td class="m">'+esc((r.fontes||[]).join(' · '))+'</td>'+(CV.dono?('<td>'+br(r.reembolso_loja)+'</td><td>'+br(r.retencao)+'</td>'):'')+'<td>'+(tem?'<button type="button" class="pill" style="cursor:pointer;border:0" onclick="verChat(\''+esc(r.pedido)+'\',\''+esc(r.unidade||'')+'\',\'t'+i+'\')">ver conversa</button>':'<span class="m">sem conversa</span>')+'</td></tr>';
+      h+='<tr id="chat_t'+i+'" style="display:none"><td colspan="'+(CV.dono?9:7)+'"></td></tr>';
     });
     h+='</table></div></div>';
   }
+  if(SEMPED>0)h+='<div class="m" style="margin:4px 0 10px">+ '+SEMPED+' cancelamento(s) que só o Saipos viu, sem número do iFood — sem motivo e sem conversa.</div>';
   h+='<h2>📋 O quadro oficial do iFood (atrasa 1 dia)</h2>';
   return h;
 }
@@ -861,8 +892,8 @@ function parciais(){
   h+='<h2>✂️ Cancelamentos parciais de hoje (Gestor Web)</h2>';
   if(!hoje.length)h+='<div class="c"><div class="vazio">nenhum item devolvido hoje até a última leitura do Gestor Web (1h, 12h e 18h)</div></div>';
   else{
-    h+='<div class="c"><div class="rolar"><table><tr><th>Hora</th><th>Loja</th><th>Pedido</th><th>O que faltou / veio errado</th><th>O que a loja fez</th><th>Loja escreveu?</th>'+(CV.dono?'<th>Devolvido</th>':'')+'</tr>';
-    hoje.forEach(function(p){h+='<tr><td>'+esc(p.hora||'')+'</td><td>'+esc(p.unidade||'')+'<div class="m">'+esc(p.marca||'')+'</div></td><td>'+esc(p.pedido||'')+'</td><td><b>'+esc(p.item||'—')+'</b></td><td>'+esc(p.o_que_a_loja_fez||'—')+'</td><td>'+(String(p.loja_escreveu)==='true'?'sim':'<span class="pill p-warn">não</span>')+'</td>'+(CV.dono?'<td>'+br(p.valor_devolvido)+'</td>':'')+'</tr>'});
+    h+='<div class="c"><div class="rolar"><table><tr><th>Hora</th><th>Loja</th><th>Pedido</th><th>O que faltou / veio errado</th><th>O que a loja fez</th><th>Loja escreveu?</th>'+(CV.dono?'<th>Devolvido</th>':'')+'<th>Conversa</th></tr>';
+    hoje.forEach(function(p,i){h+='<tr><td>'+esc(p.hora||'')+'</td><td>'+esc(p.unidade||'')+'<div class="m">'+esc(p.marca||'')+'</div></td><td>'+esc(p.pedido||'')+'</td><td><b>'+esc(p.item||'—')+'</b></td><td>'+esc(p.o_que_a_loja_fez||'—')+'</td><td>'+(String(p.loja_escreveu)==='true'?'sim':'<span class="pill p-warn">não</span>')+'</td>'+(CV.dono?'<td>'+br(p.valor_devolvido)+'</td>':'')+'<td><button type="button" class="pill" style="cursor:pointer;border:0" onclick="verChat(\''+esc(p.pedido||'')+'\',\''+esc(p.unidade||'')+'\',\'p'+i+'\')">ver conversa</button></td></tr><tr id="chat_p'+i+'" style="display:none"><td colspan="'+(CV.dono?8:7)+'"></td></tr>'});
     h+='</table></div></div>';
   }
   const per=(CC&&CC.parciais)||[];
