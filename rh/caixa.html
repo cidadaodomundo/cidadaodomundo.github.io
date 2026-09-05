@@ -47,9 +47,8 @@ select:focus,input:focus{border-color:var(--brand)}
 <div class="gate" id="gate"><div class="gatebox">
   <div class="logo" style="margin:0 auto 12px">CM</div>
   <h1>Caixa de entrada do RH</h1>
-  <div class="sub">Digite a senha do escritório</div>
-  <input type="password" id="gpw" placeholder="Senha" onkeydown="if(event.key==='Enter')entrar()">
-  <button onclick="entrar()">Entrar</button>
+  <div class="sub">Esta tela usa o seu login do Portal. Não existe mais senha separada.</div>
+  <button onclick="location.href='/'">Ir para o Portal</button>
   <div class="gerr" id="gerr"></div>
 </div></div>
 
@@ -100,14 +99,6 @@ async function porta(acao,dados){
   $('gate').classList.add('on');
   return null;
 }
-async function entrar(){
-  const v=$('gpw').value;
-  try{sessionStorage.setItem('cdm_rh_pw',v)}catch(e){}
-  CRED=v;
-  const r=await porta('contagem',{});
-  if(r){$('gate').classList.remove('on');$('gerr').textContent='';carregar();}
-  else{CRED=null;$('gerr').textContent='Senha incorreta.';}
-}
 function verAba(a){
   ABA=a;
   ['novo','aprovado','recusado'].forEach(function(x){$('a_'+x).classList.toggle('on',x===a)});
@@ -121,7 +112,7 @@ async function carregar(){
       +'<span class="pill">Recusados: <b>'+(c.recusado||0)+'</b></span>';
   if(!GENTE.length){const g=await porta('sugerir_nomes',{});if(Array.isArray(g))GENTE=g;}
   const l=await porta('listar',{situacao:ABA});
-  $('sub').textContent='atualizado '+new Date().toLocaleTimeString('pt-BR');
+  $('sub').textContent=(c&&c.quem?('você entrou como '+c.quem+' · '):'')+'atualizado '+new Date().toLocaleTimeString('pt-BR');
   if(!Array.isArray(l)||!l.length){
     $('lista').innerHTML='<div class="vazio">'+(ABA==='novo'
       ?'Nada esperando você. 👏<br>Quando um robô achar advertência, atestado ou batida para arrumar, aparece aqui.'
