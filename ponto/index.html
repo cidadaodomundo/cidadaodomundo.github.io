@@ -198,6 +198,7 @@ h1{font-size:17px;font-weight:800}
     <div id="mtodo"></div>
     <div class="mtl">
       <div id="mevents"></div>
+      <div id="mmeal"></div>
       <div id="mdaily"></div>
       <div id="mmonthly"></div>
     </div>
@@ -475,7 +476,9 @@ function renderDay(){
       <div class="jr">líq ${fmt(r.jornada_liquida_min)} · int ${r.intervalo_real_min??'—'}min · contr ${fmt(r.jornada_contratada_min)}${r.extra_min?' · +'+r.extra_min+'min':''}</div>
       ${r.detalhe?`<div class="det">▸ ${r.detalhe}</div>`:(RH_SEM_SENHA?`<div class="det" style="color:var(--muted)">▸ entre com a senha para ver o detalhe</div>`:'')}
       ${acao}
-      <div class="hist">${dots}<span class="hl">últimos ${hist.length} dias</span></div>${flags}</div>`}).join('')+'</div>';
+      <div class="hist">${dots}<span class="hl">últimos ${hist.length} dias</span></div>${flags}
+      <div class="refslot" data-p="${escAt(r.nome)}"></div></div>`}).join('')+'</div>';
+  pintaRefeicao(DAYS[DI]);
 }
 const OCT=[
  ['FALTA','Faltas','Falta','🚫','#E24B4A'],
@@ -734,7 +737,61 @@ function openModal(nome){
     return `<div class="mmrow"><div class="mmlabel">${MESES[r.mes-1]}/${String(r.ano).slice(2)}</div>
       <div class="mmbar"><i style="width:${w}%"></i></div>
       <div class="mminfo">${fmt(r.horas_liquidas_min)} · ${r.dias_trabalhados??'—'}d${r.esquecimentos?` · <span class="mmesq">${r.esquecimentos} s/ batida</span>`:''}</div></div>`}).join('')+'</div>'):'';
+  $('mmeal').innerHTML='<div class="loading" style="padding:14px 0">Carregando refeição…</div>';
+  refHistorico(nome);
   $('mwrap').classList.add('open');
+}
+/* ---------- 🍽 Refeição: selo no cartão do dia e histórico na ficha ---------- */
+const REFDIA={};
+const REFCOR={'OK':'var(--sem)','NAO LANCOU':'var(--infra)','ACIMA DO DIREITO':'var(--grave)','SEM CARTAO':'var(--conf)','SEM DADO DO SAIPOS':'var(--conf)'};
+const REFTXT={'OK':'🍽 pegou','NAO LANCOU':'🍽 não pegou','ACIMA DO DIREITO':'🍽 acima do direito','SEM CARTAO':'🍽 sem cartão','SEM DADO DO SAIPOS':'🍽 sem dado do Saipos'};
+async function refPorta(acao,dados){
+  const cands=RH_CRED?[RH_CRED]:[rhTok(),rhPw()].filter(function(x){return !!x});
+  for(let i=0;i<cands.length;i++){
+    try{
+      const r=await fetch(SB+'rpc/rh_refeicao_porta',{method:'POST',
+        headers:Object.assign({'Content-Type':'application/json'},H),
+        body:JSON.stringify({p_senha:cands[i],p_acao:acao,p_dados:dados||{}})});
+      const j=await r.json().catch(function(){return null});
+      if(r.ok&&Array.isArray(j)){RH_CRED=cands[i];return j}
+    }catch(e){}
+  }
+  return null;
+}
+async function pintaRefeicao(dia){
+  if(!dia)return;
+  if(!REFDIA[dia]){const l=await refPorta('dia',{dia:dia}); if(!l)return; REFDIA[dia]=l}
+  const mapa={};
+  REFDIA[dia].forEach(function(x){mapa[normN(x.nome)]=x});
+  document.querySelectorAll('.refslot').forEach(function(el){
+    const x=mapa[normN(el.getAttribute('data-p'))];
+    if(!x){el.innerHTML='';return}
+    const cor=REFCOR[x.situacao]||'var(--muted)';
+    const txt=REFTXT[x.situacao]||x.situacao;
+    const extra=(x.situacao==='OK'||x.situacao==='ACIMA DO DIREITO')
+      ? ' '+x.refeicoes+' de '+x.direito+(x.tipos?' · '+String(x.tipos).toLowerCase().replace(/\+/g,' e '):'')
+      : (x.situacao==='NAO LANCOU'?' · tinha direito a '+x.direito:'');
+    el.innerHTML='<span class="flag" style="color:'+cor+'">'+txt+extra+'</span>';
+  });
+}
+async function refHistorico(nome){
+  const alvo=$('mmeal'); if(!alvo)return;
+  const l=await refPorta('mes',{});
+  if(!l){alvo.innerHTML='';return}
+  const meus=l.filter(function(r){return normN(r.nome)===normN(nome)});
+  if(!meus.length){alvo.innerHTML='<h3>Refeição</h3><div class="det" style="padding:0 0 8px">Sem registro de refeição no período.</div>';return}
+  const linhas=meus.map(function(r){
+    const pegou=Number(r.dias_ok||0)+Number(r.dias_acima||0);
+    const total=Number(r.dias_trabalhados||0);
+    const w=total?Math.round(100*pegou/total):0;
+    const marcas=(Number(r.dias_acima)>0?'<span class="mmesq">'+r.dias_acima+' acima do direito</span> · ':'')
+                +(Number(r.dias_nao_pegou)>0?r.dias_nao_pegou+' não pegou':'')
+                +(Number(r.dias_sem_cartao)>0?' · '+r.dias_sem_cartao+' sem cartão':'');
+    return '<div class="mmrow"><div class="mmlabel">'+MESES[r.mes-1]+'/'+String(r.ano).slice(2)+'</div>'
+      +'<div class="mmbar"><i style="width:'+w+'%"></i></div>'
+      +'<div class="mminfo">'+pegou+' de '+total+' dias · '+r.refeicoes+' refeições'+(marcas?'<br>'+marcas:'')+'</div></div>';
+  }).join('');
+  alvo.innerHTML='<h3>Refeição — mês a mês</h3><div class="mmgrid">'+linhas+'</div>';
 }
 function closeModal(){$('mwrap').classList.remove('open')}
 function copyM(btn){const t=btn.parentElement.innerText.replace(/^Copiar\n?/,'');navigator.clipboard.writeText(t).then(()=>{btn.textContent='Copiado ✓';setTimeout(()=>btn.textContent='Copiar',1500)})}
