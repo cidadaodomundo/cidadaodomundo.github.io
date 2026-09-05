@@ -164,6 +164,7 @@ h1{font-size:17px;font-weight:800}
   <button class="view" id="vtipo" onclick="setView('tipo')">🔎 Consulta por tipo</button>
   <button class="view" id="vguia" onclick="setView('guia')">📖 Guia RH — o que fazer</button>
   <button class="view" id="varq" onclick="setView('arq')">🗄 Já saíram</button>
+  <button class="view" id="vrefe" onclick="setView('refe')">🍽 Refeição</button>
   <a class="view" href="../rh/escala.html?loja=%C3%81gua%20Verde" style="text-decoration:none">📋 Escala do dia</a>
   <a class="view" href="../rh/equipe.html" style="text-decoration:none">👥 Equipe por setor</a>
   <a class="view" href="../rh/manual.html" style="text-decoration:none">📕 Manual & Regras</a>
@@ -314,10 +315,10 @@ async function loadAll(){
   }catch(e){$('content').innerHTML='<div class="err">Erro: '+e.message+'</div>'}
 }
 function setView(v){VIEW=v;FILT=null;
-  ['vday','vtipo','vguia','varq'].forEach(id=>$(id).classList.remove('active'));
-  $(v==='day'?'vday':v==='tipo'?'vtipo':v==='arq'?'varq':'vguia').classList.add('active');
+  ['vday','vtipo','vguia','varq','vrefe'].forEach(id=>$(id).classList.remove('active'));
+  $(v==='day'?'vday':v==='tipo'?'vtipo':v==='arq'?'varq':v==='refe'?'vrefe':'vguia').classList.add('active');
   $('datenav').style.display=v==='day'?'flex':'none';
-  $('toolbar').style.display=(v==='guia'||v==='arq')?'none':'flex';
+  $('toolbar').style.display=(v==='guia'||v==='arq'||v==='refe')?'none':'flex';
   $('octipos').style.display=v==='tipo'?'flex':'none';
   $('ocfil').style.display=v==='tipo'?'flex':'none';
   render();}
@@ -355,7 +356,7 @@ function stats(nome){
   s.faltasTot=s.faltas+s.faltasEv;
   s.unidade=unitOf(nome); s.ativo=isActive(nome);
   return s;}
-function render(){ VIEW==='day'?renderDay():VIEW==='tipo'?renderTipo():VIEW==='arq'?renderArq():renderGuia() }
+function render(){ VIEW==='day'?renderDay():VIEW==='tipo'?renderTipo():VIEW==='arq'?renderArq():VIEW==='refe'?renderRefe():renderGuia() }
 /* ---------- 🗄 Ja sairam: o arquivo de quem passou pela casa ---------- */
 const MES3=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 const mesTxt=v=>MES3[v%12]+'/'+String(Math.floor(v/12)).slice(2);
@@ -773,6 +774,53 @@ async function pintaRefeicao(dia){
       : (x.situacao==='NAO LANCOU'?' · tinha direito a '+x.direito:'');
     el.innerHTML='<span class="flag" style="color:'+cor+'">'+txt+extra+'</span>';
   });
+}
+async function renderRefe(){
+  $('kpis').innerHTML='';$('units').innerHTML='';
+  $('content').innerHTML='<div class="loading">Carregando…</div>';
+  const mes=await refPorta('mes',{});
+  const sd =await refPorta('sem_dono',{});
+  if(!mes){$('content').innerHTML='<div class="err">Não consegui ler a refeição.</div>';return}
+  /* 1) o que saiu e não entrou na conta de ninguém */
+  let bloco1='';
+  if(sd&&sd.length){
+    const porCat={};
+    sd.forEach(function(r){const k=r.categoria;porCat[k]=porCat[k]||{ref:0,dias:0,nome:0};
+      porCat[k].ref+=Number(r.refeicoes||0); porCat[k].nome+=Number(r.com_nome_do_motoboy||0);});
+    const totalRef=Object.keys(porCat).reduce(function(s,k){return s+porCat[k].ref},0);
+    const linhas=Object.keys(porCat).sort(function(a,b){return porCat[b].ref-porCat[a].ref}).map(function(k){
+      const w=totalRef?Math.round(100*porCat[k].ref/totalRef):0;
+      const extra=(k==='Motoboy'&&porCat[k].nome)?(' · '+porCat[k].nome+' com o nome do motoboy'):'';
+      return '<div class="mmrow"><div class="mmlabel">'+k+'</div>'
+        +'<div class="mmbar"><i style="width:'+w+'%"></i></div>'
+        +'<div class="mminfo">'+porCat[k].ref+' refeições'+extra+'</div></div>';
+    }).join('');
+    bloco1='<div class="rksec">🍽 Saiu da cozinha e não entrou na conta de ninguém</div>'
+      +'<div class="rkexpl">Refeição lançada num cartão que não pertence a uma pessoa do quadro. '
+      +'<b>Não é erro por si:</b> motoboy tem conta própria, e taxa e freela são gente que veio trabalhar um dia. '
+      +'Está aqui para a casa saber o tamanho, não para cobrar de alguém. Período: até 12 meses.</div>'
+      +'<div class="mmgrid">'+linhas+'</div>';
+  }
+  /* 2) mês a mês de quem é do quadro */
+  const porMes={};
+  mes.forEach(function(r){const k=r.ano*100+r.mes; porMes[k]=porMes[k]||{ok:0,nao:0,acima:0,dias:0,ref:0};
+    porMes[k].ok+=Number(r.dias_ok||0); porMes[k].nao+=Number(r.dias_nao_pegou||0);
+    porMes[k].acima+=Number(r.dias_acima||0); porMes[k].dias+=Number(r.dias_trabalhados||0);
+    porMes[k].ref+=Number(r.refeicoes||0);});
+  const chaves=Object.keys(porMes).sort(function(a,b){return b-a});
+  const linhas2=chaves.map(function(k){
+    const r=porMes[k], w=r.dias?Math.round(100*(r.ok+r.acima)/r.dias):0;
+    return '<div class="mmrow"><div class="mmlabel">'+MESES[(k%100)-1]+'/'+String(Math.floor(k/100)).slice(2)+'</div>'
+      +'<div class="mmbar"><i style="width:'+w+'%"></i></div>'
+      +'<div class="mminfo">'+r.ref+' refeições em '+r.dias+' dias de trabalho'
+      +(r.nao?'<br>'+r.nao+' dias sem pegar':'')+(r.acima?' · <span class="mmesq">'+r.acima+' acima do direito</span>':'')
+      +'</div></div>';
+  }).join('');
+  $('content').innerHTML=bloco1
+    +'<div class="rksec">📅 A casa, mês a mês</div>'
+    +'<div class="rkexpl">Só quem é do quadro e bateu ponto. Quem não bateu não entra, para não dizer que não pegou sem saber se trabalhou. '
+    +'Para ver pessoa por pessoa, abra a ficha de alguém na aba Dia a dia.</div>'
+    +'<div class="mmgrid">'+linhas2+'</div>';
 }
 async function refHistorico(nome){
   const alvo=$('mmeal'); if(!alvo)return;
