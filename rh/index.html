@@ -738,7 +738,7 @@ function rfLoja(){return RF.loja||''}
 
 function renderRefeicao(){
   limpaTopo();
-  var abas=[['dia','📅 Dia a dia'],['moto','🏍 Motoboys'],['cort','🎁 Cortesias']];
+  var abas=[['dia','📅 Dia a dia'],['moto','🏍 Motoboys'],['cort','🎁 Cortesias'],['mes','📊 Mês a mês']];
   var h='<div class="rf-bar">'+
     abas.map(function(a){return '<button class="rf-tab'+(RF.aba===a[0]?' on':'')+'" onclick="rfSet(\'' + a[0] + '\')">'+a[1]+'</button>'}).join('')+
     '<select class="rf-sel" style="margin-left:auto;width:auto" onchange="RF.loja=this.value;rfSet(RF.aba)">'+
@@ -752,7 +752,8 @@ function renderRefeicao(){
 function rfSet(a){
   RF.aba=a;
   var bs=document.querySelectorAll('.rf-tab');
-  for(var i=0;i<bs.length;i++){bs[i].className='rf-tab'+(i===['dia','moto','cort'].indexOf(a)?' on':'')}
+  for(var i=0;i<bs.length;i++){bs[i].className='rf-tab'+(i===['dia','moto','cort','mes'].indexOf(a)?' on':'')}
+  if(a==='mes')rfCarregaMes();
   if(a==='dia')rfCarregaDia();
   if(a==='fila')rfCarregaFila();
   if(a==='moto')rfCarregaMoto();
@@ -1211,6 +1212,55 @@ async function rfPintaRefeicao(dia){
   }catch(e){}
 }
 
+/* ---------- mês a mês: a refeição da casa fechada por mês ---------- */
+const RFMESES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+async function rfRefPorta(acao){
+  var r=await fetch(SB+'rpc/rh_refeicao_porta',{method:'POST',
+    headers:Object.assign({'Content-Type':'application/json'},H),
+    body:JSON.stringify({p_senha:rfTok(),p_acao:acao,p_dados:{}})});
+  var j=null; try{j=await r.json()}catch(e){}
+  if(!r.ok)throw new Error((j&&j.message)||('falha na consulta (HTTP '+r.status+')'));
+  return Array.isArray(j)?j:[];
+}
+async function rfCarregaMes(){
+  rfBox('<div class="rf-load">Fechando o mês…</div>');
+  try{
+    var mes=await rfRefPorta('mes');
+    var sd =await rfRefPorta('sem_dono');
+    var porMes={};
+    mes.forEach(function(r){var k=r.ano*100+r.mes;
+      porMes[k]=porMes[k]||{ok:0,nao:0,acima:0,dias:0,ref:0,gente:0};
+      porMes[k].ok+=Number(r.dias_ok||0); porMes[k].nao+=Number(r.dias_nao_pegou||0);
+      porMes[k].acima+=Number(r.dias_acima||0); porMes[k].dias+=Number(r.dias_trabalhados||0);
+      porMes[k].ref+=Number(r.refeicoes||0); porMes[k].gente+=1;});
+    var ks=Object.keys(porMes).sort(function(a,b){return b-a});
+    if(!ks.length){rfBox('<div class="rf-empty">Ainda não há mês fechado para mostrar.</div>');return}
+    var ult=porMes[ks[0]];
+    var h='<div class="rf-kpis">'+
+      rfKpi('Refeições no mês mais recente',rfNum(ult.ref),ult.dias+' dias de trabalho de '+ult.gente+' pessoas')+
+      rfKpi('Dias sem pegar',rfNum(ult.nao),'tinham direito e não lançaram')+
+      rfKpi('Dias acima do direito',rfNum(ult.acima),'pegaram mais do que o dia dava')+
+      '</div>';
+    h+='<div class="rf-h2">A casa, mês a mês <span class="hint">só quem é do quadro e bateu ponto</span></div><div class="rf-card">';
+    h+='<table><tr><th>Mês</th><th>Pessoas</th><th>Dias de trabalho</th><th>Refeições</th><th>Sem pegar</th><th>Acima do direito</th></tr>';
+    h+=ks.map(function(k){var r=porMes[k];
+      return '<tr><td>'+RFMESES[(k%100)-1]+'/'+String(Math.floor(k/100)).slice(2)+'</td>'+
+        '<td>'+r.gente+'</td><td>'+r.dias+'</td><td>'+r.ref+'</td>'+
+        '<td>'+(r.nao||'—')+'</td><td>'+(r.acima||'—')+'</td></tr>'}).join('');
+    h+='</table></div>';
+    if(sd.length){
+      var cat={};
+      sd.forEach(function(r){cat[r.categoria]=(cat[r.categoria]||0)+Number(r.refeicoes||0)});
+      var tot=Object.keys(cat).reduce(function(s,k){return s+cat[k]},0);
+      h+='<div class="rf-h2">Saiu e não entrou na conta de ninguém <span class="hint">'+rfNum(tot)+' refeições · não é erro por si</span></div><div class="rf-card">';
+      h+='<table><tr><th>Categoria</th><th>Refeições</th></tr>'+
+         Object.keys(cat).sort(function(a,b){return cat[b]-cat[a]}).map(function(k){
+           return '<tr><td>'+rfEsc(k)+'</td><td>'+cat[k]+'</td></tr>'}).join('')+'</table>';
+      h+='<div class="hint" style="padding:8px 0 0">Motoboy tem conta própria na aba 🏍 Motoboys. Taxa e freela são gente que veio trabalhar um dia.</div></div>';
+    }
+    rfBox(h);
+  }catch(e){rfErro(e)}
+}
 async function rfCarregaCortesias(){
   rfBox('<div class="rf-load">Vendo as cortesias…</div>');
   try{
