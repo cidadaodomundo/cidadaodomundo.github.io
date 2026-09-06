@@ -164,6 +164,17 @@ function delta(agora,antes,bom,suf){
   return '<div class="d '+(bomSinal?'up':'down')+'">'+(subiu?'▲':'▼')+' '+Math.abs(p)+'% · antes '+n(antes)+(suf||'')+'</div>';
 }
 
+function quebraErro(d){
+  if(!d)return '';
+  const p=[];
+  if(d.cancelado)p.push(d.cancelado+' cancelado'+(d.cancelado>1?'s':''));
+  if(d.parcial)p.push(d.parcial+' parcial'+(d.parcial>1?'is':''));
+  if(d.chat)p.push(d.chat+' no chat');
+  let hq=p.length?'<div class="d flat">'+p.join(' &middot; ')+'</div>':'';
+  if(d.sem_classificar)hq+='<div class="d flat">'+d.sem_classificar+' parcial sem classificar</div>';
+  return hq;
+}
+
 function cartao(t,v,d){return '<div class="card"><div class="t">'+t+'</div><div class="v">'+v+'</div>'+(d||'')+'</div>'}
 
 function barra(pct){
@@ -380,6 +391,10 @@ function cancVivo(){
     L.forEach(function(l){h+='<tr><td><b>'+esc(l.unidade)+'</b></td><td>'+n(l.totais)+'</td><td>'+n(l.parciais)+(l.itens?' <span class="m">('+n(l.itens)+' itens)</span>':'')+'</td><td>'+n(l.foody)+'</td><td>'+n(l.api_cancel)+'</td><td>'+n(l.gw_cancel)+'</td></tr>'});
     h+='</table></div></div>';
   }
+  const tx=(CV.taxa_resposta||[]).filter(function(t){return t.aviso});
+  if(tx.length){
+    h+='<div class="aviso"><b>&#9888;&#65039; O iFood avisou: loja demorando para responder</b><br>'+tx.map(function(t){return esc(t.marca)+' &mdash; responde '+n(t.taxa)+'% dos clientes (30 dias)'}).join('<br>')+'</div>';
+  }
   const ch=CV.chats||{};
   h+='<div class="c">💬 Conversas de clientes no turno: <b>'+n(ch.total)+'</b> · sem resposta da loja: <b>'+n(ch.sem_resposta)+'</b> · mensagens não lidas: <b>'+n(ch.nao_lidas)+'</b>'+(ch.tempo_medio_min!=null?' · tempo médio de resposta: <b>'+n(ch.tempo_medio_min)+' min</b>':'')+'</div>';
   if((ch.por_loja||[]).length){
@@ -534,8 +549,8 @@ function cancelamentos(){
   let h='<div class="cards">';
   h+=cartao('Cancelamentos', n(r.total), delta(r.total,b.total,false,''));
   h+=cartao('Dá para contestar', n(r.contestavel), '<div class="d flat">'+n(r.ja_contestou)+' já contestados</div>');
-  h+=cartao('Erro da cozinha', n(r.erro_cozinha), delta(r.erro_cozinha,b.erro_cozinha,false,''));
-  h+=cartao('Erro na entrega', n(r.erro_entrega), delta(r.erro_entrega,b.erro_entrega,false,''));
+  h+=cartao('Erro da cozinha', n(r.erro_cozinha), delta(r.erro_cozinha,b.erro_cozinha,false,'')+quebraErro(r.erro_cozinha_det));
+  h+=cartao('Erro na entrega', n(r.erro_entrega), delta(r.erro_entrega,b.erro_entrega,false,'')+quebraErro(r.erro_entrega_det));
   if(CC.modo==='dono')h+=cartao('Dinheiro perdido', br(r.valor), '<div class="d flat">antes '+br(b.valor)+'</div>');
   h+='</div>';
   if(CC.atraso_dias>0){
@@ -585,8 +600,8 @@ function resumo(){
   h+=cartaoVivo('Atraso médio', (a.atraso_medio==null?'—':a.atraso_medio+' min'), delta(a.atraso_medio,b.atraso_medio,false,' min'), 'atraso');
   if(CC&&CC.resumo&&CC.resumo.agora){
     const rc=CC.resumo.agora, bc2=CC.resumo.antes||{};
-    h+=cartaoVivo('Erro da cozinha', ift?n(rc.erro_cozinha):n(U.erro_cozinha), ift?delta(rc.erro_cozinha,bc2.erro_cozinha,false,''):velho(U.cancelamento_ate), 'ecoz');
-    h+=cartaoVivo('Erro na entrega', ift?n(rc.erro_entrega):n(U.erro_entrega), ift?delta(rc.erro_entrega,bc2.erro_entrega,false,''):velho(U.cancelamento_ate), 'eent');
+    h+=cartaoVivo('Erro da cozinha', ift?n(rc.erro_cozinha):n(U.erro_cozinha), ift?delta(rc.erro_cozinha,bc2.erro_cozinha,false,'')+quebraErro(rc.erro_cozinha_det):velho(U.cancelamento_ate), 'ecoz');
+    h+=cartaoVivo('Erro na entrega', ift?n(rc.erro_entrega):n(U.erro_entrega), ift?delta(rc.erro_entrega,bc2.erro_entrega,false,'')+quebraErro(rc.erro_entrega_det):velho(U.cancelamento_ate), 'eent');
   }
   h+='</div>';
   h+=painelVivo();
