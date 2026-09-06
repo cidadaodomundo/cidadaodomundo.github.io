@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Contas a Pagar · Cidadão do Mundo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#E0A81C;--brand-ink:#111110;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',system-ui,-apple-system,sans-serif;padding:14px;font-size:15px}
+h1{font-family:'Anton',sans-serif;font-size:26px;letter-spacing:.5px;color:var(--brand);text-transform:uppercase}
+.top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:6px}
+.rel{color:var(--muted);font-size:13px}
+button{font-family:inherit;font-size:14px;cursor:pointer;border:1px solid var(--line);background:var(--s2);color:var(--text2);border-radius:8px;padding:7px 12px}
+button:hover{border-color:var(--brand)}
+.abas{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.aba.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand);font-weight:700}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:640px}
+th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child,th.l,td.l{text-align:left}
+thead th{color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:.4px}
+tbody tr:hover{background:var(--s2)}
+tfoot td{font-weight:700;border-top:2px solid var(--line);border-bottom:none}
+.forn{font-weight:600}
+.loja{color:var(--muted);font-size:12px}
+.zero{color:var(--muted)}
+.ab{color:var(--bad);font-weight:700}
+.aviso{background:var(--s2);border:1px solid var(--warn);border-left:4px solid var(--warn);border-radius:8px;padding:11px 13px;margin-bottom:12px;color:var(--text2);font-size:14px;line-height:1.5}
+.nota{color:var(--muted);font-size:13px;line-height:1.5;margin-top:8px}
+.vazio{color:var(--muted);padding:18px;text-align:center}
+.bur{font-weight:700;color:var(--bad)}
+</style>
+</head>
+<body>
+<div class="top">
+  <div><h1>💳 Contas a Pagar</h1><div class="rel" id="rel">carregando…</div></div>
+  <button onclick="boot()">⟳ Atualizar</button>
+</div>
+<div class="abas">
+  <button class="aba on" id="a-fixo" onclick="troca('fixo')">🧾 Fixos e serviços</button>
+  <button class="aba" id="a-mercadoria" onclick="troca('mercadoria')">📦 Mercadoria e insumo</button>
+  <button class="aba" id="a-buracos" onclick="troca('buracos')">🕳 Buracos</button>
+</div>
+<div id="app">Carregando…</div>
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+let D=null, ABA='fixo';
+const MES={'01':'jan','02':'fev','03':'mar','04':'abr','05':'mai','06':'jun','07':'jul','08':'ago','09':'set','10':'out','11':'nov','12':'dez'};
+function rotulo(m){return MES[m.slice(5,7)]+'/'+m.slice(2,4)}
+function din(v){
+  if(v===null||v===undefined||v===0)return '<span class="zero">—</span>';
+  var n=Math.abs(Number(v));
+  return 'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+async function porta(dados){
+  const r=await fetch(SB+'rpc/contas_pagar_consulta',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:cdmTok(),p_dados:dados||{}})});
+  if(!r.ok)throw new Error('porta '+r.status);
+  return await r.json();
+}
+function troca(a){
+  ABA=a;
+  ['fixo','mercadoria','buracos'].forEach(function(x){
+    var b=$('a-'+x); if(b) b.className='aba'+(x===a?' on':'');
+  });
+  desenha();
+}
+function tabela(tipo){
+  var meses=D.meses||[];
+  var linhas=(D.linhas||[]).filter(function(x){return x.tipo===tipo});
+  if(!linhas.length)return '<div class="card"><div class="vazio">Nenhum lançamento deste tipo no período.</div></div>';
+  var chaves={};
+  linhas.forEach(function(x){
+    var k=x.chave+'|'+x.loja;
+    if(!chaves[k])chaves[k]={chave:x.chave,loja:x.loja,mes:{},total:0,aberto:0,emails:0};
+    chaves[k].mes[x.mes]={v:x.valor,ab:x.em_aberto};
+    chaves[k].total+=Number(x.valor||0);
+    chaves[k].aberto+=Number(x.em_aberto||0);
+    if(Number(x.emails||0)>chaves[k].emails)chaves[k].emails=Number(x.emails||0);
+  });
+  var arr=Object.keys(chaves).map(function(k){return chaves[k]});
+  arr.sort(function(a,b){return a.total-b.total});
+  var h='<div class="card"><table><thead><tr><th class="l">Fornecedor</th><th class="l">Loja</th>';
+  meses.forEach(function(m){h+='<th>'+rotulo(m)+'</th>'});
+  h+='<th>Total</th><th>Em aberto</th><th>E-mails</th></tr></thead><tbody>';
+  var tot={},somaTot=0,somaAb=0;
+  arr.forEach(function(r){
+    h+='<tr><td class="l forn">'+esc(r.chave)+'</td><td class="l loja">'+esc(r.loja)+'</td>';
+    meses.forEach(function(m){
+      var c=r.mes[m];
+      h+='<td>'+(c?din(c.v):'<span class="zero">—</span>')+'</td>';
+      if(c){tot[m]=(tot[m]||0)+Number(c.v||0)}
+    });
+    somaTot+=r.total; somaAb+=r.aberto;
+    h+='<td>'+din(r.total)+'</td>';
+    h+='<td>'+(r.aberto>0?'<span class="ab">'+r.aberto+'</span>':'<span class="zero">—</span>')+'</td>';
+    h+='<td>'+(r.emails>0?r.emails:'<span class="zero">—</span>')+'</td></tr>';
+  });
+  h+='</tbody><tfoot><tr><td class="l">TOTAL</td><td></td>';
+  meses.forEach(function(m){h+='<td>'+din(tot[m]||0)+'</td>'});
+  h+='<td>'+din(somaTot)+'</td><td>'+(somaAb>0?somaAb:'—')+'</td><td></td></tr></tfoot></table></div>';
+  return h;
+}
+function buracos(){
+  var b=D.buracos||[];
+  var h='';
+  if(Number(D.email_total||0)===0){
+    h+='<div class="aviso">O robô que lê a caixa <b>administrativo@cidadaodomundo.com.br</b> ainda não rodou. Ele roda todo dia às 7h30 e é ele que enche esta aba. Enquanto isso, esta lista fica vazia — e isso <b>não</b> quer dizer que não há buraco.</div>';
+  }
+  if(!b.length){
+    h+='<div class="card"><div class="vazio">Nenhum fornecedor mandou boleto por e-mail sem ter lançamento no Saipos neste período.</div></div>';
+    return h;
+  }
+  h+='<div class="aviso">Estes fornecedores mandaram boleto, nota ou cobrança por e-mail e <b>não têm nenhum lançamento nas contas a pagar do Saipos</b> no período. Isso não prova que não foram pagos — prova que não passaram pelo Saipos.</div>';
+  h+='<div class="card"><table><thead><tr><th class="l">Fornecedor</th><th class="l">Tipo</th><th>E-mails</th><th class="l">Primeiro</th><th class="l">Último</th><th class="l">Observação</th></tr></thead><tbody>';
+  b.forEach(function(r){
+    h+='<tr><td class="l bur">'+esc(r.chave)+'</td><td class="l loja">'+esc(r.tipo)+'</td><td>'+esc(r.emails)+'</td><td class="l loja">'+esc(r.primeiro||'')+'</td><td class="l loja">'+esc(r.ultimo||'')+'</td><td class="l loja">'+esc(r.observacao||'')+'</td></tr>';
+  });
+  h+='</tbody></table></div>';
+  return h;
+}
+function desenha(){
+  if(!D){$('app').innerHTML='<div class="vazio">Sem dado.</div>';return}
+  var h='';
+  if(ABA==='buracos'){h=buracos()}
+  else{
+    h=tabela(ABA);
+    h+='<div class="nota">Cada linha é um fornecedor numa loja. O valor de cada mês é a soma dos boletos que vencem naquele mês. <b>Em aberto</b> é quantos ainda não foram baixados no Saipos. <b>E-mails</b> é quantas mensagens daquele fornecedor chegaram no administrativo@ no mês mais recente com movimento.</div>';
+  }
+  h+='<div class="nota">Os lançamentos vêm das duas cargas do Saipos juntas — a manual e a do robô — sem contar duas vezes: quando o mesmo lançamento está nas duas, vale o do robô. <b>O Boqueirão não aparece</b>: aquela loja não tem senha do Saipos.</div>';
+  $('app').innerHTML=h;
+}
+async function boot(){
+  try{
+    $('app').innerHTML='Carregando…';
+    D=await porta({meses:5});
+    var em=Number(D.email_total||0);
+    $('rel').textContent='Saipos atualizado '+(D.saipos_ate||'?')+' · '+em+' e-mails lidos'+(D.email_ate?(' (último em '+D.email_ate+')'):'')+' · agora '+(D.agora||'');
+    desenha();
+  }catch(e){$('app').innerHTML='<div class="card">Não deu para carregar. Entre no portal de novo e tente outra vez.</div>'}
+}
+/* ===== porta unica do portal ===== */
+const CDMMODS=['contas'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'contas'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(!ok)return;boot();});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
