@@ -57,6 +57,12 @@ body.alarme{animation:fundoAl .9s ease-in-out infinite alternate}
 .sil{position:fixed;right:14px;bottom:14px;z-index:99;background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;display:none}
 .somaviso{position:fixed;left:0;right:0;bottom:0;background:#c8102e;color:#fff;font-weight:800;text-align:center;padding:12px;z-index:98;display:none}
 
+/* seletor de loja 05-09-2026 — a tela era so Agua Verde e nao avisava */
+.lojas{display:flex;gap:8px;flex-wrap:wrap;margin:-6px 0 16px}
+.lj{background:var(--s2);border:1px solid var(--line);color:var(--text2);border-radius:999px;padding:9px 18px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.02em}
+.lj:hover{border-color:var(--brand);color:var(--text)}
+.lj.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+
 /* cara da casa 04-09-2026 */
 h1,.gatebox h1{font-weight:400}
 h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.01em;line-height:1.06}
@@ -67,8 +73,13 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
 </head>
 <body>
 <div class="top">
-  <div style="display:flex;gap:10px;align-items:center"><div class="dot">⏱</div><div><h1>⏱ Tempo de Entrega</h1><div class="sub">Água Verde — quanto prometer ao cliente agora</div></div></div>
+  <div style="display:flex;gap:10px;align-items:center"><div class="dot">⏱</div><div><h1>⏱ Tempo de Entrega</h1><div class="sub" id="sub">Água Verde — quanto prometer ao cliente agora</div></div></div>
   <div class="rt"><button class="b" onclick="location.reload()">↻ Atualizar</button></div>
+</div>
+<div class="lojas" id="lojas">
+  <button class="lj on" data-u="Água Verde" onclick="trocaLoja('Água Verde')">Água Verde</button>
+  <button class="lj" data-u="São Braz" onclick="trocaLoja('São Braz')">São Braz</button>
+  <button class="lj" data-u="Ahú" onclick="trocaLoja('Ahú')">Ahú</button>
 </div>
 <div id="app"><div class="load">Carregando…</div></div>
 <button id="sil" class="sil" onclick="silAte=Date.now()+15*60000;document.body.classList.remove('alarme');if(apitador){clearInterval(apitador);apitador=null}">⏸ Pausar o vermelho 15 min</button>
@@ -191,9 +202,24 @@ function alarme(liga){if(Date.now()<silAte)liga=false;document.body.classList.to
 try{if(navigator.wakeLock)navigator.wakeLock.request('screen').catch(function(){})}catch(e){}
 function cdmPrimeiroToque(){ligaSom();if(somOk){['click','touchstart','keydown'].forEach(function(ev){document.removeEventListener(ev,cdmPrimeiroToque)});if(document.body.classList.contains('alarme')&&!apitador){apita();apitador=setInterval(apita,10000)}}}
 ['click','touchstart','keydown'].forEach(function(ev){document.addEventListener(ev,cdmPrimeiroToque,{passive:true})});
+/* seletor de loja (05/09/2026) */
+let UNI='Água Verde';
+try{var _u=localStorage.getItem('cdm_tempo_uni'); if(_u==='Água Verde'||_u==='São Braz'||_u==='Ahú') UNI=_u;}catch(e){}
+function pintaLojas(){
+  var bs=document.querySelectorAll('#lojas .lj');
+  for(var i=0;i<bs.length;i++){ bs[i].classList.toggle('on', bs[i].getAttribute('data-u')===UNI); }
+  var s=$('sub'); if(s) s.textContent=UNI+' — quanto prometer ao cliente agora';
+}
+function trocaLoja(u){
+  UNI=u; try{localStorage.setItem('cdm_tempo_uni',u)}catch(e){}
+  pintaLojas();
+  $('app').innerHTML='<div class="load">Carregando '+esc(u)+'…</div>';
+  boot();
+}
 async function boot(){
   const t=cdmTok();
-  const d=await rpc('delivery_tempo',{p_token:t});
+  pintaLojas();
+  const d=await rpc('delivery_tempo',{p_token:t,p_unidade:UNI});
   if(!d){$('app').innerHTML='<div class="load">Não consegui ler agora. Clique em Atualizar.</div>';return}
   pinta(d);
 }
