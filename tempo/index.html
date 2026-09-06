@@ -57,6 +57,20 @@ body.alarme{animation:fundoAl .9s ease-in-out infinite alternate}
 .sil{position:fixed;right:14px;bottom:14px;z-index:99;background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;display:none}
 .somaviso{position:fixed;left:0;right:0;bottom:0;background:#c8102e;color:#fff;font-weight:800;text-align:center;padding:12px;z-index:98;display:none}
 
+/* tabela dos motoboys ao vivo 05-09-2026 — pedido do Fabio: "aquela tabela aparecer
+   logo ali em baixo dos quadros para deixar os quadros vivos e funcionando" */
+.mbs{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:14px;overflow-x:auto}
+.mbs h2{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;font-size:14px;letter-spacing:.04em;color:var(--brand);margin-bottom:12px}
+.mbs table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:540px}
+.mbs th{text-align:left;color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;font-weight:700;padding:0 10px 9px 0;border-bottom:1px solid var(--line)}
+.mbs td{padding:11px 10px;border-bottom:1px solid var(--line);color:var(--text2)}
+.mbs td:first-child,.mbs th:first-child{padding-left:0}
+.mbs tr:last-child td{border-bottom:0}
+.mbs .nome{color:var(--text);font-weight:600}
+.mbs .pin{color:var(--ok)}
+.mbs .rua{color:var(--brand)}
+.mbs .vazio{color:var(--muted);font-size:13px}
+
 /* seletor de loja 05-09-2026 — a tela era so Agua Verde e nao avisava */
 .lojas{display:flex;gap:8px;flex-wrap:wrap;margin:-6px 0 16px}
 .lj{background:var(--s2);border:1px solid var(--line);color:var(--text2);border-radius:999px;padding:9px 18px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.02em}
@@ -168,6 +182,18 @@ let moto='';
    '<div class="k'+(antigo>90?' mal':'')+'"><div class="n">'+antigo+' min</div><div class="l">o pedido mais antigo</div></div>'+
    '<div class="k'+(Number(d.chuva_mm||0)>=1?' aten':'')+'"><div class="n">'+Number(d.chuva_mm||0).toFixed(1)+' mm</div><div class="l">chuva agora · '+Number(d.chuva_prob||0)+'% de chance</div></div>'+
   '</div>';
+
+  /* 05/09/2026: a tabela dos motoboys logo abaixo dos quadros, para dar cara aos numeros */
+  var mb = Array.isArray(d.motoboys_lista)?d.motoboys_lista:[];
+  h+='<div class="mbs"><h2>🛵 Quem está com o aplicativo ligado neste minuto</h2>'+
+    (mb.length
+      ? '<table><tr><th>Motoboy</th><th>Onde está</th><th>Distância da loja</th><th>Situação</th><th>App</th><th>Visto</th></tr>'+
+        mb.map(function(m){return '<tr><td class="nome">'+esc(m.motoboy)+'</td>'+
+          '<td class="'+(m.no_patio?'pin':'rua')+'">'+(m.no_patio?'🟢 ':'🛵 ')+esc(m.onde)+'</td>'+
+          '<td>'+esc(m.dist||'—')+'</td><td>'+esc(m.situacao)+'</td><td>'+esc(m.app)+'</td><td>'+esc(m.visto)+'</td></tr>'}).join('')+
+        '</table>'
+      : '<div class="vazio">Nenhum motoboy com o aplicativo ligado nos últimos 30 minutos.</div>')+
+   '</div>';
 
   const linha=(cond,a,b)=>'<tr class="'+(cond?'aqui':'')+'"><td>'+a+'</td><td>'+b+'</td></tr>';
   const seco=clima==='seco', garoa=clima==='garoa', chuva=clima==='chuva';
