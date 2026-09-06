@@ -89,6 +89,19 @@ tr.aviso td{color:#e8bb62}
 .qcasa [style*="#f87171"]{color:#b3261e!important}
 .qcasa [style*="#60a5fa"]{color:#1d4ed8!important}
 .qnota{background:#fdf7e8;border-left:3px solid #E0A81C;border-radius:0;padding:8px 10px;font-family:'Barlow',sans-serif;font-weight:400;font-size:12px;color:#5a5346;line-height:1.5;margin:0 0 12px}
+.qcasa tr.qres>td{background:#faf8f4;color:#4a453b;font-size:12px;white-space:normal;border-bottom:1px solid #eee8db}
+.qcasa tr.qok>td{background:#fbfaf6;color:#6b6558;font-size:12px;white-space:normal;cursor:pointer}
+.qcasa tr.qln{cursor:pointer}
+.qcasa tr.qln:hover>td{background:#fdfcf8}
+.qcasa tr.qesc{display:none}
+.qcasa td.qdet{background:#faf8f4;font-size:11.5px;color:#4a453b;white-space:normal;line-height:1.55;padding:9px 12px}
+.qcasa .qbloco{padding:5px 0;border-bottom:1px dashed #e6dfd0}
+.qcasa .qbloco:last-child{border-bottom:0}
+.qcasa .qbnome{font-weight:700;color:#2b2620;margin-bottom:2px}
+.qcasa .qlin{display:flex;gap:8px;padding:1px 0;align-items:flex-start}
+.qcasa .qrot{flex:0 0 130px;color:#7a7365}
+.qcasa .qval{flex:1;min-width:0}
+.qleg{background:#faf8f4;border-top:1px solid #eee8db;padding:7px 12px;font-family:'Barlow',sans-serif;font-size:11px;color:#6b6558;line-height:1.7}
 </style>
 </head>
 <body>
@@ -235,77 +248,108 @@ async function viewComparar(){
   if(Number(t.pendentes||0)>0) k+=cartao(num(t.pendentes), 'entregas ainda PENDENTES no TrackEat','warn');
   if(Number(t.reprovadas||0)>0) k+=cartao(num(t.reprovadas), 'reprovadas (duplicadas) que não pagamos');
   $('kpis').innerHTML=k+'</div>';
-  h+='<div class="qcasa"><div class="qtit">NOSSA CONTA × A PLANILHA DELES</div><div class="qrol"><table class="enxuta"><tr>'+
-     '<th>Loja</th><th>Motoboy</th><th>Escala → chegou</th>'+
-     '<th class="grupo">Almoço</th><th class="grupo">Garantido</th>'+
-     '<th class="money">Entregas deles</th><th class="money">A planilha paga</th>'+
-     '<th class="money">Entregas nossas</th><th class="money">Horas rodadas</th><th class="money">A nossa conta</th>'+
-     '<th class="money">Diferença</th><th>Por que difere</th></tr>';
+  h+='<div class="qcasa"><div class="qtit">NOSSA CONTA × A PLANILHA DELES</div><div class="qrol"><table class="enxuta">'+
+     '<tr><th>Motoboy</th><th>Chegou</th><th>Últ. entrega</th><th class="money">Horas</th>'+
+     '<th class="money">Eles</th><th class="money">Nós</th><th class="money">Difer.</th></tr>';
   const tr='<span style="color:var(--muted)">—</span>';
-  (DELES.linhas||[]).forEach(function(x,i){
-    const d=Number(x.dif||0);
-    const vh=Number((DELES&&DELES.valor_hora)||20);
-    const piso=Math.round(Number(x.nosso_horas||0)*vh*100)/100;
-    const hd=(x.deles_pagar==null||!vh)?null:Math.round((Number(x.deles_pagar)/vh)*100)/100;
-    const c2 = x.onde!=='nos dois' ? '#fbbf24' : (Math.abs(d)<0.01?'#4ade80':(d<0?'#fbbf24':'#60a5fa'));
-    let porque='';
-    if(x.onde==='só na planilha deles') porque='<span style="color:#fbbf24">está na planilha e o sistema não viu rodar</span>';
-    else if(x.onde==='só no sistema') porque='<span style="color:#fbbf24">rodou pelo sistema e não está na planilha</span>';
-    else {
-      const p=[];
-      const pt=function(t){return '<div style="margin:2px 0">'+t+'</div>'};
-      if(Number(x.deles_entregas||0)!==Number(x.nosso_entregas||0)){
-        let m='Ele fez <b>'+num(x.nosso_entregas)+'</b> entregas. A planilha contou <b>'+num(x.deles_entregas)+'</b>.';
-        if(Number(x.pendentes||0)>0) m+=' <span style="color:#fbbf24">'+(Number(x.pendentes)===1?'Uma delas o TrackEat ainda não aprovou.':x.pendentes+' delas o TrackEat ainda não aprovou.')+'</span>';
-        if(Number(x.reprovadas||0)>0) m+=' <span style="color:var(--muted)">'+(Number(x.reprovadas)===1?'1 foi marcada como repetida':x.reprovadas+' foram marcadas como repetidas')+' e a gente não paga.</span>';
-        p.push(pt(m));
-      } else if(Number(x.pendentes||0)>0 || Number(x.reprovadas||0)>0){
-        let m='As entregas batem ('+num(x.nosso_entregas)+').';
-        if(Number(x.pendentes||0)>0) m+=' <span style="color:#fbbf24">Mas '+(Number(x.pendentes)===1?'1 ainda não foi aprovada':x.pendentes+' ainda não foram aprovadas')+' no TrackEat.</span>';
-        if(Number(x.reprovadas||0)>0) m+=' <span style="color:var(--muted)">'+(Number(x.reprovadas)===1?'1 foi marcada como repetida':x.reprovadas+' foram marcadas como repetidas')+' e a gente não paga.</span>';
-        p.push(pt(m));
-      }
-      if(hd!=null && Math.abs(hd-Number(x.nosso_horas||0))>0.25){
-        p.push(pt('Ele rodou <b>'+hhmm(x.nosso_horas)+'</b> de verdade. A planilha pagou como se ele tivesse rodado <b style="color:#fbbf24">'+hhmm(hd)+'</b>.'));
-      }
-      if(Math.abs(d)>0.01){
-        p.push(pt('Cada hora vale '+rs(vh)+'. '+hhmm(x.nosso_horas)+' dá <b>'+rs(piso)+'</b>. As '+num(x.nosso_entregas)+' entregas renderam <b>'+rs(x.taxas)+'</b> de taxa. A casa paga o maior dos dois: <b>'+rs(Math.max(piso, Number(x.taxas||0)))+'</b>.'));
-        if(Number(x.lanche_cobrado||0)>0) p.push(pt('<span style="color:#f87171">Pegou lanche sem ter direito: menos '+rs(x.lanche_cobrado)+'.</span>'));
-        p.push(pt('Fica <b>'+rs(x.nosso_pagar)+'</b>. A planilha pagou <b>'+rs(x.deles_pagar)+'</b> — <b style="color:'+(d<0?'#fbbf24':'#60a5fa')+'">'+rs(Math.abs(d))+(d<0?' a mais do que devia':' a menos do que devia')+'</b>.'));
-      }
-      if(Number(x.refeicoes||0)===0 && Number(x.atraso_min||0)>30) p.push(pt('<span style="color:#f87171">Chegou '+x.atraso_min+' minutos depois da hora combinada: por isso perdeu o almoço e o garantido.</span>'));
-      if(x.hora_exata && Number(x.minutos_a_mais||0)>0.1) p.push(pt('<span style="color:#4ade80">O próprio aplicativo carimbou a chegada dele às <b>'+esc(x.hora_exata)+'</b>. A gente está contando a partir de '+esc(x.chegada)+', ou seja <b>'+String(x.minutos_a_mais).replace('.',',')+' minutos depois</b> — esse tempo ele rodou e não está sendo pago.</span>'));
-      if(x.tem_gps===false) p.push(pt('<span style="color:#fbbf24">O GPS não carimbou a chegada dele, então a hora é estimada e nada foi cortado.</span>'));
-      porque = p.join('') || '<span style="color:#4ade80">As duas contas batem.</span>';
+  const LIN=(DELES.linhas||[]);
+  const vhq=Number((DELES&&DELES.valor_hora)||20);
+  window.qdet=function(i){var el=document.getElementById('qd'+i);if(!el)return;el.style.display=(el.style.display==='table-row'?'none':'table-row')};
+  function qhora(ex,cu,gps){
+    if(gps===true&&ex) return '<span style="color:#1c1c1c;font-weight:600">'+esc(ex)+'</span>';
+    if(cu) return '<span style="color:#8a8578">~'+esc(cu)+'</span>';
+    return tr;
+  }
+  function qcor(d){return Math.abs(d)<0.01?'#6b6558':(d<0?'#8f4416':'#1b4f8a')}
+  function qsin(d){return (d<0?'−':(d>0?'+':''))+rs(Math.abs(d))}
+  function qcel(d){return '<span style="color:'+qcor(d)+(Math.abs(d)<0.01?'':';font-weight:700')+'">'+qsin(d)+'</span>'}
+  function qhd(x){return (x.deles_pagar==null||!vhq)?null:Math.round((Number(x.deles_pagar)/vhq)*100)/100}
+  function qmaq(x){return (DELES.maquininha&&DELES.maquininha[chaveDeles(x.unidade,x.motoboy)])||null}
+  function qpq(x){
+    const d=Number(x.dif||0), hd=qhd(x), piso=Math.round(Number(x.nosso_horas||0)*vhq*100)/100;
+    if(x.onde==='só na planilha deles') return '<span style="color:#fbbf24">está na planilha e o sistema não viu rodar</span>';
+    if(x.onde==='só no sistema') return '<span style="color:#fbbf24">rodou pelo sistema e não está na planilha</span>';
+    const p=[];
+    const pt=function(t2){return '<div style="margin:2px 0">'+t2+'</div>'};
+    if(Number(x.deles_entregas||0)!==Number(x.nosso_entregas||0)){
+      let m='Ele fez <b>'+num(x.nosso_entregas)+'</b> entregas. A planilha contou <b>'+num(x.deles_entregas)+'</b>.';
+      if(Number(x.pendentes||0)>0) m+=' <span style="color:#fbbf24">'+(Number(x.pendentes)===1?'Uma delas o TrackEat ainda não aprovou.':x.pendentes+' delas o TrackEat ainda não aprovou.')+'</span>';
+      if(Number(x.reprovadas||0)>0) m+=' <span style="color:var(--muted)">'+(Number(x.reprovadas)===1?'1 foi marcada como repetida':x.reprovadas+' foram marcadas como repetidas')+' e a gente não paga.</span>';
+      p.push(pt(m));
+    } else if(Number(x.pendentes||0)>0 || Number(x.reprovadas||0)>0){
+      let m='As entregas batem ('+num(x.nosso_entregas)+').';
+      if(Number(x.pendentes||0)>0) m+=' <span style="color:#fbbf24">Mas '+(Number(x.pendentes)===1?'1 ainda não foi aprovada':x.pendentes+' ainda não foram aprovadas')+' no TrackEat.</span>';
+      if(Number(x.reprovadas||0)>0) m+=' <span style="color:var(--muted)">'+(Number(x.reprovadas)===1?'1 foi marcada como repetida':x.reprovadas+' foram marcadas como repetidas')+' e a gente não paga.</span>';
+      p.push(pt(m));
     }
-    h+='<tr class="'+((i%2===1)?'par ':'')+(Math.abs(d)>0.01?'qdif':'')+'">'+
-      '<td>'+esc(sigla(x.unidade))+'</td>'+
-      '<td class="nome" data-k="'+esc(x.motoboy)+'"><b>'+esc(x.motoboy)+'</b>'+
-        ((DELES.maquininha&&DELES.maquininha[chaveDeles(x.unidade,x.motoboy)])?' <span style="color:#f87171;cursor:help" title="cobrança na porta para conferir: '+esc(DELES.maquininha[chaveDeles(x.unidade,x.motoboy)].texto)+'">🧾</span>':'')+
-        (x.nome_deles&&x.nome_deles!==x.motoboy?'<br><span style="color:var(--muted);font-size:11px">na planilha: '+esc(x.nome_deles)+'</span>':'')+'</td>'+
-      '<td data-k="'+esc(x.chegada||'')+'">'+(x.combinado?'<b>'+esc(x.combinado)+'</b> → '+esc(x.chegada||'—')+(x.tem_gps===false?' <span title="sem carimbo de GPS: chegada estimada">⚠️</span>':'')+
-        (x.atraso_min!=null?' <span style="color:'+(Number(x.atraso_min)>30?'#f87171':'var(--muted)')+'">('+(Number(x.atraso_min)>0?'+':'')+x.atraso_min+' min)</span>':'')+
-        (x.hora_exata?'<div style="font-size:11px;color:#4ade80">⏱ exata <b>'+esc(x.hora_exata)+'</b>'+(Number(x.minutos_a_mais||0)>0.1?' <span style="color:#fbbf24">('+String(x.minutos_a_mais).replace('.',',')+' min antes do que a gente conta)</span>':'')+'<br><span style="color:var(--muted)">carimbo do '+esc(x.fonte_exata||'')+'</span></div>':'<div style="font-size:11px;color:var(--muted)">sem carimbo exato neste dia</div>')+
-        (x.ultima?'<div style="color:var(--muted);font-size:11px">última entrega '+esc(x.ultima)+'</div>':'') : tr)+'</td>'+
-      '<td class="grupo">'+(x.refeicoes==null?tr:(Number(x.refeicoes)>0?'<span style="color:#4ade80">sim</span>'+(Number(x.refeicoes)>1?' ('+x.refeicoes+')':'')+(x.prato?'<div style="color:var(--muted);font-size:11px">'+esc(x.prato)+'</div>':''):'<span style="color:#f87171">não</span>'+(Number(x.lanche_cobrado||0)>0?'<div style="color:#f87171;font-size:11px">pagou '+rs(x.lanche_cobrado)+'</div>':'')))+'</td>'+
-      '<td class="grupo money">'+(x.garantido==null?tr:(Number(x.garantido)>0?rs(x.garantido):'<span style="color:#f87171">não</span>'+(Number(x.garantido_calc||0)>0?'<div style="color:var(--muted);font-size:11px">perdeu '+rs(x.garantido_calc)+'</div>':'')))+'</td>'+
-      '<td class="money grupo">'+(x.deles_entregas==null?tr:num(x.deles_entregas))+'</td>'+
-      '<td class="money grupo">'+(x.deles_pagar==null?tr:rs(x.deles_pagar))+'</td>'+
-      '<td class="money">'+(x.nosso_entregas==null?tr:num(x.nosso_entregas))+'</td>'+
-      '<td class="money" data-k="'+(x.nosso_horas==null?'':x.nosso_horas)+'">'+
-        (x.nosso_horas==null?tr:'<b>'+hhmm(x.nosso_horas)+'</b>')+
-        (hd!=null?'<div style="color:'+(hd-Number(x.nosso_horas||0)>0.25?'#fbbf24':'var(--muted)')+';font-size:11px">a planilha pagou '+hhmm(hd)+'</div>':'')+'</td>'+
-      '<td class="money">'+(x.nosso_pagar==null?tr:rs(x.nosso_pagar))+'</td>'+
-      '<td class="money qd" data-k="'+d+'" style="color:'+c2+'"><b>'+(d>0?'+':'')+rs(d)+'</b></td>'+
-      '<td class="hs" style="margin:0">'+porque+'</td>'+
-      '</tr>';
+    if(hd!=null && Math.abs(hd-Number(x.nosso_horas||0))>0.25) p.push(pt('Ele rodou <b>'+hhmm(x.nosso_horas)+'</b> de verdade. A planilha pagou como se ele tivesse rodado <b style="color:#fbbf24">'+hhmm(hd)+'</b>.'));
+    if(Math.abs(d)>0.01){
+      p.push(pt('Cada hora vale '+rs(vhq)+'. '+hhmm(x.nosso_horas)+' dá <b>'+rs(piso)+'</b>. As '+num(x.nosso_entregas)+' entregas renderam <b>'+rs(x.taxas)+'</b> de taxa. A casa paga o maior dos dois: <b>'+rs(Math.max(piso, Number(x.taxas||0)))+'</b>.'));
+      if(Number(x.lanche_cobrado||0)>0) p.push(pt('<span style="color:#f87171">Pegou lanche sem ter direito: menos '+rs(x.lanche_cobrado)+'.</span>'));
+      p.push(pt('Fica <b>'+rs(x.nosso_pagar)+'</b>. A planilha pagou <b>'+rs(x.deles_pagar)+'</b> — <b style="color:'+(d<0?'#fbbf24':'#60a5fa')+'">'+rs(Math.abs(d))+(d<0?' a mais do que devia':' a menos do que devia')+'</b>.'));
+    }
+    if(Number(x.refeicoes||0)===0 && Number(x.atraso_min||0)>30) p.push(pt('<span style="color:#f87171">Chegou '+x.atraso_min+' minutos depois da hora combinada: por isso perdeu o almoço e o garantido.</span>'));
+    if(x.hora_exata && Number(x.minutos_a_mais||0)>0.1) p.push(pt('<span style="color:#4ade80">O próprio aplicativo carimbou a chegada dele às <b>'+esc(x.hora_exata)+'</b>. A gente está contando a partir de '+esc(x.chegada)+', ou seja <b>'+String(x.minutos_a_mais).replace('.',',')+' minutos depois</b> — esse tempo ele rodou e não está sendo pago.</span>'));
+    if(x.tem_gps===false) p.push(pt('<span style="color:#fbbf24">O GPS não carimbou a chegada dele, então a hora é estimada e nada foi cortado.</span>'));
+    return p.join('') || '<span style="color:#4ade80">As duas contas batem.</span>';
+  }
+  function qli(r,val){return '<div class="qlin"><span class="qrot">'+r+'</span><span class="qval">'+val+'</span></div>'}
+  function qdetalhe(x){
+    const hd=qhd(x), mq=qmaq(x);
+    let s2='';
+    s2+=qli('Loja', esc(sigla(x.unidade)));
+    if(x.nome_deles&&x.nome_deles!==x.motoboy) s2+=qli('Na planilha', esc(x.nome_deles));
+    s2+=qli('Escala combinada', x.combinado?('<b>'+esc(x.combinado)+'</b> → chegou '+esc(x.chegada||'—')+(x.atraso_min!=null?' <span style="color:'+(Number(x.atraso_min)>30?'#f87171':'var(--muted)')+'">('+(Number(x.atraso_min)>0?'+':'')+x.atraso_min+' min)</span>':'')):tr);
+    s2+=qli('Carimbo do pátio', x.hora_exata?('<b>'+esc(x.hora_exata)+'</b> · carimbo do '+esc(x.fonte_exata||'')+(Number(x.minutos_a_mais||0)>0.1?' <span style="color:#fbbf24">('+String(x.minutos_a_mais).replace('.',',')+' min antes do que a gente conta)</span>':'')):'<span style="color:var(--muted)">sem carimbo exato neste dia</span>');
+    s2+=qli('Almoço', x.refeicoes==null?tr:(Number(x.refeicoes)>0?('<span style="color:#4ade80">sim</span>'+(Number(x.refeicoes)>1?' ('+x.refeicoes+')':'')+(x.prato?' · '+esc(x.prato):'')):('<span style="color:#f87171">não</span>'+(Number(x.lanche_cobrado||0)>0?' · pagou '+rs(x.lanche_cobrado):''))));
+    s2+=qli('Garantido', x.garantido==null?tr:(Number(x.garantido)>0?rs(x.garantido):('<span style="color:#f87171">não</span>'+(Number(x.garantido_calc||0)>0?' · perdeu '+rs(x.garantido_calc):''))));
+    s2+=qli('Entregas deles', x.deles_entregas==null?tr:num(x.deles_entregas));
+    s2+=qli('Entregas nossas', x.nosso_entregas==null?tr:num(x.nosso_entregas));
+    s2+=qli('Horas na planilha', hd==null?tr:hhmm(hd));
+    if(mq) s2+=qli('Maquininha','<span style="color:#f87171">🧾 '+esc(mq.texto)+'</span>');
+    s2+=qli('Por que difere', qpq(x));
+    return s2;
+  }
+  let qi=0, tH=0, tE=0, tN=0, tD=0; const exs=[], out=[];
+  LIN.forEach(function(x){
+    tH+=Number(x.nosso_horas||0); tE+=Number(x.deles_pagar||0); tN+=Number(x.nosso_pagar||0); tD+=Number(x.dif||0);
+    if(x.onde==='nos dois' && Math.abs(Number(x.dif||0))<0.01) exs.push(x); else out.push(x);
   });
-  h+='<tr class="qtot"><td></td><td class="ql"><b>TOTAL</b></td><td></td>'+
-     '<td class="grupo"><b>'+num(t.refeicoes)+'</b> refeições</td><td></td>'+
-     '<td class="money grupo"><b>'+num(t.deles_entregas)+'</b></td><td class="money grupo"><b>'+rs(t.deles)+'</b></td>'+
-     '<td class="money"><b>'+num(t.nosso_entregas)+'</b></td><td></td><td class="money"><b>'+rs(t.nosso)+'</b></td>'+
-     '<td class="money"><b>'+(dif>0?'+':'')+rs(dif)+'</b></td><td></td></tr>';
-  h+='</table></div></div>';
+  tD=Math.round(tD*100)/100;
+  h+='<tr class="qres"><td colspan="7"><b>'+exs.length+' de '+LIN.length+'</b> bateram exato · Diferença <b style="color:'+qcor(tD)+'">'+qsin(tD)+'</b> · Horas do dia <b>'+hhmm(tH)+'</b></td></tr>';
+  if(exs.length){
+    const ie=++qi;
+    let hE=0,eE=0,nE=0;
+    exs.forEach(function(y){hE+=Number(y.nosso_horas||0);eE+=Number(y.deles_pagar||0);nE+=Number(y.nosso_pagar||0)});
+    h+='<tr class="qok" onclick="qdet('+ie+')" title="clique para abrir">'+
+       '<td colspan="3">✓ <b>'+exs.length+'</b> bateram exato: '+exs.map(function(y){return esc(y.motoboy)}).join(' · ')+'</td>'+
+       '<td class="money">'+hhmm(hE)+'</td><td class="money">'+rs(eE)+'</td><td class="money">'+rs(nE)+'</td>'+
+       '<td class="money">'+qcel(0)+'</td></tr>';
+    h+='<tr id="qd'+ie+'" class="qesc"><td colspan="7" class="qdet">';
+    exs.forEach(function(y){
+      h+='<div class="qbloco"><div class="qbnome">'+esc(y.motoboy)+' · chegou '+qhora(y.chegada_exata,y.chegada,y.tem_gps)+' · última entrega '+qhora(y.ultima_exata,y.ultima,y.tem_gps)+' · '+hhmm(y.nosso_horas)+' · '+rs(y.nosso_pagar)+'</div>'+qdetalhe(y)+'</div>';
+    });
+    h+='</td></tr>';
+  }
+  out.forEach(function(x,i){
+    const d=Number(x.dif||0), io=++qi, mq=qmaq(x);
+    h+='<tr class="qln'+((i%2===1)?' par':'')+'" onclick="qdet('+io+')" title="clique para abrir">'+
+      '<td class="nome"><b>'+esc(x.motoboy)+'</b>'+
+        (mq?' <span style="color:#f87171" title="cobrança na porta para conferir">🧾</span>':'')+
+        (x.nome_deles&&x.nome_deles!==x.motoboy?'<br><span style="color:var(--muted);font-size:11px">na planilha: '+esc(x.nome_deles)+'</span>':'')+'</td>'+
+      '<td>'+qhora(x.chegada_exata,x.chegada,x.tem_gps)+'</td>'+
+      '<td>'+qhora(x.ultima_exata,x.ultima,x.tem_gps)+'</td>'+
+      '<td class="money">'+(x.nosso_horas==null?tr:'<b>'+hhmm(x.nosso_horas)+'</b>')+'</td>'+
+      '<td class="money">'+(x.deles_pagar==null?tr:rs(x.deles_pagar))+'</td>'+
+      '<td class="money">'+(x.nosso_pagar==null?tr:rs(x.nosso_pagar))+'</td>'+
+      '<td class="money">'+qcel(d)+'</td></tr>';
+    h+='<tr id="qd'+io+'" class="qesc"><td colspan="7" class="qdet">'+qdetalhe(x)+'</td></tr>';
+  });
+  h+='<tr class="qtot"><td class="ql" colspan="3"><b>TOTAL</b> · '+num(t.refeicoes)+' refeições</td>'+
+     '<td><b>'+hhmm(tH)+'</b></td><td><b>'+rs(tE)+'</b></td><td><b>'+rs(tN)+'</b></td><td><b>'+qsin(tD)+'</b></td></tr>';
+  h+='</table></div>';
+  h+='<div class="qleg"><b style="color:#8f4416">−</b> laranja <b>deles pagaram a mais</b> · <b style="color:#1b4f8a">+</b> azul <b>a nossa conta paga mais</b> · <span style="color:#1c1c1c;font-weight:600">HH:MM:SS</span> hora cravada pelo GPS · <span style="color:#8a8578">~HH:MM</span> sem carimbo de GPS</div>';
+  h+='</div>';
   h+='<div class="qnota">Quem paga é a Hellen, olhando a coluna que você mandar. Esta tela não paga nada sozinha — ela só mostra as duas contas lado a lado para você medir a diferença dia após dia.</div>';
   $('conteudo').innerHTML=h;
 }
