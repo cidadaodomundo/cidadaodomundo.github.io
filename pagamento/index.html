@@ -220,6 +220,7 @@ function setView(v){VIEW=v;
   $('t_reg').className='tab'+(v==='reg'?' on':'');
   $('t_cmp').className='tab'+(v==='cmp'?' on':'');
   if(v!=='ag'&&AGT){clearInterval(AGT);AGT=null}
+  if(v!=='maq'&&MAQ_TIMER){clearInterval(MAQ_TIMER);MAQ_TIMER=null}
   render()}
 function viewRegras(){$('kpis').innerHTML='';$('faixa').innerHTML='';$('conteudo').innerHTML=REGRAS_HTML}
 function render(){if(VIEW==='ag'){viewAgora();return}if(VIEW==='maq'){viewMaq();return}if(VIEW==='reg'){viewRegras();return}if(VIEW==='cmp'){viewComparar();return}viewPag()}
@@ -611,16 +612,127 @@ function maqSit(s){return MAQ_SIT[s]||[s,'#8a897e','']}
 function maqPill(s){const x=maqSit(s);return '<span style="display:inline-block;border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:700;background:'+x[1]+'22;color:'+x[1]+';white-space:nowrap">'+x[0]+'</span>'}
 function maqRs(n){return n==null?'—':'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function maqModo(m){if(!m)return '';m=String(m);return m.indexOf('CREDIT')===0?'crédito':(m.indexOf('DEBIT')===0?'débito':(m.indexOf('VAN')===0?'vale':m))}
+
+/* === 06/09/2026: varredura, carimbo de frescor e marcacao de status (so nesta tela) === */
+let MAQ_LINHAS=[], MAQ_DIA='', MAQ_FONTES=null, MAQ_VARRENDO=false, MAQ_TIMER=null;
+const MAQ_MARCA=true;
+const MAQ_STATUS=[['','— sem marca —'],['em processo','⏳ Em processo'],['nao cobrou','❌ Não cobrou'],['resolvido','✅ Resolvido'],['cobrado','💳 Cobrado'],['dinheiro','💵 Dinheiro'],['canhoto','🧾 Canhoto'],['balcao','🏪 Balcão'],['pago no ifood','📱 Pago no iFood'],['arquivado','🗄 Arquivado']];
+function maqLojaTag(u){
+  const m={'Água Verde':['AV','#c9a227'],'São Braz':['SB','#5aa9e6'],'Ahú':['AH','#7bc47f']};
+  const x=m[u]||[String(u||'?').slice(0,2),'#8a897e'];
+  return '<span title="'+esc(u||'')+'" style="display:inline-block;background:'+x[1]+'22;color:'+x[1]+';border:1px solid '+x[1]+'55;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700">'+x[0]+'</span>';
+}
+async function maqPorta(nome,corpo){
+  const r=await fetch(SB+'rpc/'+nome,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify(corpo)});
+  if(!r.ok){const t=await r.text(); throw new Error(t||('erro '+r.status))}
+  return await r.json();
+}
+function maqCor(c){return c==='verde'?'#2fae6a':(c==='amarelo'?'#d9a441':'#e66767')}
+function maqIdade(m){
+  if(m==null)return 'nunca chegou';
+  if(m<60)return m+' min atrás';
+  const h=Math.floor(m/60);
+  return h<24?(h+'h'+(m%60?' '+(m%60)+'min':'')+' atrás'):(Math.floor(h/24)+' dia(s) atrás');
+}
+function maqFontesHtml(){
+  if(!MAQ_FONTES)return '<div style="font-size:12px;color:#8a897e">Conferindo de que hora é cada número…</div>';
+  let h='<div style="display:flex;gap:6px;flex-wrap:wrap">';
+  MAQ_FONTES.forEach(function(f){
+    const c=maqCor(f.cor);
+    h+='<span title="'+esc(f.explica||'')+(f.olhei?' — última busca: '+esc(f.olhei):'')+'" style="cursor:help;background:'+c+'18;border:1px solid '+c+'55;border-radius:6px;padding:3px 8px;font-size:11.5px;color:#e8e6dd">'+
+       '<b style="color:'+c+'">●</b> '+esc(f.rotulo)+' <span style="color:#8a897e">'+esc(maqIdade(f.min_atras))+'</span>'+
+       (f.alcanca_botao?'':' <span style="color:#8a897e">🖥</span>')+'</span>';
+  });
+  return h+'</div>';
+}
+function maqPainel(){
+  let h='<div class="c" style="padding:10px 12px">';
+  h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">';
+  h+='<button class="b" id="maq_btn" onclick="maqVarrer()" style="background:var(--brand);color:var(--brand-ink);border-color:var(--brand);font-weight:700">🔄 Buscar tudo de novo</button>';
+  h+='<button class="b" onclick="maqBaixar()">⬇ Baixar o que sobrou sem par</button>';
+  h+='<span id="maq_aviso" style="font-size:12px;color:#8a897e"></span></div>';
+  h+='<div id="maq_fontes">'+maqFontesHtml()+'</div>';
+  h+='<div style="font-size:11px;color:#8a897e;margin-top:6px">🖥 = depende do computador do Fábio ligado; o botão não alcança essa. Passe o mouse em cada bolinha para ver de onde vem.</div>';
+  return h+'</div>';
+}
+async function maqFrescor(){
+  try{ const j=await maqPorta('pagamento_varrer',{p_token:cdmTok(),p_acao:'frescor',p_dados:{}}); MAQ_FONTES=j.fontes||[]; }
+  catch(e){ MAQ_FONTES=[]; }
+  const el=document.getElementById('maq_fontes'); if(el)el.innerHTML=maqFontesHtml();
+}
+async function maqVarrer(){
+  if(MAQ_VARRENDO)return; MAQ_VARRENDO=true;
+  const b=document.getElementById('maq_btn'), a=document.getElementById('maq_aviso');
+  if(b){b.disabled=true;b.textContent='⏳ Buscando…'}
+  if(a)a.textContent='Pedindo os números de novo em todas as fontes…';
+  try{
+    const j=await maqPorta('pagamento_varrer',{p_token:cdmTok(),p_acao:'varrer',p_dados:{dia:MAQ_DIA}});
+    MAQ_FONTES=j.fontes||[];
+    const el=document.getElementById('maq_fontes'); if(el)el.innerHTML=maqFontesHtml();
+    if(j.aviso){ if(a)a.textContent=j.aviso; return; }
+    if(a)a.textContent='Pedido feito. As respostas chegam em até 2 minutos — vou conferindo sozinho.';
+    if(MAQ_TIMER)clearInterval(MAQ_TIMER);
+    let voltas=0;
+    MAQ_TIMER=setInterval(function(){
+      voltas++;
+      maqFrescor();
+      if(voltas>=3){clearInterval(MAQ_TIMER);MAQ_TIMER=null;
+        const a2=document.getElementById('maq_aviso'); if(a2)a2.textContent='Pronto. Recarregando a lista com os números novos…';
+        MQ=null; MQK=''; if(VIEW==='maq')viewMaq();
+      }
+    },60000);
+  }catch(e){ if(a)a.textContent='Não deu para buscar: '+e.message; }
+  finally{ MAQ_VARRENDO=false; if(b){b.disabled=false;b.textContent='🔄 Buscar tudo de novo'} }
+}
+function maqSel(l,i){
+  if(typeof MAQ_MARCA==='undefined'||!MAQ_MARCA)return '';
+  const atual=(l.conferido&&l.conferido.resultado)||'';
+  let s='<div style="margin-top:6px"><select onchange="maqMarcar(this,'+i+')" style="background:#1c1b19;color:#e8e6dd;border:1px solid #4a4842;border-radius:5px;font-size:11px;padding:2px 4px">';
+  MAQ_STATUS.forEach(function(o){s+='<option value="'+o[0]+'"'+(o[0]===atual?' selected':'')+'>'+o[1]+'</option>'});
+  s+='</select>';
+  if(l.conferido&&l.conferido.quem)s+='<div style="color:#8a897e;font-size:10px;margin-top:2px">'+esc(l.conferido.quem)+(l.conferido.quando?' · '+esc(l.conferido.quando):'')+'</div>';
+  return s+'</div>';
+}
+async function maqMarcar(sel,i){
+  const l=MAQ_LINHAS[i]; if(!l)return;
+  sel.disabled=true;
+  try{
+    await maqPorta('cobranca_marcar',{p_token:cdmTok(),p_dados:{
+      unidade:l.unidade, dia:MAQ_DIA, pedido:String(l.pedido||''),
+      valor:(l.na_porta!=null?String(l.na_porta):'0'), cliente:l.cliente||'',
+      entregador:l.motoboy||'', meio:l.forma||'', hora_entrega:l.entregue_em||'',
+      situacao:l.situacao||'', resultado:sel.value}});
+    if(!l.conferido)l.conferido={};
+    l.conferido.resultado=sel.value;
+    sel.style.borderColor='#2fae6a';
+    setTimeout(function(){sel.style.borderColor='#4a4842'},2000);
+  }catch(e){ sel.style.borderColor='#e66767'; alert('Não deu para gravar a marcação: '+e.message); }
+  finally{ sel.disabled=false; }
+}
+async function maqBaixar(){
+  const a=document.getElementById('maq_aviso');
+  if(a)a.textContent='Montando a lista… pode levar uns segundos.';
+  try{
+    const j=await maqPorta('pagamento_sem_par',{p_token:cdmTok(),p_dados:{dia:MAQ_DIA,unidade:LOJA||null}});
+    const q=j.quantos||{};
+    const nome='sem-par-'+(j.dia||MAQ_DIA)+(LOJA?('-'+String(LOJA).replace(/\s/g,'')):'')+'.csv';
+    const blob=new Blob(["﻿"+(j.csv||'')],{type:'text/csv;charset=utf-8'});
+    const url=URL.createObjectURL(blob), el=document.createElement('a');
+    el.href=url; el.download=nome; document.body.appendChild(el); el.click();
+    document.body.removeChild(el); setTimeout(function(){URL.revokeObjectURL(url)},4000);
+    if(a)a.textContent='Baixei: '+(q.pedidos||0)+' pedido(s) sem cobrança e '+(q.rede||0)+' passada(s) da maquininha sem pedido.';
+  }catch(e){ if(a)a.textContent='Não deu para montar a lista: '+e.message; }
+}
 function maqHtml(j){
   if(!j)return '<div class="c">Não deu para carregar a conferência da maquininha. Entre no portal de novo e tente outra vez.</div>';
   const L=j.linhas||[], R=j.resumo||{}, dono=!!j.dono;
   const ordem=['NAO_COBROU','SEM_COBRANCA_LONGE','SEM_COBRANCA_SEM_GPS','SO_A_COMIDA','COBROU_A_MAIS','PIX_SEM_RASTRO','OUTRO_METODO','COBRADO','PIX_ACHADO','DINHEIRO','AGUARDANDO_REDE'];
-  let h='<div class="c"><div style="font-size:12.5px;color:#c3c2b7;margin-bottom:8px"><b style="color:#fff">🧾 Maquininha do dia '+esc(j.dia_texto)+'</b> · '+L.length+' entrega'+(L.length===1?'':'s')+' paga'+(L.length===1?'':'s')+' na porta · Rede lida até '+esc(j.rede_ate||'—')+' · lido '+esc(j.agora)+'</div>';
+  let h=maqPainel()+'<div class="c"><div style="font-size:12.5px;color:#c3c2b7;margin-bottom:8px"><b style="color:#fff">🧾 Maquininha do dia '+esc(j.dia_texto)+'</b> · '+L.length+' entrega'+(L.length===1?'':'s')+' paga'+(L.length===1?'':'s')+' na porta · Rede lida até '+esc(j.rede_ate||'—')+' · lido '+esc(j.agora)+'</div>';
   h+='<div style="display:flex;gap:6px;flex-wrap:wrap">';
   ordem.forEach(function(k){if(R[k])h+=maqPill(k).replace('</span>',' · <b>'+R[k]+'</b></span>')});
   h+='</div></div>';
   if(!L.length)return h+'<div class="c" style="color:#8a897e">Nenhuma entrega paga na porta neste dia (cartão, vale, Pix ou dinheiro). Tudo veio pago pelo app.</div>';
-  const pri=L.slice().sort(function(a,b){return ordem.indexOf(a.situacao)-ordem.indexOf(b.situacao)});
+  const pri=L.slice().sort(function(a,b){return ordem.indexOf(a.situacao)-ordem.indexOf(b.situacao)}); MAQ_LINHAS=pri; MAQ_DIA=(typeof PDDIA!=='undefined'&&PDDIA)?PDDIA:iso(new Date(Date.now()-864e5));
   h+='<div class="c" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:700px"><tr>'+
     '<th style="text-align:left;color:#8a897e;font-size:11px;padding:0 8px 6px 0">Loja</th><th style="text-align:left;color:#8a897e;font-size:11px;padding:0 8px 6px 0">Pedido</th><th style="text-align:left;color:#8a897e;font-size:11px;padding:0 8px 6px 0">Motoboy</th><th style="text-align:left;color:#8a897e;font-size:11px;padding:0 8px 6px 0">Entregue</th><th style="text-align:left;color:#8a897e;font-size:11px;padding:0 8px 6px 0">O Saipos diz</th>'+
     (dono?'<th style="text-align:right;color:#8a897e;font-size:11px;padding:0 8px 6px 0">Na porta</th>':'')+
@@ -636,7 +748,7 @@ function maqHtml(j){
     else gps='<span style="color:#8a897e">sem leitura</span>';
     const forma=esc(l.forma)+(l.promessa?' <span title="a forma foi anotada no mesmo minuto do pedido: é o que o cliente PROMETEU, não o que a maquininha confirmou" style="color:#8a897e;font-size:11px">(prometida)</span>':'');
     h+='<tr style="'+(i%2?'background:rgba(255,255,255,.02)':'')+'">'+
-      '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top">'+esc(l.unidade==='Água Verde'?'AV':(l.unidade==='São Braz'?'SB':l.unidade))+'</td>'+
+      '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top">'+maqLojaTag(l.unidade)+'</td>'+
       '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top"><b>#'+esc(l.pedido)+'</b>'+(l.curto?' <span style="color:#8a897e;font-size:11px">('+esc(l.curto)+')</span>':'')+'<div style="color:#8a897e;font-size:11px">'+esc(l.cliente||'')+(l.bairro?' · '+esc(l.bairro):'')+'</div></td>'+
       '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top">'+esc(l.motoboy||'—')+'</td>'+
       '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top">'+esc(l.entregue_em||'—')+'<div style="color:#8a897e;font-size:11px">pedido '+esc(l.pedido_em||'')+'</div></td>'+
@@ -644,7 +756,7 @@ function maqHtml(j){
       (dono?'<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top;text-align:right;white-space:nowrap"><b>'+maqRs(l.na_porta)+'</b>'+(l.taxa>0?'<div style="color:#8a897e;font-size:11px">taxa '+maqRs(l.taxa)+'</div>':'')+'</td>':'')+
       '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top">'+rede+'</td>'+
       '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top">'+gps+'</td>'+
-      '<td style="padding:8px 0 8px 0;border-top:1px solid #34332f;vertical-align:top" title="'+esc(x[2])+'">'+maqPill(l.situacao)+' <span style="color:#8a897e;cursor:help">ⓘ</span></td></tr>';
+      '<td style="padding:8px 0 8px 0;border-top:1px solid #34332f;vertical-align:top" title="'+esc(x[2])+'">'+maqPill(l.situacao)+' <span style="color:#8a897e;cursor:help">ⓘ</span>'+maqSel(l,i)+'</td></tr>';
   });
   h+='</table></div>';
   h+='<div class="c" style="font-size:12px;color:#c3c2b7">Como eu confiro: pego cada entrega que o <b>Saipos</b> diz que foi paga na porta (cartão, vale, Pix, dinheiro), procuro o valor exato na <b>Rede</b> da mesma loja em até '+esc(j.janela_min||240)+' minutos da hora da entrega (cada cobrança da Rede só pode casar com <b>um</b> pedido — a mesa do salão paga na mesma hora não conta duas vezes), depois no <b>extrato</b> (Pix) e, por último, olho o <b>GPS</b> do motoboy: estar a menos de '+esc(j.raio_m||150)+' m da casa do cliente prova que ele entregou. Regra da casa: <b>o preço já inclui a taxa — nada é cobrado por fora</b>.</div>';
@@ -679,6 +791,7 @@ function viewMaq(){
     return;
   }
   $('conteudo').innerHTML=h+maqHtml(MQ);
+  if(!MAQ_FONTES)maqFrescor();
 }
 
 async function portaAgora(){
