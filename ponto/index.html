@@ -151,6 +151,9 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
 .mprint{background:transparent;border:1px solid currentColor;color:inherit;border-radius:8px;padding:4px 10px;font:inherit;font-size:13px;cursor:pointer;margin-right:8px;opacity:.7}
 .mprint:hover{opacity:1}
 #mcarimbo{display:none;margin-top:6px;font-size:12px}
+.msclick{cursor:pointer;transition:transform .1s ease}
+.msclick:hover{transform:translateY(-2px)}
+.ms.mson{outline:2px solid var(--mc);outline-offset:2px}
 @media print{
   body.printficha>*:not(#mwrap){display:none!important}
   body.printficha #mwrap{position:static!important;display:block!important;background:#fff!important;padding:0!important;overflow:visible!important}
@@ -738,9 +741,9 @@ function openModal(nome){
   const p=stats(nome);
   $('mname').textContent=title(nome)+(p.ativo?'':' (desligado)');
   $('msub').textContent=p.unidade+' · Flash: '+p.dias+' dias · Secullum: '+p.meses+' meses · Eventos: '+ev.length;
-  const st=[['ADVERTÊNCIAS',p.adv,'var(--adv)'],['SUSPENSÕES',p.susp,'var(--serio)'],['FALTAS',p.faltasTot,'var(--serio)'],['ATESTADOS',p.atest,'var(--atest)'],
-    ['DIAS ATESTADO',p.atestDias,'var(--atest)'],['FALTA BATIDA 2A',p.esq2y,'var(--infra)'],['MIN EXTRAS',p.extra,'var(--grave)']];
-  $('mstats').innerHTML=st.map(([l,n,c])=>`<div class="ms" style="--mc:${c}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+  const st=[['ADVERTÊNCIAS',p.adv,'var(--adv)','ADVERTENCIA'],['SUSPENSÕES',p.susp,'var(--serio)','SUSPENSAO'],['FALTAS',p.faltasTot,'var(--serio)','FALTA'],['ATESTADOS',p.atest,'var(--atest)','ATESTADO'],
+    ['DIAS ATESTADO',p.atestDias,'var(--atest)','ATESTADO'],['FALTA BATIDA 2A',p.esq2y,'var(--infra)','#mmonthly'],['MIN EXTRAS',p.extra,'var(--grave)','#mdaily']];
+  $('mstats').innerHTML=st.map(([l,n,c,k])=>`<div class="ms${(k&&n)?' msclick':''}" ${(k&&n)?'onclick=\"fichaFoco(&#39;'+k+'&#39;)\"':''} style="--mc:${c}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
   const flag=$('mflag');
   if(p.adv>=3) flag.innerHTML='<div class="mflag danger">🚨 '+p.adv+' advertências formais — reincidência caracterizada; próximo passo legal: SUSPENSÃO (Art. 474). Ver Guia RH.</div>';
   else if(p.adv>0) flag.innerHTML='<div class="mflag warn">📄 '+p.adv+' advertência(s) formal(is) assinada(s). Reincidência ⇒ nova advertência/suspensão.</div>';
@@ -749,7 +752,7 @@ function openModal(nome){
   else if(p.pen===0&&p.esq2y<=5) flag.innerHTML='<div class="mflag ok">✓ Histórico limpo — sem penalidades nem advertências.</div>';
   else flag.innerHTML='<div class="mflag ok">✓ Sem advertências formais ('+p.esq2y+' batidas esquecidas em 2 anos — acompanhar).</div>';
   $('mtodo').innerHTML='<div class="mtodo"><h4>✅ O que o RH deve fazer</h4><ul>'+todoFor(nome,p,h).map(a=>'<li>'+a+'</li>').join('')+'</ul></div>';
-  $('mevents').innerHTML=RH_SEM_SENHA?"<h3>Ocorrências registradas</h3><div class='tinfo'>Entre com a senha para ver o histórico.</div>":ev.length?('<h3>Ocorrências registradas — advertências, atestados, faltas, férias</h3>'+ev.map(r=>`<div class="trow">
+  $('mevents').innerHTML=RH_SEM_SENHA?"<h3>Ocorrências registradas</h3><div class='tinfo'>Entre com a senha para ver o histórico.</div>":ev.length?('<h3>Ocorrências registradas — advertências, atestados, faltas, férias</h3>'+ev.map(r=>`<div class="trow" data-tipo="${r.tipo}">
     <div class="tdate">${br(r.data)}</div>
     <div><span class="tbadge" style="background:${EC[r.tipo]||'var(--conf)'}">${EL[r.tipo]||r.tipo}</span>
       <div class="tinfo">${r.motivo||''}${r.dias&&r.dias>1?' · '+r.dias+' dias':''}</div>
@@ -766,6 +769,7 @@ function openModal(nome){
       <div class="mmbar"><i style="width:${w}%"></i></div>
       <div class="mminfo">${fmt(r.horas_liquidas_min)} · ${r.dias_trabalhados??'—'}d${r.esquecimentos?` · <span class="mmesq">${r.esquecimentos} s/ batida</span>`:''}</div></div>`}).join('')+'</div>'):'';
   $('mmeal').innerHTML='<div class="loading" style="padding:14px 0">Carregando refeição…</div>';
+  FICHAFILTRO=null;
   refHistorico(nome);
   $('mwrap').classList.add('open');
 }
@@ -851,28 +855,48 @@ async function renderRefe(){
 }
 async function refHistorico(nome){
   const alvo=$('mmeal'); if(!alvo)return;
+  const seq=++REFSEQ;
   const l=await refPorta('mes',{});
-  if(!l){alvo.innerHTML='';return}
-  const meus=l.filter(function(r){return normN(r.nome)===normN(nome)});
-  if(!meus.length){alvo.innerHTML='<h3>Refeição</h3><div class="det" style="padding:0 0 8px">Sem registro de refeição no período.</div>';return}
-  const linhas=meus.map(function(r){
-    const pegou=Number(r.dias_ok||0)+Number(r.dias_acima||0);
-    const total=Number(r.dias_trabalhados||0);
-    const w=total?Math.round(100*pegou/total):0;
-    const marcas=(Number(r.dias_acima)>0?'<span class="mmesq">'+r.dias_acima+' acima do direito</span> · ':'')
-                +(Number(r.dias_nao_pegou)>0?r.dias_nao_pegou+' não pegou':'')
-                +(Number(r.dias_sem_cartao)>0?' · '+r.dias_sem_cartao+' sem cartão':'');
-    return '<div class="mmrow"><div class="mmlabel">'+MESES[r.mes-1]+'/'+String(r.ano).slice(2)+'</div>'
-      +'<div class="mmbar"><i style="width:'+w+'%"></i></div>'
-      +'<div class="mminfo">'+pegou+' de '+total+' dias · '+r.refeicoes+' refeições'+(marcas?'<br>'+marcas:'')+'</div></div>';
-  }).join('');
-  alvo.innerHTML='<h3>Refeição — mês a mês</h3><div class="mmgrid">'+linhas+'</div>';
   const pend=await refPorta('pendente',{nome:nome});
+  let html='';
+  if(l){
+    const meus=l.filter(function(r){return normN(r.nome)===normN(nome)});
+    if(meus.length){
+      html+='<h3>Refeição — mês a mês</h3><div class="mmgrid">'+meus.map(function(r){
+        const pegou=Number(r.dias_ok||0)+Number(r.dias_acima||0);
+        const total=Number(r.dias_trabalhados||0);
+        const w=total?Math.round(100*pegou/total):0;
+        const marcas=(Number(r.dias_acima)>0?'<span class="mmesq">'+r.dias_acima+' acima do direito</span> · ':'')
+                    +(Number(r.dias_nao_pegou)>0?r.dias_nao_pegou+' não pegou':'')
+                    +(Number(r.dias_sem_cartao)>0?' · '+r.dias_sem_cartao+' sem cartão':'');
+        return '<div class="mmrow"><div class="mmlabel">'+MESES[r.mes-1]+'/'+String(r.ano).slice(2)+'</div>'
+          +'<div class="mmbar"><i style="width:'+w+'%"></i></div>'
+          +'<div class="mminfo">'+pegou+' de '+total+' dias · '+r.refeicoes+' refeições'+(marcas?'<br>'+marcas:'')+'</div></div>';
+      }).join('')+'</div>';
+    }
+  }
   if(pend&&pend.length){
-    alvo.innerHTML+='<h3>Refeição — dias em aberto ('+pend.length+')</h3>'+pend.map(function(r){
-      return '<div class="trow"><div class="tdate">'+br(r.dia)+'</div><div><span class="tbadge" style="background:var(--grave)">'+r.situacao+'</span>'
+    html+='<h3 id="mrefaberto">Refeição — dias em aberto ('+pend.length+')</h3>'+pend.map(function(r){
+      return '<div class="trow"><div class="tdate">'+br(r.dia)+'</div><div><span class="tbadge" style="background:'+(r.situacao==='ACIMA DO DIREITO'?'var(--grave)':'var(--infra)')+'">'+r.situacao+'</span>'
         +'<div class="tinfo">'+(r.unidade||'')+' · tinha direito a '+(r.direito||0)+' · pegou '+(r.refeicoes||0)+'</div></div></div>'}).join('');
   }
+  if(!html) html='<h3>Refeição</h3><div class="det" style="padding:0 0 8px">Sem registro de refeição no período.</div>';
+  if(seq!==REFSEQ)return;
+  alvo.innerHTML=html;
+}
+let FICHAFILTRO=null;
+let REFSEQ=0;
+function fichaFoco(k){
+  if(!k)return;
+  if(k.charAt(0)==='#'){var el=document.querySelector(k); if(el)el.scrollIntoView({behavior:'smooth',block:'start'}); return}
+  FICHAFILTRO=(FICHAFILTRO===k)?null:k;
+  document.querySelectorAll('#mevents .trow').forEach(function(r){
+    r.style.display=(!FICHAFILTRO||r.getAttribute('data-tipo')===FICHAFILTRO)?'':'none'});
+  document.querySelectorAll('#mstats .ms').forEach(function(m){
+    var on=FICHAFILTRO&&(m.getAttribute('onclick')||'').indexOf("'"+FICHAFILTRO+"'")>=0;
+    m.classList.toggle('mson',!!on)});
+  var ev=document.getElementById('mevents');
+  if(FICHAFILTRO&&ev)ev.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function imprimirFicha(){
   var h=document.querySelector('.mhead>div'); if(!h){window.print();return}
