@@ -147,7 +147,24 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
 
 /* cabe no celular 04-09-2026 — filas de aba nunca vazam ate 900px; o resto so em tela estreita */
 @media (max-width:900px){.views,.tabs,.abas,.fil,.pes,.filtros,.chips,.lojas,.periodos{display:flex;flex-wrap:wrap;gap:6px;width:auto;max-width:100%;min-width:0}.views>*,.tabs>*,.abas>*,.fil>*,.pes>*{flex:0 0 auto;max-width:100%}}@media (max-width:640px){body{padding-left:12px;padding-right:12px}table{display:block;width:max-content;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}h1{font-size:clamp(18px,6.2vw,26px);word-break:break-word}img,svg,canvas,iframe{max-width:100%}}
-</style></head><body>
+</style><style>
+.mprint{background:transparent;border:1px solid currentColor;color:inherit;border-radius:8px;padding:4px 10px;font:inherit;font-size:13px;cursor:pointer;margin-right:8px;opacity:.7}
+.mprint:hover{opacity:1}
+#mcarimbo{display:none;margin-top:6px;font-size:12px}
+@media print{
+  body.printficha>*:not(#mwrap){display:none!important}
+  body.printficha #mwrap{position:static!important;display:block!important;background:#fff!important;padding:0!important;overflow:visible!important}
+  body.printficha #mwrap .modal{box-shadow:none!important;border:0!important;max-height:none!important;max-width:100%!important;width:100%!important;overflow:visible!important;background:#fff!important}
+  body.printficha .mprint,body.printficha .mclose{display:none!important}
+  body.printficha #mcarimbo{display:block!important}
+  body.printficha #mwrap *{color:#000!important;background:#fff!important;overflow:visible!important}
+  body.printficha #mwrap .tbadge,body.printficha #mwrap .ms,body.printficha #mwrap .mflag{border:1px solid #666!important}
+  body.printficha #mwrap .mmbar i{background:#666!important}
+  body.printficha h3{page-break-after:avoid}
+  body.printficha .trow,body.printficha .mmrow,body.printficha .ms{page-break-inside:avoid}
+}
+</style>
+</head><body>
 <div id="gate" style="display:none"><div class="gatebox">
   <div class="logo" style="margin:0 auto 12px">CM</div>
   <h1>Histórico protegido</h1>
@@ -202,7 +219,7 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
 <div class="mwrap" id="mwrap" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="mhead"><div><h2 id="mname">—</h2><div class="sub" id="msub"></div></div>
-      <button class="mclose" onclick="closeModal()">×</button></div>
+      <button class="mprint" onclick="imprimirFicha()" title="Imprimir esta ficha para levar ao escritório">🖨 Imprimir ficha</button><button class="mclose" onclick="closeModal()">×</button></div>
     <div class="mstats" id="mstats"></div>
     <div id="mflag"></div>
     <div id="mtodo"></div>
@@ -358,6 +375,7 @@ function stats(nome){
   s.horas2y=m.reduce((x,r)=>x+(r.horas_liquidas_min||0),0);
   const ev=EVT.filter(r=>r.nome===nome);
   s.adv=ev.filter(r=>r.tipo==='ADVERTENCIA').length;
+  s.susp=ev.filter(r=>r.tipo==='SUSPENSAO').length;
   s.atest=ev.filter(r=>r.tipo==='ATESTADO'&&!(r.detalhe||'').includes('REPROVADO')).length;
   s.atestDias=ev.filter(r=>r.tipo==='ATESTADO'&&!(r.detalhe||'').includes('REPROVADO')).reduce((x,r)=>x+(r.dias||1),0);
   s.atestRep=ev.filter(r=>r.tipo==='ATESTADO'&&(r.detalhe||'').includes('REPROVADO')).length;
@@ -720,7 +738,7 @@ function openModal(nome){
   const p=stats(nome);
   $('mname').textContent=title(nome)+(p.ativo?'':' (desligado)');
   $('msub').textContent=p.unidade+' · Flash: '+p.dias+' dias · Secullum: '+p.meses+' meses · Eventos: '+ev.length;
-  const st=[['ADVERTÊNCIAS',p.adv,'var(--adv)'],['FALTAS',p.faltasTot,'var(--serio)'],['ATESTADOS',p.atest,'var(--atest)'],
+  const st=[['ADVERTÊNCIAS',p.adv,'var(--adv)'],['SUSPENSÕES',p.susp,'var(--serio)'],['FALTAS',p.faltasTot,'var(--serio)'],['ATESTADOS',p.atest,'var(--atest)'],
     ['DIAS ATESTADO',p.atestDias,'var(--atest)'],['FALTA BATIDA 2A',p.esq2y,'var(--infra)'],['MIN EXTRAS',p.extra,'var(--grave)']];
   $('mstats').innerHTML=st.map(([l,n,c])=>`<div class="ms" style="--mc:${c}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
   const flag=$('mflag');
@@ -849,8 +867,24 @@ async function refHistorico(nome){
       +'<div class="mminfo">'+pegou+' de '+total+' dias · '+r.refeicoes+' refeições'+(marcas?'<br>'+marcas:'')+'</div></div>';
   }).join('');
   alvo.innerHTML='<h3>Refeição — mês a mês</h3><div class="mmgrid">'+linhas+'</div>';
+  const pend=await refPorta('pendente',{nome:nome});
+  if(pend&&pend.length){
+    alvo.innerHTML+='<h3>Refeição — dias em aberto ('+pend.length+')</h3>'+pend.map(function(r){
+      return '<div class="trow"><div class="tdate">'+br(r.dia)+'</div><div><span class="tbadge" style="background:var(--grave)">'+r.situacao+'</span>'
+        +'<div class="tinfo">'+(r.unidade||'')+' · tinha direito a '+(r.direito||0)+' · pegou '+(r.refeicoes||0)+'</div></div></div>'}).join('');
+  }
 }
-function closeModal(){$('mwrap').classList.remove('open')}
+function imprimirFicha(){
+  var h=document.querySelector('.mhead>div'); if(!h){window.print();return}
+  var cr=document.getElementById('mcarimbo');
+  if(!cr){cr=document.createElement('div'); cr.id='mcarimbo'; cr.className='sub'; h.appendChild(cr);}
+  var d=new Date();
+  cr.textContent='Ficha emitida em '+d.toLocaleDateString('pt-BR')+' as '+d.toLocaleTimeString('pt-BR').slice(0,5)+' - Cidadao do Mundo Burgers & Arts.    Assinatura do funcionario: ______________________________';
+  document.body.classList.add('printficha');
+  window.addEventListener('afterprint', function tira(){document.body.classList.remove('printficha'); window.removeEventListener('afterprint', tira);});
+  window.print();
+}
+function closeModal(){$('mwrap').classList.remove('open'); document.body.classList.remove('printficha')}
 function copyM(btn){const t=btn.parentElement.innerText.replace(/^Copiar\n?/,'');navigator.clipboard.writeText(t).then(()=>{btn.textContent='Copiado ✓';setTimeout(()=>btn.textContent='Copiar',1500)})}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
 $('q').addEventListener('input',e=>{
