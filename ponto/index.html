@@ -742,7 +742,7 @@ function openModal(nome){
   $('mname').textContent=title(nome)+(p.ativo?'':' (desligado)');
   $('msub').textContent=p.unidade+' · Flash: '+p.dias+' dias · Secullum: '+p.meses+' meses · Eventos: '+ev.length;
   const st=[['ADVERTÊNCIAS',p.adv,'var(--adv)','ADVERTENCIA'],['SUSPENSÕES',p.susp,'var(--serio)','SUSPENSAO'],['FALTAS',p.faltasTot,'var(--serio)','FALTA'],['ATESTADOS',p.atest,'var(--atest)','ATESTADO'],
-    ['DIAS ATESTADO',p.atestDias,'var(--atest)','ATESTADO'],['FALTA BATIDA 2A',p.esq2y,'var(--infra)','#mmonthly'],['MIN EXTRAS',p.extra,'var(--grave)','#mdaily']];
+    ['DIAS ATESTADO',p.atestDias,'var(--atest)','ATESTADO'],['FALTA BATIDA 2A',p.esq2y,'var(--infra)','#mmonthly']];
   $('mstats').innerHTML=st.map(([l,n,c,k])=>`<div class="ms${(k&&n)?' msclick':''}" ${(k&&n)?'onclick=\"fichaFoco(&#39;'+k+'&#39;)\"':''} style="--mc:${c}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
   const flag=$('mflag');
   if(p.adv>=3) flag.innerHTML='<div class="mflag danger">🚨 '+p.adv+' advertências formais — reincidência caracterizada; próximo passo legal: SUSPENSÃO (Art. 474). Ver Guia RH.</div>';
@@ -757,7 +757,8 @@ function openModal(nome){
     <div><span class="tbadge" style="background:${EC[r.tipo]||'var(--conf)'}">${EL[r.tipo]||r.tipo}</span>
       <div class="tinfo">${r.motivo||''}${r.dias&&r.dias>1?' · '+r.dias+' dias':''}</div>
       ${r.detalhe?`<div class="tdet">▸ ${r.detalhe}</div>`:''}</div></div>`).join('')):'';
-  $('mdaily').innerHTML=h.length?('<h3>Dia a dia — Flash (recente)</h3>'+h.map(r=>`<div class="trow">
+  const hOc=h.filter(function(r){return NV(r)!=='SEM'});
+  $('mdaily').innerHTML=hOc.length?('<h3>Dia a dia — só os dias com ocorrência</h3>'+hOc.map(r=>`<div class="trow">
     <div class="tdate">${br(r.data)}<br><span style="font-weight:400">${(r.dia_semana||'').replace('-feira','')}</span></div>
     <div><span class="tbadge" style="background:${C[NV(r)]}">${L[NV(r)]}</span>
       <div class="tmk">líq ${fmt(r.jornada_liquida_min)} · int ${r.intervalo_real_min??'—'}min</div>
