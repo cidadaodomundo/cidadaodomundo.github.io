@@ -615,6 +615,14 @@ function maqModo(m){if(!m)return '';m=String(m);return m.indexOf('CREDIT')===0?'
 let MAQ_LINHAS=[], MAQ_DIA='', MAQ_FONTES=null, MAQ_VARRENDO=false, MAQ_TIMER=null;
 const MAQ_MARCA=true;
 const MAQ_STATUS=[['','— sem marca —'],['em processo','⏳ Em processo'],['nao cobrou','❌ Não cobrou'],['resolvido','✅ Resolvido'],['cobrado','💳 Cobrado'],['dinheiro','💵 Dinheiro'],['canhoto','🧾 Canhoto'],['balcao','🏪 Balcão'],['pago no ifood','📱 Pago no iFood'],['arquivado','🗄 Arquivado']];
+function maqMarca(m){
+  if(!m)return '';
+  var s=String(m).trim();
+  s=s.replace(/\s*[-–]?\s*(Água Verde|Agua Verde|São Braz|Sao Braz|Braz|Ahú|Ahu|AV|SB)\s*$/i,'').trim();
+  if(/^cidad[ãa]o do mundo(\s+burgers?)?$/i.test(s))return 'Cidadão do Mundo';
+  s=s.replace(/^cidad[ãa]o do mundo\s*[-–]?\s*/i,'').trim();
+  return s||'Cidadão do Mundo';
+}
 function maqLojaTag(u){
   const m={'Água Verde':['AV','#c9a227'],'São Braz':['SB','#5aa9e6'],'Ahú':['AH','#7bc47f']};
   const x=m[u]||[String(u||'?').slice(0,2),'#8a897e'];
@@ -746,7 +754,7 @@ function maqHtml(j){
     else gps='<span style="color:#8a897e">sem leitura</span>';
     const forma=esc(l.forma)+(l.promessa?' <span title="a forma foi anotada no mesmo minuto do pedido: é o que o cliente PROMETEU, não o que a maquininha confirmou" style="color:#8a897e;font-size:11px">(prometida)</span>':'');
     h+='<tr style="'+(i%2?'background:rgba(255,255,255,.02)':'')+'">'+
-      '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top">'+maqLojaTag(l.unidade)+'</td>'+
+      '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top">'+maqLojaTag(l.unidade)+(l.marca?'<div title="'+esc(l.marca)+'" style="color:#8a897e;font-size:10px;margin-top:3px;line-height:1.15;max-width:78px">'+esc(maqMarca(l.marca))+'</div>':'')+'</td>'+
       '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top"><b>#'+esc(l.pedido)+'</b>'+(l.curto?' <span style="color:#8a897e;font-size:11px">('+esc(l.curto)+')</span>':'')+'<div style="color:#8a897e;font-size:11px">'+esc(l.cliente||'')+(l.bairro?' · '+esc(l.bairro):'')+'</div></td>'+
       '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top">'+esc(l.motoboy||'—')+'</td>'+
       '<td style="padding:8px 8px 2px 0;border-top:1px solid #34332f;vertical-align:top">'+esc(l.entregue_em||'—')+'<div style="color:#8a897e;font-size:11px">pedido '+esc(l.pedido_em||'')+'</div></td>'+
