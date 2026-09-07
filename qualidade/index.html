@@ -185,7 +185,7 @@ function filtros(){
     h+='<button class="'+(UNI===l.unidade?'on':'')+'" onclick="UNI=\''+esc(l.unidade).replace(/'/g,"\\'")+'\';boot()">'+esc(l.unidade)+'</button>';
   });
   h+='</div>';
-  const vivas=[['resumo','⚡ Resumo'],['dia','🗓 Dia a dia'],['pessoas','🛵 Motoboys'],['turnos','🕐 Por turno'],['cancel','🚫 Cancelamentos'],['ree','🔁 Reentregas'],['maq','🧾 Maquininha']];
+  const vivas=[['resumo','⚡ Resumo'],['dia','🗓 Dia a dia'],['pessoas','🛵 Motoboys'],['turnos','🕐 Por turno'],['cancel','🚫 Cancelamentos'],['ree','🔁 Reentregas'],['maq','🧾 Maquininha'],['chegada','⏱ Chegada do dia']];
   const analise=[['cliente','⭐ Avaliações'],['super','🏆 Selo Super'],['neg','🤝 Negociações'],['pausados','📵 Fora do ar (cardápios online)']];
     const abaBtn=function(a){return '<button class="'+(ABA===a[0]?'on':'')+'" onclick="vaiPara(\''+a[0]+'\')">'+a[1]+'</button>'};
   h+='<div class="fil"><span style="color:var(--muted);font-size:10.5px;font-weight:800;align-self:center;letter-spacing:.5px">AO VIVO</span>';
@@ -339,6 +339,79 @@ function maqAba(){
   if(MQ===false)return h+'<div class="c"><div class="vazio">não deu para carregar a conferência — tente Atualizar</div></div>';
   return h+maqHtml(MQ);
 }
+/* === CHEGADA DO DIA — o balcao confere a hora que o sistema viu (07/09/2026) === */
+let CH=null, CHK='', CHDIA='', CHBUSY=false;
+async function puxaChegada(){
+  const dia=CHDIA||hoje(), k=dia+'|'+UNI;
+  if(CHK===k&&(CH!==null||CHBUSY))return;
+  CHK=k; CH=null; CHBUSY=true;
+  try{ const j=await porta('chegada_conferir',{dia:dia,unidade:UNI||null}); if(CHK===k)CH=j; }catch(e){ if(CHK===k)CH=false }
+  CHBUSY=false;
+  if(ABA==='chegada')desenha();
+}
+async function chegMarcar(u,e,t,hora,desf){
+  const dia=CHDIA||hoje();
+  try{ await porta('chegada_marcar',{dia:dia,unidade:u,entregador:e,turno:t,hora:hora||null,desfazer:!!desf}); }
+  catch(err){ alert('Não deu para anotar: '+(err&&err.message?err.message:'tente de novo')); return; }
+  CHK=''; CH=null; puxaChegada();
+}
+function chegLinha(i){ return (CH&&CH.linhas&&CH.linhas[i])||null }
+function chegClique(i){ const l=chegLinha(i); if(l)chegMarcar(l.unidade,l.entregador,l.n_turno,null,false) }
+function chegMao(i){
+  const l=chegLinha(i); if(!l)return;
+  const h=prompt('Que horas '+l.entregador+' chegou? Escreva assim: 18:05', l.anotado_txt||'');
+  if(!h)return;
+  const t=String(h).trim();
+  if(!/^[0-9]{1,2}:[0-9]{2}$/.test(t)){ alert('Escreva a hora assim: 18:05'); return }
+  chegMarcar(l.unidade,l.entregador,l.n_turno,t,false);
+}
+function chegTira(i){
+  const l=chegLinha(i); if(!l)return;
+  if(confirm('Apagar a anotação de '+l.entregador+'?'))chegMarcar(l.unidade,l.entregador,l.n_turno,null,true);
+}
+function chegSit(l){
+  const d=l.diferenca_min==null?null:Math.abs(l.diferenca_min);
+  if(l.situacao==='bate')return '<span class="pill p-ok">bate · '+d+' min</span>';
+  if(l.situacao==='diferenca pequena')return '<span class="pill" style="background:#3a2d10;color:#f0b429">'+d+' min de diferença</span>';
+  if(l.situacao==='nao bate')return '<span class="pill p-bad">não bate · '+d+' min</span>';
+  if(l.situacao==='o sistema perdeu')return '<span class="pill p-bad">o sistema não viu</span>';
+  if(l.situacao==='esperando o balcao')return '<span class="m">esperando o balcão</span>';
+  return '<span class="m">não chegou</span>';
+}
+const CHBT='background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer';
+function chegAba(){
+  const dia=CHDIA||hoje(), k=dia+'|'+UNI;
+  let h='<h2>⏱ Chegada do dia — o balcão confere o relógio do sistema</h2>'+
+    '<div class="fil" style="align-items:center"><span style="color:var(--muted);font-size:12.5px;font-weight:700">Dia:</span>'+
+    '<input type="date" value="'+esc(dia)+'" max="'+hoje()+'" onchange="CHDIA=this.value;CH=null;CHK=&quot;&quot;;desenha();puxaChegada()" '+
+    'style="background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:700">'+
+    '<span class="m">viu o motoboy entrar? clique no botão. a hora anotada NÃO mexe no pagamento — ela serve para provar se o relógio do sistema está certo</span></div>';
+  if(CHK!==k||CH===null){ puxaChegada(); return h+'<div class="c"><div class="load">Juntando escala, GPS e as anotações do balcão…</div></div>'; }
+  if(CH===false)return h+'<div class="c"><div class="vazio">não deu para carregar — tente Atualizar</div></div>';
+  const L=CH.linhas||[], P=CH.placar||{};
+  h+='<div class="c" style="padding:10px 14px"><div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px">'+
+     '<span><b>'+(P.anotados||0)+'</b> de <b>'+(P.turnos||0)+'</b> anotados</span>'+
+     '<span>bateram: <b>'+(P.bateram||0)+'</b></span>'+
+     '<span>não bateram: <b>'+(P.nao_bateram||0)+'</b></span>'+
+     '<span>o sistema perdeu: <b>'+(P.perdidos||0)+'</b></span>'+
+     '<span>erro médio: <b>'+(P.erro_medio==null?'—':P.erro_medio+' min')+'</b></span></div></div>';
+  if(!L.length)return h+'<div class="c"><div class="vazio">ninguém na escala deste dia</div></div>';
+  h+='<div class="c"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left;color:var(--muted);font-size:11.5px">'+
+     '<th style="padding:4px 8px 8px 0">Loja</th><th>Motoboy</th><th>Escala</th><th>Sistema</th><th>Balcão anotou</th><th>Bate?</th></tr>';
+  L.forEach(function(l,i){
+    h+='<tr><td style="padding:8px 8px 8px 0;border-top:1px solid #34332f;white-space:nowrap">'+esc(l.unidade)+'</td>'+
+       '<td style="padding:8px 8px 8px 0;border-top:1px solid #34332f">'+esc(l.entregador)+(l.n_turno>1?' <span class="m">'+l.n_turno+'º turno</span>':'')+'</td>'+
+       '<td style="padding:8px 8px 8px 0;border-top:1px solid #34332f">'+(l.escala_txt?esc(l.escala_txt):'<span class="m">sem escala</span>')+'</td>'+
+       '<td style="padding:8px 8px 8px 0;border-top:1px solid #34332f">'+(l.sistema_txt?'<b>'+esc(l.sistema_txt)+'</b>':'<span class="m">não viu</span>')+'</td>'+
+       '<td style="padding:8px 8px 8px 0;border-top:1px solid #34332f;white-space:nowrap">'+
+         (l.anotado_txt
+           ? '<b>'+esc(l.anotado_txt)+'</b> <span class="m">'+esc(l.quem||'')+(l.digitada?' · à mão':'')+'</span> <button style="'+CHBT+'" onclick="chegMao('+i+')">trocar</button> <button style="'+CHBT+'" onclick="chegTira('+i+')">apagar</button>'
+           : '<button style="'+CHBT+'" onclick="chegClique('+i+')">Chegou agora</button> <button style="'+CHBT+'" onclick="chegMao('+i+')">outra hora</button>')+
+       '</td><td style="padding:8px 0 8px 0;border-top:1px solid #34332f">'+chegSit(l)+'</td></tr>';
+  });
+  return h+'</table></div>';
+}
+
 async function puxaCancVivo(){
   if(CV!==null)return;
   try{ CV=await porta('qualidade_cancel_vivo',{unidade:UNI||null}); }catch(e){ CV=false }
@@ -434,6 +507,7 @@ function vaiPara(a){
   if(a==='super'&&!SU){desenha();puxaSuper();return}
   if(a==='neg'&&NEG===null){desenha();negPuxa();return}
   if(a==='ree'&&REE===null){desenha();reePuxa();return}
+  if(a==='chegada'&&CH===null){desenha();puxaChegada();return}
   if(a==='cancel'&&(!CC||!CV)){desenha();puxaCanc();puxaCancVivo();return}
   if(a==='cliente'&&!SU){desenha();puxaSuper();return}
   desenha();
@@ -925,6 +999,7 @@ function desenha(){
   else if(ABA==='ree')h+=reeAba();
   else if(ABA==='cancel')h+=cancVivo()+parciais()+cancelamentos();
   else if(ABA==='maq')h+=maqAba();
+  else if(ABA==='chegada')h+=chegAba();
   else if(ABA==='neg')h+=negAba();
   $('app').innerHTML=h;
 }
