@@ -231,6 +231,7 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
       <div id="mmeal"></div>
       <div id="mdaily"></div>
       <div id="mmonthly"></div>
+      <div id="mresp"></div>
     </div>
   </div>
 </div>
@@ -772,6 +773,7 @@ function openModal(nome){
   $('mmeal').innerHTML='<div class="loading" style="padding:14px 0">Carregando refeição…</div>';
   FICHAFILTRO=null;
   refHistorico(nome);
+  respHistorico(nome);
   $('mwrap').classList.add('open');
 }
 /* ---------- 🍽 Refeição: selo no cartão do dia e histórico na ficha ---------- */
@@ -898,6 +900,24 @@ function fichaFoco(k){
     m.classList.toggle('mson',!!on)});
   var ev=document.getElementById('mevents');
   if(FICHAFILTRO&&ev)ev.scrollIntoView({behavior:'smooth',block:'start'});
+}
+let RESPSEQ=0;
+function escT(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+async function respHistorico(nome){
+  const alvo=$('mresp'); if(!alvo)return;
+  alvo.innerHTML='';
+  const seq=++RESPSEQ;
+  const l=await rhRPC('respostas',{nome:nome});
+  if(seq!==RESPSEQ)return;
+  if(!l||!l.length)return;
+  alvo.innerHTML='<h3>O que o RH respondeu no WhatsApp ('+l.length+')</h3>'+l.map(function(r){
+    const feito=r.aplicado===true;
+    const cor=feito?'var(--sem)':'var(--conf)';
+    const sel=feito?'já aplicado no sistema':'esperando decisão do Fábio';
+    return '<div class="trow"><div class="tdate">'+(r.dia_referente?escT(br(r.dia_referente)):'—')+'</div>'
+      +'<div><span class="tbadge" style="background:'+cor+'">'+escT(r.decisao||'—')+'</span>'
+      +'<div class="tinfo">'+escT(r.texto)+'</div>'
+      +'<div class="tdet">▸ '+escT(r.de_quem)+' · '+escT(r.onde)+' · '+sel+'</div></div></div>'}).join('');
 }
 function imprimirFicha(){
   var h=document.querySelector('.mhead>div'); if(!h){window.print();return}
