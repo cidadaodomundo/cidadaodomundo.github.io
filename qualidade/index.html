@@ -606,13 +606,14 @@ function dData(s){if(!s)return '—';const p=String(s).slice(0,10).split('-');re
 function cancCartoes(){
   if(!CC||CC.erro)return '';
   const r=(CC.resumo&&CC.resumo.agora)||{}, b=(CC.resumo&&CC.resumo.antes)||{};
-  const ree=Array.isArray(REE)?REE.filter(function(x){return !UNI||x.unidade===UNI}).length:null;
+  /* 08/09: se a busca das reentregas falhou (a porta estoura o tempo), NAO mostrar zero — zero seria mentira. */
+  const ree=(REEERRO||!Array.isArray(REE))?null:REE.filter(function(x){return !UNI||x.unidade===UNI}).length;
   let h='<div class="cards">';
   h+=cartao('Cancelamentos', n(r.total), delta(r.total,b.total,false,''));
   h+=cartao('Dá para contestar', n(r.contestavel), '<div class="d flat">'+n(r.ja_contestou)+' já contestados</div>');
   h+=cartao('Erro da cozinha', n(r.erro_cozinha), delta(r.erro_cozinha,b.erro_cozinha,false,''));
   h+=cartao('Erro na entrega', n(r.erro_entrega), delta(r.erro_entrega,b.erro_entrega,false,''));
-  h+=cartao('Reentregas', (ree==null?'—':n(ree)), '<div class="d flat">últimos 7 dias</div>');
+  h+=cartao('Reentregas', (ree==null?'—':n(ree)), '<div class="d flat">'+(ree==null?(REEERRO?'não deu para buscar':'buscando…'):'últimos 7 dias')+'</div>');
   if(CC.modo==='dono')h+=cartao('Dinheiro perdido', br(r.valor), '<div class="d flat">antes '+br(b.valor)+'</div>');
   return h+'</div>';
 }
