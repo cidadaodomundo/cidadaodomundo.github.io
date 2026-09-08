@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Resolver hoje · Cidadão do Mundo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#E0A81C;--brand-ink:#111110;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1200px;margin:0 auto}
+h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;font-size:22px;letter-spacing:.01em;line-height:1.06}
+h2{font-size:15px;font-weight:800;margin:22px 0 10px;display:flex;align-items:center;gap:9px}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
+.top .rt{margin-left:auto;display:flex;gap:8px;align-items:center}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+button.b:hover{border-color:var(--brand)}
+.c{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:10px}
+.m{color:var(--muted);font-size:11.5px;margin-top:3px}
+.load{color:var(--muted);padding:30px;text-align:center}
+.vazio{color:var(--muted);font-size:13px;padding:8px 0}
+.aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:11px 14px;font-size:12.5px;margin:14px 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:6px}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:12px 14px}
+.card .t{color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.card .v{font-size:26px;font-weight:700;margin-top:4px}
+.fil{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.fil button{background:var(--s2);border:1px solid var(--line);color:var(--text2);border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:700;cursor:pointer}
+.fil button.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;padding:0 8px 8px 0}
+td{padding:9px 8px 9px 0;border-top:1px solid var(--line);vertical-align:top}
+.mini{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer}
+.mini:hover{border-color:var(--brand)}
+.feito{color:var(--ok);font-weight:700}
+@media (max-width:900px){.fil{display:flex;flex-wrap:wrap}}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div>
+    <h1>🔥 Resolver hoje</h1>
+    <div class="sub" id="sub">carregando…</div>
+  </div>
+  <div class="rt"><button class="b" onclick="boot()">↻ Atualizar</button></div>
+</div>
+
+<div id="app"><div class="load">Carregando…</div></div>
+
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
+let D=null, DIAS=2, UNI='', VER='abertas';
+
+async function porta(nome,dados){
+  const r=await fetch(SB+'rpc/'+nome,{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:tok(),p_dados:dados||{}})});
+  if(!r.ok){let m='';try{const j=await r.json();m=(j&&(j.message||j.hint))||''}catch(e){}throw new Error(m||('porta '+r.status))}
+  return await r.json();
+}
+
+function rotulo(t){
+  if(t==='chat')return '💬 Cliente sem resposta';
+  if(t==='cobranca')return '💳 Cobrança na porta';
+  if(t==='reentrega')return '🔁 Reentrega sem motivo';
+  return t;
+}
+
+async function marcar(i){
+  const l=(D&&D.itens&&D.itens[i]); if(!l)return;
+  const texto=prompt('O que foi feito? (escreva uma linha, fica gravado com o seu nome)\n\n'+rotulo(l.tipo)+' · '+(l.referencia||'')+'\n'+(l.o_que_e||''));
+  if(texto===null)return;
+  if(String(texto).trim().length<3){alert('Escreva o que foi feito para poder fechar.');return}
+  try{ await porta('resolver_marcar',{tipo:l.tipo,chave:l.chave,unidade:l.unidade,dia:l.dia,o_que_foi_feito:String(texto).trim()}); }
+  catch(e){ alert('Não deu para fechar: '+(e&&e.message?e.message:'tente de novo')); return }
+  boot();
+}
+async function reabrir(i){
+  const l=(D&&D.itens&&D.itens[i]); if(!l)return;
+  if(!confirm('Reabrir esta pendência?'))return;
+  try{ await porta('resolver_marcar',{tipo:l.tipo,chave:l.chave,desfazer:true}); }
+  catch(e){ alert('Não deu para reabrir: '+(e&&e.message?e.message:'tente de novo')); return }
+  boot();
+}
+
+function linha(l,i){
+  return '<tr><td style="white-space:nowrap">'+esc(l.quando||'')+'</td>'+
+    '<td style="white-space:nowrap">'+esc(l.unidade||'')+'</td>'+
+    '<td>'+esc(rotulo(l.tipo))+'<div class="m">'+esc(l.o_que_e||'')+'</div></td>'+
+    '<td>'+esc(l.referencia||'')+'<div class="m">'+esc(l.detalhe||'')+'</div></td>'+
+    '<td style="white-space:nowrap">'+
+      (l.resolvido
+        ? '<span class="feito">✔ '+esc(l.quem||'')+'</span><div class="m">'+esc(l.resolvido_em||'')+' · '+esc(l.o_que_foi_feito||'')+'</div>'+
+          '<button class="mini" style="margin-top:6px" onclick="reabrir('+i+')">reabrir</button>'
+        : '<button class="mini" onclick="marcar('+i+')">Resolvi</button>')+
+    '</td></tr>';
+}
+
+function desenha(){
+  if(D===false){ $('app').innerHTML='<div class="c"><b>Não deu para carregar.</b><div class="m">Entre no portal de novo e tente outra vez.</div></div>'; return }
+  if(!D){ $('app').innerHTML='<div class="load">Carregando…</div>'; return }
+  const R=D.resumo||{}, itens=D.itens||[], card=D.cardapio||{};
+  let h='<div class="cards">'+
+    '<div class="card"><div class="t">Esperando alguém</div><div class="v" style="color:'+((R.abertas||0)>0?'var(--bad)':'var(--ok)')+'">'+(R.abertas||0)+'</div></div>'+
+    '<div class="card"><div class="t">Já resolvidas</div><div class="v">'+(R.resolvidas||0)+'</div></div>'+
+    '<div class="card"><div class="t">Cliente sem resposta</div><div class="v">'+(R.chat||0)+'</div></div>'+
+    '<div class="card"><div class="t">Cobrança na porta</div><div class="v">'+(R.cobranca||0)+'</div></div>'+
+    '<div class="card"><div class="t">Reentrega sem motivo</div><div class="v">'+(R.reentrega||0)+'</div></div>'+
+  '</div>';
+
+  h+='<div class="fil"><span style="color:var(--muted);font-size:11px;font-weight:800;align-self:center">PERÍODO</span>'+
+     '<button class="'+(DIAS===1?'on':'')+'" onclick="DIAS=1;boot()">Hoje</button>'+
+     '<button class="'+(DIAS===2?'on':'')+'" onclick="DIAS=2;boot()">Hoje e ontem</button>'+
+     '<button class="'+(DIAS===7?'on':'')+'" onclick="DIAS=7;boot()">7 dias</button>'+
+     '<span style="color:var(--muted);font-size:11px;font-weight:800;align-self:center;margin-left:10px">LOJA</span>'+
+     '<button class="'+(UNI===''?'on':'')+'" onclick="UNI=&quot;&quot;;boot()">Todas</button>'+
+     '<button class="'+(UNI==='Água Verde'?'on':'')+'" onclick="UNI=&quot;Água Verde&quot;;boot()">Água Verde</button>'+
+     '<button class="'+(UNI==='Ahú'?'on':'')+'" onclick="UNI=&quot;Ahú&quot;;boot()">Ahú</button>'+
+     '<button class="'+(UNI==='São Braz'?'on':'')+'" onclick="UNI=&quot;São Braz&quot;;boot()">São Braz</button>'+
+     '<span style="color:var(--muted);font-size:11px;font-weight:800;align-self:center;margin-left:10px">MOSTRAR</span>'+
+     '<button class="'+(VER==='abertas'?'on':'')+'" onclick="VER=&quot;abertas&quot;;desenha()">Só o que falta</button>'+
+     '<button class="'+(VER==='tudo'?'on':'')+'" onclick="VER=&quot;tudo&quot;;desenha()">Tudo, com o que já foi feito</button>'+
+     '</div>';
+
+  const lista = (VER==='abertas') ? itens.filter(function(x){return !x.resolvido}) : itens;
+  h+='<h2>📋 A lista</h2>';
+  if(!lista.length){
+    h+='<div class="c"><div class="vazio">'+(VER==='abertas'?'Nada esperando ninguém neste período. A casa está limpa.':'Nada neste período.')+'</div></div>';
+  }else{
+    h+='<div class="c"><table><tr><th>Quando</th><th>Loja</th><th>O que é</th><th>Pedido</th><th>Situação</th></tr>';
+    itens.forEach(function(l,i){ if(VER==='tudo' || !l.resolvido) h+=linha(l,i); });
+    h+='</table></div>';
+  }
+
+  h+='<h2>📵 Fora do ar no cardápio</h2>'+
+     '<div class="c"><b>'+(card.itens_fora_do_ar||0)+'</b> itens pausados ou escondidos'+
+     (card.ate?' <span class="m" style="display:inline">· última varredura em '+esc(card.ate)+'</span>':'')+
+     '<div class="m">Aqui não dá para resolver um por um: abra a tela do cardápio para ver e religar.</div></div>';
+
+  $('app').innerHTML=h;
+}
+
+async function boot(){
+  $('sub').textContent='carregando…';
+  D=null; desenha();
+  try{ D=await porta('resolver_hoje',{dias:DIAS,unidade:UNI||null}); }
+  catch(e){ D=false; $('sub').textContent=(e&&e.message)||'erro'; desenha(); return }
+  const R=D.resumo||{};
+  $('sub').textContent='Cidadão do Mundo Burgers & Arts · '+(R.abertas||0)+' esperando alguém'+(UNI?' · '+UNI:'')+' · lido '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  desenha();
+}
+/* ===== porta unica do portal ===== */
+const CDMMODS=['resolver'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'resolver'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(ok)boot()});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
