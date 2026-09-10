@@ -193,7 +193,7 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
   <button class="view" id="vtipo" onclick="setView('tipo')">🔎 Consulta por tipo</button>
   <button class="view" id="vguia" onclick="setView('guia')">📖 Guia RH — o que fazer</button>
   <button class="view" id="varq" onclick="setView('arq')">🗄 Já saíram</button>
-  <button class="view" id="vrefe" onclick="setView('refe')">🍽 Refeição</button>
+  <!-- aba Refeicao retirada em 10/09/2026 a pedido do Fabio: a refeicao vive dentro da ficha da pessoa -->
   <a class="view" href="../rh/escala.html?loja=%C3%81gua%20Verde" style="text-decoration:none">📋 Escala do dia</a>
   <a class="view" href="../rh/equipe.html" style="text-decoration:none">👥 Equipe por setor</a>
   <a class="view" href="../rh/manual.html" style="text-decoration:none">📕 Manual & Regras</a>
@@ -228,6 +228,7 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
     <div id="mtodo"></div>
     <div class="mtl">
       <div id="mevents"></div>
+      <div id="mcart"></div>
       <div id="mmeal"></div>
       <div id="mdaily"></div>
       <div id="mmonthly"></div>
@@ -345,8 +346,8 @@ async function loadAll(){
   }catch(e){$('content').innerHTML='<div class="err">Erro: '+e.message+'</div>'}
 }
 function setView(v){VIEW=v;FILT=null;
-  ['vday','vtipo','vguia','varq','vrefe'].forEach(id=>$(id).classList.remove('active'));
-  $(v==='day'?'vday':v==='tipo'?'vtipo':v==='arq'?'varq':v==='refe'?'vrefe':'vguia').classList.add('active');
+  ['vday','vtipo','vguia','varq'].forEach(id=>{const e=$(id);if(e)e.classList.remove('active')});
+  const _ab=$(v==='day'?'vday':v==='tipo'?'vtipo':v==='arq'?'varq':'vguia');if(_ab)_ab.classList.add('active');
   $('datenav').style.display=v==='day'?'flex':'none';
   $('toolbar').style.display=(v==='guia'||v==='arq'||v==='refe')?'none':'flex';
   $('octipos').style.display=v==='tipo'?'flex':'none';
@@ -773,6 +774,7 @@ function openModal(nome){
   $('mmeal').innerHTML='<div class="loading" style="padding:14px 0">Carregando refeição…</div>';
   FICHAFILTRO=null;
   refHistorico(nome);
+  cartHistorico(nome,p.unidade);
   respHistorico(nome);
   $('mwrap').classList.add('open');
 }
@@ -855,6 +857,68 @@ async function renderRefe(){
     +'<div class="rkexpl">Só quem é do quadro e bateu ponto. Quem não bateu não entra, para não dizer que não pegou sem saber se trabalhou. '
     +'Para ver pessoa por pessoa, abra a ficha de alguém na aba Dia a dia.</div>'
     +'<div class="mmgrid">'+linhas2+'</div>';
+}
+/* ---------- 🍽 Comanda do Saipos dentro da ficha (10/09/2026) ---------- */
+var CART={lista:[],equipe:[],pessoa:null,uni:''};
+async function opRPC(acao,dados){
+  const r=await fetch(SB+'rpc/operacao_consulta',{method:'POST',
+    headers:Object.assign({'Content-Type':'application/json'},H),
+    body:JSON.stringify({p_cred:rhTok(),p_acao:acao,p_dados:dados||{}})});
+  let j=null;try{j=await r.json()}catch(e){}
+  if(!r.ok)throw new Error((j&&j.message)||('nao deu para falar com o banco (HTTP '+r.status+')'));
+  return j;
+}
+function cartEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+async function cartHistorico(nome,uni){
+  const alvo=$('mcart'); if(!alvo)return;
+  CART.uni=uni||'';
+  alvo.innerHTML='<div class="loading" style="padding:10px 0">Carregando a comanda…</div>';
+  let j=null;
+  try{j=await opRPC('cartoes',{unidade:CART.uni})}
+  catch(e){alvo.innerHTML='<h3>🍽 Comanda do Saipos</h3><div class="det" style="padding:0 0 8px">Nao consegui ler as comandas: '+cartEsc(e.message)+'</div>';return}
+  CART.lista=Array.isArray(j&&j.cartoes)?j.cartoes:[];
+  CART.equipe=Array.isArray(j&&j.equipe)?j.equipe:[];
+  const p=CART.equipe.filter(function(x){return normN(x.nome)===normN(nome)})[0]||null;
+  CART.pessoa=p;
+  let h='<h3>🍽 Comanda do Saipos</h3>';
+  if(!p){alvo.innerHTML=h+'<div class="det" style="padding:0 0 8px">Esta pessoa nao esta no cadastro ativo desta loja — nao da para ligar comanda.</div>';return}
+  const minhas=CART.lista.filter(function(c){return String(c.funcionario_id)===String(p.id)});
+  if(minhas.length){
+    h+='<div class="mmgrid">'+minhas.map(function(c){
+      return '<div class="mmrow"><div class="mmlabel">Comanda '+cartEsc(c.codigo)+'</div>'
+        +'<div class="mmbar"><i style="width:100%"></i></div>'
+        +'<div class="mminfo">'+cartEsc(c.unidade)+' · '+cartEsc(c.nome)+(c.ativo?'':' · <b>desativada</b>')
+        +(c.observacao?'<br>'+cartEsc(c.observacao):'')+'</div></div>'}).join('')+'</div>';
+  }else{
+    h+='<div class="det" style="padding:0 0 8px">Sem comanda ligada. Enquanto nao tiver uma, a refeicao desta pessoa nao cruza com o Saipos.</div>';
+  }
+  const livres=CART.lista.filter(function(c){return !c.funcionario_id&&c.unidade===p.unidade});
+  h+='<div class="det" style="padding:6px 0 10px">'
+    +'<select id="cartsel" style="padding:6px;margin-right:6px"><option value="">— comanda solta desta loja —</option>'
+    +livres.map(function(c){return '<option value="'+cartEsc(c.codigo)+'">'+cartEsc(c.codigo)+' · '+cartEsc(c.nome||'sem nome')+'</option>'}).join('')
+    +'</select>'
+    +'<input id="cartnum" type="number" placeholder="ou o numero" style="padding:6px;width:130px;margin-right:6px">'
+    +'<button onclick="cartLigar()" style="padding:6px 10px;cursor:pointer">Ligar a esta pessoa</button>'
+    +'<div id="cartmsg" style="margin-top:6px"></div></div>';
+  alvo.innerHTML=h;
+}
+async function cartLigar(){
+  const p=CART.pessoa; if(!p)return;
+  const sel=$('cartsel'),num=$('cartnum'),msg=$('cartmsg');
+  const cod=(num&&num.value?String(num.value):'')||(sel?sel.value:'');
+  if(!cod){if(msg){msg.style.color='#e66767';msg.textContent='Escolha uma comanda ou digite o numero.'}return}
+  const ja=CART.lista.filter(function(c){return String(c.codigo)===String(cod)&&c.unidade===p.unidade})[0]||null;
+  if(ja&&ja.funcionario_id&&String(ja.funcionario_id)!==String(p.id)){
+    const dono=(CART.equipe.filter(function(x){return String(x.id)===String(ja.funcionario_id)})[0]||{}).nome||('ficha '+ja.funcionario_id);
+    if(!confirm('A comanda '+cod+' hoje e de '+dono+'. Passar para '+p.nome+'?'))return;
+  }
+  if(msg){msg.style.color='';msg.textContent='Salvando…'}
+  try{
+    await opRPC('cartao_salvar',{unidade:p.unidade,linhas:[{unidade:p.unidade,codigo:String(cod),nome:p.nome,
+      funcionario_id:String(p.id),tipo:'funcionario',ativo:true,observacao:(ja&&ja.observacao)||null}]});
+    await cartHistorico(p.nome,p.unidade);
+    const m2=$('cartmsg'); if(m2){m2.style.color='#2fae6a';m2.textContent='✅ Comanda '+cod+' ligada a '+p.nome+'.'}
+  }catch(e){const m3=$('cartmsg'); if(m3){m3.style.color='#e66767';m3.textContent='Nao deu: '+e.message}}
 }
 async function refHistorico(nome){
   const alvo=$('mmeal'); if(!alvo)return;
