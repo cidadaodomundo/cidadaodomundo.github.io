@@ -32,6 +32,26 @@ tfoot td{font-weight:700;border-top:2px solid var(--line);border-bottom:none}
 .nota{color:var(--muted);font-size:13px;line-height:1.5;margin-top:8px}
 .vazio{color:var(--muted);padding:18px;text-align:center}
 .bur{font-weight:700;color:var(--bad)}
+.clic{cursor:pointer;border-bottom:1px dashed var(--brand)}
+.clic:hover{color:var(--brand)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;z-index:50}
+.modalcx{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:16px;width:100%;max-width:520px;margin-top:24px}
+.mtit{font-family:'Anton',sans-serif;font-size:20px;color:var(--brand);text-transform:uppercase;margin-bottom:10px}
+.mtit2{font-family:'Barlow Condensed',sans-serif;font-size:15px;text-transform:uppercase;letter-spacing:.4px;color:var(--text2);margin-bottom:6px}
+.lb{display:block;color:var(--muted);font-size:13px;margin:10px 0 4px}
+.modalcx input,.modalcx select,.modalcx textarea{width:100%;font-family:inherit;font-size:14px;background:var(--s2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:8px}
+.modalcx input[type=checkbox]{width:auto;margin-right:6px;vertical-align:middle}
+.mbt{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+button.ok{background:var(--brand);color:var(--brand-ink);border-color:var(--brand);font-weight:700}
+.msep{border-top:1px solid var(--line);margin:16px 0 12px}
+.mnota{color:var(--muted);font-size:12px;line-height:1.5;margin-top:6px}
+.mok{color:var(--ok);font-size:13px;margin-top:8px}
+.mbad{color:var(--bad);font-size:13px;margin-top:8px}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700}
+.p-novo{background:#3a2f00;color:#ffcf4d}
+.p-feito{background:#0f3423;color:#6fe0a5}
+.p-fabio{background:#3b1f1f;color:#ffa0a0}
+.p-outro{background:var(--s2);color:var(--muted)}
 </style>
 </head>
 <body>
@@ -43,6 +63,8 @@ tfoot td{font-weight:700;border-top:2px solid var(--line);border-bottom:none}
   <button class="aba on" id="a-fixo" onclick="troca('fixo')">🧾 Fixos e serviços</button>
   <button class="aba" id="a-mercadoria" onclick="troca('mercadoria')">📦 Mercadoria e insumo</button>
   <button class="aba" id="a-buracos" onclick="troca('buracos')">🕳 Buracos</button>
+  <button class="aba" id="a-pedidos" onclick="troca('pedidos')">✍️ Pedidos e correções</button>
+  <button onclick="contaNova()">➕ Lançar conta que não veio por e-mail</button>
 </div>
 <div id="app">Carregando…</div>
 <script>
@@ -67,7 +89,7 @@ async function porta(dados){
 }
 function troca(a){
   ABA=a;
-  ['fixo','mercadoria','buracos'].forEach(function(x){
+  ['fixo','mercadoria','buracos','pedidos'].forEach(function(x){
     var b=$('a-'+x); if(b) b.className='aba'+(x===a?' on':'');
   });
   desenha();
@@ -92,7 +114,7 @@ function tabela(tipo){
   h+='<th>Total</th><th>Em aberto</th><th>E-mails</th></tr></thead><tbody>';
   var tot={},somaTot=0,somaAb=0;
   arr.forEach(function(r){
-    h+='<tr><td class="l forn">'+esc(r.chave)+'</td><td class="l loja">'+esc(r.loja)+'</td>';
+    h+='<tr><td class="l forn"><span class="clic" onclick="ficha(\''+esc(r.chave).replace(/'/g,"&#39;")+'\')">'+esc(r.chave)+'</span></td><td class="l loja">'+esc(r.loja)+'</td>';
     meses.forEach(function(m){
       var c=r.mes[m];
       h+='<td>'+(c?din(c.v):'<span class="zero">—</span>')+'</td>';
@@ -121,20 +143,136 @@ function buracos(){
   h+='<div class="aviso">Estes fornecedores mandaram boleto, nota ou cobrança por e-mail e <b>não têm nenhum lançamento nas contas a pagar do Saipos</b> no período. Isso não prova que não foram pagos — prova que não passaram pelo Saipos.</div>';
   h+='<div class="card"><table><thead><tr><th class="l">Fornecedor</th><th class="l">Tipo</th><th>E-mails</th><th class="l">Primeiro</th><th class="l">Último</th><th class="l">Observação</th></tr></thead><tbody>';
   b.forEach(function(r){
-    h+='<tr><td class="l bur">'+esc(r.chave)+'</td><td class="l loja">'+esc(r.tipo)+'</td><td>'+esc(r.emails)+'</td><td class="l loja">'+esc(r.primeiro||'')+'</td><td class="l loja">'+esc(r.ultimo||'')+'</td><td class="l loja">'+esc(r.observacao||'')+'</td></tr>';
+    h+='<tr><td class="l bur"><span class="clic" onclick="ficha(\''+esc(r.chave).replace(/'/g,"&#39;")+'\')">'+esc(r.chave)+'</span></td><td class="l loja">'+esc(r.tipo)+'</td><td>'+esc(r.emails)+'</td><td class="l loja">'+esc(r.primeiro||'')+'</td><td class="l loja">'+esc(r.ultimo||'')+'</td><td class="l loja">'+esc(r.observacao||'')+'</td></tr>';
   });
   h+='</tbody></table></div>';
   return h;
 }
+var FICHA=null;
+function fornDe(k){
+  var l=(D.fornecedores||[]).filter(function(f){return f.chave===k});
+  return l.length?l[0]:{chave:k,tipo:'',observacao:'',ativo:true};
+}
+async function acao(nome,dados){
+  var r=await fetch(SB+'rpc/contas_pagar_acao',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:cdmTok(),p_acao:nome,p_dados:dados||{}})});
+  var j=null; try{j=await r.json()}catch(e){}
+  if(!r.ok)throw new Error((j&&(j.message||j.details||j.hint))||('erro '+r.status));
+  return j;
+}
+function fecha(){FICHA=null;var m=$('modal');if(m)m.parentNode.removeChild(m)}
+function abre(html){
+  fecha();
+  var d=document.createElement('div');
+  d.id='modal';d.className='modal';
+  d.innerHTML='<div class="modalcx">'+html+'<div id="m-msg"></div></div>';
+  d.onclick=function(e){if(e.target===d)fecha()};
+  document.body.appendChild(d);
+}
+function msg(t,bom){var m=$('m-msg');if(m)m.innerHTML='<div class="'+(bom?'mok':'mbad')+'">'+esc(t)+'</div>'}
+function ficha(k){
+  FICHA=k;
+  var f=fornDe(k);
+  var h='<div class="mtit">'+esc(k)+'</div>';
+  h+='<label class="lb">Este fornecedor é de quê?</label>';
+  h+='<select id="f-tipo"><option value="fixo"'+(f.tipo==='fixo'?' selected':'')+'>Fixo e serviço</option><option value="mercadoria"'+(f.tipo==='mercadoria'?' selected':'')+'>Mercadoria e insumo</option></select>';
+  h+='<label class="lb">Observação — o que a gente precisa lembrar dele</label>';
+  h+='<input id="f-obs" value="'+esc(f.observacao||'')+'">';
+  h+='<label class="lb"><input type="checkbox" id="f-ativo"'+(f.ativo===false?'':' checked')+'>Fornecedor ativo</label>';
+  h+='<div class="mbt"><button class="ok" onclick="salvaFicha()">Salvar agora</button><button onclick="fecha()">Fechar</button></div>';
+  h+='<div class="msep"></div><div class="mtit2">Marcar situação</div>';
+  h+='<select id="f-sit"><option value="pago">Já foi pago</option><option value="lancei_saipos">Já lancei no Saipos</option><option value="nao_e_nossa">Não é conta nossa</option><option value="ignorar">Pode ignorar este fornecedor</option></select>';
+  h+='<input id="f-mot" placeholder="Por quê? (é obrigatório escrever)">';
+  h+='<div class="mbt"><button class="ok" onclick="marca()">Marcar</button></div>';
+  h+='<div class="msep"></div><div class="mtit2">Pedir uma mudança para o Claude</div>';
+  h+='<textarea id="f-ped" rows="3" placeholder="Escreva com suas palavras. Ex.: este fornecedor mudou de nome; junte com o fornecedor X; pare de me mostrar os e-mails dele"></textarea>';
+  h+='<div class="mbt"><button class="ok" onclick="pede()">Enviar pedido</button></div>';
+  h+='<div class="mnota">O pedido entra numa fila. Quem faz é o robô dos boletos, na próxima vez que ele rodar — não é na hora. Você acompanha na aba Pedidos e correções.</div>';
+  abre(h);
+}
+async function salvaFicha(){
+  try{
+    var d={chave:FICHA,tipo:$('f-tipo').value,observacao:$('f-obs').value,ativo:$('f-ativo').checked};
+    await acao('corrigir',d);
+    msg('Salvo. Atualizando a tela…',true);
+    await boot(); fecha();
+  }catch(e){msg(e.message,false)}
+}
+async function marca(){
+  try{
+    await acao('situacao',{chave:FICHA,situacao:$('f-sit').value,motivo:$('f-mot').value});
+    msg('Marcado.',true); await boot(); fecha();
+  }catch(e){msg(e.message,false)}
+}
+async function pede(){
+  try{
+    await acao('pedido',{chave:FICHA,texto:$('f-ped').value});
+    msg('Recebido. Vou fazer na próxima rodada.',true); await boot(); fecha();
+  }catch(e){msg(e.message,false)}
+}
+function contaNova(){
+  var h='<div class="mtit">Lançar conta na mão</div>';
+  h+='<div class="mnota" style="margin-bottom:10px">Para conta que chegou em papel, no WhatsApp ou na mão — que não veio pelo e-mail administrativo@. Ela fica anotada aqui e entra na fila; <b>não</b> vai sozinha para o Saipos.</div>';
+  h+='<label class="lb">Fornecedor</label><input id="c-forn" placeholder="Nome de quem cobrou">';
+  h+='<label class="lb">Loja</label><input id="c-loja" placeholder="Água Verde, São Braz ou Ahú">';
+  h+='<label class="lb">Vencimento</label><input id="c-venc" type="date">';
+  h+='<label class="lb">Valor (R$)</label><input id="c-val" type="number" step="0.01" placeholder="0,00">';
+  h+='<label class="lb">Do que se trata</label><input id="c-desc" placeholder="Ex.: conserto da geladeira do salão">';
+  h+='<div class="mbt"><button class="ok" onclick="salvaConta()">Anotar</button><button onclick="fecha()">Fechar</button></div>';
+  abre(h);
+}
+async function salvaConta(){
+  try{
+    await acao('conta_nova',{fornecedor:$('c-forn').value,loja:$('c-loja').value,vencimento:$('c-venc').value,valor:$('c-val').value,descricao:$('c-desc').value});
+    msg('Anotado.',true); await boot(); fecha();
+  }catch(e){msg(e.message,false)}
+}
+async function cancela(id){
+  try{ await acao('cancelar',{id:id}); await boot(); }catch(e){ alert(e.message) }
+}
+function rotSit(s){
+  return s==='pago'?'já foi pago':s==='lancei_saipos'?'já lancei no Saipos':s==='nao_e_nossa'?'não é conta nossa':s==='ignorar'?'pode ignorar':s;
+}
+function pedidos(){
+  var a=D.acoes||[];
+  var h='<div class="aviso">Tudo que a Hellen, a Arissa ou você mexem nesta tela fica registrado aqui, com quem fez e a que horas. <b>As correções valem na hora.</b> Os <b>pedidos escritos</b> ficam na fila e são executados pelo robô dos boletos na próxima rodada.</div>';
+  if(!a.length)return h+'<div class="card"><div class="vazio">Ninguém pediu nem corrigiu nada ainda.</div></div>';
+  h+='<div class="card"><table><thead><tr><th class="l">Quando</th><th class="l">Quem</th><th class="l">O quê</th><th class="l">Fornecedor</th><th class="l">Detalhe</th><th class="l">Situação</th><th></th></tr></thead><tbody>';
+  a.forEach(function(r){
+    var det='';
+    if(r.acao==='pedido')det=esc(r.texto||'');
+    else if(r.acao==='situacao')det=esc(rotSit((r.depois&&r.depois.situacao)||''))+' — '+esc(r.texto||'');
+    else if(r.acao==='corrigir'){
+      var an=r.antes||{},de=r.depois||{},ps=[];
+      ['tipo','observacao','ativo'].forEach(function(k){
+        if(String(an[k])!==String(de[k]))ps.push(k+': '+esc(String(an[k]==null?'—':an[k]))+' → '+esc(String(de[k]==null?'—':de[k])));
+      });
+      det=ps.length?ps.join(' · '):'sem mudança';
+    }
+    else if(r.acao==='conta_nova'){
+      var d=r.depois||{};
+      det=esc(d.fornecedor||'')+' · '+esc(d.loja||'sem loja')+' · vence '+esc(d.vencimento||'?')+' · '+din(d.valor)+(d.descricao?(' · '+esc(d.descricao)):'');
+    }
+    var cls=r.status==='novo'?'p-novo':r.status==='feito'?'p-feito':r.status==='precisa_fabio'?'p-fabio':'p-outro';
+    var rot=r.status==='novo'?'na fila':r.status==='feito'?'feito':r.status==='precisa_fabio'?'precisa do Fábio':r.status;
+    var nome={pedido:'pedido escrito',corrigir:'correção',situacao:'marcou situação',conta_nova:'conta na mão'}[r.acao]||r.acao;
+    h+='<tr><td class="l loja">'+esc(r.quando||'')+'</td><td class="l">'+esc(r.quem||'')+'</td><td class="l">'+nome+'</td><td class="l forn">'+esc(r.chave||'—')+'</td><td class="l" style="white-space:normal;max-width:340px">'+det+(r.resposta?('<div class="mnota">'+esc(r.resposta)+'</div>'):'')+'</td><td class="l"><span class="pill '+cls+'">'+rot+'</span>'+(r.tratado_em?('<div class="loja">'+esc(r.tratado_em)+'</div>'):'')+'</td><td>'+(r.status==='novo'?('<button onclick="cancela('+r.id+')">cancelar</button>'):'')+'</td></tr>';
+  });
+  h+='</tbody></table></div>';
+  return h;
+}
+
 function desenha(){
   if(!D){$('app').innerHTML='<div class="vazio">Sem dado.</div>';return}
   var h='';
-  if(ABA==='buracos'){h=buracos()}
+  if(ABA==='pedidos'){h=pedidos()}
+  else if(ABA==='buracos'){h=buracos()}
   else{
     h=tabela(ABA);
     h+='<div class="nota">Cada linha é um fornecedor numa loja. O valor de cada mês é a soma dos boletos que vencem naquele mês. <b>Em aberto</b> é quantos ainda não foram baixados no Saipos. <b>E-mails</b> é quantas mensagens daquele fornecedor chegaram no administrativo@ no mês mais recente com movimento.</div>';
   }
-  h+='<div class="nota">Os lançamentos vêm das duas cargas do Saipos juntas — a manual e a do robô — sem contar duas vezes: quando o mesmo lançamento está nas duas, vale o do robô. <b>O Boqueirão não aparece</b>: aquela loja não tem senha do Saipos.</div>';
+  if(ABA!=='pedidos')h+='<div class="nota">Os lançamentos vêm das duas cargas do Saipos juntas — a manual e a do robô — sem contar duas vezes: quando o mesmo lançamento está nas duas, vale o do robô. <b>O Boqueirão não aparece</b>: aquela loja não tem senha do Saipos.</div>';
   $('app').innerHTML=h;
 }
 async function boot(){
