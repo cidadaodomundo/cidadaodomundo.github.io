@@ -52,6 +52,19 @@ button.ok{background:var(--brand);color:var(--brand-ink);border-color:var(--bran
 .p-feito{background:#0f3423;color:#6fe0a5}
 .p-fabio{background:#3b1f1f;color:#ffa0a0}
 .p-outro{background:var(--s2);color:var(--muted)}
+.fale{border-left:4px solid var(--brand)}
+.faletit{font-family:'Barlow Condensed',sans-serif;font-size:16px;text-transform:uppercase;letter-spacing:.4px;color:var(--brand);margin-bottom:8px;font-weight:700}
+.fale textarea{width:100%;font-family:inherit;font-size:15px;background:var(--s2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px;resize:vertical}
+.fale textarea:focus{outline:none;border-color:var(--brand)}
+.fale-msg{font-size:13px;align-self:center}
+.fale-msg.bom{color:var(--ok)}
+.fale-msg.ruim{color:var(--bad)}
+.conf{cursor:pointer;font-weight:700}
+.conf.sim{color:var(--ok)}
+.conf.nao{color:var(--muted)}
+.obs{cursor:pointer;color:var(--text2);font-size:13px;white-space:normal;max-width:260px}
+.obs.vazio{color:var(--muted);font-style:italic}
+tbody tr.conferida{background:rgba(47,174,106,.06)}
 </style>
 </head>
 <body>
@@ -65,6 +78,12 @@ button.ok{background:var(--brand);color:var(--brand-ink);border-color:var(--bran
   <button class="aba" id="a-buracos" onclick="troca('buracos')">🕳 Buracos</button>
   <button class="aba" id="a-pedidos" onclick="troca('pedidos')">✍️ Pedidos e correções</button>
   <button onclick="contaNova()">➕ Lançar conta que não veio por e-mail</button>
+</div>
+<div class="card fale">
+  <div class="faletit">✍️ Fale comigo — escreva o que precisa que eu arrume</div>
+  <textarea id="fale-txt" rows="2" placeholder="Escreva com suas palavras. Ex.: a Copel Distribuição é a mesma empresa da Copel, junte as duas · o e-mail da Kitofer mudou · pare de me mostrar a Zuply · anote quando vence o aluguel do Ahú"></textarea>
+  <div class="mbt"><button class="ok" onclick="faleEnvia()">Enviar para o Claude</button><span id="fale-msg" class="fale-msg"></span></div>
+  <div class="mnota">Não é conversa na hora: entra numa fila e o robô faz na próxima rodada. Você acompanha na aba ✍️ Pedidos e correções. Para falar de um fornecedor específico, clique no nome dele na tabela.</div>
 </div>
 <div id="app">Carregando…</div>
 <script>
@@ -111,10 +130,10 @@ function tabela(tipo){
   arr.sort(function(a,b){return a.total-b.total});
   var h='<div class="card"><table><thead><tr><th class="l">Fornecedor</th><th class="l">Loja</th>';
   meses.forEach(function(m){h+='<th>'+rotulo(m)+'</th>'});
-  h+='<th>Total</th><th>Em aberto</th><th>E-mails</th></tr></thead><tbody>';
+  h+='<th>Total</th><th>Em aberto</th><th>E-mails</th><th>Conferido</th><th class="l">Observação</th></tr></thead><tbody>';
   var tot={},somaTot=0,somaAb=0;
   arr.forEach(function(r){
-    h+='<tr><td class="l forn"><span class="clic" onclick="ficha(\''+esc(r.chave).replace(/'/g,"&#39;")+'\')">'+esc(r.chave)+'</span></td><td class="l loja">'+esc(r.loja)+'</td>';
+    h+='<tr class="'+(audDe(r.chave,r.loja).conferido?'conferida':'')+'"><td class="l forn"><span class="clic" onclick="ficha(\''+esc(r.chave).replace(/'/g,"&#39;")+'\')">'+esc(r.chave)+'</span></td><td class="l loja">'+esc(r.loja)+'</td>';
     meses.forEach(function(m){
       var c=r.mes[m];
       h+='<td>'+(c?din(c.v):'<span class="zero">—</span>')+'</td>';
@@ -123,11 +142,15 @@ function tabela(tipo){
     somaTot+=r.total; somaAb+=r.aberto;
     h+='<td>'+din(r.total)+'</td>';
     h+='<td>'+(r.aberto>0?'<span class="ab">'+r.aberto+'</span>':'<span class="zero">—</span>')+'</td>';
-    h+='<td>'+(r.emails>0?r.emails:'<span class="zero">—</span>')+'</td></tr>';
+    h+='<td>'+(r.emails>0?r.emails:'<span class="zero">—</span>')+'</td>';
+    var au=audDe(r.chave,r.loja);
+    var arg=aspas(r.chave)+','+aspas(r.loja);
+    h+='<td class="conf '+(au.conferido?'sim':'nao')+'" onclick="auditar('+arg+')" title="'+(au.conferido?('conferido por '+esc(au.conferido_por||'')+' em '+esc(au.conferido_em||'')):'ninguém conferiu ainda')+'">'+(au.conferido?'✓':'—')+'</td>';
+    h+='<td class="l obs'+(au.observacao?'':' vazio')+'" onclick="auditar('+arg+')">'+(au.observacao?esc(au.observacao):'escrever…')+'</td></tr>';
   });
   h+='</tbody><tfoot><tr><td class="l">TOTAL</td><td></td>';
   meses.forEach(function(m){h+='<td>'+din(tot[m]||0)+'</td>'});
-  h+='<td>'+din(somaTot)+'</td><td>'+(somaAb>0?somaAb:'—')+'</td><td></td></tr></tfoot></table></div>';
+  h+='<td>'+din(somaTot)+'</td><td>'+(somaAb>0?somaAb:'—')+'</td><td></td><td></td><td></td></tr></tfoot></table></div>';
   return h;
 }
 function buracos(){
@@ -149,6 +172,31 @@ function buracos(){
   return h;
 }
 var FICHA=null;
+var AUD=null;
+function aspas(s){return "'"+String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;')+"'"}
+function audDe(k,l){
+  var a=(D.auditoria||[]).filter(function(x){return x.chave===k&&x.loja===l});
+  return a.length?a[0]:{chave:k,loja:l,observacao:null,conferido:false,conferido_por:null,conferido_em:null};
+}
+function auditar(k,l){
+  AUD={chave:k,loja:l};
+  var a=audDe(k,l);
+  var h='<div class="mtit">'+esc(k)+'</div>';
+  h+='<div class="mnota" style="margin-bottom:10px">Loja: <b>'+esc(l)+'</b>. Esta é a auditoria desta linha — vale para este fornecedor nesta loja, em todos os meses da tabela.</div>';
+  h+='<label class="lb"><input type="checkbox" id="au-ok"'+(a.conferido?' checked':'')+'>Já conferi esta linha</label>';
+  if(a.conferido&&a.conferido_por)h+='<div class="mnota">Marcada por '+esc(a.conferido_por)+' em '+esc(a.conferido_em||'')+'.</div>';
+  h+='<label class="lb">Observação — o que você viu, com suas palavras</label>';
+  h+='<textarea id="au-obs" rows="4" placeholder="Ex.: valor de julho está maior porque entrou o reajuste · falta o boleto de agosto · conferido contra o contrato">'+esc(a.observacao||'')+'</textarea>';
+  h+='<div class="mbt"><button class="ok" onclick="salvaAud()">Salvar</button><button onclick="fecha()">Fechar</button></div>';
+  h+='<div class="mnota">Fica gravado quem escreveu e a que horas. A observação aparece na coluna Observação da tabela, para todo mundo que vê esta tela.</div>';
+  abre(h);
+}
+async function salvaAud(){
+  try{
+    await acao('auditar',{chave:AUD.chave,loja:AUD.loja,observacao:$('au-obs').value,conferido:$('au-ok').checked});
+    msg('Salvo.',true); await boot(); fecha();
+  }catch(e){msg(e.message,false)}
+}
 function fornDe(k){
   var l=(D.fornecedores||[]).filter(function(f){return f.chave===k});
   return l.length?l[0]:{chave:k,tipo:'',observacao:'',ativo:true};
@@ -211,6 +259,20 @@ async function pede(){
     msg('Recebido. Vou fazer na próxima rodada.',true); await boot(); fecha();
   }catch(e){msg(e.message,false)}
 }
+async function faleEnvia(){
+  var t=$('fale-txt'), m=$('fale-msg');
+  if(!t||!m)return;
+  m.className='fale-msg'; m.textContent='enviando…';
+  try{
+    await acao('pedido',{texto:t.value});
+    t.value='';
+    m.className='fale-msg bom'; m.textContent='Recebido. Está na fila.';
+    await boot();
+    troca('pedidos');
+  }catch(e){
+    m.className='fale-msg ruim'; m.textContent=e.message;
+  }
+}
 function contaNova(){
   var h='<div class="mtit">Lançar conta na mão</div>';
   h+='<div class="mnota" style="margin-bottom:10px">Para conta que chegou em papel, no WhatsApp ou na mão — que não veio pelo e-mail administrativo@. Ela fica anotada aqui e entra na fila; <b>não</b> vai sozinha para o Saipos.</div>';
@@ -250,13 +312,17 @@ function pedidos(){
       });
       det=ps.length?ps.join(' · '):'sem mudança';
     }
+    else if(r.acao==='auditar'){
+      var dp=r.depois||{};
+      det=(dp.conferido?'✓ marcou como conferida':'deixou sem o ✓')+(dp.observacao?(' — '+esc(dp.observacao)):'');
+    }
     else if(r.acao==='conta_nova'){
       var d=r.depois||{};
       det=esc(d.fornecedor||'')+' · '+esc(d.loja||'sem loja')+' · vence '+esc(d.vencimento||'?')+' · '+din(d.valor)+(d.descricao?(' · '+esc(d.descricao)):'');
     }
     var cls=r.status==='novo'?'p-novo':r.status==='feito'?'p-feito':r.status==='precisa_fabio'?'p-fabio':'p-outro';
     var rot=r.status==='novo'?'na fila':r.status==='feito'?'feito':r.status==='precisa_fabio'?'precisa do Fábio':r.status;
-    var nome={pedido:'pedido escrito',corrigir:'correção',situacao:'marcou situação',conta_nova:'conta na mão'}[r.acao]||r.acao;
+    var nome={pedido:'pedido escrito',corrigir:'correção',situacao:'marcou situação',conta_nova:'conta na mão',auditar:'auditoria da linha'}[r.acao]||r.acao;
     h+='<tr><td class="l loja">'+esc(r.quando||'')+'</td><td class="l">'+esc(r.quem||'')+'</td><td class="l">'+nome+'</td><td class="l forn">'+esc(r.chave||'—')+'</td><td class="l" style="white-space:normal;max-width:340px">'+det+(r.resposta?('<div class="mnota">'+esc(r.resposta)+'</div>'):'')+'</td><td class="l"><span class="pill '+cls+'">'+rot+'</span>'+(r.tratado_em?('<div class="loja">'+esc(r.tratado_em)+'</div>'):'')+'</td><td>'+(r.status==='novo'?('<button onclick="cancela('+r.id+')">cancelar</button>'):'')+'</td></tr>';
   });
   h+='</tbody></table></div>';
