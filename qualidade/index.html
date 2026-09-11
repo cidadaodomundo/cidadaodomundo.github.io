@@ -185,7 +185,7 @@ function filtros(){
     h+='<button class="'+(UNI===l.unidade?'on':'')+'" onclick="UNI=\''+esc(l.unidade).replace(/'/g,"\\'")+'\';boot()">'+esc(l.unidade)+'</button>';
   });
   h+='</div>';
-  const vivas=[['resumo','⚡ Resumo'],['dia','🗓 Dia a dia'],['pessoas','🛵 Motoboys'],['turnos','🕐 Por turno'],['cancel','⚠️ O que deu errado'],['maq','🧾 Maquininha']];
+  const vivas=[['resumo','⚡ Resumo'],['dia','🗓 Dia a dia'],['pessoas','🛵 Motoboys'],['turnos','🕐 Por turno'],['cancel','🚫 Cancelamentos'],['ree','🔁 Reentregas'],['maq','🧾 Maquininha']];
   const analise=[['cliente','⭐ Avaliações'],['super','🏆 Selo Super'],['neg','🤝 Negociações'],['pausados','📵 Fora do ar (cardápios online)']];
     const abaBtn=function(a){return '<button class="'+(ABA===a[0]?'on':'')+'" onclick="vaiPara(\''+a[0]+'\')">'+a[1]+'</button>'};
   h+='<div class="fil"><span style="color:var(--muted);font-size:10.5px;font-weight:800;align-self:center;letter-spacing:.5px">AO VIVO</span>';
@@ -344,33 +344,10 @@ async function puxaCancVivo(){
   try{ CV=await porta('qualidade_cancel_vivo',{unidade:UNI||null}); }catch(e){ CV=false }
   desenha();
 }
-async function verChat(ped,uni,id){
-  var tr=document.getElementById('chat_'+id); if(!tr)return;
-  if(tr.style.display!=='none'){tr.style.display='none';return;}
-  tr.style.display=''; var td=tr.firstChild; td.innerHTML='<div class="load">abrindo a conversa…</div>';
-  var d=null; try{ d=await porta('qualidade_chat_pedido',{pedido:ped,unidade:uni||null,dia:(CV&&CV.dia)||null}); }catch(e){ d=false; }
-  if(!d||d===false||!d.achou){ td.innerHTML='<div class="vazio">não achei conversa para este pedido</div>'; return; }
-  var c=d.cabecalho||{}; var msgs=d.mensagens||[];
-  var aut=msgs.filter(function(m){var p=(m.papel||'').toLowerCase(); return p!=='loja' && p!=='cliente';}).length;
-  var x='<div class="m">Cliente '+esc(c.cliente||'—')+' · '+esc(c.marca||'')+' · última mensagem '+esc(c.ultima_em||'')+(c.loja_respondeu===false?' · <span class="pill p-bad">a loja não respondeu por último</span>':'')+(d.fotos?' · '+d.fotos+' foto(s)':'')+' · '+msgs.length+' mensagens, '+aut+' automáticas do iFood'+((d.mais_de_uma>0)?' · <span class="pill p-warn">atenção: há mais '+d.mais_de_uma+' conversa(s) com este mesmo número de pedido neste turno; esta é a mais recente</span>':'')+'</div>';
-  x+='<div style="max-height:340px;overflow:auto;padding:4px 0">';
-  msgs.forEach(function(m){
-    var p=(m.papel||'').toLowerCase(); var eLoja=(p==='loja'); var eCli=(p==='cliente');
-    if(!eLoja && !eCli){
-      x+='<div style="margin:5px 0;text-align:center"><span class="m">'+esc(m.em||'')+' · aviso automático do iFood: '+esc(m.texto||'')+'</span></div>';
-    }else{
-      x+='<div style="margin:6px 0;text-align:'+(eLoja?'right':'left')+'"><span class="m">'+esc(m.em||'')+' · '+(eLoja?'a loja escreveu':'o cliente escreveu')+'</span><br><span class="pill '+(eLoja?'p-ok':'p-warn')+'" style="white-space:pre-wrap;display:inline-block;max-width:80%;text-align:left">'+esc(m.texto||'')+'</span>';
-      if(m.foto)x+='<br><a href="'+esc(m.foto)+'" target="_blank" rel="noopener"><img src="'+esc(m.foto)+'" alt="foto mandada no chat" style="max-width:220px;border-radius:8px;margin-top:4px"></a>';
-      x+='</div>';
-    }
-  });
-  x+='</div>';
-  td.innerHTML=x;
-}
 function cancVivo(){
   let h='<h2>🔴 Agora, das fontes vivas</h2>';
   if(CV===null)return h+'<div class="c"><div class="load">Buscando as fontes vivas…</div></div>';
-  if(CV===false)return h+'<div class="c"><div class="vazio">não deu para carregar as fontes vivas — tente Atualizar</div></div>'+'<h2>📋 Cancelamentos do período — do Gestor Web</h2>';
+  if(CV===false)return h+'<div class="c"><div class="vazio">não deu para carregar as fontes vivas — tente Atualizar</div></div>'+'<h2>📋 O quadro oficial do iFood (atrasa 1 dia)</h2>';
   const f=CV.fontes||{};
   h+='<div class="m" style="margin:0 0 8px">Este bloco é o <b>' + esc((CV.janela&&CV.janela.rotulo)||'turno de hoje') + '</b>' + ((CV.janela&&CV.janela.de)?' (' + esc(CV.janela.de) + ' → ' + esc(CV.janela.ate) + ')':'') + ', não segue o período dos botões · Saipos atualizado '+(f.saipos?String(f.saipos).slice(11,16):'—')+' · última conversa do iFood '+(f.chat?String(f.chat).slice(11,16):'—')+' · porta oficial '+(f.api?String(f.api).slice(11,16):'—')+' · Gestor Web '+(f.gw?String(f.gw).slice(11,16):'—')+' · Foody de 15 em 15 min.</div>';
   const L=CV.por_loja||[];
@@ -387,24 +364,16 @@ function cancVivo(){
     (ch.por_loja||[]).forEach(function(l){h+='<tr><td><b>'+esc(l.unidade)+'</b></td><td>'+n(l.com_cliente)+'</td><td>'+n(l.respondidas)+'</td><td>'+(l.sem_resposta>0?'<span class="pill p-bad">'+n(l.sem_resposta)+'</span>':n(l.sem_resposta))+'</td><td>'+(l.tempo_medio_min!=null?n(l.tempo_medio_min)+' min':'—')+'</td></tr>'});
     h+='</table></div></div>';
   }
-  var CRZ=(CV.cruzada||[]);
-  var TOT=CRZ.filter(function(r){return r.tipo!=='parcial';});
-  var COMPED=TOT.filter(function(r){return r.pedido && String(r.pedido).indexOf('S#')!==0;});
-  var SEMPED=TOT.length-COMPED.length;
-  h+='<h2>🚫 Cancelamentos totais do turno</h2>';
-  if(!COMPED.length)h+='<div class="c"><div class="vazio">nenhum pedido cancelado por inteiro neste turno</div></div>';
-  else{
-    h+='<div class="m" style="margin:0 0 6px">Clique em <b>ver conversa</b> para ler o chat inteiro do pedido. O nome do cliente sai só em iniciais; se ele tiver mandado foto, ela aparece aqui. O motivo só existe quando o Gestor Web achou — quando não achou, fica escrito que não achou.</div>';
-    h+='<div class="c"><div class="rolar"><table><tr><th>Hora</th><th>Loja</th><th>Pedido</th><th>Por que cancelou</th><th>Itens</th><th>Quem viu</th>'+(CV.dono?'<th>Reembolso</th><th>Retenção</th>':'')+'<th>Conversa</th></tr>';
-    COMPED.forEach(function(r,i){
-      var tem=(r.fontes||[]).indexOf('Chat')>=0;
-      h+='<tr><td>'+esc(r.hora||'—')+'</td><td>'+esc(r.unidade||'—')+'<div class="m">'+esc(r.canal||'')+'</div></td><td><b>'+esc(r.pedido)+'</b></td><td><b>'+esc(r.motivo||'— o Gestor Web não achou o motivo')+'</b></td><td>'+n(r.itens)+'</td><td class="m">'+esc((r.fontes||[]).join(' · '))+'</td>'+(CV.dono?('<td>'+br(r.reembolso_loja)+'</td><td>'+br(r.retencao)+'</td>'):'')+'<td>'+(tem?'<button type="button" class="pill" style="cursor:pointer;border:0" onclick="verChat(\''+esc(r.pedido)+'\',\''+esc(r.unidade||'')+'\',\'t'+i+'\')">ver conversa</button>':'<span class="m">sem conversa</span>')+'</td></tr>';
-      h+='<tr id="chat_t'+i+'" style="display:none"><td colspan="'+(CV.dono?9:7)+'"></td></tr>';
+  if((CV.cruzada||[]).length){
+    h+='<div class="m" style="margin:0 0 6px">Cada linha é um pedido; a coluna <b>Fontes</b> diz quais armas viram o cancelamento.</div>';
+    h+='<div class="c"><div class="rolar"><table><tr><th>Hora</th><th>Loja</th><th>Pedido</th><th>Tipo</th><th>Itens</th><th>Canal</th><th>Motivo (Gestor Web)</th><th>Fontes</th>'+(CV.dono?'<th>Reembolso da loja</th><th>Retenção</th>':'')+'</tr>';
+    (CV.cruzada||[]).forEach(function(r){
+      var tp=r.tipo==='total'?'<span class="pill p-bad">cancelado</span>':(r.tipo==='parcial'?'<span class="pill p-warn">parcial</span>':'<span class="m">só iFood</span>');
+      h+='<tr><td>'+esc(r.hora||'—')+'</td><td>'+esc(r.unidade||'—')+'</td><td><b>'+esc(r.pedido)+'</b></td><td>'+tp+'</td><td>'+n(r.itens)+'</td><td>'+esc(r.canal||'—')+'</td><td>'+esc(r.motivo||'—')+'</td><td>'+esc((r.fontes||[]).join(' · '))+'</td>'+(CV.dono?('<td>'+br(r.reembolso_loja)+'</td><td>'+br(r.retencao)+'</td>'):'')+'</tr>';
     });
     h+='</table></div></div>';
   }
-  if(SEMPED>0)h+='<div class="m" style="margin:4px 0 10px">+ '+SEMPED+' cancelamento(s) que só o Saipos viu, sem número do iFood — sem motivo e sem conversa.</div>';
-  h+='<h2>📋 Cancelamentos do período — do Gestor Web</h2>';
+  h+='<h2>📋 O quadro oficial do iFood (atrasa 1 dia)</h2>';
   return h;
 }
 function motoVivo(){
@@ -434,8 +403,7 @@ function vaiPara(a){
   if(a==='super'&&!SU){desenha();puxaSuper();return}
   if(a==='neg'&&NEG===null){desenha();negPuxa();return}
   if(a==='ree'&&REE===null){desenha();reePuxa();return}
-  if(a==='cancel'&&(!CC||!CV)){desenha();puxaCanc();puxaCancVivo();if(REE===null)reePuxa();return}
-  if(a==='cancel'&&REE===null){desenha();reePuxa();return}
+  if(a==='cancel'&&(!CC||!CV)){desenha();puxaCanc();puxaCancVivo();return}
   if(a==='cliente'&&!SU){desenha();puxaSuper();return}
   desenha();
 }
@@ -527,28 +495,18 @@ function painelVivo(){
 
 function dData(s){if(!s)return '—';const p=String(s).slice(0,10).split('-');return p[2]+'/'+p[1]}
 
-/* 08/09/2026 — o Fabio pediu os cartoes em cima e tudo que deu errado no mesmo quadro:
-   cancelamento total, cancelamento parcial, erro da cozinha, erro na entrega e reentrega. */
-function cancCartoes(){
-  if(!CC||CC.erro)return '';
+function cancelamentos(){
+  if(!CC)return '<div class="c"><div class="load">Carregando…</div></div>';
+  if(CC.erro)return '<div class="c"><b>Não deu para buscar os cancelamentos.</b><div class="m">'+esc(CC.erro)+
+    '<br>Tente o botão Atualizar. Se continuar, avise que a porta do banco falhou — a tela não está vazia, ela não conseguiu perguntar.</div></div>';
   const r=(CC.resumo&&CC.resumo.agora)||{}, b=(CC.resumo&&CC.resumo.antes)||{};
-  /* 08/09: se a busca das reentregas falhou (a porta estoura o tempo), NAO mostrar zero — zero seria mentira. */
-  const ree=(REEERRO||!Array.isArray(REE))?null:REE.filter(function(x){return !UNI||x.unidade===UNI}).length;
   let h='<div class="cards">';
   h+=cartao('Cancelamentos', n(r.total), delta(r.total,b.total,false,''));
   h+=cartao('Dá para contestar', n(r.contestavel), '<div class="d flat">'+n(r.ja_contestou)+' já contestados</div>');
   h+=cartao('Erro da cozinha', n(r.erro_cozinha), delta(r.erro_cozinha,b.erro_cozinha,false,''));
   h+=cartao('Erro na entrega', n(r.erro_entrega), delta(r.erro_entrega,b.erro_entrega,false,''));
-  h+=cartao('Reentregas', (ree==null?'—':n(ree)), '<div class="d flat">'+(ree==null?(REEERRO?'não deu para buscar':'buscando…'):'últimos 7 dias')+'</div>');
   if(CC.modo==='dono')h+=cartao('Dinheiro perdido', br(r.valor), '<div class="d flat">antes '+br(b.valor)+'</div>');
-  return h+'</div>';
-}
-
-function cancelamentos(){
-  if(!CC)return '<div class="c"><div class="load">Carregando…</div></div>';
-  if(CC.erro)return '<div class="c"><b>Não deu para buscar os cancelamentos.</b><div class="m">'+esc(CC.erro)+
-    '<br>Tente o botão Atualizar. Se continuar, avise que a porta do banco falhou — a tela não está vazia, ela não conseguiu perguntar.</div></div>';
-  let h='';
+  h+='</div>';
   if(CC.atraso_dias>0){
     h+='<div class="aviso"><b>O iFood ainda não mandou os últimos '+CC.atraso_dias+' dia(s).</b> '+
        'Esta lista vai até '+dData(CC.ifood_ate)+'. O motivo do cancelamento só chega no relatório do dia seguinte — '+
@@ -854,18 +812,21 @@ function negAba(){
   if(NEG===null)return '<div class="c"><div class="load">Buscando as negociações…</div></div>';
   if(NEG.erro)return '<div class="c"><b>Não deu para buscar as negociações.</b><div class="m">'+esc(NEG.erro)+'</div></div>';
   const r=NEG.resumo||{}, b=NEG.antes||{}, dono=(NEG.modo==='dono');
-  let h='<div class="m" style="margin:0 0 8px">Relatório oficial do iFood — <b>atrasa 1 dia</b> · dados até <b>'+dData(NEG.ifood_ate)+'</b>'+
-    (NEG.atraso_dias>1?' · <span class="pill p-warn">'+NEG.atraso_dias+' dias sem relatório novo</span>':'')+'</div>';
+  let F=NEG.fontes||{};
+  let h='<div class="m" style="margin:0 0 8px">Relatório oficial do iFood — <b>atrasa 1 dia</b> · dados até <b>'+dData(F.relatorio_ate||NEG.ifood_ate)+'</b>'+
+    ((F.relatorio_atraso_dias||NEG.atraso_dias)>1?' · <span class="pill p-warn">'+(F.relatorio_atraso_dias||NEG.atraso_dias)+' dias sem relatório novo</span>':'')+
+    (F.chat_ate?' &nbsp;·&nbsp; Chat do cliente — <b>ao vivo</b> · dados até <b>'+dData(F.chat_ate)+'</b>':'')+'</div>'+
+    (F.aviso?'<div class="m" style="margin:0 0 10px;padding:8px 10px;border-left:3px solid #d9a441;background:rgba(217,164,65,.10);border-radius:4px">⚠️ '+esc(F.aviso)+'</div>':'');
   h+='<div class="cards">';
   h+=cartao('Chamados', n(r.chamados), delta(r.chamados,b.chamados,false,''));
-  h+=cartao('Cancelamento evitado', n(r.evitados), delta(r.evitados,b.evitados,true,''));
+  h+=cartao('Cancelamento evitado', (r.evitados_medidos?n(r.evitados):'—'), (r.evitados_medidos?delta(r.evitados,b.evitados,true,''):'<div class="d flat">não medido nas linhas do chat</div>'));
   h+=cartao('Virou cancelamento', n(r.virou_cancelamento), delta(r.virou_cancelamento,b.virou_cancelamento,false,''));
   h+=cartao('Loja não respondeu', n(r.loja_nao_respondeu), delta(r.loja_nao_respondeu,b.loja_nao_respondeu,false,''));
   h+=cartao('Com reembolso', n(r.com_reembolso), delta(r.com_reembolso,b.com_reembolso,false,''));
-  h+=cartao('Pesou no Selo Super', n(r.impactou_super), delta(r.impactou_super,b.impactou_super,false,''));
+  h+=cartao('Pesou no Selo Super', (r.impactou_super_medidos?n(r.impactou_super):'—'), (r.impactou_super_medidos?delta(r.impactou_super,b.impactou_super,false,''):'<div class="d flat">não medido nas linhas do chat</div>'));
   if(dono){
     h+=cartao('Reembolsado', br(r.reembolsado), '<div class="d flat">antes '+br(b.reembolsado)+'</div>');
-    h+=cartao('Salvo ao negociar', br(r.salvo), '<div class="d flat">de '+br(r.valor_em_jogo)+' em jogo</div>');
+    h+=cartao('Salvo ao negociar', (r.valor_em_jogo==null?'—':br(r.salvo)), '<div class="d flat">'+(r.valor_em_jogo==null?'o chat não traz o valor do pedido':'de '+br(r.valor_em_jogo)+' em jogo')+'</div>');
   }
   h+='</div>';
   const M=NEG.por_motivo||[];
@@ -903,12 +864,12 @@ function parciais(){
   h+='<h2>✂️ Cancelamentos parciais de hoje (Gestor Web)</h2>';
   if(!hoje.length)h+='<div class="c"><div class="vazio">nenhum item devolvido hoje até a última leitura do Gestor Web (1h, 12h e 18h)</div></div>';
   else{
-    h+='<div class="c"><div class="rolar"><table><tr><th>Hora</th><th>Loja</th><th>Pedido</th><th>O que faltou / veio errado</th><th>O que a loja fez</th><th>Loja escreveu?</th>'+(CV.dono?'<th>Devolvido</th>':'')+'<th>Conversa</th></tr>';
-    hoje.forEach(function(p,i){h+='<tr><td>'+esc(p.hora||'')+'</td><td>'+esc(p.unidade||'')+'<div class="m">'+esc(p.marca||'')+'</div></td><td>'+esc(p.pedido||'')+'</td><td><b>'+esc(p.item||'—')+'</b></td><td>'+esc(p.o_que_a_loja_fez||'—')+'</td><td>'+(String(p.loja_escreveu)==='true'?'sim':'<span class="pill p-warn">não</span>')+'</td>'+(CV.dono?'<td>'+br(p.valor_devolvido)+'</td>':'')+'<td><button type="button" class="pill" style="cursor:pointer;border:0" onclick="verChat(\''+esc(p.pedido||'')+'\',\''+esc(p.unidade||'')+'\',\'p'+i+'\')">ver conversa</button></td></tr><tr id="chat_p'+i+'" style="display:none"><td colspan="'+(CV.dono?8:7)+'"></td></tr>'});
+    h+='<div class="c"><div class="rolar"><table><tr><th>Hora</th><th>Loja</th><th>Pedido</th><th>O que faltou / veio errado</th><th>O que a loja fez</th><th>Loja escreveu?</th>'+(CV.dono?'<th>Devolvido</th>':'')+'</tr>';
+    hoje.forEach(function(p){h+='<tr><td>'+esc(p.hora||'')+'</td><td>'+esc(p.unidade||'')+'<div class="m">'+esc(p.marca||'')+'</div></td><td>'+esc(p.pedido||'')+'</td><td><b>'+esc(p.item||'—')+'</b></td><td>'+esc(p.o_que_a_loja_fez||'—')+'</td><td>'+(String(p.loja_escreveu)==='true'?'sim':'<span class="pill p-warn">não</span>')+'</td>'+(CV.dono?'<td>'+br(p.valor_devolvido)+'</td>':'')+'</tr>'});
     h+='</table></div></div>';
   }
   const per=(CC&&CC.parciais)||[];
-  h+='<h2>✂️ Cancelamentos parciais do período</h2>';
+  h+='<h2>✂️ Cancelamentos parciais do período (relatório do iFood, atrasa 1 dia)</h2>';
   if(!per.length)h+='<div class="c"><div class="vazio">nenhum parcial no período'+(CC&&CC.parciais_antes?' · no período anterior foram '+n(CC.parciais_antes):'')+'</div></div>';
   else{
     h+='<div class="c"><div class="m" style="margin:0 0 6px">'+per.length+' no período · antes: '+n(CC.parciais_antes)+'</div><div class="rolar"><table><tr><th>Data</th><th>Hora</th><th>Loja</th><th>Pedido</th><th>Turno</th><th>Itens devolvidos</th><th>Motivo</th><th>Quem</th>'+(CC.modo==='dono'?'<th>Pedido R$</th><th>Devolvido</th><th>Motoboy</th>':'')+'</tr>';
@@ -934,7 +895,7 @@ function desenha(){
   else if(ABA==='dinheiro')h+=dinheiro();
   else if(ABA==='pessoas')h+=motoVivo()+(D.modo==='dono'?'<h2>🛵 Análise dos entregadores (só você)</h2>'+pessoas():'');
   else if(ABA==='ree')h+=reeAba();
-  else if(ABA==='cancel')h+=cancCartoes()+cancVivo()+cancelamentos()+parciais()+'<h2>🔁 Reentregas</h2>'+reeAba();
+  else if(ABA==='cancel')h+=cancVivo()+parciais()+cancelamentos();
   else if(ABA==='maq')h+=maqAba();
   else if(ABA==='neg')h+=negAba();
   $('app').innerHTML=h;
