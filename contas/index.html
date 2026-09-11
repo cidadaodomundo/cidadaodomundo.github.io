@@ -338,13 +338,13 @@ async function salvaConta(){
     msg('Anotado.',true); await boot(); fecha();
   }catch(e){msg(e.message,false)}
 }
-var STROT={novo:'na fila do robô',feito:'feito',precisa_fabio:'esperando seu OK',perguntei:'esperando quem pediu responder',liberado:'liberado — na fila do Claude',recusado:'você não quis',pronto:'pronto, confira',fechado:'conferido e fechado',nao_deu:'o robô não deu conta',cancelado:'cancelado'};
-var STCLS={novo:'p-novo',feito:'p-feito',precisa_fabio:'p-fabio',perguntei:'p-fabio',liberado:'p-lib',recusado:'p-outro',pronto:'p-pronto',fechado:'p-fech',nao_deu:'p-fabio',cancelado:'p-outro'};
+var STROT={novo:'na fila do Claude',feito:'feito',precisa_fabio:'na fila do Claude',perguntei:'esperando quem pediu responder',liberado:'na fila do Claude',recusado:'você não quis',pronto:'pronto, confira',fechado:'conferido e fechado',nao_deu:'o robô não deu conta',cancelado:'cancelado',so_fabio:'só o Fábio pode decidir'};
+var STCLS={novo:'p-lib',feito:'p-feito',precisa_fabio:'p-lib',perguntei:'p-fabio',liberado:'p-lib',recusado:'p-outro',pronto:'p-pronto',fechado:'p-fech',nao_deu:'p-fabio',cancelado:'p-outro',so_fabio:'p-fabio'};
 var PAPEL={liberar:'liberou',recusar:'não quis',perguntar:'perguntou',responder:'respondeu',ficou_bom:'conferiu',nao_e_isso:'devolveu'};
 function botoesPedido(r){
   if(r.acao!=='pedido'&&r.acao!=='conta_nova')return '';
   var eu=(D.eu||{}).id, dono=!!D.dono, meu=(r.usuario_id===eu), b='';
-  if(dono&&(r.status==='precisa_fabio'||r.status==='nao_deu'||r.status==='novo')){
+  if(dono&&(r.status==='precisa_fabio'||r.status==='nao_deu'||r.status==='novo'||r.status==='so_fabio'||r.status==='liberado')){
     b+='<button class="bok" onclick="decide('+r.id+',\'liberar\')">Pode fazer</button>';
     b+='<button class="bnao" onclick="decide('+r.id+',\'recusar\')">Não quero</button>';
     b+='<button class="bmais" onclick="decide('+r.id+',\'perguntar\')">Me explica melhor</button>';
@@ -396,7 +396,7 @@ function rotSit(s){
 }
 function pedidos(){
   var a=D.acoes||[];
-  var h='<div class="aviso">Tudo que a Hellen, a Arissa ou você mexem nesta tela fica registrado aqui, com quem fez e a que horas. <b>As correções valem na hora.</b> Os <b>pedidos escritos</b> que o robô resolve sozinho ele já faz na próxima rodada. O que <b>muda a tela</b> espera o <b>OK do Fábio</b> aqui mesmo, no botão da linha — e, depois de pronto, volta para quem pediu dizer se <b>ficou bom</b>.</div>';
+  var h='<div class="aviso">Tudo que a Hellen, a Arissa ou você mexem nesta tela fica registrado aqui, com quem fez e a que horas. <b>As correções valem na hora.</b> Os <b>pedidos escritos</b> entram na fila do Claude e são feitos sozinhos — ele olha a fila <b>às 9h30, 14h30 e 19h30</b>. Quando ficar pronto, volta para quem pediu dizer se <b>ficou bom</b>. O Fábio pode barrar antes disso, no botão <b>Não quero</b> da linha. O que envolve <b>dinheiro, baixa de conta, Saipos, senha ou apagar coisa</b> o Claude não faz sozinho: fica marcado <b>só o Fábio pode decidir</b>.</div>';
   if(!a.length)return h+'<div class="card"><div class="vazio">Ninguém pediu nem corrigiu nada ainda.</div></div>';
   h+='<div class="card"><table><thead><tr><th class="l">Quando</th><th class="l">Quem</th><th class="l">O quê</th><th class="l">Fornecedor</th><th class="l">Detalhe</th><th class="l">Situação</th><th></th></tr></thead><tbody>';
   a.forEach(function(r){
