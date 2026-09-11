@@ -116,10 +116,35 @@ function apagar(i){
   if(confirm('Apagar a anotação de '+l.entregador+'?'))marcar(l.unidade,l.entregador,l.n_turno,null,true);
 }
 
+function bloco(titulo, pares, mostraOnde, dono, vazio){
+  if(!pares.length)return '<h2>'+titulo+'</h2><div class="c"><div class="vazio">'+vazio+'</div></div>';
+  let h='<h2>'+titulo+' <span class="m" style="display:inline;margin:0">'+pares.length+'</span></h2>';
+  h+='<div class="c"><div class="rolar"><table><tr>'+
+     '<th>Loja</th><th>Motoboy</th><th>Escala</th>'+(mostraOnde?'<th>Onde está agora</th>':'')+'<th>Balcão anotou</th>'+
+     (dono?'<th>Sistema</th><th>Bate?</th>':'')+'</tr>';
+  pares.forEach(function(par){
+    var l=par[0], i=par[1];
+    h+='<tr><td style="white-space:nowrap">'+esc(l.unidade)+'</td>'+
+       '<td>'+esc(l.entregador)+(l.n_turno>1?' <span class="m" style="display:inline">'+l.n_turno+'º turno</span>':'')+
+         (l.na_escala?'':' <span class="pill p-warn">fora da escala</span>')+'</td>'+
+       '<td style="white-space:nowrap">'+(l.escala_txt?esc(l.escala_txt):'<span class="m" style="display:inline">—</span>')+'</td>'+
+       (mostraOnde?('<td style="white-space:nowrap">'+ondeTxt(l)+'</td>'):'')+
+       '<td style="white-space:nowrap">'+
+         (l.anotado_txt
+           ? '<b>'+esc(l.anotado_txt)+'</b> <span class="m" style="display:inline">'+esc(l.quem||'')+(l.digitada?' · à mão':'')+'</span><br><button class="mini" style="margin-top:5px" onclick="outraHora('+i+')">trocar</button> <button class="mini" style="margin-top:5px" onclick="apagar('+i+')">apagar</button>'
+           : '<button class="mini" onclick="chegou('+i+')">Chegou agora</button> <button class="mini" onclick="outraHora('+i+')">outra hora</button>')+
+       '</td>'+
+       (dono?('<td style="white-space:nowrap">'+(l.sistema_txt?'<b>'+esc(l.sistema_txt)+'</b>':'<span class="m" style="display:inline">não viu</span>')+'</td>'+
+              '<td style="white-space:nowrap">'+sitTxt(l)+'</td>'):'')+
+       '</tr>';
+  });
+  return h+'</table></div></div>';
+}
+
 function desenha(){
   if(D===false){ $('app').innerHTML='<div class="c"><b>Não deu para carregar.</b><div class="m">Entre no portal de novo e tente outra vez.</div></div>'; return }
   if(!D){ $('app').innerHTML='<div class="load">Juntando a escala com quem está com o aplicativo ligado…</div>'; return }
-  const dono=!!D.dono, L=D.linhas||[], P=D.placar||{}, FORA=D.ligados_fora||[];
+  const dono=!!D.dono, L=D.linhas||[], P=D.placar||{}, vivo=!!D.ao_vivo;
   let h='<div class="fil">'+
     '<span style="color:var(--muted);font-size:12.5px;font-weight:700">Dia:</span>'+
     '<input type="date" value="'+esc(D.dia||hojeISO())+'" max="'+esc(D.hoje||hojeISO())+'" onchange="DIA=this.value;boot()">'+
@@ -128,10 +153,16 @@ function desenha(){
     '<button class="'+(UNI==='Ahú'?'on':'')+'" onclick="UNI=&quot;Ahú&quot;;boot()">Ahú</button>'+
     '<button class="'+(UNI==='São Braz'?'on':'')+'" onclick="UNI=&quot;São Braz&quot;;boot()">São Braz</button>'+
     '</div>'+
-    '<div class="m" style="margin:0 0 10px">Viu o motoboy entrar? Clique no botão. A hora anotada <b>não mexe no pagamento</b> — ela serve para conferir o relógio do sistema. A coluna <b>Onde está agora</b> é o aplicativo dele neste minuto'+(D.ao_vivo?', e a tela se atualiza sozinha a cada minuto.':'. Neste dia antigo ela não aparece, porque o sinal é do momento.')+'</div>';
+    '<div class="m" style="margin:0 0 10px">Viu o motoboy entrar? Clique no botão. A hora anotada <b>não mexe no pagamento</b> — ela serve para conferir o relógio do sistema.'+
+    (vivo?' Em cima fica <b>quem está com o aplicativo ligado agora</b>, esteja na escala ou não; embaixo, quem estava na escala e não deu sinal. A tela se atualiza sozinha a cada minuto.':' Este é um dia passado: o aplicativo só mostra sinal do momento, então aqui fica só a escala e o que o balcão anotou.')+'</div>';
 
   h+='<div class="c" style="padding:10px 14px"><div class="plac">'+
      '<span><b>'+(P.anotados||0)+'</b> de <b>'+(P.turnos||0)+'</b> anotados</span>';
+  if(vivo){
+    h+='<span>rodando agora: <b>'+(P.rodando||0)+'</b></span>'+
+       '<span>fora da escala: <b>'+(P.fora_escala||0)+'</b></span>'+
+       '<span>escalado sem sinal: <b>'+(P.sem_sinal||0)+'</b></span>';
+  }
   if(dono){
     h+='<span>bateram: <b>'+(P.bateram||0)+'</b></span>'+
        '<span>não bateram: <b>'+(P.nao_bateram||0)+'</b></span>'+
@@ -141,42 +172,20 @@ function desenha(){
   h+='</div></div>';
 
   if(!L.length){
-    h+='<div class="c"><div class="vazio">ninguém na escala deste dia</div></div>';
+    h+='<div class="c"><div class="vazio">ninguém na escala deste dia e ninguém com o aplicativo ligado</div></div>';
+    $('app').innerHTML=h; return;
+  }
+  const pares=L.map(function(l,i){return [l,i]});
+  if(!vivo){
+    h+=bloco('📋 A escala do dia', pares, false, dono, 'ninguém na escala deste dia');
   }else{
-    h+='<div class="c"><div class="rolar"><table><tr>'+
-       '<th>Loja</th><th>Motoboy</th><th>Escala</th><th>Onde está agora</th><th>Balcão anotou</th>'+
-       (dono?'<th>Sistema</th><th>Bate?</th>':'')+'</tr>';
-    L.forEach(function(l,i){
-      h+='<tr><td style="white-space:nowrap">'+esc(l.unidade)+'</td>'+
-         '<td>'+esc(l.entregador)+(l.n_turno>1?' <span class="m" style="display:inline">'+l.n_turno+'º turno</span>':'')+'</td>'+
-         '<td style="white-space:nowrap">'+(l.escala_txt?esc(l.escala_txt):'<span class="m" style="display:inline">sem escala</span>')+'</td>'+
-         '<td style="white-space:nowrap">'+ondeTxt(l)+'</td>'+
-         '<td style="white-space:nowrap">'+
-           (l.anotado_txt
-             ? '<b>'+esc(l.anotado_txt)+'</b> <span class="m" style="display:inline">'+esc(l.quem||'')+(l.digitada?' · à mão':'')+'</span><br><button class="mini" style="margin-top:5px" onclick="outraHora('+i+')">trocar</button> <button class="mini" style="margin-top:5px" onclick="apagar('+i+')">apagar</button>'
-             : '<button class="mini" onclick="chegou('+i+')">Chegou agora</button> <button class="mini" onclick="outraHora('+i+')">outra hora</button>')+
-         '</td>'+
-         (dono?('<td style="white-space:nowrap">'+(l.sistema_txt?'<b>'+esc(l.sistema_txt)+'</b>':'<span class="m" style="display:inline">não viu</span>')+'</td>'+
-                '<td style="white-space:nowrap">'+sitTxt(l)+'</td>'):'')+
-         '</tr>';
-    });
-    h+='</table></div></div>';
+    h+=bloco('🟢 Rodando agora', pares.filter(function(p){return p[0].vivo_onde}), true, dono,
+             'ninguém com o aplicativo ligado neste minuto');
+    h+=bloco('⚪ Escalado e sem sinal', pares.filter(function(p){return !p[0].vivo_onde && p[0].na_escala}), false, dono,
+             'todo mundo da escala está com o aplicativo ligado 🎉');
+    const sobra=pares.filter(function(p){return !p[0].vivo_onde && !p[0].na_escala});
+    if(sobra.length)h+=bloco('📝 Anotado pelo balcão, fora da escala', sobra, false, dono, '');
   }
-
-  if(D.ao_vivo){
-    h+='<h2>🛵 Ligados agora, mas fora da escala do dia</h2>';
-    if(!FORA.length){
-      h+='<div class="c"><div class="vazio">ninguém com o aplicativo ligado fora da escala</div></div>';
-    }else{
-      h+='<div class="c"><div class="rolar"><table><tr><th>Loja</th><th>Motoboy</th><th>Onde está</th></tr>';
-      FORA.forEach(function(f){
-        h+='<tr><td style="white-space:nowrap">'+esc(f.unidade)+'</td><td>'+esc(f.entregador)+'</td>'+
-           '<td style="white-space:nowrap">'+ondeTxt(f)+'</td></tr>';
-      });
-      h+='</table></div><div class="m">Estes estão com o aplicativo ligado neste minuto e não aparecem na escala deste dia. Pode ser cobertura, troca de turno ou escala não lançada.</div></div>';
-    }
-  }
-
   if(!dono){
     h+='<div class="aviso">Anote a hora que <b>você viu</b> a pessoa entrar. Não existe resposta certa para copiar aqui — é o seu olho que vale.</div>';
   }
