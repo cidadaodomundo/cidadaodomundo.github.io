@@ -52,6 +52,18 @@ button.ok{background:var(--brand);color:var(--brand-ink);border-color:var(--bran
 .p-feito{background:#0f3423;color:#6fe0a5}
 .p-fabio{background:#3b1f1f;color:#ffa0a0}
 .p-outro{background:var(--s2);color:var(--muted)}
+.p-lib{background:#0d2f4a;color:#86c8ff}
+.p-pronto{background:#2d2a00;color:#ffe680}
+.p-fech{background:#0f3423;color:#6fe0a5}
+.bdec{margin-top:7px;display:flex;gap:6px;flex-wrap:wrap}
+.bdec button{font-size:12px;padding:5px 11px;border-radius:8px;cursor:pointer;font-weight:700}
+.bok{background:#0f3423;color:#6fe0a5;border:1px solid #1d5c3e}
+.bnao{background:#3b1f1f;color:#ffa0a0;border:1px solid #6b2f2f}
+.bmais{background:var(--s2);color:var(--text);border:1px solid var(--line)}
+.conv{margin-top:7px;border-left:2px solid var(--line);padding-left:9px}
+.conv div{font-size:12px;color:var(--muted);margin:3px 0}
+.conv b{color:var(--text)}
+.dztxt{width:100%;font-family:inherit;font-size:15px;background:var(--s2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px}
 .fale{border-left:4px solid var(--brand)}
 .faletit{font-family:'Barlow Condensed',sans-serif;font-size:16px;text-transform:uppercase;letter-spacing:.4px;color:var(--brand);margin-bottom:8px;font-weight:700}
 .fale textarea{width:100%;font-family:inherit;font-size:15px;background:var(--s2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px;resize:vertical}
@@ -290,6 +302,56 @@ async function salvaConta(){
     msg('Anotado.',true); await boot(); fecha();
   }catch(e){msg(e.message,false)}
 }
+var STROT={novo:'na fila do robô',feito:'feito',precisa_fabio:'esperando seu OK',perguntei:'esperando quem pediu responder',liberado:'liberado — na fila do Claude',recusado:'você não quis',pronto:'pronto, confira',fechado:'conferido e fechado',nao_deu:'o robô não deu conta',cancelado:'cancelado'};
+var STCLS={novo:'p-novo',feito:'p-feito',precisa_fabio:'p-fabio',perguntei:'p-fabio',liberado:'p-lib',recusado:'p-outro',pronto:'p-pronto',fechado:'p-fech',nao_deu:'p-fabio',cancelado:'p-outro'};
+var PAPEL={liberar:'liberou',recusar:'não quis',perguntar:'perguntou',responder:'respondeu',ficou_bom:'conferiu',nao_e_isso:'devolveu'};
+function botoesPedido(r){
+  if(r.acao!=='pedido'&&r.acao!=='conta_nova')return '';
+  var eu=(D.eu||{}).id, dono=!!D.dono, meu=(r.usuario_id===eu), b='';
+  if(dono&&(r.status==='precisa_fabio'||r.status==='nao_deu'||r.status==='novo')){
+    b+='<button class="bok" onclick="decide('+r.id+',\'liberar\')">Pode fazer</button>';
+    b+='<button class="bnao" onclick="decide('+r.id+',\'recusar\')">Não quero</button>';
+    b+='<button class="bmais" onclick="decide('+r.id+',\'perguntar\')">Me explica melhor</button>';
+  }
+  if(r.status==='perguntei'&&(meu||dono))
+    b+='<button class="bmais" onclick="decide('+r.id+',\'responder\')">Responder</button>';
+  if(r.status==='pronto'&&(meu||dono)){
+    b+='<button class="bok" onclick="confere('+r.id+',true)">Ficou bom</button>';
+    b+='<button class="bnao" onclick="confere('+r.id+',false)">Não é isso</button>';
+  }
+  return b?('<div class="bdec">'+b+'</div>'):'';
+}
+function conversaPedido(r){
+  var f=r.falas||[]; if(!f.length)return '';
+  var h='<div class="conv">';
+  f.forEach(function(x){ h+='<div><b>'+esc(x.quem||'')+'</b> '+(PAPEL[x.papel]||esc(x.papel||''))+' · '+esc(x.quando||'')+' — '+esc(x.texto||'')+'</div>' });
+  return h+'</div>';
+}
+var DECTIT={recusar:['Não quero','Por que não? Quem pediu vai ler.'],perguntar:['Me explica melhor','O que você quer saber de quem pediu?'],responder:['Responder','Responda para o Fábio decidir.']};
+function decide(id,qual){
+  if(qual==='liberar'){mandaDec(id,'liberar','');return}
+  var t=DECTIT[qual];
+  abre('<div class="mtit">'+t[0]+'</div><label class="lb">'+t[1]+'</label><textarea id="dz-txt" class="dztxt" rows="3"></textarea><div class="bdec"><button class="bok" onclick="mandaDecTxt('+id+',\''+qual+'\')">Enviar</button><button class="bmais" onclick="fecha()">Fechar</button></div>');
+}
+function mandaDecTxt(id,qual){
+  var t=(($('dz-txt')||{}).value||'').trim();
+  if(t.length<3){msg('Escreva um pouco mais.',false);return}
+  mandaDec(id,qual,t);
+}
+async function mandaDec(id,qual,t){
+  try{ await acao(qual,{id:id,texto:t}); fecha(); await boot(); }
+  catch(e){ if($('m-msg'))msg(e.message,false); else alert(e.message) }
+}
+async function confere(id,ok){
+  if(ok){ try{ await acao('conferir',{id:id,ok:true,texto:''}); await boot() }catch(e){ alert(e.message) } return }
+  abre('<div class="mtit">Não é isso</div><label class="lb">O que ficou faltando?</label><textarea id="dz-txt" class="dztxt" rows="3"></textarea><div class="bdec"><button class="bok" onclick="confereNao('+id+')">Enviar</button><button class="bmais" onclick="fecha()">Fechar</button></div>');
+}
+async function confereNao(id){
+  var t=(($('dz-txt')||{}).value||'').trim();
+  if(t.length<3){msg('Escreva um pouco mais.',false);return}
+  try{ await acao('conferir',{id:id,ok:false,texto:t}); fecha(); await boot() }
+  catch(e){ msg(e.message,false) }
+}
 async function cancela(id){
   try{ await acao('cancelar',{id:id}); await boot(); }catch(e){ alert(e.message) }
 }
@@ -298,7 +360,7 @@ function rotSit(s){
 }
 function pedidos(){
   var a=D.acoes||[];
-  var h='<div class="aviso">Tudo que a Hellen, a Arissa ou você mexem nesta tela fica registrado aqui, com quem fez e a que horas. <b>As correções valem na hora.</b> Os <b>pedidos escritos</b> ficam na fila e são executados pelo robô dos boletos na próxima rodada.</div>';
+  var h='<div class="aviso">Tudo que a Hellen, a Arissa ou você mexem nesta tela fica registrado aqui, com quem fez e a que horas. <b>As correções valem na hora.</b> Os <b>pedidos escritos</b> que o robô resolve sozinho ele já faz na próxima rodada. O que <b>muda a tela</b> espera o <b>OK do Fábio</b> aqui mesmo, no botão da linha — e, depois de pronto, volta para quem pediu dizer se <b>ficou bom</b>.</div>';
   if(!a.length)return h+'<div class="card"><div class="vazio">Ninguém pediu nem corrigiu nada ainda.</div></div>';
   h+='<div class="card"><table><thead><tr><th class="l">Quando</th><th class="l">Quem</th><th class="l">O quê</th><th class="l">Fornecedor</th><th class="l">Detalhe</th><th class="l">Situação</th><th></th></tr></thead><tbody>';
   a.forEach(function(r){
@@ -320,10 +382,11 @@ function pedidos(){
       var d=r.depois||{};
       det=esc(d.fornecedor||'')+' · '+esc(d.loja||'sem loja')+' · vence '+esc(d.vencimento||'?')+' · '+din(d.valor)+(d.descricao?(' · '+esc(d.descricao)):'');
     }
-    var cls=r.status==='novo'?'p-novo':r.status==='feito'?'p-feito':r.status==='precisa_fabio'?'p-fabio':'p-outro';
-    var rot=r.status==='novo'?'na fila':r.status==='feito'?'feito':r.status==='precisa_fabio'?'precisa do Fábio':r.status;
+    var cls=STCLS[r.status]||'p-outro';
+    var rot=STROT[r.status]||r.status;
+    var bts=botoesPedido(r), conv=conversaPedido(r);
     var nome={pedido:'pedido escrito',corrigir:'correção',situacao:'marcou situação',conta_nova:'conta na mão',auditar:'auditoria da linha'}[r.acao]||r.acao;
-    h+='<tr><td class="l loja">'+esc(r.quando||'')+'</td><td class="l">'+esc(r.quem||'')+'</td><td class="l">'+nome+'</td><td class="l forn">'+esc(r.chave||'—')+'</td><td class="l" style="white-space:normal;max-width:340px">'+det+(r.resposta?('<div class="mnota">'+esc(r.resposta)+'</div>'):'')+'</td><td class="l"><span class="pill '+cls+'">'+rot+'</span>'+(r.tratado_em?('<div class="loja">'+esc(r.tratado_em)+'</div>'):'')+'</td><td>'+(r.status==='novo'?('<button onclick="cancela('+r.id+')">cancelar</button>'):'')+'</td></tr>';
+    h+='<tr><td class="l loja">'+esc(r.quando||'')+'</td><td class="l">'+esc(r.quem||'')+'</td><td class="l">'+nome+'</td><td class="l forn">'+esc(r.chave||'—')+'</td><td class="l" style="white-space:normal;max-width:420px">'+det+(r.resposta?('<div class="mnota">'+esc(r.resposta)+'</div>'):'')+conv+bts+'</td><td class="l"><span class="pill '+cls+'">'+rot+'</span>'+(r.tratado_em?('<div class="loja">'+esc(r.tratado_em)+'</div>'):'')+'</td><td>'+(r.status==='novo'?('<button onclick="cancela('+r.id+')">cancelar</button>'):'')+'</td></tr>';
   });
   h+='</tbody></table></div>';
   return h;
