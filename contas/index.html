@@ -53,6 +53,7 @@ button.ok{background:var(--brand);color:var(--brand-ink);border-color:var(--bran
 .p-fabio{background:#3b1f1f;color:#ffa0a0}
 .p-outro{background:var(--s2);color:var(--muted)}
 .p-lib{background:#0d2f4a;color:#86c8ff}
+.lojas{margin-bottom:10px}
 .p-pronto{background:#2d2a00;color:#ffe680}
 .p-fech{background:#0f3423;color:#6fe0a5}
 .bdec{margin-top:7px;display:flex;gap:6px;flex-wrap:wrap}
@@ -118,6 +119,31 @@ async function porta(dados){
   if(!r.ok)throw new Error('porta '+r.status);
   return await r.json();
 }
+var LOJA='todas';
+function trocaLoja(l){LOJA=l;desenha()}
+async function verBoletos(chave,loja,mes){
+  abre('<div class="mtit">'+esc(chave)+' · '+esc(loja)+'</div><div class="lb">Procurando os boletos…</div>');
+  try{
+    var j=await porta({boletos:{chave:chave,loja:loja,mes:mes}});
+    var b=(j&&j.boletos)||[];
+    var h='<div class="mtit">'+esc(chave)+' · '+esc(loja)+' · '+esc(rotulo(mes))+'</div>';
+    if(!b.length){ h+='<div class="vazio">Nenhum boleto neste mês.</div>' }
+    else{
+      var t=0;
+      h+='<table><thead><tr><th class="l">Vence</th><th>Valor</th><th class="l">Situação</th></tr></thead><tbody>';
+      b.forEach(function(x){
+        t+=Math.abs(Number(x.valor||0));
+        h+='<tr><td class="l">'+esc(x.vencimento||'')+'</td><td>'+din(x.valor)+'</td><td class="l">'+(x.pago?'<span class="pill p-feito">pago</span>':'<span class="pill p-novo">em aberto</span>')+'</td></tr>';
+      });
+      h+='</tbody><tfoot><tr><td class="l">TOTAL</td><td>'+din(t)+'</td><td></td></tr></tfoot></table>';
+      h+='<div class="nota">São os boletos desta loja que vencem neste mês, um por linha, como estão nas contas a pagar do Saipos.</div>';
+    }
+    h+='<div class="bdec"><button class="bmais" onclick="fecha()">Fechar</button></div>';
+    abre(h);
+  }catch(e){
+    abre('<div class="mtit">Não deu para abrir</div><div class="lb">'+esc(e.message)+'</div><div class="bdec"><button class="bmais" onclick="fecha()">Fechar</button></div>');
+  }
+}
 function troca(a){
   ABA=a;
   ['fixo','mercadoria','buracos','pedidos'].forEach(function(x){
@@ -127,8 +153,18 @@ function troca(a){
 }
 function tabela(tipo){
   var meses=D.meses||[];
-  var linhas=(D.linhas||[]).filter(function(x){return x.tipo===tipo});
-  if(!linhas.length)return '<div class="card"><div class="vazio">Nenhum lançamento deste tipo no período.</div></div>';
+  var todas=(D.linhas||[]).filter(function(x){return x.tipo===tipo});
+  if(!todas.length)return '<div class="card"><div class="vazio">Nenhum lançamento deste tipo no período.</div></div>';
+  var lojas=[];
+  todas.forEach(function(x){ if(x.loja&&lojas.indexOf(x.loja)<0)lojas.push(x.loja) });
+  lojas.sort();
+  if(LOJA!=='todas'&&lojas.indexOf(LOJA)<0)LOJA='todas';
+  var barra='<div class="abas lojas"><button class="aba'+(LOJA==='todas'?' on':'')+'" onclick="trocaLoja(\'todas\')">Todas as lojas</button>';
+  lojas.forEach(function(l){ barra+='<button class="aba'+(LOJA===l?' on':'')+'" onclick="trocaLoja('+aspas(l)+')">'+esc(l)+'</button>' });
+  barra+='</div>';
+  if(lojas.indexOf('Boqueirão')<0)barra+='<div class="nota">O <b>Boqueirão</b> não aparece porque essa loja ainda não tem senha do Saipos — nenhuma conta dela entra aqui.</div>';
+  var linhas=todas.filter(function(x){ return LOJA==='todas'||x.loja===LOJA });
+  if(!linhas.length)return barra+'<div class="card"><div class="vazio">Nenhum lançamento desta loja neste período.</div></div>';
   var chaves={};
   linhas.forEach(function(x){
     var k=x.chave+'|'+x.loja;
@@ -140,7 +176,7 @@ function tabela(tipo){
   });
   var arr=Object.keys(chaves).map(function(k){return chaves[k]});
   arr.sort(function(a,b){return a.total-b.total});
-  var h='<div class="card"><table><thead><tr><th class="l">Fornecedor</th><th class="l">Loja</th>';
+  var h=barra+'<div class="card"><table><thead><tr><th class="l">Fornecedor</th><th class="l">Loja</th>';
   meses.forEach(function(m){h+='<th>'+rotulo(m)+'</th>'});
   h+='<th>Total</th><th>Em aberto</th><th>E-mails</th><th>Conferido</th><th class="l">Observação</th></tr></thead><tbody>';
   var tot={},somaTot=0,somaAb=0;
@@ -148,7 +184,7 @@ function tabela(tipo){
     h+='<tr class="'+(audDe(r.chave,r.loja).conferido?'conferida':'')+'"><td class="l forn"><span class="clic" onclick="ficha(\''+esc(r.chave).replace(/'/g,"&#39;")+'\')">'+esc(r.chave)+'</span></td><td class="l loja">'+esc(r.loja)+'</td>';
     meses.forEach(function(m){
       var c=r.mes[m];
-      h+='<td>'+(c?din(c.v):'<span class="zero">—</span>')+'</td>';
+      h+=c?('<td class="clic" title="ver boleto por boleto" onclick="verBoletos('+aspas(r.chave)+','+aspas(r.loja)+','+aspas(m)+')">'+din(c.v)+'</td>'):'<td><span class="zero">—</span></td>';
       if(c){tot[m]=(tot[m]||0)+Number(c.v||0)}
     });
     somaTot+=r.total; somaAb+=r.aberto;
