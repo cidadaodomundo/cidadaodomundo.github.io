@@ -56,7 +56,7 @@ const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const $=i=>document.getElementById(i);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
-let D=null, DIAS=2, UNI='', VER='abertas';
+let D=null, DIAS=2, UNI='', VER='abertas', TIPO='';
 
 async function porta(nome,dados){
   const r=await fetch(SB+'rpc/'+nome,{method:'POST',
@@ -70,6 +70,10 @@ function rotulo(t){
   if(t==='chat')return '💬 Cliente sem resposta';
   if(t==='cobranca')return '💳 Cobrança na porta';
   if(t==='reentrega')return '🔁 Reentrega sem motivo';
+  if(t==='negociacao')return '🤝 Negociação do iFood';
+  if(t==='cancelamento')return '🚫 Pedido cancelado inteiro';
+  if(t==='parcial')return '✂️ Item cancelado no pedido';
+  if(t==='maquininha')return '🧾 Maquininha';
   return t;
 }
 
@@ -113,6 +117,10 @@ function desenha(){
     '<div class="card"><div class="t">Cliente sem resposta</div><div class="v">'+(R.chat||0)+'</div></div>'+
     '<div class="card"><div class="t">Cobrança na porta</div><div class="v">'+(R.cobranca||0)+'</div></div>'+
     '<div class="card"><div class="t">Reentrega sem motivo</div><div class="v">'+(R.reentrega||0)+'</div></div>'+
+    '<div class="card"><div class="t">Negociação do iFood</div><div class="v">'+(R.negociacao||0)+'</div></div>'+
+    '<div class="card"><div class="t">Cancelado inteiro</div><div class="v">'+(R.cancelamento||0)+'</div></div>'+
+    '<div class="card"><div class="t">Item cancelado</div><div class="v">'+(R.parcial||0)+'</div></div>'+
+    '<div class="card"><div class="t">Maquininha</div><div class="v">'+(R.maquininha||0)+'</div></div>'+
   '</div>';
 
   h+='<div class="fil"><span style="color:var(--muted);font-size:11px;font-weight:800;align-self:center">PERÍODO</span>'+
@@ -127,18 +135,34 @@ function desenha(){
      '<span style="color:var(--muted);font-size:11px;font-weight:800;align-self:center;margin-left:10px">MOSTRAR</span>'+
      '<button class="'+(VER==='abertas'?'on':'')+'" onclick="VER=&quot;abertas&quot;;desenha()">Só o que falta</button>'+
      '<button class="'+(VER==='tudo'?'on':'')+'" onclick="VER=&quot;tudo&quot;;desenha()">Tudo, com o que já foi feito</button>'+
+     '</div>'+
+     '<div class="fil"><span style="color:var(--muted);font-size:11px;font-weight:800;align-self:center">ASSUNTO</span>'+
+     '<button class="'+(TIPO===''?'on':'')+'" onclick="TIPO=&quot;&quot;;desenha()">Tudo</button>'+
+     '<button class="'+(TIPO==='chat'?'on':'')+'" onclick="TIPO=&quot;chat&quot;;desenha()">💬 Cliente sem resposta</button>'+
+     '<button class="'+(TIPO==='negociacao'?'on':'')+'" onclick="TIPO=&quot;negociacao&quot;;desenha()">🤝 Negociação</button>'+
+     '<button class="'+(TIPO==='cancelamento'?'on':'')+'" onclick="TIPO=&quot;cancelamento&quot;;desenha()">🚫 Cancelado inteiro</button>'+
+     '<button class="'+(TIPO==='parcial'?'on':'')+'" onclick="TIPO=&quot;parcial&quot;;desenha()">✂️ Item cancelado</button>'+
+     '<button class="'+(TIPO==='reentrega'?'on':'')+'" onclick="TIPO=&quot;reentrega&quot;;desenha()">🔁 Reentrega</button>'+
+     '<button class="'+(TIPO==='cobranca'?'on':'')+'" onclick="TIPO=&quot;cobranca&quot;;desenha()">💳 Cobrança na porta</button>'+
+     '<button class="'+(TIPO==='maquininha'?'on':'')+'" onclick="TIPO=&quot;maquininha&quot;;desenha()">🧾 Maquininha</button>'+
      '</div>';
 
-  const lista = (VER==='abertas') ? itens.filter(function(x){return !x.resolvido}) : itens;
+  const porTipo = TIPO ? itens.filter(function(x){return x.tipo===TIPO}) : itens;
+  const lista = (VER==='abertas') ? porTipo.filter(function(x){return !x.resolvido}) : porTipo;
   h+='<h2>📋 A lista</h2>';
   if(!lista.length){
     h+='<div class="c"><div class="vazio">'+(VER==='abertas'?'Nada esperando ninguém neste período. A casa está limpa.':'Nada neste período.')+'</div></div>';
   }else{
     h+='<div class="c"><table><tr><th>Quando</th><th>Loja</th><th>O que é</th><th>Pedido</th><th>Situação</th></tr>';
-    itens.forEach(function(l,i){ if(VER==='tudo' || !l.resolvido) h+=linha(l,i); });
+    itens.forEach(function(l,i){ if(TIPO && l.tipo!==TIPO) return; if(VER==='tudo' || !l.resolvido) h+=linha(l,i); });
     h+='</table></div>';
   }
 
+  if(D.maq_cache){
+    h+='<div class="c" style="margin-top:10px"><div class="m">🧾 As comandas não cobradas da maquininha foram conferidas pela última vez em '+esc(D.maq_cache)+
+       ((D.maq_horas!=null && D.maq_horas>26)?' — <b style="color:var(--bad)">isso está velho, o robô não rodou</b>':'')+
+       '. Elas ficam na lista até alguém resolver, mesmo sendo de outro dia.</div></div>';
+  }
   h+='<h2>📵 Fora do ar no cardápio</h2>'+
      '<div class="c"><b>'+(card.itens_fora_do_ar||0)+'</b> itens pausados ou escondidos'+
      (card.ate?' <span class="m" style="display:inline">· última varredura em '+esc(card.ate)+'</span>':'')+
