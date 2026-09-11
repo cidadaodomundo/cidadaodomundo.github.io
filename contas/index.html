@@ -57,6 +57,7 @@ button.ok{background:var(--brand);color:var(--brand-ink);border-color:var(--bran
 .venc{font-size:11px;color:var(--muted);margin-top:3px;white-space:nowrap}
 .venc.aberto{color:#ffcf4d;font-weight:700}
 .desc{white-space:normal;max-width:330px;font-size:12px;color:var(--muted)}
+.selo{margin-left:7px;font-size:11px;vertical-align:middle}
 .p-pronto{background:#2d2a00;color:#ffe680}
 .p-fech{background:#0f3423;color:#6fe0a5}
 .bdec{margin-top:7px;display:flex;gap:6px;flex-wrap:wrap}
@@ -154,6 +155,11 @@ function troca(a){
   });
   desenha();
 }
+function seloPago(r){
+  var ab=Number(r.aberto||0);
+  if(ab>0)return '<span class="pill p-novo selo">falta '+ab+(ab>1?' boletos':' boleto')+'</span>';
+  return '<span class="pill p-feito selo">pago</span>';
+}
 function vencDias(s){
   if(!s)return '';
   var a=String(s).split(' · ');
@@ -196,7 +202,7 @@ function tabela(tipo){
   h+='<th>Total</th><th>Em aberto</th><th>E-mails</th><th>Conferido</th><th class="l">Observação</th></tr></thead><tbody>';
   var tot={},somaTot=0,somaAb=0;
   arr.forEach(function(r){
-    h+='<tr class="'+(audDe(r.chave,r.loja).conferido?'conferida':'')+'"><td class="l forn"><span class="clic" onclick="ficha(\''+esc(r.chave).replace(/'/g,"&#39;")+'\')">'+esc(r.chave)+'</span></td><td class="l loja">'+esc(r.loja)+'</td>';
+    h+='<tr class="'+(audDe(r.chave,r.loja).conferido?'conferida':'')+'"><td class="l forn"><span class="clic" onclick="ficha(\''+esc(r.chave).replace(/'/g,"&#39;")+'\')">'+esc(r.chave)+'</span>'+seloPago(r)+'</td><td class="l loja">'+esc(r.loja)+'</td>';
     meses.forEach(function(m){
       var c=r.mes[m];
       h+=c?('<td class="clic" title="ver boleto por boleto" onclick="verBoletos('+aspas(r.chave)+','+aspas(r.loja)+','+aspas(m)+')">'+din(c.v)+vencCell(c)+'</td>'):'<td><span class="zero">—</span></td>';
