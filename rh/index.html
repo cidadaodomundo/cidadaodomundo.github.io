@@ -209,7 +209,8 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
   <button class="view" id="vesc" onclick="setView('escala')">📋 Escala do dia</button>
   <button class="view" id="vequipe" onclick="setView('equipe')">👥 Equipe por setor</button>
   <!-- aba Refeicao retirada em 10/09/2026 a pedido do Fabio: a refeicao fica no quadro do dia -->
-  <button class="view" id="vcmd" onclick="setView('comandas')">🍽 Comandas</button>
+  <button class="view" id="vvivo" onclick="setView('vivo')">🔴 Ponto ao vivo</button>
+      <button class="view" id="vcmd" onclick="setView('comandas')">🍽 Comandas</button>
       <button class="view" id="vguia" onclick="setView('guia')">📖 Guia RH — o que fazer</button>
   <button class="view" id="vman" onclick="setView('manual')">📕 Manual & Regras</button>
 </div>
@@ -384,9 +385,9 @@ async function loadAll(){
     checkAcoes();
   }catch(e){$('content').innerHTML='<div class="err">Erro: '+e.message+'</div>'}
 }
-function setView(v){VIEW=v;FILT=null;
-  ['vday','vesc','vequipe','vref','vcmd','vguia','vman'].forEach(id=>{const b=$(id);if(b)b.classList.remove('active')});
-  const ab=$({day:'vday',escala:'vesc',equipe:'vequipe',refeicao:'vref',comandas:'vcmd',guia:'vguia',manual:'vman'}[v]||'vday');if(ab)ab.classList.add('active');
+function setView(v){VIEW=v;FILT=null;if(VIVOT){clearInterval(VIVOT);VIVOT=null}
+  ['vday','vesc','vequipe','vref','vvivo','vcmd','vguia','vman'].forEach(id=>{const b=$(id);if(b)b.classList.remove('active')});
+  const ab=$({day:'vday',escala:'vesc',equipe:'vequipe',refeicao:'vref',vivo:'vvivo',comandas:'vcmd',guia:'vguia',manual:'vman'}[v]||'vday');if(ab)ab.classList.add('active');
   $('toolbar').style.display=v==='day'?'flex':'none';
   render();}
 function stepDay(d){DI=Math.min(Math.max(DI+d,0),DAYS.length-1);FILT=null;render()}
@@ -396,6 +397,7 @@ function render(){
   if(VIEW==='escala')return renderEscala();
   if(VIEW==='equipe')return renderEquipeSetor();
   if(VIEW==='manual')return renderManual();
+  if(VIEW==='vivo')return renderVivo();
   if(VIEW==='comandas')return renderComandas();
   if(VIEW==='refeicao')return renderRefeicao();
   renderDay();
@@ -555,7 +557,7 @@ function renderDay(){
   const painelAcao=nivPres.length?'<div class="acaobox"><div class="acaoh">📋 O que o RH faz em cada caso — vale para todas as pessoas abaixo</div>'+nivPres.map(n=>'<div class="acaoi" style="--cc:'+C[n]+'"><b>'+L[n]+'</b> '+ACAO[n]+'</div>').join('')+'</div>':'';
   */
   $('content').innerHTML=blocoRef()+'<div class="grid">'+show.map(r=>{
-    const acao='';
+    const acao=(NV(r)==='SEM'?'':resCaixa(r));
     return `<div class="card" data-nome="${r.nome}" style="--cc:${C[NV(r)]}">
       <div class="chead"><div><div class="cname">${title(r.nome)}</div><div class="cunit">${r.unidade}</div></div>
       <span class="badge">${L[NV(r)]}</span>${NV(r)!=='SEM'&&r.tag?`<span class="cunit" style="margin-left:6px">${r.tag}</span>`:''}</div>
@@ -565,6 +567,7 @@ function renderDay(){
       ${r.detalhe?`<div class="det">▸ ${r.detalhe}</div>`:(RH_SEM_SENHA&&NV(r)!=='SEM'?'<div class="det" style="opacity:.65">▸ — detalhe protegido; entre com a senha do escritório</div>':'')}
       ${acao}</div>`}).join('')+'</div>';
   rfPintaRefeicao(DAYS[DI]);
+  resPinta(DAYS[DI]);
 }
 function escLinha(r){var e=String(r.esc_entrada).slice(0,5),s=String(r.esc_saida||'').slice(0,5);var iv=(r.esc_intervalo_min==null?'':'   · intervalo '+r.esc_intervalo_min+' min');var t=(r.marcacoes_txt||'').trim();var n=t?t.split(/\s+/).length:0;if(!s)return e+iv;if(n>=2)return e+' '+' '.repeat(6*(n-2))+s+iv;return e+' → '+s+iv;}
 function renderGuia(){
@@ -737,6 +740,99 @@ async function rfOp(acao,dados){
   return j;
 }
 function rfLoja(){return RF.loja||''}
+
+/* ===== ✍️ A RITA RESOLVE PELO CARTAO + 🔴 PONTO AO VIVO (11/09/2026) ===== */
+var VIVOT=null, RES={};
+function resEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function resCaixa(r){
+  var nm=resEsc(r.nome), dia=resEsc(r.data);
+  return '<div class="resbox" data-nome="'+nm+'" data-dia="'+dia+'" data-dec="outro"'
+    +' style="margin-top:8px;padding:8px;border-top:1px dashed rgba(255,255,255,.18)">'
+    +'<div style="font-size:11px;opacity:.7;margin-bottom:6px">✍️ o que aconteceu? (fica registrado com o seu nome)</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">'
+    + [['orientado','✅ Resolvido'],['outro','🕐 Relogio com defeito'],['outro','🙋 Esqueceu de bater'],
+       ['atestado','📄 Atestado'],['folga','🏖 Folga combinada'],['falta','❌ Nao veio']]
+      .map(function(x){return '<button type="button" onclick="resRapido(this,\''+x[0]+'\',\''+x[1].replace(/^\S+\s/,'')+'\')" style="font-size:11px;padding:3px 7px;cursor:pointer;border-radius:10px">'+x[1]+'</button>'}).join('')
+    +'</div>'
+    +'<textarea rows="2" placeholder="escreva aqui..." style="width:100%;padding:6px;font-size:12px"></textarea>'
+    +'<div style="display:flex;gap:6px;align-items:center;margin-top:4px">'
+    +'<button type="button" onclick="resSalvar(this)" style="padding:4px 10px;cursor:pointer">Salvar</button>'
+    +'<span class="resmsg" style="font-size:11px"></span></div>'
+    +'<div class="resja" style="font-size:11px;opacity:.8;margin-top:4px"></div></div>';
+}
+function resRapido(btn,dec,txt){
+  var box=btn.closest('.resbox'); if(!box)return;
+  box.setAttribute('data-dec',dec);
+  var ta=box.querySelector('textarea');
+  ta.value = ta.value ? (ta.value.replace(/\s*$/,'')+' — '+txt) : txt;
+  ta.focus();
+}
+async function resSalvar(btn){
+  var box=btn.closest('.resbox'); if(!box)return;
+  var ta=box.querySelector('textarea'), msg=box.querySelector('.resmsg');
+  var txt=(ta.value||'').trim();
+  if(!txt){msg.style.color='#e66767';msg.textContent='Escreva alguma coisa antes de salvar.';return}
+  msg.style.color='';msg.textContent='Salvando…';
+  try{
+    await rfOp('ponto_resolver',{nome:box.getAttribute('data-nome'),dia:box.getAttribute('data-dia'),
+      texto:txt,decisao:box.getAttribute('data-dec')||'outro',quem:rfNome()||'RH'});
+    msg.style.color='#2fae6a';msg.textContent='✅ salvo';
+    ta.value='';
+    await resPinta(box.getAttribute('data-dia'));
+  }catch(e){msg.style.color='#e66767';msg.textContent='Nao deu: '+e.message}
+}
+async function resPinta(dia){
+  if(!dia)return;
+  var l=[];
+  try{l=rfArr(await rfOp('ponto_resolucoes',{de:dia,ate:dia}))}catch(e){return}
+  RES[dia]=l;
+  document.querySelectorAll('.resbox').forEach(function(box){
+    if(box.getAttribute('data-dia')!==dia)return;
+    var nm=box.getAttribute('data-nome');
+    var meus=l.filter(function(x){return (x.nome_citado||'')===nm});
+    var alvo=box.querySelector('.resja');
+    alvo.innerHTML = meus.length ? meus.map(function(x){
+      return '📝 '+resEsc(x.texto)+' <span style="opacity:.6">— '+resEsc(x.de_quem||'')
+        +(x.onde==='portal'?' pelo portal':' no WhatsApp')+'</span>'}).join('<br>') : '';
+  });
+}
+/* ---- 🔴 Ponto ao vivo ---- */
+var VIVO={loja:'Água Verde'};
+function vivoLoja(v){VIVO.loja=v;renderVivo()}
+async function renderVivo(){
+  limpaTopo();
+  if(!document.getElementById('vivowrap')){
+    $('content').innerHTML='<div class="rf-h2">🔴 Ponto ao vivo <span class="hint">quem bateu e ainda nao saiu</span></div>'
+      +'<div class="rf-card"><div id="vivotopo" style="margin-bottom:10px"></div><div id="vivowrap"><div class="rf-load">Carregando…</div></div></div>';
+  }
+  var topo=document.getElementById('vivotopo');
+  if(topo)topo.innerHTML='Loja: '+RFUNI.map(function(u){
+    return '<button class="view'+(VIVO.loja===u?' active':'')+'" onclick="vivoLoja(\''+u+'\')">'+rfEsc(u)+'</button>'}).join(' ');
+  await vivoCarrega();
+  if(VIVOT)clearInterval(VIVOT);
+  VIVOT=setInterval(function(){ if(VIEW==='vivo'){vivoCarrega()} else {clearInterval(VIVOT);VIVOT=null} },120000);
+}
+async function vivoCarrega(){
+  var alvo=document.getElementById('vivowrap'); if(!alvo)return;
+  var j=null;
+  try{j=await rfOp('ponto_ao_vivo',{unidade:VIVO.loja})}
+  catch(e){alvo.innerHTML='<div class="err">Nao consegui ler o ponto: '+rfEsc(e.message)+'</div>';return}
+  var g=rfArr(j&&j.gente), lido=j&&j.lido_em?String(j.lido_em).slice(11,16):null;
+  var dentro=g.filter(function(x){return x.dentro});
+  var h='<div class="rf-aviso">'+(lido?('Ultima leitura do relogio de ponto: <b>'+lido+'</b>. O robo le de hora em hora, das 8h as 2h.')
+        :'⚠️ Ainda nao houve leitura do relogio hoje nesta loja.')+'</div>';
+  h+='<div class="rf-aviso"><b>'+dentro.length+'</b> pessoa(s) dentro da loja agora · <b>'+(g.length-dentro.length)+'</b> ja sairam hoje</div>';
+  if(!g.length){alvo.innerHTML=h+'<div class="rf-empty">Ninguem bateu ponto hoje nesta loja.</div>';return}
+  h+='<div class="rf-wrap"><table class="rf-tb"><tr><th>Funcionario</th><th>Situacao</th><th class="n">Entrou</th><th class="n">Ultima batida</th><th class="n">Batidas</th></tr>';
+  g.forEach(function(x){
+    h+='<tr><td><b>'+rfEsc(x.nome)+'</b></td>'
+      +'<td>'+(x.dentro?'🟢 <b>na loja</b>':'saiu')+'</td>'
+      +'<td class="n">'+rfEsc(String(x.primeira||'').slice(0,5))+'</td>'
+      +'<td class="n">'+rfEsc(String(x.ultima||'').slice(0,5))+'</td>'
+      +'<td class="n">'+rfNum(x.batidas)+(Number(x.batidas)%2===1&&Number(x.batidas)>1?' <span class="rfu">impar</span>':'')+'</td></tr>';
+  });
+  alvo.innerHTML=h+'</table></div>';
+}
 
 /* ===== 🍽 COMANDAS — a lista da Rita, com recado por comanda (11/09/2026) ===== */
 var CMD={loja:'Água Verde',lista:[],equipe:[]};
