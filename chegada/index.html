@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Chegada do dia · Cidadão do Mundo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#E0A81C;--brand-ink:#111110;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1200px;margin:0 auto}
+h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;font-size:22px;letter-spacing:.01em;line-height:1.06}
+h2{font-size:15px;font-weight:800;margin:22px 0 10px;display:flex;align-items:center;gap:9px}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
+.top .rt{margin-left:auto;display:flex;gap:8px;align-items:center}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+button.b:hover{border-color:var(--brand)}
+.c{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:10px}
+.m{color:var(--muted);font-size:11.5px;margin-top:3px}
+.load{color:var(--muted);padding:30px;text-align:center}
+.vazio{color:var(--muted);font-size:13px;padding:8px 0}
+.aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:11px 14px;font-size:12.5px;margin:14px 0}
+.fil{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0;align-items:center}
+.fil button{background:var(--s2);border:1px solid var(--line);color:var(--text2);border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:700;cursor:pointer}
+.fil button.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.fil input[type=date]{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:700}
+.rolar{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;padding:0 8px 8px 0;white-space:nowrap}
+td{padding:9px 8px 9px 0;border-top:1px solid var(--line);vertical-align:top}
+.mini{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer}
+.mini:hover{border-color:var(--brand)}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700}
+.p-ok{background:#123023;color:#4ade80}
+.p-bad{background:#3a1717;color:#f87171}
+.p-warn{background:#3a2d10;color:#f0b429}
+.p-off{background:var(--s2);color:var(--muted)}
+.plac{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div>
+    <h1>⏱ Chegada do dia</h1>
+    <div class="sub" id="sub">carregando…</div>
+  </div>
+  <div class="rt"><button class="b" onclick="boot()">↻ Atualizar</button></div>
+</div>
+
+<div id="app"><div class="load">Carregando…</div></div>
+
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
+let D=null, DIA='', UNI='', TIMER=null;
+
+function hojeISO(){
+  const d=new Date(Date.now()-new Date().getTimezoneOffset()*60000);
+  return d.toISOString().slice(0,10);
+}
+async function porta(nome,dados){
+  const r=await fetch(SB+'rpc/'+nome,{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:tok(),p_dados:dados||{}})});
+  if(!r.ok){let m='';try{const j=await r.json();m=(j&&(j.message||j.hint))||''}catch(e){}throw new Error(m||('porta '+r.status))}
+  return await r.json();
+}
+function dist(m){
+  if(m===null||m===undefined)return '';
+  return (m<1000)?(m+' m'):((m/1000).toFixed(1)+' km');
+}
+function ondeTxt(l){
+  if(!l.vivo_onde)return '<span class="m" style="display:inline">—</span>';
+  var d=dist(l.vivo_dist_m), q=(l.vivo_fila==='na fila'?'na fila':(l.vivo_fila==='disponivel'?'disponível':'indisponível'));
+  var cor, ico;
+  if(l.vivo_onde==='no patio'){cor='#4ade80';ico='🟢 no pátio'}
+  else if(l.vivo_onde==='na rua'){cor='#fbbf24';ico='🛵 na rua'}
+  else {cor='#8a897e';ico='⚪ longe'}
+  return '<span style="color:'+cor+';font-weight:700">'+ico+'</span>'+
+         '<div class="m">'+(d?esc(d)+' · ':'')+esc(q)+' · visto '+esc(l.vivo_visto||'')+'</div>';
+}
+function sitTxt(l){
+  var d=(l.diferenca_min===null||l.diferenca_min===undefined)?null:Math.abs(l.diferenca_min);
+  if(l.situacao==='bate')return '<span class="pill p-ok">bate · '+d+' min</span>';
+  if(l.situacao==='diferenca pequena')return '<span class="pill p-warn">'+d+' min de diferença</span>';
+  if(l.situacao==='nao bate')return '<span class="pill p-bad">não bate · '+d+' min</span>';
+  if(l.situacao==='o sistema perdeu')return '<span class="pill p-bad">o sistema não viu</span>';
+  if(l.situacao==='esperando o balcao')return '<span class="m" style="display:inline">esperando o balcão</span>';
+  if(l.situacao==='anotado')return '<span class="pill p-ok">anotado</span>';
+  return '<span class="m" style="display:inline">não chegou</span>';
+}
+
+function linhaDe(i){ return (D&&D.linhas&&D.linhas[i])||null }
+async function marcar(u,e,t,hora,desf){
+  try{ await porta('chegada_marcar',{dia:(DIA||hojeISO()),unidade:u,entregador:e,turno:t,hora:hora||null,desfazer:!!desf}); }
+  catch(err){ alert('Não deu para anotar: '+(err&&err.message?err.message:'tente de novo')); return; }
+  boot();
+}
+function chegou(i){ const l=linhaDe(i); if(l)marcar(l.unidade,l.entregador,l.n_turno,null,false) }
+function outraHora(i){
+  const l=linhaDe(i); if(!l)return;
+  const h=prompt('Que horas '+l.entregador+' chegou? Escreva assim: 18:05', l.anotado_txt||'');
+  if(!h)return;
+  const t=String(h).trim();
+  if(!/^[0-9]{1,2}:[0-9]{2}$/.test(t)){ alert('Escreva a hora assim: 18:05'); return }
+  marcar(l.unidade,l.entregador,l.n_turno,t,false);
+}
+function apagar(i){
+  const l=linhaDe(i); if(!l)return;
+  if(confirm('Apagar a anotação de '+l.entregador+'?'))marcar(l.unidade,l.entregador,l.n_turno,null,true);
+}
+
+function desenha(){
+  if(D===false){ $('app').innerHTML='<div class="c"><b>Não deu para carregar.</b><div class="m">Entre no portal de novo e tente outra vez.</div></div>'; return }
+  if(!D){ $('app').innerHTML='<div class="load">Juntando a escala com quem está com o aplicativo ligado…</div>'; return }
+  const dono=!!D.dono, L=D.linhas||[], P=D.placar||{}, FORA=D.ligados_fora||[];
+  let h='<div class="fil">'+
+    '<span style="color:var(--muted);font-size:12.5px;font-weight:700">Dia:</span>'+
+    '<input type="date" value="'+esc(D.dia||hojeISO())+'" max="'+esc(D.hoje||hojeISO())+'" onchange="DIA=this.value;boot()">'+
+    '<button class="'+(UNI===''?'on':'')+'" onclick="UNI=&quot;&quot;;boot()">Todas</button>'+
+    '<button class="'+(UNI==='Água Verde'?'on':'')+'" onclick="UNI=&quot;Água Verde&quot;;boot()">Água Verde</button>'+
+    '<button class="'+(UNI==='Ahú'?'on':'')+'" onclick="UNI=&quot;Ahú&quot;;boot()">Ahú</button>'+
+    '<button class="'+(UNI==='São Braz'?'on':'')+'" onclick="UNI=&quot;São Braz&quot;;boot()">São Braz</button>'+
+    '</div>'+
+    '<div class="m" style="margin:0 0 10px">Viu o motoboy entrar? Clique no botão. A hora anotada <b>não mexe no pagamento</b> — ela serve para conferir o relógio do sistema. A coluna <b>Onde está agora</b> é o aplicativo dele neste minuto'+(D.ao_vivo?', e a tela se atualiza sozinha a cada minuto.':'. Neste dia antigo ela não aparece, porque o sinal é do momento.')+'</div>';
+
+  h+='<div class="c" style="padding:10px 14px"><div class="plac">'+
+     '<span><b>'+(P.anotados||0)+'</b> de <b>'+(P.turnos||0)+'</b> anotados</span>';
+  if(dono){
+    h+='<span>bateram: <b>'+(P.bateram||0)+'</b></span>'+
+       '<span>não bateram: <b>'+(P.nao_bateram||0)+'</b></span>'+
+       '<span>o sistema perdeu: <b>'+(P.perdidos||0)+'</b></span>'+
+       '<span>erro médio: <b>'+(P.erro_medio==null?'—':P.erro_medio+' min')+'</b></span>';
+  }
+  h+='</div></div>';
+
+  if(!L.length){
+    h+='<div class="c"><div class="vazio">ninguém na escala deste dia</div></div>';
+  }else{
+    h+='<div class="c"><div class="rolar"><table><tr>'+
+       '<th>Loja</th><th>Motoboy</th><th>Escala</th><th>Onde está agora</th><th>Balcão anotou</th>'+
+       (dono?'<th>Sistema</th><th>Bate?</th>':'')+'</tr>';
+    L.forEach(function(l,i){
+      h+='<tr><td style="white-space:nowrap">'+esc(l.unidade)+'</td>'+
+         '<td>'+esc(l.entregador)+(l.n_turno>1?' <span class="m" style="display:inline">'+l.n_turno+'º turno</span>':'')+'</td>'+
+         '<td style="white-space:nowrap">'+(l.escala_txt?esc(l.escala_txt):'<span class="m" style="display:inline">sem escala</span>')+'</td>'+
+         '<td style="white-space:nowrap">'+ondeTxt(l)+'</td>'+
+         '<td style="white-space:nowrap">'+
+           (l.anotado_txt
+             ? '<b>'+esc(l.anotado_txt)+'</b> <span class="m" style="display:inline">'+esc(l.quem||'')+(l.digitada?' · à mão':'')+'</span><br><button class="mini" style="margin-top:5px" onclick="outraHora('+i+')">trocar</button> <button class="mini" style="margin-top:5px" onclick="apagar('+i+')">apagar</button>'
+             : '<button class="mini" onclick="chegou('+i+')">Chegou agora</button> <button class="mini" onclick="outraHora('+i+')">outra hora</button>')+
+         '</td>'+
+         (dono?('<td style="white-space:nowrap">'+(l.sistema_txt?'<b>'+esc(l.sistema_txt)+'</b>':'<span class="m" style="display:inline">não viu</span>')+'</td>'+
+                '<td style="white-space:nowrap">'+sitTxt(l)+'</td>'):'')+
+         '</tr>';
+    });
+    h+='</table></div></div>';
+  }
+
+  if(D.ao_vivo){
+    h+='<h2>🛵 Ligados agora, mas fora da escala do dia</h2>';
+    if(!FORA.length){
+      h+='<div class="c"><div class="vazio">ninguém com o aplicativo ligado fora da escala</div></div>';
+    }else{
+      h+='<div class="c"><div class="rolar"><table><tr><th>Loja</th><th>Motoboy</th><th>Onde está</th></tr>';
+      FORA.forEach(function(f){
+        h+='<tr><td style="white-space:nowrap">'+esc(f.unidade)+'</td><td>'+esc(f.entregador)+'</td>'+
+           '<td style="white-space:nowrap">'+ondeTxt(f)+'</td></tr>';
+      });
+      h+='</table></div><div class="m">Estes estão com o aplicativo ligado neste minuto e não aparecem na escala deste dia. Pode ser cobertura, troca de turno ou escala não lançada.</div></div>';
+    }
+  }
+
+  if(!dono){
+    h+='<div class="aviso">Anote a hora que <b>você viu</b> a pessoa entrar. Não existe resposta certa para copiar aqui — é o seu olho que vale.</div>';
+  }
+  $('app').innerHTML=h;
+}
+
+function desligaTimer(){ if(TIMER){clearInterval(TIMER);TIMER=null} }
+function ligaTimer(){
+  desligaTimer();
+  if(D&&D.ao_vivo&&!document.hidden)TIMER=setInterval(function(){puxa(true)},60000);
+}
+/* o relogio so corre com a tela na frente: sai da aba, para de buscar */
+document.addEventListener('visibilitychange',function(){ if(document.hidden)desligaTimer(); else ligaTimer(); });
+window.addEventListener('pagehide',desligaTimer);
+async function puxa(silencioso){
+  if(!silencioso){D=null;desenha()}
+  try{ D=await porta('chegada_conferir',{dia:(DIA||null),unidade:UNI||null}); }
+  catch(e){ D=false; $('sub').textContent=(e&&e.message)||'erro'; desenha(); return }
+  const P=D.placar||{};
+  $('sub').textContent='Cidadão do Mundo Burgers & Arts · '+(P.anotados||0)+' de '+(P.turnos||0)+' anotados'+(UNI?' · '+UNI:'')+' · lido '+esc(D.agora||'');
+  desenha();
+  ligaTimer();
+}
+function boot(){ puxa(false) }
+
+/* ===== porta unica do portal ===== */
+const CDMMODS=['chegada','qualidade'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'chegada'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(ok)boot()});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
