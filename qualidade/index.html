@@ -319,6 +319,66 @@ function maqHtml(j){
   return h;
 }
 
+
+function extRs(n){return n==null?'—':'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function extPill(txt,n,total,dono,cor){
+  return '<span style="display:inline-flex;align-items:center;gap:6px;background:'+cor+';color:#fff;border-radius:999px;padding:4px 12px;font-size:12px;font-weight:700">'+txt+' · '+n+(dono&&total!=null?' · '+extRs(total):'')+'</span>';
+}
+function extHtml(j){
+  const L=j.linhas||[], R=j.resumo||{}, dono=!!j.dono, ap=j.apuracao||{};
+  function g(k){return R[k]||{n:0,total:null}}
+  const cp=g('rota_com_pedido'), sp=g('rota_sem_pedido'), bc=g('balcao_sem_pedido'), bp=g('balcao_com_pedido'), ic=g('indefinida_com_pedido'), is2=g('indefinida_sem_pedido');
+  const balN=bc.n+bp.n, balT=(dono?(Number(bc.total||0)+Number(bp.total||0)):null);
+  let h='<div class="c"><div style="font-size:12.5px;color:#c3c2b7"><b style="color:#fff">🧾 Extrato da Rede — '+esc(j.dia_texto)+'</b> · dia da operação, das '+esc(j.janela||'—')+' · Rede lida até '+esc(j.rede_ate||'—')+' · lido '+esc(j.agora)+'</div>'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'+
+      extPill('✅ Rota · casou com pedido',cp.n,cp.total,dono,'#2f7d4f')+
+      extPill('⚠️ Rota · SEM pedido',sp.n,sp.total,dono,'#8a5a12')+
+      ((ic.n+is2.n)?extPill('❔ Maquininha nova',ic.n+is2.n,null,false,'#4a4a42'):'')+
+      extPill('🏪 Balcão / salão',balN,balT,dono,'#3a3a34')+
+    '</div></div>';
+  if(!L.length)return h+'<div class="c" style="color:#8a897e">Nenhuma passada nas maquininhas da rota neste dia.</div>';
+  h+='<div class="c" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;min-width:620px"><tr>'+
+    ['Quando','Loja','Valor','Cartão','Maquininha','Situação'].map(function(t){return '<th style="text-align:left;color:#8a897e;font-size:11px;padding:0 8px 6px 0">'+t+'</th>'}).join('')+'</tr>';
+  L.forEach(function(r,i){
+    const sem=(r.pedido==null);
+    h+='<tr style="'+(i%2?'background:rgba(255,255,255,.02)':'')+'">'+
+      '<td style="padding:8px 8px;border-top:1px solid #34332f"><b>'+esc(r.hora)+'</b></td>'+
+      '<td style="padding:8px 8px;border-top:1px solid #34332f">'+esc(r.unidade==='Água Verde'?'AV':(r.unidade==='São Braz'?'SB':r.unidade))+'</td>'+
+      '<td style="padding:8px 8px;border-top:1px solid #34332f;text-align:right;white-space:nowrap">'+(dono?extRs(r.valor):'—')+'</td>'+
+      '<td style="padding:8px 8px;border-top:1px solid #34332f">'+esc(r.bandeira)+' <span style="color:#8a897e">'+esc(r.tipo)+'</span></td>'+
+      '<td style="padding:8px 8px;border-top:1px solid #34332f"><span style="font-family:ui-monospace,monospace;font-size:11.5px;color:#c3c2b7">'+esc(r.maquina)+'</span>'+(r.papel==='balcao'?' <span style="color:#8a897e;font-size:11px">(balcão)</span>':'')+'</td>'+
+      '<td style="padding:8px 8px;border-top:1px solid #34332f">'+(sem?'<b style="color:#e0a33a">SEM PEDIDO</b>':'<span style="color:#2fae6a">casou com #'+esc(r.pedido)+'</span>')+'</td>'+
+    '</tr>';
+  });
+  h+='</table></div>';
+  h+='<div class="c" style="font-size:12px;color:#c3c2b7">De onde vem: é o <b>extrato da Rede</b> daquele dia, loja por loja. Uma maquininha entra como <b>da rota</b> quando pelo menos 1 em cada 4 passadas dela casou com uma entrega paga na porta — as do balcão ficam perto de zero. Isso foi medido de '+esc(ap.de||'—')+' a '+esc(ap.ate||'—')+', apurado em '+esc(ap.em||'—')+' ('+esc(ap.maquinas==null?'?':ap.maquinas)+' maquininhas de rota), e não se refaz sozinho. <b>SEM PEDIDO</b> quer dizer: a Rede registrou a cobrança, mas nenhum pedido do Saipos daquele dia bate com esse valor. Pode ser complemento, taxa cobrada à parte, ou entrega que ninguém lançou. ⚠️ O nome da bandeira não vem da Rede: ela manda só um código, e o nome foi conferido comparando com a forma de pagamento do Saipos.</div>';
+  return h;
+}
+
+let EXT=null, EXTK='', EXTBUSY=false, EXTON=false, EXTTUDO=false;
+function extDia(){return MQDIA||ontem()}
+function extChave(){return extDia()+'|'+(UNI||'')+'|'+(EXTTUDO?'1':'0')}
+async function puxaExt(){
+  const k=extChave();
+  if(EXTK===k&&(EXT!==null||EXTBUSY))return;
+  EXTK=k; EXT=null; EXTBUSY=true;
+  try{ const j=await porta('maquininha_extrato',{dia:extDia(),unidade:UNI||null,tudo:EXTTUDO}); if(EXTK===k)EXT=j; }catch(e){ if(EXTK===k)EXT=false }
+  EXTBUSY=false;
+  if(ABA==='maq')desenha();
+}
+function extBotao(recarrega){
+  return '<div class="c" style="margin-top:10px"><button onclick="EXTON=!EXTON;'+recarrega+'" style="background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">'+(EXTON?'▾ esconder':'▸ ver')+' todas as passadas da maquininha do delivery</button>'+
+    (EXTON?' <button onclick="EXTTUDO=!EXTTUDO;EXT=null;EXTK=\'\';'+recarrega+'" style="background:none;border:1px solid var(--line);color:#c3c2b7;border-radius:999px;padding:8px 14px;font-size:12px;cursor:pointer">'+(EXTTUDO?'esconder o balcão':'mostrar também o balcão')+'</button>':'')+
+    '<div style="font-size:12px;color:#8a897e;margin-top:6px">O quadro de cima só mostra entrega que casou com cobrança. Aqui aparece <b>toda</b> passada das maquininhas que saíram na rota — inclusive a que não casou com pedido nenhum.</div></div>';
+}
+function extBloco(){
+  let h=extBotao('desenha()');
+  if(!EXTON)return h;
+  if(EXTK!==extChave()||EXT===null){ puxaExt(); return h+'<div class="c"><div class="load">Lendo o extrato da Rede…</div></div>'; }
+  if(EXT===false)return h+'<div class="c" style="color:#8a897e">não deu para carregar o extrato — tente de novo</div>';
+  return h+extHtml(EXT);
+}
+
 let MQ=null, MQK='', MQDIA='', MQBUSY=false;
 async function puxaMaq(){
   const dia=MQDIA||ontem(), k=dia+'|'+UNI;
@@ -337,7 +397,7 @@ function maqAba(){
     '<span class="m">a Rede só chega no dia seguinte às 9h — por isso a aba abre em ontem</span></div>';
   if(MQK!==k||MQ===null){ puxaMaq(); return h+'<div class="c"><div class="load">Cruzando Saipos, Rede, extrato e GPS…</div></div>'; }
   if(MQ===false)return h+'<div class="c"><div class="vazio">não deu para carregar a conferência — tente Atualizar</div></div>';
-  return h+maqHtml(MQ);
+  return h+maqHtml(MQ)+extBloco();
 }
 async function puxaCancVivo(){
   if(CV!==null)return;
