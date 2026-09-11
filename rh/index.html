@@ -209,7 +209,8 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
   <button class="view" id="vesc" onclick="setView('escala')">📋 Escala do dia</button>
   <button class="view" id="vequipe" onclick="setView('equipe')">👥 Equipe por setor</button>
   <!-- aba Refeicao retirada em 10/09/2026 a pedido do Fabio: a refeicao fica no quadro do dia -->
-  <button class="view" id="vguia" onclick="setView('guia')">📖 Guia RH — o que fazer</button>
+  <button class="view" id="vcmd" onclick="setView('comandas')">🍽 Comandas</button>
+      <button class="view" id="vguia" onclick="setView('guia')">📖 Guia RH — o que fazer</button>
   <button class="view" id="vman" onclick="setView('manual')">📕 Manual & Regras</button>
 </div>
 <div class="toolbar" id="toolbar">
@@ -384,8 +385,8 @@ async function loadAll(){
   }catch(e){$('content').innerHTML='<div class="err">Erro: '+e.message+'</div>'}
 }
 function setView(v){VIEW=v;FILT=null;
-  ['vday','vesc','vequipe','vref','vguia','vman'].forEach(id=>{const b=$(id);if(b)b.classList.remove('active')});
-  const ab=$({day:'vday',escala:'vesc',equipe:'vequipe',refeicao:'vref',guia:'vguia',manual:'vman'}[v]||'vday');if(ab)ab.classList.add('active');
+  ['vday','vesc','vequipe','vref','vcmd','vguia','vman'].forEach(id=>{const b=$(id);if(b)b.classList.remove('active')});
+  const ab=$({day:'vday',escala:'vesc',equipe:'vequipe',refeicao:'vref',comandas:'vcmd',guia:'vguia',manual:'vman'}[v]||'vday');if(ab)ab.classList.add('active');
   $('toolbar').style.display=v==='day'?'flex':'none';
   render();}
 function stepDay(d){DI=Math.min(Math.max(DI+d,0),DAYS.length-1);FILT=null;render()}
@@ -395,6 +396,7 @@ function render(){
   if(VIEW==='escala')return renderEscala();
   if(VIEW==='equipe')return renderEquipeSetor();
   if(VIEW==='manual')return renderManual();
+  if(VIEW==='comandas')return renderComandas();
   if(VIEW==='refeicao')return renderRefeicao();
   renderDay();
 }
@@ -735,6 +737,48 @@ async function rfOp(acao,dados){
   return j;
 }
 function rfLoja(){return RF.loja||''}
+
+/* ===== 🍽 COMANDAS — a lista da Rita, com recado por comanda (11/09/2026) ===== */
+var CMD={loja:'Água Verde',lista:[],equipe:[]};
+function cmdSetLoja(v){CMD.loja=v;renderComandas()}
+async function renderComandas(){
+  limpaTopo();
+  $('content').innerHTML='<div class="rf-load">Carregando as comandas…</div>';
+  var j=null;
+  try{j=await rfOp('cartoes',{unidade:CMD.loja})}
+  catch(e){$('content').innerHTML='<div class="err">Nao consegui ler as comandas: '+rfEsc(e.message)+'</div>';return}
+  CMD.lista=rfArr(j&&j.cartoes);
+  CMD.equipe=rfArr(j&&j.equipe);
+  var h='<div class="rf-h2">🍽 Comandas <span class="hint">escreva no campo o que esta errado ou o que falta, e clique em Salvar</span></div>';
+  h+='<div class="rf-card"><div style="margin-bottom:10px">Loja: '
+    +RFUNI.map(function(u){return '<button class="view'+(CMD.loja===u?' active':'')+'" onclick="cmdSetLoja(\''+u+'\')">'+rfEsc(u)+'</button>'}).join(' ')
+    +'</div>';
+  if(!CMD.lista.length){$('content').innerHTML=h+'<div class="rf-empty">Nenhuma comanda cadastrada nesta loja.</div></div>';return}
+  h+='<div class="rf-wrap"><table class="rf-tb"><tr><th class="n">Comanda</th><th>Nome</th><th>De quem e</th><th>Recado para o escritorio</th><th></th></tr>';
+  CMD.lista.forEach(function(c,i){
+    var dono=(CMD.equipe.filter(function(x){return String(x.id)===String(c.funcionario_id)})[0]||{}).nome;
+    h+='<tr'+(c.ativo?'':' style="opacity:.55"')+'>'
+      +'<td class="n"><b>'+rfEsc(c.codigo)+'</b></td>'
+      +'<td>'+rfEsc(c.nome||'—')+(c.ativo?'':' <span class="rfu">desativada</span>')+'</td>'
+      +'<td>'+rfEsc(dono||(c.funcionario_id?'ficha '+c.funcionario_id:'— sem dono —'))+'</td>'
+      +'<td><textarea id="cmd_'+i+'" rows="2" style="width:100%;min-width:220px;padding:6px" placeholder="ex.: esse cartao esta comigo, o nome esta errado, falta cadastrar...">'+rfEsc(c.recado||'')+'</textarea>'
+      +(c.recado_por?'<div class="rfu">ultimo: '+rfEsc(c.recado_por)+(c.recado_em?' · '+rfBr(String(c.recado_em).slice(0,10)):'')+'</div>':'')
+      +'</td>'
+      +'<td><button onclick="cmdSalvar('+i+')" style="padding:6px 10px;cursor:pointer">Salvar</button></td></tr>';
+  });
+  h+='</table></div><div id="cmd_msg" style="margin-top:8px"></div></div>';
+  $('content').innerHTML=h;
+}
+async function cmdSalvar(i){
+  var c=CMD.lista[i]; if(!c)return;
+  var el=document.getElementById('cmd_'+i); if(!el)return;
+  rfMsg('cmd_msg','Salvando…');
+  try{
+    await rfOp('cartao_recado',{unidade:c.unidade,codigo:String(c.codigo),recado:el.value,quem:rfNome()||'RH'});
+    c.recado=el.value; c.recado_por=rfNome()||'RH';
+    rfMsg('cmd_msg','✅ Recado da comanda '+c.codigo+' salvo.');
+  }catch(e){rfMsg('cmd_msg','Nao deu: '+e.message,true)}
+}
 
 function renderRefeicao(){
   limpaTopo();
