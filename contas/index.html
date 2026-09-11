@@ -54,6 +54,8 @@ button.ok{background:var(--brand);color:var(--brand-ink);border-color:var(--bran
 .p-outro{background:var(--s2);color:var(--muted)}
 .p-lib{background:#0d2f4a;color:#86c8ff}
 .lojas{margin-bottom:10px}
+.venc{font-size:11px;color:var(--muted);margin-top:3px;white-space:nowrap}
+.venc.aberto{color:#ffcf4d;font-weight:700}
 .p-pronto{background:#2d2a00;color:#ffe680}
 .p-fech{background:#0f3423;color:#6fe0a5}
 .bdec{margin-top:7px;display:flex;gap:6px;flex-wrap:wrap}
@@ -151,6 +153,18 @@ function troca(a){
   });
   desenha();
 }
+function vencDias(s){
+  if(!s)return '';
+  var a=String(s).split(' · ');
+  return a.length<=4 ? a.join(' · ') : (a.slice(0,3).join(' · ')+' +'+(a.length-3));
+}
+function vencCell(c){
+  if(!c)return '';
+  var aberto=Number(c.ab||0)>0;
+  var t=vencDias(aberto?(c.da||c.d):c.d);
+  if(!t)return '';
+  return '<div class="venc'+(aberto?' aberto':'')+'">vence '+esc(t)+'</div>';
+}
 function tabela(tipo){
   var meses=D.meses||[];
   var todas=(D.linhas||[]).filter(function(x){return x.tipo===tipo});
@@ -169,7 +183,7 @@ function tabela(tipo){
   linhas.forEach(function(x){
     var k=x.chave+'|'+x.loja;
     if(!chaves[k])chaves[k]={chave:x.chave,loja:x.loja,mes:{},total:0,aberto:0,emails:0};
-    chaves[k].mes[x.mes]={v:x.valor,ab:x.em_aberto};
+    chaves[k].mes[x.mes]={v:x.valor,ab:x.em_aberto,d:x.dias,da:x.dias_abertos};
     chaves[k].total+=Number(x.valor||0);
     chaves[k].aberto+=Number(x.em_aberto||0);
     if(Number(x.emails||0)>chaves[k].emails)chaves[k].emails=Number(x.emails||0);
@@ -184,7 +198,7 @@ function tabela(tipo){
     h+='<tr class="'+(audDe(r.chave,r.loja).conferido?'conferida':'')+'"><td class="l forn"><span class="clic" onclick="ficha(\''+esc(r.chave).replace(/'/g,"&#39;")+'\')">'+esc(r.chave)+'</span></td><td class="l loja">'+esc(r.loja)+'</td>';
     meses.forEach(function(m){
       var c=r.mes[m];
-      h+=c?('<td class="clic" title="ver boleto por boleto" onclick="verBoletos('+aspas(r.chave)+','+aspas(r.loja)+','+aspas(m)+')">'+din(c.v)+'</td>'):'<td><span class="zero">—</span></td>';
+      h+=c?('<td class="clic" title="ver boleto por boleto" onclick="verBoletos('+aspas(r.chave)+','+aspas(r.loja)+','+aspas(m)+')">'+din(c.v)+vencCell(c)+'</td>'):'<td><span class="zero">—</span></td>';
       if(c){tot[m]=(tot[m]||0)+Number(c.v||0)}
     });
     somaTot+=r.total; somaAb+=r.aberto;
@@ -435,7 +449,7 @@ function desenha(){
   else if(ABA==='buracos'){h=buracos()}
   else{
     h=tabela(ABA);
-    h+='<div class="nota">Cada linha é um fornecedor numa loja. O valor de cada mês é a soma dos boletos que vencem naquele mês. <b>Em aberto</b> é quantos ainda não foram baixados no Saipos. <b>E-mails</b> é quantas mensagens daquele fornecedor chegaram no administrativo@ no mês mais recente com movimento.</div>';
+    h+='<div class="nota">Cada linha é um fornecedor numa loja. O valor de cada mês é a soma dos boletos que vencem naquele mês. <b>Em aberto</b> é quantos ainda não foram baixados no Saipos. Embaixo de cada valor está o <b>dia do vencimento</b> de cada boleto daquele mês — <b>em amarelo</b> quando ainda não foi pago. <b>E-mails</b> é quantas mensagens daquele fornecedor chegaram no administrativo@ no mês mais recente com movimento.</div>';
   }
   if(ABA!=='pedidos')h+='<div class="nota">Os lançamentos vêm das duas cargas do Saipos juntas — a manual e a do robô — sem contar duas vezes: quando o mesmo lançamento está nas duas, vale o do robô. <b>O Boqueirão não aparece</b>: aquela loja não tem senha do Saipos.</div>';
   $('app').innerHTML=h;
