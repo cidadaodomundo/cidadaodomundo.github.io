@@ -59,6 +59,75 @@ const $=i=>document.getElementById(i);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
 let D=null, DIA='', UNI='', TIMER=null;
+/* ===== 🛵 Avisar o cliente — o motoboy esta chegando ===== */
+let AV=null, AVERRO='';
+const AVTEXTO='Oi! Seu pedido está quase aí — o entregador já está chegando. 🛵';
+async function puxaAviso(){
+  try{ AV = await porta('aviso_chegando',{unidade:UNI||null}); AVERRO=''; }
+  catch(e){ AV=false; AVERRO=(e&&e.message)||'' }
+}
+async function avisoMarcar(u,p,m,desf){
+  try{ await porta('aviso_chegando_marcar',{unidade:u,pedido:p,metros:m,desfazer:!!desf}); AVERRO=''; }
+  catch(e){ AVERRO='não deu para marcar: '+((e&&e.message)||'') }
+  await puxaAviso(); desenha();
+}
+function avisoCopiar(u,p,m){
+  var fim=function(){ avisoMarcar(u,p,m,false) };
+  try{ navigator.clipboard.writeText(AVTEXTO).then(fim, fim) }catch(e){ fim() }
+}
+function avisoCartao(l){
+  return '<div class="c" style="border:2px solid #2fae6a;background:rgba(47,174,106,.08)">'+
+    '<div style="font-size:15px;font-weight:800;color:#fff">🛵 '+esc(l.unidade)+' · pedido #'+esc(l.pedido)+'</div>'+
+    '<div class="m" style="margin:4px 0 8px">'+esc(l.motoboy)+' está a <b style="color:#2fae6a">'+esc(l.metros)+' m</b> — '+esc(l.onde)+
+      ' · saiu '+esc(l.saiu)+' · posição de '+esc(l.gps_em)+'</div>'+
+    '<div style="background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.5px;color:var(--text)">'+esc(AVTEXTO)+'</div>'+
+    '<button class="b" style="margin-top:8px;background:#2fae6a;color:#08130c;border-color:#2fae6a;font-weight:800"'+
+      ' onclick="avisoCopiar(&quot;'+esc(l.unidade)+'&quot;,&quot;'+esc(l.pedido)+'&quot;,'+(l.metros||0)+')">'+
+      'Copiar a mensagem e marcar como avisado</button>'+
+    '<button class="b" style="margin-top:8px" onclick="avisoMarcar(&quot;'+esc(l.unidade)+'&quot;,&quot;'+esc(l.pedido)+'&quot;,'+(l.metros||0)+',false)">só marcar</button>'+
+    '</div>';
+}
+function avisoHtml(){
+  if(AV===null) return '';
+  if(AV===false) return '<div class="c"><b>🛵 Avisar o cliente</b><div class="m">não deu para ler as posições agora'+(AVERRO?' — '+esc(AVERRO):'')+'</div></div>';
+  var L=AV.linhas||[], R=AV.regua||{};
+  var pra=L.filter(function(x){return x.situacao==='AVISAR'});
+  var ja =L.filter(function(x){return x.situacao==='JA AVISADO'});
+  var h='<h2 style="margin:0 0 6px">🛵 Avisar o cliente — quem está chegando agora</h2>';
+  if(AVERRO) h+='<div class="c" style="color:#e0a33a">'+esc(AVERRO)+'</div>';
+  if(!pra.length){
+    h+='<div class="c" style="color:#8a897e">Ninguém para avisar neste momento. '+
+       'De '+esc(L.length)+' entrega(s) a caminho, nenhuma está na janela de '+esc(R.metros_min)+' a '+esc(R.metros_max)+' metros indo na direção do cliente.</div>';
+  } else {
+    pra.forEach(function(l){ h+=avisoCartao(l) });
+  }
+  if(ja.length){
+    h+='<div class="c" style="font-size:12.5px;color:#8a897e">✅ Já avisados hoje: '+
+      ja.map(function(l){return '#'+esc(l.pedido)+' ('+esc(l.avisado_em)+' · '+esc(l.avisado_por||'')+') <a href="#" onclick="avisoMarcar(&quot;'+esc(l.unidade)+'&quot;,&quot;'+esc(l.pedido)+'&quot;,0,true);return false" style="color:#8a897e">desfazer</a>'}).join(' · ')+'</div>';
+  }
+  var resto=L.filter(function(x){return x.situacao!=='AVISAR' && x.situacao!=='JA AVISADO'});
+  if(resto.length){
+    h+='<div class="c" style="overflow-x:auto"><div class="m" style="margin-bottom:6px">As outras entregas a caminho, e por que ainda não é hora:</div>'+
+      '<table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px"><tr>'+
+      ['Loja','Pedido','Motoboy','Distância','Por quê'].map(function(t){return '<th style="text-align:left;color:#8a897e;font-size:11px;padding:0 8px 6px 0">'+t+'</th>'}).join('')+'</tr>';
+    resto.forEach(function(l,i){
+      h+='<tr style="'+(i%2?'background:rgba(255,255,255,.02)':'')+'">'+
+        '<td style="padding:6px 8px;border-top:1px solid #34332f">'+esc(l.unidade==='Água Verde'?'AV':(l.unidade==='São Braz'?'SB':l.unidade))+'</td>'+
+        '<td style="padding:6px 8px;border-top:1px solid #34332f">#'+esc(l.pedido)+'</td>'+
+        '<td style="padding:6px 8px;border-top:1px solid #34332f">'+esc(l.motoboy)+'</td>'+
+        '<td style="padding:6px 8px;border-top:1px solid #34332f;white-space:nowrap">'+esc(l.metros)+' m</td>'+
+        '<td style="padding:6px 8px;border-top:1px solid #34332f;color:#8a897e">'+esc(l.situacao)+'</td></tr>';
+    });
+    h+='</table></div>';
+  }
+  h+='<div class="c" style="font-size:12px;color:#c3c2b7">Só aparece aqui para avisar quando as quatro coisas valem ao mesmo tempo: '+
+     'o motoboy está entre <b>'+esc(R.metros_min)+' e '+esc(R.metros_max)+' metros</b> do cliente, '+
+     'é <b>a vez daquele cliente</b> na rota dele, a distância está <b>diminuindo</b> (ele está indo pra lá mesmo) '+
+     'e ele <b>ainda não passou</b> na porta. A posição do motoboy é lida de minuto em minuto. '+
+     'Copiar a mensagem já marca como avisado, para ninguém avisar duas vezes.</div>';
+  return h;
+}
+
 
 function hojeISO(){
   const d=new Date(Date.now()-new Date().getTimezoneOffset()*60000);
@@ -189,7 +258,7 @@ function desenha(){
   if(!dono){
     h+='<div class="aviso">Anote a hora que <b>você viu</b> a pessoa entrar. Não existe resposta certa para copiar aqui — é o seu olho que vale.</div>';
   }
-  $('app').innerHTML=h;
+  $('app').innerHTML=avisoHtml()+h;
 }
 
 function desligaTimer(){ if(TIMER){clearInterval(TIMER);TIMER=null} }
@@ -206,6 +275,7 @@ async function puxa(silencioso){
   catch(e){ D=false; $('sub').textContent=(e&&e.message)||'erro'; desenha(); return }
   const P=D.placar||{};
   $('sub').textContent='Cidadão do Mundo Burgers & Arts · '+(P.anotados||0)+' de '+(P.turnos||0)+' anotados'+(UNI?' · '+UNI:'')+' · lido '+esc(D.agora||'');
+  await puxaAviso();
   desenha();
   ligaTimer();
 }
