@@ -124,19 +124,35 @@ function linha(l,i){
     '</td></tr>';
 }
 
+function filtra(tp, ver){
+  TIPO = tp;
+  if(ver){ VER = ver }
+  desenha();
+  var el = document.getElementById('lista');
+  if(el && el.scrollIntoView){ el.scrollIntoView({behavior:'smooth', block:'start'}) }
+}
+
+function cardF(rot, val, tp, ver, cor){
+  var aceso = (tp === TIPO) && (!ver || ver === VER);
+  return '<div class="card" onclick="filtra(&quot;'+tp+'&quot;,&quot;'+ver+'&quot;)"'+
+         ' title="Clique para ver so isto" style="cursor:pointer'+(aceso?';border-color:var(--brand)':'')+'">'+
+         '<div class="t">'+rot+'</div>'+
+         '<div class="v"'+(cor?' style="color:'+cor+'"':'')+'>'+val+'</div></div>';
+}
+
 function desenha(){
   if(D===false){ $('app').innerHTML='<div class="c"><b>Não deu para carregar.</b><div class="m">Entre no portal de novo e tente outra vez.</div></div>'; return }
   if(!D){ $('app').innerHTML='<div class="load">Carregando…</div>'; return }
   const R=D.resumo||{}, itens=D.itens||[], card=D.cardapio||{};
   let h='<div class="cards">'+
-    '<div class="card"><div class="t">Esperando alguém</div><div class="v" style="color:'+((R.abertas||0)>0?'var(--bad)':'var(--ok)')+'">'+(R.abertas||0)+'</div></div>'+
-    '<div class="card"><div class="t">Já resolvidas</div><div class="v">'+(R.resolvidas||0)+'</div></div>'+
-    '<div class="card"><div class="t">Cliente sem resposta</div><div class="v">'+(R.chat||0)+'</div></div>'+
-    '<div class="card"><div class="t">Reentrega</div><div class="v">'+(R.reentrega||0)+'</div></div>'+
-    '<div class="card"><div class="t">Negociação do iFood</div><div class="v">'+(R.negociacao||0)+'</div></div>'+
-    '<div class="card"><div class="t">Cancelado inteiro</div><div class="v">'+(R.cancelamento||0)+'</div></div>'+
-    '<div class="card"><div class="t">Item cancelado</div><div class="v">'+(R.parcial||0)+'</div></div>'+
-    '<div class="card"><div class="t">Maquininha</div><div class="v">'+(R.maquininha||0)+'</div></div>'+
+    cardF('Esperando alguém',(R.abertas||0),'','abertas',((R.abertas||0)>0?'var(--bad)':'var(--ok)'))+
+    cardF('Já resolvidas',(R.resolvidas||0),'','tudo','')+
+    cardF('Cliente sem resposta',(R.chat||0),'chat','abertas','')+
+    cardF('Reentrega',(R.reentrega||0),'reentrega','abertas','')+
+    cardF('Negociação do iFood',(R.negociacao||0),'negociacao','abertas','')+
+    cardF('Cancelado inteiro',(R.cancelamento||0),'cancelamento','abertas','')+
+    cardF('Item cancelado',(R.parcial||0),'parcial','abertas','')+
+    cardF('Maquininha',(R.maquininha||0),'maquininha','abertas','')+
   '</div>';
 
   h+='<div class="fil"><span style="color:var(--muted);font-size:11px;font-weight:800;align-self:center">PERÍODO</span>'+
@@ -164,7 +180,7 @@ function desenha(){
 
   const porTipo = TIPO ? itens.filter(function(x){return x.tipo===TIPO}) : itens;
   const lista = (VER==='abertas') ? porTipo.filter(function(x){return !x.resolvido}) : porTipo;
-  h+='<h2>📋 A lista</h2>';
+  h+='<h2 id="lista">📋 A lista</h2>';
   if(!lista.length){
     h+='<div class="c"><div class="vazio">'+(VER==='abertas'?'Nada esperando ninguém neste período. A casa está limpa.':'Nada neste período.')+'</div></div>';
   }else{
