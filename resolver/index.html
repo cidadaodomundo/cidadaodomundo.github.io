@@ -77,6 +77,22 @@ function rotulo(t){
   return t;
 }
 
+async function verFotos(i){
+  const l=(D&&D.itens&&D.itens[i]); if(!l)return;
+  let cx=document.getElementById('__fotos');
+  if(!cx){ cx=document.createElement('div'); cx.id='__fotos'; document.body.appendChild(cx); }
+  cx.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;overflow:auto;padding:16px;text-align:center';
+  cx.innerHTML='<div style="color:#fff;margin-bottom:10px">Buscando as fotos do pedido '+esc(l.referencia||'')+'…</div>';
+  cx.onclick=function(){ cx.remove(); };
+  try{
+    const r=await fetch('https://kqvoatdprjwxyadhvtdd.supabase.co/functions/v1/guardar-foto-chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({acao:'ver',token_portal:tok(),pedido_curto:l.referencia})});
+    const j=await r.json();
+    if(!j.ok||!j.fotos||!j.fotos.length){ cx.innerHTML='<div style="color:#fff">Não achei foto guardada deste pedido.<div style="color:#bbb;font-size:12px;margin-top:6px">Toque para fechar.</div></div>'; return; }
+    cx.innerHTML='<div style="color:#fff;margin-bottom:10px">📷 O que o cliente mandou no pedido '+esc(l.referencia||'')+' — toque em qualquer lugar para fechar</div>'+
+      j.fotos.map(function(f){ return '<img src="'+f.link+'" style="max-width:96%;max-height:80vh;margin:8px auto;display:block;border-radius:8px">'; }).join('');
+  }catch(e){ cx.innerHTML='<div style="color:#fff">Não deu para buscar as fotos. Toque para fechar.</div>'; }
+}
+
 async function marcar(i){
   const l=(D&&D.itens&&D.itens[i]); if(!l)return;
   const texto=prompt('O que foi feito? (escreva uma linha, fica gravado com o seu nome)\n\n'+rotulo(l.tipo)+' · '+(l.referencia||'')+'\n'+(l.o_que_e||''));
@@ -98,7 +114,9 @@ function linha(l,i){
   return '<tr><td style="white-space:nowrap">'+esc(l.quando||'')+'</td>'+
     '<td style="white-space:nowrap">'+esc(l.unidade||'')+'</td>'+
     '<td>'+esc(rotulo(l.tipo))+'<div class="m">'+esc(l.o_que_e||'')+'</div></td>'+
-    '<td>'+esc(l.referencia||'')+'<div class="m">'+esc(l.detalhe||'')+'</div></td>'+
+    '<td>'+esc(l.referencia||'')+
+      ((l.fotos>0)?' <button class="mini" onclick="verFotos('+i+')">📷 '+l.fotos+(l.fotos>1?' fotos':' foto')+'</button>':'')+
+      '<div class="m">'+esc(l.detalhe||'')+'</div></td>'+
     '<td style="white-space:nowrap">'+
       (l.resolvido
         ? '<span class="feito">✔ '+esc(l.quem||'')+'</span><div class="m">'+esc(l.resolvido_em||'')+' · '+esc(l.o_que_foi_feito||'')+'</div>'+
