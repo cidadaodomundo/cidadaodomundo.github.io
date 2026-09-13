@@ -95,25 +95,32 @@ async function verFotos(i){
 var MOT_REE=['Faltou item na sacola','Endereco errado','Cliente pediu de novo','Pedido sumiu no sistema','Saiu junto, sem corrida a mais','Cozinha refez o pedido'];
 var MOT_GER=['Resolvido com o cliente','Ja estava certo','Nao era problema nosso','Combinado com a equipe'];
 
-function abreCampo(i){
+function campoEscrita(l,i){
+  var dica=(l.tipo==='reentrega')?'escrever o que aconteceu e por que pagou a mais...':'escrever o que foi feito...';
+  return '<div style="white-space:normal;min-width:230px">'+
+    '<textarea id="tx'+i+'" rows="2" placeholder="'+dica+'" oninput="mexeu('+i+')" onfocus="mexeu('+i+')" '+
+      'style="width:100%;background:var(--s1);color:var(--text);border:1px dashed var(--line);border-radius:8px;padding:7px 8px;font-family:inherit;font-size:13px;resize:vertical"></textarea>'+
+    '<div id="ex'+i+'" style="display:none;margin-top:6px"></div></div>';
+}
+
+function mexeu(i){
   var l=(D&&D.itens&&D.itens[i]); if(!l)return;
-  var cx=document.getElementById('cp'+i); if(!cx)return;
-  if(cx.innerHTML){ cx.innerHTML=''; return }
-  var ms=(l.tipo==='reentrega')?MOT_REE:MOT_GER;
-  var dica=(l.tipo==='reentrega')?'Conte o que aconteceu e por que precisou pagar a mais para o motoboy':'Escreva o que foi feito';
-  cx.innerHTML='<div style="margin-top:8px;background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:10px;max-width:420px;white-space:normal">'+
-    '<div style="color:var(--muted);font-size:11px;font-weight:800;margin-bottom:6px">O QUE ACONTECEU?</div>'+
-    ms.map(function(m){ return '<button class="mini" style="margin:0 4px 4px 0" onclick="poeMotivo('+i+',this)">'+esc(m)+'</button>' }).join('')+
-    '<textarea id="tx'+i+'" rows="3" placeholder="'+dica+'" style="width:100%;margin:8px 0;background:var(--s1);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px;font-family:inherit;font-size:14px"></textarea>'+
-    '<button class="mini" onclick="gravaCampo('+i+')">Gravar e fechar</button> '+
-    '<button class="mini" onclick="abreCampo('+i+')">cancelar</button></div>';
-  var t=document.getElementById('tx'+i); if(t) t.focus();
+  var ex=document.getElementById('ex'+i), t=document.getElementById('tx'+i);
+  if(!ex||!t)return;
+  if(!ex.innerHTML){
+    var ms=(l.tipo==='reentrega')?MOT_REE:MOT_GER;
+    ex.innerHTML=ms.map(function(m){ return '<button class="mini" style="margin:0 4px 4px 0" onclick="poeMotivo('+i+',this)">'+esc(m)+'</button>' }).join('')+
+      '<div style="margin-top:4px"><button class="mini" id="gv'+i+'" onclick="gravaCampo('+i+')">Gravar e fechar</button></div>';
+  }
+  ex.style.display='block';
+  t.style.borderStyle = t.value.trim() ? 'solid' : 'dashed';
 }
 
 function poeMotivo(i,b){
   var t=document.getElementById('tx'+i); if(!t)return;
   var m=(b.innerText||'').trim();
   t.value = t.value ? (t.value.replace(/\s+$/,'')+' · '+m) : m;
+  t.style.borderStyle='solid';
   t.focus();
 }
 
@@ -146,8 +153,7 @@ function linha(l,i){
       (l.resolvido
         ? '<span class="feito">✔ '+esc(l.quem||'')+'</span><div class="m">'+esc(l.resolvido_em||'')+' · '+esc(l.o_que_foi_feito||'')+'</div>'+
           '<button class="mini" style="margin-top:6px" onclick="reabrir('+i+')">reabrir</button>'
-        : '<button class="mini" onclick="abreCampo('+i+')">Resolvi</button>')+
-      '<div id="cp'+i+'"></div>'+
+        : campoEscrita(l,i))+
     '</td></tr>';
 }
 
