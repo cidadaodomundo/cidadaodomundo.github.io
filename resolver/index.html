@@ -122,6 +122,30 @@ async function mandaPedido(){
   setTimeout(boot, 1200);
 }
 
+async function verConversa(i){
+  const l=(D&&D.itens&&D.itens[i]); if(!l)return;
+  let cx=document.getElementById('__conversa');
+  if(!cx){ cx=document.createElement('div'); cx.id='__conversa'; document.body.appendChild(cx); }
+  cx.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;overflow:auto;padding:16px';
+  cx.innerHTML='<div style="color:#fff;text-align:center">Buscando a conversa do pedido '+esc(l.referencia||'')+'…</div>';
+  cx.onclick=function(ev){ if(ev.target===cx) cx.remove(); };
+  try{
+    const j=await porta('resolver_marcar',{acao:'conversa',canal:l.canal,pedido:l.referencia});
+    const ms=(j&&j.msgs)||[];
+    if(!ms.length){ cx.innerHTML='<div style="color:#fff;text-align:center">Nao achei conversa gravada deste pedido.<div style="color:#bbb;font-size:12px;margin-top:6px">Toque fora para fechar.</div></div>'; return }
+    cx.innerHTML='<div style="max-width:680px;margin:0 auto">'+
+      '<div style="color:#fff;margin-bottom:10px">💬 Conversa do pedido '+esc(l.referencia||'')+' · '+esc(l.unidade||'')+
+      '<span style="color:#bbb;font-size:12px"> — toque fora para fechar</span></div>'+
+      ms.map(function(m){
+        var cor = (m.papel==='cliente') ? 'var(--brand)' : ((m.papel==='loja') ? 'var(--ok)' : 'var(--muted)');
+        var quem = (m.papel==='cliente') ? ('cliente '+(m.quem||'')) : ((m.papel==='loja') ? ('loja '+(m.quem||'')) : 'iFood');
+        return '<div style="background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:6px">'+
+          '<div style="color:'+cor+';font-size:11px;font-weight:800">'+esc(quem)+' · '+esc(m.quando||'')+'</div>'+
+          '<div style="color:var(--text);font-size:14px;margin-top:2px">'+esc(m.texto||'')+'</div></div>';
+      }).join('')+'</div>';
+  }catch(e){ cx.innerHTML='<div style="color:#fff;text-align:center">Nao deu para buscar a conversa. Toque fora para fechar.</div>'; }
+}
+
 function campoEscrita(l,i){
   var dica=(l.tipo==='reentrega')?'escrever o que aconteceu e por que pagou a mais...':'escrever o que foi feito...';
   return '<div style="white-space:normal;min-width:230px">'+
@@ -175,6 +199,9 @@ function linha(l,i){
     '<td>'+esc(rotulo(l.tipo))+'<div class="m">'+esc(l.o_que_e||'')+'</div></td>'+
     '<td>'+esc(l.referencia||'')+
       ((l.fotos>0)?' <button class="mini" onclick="verFotos('+i+')">📷 '+l.fotos+(l.fotos>1?' fotos':' foto')+'</button>':'')+
+      (l.tem_conversa?' <button class="mini" onclick="verConversa('+i+')">💬 conversa</button>':'')+
+      ((l.n_conversas>1)?'<div style="margin-top:5px;color:var(--warn);font-size:12px">⚠️ '+l.n_conversas+' conversas com esse numero de pedido — nao da para saber qual e</div>':'')+
+      (l.cliente_disse?'<div style="margin-top:5px;color:var(--brand);font-size:13px">“'+esc(l.cliente_disse)+'”</div>':'')+
       '<div class="m">'+esc(l.detalhe||'')+'</div></td>'+
     '<td style="white-space:nowrap">'+
       (l.resolvido
