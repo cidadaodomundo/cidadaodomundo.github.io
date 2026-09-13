@@ -95,6 +95,35 @@ async function verFotos(i){
 var MOT_REE=['Faltou item na sacola','Endereco errado','Cliente pediu de novo','Pedido sumiu no sistema','Saiu junto, sem corrida a mais','Cozinha refez o pedido'];
 var MOT_GER=['Resolvido com o cliente','Ja estava certo','Nao era problema nosso','Combinado com a equipe'];
 
+var FAM='BEBIDA';
+
+function esquecidos(){
+  var es=(D&&D.esquecidos)||[];
+  if(!es.length) return '';
+  var fams=[['BEBIDA','🥤 Bebida','var(--bad)'],['SOBREMESA','🍰 Sobremesa','var(--warn)'],['COMIDA','🍔 Comida','var(--text2)'],['NAO DEU PARA SABER','❓ Nao deu para saber','var(--muted)']];
+  var conta={}; es.forEach(function(e){ conta[e.familia]=(conta[e.familia]||0)+1 });
+  var lista=es.filter(function(e){ return e.familia===FAM });
+  return '<div style="border-left:4px solid var(--bad);background:var(--s1);border-radius:12px;padding:12px 14px;margin:10px 0">'+
+    '<div style="color:var(--bad);font-weight:800;margin-bottom:4px">🥤 O QUE A EQUIPE ESQUECEU DE POR NA SACOLA</div>'+
+    '<div style="color:var(--muted);font-size:12px;margin-bottom:8px">Sai do que o proprio cliente escreveu no chat. Esquecer bebida e o mais grave.</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">'+
+      fams.map(function(f){
+        var q=conta[f[0]]||0;
+        return '<div onclick="FAM=&quot;'+f[0]+'&quot;;desenha()" style="cursor:pointer;background:var(--s2);border:1px solid '+(FAM===f[0]?'var(--brand)':'var(--line)')+';border-radius:10px;padding:8px 12px;min-width:96px">'+
+          '<div style="color:var(--muted);font-size:11px;font-weight:800">'+f[1]+'</div>'+
+          '<div style="color:'+f[2]+';font-size:22px;font-weight:800">'+q+'</div></div>';
+      }).join('')+
+    '</div>'+
+    (lista.length
+      ? '<div style="max-height:260px;overflow:auto">'+lista.map(function(e){
+          return '<div style="border-top:1px solid var(--line);padding:7px 0;font-size:13px">'+
+            '<span style="color:var(--muted)">'+esc(e.quando||'')+' · '+esc(e.unidade||'')+' · pedido '+esc(e.pedido||'')+'</span><br>'+
+            '<span style="color:var(--brand)">“'+esc(e.disse||'')+'”</span></div>';
+        }).join('')+'</div>'
+      : '<div style="color:var(--muted);font-size:13px">Nenhum caso deste tipo no periodo.</div>')+
+  '</div>';
+}
+
 function falaComigo(){
   var ps=(D&&D.pedidos)||[];
   return '<div style="border-left:4px solid var(--brand);background:var(--s1);border-radius:12px;padding:12px 14px;margin:10px 0">'+
@@ -241,6 +270,8 @@ function desenha(){
     cardF('Item cancelado',(R.parcial||0),'parcial','abertas','')+
     cardF('Maquininha',(R.maquininha||0),'maquininha','abertas','')+
   '</div>';
+
+  h+=esquecidos();
 
   h+=falaComigo();
 
