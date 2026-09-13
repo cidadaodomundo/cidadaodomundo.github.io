@@ -814,23 +814,45 @@ async function renderVivo(){
   if(VIVOT)clearInterval(VIVOT);
   VIVOT=setInterval(function(){ if(VIEW==='vivo'){vivoCarrega()} else {clearInterval(VIVOT);VIVOT=null} },120000);
 }
+function vivoSit(x){
+  var fe=(x.situacao==='NAO_ESCALADO')?' <span class="rfu">fora da escala</span>':((x.situacao==='TRABALHOU_NA_FOLGA')?' <span class="rfu">folga</span>':'');
+  if(x.no_intervalo)return '🟡 <b>no intervalo</b>'+fe;
+  if(x.dentro)return '🟢 <b>na loja</b>'+fe;
+  if(Number(x.batidas||0)>0)return '⚪ saiu'+fe;
+  var s=x.situacao||'';
+  if(s==='FOLGA')return '🔵 folga';
+  if(s==='NAO_CHEGOU')return '⚫ nao chegou ainda'+(x.esc_entrada?' <span class="rfu">entra '+rfEsc(x.esc_entrada)+'</span>':'');
+  if(s==='ATRASADO')return '🟠 <b>nao bateu ponto</b>'+(x.esc_entrada?' <span class="rfu">previsto '+rfEsc(x.esc_entrada)+'</span>':'');
+  if(s==='SEM_LEITURA_AINDA')return '⏳ sem leitura ainda';
+  if(s==='NAO_ESCALADO')return '⚠️ fora da escala';
+  return '—';
+}
+function vivoInt(x){
+  if(x.no_intervalo)return '<b>saiu '+rfEsc(String(x.int_saiu||''))+'</b>';
+  if(x.int_saiu&&x.int_voltou)return rfEsc(x.int_saiu)+' → '+rfEsc(x.int_voltou)+(x.int_min?' <span class="rfu">'+rfNum(x.int_min)+' min</span>':'');
+  return '—';
+}
 async function vivoCarrega(){
   var alvo=document.getElementById('vivowrap'); if(!alvo)return;
   var j=null;
   try{j=await rfOp('ponto_ao_vivo',{unidade:VIVO.loja})}
   catch(e){alvo.innerHTML='<div class="err">Nao consegui ler o ponto: '+rfEsc(e.message)+'</div>';return}
   var g=rfArr(j&&j.gente), lido=j&&j.lido_em?String(j.lido_em).slice(11,16):null;
-  var dentro=g.filter(function(x){return x.dentro});
+  var dentro=g.filter(function(x){return x.dentro&&!x.no_intervalo});
+  var nointer=g.filter(function(x){return x.no_intervalo});
+  var jasaiu=g.filter(function(x){return Number(x.batidas||0)>0&&!x.dentro});
+  var nadabateu=g.filter(function(x){return Number(x.batidas||0)===0});
   var h='<div class="rf-aviso">'+(lido?('Ultima leitura do relogio de ponto: <b>'+lido+'</b>. O robo le de hora em hora, das 8h as 2h.')
         :'⚠️ Ainda nao houve leitura do relogio hoje nesta loja.')+'</div>';
-  h+='<div class="rf-aviso"><b>'+dentro.length+'</b> pessoa(s) dentro da loja agora · <b>'+(g.length-dentro.length)+'</b> ja sairam hoje</div>';
+  h+='<div class="rf-aviso"><b>'+dentro.length+'</b> na loja agora · <b>'+nointer.length+'</b> no intervalo · <b>'+jasaiu.length+'</b> ja sairam · <b>'+nadabateu.length+'</b> ainda nao bateram ponto</div>';
   if(!g.length){alvo.innerHTML=h+'<div class="rf-empty">Ninguem bateu ponto hoje nesta loja.</div>';return}
-  h+='<div class="rf-wrap"><table class="rf-tb"><tr><th>Funcionario</th><th>Situacao</th><th class="n">Entrou</th><th class="n">Ultima batida</th><th class="n">Batidas</th></tr>';
+  h+='<div class="rf-wrap"><table class="rf-tb"><tr><th>Funcionario</th><th>Situacao</th><th class="n">Entrada</th><th class="n">Intervalo</th><th class="n">Saida</th><th class="n">Batidas</th></tr>';
   g.forEach(function(x){
     h+='<tr><td><b>'+rfEsc(x.nome)+'</b></td>'
-      +'<td>'+(x.dentro?'🟢 <b>na loja</b>':'saiu')+'</td>'
-      +'<td class="n">'+rfEsc(String(x.primeira||'').slice(0,5))+'</td>'
-      +'<td class="n">'+rfEsc(String(x.ultima||'').slice(0,5))+'</td>'
+      +'<td>'+vivoSit(x)+'</td>'
+      +'<td class="n">'+(x.entrou?rfEsc(String(x.entrou).slice(0,5)):'—')+'</td>'
+      +'<td class="n">'+vivoInt(x)+'</td>'
+      +'<td class="n">'+(x.saida?rfEsc(String(x.saida).slice(0,5)):'—')+'</td>'
       +'<td class="n">'+rfNum(x.batidas)+(Number(x.batidas)%2===1&&Number(x.batidas)>1?' <span class="rfu">impar</span>':'')+'</td></tr>';
   });
   alvo.innerHTML=h+'</table></div>';
