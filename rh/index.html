@@ -815,13 +815,18 @@ async function renderVivo(){
   VIVOT=setInterval(function(){ if(VIEW==='vivo'){vivoCarrega()} else {clearInterval(VIVOT);VIVOT=null} },120000);
 }
 function vivoSit(x){
-  var fe=(x.esc_marcacao==='TAXA')?' <span class="rfu">taxa</span>':((x.situacao==='NAO_ESCALADO')?' <span class="rfu">fora da escala</span>':((x.situacao==='TRABALHOU_NA_FOLGA')?' <span class="rfu">folga</span>':''));
+  var ev=(x.evento||'').toLowerCase().replace('ferias','férias').replace('licenca','licença').replace('folga_abonada','folga abonada').replace('suspensao','suspensão');
+  var fe=ev?' <span class="rfu">'+rfEsc(ev)+'</span>':((x.esc_marcacao==='TAXA')?' <span class="rfu">taxa</span>':((x.situacao==='NAO_ESCALADO')?' <span class="rfu">fora da escala</span>':((x.situacao==='TRABALHOU_NA_FOLGA')?' <span class="rfu">folga</span>':'')));
   if(x.no_intervalo)return '🟡 <b>no intervalo</b>'+fe;
   if(x.dentro)return '🟢 <b>na loja</b>'+fe;
   if(Number(x.batidas||0)>0)return '⚪ saiu'+fe;
   var s=x.situacao||'';
   if(s==='FOLGA')return '🔵 folga';
   if(s==='FERIAS')return '🏖️ ferias';
+  if(s==='ATESTADO')return '🩺 atestado';
+  if(s==='LICENCA')return '📄 licenca';
+  if(s==='SUSPENSAO')return '⛔ suspensao';
+  if(s==='FOLGA_ABONADA')return '🔵 folga abonada';
   if(s==='TAXA')return '🤝 taxa';
   if(s==='NAO_CHEGOU')return '⚫ nao chegou ainda'+(x.esc_entrada?' <span class="rfu">entra '+rfEsc(x.esc_entrada)+'</span>':'');
   if(s==='ATRASADO')return '🟠 <b>nao bateu ponto</b>'+(x.esc_entrada?' <span class="rfu">previsto '+rfEsc(x.esc_entrada)+'</span>':'');
