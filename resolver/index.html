@@ -92,15 +92,41 @@ async function verFotos(i){
   }catch(e){ cx.innerHTML='<div style="color:#fff">Não deu para buscar as fotos. Toque para fechar.</div>'; }
 }
 
-async function marcar(i){
-  const l=(D&&D.itens&&D.itens[i]); if(!l)return;
-  const texto=prompt('O que foi feito? (escreva uma linha, fica gravado com o seu nome)\n\n'+rotulo(l.tipo)+' · '+(l.referencia||'')+'\n'+(l.o_que_e||''));
-  if(texto===null)return;
-  if(String(texto).trim().length<3){alert('Escreva o que foi feito para poder fechar.');return}
-  try{ await porta('resolver_marcar',{tipo:l.tipo,chave:l.chave,unidade:l.unidade,dia:l.dia,o_que_foi_feito:String(texto).trim()}); }
-  catch(e){ alert('Não deu para fechar: '+(e&&e.message?e.message:'tente de novo')); return }
+var MOT_REE=['Faltou item na sacola','Endereco errado','Cliente pediu de novo','Pedido sumiu no sistema','Saiu junto, sem corrida a mais','Cozinha refez o pedido'];
+var MOT_GER=['Resolvido com o cliente','Ja estava certo','Nao era problema nosso','Combinado com a equipe'];
+
+function abreCampo(i){
+  var l=(D&&D.itens&&D.itens[i]); if(!l)return;
+  var cx=document.getElementById('cp'+i); if(!cx)return;
+  if(cx.innerHTML){ cx.innerHTML=''; return }
+  var ms=(l.tipo==='reentrega')?MOT_REE:MOT_GER;
+  var dica=(l.tipo==='reentrega')?'Conte o que aconteceu e por que precisou pagar a mais para o motoboy':'Escreva o que foi feito';
+  cx.innerHTML='<div style="margin-top:8px;background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:10px;max-width:420px;white-space:normal">'+
+    '<div style="color:var(--muted);font-size:11px;font-weight:800;margin-bottom:6px">O QUE ACONTECEU?</div>'+
+    ms.map(function(m){ return '<button class="mini" style="margin:0 4px 4px 0" onclick="poeMotivo('+i+',this)">'+esc(m)+'</button>' }).join('')+
+    '<textarea id="tx'+i+'" rows="3" placeholder="'+dica+'" style="width:100%;margin:8px 0;background:var(--s1);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px;font-family:inherit;font-size:14px"></textarea>'+
+    '<button class="mini" onclick="gravaCampo('+i+')">Gravar e fechar</button> '+
+    '<button class="mini" onclick="abreCampo('+i+')">cancelar</button></div>';
+  var t=document.getElementById('tx'+i); if(t) t.focus();
+}
+
+function poeMotivo(i,b){
+  var t=document.getElementById('tx'+i); if(!t)return;
+  var m=(b.innerText||'').trim();
+  t.value = t.value ? (t.value.replace(/\s+$/,'')+' · '+m) : m;
+  t.focus();
+}
+
+async function gravaCampo(i){
+  var l=(D&&D.itens&&D.itens[i]); if(!l)return;
+  var t=document.getElementById('tx'+i);
+  var texto=t?String(t.value).trim():'';
+  if(texto.length<3){ alert('Escreva o que aconteceu para poder fechar.'); return }
+  try{ await porta('resolver_marcar',{tipo:l.tipo,chave:l.chave,unidade:l.unidade,dia:l.dia,o_que_foi_feito:texto}); }
+  catch(e){ alert('Nao deu para fechar: '+(e&&e.message?e.message:'tente de novo')); return }
   boot();
 }
+
 async function reabrir(i){
   const l=(D&&D.itens&&D.itens[i]); if(!l)return;
   if(!confirm('Reabrir esta pendência?'))return;
@@ -120,7 +146,8 @@ function linha(l,i){
       (l.resolvido
         ? '<span class="feito">✔ '+esc(l.quem||'')+'</span><div class="m">'+esc(l.resolvido_em||'')+' · '+esc(l.o_que_foi_feito||'')+'</div>'+
           '<button class="mini" style="margin-top:6px" onclick="reabrir('+i+')">reabrir</button>'
-        : '<button class="mini" onclick="marcar('+i+')">Resolvi</button>')+
+        : '<button class="mini" onclick="abreCampo('+i+')">Resolvi</button>')+
+      '<div id="cp'+i+'"></div>'+
     '</td></tr>';
 }
 
