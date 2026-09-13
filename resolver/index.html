@@ -95,6 +95,33 @@ async function verFotos(i){
 var MOT_REE=['Faltou item na sacola','Endereco errado','Cliente pediu de novo','Pedido sumiu no sistema','Saiu junto, sem corrida a mais','Cozinha refez o pedido'];
 var MOT_GER=['Resolvido com o cliente','Ja estava certo','Nao era problema nosso','Combinado com a equipe'];
 
+function falaComigo(){
+  var ps=(D&&D.pedidos)||[];
+  return '<div style="border-left:4px solid var(--brand);background:var(--s1);border-radius:12px;padding:12px 14px;margin:10px 0">'+
+    '<div style="color:var(--brand);font-weight:800;margin-bottom:8px">✍️ FALE COMIGO — ESCREVA O QUE PRECISA QUE EU ARRUME</div>'+
+    '<textarea id="pedTx" rows="2" placeholder="Escreva com suas palavras. Ex.: essa reentrega nao foi erro nosso, o cliente pediu de novo · o motoboy saiu duas vezes e so recebeu uma · esse pedido nao devia estar nesta lista" '+
+      'style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-family:inherit;font-size:14px;resize:vertical"></textarea>'+
+    '<div style="margin-top:8px"><button class="mini" onclick="mandaPedido()">Enviar para o Claude</button>'+
+      '<span id="pedOk" style="color:var(--ok);font-size:13px;margin-left:10px"></span></div>'+
+    '<div style="color:var(--muted);font-size:12px;margin-top:6px">Nao e conversa na hora: entra numa fila e o Claude pega na proxima rodada.</div>'+
+    (ps.length? '<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">'+
+       '<div style="color:var(--muted);font-size:11px;font-weight:800;margin-bottom:6px">O QUE JA FOI PEDIDO</div>'+
+       ps.map(function(p){ return '<div style="font-size:13px;margin-bottom:5px"><span style="color:var(--muted)">'+esc(p.quando||'')+' · '+esc(p.quem||'')+'</span><br>'+esc(p.o_que||'')+'</div>' }).join('')+
+     '</div>' : '')+
+  '</div>';
+}
+
+async function mandaPedido(){
+  var t=document.getElementById('pedTx');
+  var texto=t?String(t.value).trim():'';
+  if(texto.length<5){ alert('Escreva o seu pedido com um pouco mais de detalhe.'); return }
+  try{ var r=await porta('resolver_marcar',{acao:'pedido',texto:texto}); }
+  catch(e){ alert('Nao deu para enviar: '+(e&&e.message?e.message:'tente de novo')); return }
+  if(t) t.value='';
+  var ok=document.getElementById('pedOk'); if(ok) ok.textContent=(r&&r.resposta)?r.resposta:'Anotei.';
+  setTimeout(boot, 1200);
+}
+
 function campoEscrita(l,i){
   var dica=(l.tipo==='reentrega')?'escrever o que aconteceu e por que pagou a mais...':'escrever o que foi feito...';
   return '<div style="white-space:normal;min-width:230px">'+
@@ -187,6 +214,8 @@ function desenha(){
     cardF('Item cancelado',(R.parcial||0),'parcial','abertas','')+
     cardF('Maquininha',(R.maquininha||0),'maquininha','abertas','')+
   '</div>';
+
+  h+=falaComigo();
 
   h+='<div class="fil"><span style="color:var(--muted);font-size:11px;font-weight:800;align-self:center">PERÍODO</span>'+
      '<button class="'+(DIAS===1?'on':'')+'" onclick="DIAS=1;boot()">Hoje</button>'+
