@@ -97,6 +97,67 @@ var MOT_GER=['Resolvido com o cliente','Ja estava certo','Nao era problema nosso
 
 var FAM='BEBIDA';
 var ESQ=false;
+var PAU=false;
+var CHG=false;
+
+function cardPau(){
+  var ps=((D&&D.pausados)||{}).linhas||[];
+  if(!ps.length) return '';
+  return '<div class="card" onclick="PAU=!PAU;desenha()" title="Clique para abrir ou fechar"'+
+    ' style="cursor:pointer'+(PAU?';border-color:var(--brand)':'')+'">'+
+    '<div class="t">&#9208;&#65039; Parou de vender '+(PAU?'&#9650;':'&#9660;')+'</div>'+
+    '<div class="v" style="color:var(--warn)">'+ps.length+'</div></div>';
+}
+
+function pausados(){
+  var P=(D&&D.pausados)||{}, ps=P.linhas||[];
+  if(!ps.length || !PAU) return '';
+  return '<div style="border-left:3px solid var(--warn);background:var(--s1);border-radius:10px;padding:9px 11px;margin:8px 0">'+
+    '<div style="color:var(--warn);font-size:11px;font-weight:800;margin-bottom:7px">ITEM QUE VENDIA E PAROU &#8212; pode ter sido pausado</div>'+
+    '<div style="max-height:150px;overflow:auto">'+ps.map(function(p){
+      return '<div style="padding:3px 0;font-size:12px;line-height:1.35">'+
+        '<b>'+esc(p.produto||'')+'</b> <span style="color:var(--muted)">&#183; '+esc(p.unidade||'')+'</span><br>'+
+        '<span style="color:var(--muted)">vendeu '+(p.qtd||0)+' em '+(p.dias||0)+' dias desta semana, a ultima vez em '+esc(p.ultima||'')+
+        ' &#183; no mesmo dia da semana passada vendeu '+(p.semana_passada||0)+'</span></div>';
+    }).join('')+'</div>'+
+    '<div class="m" style="margin-top:7px">Isto sai da VENDA do Saipos desde '+esc(P.desde||'')+', conferida em '+esc(P.em||'')+
+    '. Nao e leitura do cardapio: e suspeita. So entra o item que tambem vendia no mesmo dia da semana passada.</div></div>';
+}
+
+function cardCheg(){
+  var cs=((D&&D.chegada)||{}).linhas||[];
+  if(!cs.length) return '';
+  return '<div class="card" onclick="CHG=!CHG;desenha()" title="Clique para abrir ou fechar"'+
+    ' style="cursor:pointer'+(CHG?';border-color:var(--brand)':'')+'">'+
+    '<div class="t">&#128757; Chegada nao sinalizada '+(CHG?'&#9650;':'&#9660;')+'</div>'+
+    '<div class="v" style="color:var(--bad)">'+cs.length+'</div></div>';
+}
+
+function chegada(){
+  var C=(D&&D.chegada)||{}, cs=C.linhas||[];
+  if(!cs.length || !CHG) return '';
+  return '<div style="border-left:3px solid var(--bad);background:var(--s1);border-radius:10px;padding:9px 11px;margin:8px 0">'+
+    '<div style="color:var(--bad);font-size:11px;font-weight:800;margin-bottom:7px">A EQUIPE NAO SINALIZOU A CHEGADA DO ENTREGADOR</div>'+
+    '<div style="max-height:150px;overflow:auto">'+cs.map(function(c){
+      return '<div style="padding:3px 0;font-size:12px;line-height:1.35">'+
+        '<span style="color:var(--muted)">'+esc(c.diac||'')+' '+esc(c.hora||'')+' &#183; '+esc(c.unidade||'')+'</span> '+
+        '<b>'+esc(c.quem||'')+'</b> <span style="color:var(--muted)">(quem viu foi o '+esc(c.fonte||'')+')</span></div>';
+    }).join('')+'</div>'+
+    '<div class="m" style="margin-top:7px">O entregador chegou e ninguem marcou a chegada na tela. Periodo: '+esc(C.de||'')+' a '+esc(C.ate||'')+', conferido em '+esc(C.em||'')+'.</div></div>';
+}
+
+function bloco(tu, titulo){
+  var corpo='', n=0;
+  ((D&&D.itens)||[]).forEach(function(l,i){
+    if(TIPO && l.tipo!==TIPO) return;
+    if(VER!=='tudo' && l.resolvido) return;
+    if((l.turno||'sem hora')!==tu) return;
+    n++; corpo+=linha(l,i);
+  });
+  if(!n) return '';
+  return '<h3 style="margin:14px 0 6px;font-size:14px">'+titulo+' <span style="color:var(--muted);font-weight:600">('+n+')</span></h3>'+
+    '<div class="c"><table><tr><th>Quando</th><th>Loja</th><th>O que &eacute;</th><th>Pedido</th><th>Situa&ccedil;&atilde;o</th></tr>'+corpo+'</table></div>';
+}
 
 function cardEsq(){
   var es=(D&&D.esquecidos)||[];
@@ -257,11 +318,11 @@ function filtra(tp, ver){
   if(el && el.scrollIntoView){ el.scrollIntoView({behavior:'smooth', block:'start'}) }
 }
 
-function cardF(rot, val, tp, ver, cor){
+function cardF(rot, val, tp, ver, cor, ic){
   var aceso = (tp === TIPO) && (!ver || ver === VER);
   return '<div class="card" onclick="filtra(&quot;'+tp+'&quot;,&quot;'+ver+'&quot;)"'+
          ' title="Clique para ver so isto" style="cursor:pointer'+(aceso?';border-color:var(--brand)':'')+'">'+
-         '<div class="t">'+rot+'</div>'+
+         '<div class="t">'+(ic?ic+' ':'')+rot+'</div>'+
          '<div class="v"'+(cor?' style="color:'+cor+'"':'')+'>'+val+'</div></div>';
 }
 
@@ -270,18 +331,22 @@ function desenha(){
   if(!D){ $('app').innerHTML='<div class="load">Carregando…</div>'; return }
   const R=D.resumo||{}, itens=D.itens||[], card=D.cardapio||{};
   let h='<div class="cards">'+
-    cardF('Esperando alguém',(R.abertas||0),'','abertas',((R.abertas||0)>0?'var(--bad)':'var(--ok)'))+
-    cardF('Já resolvidas',(R.resolvidas||0),'','tudo','')+
-    cardF('Cliente sem resposta',(R.chat||0),'chat','abertas','')+
-    cardF('Reentrega',(R.reentrega||0),'reentrega','abertas','')+
-    cardF('Negociação do iFood',(R.negociacao||0),'negociacao','abertas','')+
-    cardF('Cancelado inteiro',(R.cancelamento||0),'cancelamento','abertas','')+
-    cardF('Item cancelado',(R.parcial||0),'parcial','abertas','')+
-    cardF('Maquininha',(R.maquininha||0),'maquininha','abertas','')+
-    cardEsq()+
+    cardF('Esperando alguém',(R.abertas||0),'','abertas',((R.abertas||0)>0?'var(--bad)':'var(--ok)'),'⏳')+
+    cardF('Já resolvidas',(R.resolvidas||0),'','tudo','','✅')+
+    cardF('Cliente sem resposta',(R.chat||0),'chat','abertas','','💬')+
+    cardF('Reentrega',(R.reentrega||0),'reentrega','abertas','','🔁')+
+    cardF('Negociação do iFood',(R.negociacao||0),'negociacao','abertas','','🤝')+
+    cardF('Cancelado inteiro',(R.cancelamento||0),'cancelamento','abertas','','🚫')+
+    cardF('Item cancelado',(R.parcial||0),'parcial','abertas','','✂️')+
+    cardF('Maquininha',(R.maquininha||0),'maquininha','abertas','','🧾')+
+    cardEsq()+cardPau()+cardCheg()+
   '</div>';
 
   h+=esquecidos();
+
+  h+=pausados();
+
+  h+=chegada();
 
   h+=falaComigo();
 
@@ -297,15 +362,6 @@ function desenha(){
      '<span style="color:var(--muted);font-size:11px;font-weight:800;align-self:center;margin-left:10px">MOSTRAR</span>'+
      '<button class="'+(VER==='abertas'?'on':'')+'" onclick="VER=&quot;abertas&quot;;desenha()">Só o que falta</button>'+
      '<button class="'+(VER==='tudo'?'on':'')+'" onclick="VER=&quot;tudo&quot;;desenha()">Tudo, com o que já foi feito</button>'+
-     '</div>'+
-     '<div class="fil"><span style="color:var(--muted);font-size:11px;font-weight:800;align-self:center">ASSUNTO</span>'+
-     '<button class="'+(TIPO===''?'on':'')+'" onclick="TIPO=&quot;&quot;;desenha()">Tudo</button>'+
-     '<button class="'+(TIPO==='chat'?'on':'')+'" onclick="TIPO=&quot;chat&quot;;desenha()">💬 Cliente sem resposta</button>'+
-     '<button class="'+(TIPO==='negociacao'?'on':'')+'" onclick="TIPO=&quot;negociacao&quot;;desenha()">🤝 Negociação</button>'+
-     '<button class="'+(TIPO==='cancelamento'?'on':'')+'" onclick="TIPO=&quot;cancelamento&quot;;desenha()">🚫 Cancelado inteiro</button>'+
-     '<button class="'+(TIPO==='parcial'?'on':'')+'" onclick="TIPO=&quot;parcial&quot;;desenha()">✂️ Item cancelado</button>'+
-     '<button class="'+(TIPO==='reentrega'?'on':'')+'" onclick="TIPO=&quot;reentrega&quot;;desenha()">🔁 Reentrega</button>'+
-     '<button class="'+(TIPO==='maquininha'?'on':'')+'" onclick="TIPO=&quot;maquininha&quot;;desenha()">🧾 Maquininha</button>'+
      '</div>';
 
   const porTipo = TIPO ? itens.filter(function(x){return x.tipo===TIPO}) : itens;
@@ -314,9 +370,9 @@ function desenha(){
   if(!lista.length){
     h+='<div class="c"><div class="vazio">'+(VER==='abertas'?'Nada esperando ninguém neste período. A casa está limpa.':'Nada neste período.')+'</div></div>';
   }else{
-    h+='<div class="c"><table><tr><th>Quando</th><th>Loja</th><th>O que é</th><th>Pedido</th><th>Situação</th></tr>';
-    itens.forEach(function(l,i){ if(TIPO && l.tipo!==TIPO) return; if(VER==='tudo' || !l.resolvido) h+=linha(l,i); });
-    h+='</table></div>';
+    h+=bloco('dia','☀️ De dia — até as 17h')+
+        bloco('noite','🌙 De noite — das 17h até a madrugada')+
+        bloco('sem hora','🕐 Sem hora registrada');
   }
 
   if(D.maq_cache){
