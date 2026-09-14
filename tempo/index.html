@@ -162,6 +162,11 @@ function pinta(d){
   const clima=String(d.clima||'seco'), ppm=d.por_motoboy, lim=Number(d.limite_por_motoboy||5.5);
   const motos=Number(d.motoboys||0);
   const prontos=Number(d.prontos_sem_motoboy||0), antigo=Number(d.mais_antigo_min||0), parados=Number(d.parados||0);
+  /* 13/09/2026: o Gestor de Pedidos so e lido 1x por hora. Quando o que esta parado vem
+     de la, a tela tem que dizer de quando e o numero, em vez de fingir que e de agora. */
+  const gwMin=(d.gw_atraso_min==null?null:Number(d.gw_atraso_min));
+  const vemDoGW=String(d.parados_fonte||'').indexOf('passaram da hora')>=0;
+  const idadeGW=(vemDoGW&&gwMin!=null)?' — lido há '+gwMin+' min no Gestor de Pedidos, pode já ter mudado':'';
 
   const pAtual=d.preset_atual||null, pSug=d.preset_sugerido||null, pDe=d.preset_sugerido_de, pAte=d.preset_sugerido_ate, aco=d.acao||null;
   const presets=Array.isArray(d.presets)?d.presets:[];
@@ -176,8 +181,8 @@ function pinta(d){
   else if(dif<-8){acao='<div class="acao a-desce">🔻 Dá para BAIXAR para '+sug+' minutos<span class="p">'+esc(d.motivo)+'. Está em '+prom+' e a conta pede '+sug+' — tempo alto à toa espanta cliente.</span></div>';cls='azul'}
   else{acao='<div class="acao a-ok">✅ Está bom assim<span class="p">'+esc(d.motivo)+'.</span></div>';cls='verde'}
 
-  if(parados>0&&Number(d.pedidos_hora||0)>0&&(aco==='subir'||sug>prom+4)){cls='vermelho';acao='<div class="acao a-sobe">🛵 A FILA NÃO ESTÁ ANDANDO — '+motos+' motoboy'+(motos===1?'':'s')+' na rua hoje<span class="p">'+(prontos>0?prontos+' pedido'+(prontos===1?'':'s')+' pronto'+(prontos===1?'':'s')+' esperando quem leve':parados+' pedido'+(parados===1?'':'s')+' já passou da hora prometida')+'. Não dá para chamar mais ninguém no meio do turno — com quem está na rua, o jeito é '+(pSug&&aco==='subir'?'trocar para '+faixa(pSug,pDe,pAte):'subir para a próxima faixa')+' enquanto a prateleira não baixa.</span></div>';}
-  else if(parados>0&&Number(d.pedidos_hora||0)>0){cls='azul';acao='<div class="acao a-desce">⏸ A FILA NÃO ESTÁ ANDANDO — mas o tempo que você promete já cobre<span class="p">'+(prontos>0?prontos+' pedido'+(prontos===1?'':'s')+' pronto'+(prontos===1?'':'s')+' esperando quem leve':parados+' pedido'+(parados===1?'':'s')+' já passou da hora')+', com '+motos+' motoboy'+(motos===1?'':'s')+' na rua hoje. Você promete '+prom+' min e a conta pede '+sug+' — a faixa não precisa mexer agora. O gargalo é a retirada: veja quem saiu para rota longa antes de baixar o tempo.</span></div>';}
+  if(parados>0&&Number(d.pedidos_hora||0)>0&&(aco==='subir'||sug>prom+4)){cls='vermelho';acao='<div class="acao a-sobe">🛵 A FILA NÃO ESTÁ ANDANDO — '+motos+' motoboy'+(motos===1?'':'s')+' na rua hoje<span class="p">'+(prontos>0?prontos+' pedido'+(prontos===1?'':'s')+' pronto'+(prontos===1?'':'s')+' esperando quem leve':parados+' pedido'+(parados===1?'':'s')+' já passou da hora prometida'+idadeGW)+'. Não dá para chamar mais ninguém no meio do turno — com quem está na rua, o jeito é '+(pSug&&aco==='subir'?'trocar para '+faixa(pSug,pDe,pAte):'subir para a próxima faixa')+' enquanto a prateleira não baixa.</span></div>';}
+  else if(parados>0&&Number(d.pedidos_hora||0)>0){cls='azul';acao='<div class="acao a-desce">⏸ A FILA NÃO ESTÁ ANDANDO — mas o tempo que você promete já cobre<span class="p">'+(prontos>0?prontos+' pedido'+(prontos===1?'':'s')+' pronto'+(prontos===1?'':'s')+' esperando quem leve':parados+' pedido'+(parados===1?'':'s')+' já passou da hora'+idadeGW)+', com '+motos+' motoboy'+(motos===1?'':'s')+' na rua hoje. Você promete '+prom+' min e a conta pede '+sug+' — a faixa não precisa mexer agora. O gargalo é a retirada: veja quem saiu para rota longa antes de baixar o tempo.</span></div>';}
 let moto='';
   if(parados>0&&Number(d.pedidos_hora||0)>0){
     moto='<div class="moto">🛵 '+motos+' motoboy'+(motos===1?'':'s')+' na rua agora — a conta é feita com quem está trabalhando hoje.'+
@@ -242,7 +247,7 @@ let moto='';
   h+='<div class="regua"><h2>De onde saem os '+sug+' min — a conta de agora, linha por linha</h2><table>'+
    '<tr><td>'+esc(String(d.dia_semana||'').toLowerCase())+' no '+esc(d.turno||'')+', em dia seco — o histórico desta loja</td><td>'+nOu(rBase)+' min</td></tr>'+
    '<tr class="'+(rClima>0?'aqui':'')+'"><td>tempo agora: '+esc(clima)+'</td><td>'+(rClima>0?'+'+rClima:'0')+' min</td></tr>'+
-   '<tr class="'+(rCarga>0?'aqui':'')+'"><td>'+(parados>0?parados+' pedido'+(parados===1?'':'s')+' parado'+(parados===1?'':'s')+(d.parados_fonte?' ('+esc(d.parados_fonte)+')':''):'nada parado agora')+'</td><td>'+(rCarga>0?'+'+rCarga:'0')+' min</td></tr>'+
+   '<tr class="'+(rCarga>0?'aqui':'')+'"><td>'+(parados>0?parados+' pedido'+(parados===1?'':'s')+' parado'+(parados===1?'':'s')+(d.parados_fonte?' ('+esc(d.parados_fonte)+(vemDoGW&&gwMin!=null?', lido há '+gwMin+' min':'')+')':''):'nada parado agora')+'</td><td>'+(rCarga>0?'+'+rCarga:'0')+' min</td></tr>'+
    '<tr class="aqui"><td><b>a conta pede</b></td><td>'+sug+' min</td></tr>'+
    ((rP80!=null&&rFonte)?'<tr><td>teto do que saiu de verdade nos últimos 120 min — 8 de cada 10 pedidos chegaram em até isso ('+rN+' pedidos, pelo '+esc(rFonte)+')</td><td>'+rP80+' min</td></tr>':'')+
    '</table>'+
