@@ -62,6 +62,7 @@ let D=null, DIA='', UNI='', TIMER=null;
 /* ===== 🛵 Avisar o cliente — o motoboy esta chegando ===== */
 let AV=null, AVERRO='', AVABERTO=false;
 function avisoTexto(l){
+  if(l && l.situacao==='NA PORTA') return l.mensagem_porta || 'Oi! O entregador chegou e está te esperando na portaria. Consegue vir receber?';
   return (l&&l.mensagem) || 'Oi! Seu pedido está quase aí — o entregador chega em breve. 🛵';
 }
 async function puxaAviso(){
@@ -80,13 +81,28 @@ function avisoCopiar(u,p,m,txt){
   var fim=function(){ avisoMarcar(u,p,m,false) };
   try{ navigator.clipboard.writeText(AVCOPIA||'').then(fim, fim) }catch(e){ fim() }
 }
+function avisoExtra(l){
+  var p=[];
+  p.push('🔑 código '+(l.codigo?'<b>'+esc(l.codigo)+'</b>':'—'));
+  if(l.complemento) p.push('🏠 '+esc(l.complemento));
+  if(l.referencia) p.push('📍 '+esc(l.referencia));
+  if(l.fone) p.push('📞 '+esc(l.fone)+(l.localizador?' · localizador '+esc(l.localizador):''));
+  return '<div class="m" style="margin:2px 0 6px">'+p.join(' · ')+'</div>';
+}
+function avisoRelogio(l){
+  if(l.min_na_porta===null || l.min_na_porta===undefined) return '';
+  if(l.falta_foto_min>0) return '<div class="m" style="margin-bottom:6px">⏱ '+esc(l.min_na_porta)+' min na porta · faltam '+esc(l.falta_foto_min)+' min para tirar a foto e seguir</div>';
+  return '<div style="margin-bottom:6px;font-size:12.5px;color:#e0a33a;font-weight:700">⏱ '+esc(l.min_na_porta)+' min na porta — já pode tirar a foto e seguir</div>';
+}
 function avisoCartao(l){
-  return '<div class="c" style="border:2px solid #2fae6a;background:rgba(47,174,106,.08)">'+
-    '<div style="font-size:15px;font-weight:800;color:#fff">🛵 '+esc(l.unidade)+' · pedido #'+esc(l.pedido)+'</div>'+
-    '<div class="m" style="margin:4px 0 8px">'+esc(l.motoboy)+' está a <b style="color:#2fae6a">'+esc(l.metros)+' m</b> — '+esc(l.onde)+
+  var np=(l.situacao==='NA PORTA'), cor=np?'#d2513f':'#2fae6a', fdo=np?'rgba(210,81,63,.10)':'rgba(47,174,106,.08)';
+  return '<div class="c" style="border:2px solid '+cor+';background:'+fdo+'">'+
+    '<div style="font-size:15px;font-weight:800;color:#fff">'+(np?'🚨':'🛵')+' '+esc(l.unidade)+' · pedido #'+esc(l.pedido)+'</div>'+
+    '<div class="m" style="margin:4px 0 4px">'+esc(l.motoboy)+(np?' está <b style="color:'+cor+'">parado na porta</b>':' está a <b style="color:'+cor+'">'+esc(l.metros)+' m</b>')+' — '+esc(l.onde)+
       ' · saiu '+esc(l.saiu)+' · posição de '+esc(l.gps_em)+'</div>'+
+    avisoExtra(l)+avisoRelogio(l)+
     '<div style="background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.5px;color:var(--text)">'+esc(avisoTexto(l))+'</div>'+
-    '<button class="b" style="margin-top:8px;background:#2fae6a;color:#08130c;border-color:#2fae6a;font-weight:800"'+
+    '<button class="b" style="margin-top:8px;background:'+cor+';color:#08130c;border-color:'+cor+';font-weight:800"'+
       ' onclick="avisoCopiar(&quot;'+esc(l.unidade)+'&quot;,&quot;'+esc(l.pedido_saipos||l.pedido)+'&quot;,'+(l.metros||0)+',&quot;'+esc(avisoTexto(l))+'&quot;)">'+
       'Copiar a mensagem e marcar como avisado</button>'+
     '<button class="b" style="margin-top:8px" onclick="avisoMarcar(&quot;'+esc(l.unidade)+'&quot;,&quot;'+esc(l.pedido_saipos||l.pedido)+'&quot;,'+(l.metros||0)+',false)">só marcar</button>'+
@@ -108,13 +124,18 @@ function avisoMiolo(){
   if(AV===null) return '';
   if(AV===false) return '<div class="c"><b>🛵 Avisar o cliente</b><div class="m">não deu para ler as posições agora'+(AVERRO?' — '+esc(AVERRO):'')+'</div></div>';
   var L=AV.linhas||[], R=AV.regua||{};
+  var naporta=L.filter(function(x){return x.situacao==='NA PORTA'});
   var pra=L.filter(function(x){return x.situacao==='AVISAR'});
   var ja =L.filter(function(x){return x.situacao==='JA AVISADO'});
   var h='<h2 style="margin:0 0 6px">🛵 Avisar o cliente — quem está chegando agora <span style="background:#e0a33a;color:#1a1a17;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800;vertical-align:middle">EM TESTE</span></h2>';
   if(AVERRO) h+='<div class="c" style="color:#e0a33a">'+esc(AVERRO)+'</div>';
-  if(!pra.length){
+  if(naporta.length){
+    h+='<div class="c" style="border:1px solid #d2513f;color:#d2513f;font-weight:700;font-size:13px">🚨 '+esc(naporta.length)+' entrega(s) com o motoboy parado na porta há '+esc(R.porta_min_parado)+' min ou mais — é aqui que ele costuma pedir socorro no WhatsApp.</div>';
+    naporta.forEach(function(l){ h+=avisoCartao(l) });
+  }
+  if(!pra.length && !naporta.length){
     h+='<div class="c" style="color:#8a897e">Ninguém para avisar neste momento. '+
-       'De '+esc(L.length)+' entrega(s) a caminho, nenhuma está na janela de '+esc(R.metros_min)+' a '+esc(R.metros_max)+' metros indo na direção do cliente.</div>';
+       'De '+esc(L.length)+' entrega(s) a caminho, nenhuma está parada na porta nem na janela de '+esc(R.metros_min)+' a '+esc(R.metros_max)+' metros indo na direção do cliente.</div>';
   } else {
     pra.forEach(function(l){ h+=avisoCartao(l) });
   }
@@ -122,7 +143,7 @@ function avisoMiolo(){
     h+='<div class="c" style="font-size:12.5px;color:#8a897e">✅ Já avisados hoje: '+
       ja.map(function(l){return '#'+esc(l.pedido)+' ('+esc(l.avisado_em)+' · '+esc(l.avisado_por||'')+') <a href="#" onclick="avisoMarcar(&quot;'+esc(l.unidade)+'&quot;,&quot;'+esc(l.pedido_saipos||l.pedido)+'&quot;,0,true);return false" style="color:#8a897e">desfazer</a>'}).join(' · ')+'</div>';
   }
-  var resto=L.filter(function(x){return x.situacao!=='AVISAR' && x.situacao!=='JA AVISADO'});
+  var resto=L.filter(function(x){return x.situacao!=='AVISAR' && x.situacao!=='JA AVISADO' && x.situacao!=='NA PORTA'});
   if(resto.length){
     h+='<div class="c" style="overflow-x:auto"><div class="m" style="margin-bottom:6px">As outras entregas a caminho, e por que ainda não é hora:</div>'+
       '<table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px"><tr>'+
@@ -141,7 +162,9 @@ function avisoMiolo(){
      'o motoboy está entre <b>'+esc(R.metros_min)+' e '+esc(R.metros_max)+' metros</b> do cliente, '+
      'é <b>a vez daquele cliente</b> na rota dele, a distância está <b>diminuindo</b> (ele está indo pra lá mesmo) '+
      'e ele <b>ainda não passou</b> na porta. A posição do motoboy é lida de minuto em minuto. '+
-     'Copiar a mensagem já marca como avisado, para ninguém avisar duas vezes.</div>';
+     'Copiar a mensagem já marca como avisado, para ninguém avisar duas vezes.</div>'+
+     '<div class="c" style="font-size:12px;color:#c3c2b7">🚨 <b>O cartão vermelho é outra coisa:</b> o motoboy <b>já chegou</b> e está parado a menos de '+esc(R.metros_min)+' m do cliente há <b>'+esc(R.porta_min_parado)+' minutos ou mais</b> — normalmente interfone quebrado, cliente que não atende, ou falta o apartamento. '+
+     'O código de coleta, o complemento do endereço e o 0800 saem da observação do pedido no Saipos. Aparece um traço em dois casos: o pedido acabou de sair e o Saipos ainda não registrou a venda (aí o código aparece daqui a pouco), ou o pedido <b>não é do iFood</b> — balcão, telefone, Accon e Goomer nunca têm código de coleta, e aí o traço é para sempre.</div>';
   return h;
 }
 
