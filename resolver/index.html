@@ -96,31 +96,40 @@ var MOT_REE=['Faltou item na sacola','Endereco errado','Cliente pediu de novo','
 var MOT_GER=['Resolvido com o cliente','Ja estava certo','Nao era problema nosso','Combinado com a equipe'];
 
 var FAM='BEBIDA';
+var ESQ=false;
+
+function cardEsq(){
+  var es=(D&&D.esquecidos)||[];
+  if(!es.length) return '';
+  return '<div class="card" onclick="ESQ=!ESQ;desenha()" title="Clique para abrir ou fechar"'+
+    ' style="cursor:pointer'+(ESQ?';border-color:var(--brand)':'')+'">'+
+    '<div class="t">Esqueceram na sacola '+(ESQ?'▲':'▼')+'</div>'+
+    '<div class="v" style="color:var(--bad)">'+es.length+'</div></div>';
+}
 
 function esquecidos(){
   var es=(D&&D.esquecidos)||[];
-  if(!es.length) return '';
-  var fams=[['BEBIDA','🥤 Bebida','var(--bad)'],['SOBREMESA','🍰 Sobremesa','var(--warn)'],['COMIDA','🍔 Comida','var(--text2)'],['NAO DEU PARA SABER','❓ Nao deu para saber','var(--muted)']];
+  if(!es.length || !ESQ) return '';
+  var fams=[['BEBIDA','🥤 Bebida','var(--bad)'],['SOBREMESA','🍰 Sobremesa','var(--warn)'],['COMIDA','🍔 Comida','var(--text2)'],['NAO DEU PARA SABER','❓ Nao deu','var(--muted)']];
   var conta={}; es.forEach(function(e){ conta[e.familia]=(conta[e.familia]||0)+1 });
   var lista=es.filter(function(e){ return e.familia===FAM });
-  return '<div style="border-left:4px solid var(--bad);background:var(--s1);border-radius:12px;padding:12px 14px;margin:10px 0">'+
-    '<div style="color:var(--bad);font-weight:800;margin-bottom:4px">🥤 O QUE A EQUIPE ESQUECEU DE POR NA SACOLA</div>'+
-    '<div style="color:var(--muted);font-size:12px;margin-bottom:8px">Sai do que o proprio cliente escreveu no chat. Esquecer bebida e o mais grave.</div>'+
-    '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">'+
+  return '<div style="border-left:3px solid var(--bad);background:var(--s1);border-radius:10px;padding:9px 11px;margin:8px 0">'+
+    '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:7px">'+
+      '<span style="color:var(--bad);font-size:11px;font-weight:800;margin-right:4px">ESQUECERAM NA SACOLA</span>'+
       fams.map(function(f){
         var q=conta[f[0]]||0;
-        return '<div onclick="FAM=&quot;'+f[0]+'&quot;;desenha()" style="cursor:pointer;background:var(--s2);border:1px solid '+(FAM===f[0]?'var(--brand)':'var(--line)')+';border-radius:10px;padding:8px 12px;min-width:96px">'+
-          '<div style="color:var(--muted);font-size:11px;font-weight:800">'+f[1]+'</div>'+
-          '<div style="color:'+f[2]+';font-size:22px;font-weight:800">'+q+'</div></div>';
+        return '<button class="mini" onclick="FAM=&quot;'+f[0]+'&quot;;desenha()"'+
+          ' style="'+(FAM===f[0]?'border-color:var(--brand);':'')+'">'+f[1]+' <b style="color:'+f[2]+'">'+q+'</b></button>';
       }).join('')+
     '</div>'+
     (lista.length
-      ? '<div style="max-height:260px;overflow:auto">'+lista.map(function(e){
-          return '<div style="border-top:1px solid var(--line);padding:7px 0;font-size:13px">'+
-            '<span style="color:var(--muted)">'+esc(e.quando||'')+' · '+esc(e.unidade||'')+' · pedido '+esc(e.pedido||'')+'</span><br>'+
+      ? '<div style="max-height:150px;overflow:auto">'+lista.map(function(e){
+          return '<div style="padding:3px 0;font-size:12px;line-height:1.35">'+
+            '<span style="color:var(--muted)">'+esc(e.quando||'')+' · '+esc(e.unidade||'')+' · '+esc(e.pedido||'')+'</span> '+
             '<span style="color:var(--brand)">“'+esc(e.disse||'')+'”</span></div>';
         }).join('')+'</div>'
-      : '<div style="color:var(--muted);font-size:13px">Nenhum caso deste tipo no periodo.</div>')+
+      : '<div style="color:var(--muted);font-size:12px">Nenhum caso deste tipo no periodo.</div>')+
+    '<div style="color:var(--muted);font-size:11px;margin-top:6px">Sai do que o proprio cliente escreveu no chat. Esquecer bebida e o mais grave.</div>'+
   '</div>';
 }
 
@@ -269,6 +278,7 @@ function desenha(){
     cardF('Cancelado inteiro',(R.cancelamento||0),'cancelamento','abertas','')+
     cardF('Item cancelado',(R.parcial||0),'parcial','abertas','')+
     cardF('Maquininha',(R.maquininha||0),'maquininha','abertas','')+
+    cardEsq()+
   '</div>';
 
   h+=esquecidos();
