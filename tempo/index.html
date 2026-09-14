@@ -70,6 +70,27 @@ body.alarme{animation:fundoAl .9s ease-in-out infinite alternate}
 .mbs .pin{color:var(--ok)}
 .mbs .rua{color:var(--brand)}
 .mbs .vazio{color:var(--muted);font-size:13px}
+.sug{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:14px}
+.sug h2{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;font-size:14px;letter-spacing:.04em;color:var(--brand);margin-bottom:6px}
+.sug .ex{color:var(--muted);font-size:12.5px;margin-bottom:12px;line-height:1.5}
+.sug input,.sug textarea{width:100%;box-sizing:border-box;background:#0d0d0d;border:1px solid var(--line);border-radius:10px;color:var(--text);font:inherit;font-size:14px;padding:10px 12px;margin-bottom:8px}
+.sug textarea{min-height:74px;resize:vertical}
+.sug .bt{background:var(--gold);color:#111;border:0;border-radius:10px;padding:11px 18px;font-weight:800;font-size:14px;cursor:pointer}
+.sug .av{font-size:13px;margin-top:9px;min-height:18px;color:var(--ok)}
+.sug .av.ruim{color:#ff8f8f}
+.sug ul{list-style:none;margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.sug li{padding:10px 0;border-bottom:1px solid var(--line);font-size:13.5px;color:var(--text2);line-height:1.5}
+.sug li:last-child{border-bottom:0}
+.sug li b{color:var(--text)}
+.sug .qd{color:var(--muted);font-size:11.5px}
+.sug .st{display:inline-block;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;font-weight:800;border-radius:6px;padding:2px 7px;margin-left:6px}
+.sug .st.novo{background:rgba(224,168,28,.18);color:#ffe7ab}
+.sug .st.lido{background:rgba(255,255,255,.08);color:var(--muted)}
+.sug .st.feito{background:rgba(45,160,90,.18);color:#9ce3b6}
+.sug .st.descartado{background:rgba(255,255,255,.06);color:var(--muted)}
+.sug .rp{display:block;margin-top:5px;color:#ffe7ab;font-size:12.5px}
+.sug .dn{margin-top:6px}
+.sug .dn button{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer;margin-right:6px}
 
 /* seletor de loja 05-09-2026 — a tela era so Agua Verde e nao avisava */
 .lojas{display:flex;gap:8px;flex-wrap:wrap;margin:-6px 0 16px}
@@ -139,8 +160,8 @@ function cdmRetrato(d){
 function pinta(d){
   const prom=Number(d.prometido||0), sug=Number(d.sugerido||0), dif=sug-prom;
   const clima=String(d.clima||'seco'), ppm=d.por_motoboy, lim=Number(d.limite_por_motoboy||5.5);
-  const motos=Number(d.motoboys||0), faltam=Number(d.motoboys_faltam||0), precisa=Number(d.motoboys_precisa||0);
-  const prontos=Number(d.prontos_sem_motoboy||0), antigo=Number(d.mais_antigo_min||0);
+  const motos=Number(d.motoboys||0);
+  const prontos=Number(d.prontos_sem_motoboy||0), antigo=Number(d.mais_antigo_min||0), parados=Number(d.parados||0);
 
   const pAtual=d.preset_atual||null, pSug=d.preset_sugerido||null, pDe=d.preset_sugerido_de, pAte=d.preset_sugerido_ate, aco=d.acao||null;
   const presets=Array.isArray(d.presets)?d.presets:[];
@@ -155,12 +176,12 @@ function pinta(d){
   else if(dif<-8){acao='<div class="acao a-desce">🔻 Dá para BAIXAR para '+sug+' minutos<span class="p">'+esc(d.motivo)+'. Está em '+prom+' e a conta pede '+sug+' — tempo alto à toa espanta cliente.</span></div>';cls='azul'}
   else{acao='<div class="acao a-ok">✅ Está bom assim<span class="p">'+esc(d.motivo)+'.</span></div>';cls='verde'}
 
-  if(faltam>0&&Number(d.pedidos_hora||0)>0){cls='vermelho';acao='<div class="acao a-sobe">🛵 CHAME '+faltam+' MOTOBOY'+(faltam>1?'S':'')+' — são '+motos+' na rua e o ritmo pede '+precisa+'<span class="p">'+prontos+' pedidos prontos esperando quem leve. Se não conseguir ninguém agora, troque para '+(pSug&&aco==='subir'?faixa(pSug,pDe,pAte):'a próxima faixa')+'.</span></div>';}
-else if(prontos>=10&&dif<-8){cls='verde';acao='<div class="acao a-ok">⏸ SEGURE o tempo em '+prom+' por enquanto<span class="p">A conta pede '+sug+', mas há '+prontos+' pedidos prontos parados no balcão — resolva a prateleira primeiro: baixar agora colocaria mais pedido numa fila que não anda. Quando os prontos caírem abaixo de 10, aí sim baixe.</span></div>';}
+  if(parados>0&&Number(d.pedidos_hora||0)>0&&(aco==='subir'||sug>prom+4)){cls='vermelho';acao='<div class="acao a-sobe">🛵 A FILA NÃO ESTÁ ANDANDO — '+motos+' motoboy'+(motos===1?'':'s')+' na rua hoje<span class="p">'+(prontos>0?prontos+' pedido'+(prontos===1?'':'s')+' pronto'+(prontos===1?'':'s')+' esperando quem leve':parados+' pedido'+(parados===1?'':'s')+' já passou da hora prometida')+'. Não dá para chamar mais ninguém no meio do turno — com quem está na rua, o jeito é '+(pSug&&aco==='subir'?'trocar para '+faixa(pSug,pDe,pAte):'subir para a próxima faixa')+' enquanto a prateleira não baixa.</span></div>';}
+  else if(parados>0&&Number(d.pedidos_hora||0)>0){cls='azul';acao='<div class="acao a-desce">⏸ A FILA NÃO ESTÁ ANDANDO — mas o tempo que você promete já cobre<span class="p">'+(prontos>0?prontos+' pedido'+(prontos===1?'':'s')+' pronto'+(prontos===1?'':'s')+' esperando quem leve':parados+' pedido'+(parados===1?'':'s')+' já passou da hora')+', com '+motos+' motoboy'+(motos===1?'':'s')+' na rua hoje. Você promete '+prom+' min e a conta pede '+sug+' — a faixa não precisa mexer agora. O gargalo é a retirada: veja quem saiu para rota longa antes de baixar o tempo.</span></div>';}
 let moto='';
-  if(faltam>0&&Number(d.pedidos_hora||0)>0){
-    moto='<div class="moto">🛵 Faltam '+faltam+' motoboy'+(faltam>1?'s':'')+' agora — são '+motos+' na rua e o ritmo pede '+precisa+'.'+
-      '<span class="p">Este é o caminho barato: com motoboy suficiente, '+(clima==='seco'?'o tempo se segura em 44':'até dia de chuva se comporta quase como dia seco (73% no prazo contra 33%)')+'. Um almoço de chuva traz cerca de 14 pedidos a mais'+'.</span></div>';
+  if(parados>0&&Number(d.pedidos_hora||0)>0){
+    moto='<div class="moto">🛵 '+motos+' motoboy'+(motos===1?'':'s')+' na rua agora — a conta é feita com quem está trabalhando hoje.'+
+      '<span class="p">'+(ppm==null?'':'Está saindo '+ppm+' pedido por motoboy na última hora. ')+'Não entra gente nova no meio do turno: o único botão que existe de verdade é a faixa do iFood, e o aviso acima diz se ela precisa mexer.</span></div>';
   } else if(prontos>=10){
     moto='<div class="moto">🛵 '+prontos+' pedidos prontos parados esperando quem leve.'+
       '<span class="p">O ritmo de entrada está bom ('+ppm+' por motoboy), mas a comida está esfriando no balcão. Vale olhar se alguém saiu para uma rota longa.</span></div>';
@@ -174,7 +195,7 @@ let moto='';
    '</div>'+acao+moto+'</div>';
 
   h+='<div class="res">'+
-   '<div class="k'+(faltam>0?' mal':' bom')+'"><div class="n">'+motos+'</div><div class="l">motoboys na rua</div></div>'+
+   '<div class="k"><div class="n">'+motos+'</div><div class="l">motoboys na rua hoje</div></div>'+
    '<div class="k"><div class="n">'+Number(d.pedidos_hora||0)+'</div><div class="l">pedidos na última hora</div></div>'+
    '<div class="k'+(prontos>=10?' mal':(prontos>=5?' aten':''))+'"><div class="n">'+prontos+'</div><div class="l">prontos esperando motoboy</div></div>'+
    '<div class="k"><div class="n">'+Number(d.esperando_cozinha||0)+'</div><div class="l">na fila da cozinha</div></div>'+
@@ -195,31 +216,66 @@ let moto='';
       : '<div class="vazio">Nenhum motoboy com o aplicativo ligado nos últimos 30 minutos.</div>')+
    '</div>';
 
-  const linha=(cond,a,b)=>'<tr class="'+(cond?'aqui':'')+'"><td>'+a+'</td><td>'+b+'</td></tr>';
-  const seco=clima==='seco', garoa=clima==='garoa', chuva=clima==='chuva';
-  const p=(ppm==null?-1:Number(ppm));
-  h+='<div class="regua"><h2>A régua — medida em 11.980 pedidos, 120 dias. A linha amarela é onde você está agora</h2><table>'+
-   linha(seco&&p>=0&&p<=5.5,'Seco, até 5,5 pedidos por motoboy','44 min')+
-   linha(seco&&p>5.5,'Seco, acima de 5,5 por motoboy','50 min')+
-   linha(garoa&&p>=0&&p<=5.5,'Garoa, até 5,5 por motoboy','48 min')+
-   linha(garoa&&p>5.5,'Garoa, acima de 5,5 por motoboy','55 min')+
-   linha(chuva&&p>=0&&p<=4,'Chuva, até 4 por motoboy','48 min')+
-   linha(chuva&&p>4&&p<=5.5,'Chuva, de 4 a 5,5 por motoboy','58 min')+
-   linha(chuva&&p>5.5,'Chuva, acima de 5,5 por motoboy','70 min')+
-  '</table>'+
-  (presets.length?'<div class="m"><b>As faixas salvas no iFood</b> — a loja só troca entre elas, não digita minuto: '+presets.map(p=>(p.nome===pAtual?'<b>▶ ':'')+esc(p.nome)+' '+p.de+'–'+p.ate+(p.nome===pAtual?' (agora)</b>':'')).join(' · ')+'.</div>':'')+
-  '<div class="m"><b>O que a medição mostrou, e é o contrário do que parece.</b> A chuva sozinha quase não atrapalha: em dia de chuva <b>com até 4 pedidos por motoboy, 73% dos pedidos chegam no prazo</b> — quase o mesmo dos 82% de um dia seco. O que derruba tudo é passar de 5,5 pedidos por motoboy debaixo de chuva: aí cai para <b>33%</b>, e a espera pelo motoboy salta de 13 para 29 minutos. A cozinha sobe só de 14 para 19 minutos, e a rua nem muda (18 para 21).<br><br>' +
-  '<b>Por que sobra pedido e falta motoboy justamente na chuva:</b> no almoço de chuva entram <b>20% mais pedidos</b> (os concorrentes que dependem da entrega do iFood ficam sem entregador e caem), e ao mesmo tempo <b>vem menos motoboy trabalhar</b>. As duas coisas empurram para o mesmo lado.<br><br>'+
-  '<b>Por isso a primeira resposta nunca é subir o tempo, é repor motoboy.</b> O almoço de chuva traz cerca de 14 pedidos a mais'+' — e sem quem leve, esses pedidos chegam frios. Subir o tempo é o remédio de quando já não dá para repor ninguém.<br><br>'+
-  'Onde mudar: no Gestor de Pedidos do iFood, em <b>Ajustes → Gestão de lojas → Gerenciar pré-configurações</b> — escolha a faixa e salve. Faixa nova se cria no Portal do Parceiro.</div></div>';
+  /* 13/09/2026, pedido do Fábio: a caixa onde a equipe do delivery escreve o que mudar */
+  var sg = Array.isArray(d.sugestoes)?d.sugestoes:[];
+  var dono = d.sou_dono===true;
+  h+='<div class="sug"><h2>✍ O que dá para melhorar aqui</h2>'+
+    '<div class="ex">Escreveu aqui, o Fábio lê. Diga o que esta tela está mostrando errado, o que falta nela, ou o que atrapalha o seu turno. Este recado é da loja '+esc(UNI)+'.</div>'+
+    '<input id="sugQuem" maxlength="40" placeholder="Seu nome">'+
+    '<textarea id="sugTxt" maxlength="800" placeholder="Ex.: a tela conta motoboy que já foi embora"></textarea>'+
+    '<button class="bt" onclick="sugEnviar()">Enviar</button>'+
+    '<div class="av" id="sugAviso"></div>'+
+    (sg.length
+      ? '<ul>'+sg.map(function(s){return '<li><b>'+esc(s.quem||'sem nome')+'</b> <span class="qd">'+esc(s.quando)+'</span>'+
+          '<span class="st '+esc(s.status)+'">'+esc(s.status)+'</span><br>'+esc(s.texto)+
+          (s.resposta?'<span class="rp">↳ '+esc(s.resposta)+'</span>':'')+
+          (dono?'<div class="dn"><button onclick="sugAcao('+s.id+',\'lido\')">marcar lido</button>'+
+                '<button onclick="sugAcao('+s.id+',\'feito\')">já resolvi</button>'+
+                '<button onclick="sugAcao('+s.id+',\'descartado\')">descartar</button></div>':'')+
+        '</li>'}).join('')+'</ul>'
+      : '<div class="ex" style="margin-top:12px">Ninguém escreveu nada nos últimos 21 dias.</div>')+
+   '</div>';
 
-  h+='<div class="m">Atualizado às '+esc(d.agora)+'. A tela se atualiza sozinha de 3 em 3 minutos. <b>Quando fica vermelha, ela pisca e apita</b> a cada 10 segundos até a situação resolver (o botão no canto pausa o vermelho e o apito por 15 minutos). Na primeira vez, toque uma vez na tela para liberar o som. O iFood dá <b>10 minutos de tolerância</b> em cima do que você promete — por isso os 44 min viram 54 na conta do cliente, e é essa a régua usada aqui. O "prometido" é lido direto na configuração do iFood pelo robô, uma vez por hora — uma mudança feita agora pode levar até 1 hora para aparecer aqui. Só a Água Verde: o Ahú e o São Braz entregam pelo TrackEat e ainda não têm dado aqui.</div>';
+  const nOu=(v)=>(v===null||v===undefined||v==='')?'—':v;
+  const rBase=d.regua_base, rClima=Number(d.regua_add_clima||0), rCarga=Number(d.regua_add_carga||0);
+  const rP80=d.real_p80, rN=Number(d.real_n||0), rFonte=d.real_fonte||null;
+  h+='<div class="regua"><h2>De onde saem os '+sug+' min — a conta de agora, linha por linha</h2><table>'+
+   '<tr><td>'+esc(String(d.dia_semana||'').toLowerCase())+' no '+esc(d.turno||'')+', em dia seco — o histórico desta loja</td><td>'+nOu(rBase)+' min</td></tr>'+
+   '<tr class="'+(rClima>0?'aqui':'')+'"><td>tempo agora: '+esc(clima)+'</td><td>'+(rClima>0?'+'+rClima:'0')+' min</td></tr>'+
+   '<tr class="'+(rCarga>0?'aqui':'')+'"><td>'+(parados>0?parados+' pedido'+(parados===1?'':'s')+' parado'+(parados===1?'':'s')+(d.parados_fonte?' ('+esc(d.parados_fonte)+')':''):'nada parado agora')+'</td><td>'+(rCarga>0?'+'+rCarga:'0')+' min</td></tr>'+
+   '<tr class="aqui"><td><b>a conta pede</b></td><td>'+sug+' min</td></tr>'+
+   ((rP80!=null&&rFonte)?'<tr><td>teto do que saiu de verdade nos últimos 120 min — 8 de cada 10 pedidos chegaram em até isso ('+rN+' pedidos, pelo '+esc(rFonte)+')</td><td>'+rP80+' min</td></tr>':'')+
+   '</table>'+
+   (presets.length?'<div class="m"><b>As faixas salvas no iFood</b> — a loja só troca entre elas, não digita minuto: '+presets.map(p=>(p.nome===pAtual?'<b>▶ ':'')+esc(p.nome)+' '+p.de+'–'+p.ate+(p.nome===pAtual?' (agora)</b>':'')).join(' · ')+'.</div>':'')+
+   '<div class="m"><b>A conta trabalha com os motoboys que estão escalados hoje.</b> Não existe chamar gente de fora no meio do turno, então esta tela não pede isso: quando a prateleira não anda, o botão que existe de verdade é a faixa do iFood. Cada linha da tabela acima sai do banco na hora — não há número digitado à mão aqui.<br><br>'+
+   'Onde mudar: no Gestor de Pedidos do iFood, em <b>Ajustes → Gestão de lojas → Gerenciar pré-configurações</b> — escolha a faixa e salve. Faixa nova se cria no Portal do Parceiro.</div></div>';
+
+  h+='<div class="m">Atualizado às '+esc(d.agora)+'. A tela se atualiza sozinha de 3 em 3 minutos. <b>Quando fica vermelha, ela pisca e apita</b> a cada 10 segundos até a situação resolver (o botão no canto pausa o vermelho e o apito por 15 minutos). Na primeira vez, toque uma vez na tela para liberar o som. O iFood dá <b>10 minutos de tolerância</b> em cima do que você promete — por isso os 44 min viram 54 na conta do cliente, e é essa a régua usada aqui. O "prometido" é lido direto na configuração do iFood pelo robô, uma vez por hora — uma mudança feita agora pode levar até 1 hora para aparecer aqui. As três lojas aparecem aqui — escolha no alto da tela. O dado de pedido e de motoboy vem do Foody e do TrackEat, conforme o que estiver respondendo em cada loja.</div>';
 
   h = cdmCab(d) + h + cdmRetrato(d);
   $('app').innerHTML=h;
+  try{var _q=$('sugQuem'), _t=$('sugTxt');
+      if(_q){_q.value=sugRascunhoQuem; _q.oninput=function(){sugRascunhoQuem=this.value}}
+      if(_t){_t.value=sugRascunhoTxt;  _t.oninput=function(){sugRascunhoTxt=this.value}}}catch(e){}
   alarme(cls==='vermelho');
 }
 
+let sugRascunhoQuem='', sugRascunhoTxt='';
+async function sugEnviar(){
+  var q=$('sugQuem'), t=$('sugTxt'), av=$('sugAviso');
+  if(!t||!av) return;
+  var txt=(t.value||'').trim();
+  if(txt.length<5){av.className='av ruim';av.textContent='Escreva pelo menos uma frase.';return}
+  av.className='av'; av.textContent='Mandando…';
+  var r=await rpc('delivery_sugestao_gravar',{p_token:cdmTok(),p_unidade:UNI,p_quem:(q?q.value:''),p_texto:txt});
+  if(r&&r.ok){av.className='av';av.textContent='Recado enviado. Obrigado!';sugRascunhoTxt='';t.value='';boot()}
+  else{av.className='av ruim';av.textContent=(r&&r.erro)?r.erro:'Não consegui enviar agora. Tente de novo.'}
+}
+async function sugAcao(id,st){
+  var av=$('sugAviso'); if(av){av.className='av';av.textContent='Salvando…'}
+  var r=await rpc('delivery_sugestao_acao',{p_token:cdmTok(),p_id:id,p_status:st});
+  if(r&&r.ok){boot()} else if(av){av.className='av ruim';av.textContent=(r&&r.erro)?r.erro:'Não consegui salvar.'}
+}
 let AC=null,somOk=false,silAte=0,apitador=null;
 function ligaSom(){try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();somOk=true;var av=document.getElementById('somaviso');if(av)av.style.display='none';}catch(e){}}
 /* som RELIGADO a pedido do Fabio em 03/09/2026: "quero que apite a partir de agora". Ficou mudo de 31/08 ate 03/09 por pedido dele. O apito so toca com a tela VERMELHA, depois do primeiro toque na tela (regra dos navegadores), a cada 10s, e para sozinho quando sai o vermelho, quando a aba esconde ou quando aperta Silenciar 15 min. */
