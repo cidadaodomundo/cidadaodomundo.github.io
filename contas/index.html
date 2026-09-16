@@ -81,6 +81,9 @@ button.ok{background:var(--brand);color:var(--brand-ink);border-color:var(--bran
 .conf.nao{color:var(--muted)}
 .obs{cursor:pointer;color:var(--text2);font-size:13px;white-space:normal;max-width:260px}
 .obs.vazio{color:var(--muted);font-style:italic}
+    .ausits{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 8px}
+    .ausit{font-size:13px}
+    .ausit.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand);font-weight:700}
 tbody tr.conferida{background:rgba(47,174,106,.06)}
 </style>
 </head>
@@ -215,7 +218,7 @@ function tabela(tipo){
     var au=audDe(r.chave,r.loja);
     var arg=aspas(r.chave)+','+aspas(r.loja);
     h+='<td class="conf '+(au.conferido?'sim':'nao')+'" onclick="auditar('+arg+')" title="'+(au.conferido?('conferido por '+esc(au.conferido_por||'')+' em '+esc(au.conferido_em||'')):'ninguém conferiu ainda')+'">'+(au.conferido?'✓':'—')+'</td>';
-    h+='<td class="l obs'+(au.observacao?'':' vazio')+'" onclick="auditar('+arg+')">'+(au.observacao?esc(au.observacao):'escrever…')+'</td></tr>';
+    h+='<td class="l obs'+(au.observacao?'':' vazio')+'" onclick="auditar('+arg+')">'+seloSit(au)+(au.observacao?esc(au.observacao):(au.situacao?'':'escrever…'))+'</td></tr>';
   });
   h+='</tbody><tfoot><tr><td class="l">TOTAL</td><td></td>';
   meses.forEach(function(m){h+='<td>'+din(tot[m]||0)+'</td>'});
@@ -243,17 +246,35 @@ function buracos(){
 var FICHA=null;
 var AUD=null;
 function aspas(s){return "'"+String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;')+"'"}
+var AUDSIT=null;
+function dtBr(s){if(!s)return '';var p=String(s).split('-');return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):String(s)}
+function seloSit(a){
+  if(a.situacao==='ok')return '<span class="pill p-feito selo">✅ certo</span> ';
+  if(a.situacao==='data')return '<span class="pill p-novo selo">📅 data'+(a.data_certa?' → '+esc(dtBr(a.data_certa)):'')+'</span> ';
+  if(a.situacao==='erro')return '<span class="pill p-fabio selo">⚠️ erro</span> ';
+  return '';
+}
+function audSit(s){
+  AUDSIT=(AUDSIT===s?null:s);
+  ['ok','data','erro'].forEach(function(x){var b=$('au-s-'+x);if(b)b.className='ausit'+(AUDSIT===x?' on':'')});
+  var d=$('au-data');if(d)d.style.display=(AUDSIT==='data'?'block':'none');
+}
 function audDe(k,l){
   var a=(D.auditoria||[]).filter(function(x){return x.chave===k&&x.loja===l});
-  return a.length?a[0]:{chave:k,loja:l,observacao:null,conferido:false,conferido_por:null,conferido_em:null};
+  return a.length?a[0]:{chave:k,loja:l,observacao:null,conferido:false,conferido_por:null,conferido_em:null,situacao:null,data_certa:null};
 }
 function auditar(k,l){
   AUD={chave:k,loja:l};
   var a=audDe(k,l);
+  AUDSIT=a.situacao||null;
   var h='<div class="mtit">'+esc(k)+'</div>';
   h+='<div class="mnota" style="margin-bottom:10px">Loja: <b>'+esc(l)+'</b>. Esta é a auditoria desta linha — vale para este fornecedor nesta loja, em todos os meses da tabela.</div>';
   h+='<label class="lb"><input type="checkbox" id="au-ok"'+(a.conferido?' checked':'')+'>Já conferi esta linha</label>';
   if(a.conferido&&a.conferido_por)h+='<div class="mnota">Marcada por '+esc(a.conferido_por)+' em '+esc(a.conferido_em||'')+'.</div>';
+  h+='<label class="lb">Depois de olhar no Saipos, marque aqui</label>';
+  h+='<div class="ausits"><button type="button" id="au-s-ok" class="ausit'+(AUDSIT==='ok'?' on':'')+'" onclick="audSit(\'ok\')">✅ Está certo</button><button type="button" id="au-s-data" class="ausit'+(AUDSIT==='data'?' on':'')+'" onclick="audSit(\'data\')">📅 A data está errada</button><button type="button" id="au-s-erro" class="ausit'+(AUDSIT==='erro'?' on':'')+'" onclick="audSit(\'erro\')">⚠️ Tem um erro</button></div>';
+  h+='<div id="au-data" style="display:'+(AUDSIT==='data'?'block':'none')+'"><label class="lb">Qual é a data certa?</label><input type="date" id="au-dt" value="'+esc(a.data_certa||'')+'"></div>';
+  h+='<div class="mnota" style="margin-bottom:8px">Clicar de novo no mesmo botão tira a marca. Isto não muda nada no Saipos — é só o recado que fica na tela.</div>';
   h+='<label class="lb">Observação — o que você viu, com suas palavras</label>';
   h+='<textarea id="au-obs" rows="4" placeholder="Ex.: valor de julho está maior porque entrou o reajuste · falta o boleto de agosto · conferido contra o contrato">'+esc(a.observacao||'')+'</textarea>';
   h+='<div class="mbt"><button class="ok" onclick="salvaAud()">Salvar</button><button onclick="fecha()">Fechar</button></div>';
@@ -262,7 +283,7 @@ function auditar(k,l){
 }
 async function salvaAud(){
   try{
-    await acao('auditar',{chave:AUD.chave,loja:AUD.loja,observacao:$('au-obs').value,conferido:$('au-ok').checked});
+    await acao('auditar',{chave:AUD.chave,loja:AUD.loja,observacao:$('au-obs').value,conferido:$('au-ok').checked,situacao:AUDSIT,data_certa:((AUDSIT==='data'&&$('au-dt'))?($('au-dt').value||null):null)});
     msg('Salvo.',true); await boot(); fecha();
   }catch(e){msg(e.message,false)}
 }
