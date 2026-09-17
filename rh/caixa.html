@@ -159,13 +159,26 @@ function linha(r){
     +'</div><span class="tag">'+(ROT[r.tipo]||r.tipo)+'</span></div>'
     +(r.nome_oficial&&r.nome_oficial!==r.nome_lido?'<div class="det">o robô leu <b>'+esc(r.nome_lido)+'</b> e casou com o cadastro</div>':'')
     +(r.detalhe?'<div class="det">'+esc(r.detalhe)+'</div>':'')
+    +(r.o_que_aconteceu?'<div style="margin:6px 0;padding:8px 10px;border-radius:8px;background:rgba(56,189,248,.12);border-left:3px solid #38bdf8"><b>O que aconteceu no ponto</b><br>'+esc(r.o_que_aconteceu)+'</div>':'')
     +'<div class="det">veio de: '+(r.fonte||'—')+'</div>'
+    +(r.resposta?'<div style="margin:6px 0;padding:8px 10px;border-radius:8px;background:rgba(34,197,94,.12);border-left:3px solid #22c55e"><b>Resposta</b> — '+esc(r.respondido_por||'—')+' em '+br(r.respondido_em)+'<br>'+esc(r.resposta)+'</div>':'')
+    +(r.situacao==='novo'?('<div style="margin:6px 0"><textarea id="r'+r.id+'" rows="2" style="width:100%;box-sizing:border-box;padding:6px;border-radius:6px" placeholder="Escreva aqui a explicação para quem pediu — ela aparece na Central do RH"></textarea><div style="margin-top:4px"><button class="btn" onclick="responder('+r.id+')">Responder por escrito</button> <span class="det" id="rm'+r.id+'"></span></div></div>'):'')
     +acoes+'</div>';
 }
 async function trocaNome(id){
   const sel=$('n'+id); if(!sel)return;
   const g=GENTE.filter(function(x){return x.nome===sel.value})[0];
   await porta('nome',{id:id,nome_oficial:sel.value,unidade:g?g.unidade:''});
+}
+async function responder(id){
+  const t=$('r'+id), m=$('rm'+id);
+  if(!t)return;
+  const txt=(t.value||'').trim();
+  if(!txt){ if(m)m.textContent='escreva alguma coisa antes'; return; }
+  if(m)m.textContent='enviando…';
+  const r=await porta('responder',{id:id,texto:txt});
+  if(r&&r.ok===false){ if(m)m.textContent=r.erro||'não deu certo'; return; }
+  carregar();
 }
 async function decidir(id,ok){
   const sel=$('n'+id);
