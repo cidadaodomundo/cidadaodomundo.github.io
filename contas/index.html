@@ -30,6 +30,10 @@ tfoot td{font-weight:700;border-top:2px solid var(--line);border-bottom:none}
 .ab{color:var(--bad);font-weight:700}
 .aviso{background:var(--s2);border:1px solid var(--warn);border-left:4px solid var(--warn);border-radius:8px;padding:11px 13px;margin-bottom:12px;color:var(--text2);font-size:14px;line-height:1.5}
 .nota{color:var(--muted);font-size:13px;line-height:1.5;margin-top:8px}
+.blocotit{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:4px 0 10px 10px;font-weight:700;font-size:17px;flex-wrap:wrap}
+.blocon{color:var(--text2);font-weight:600;font-size:14px}
+.sub{color:var(--muted);font-size:12px;margin-top:2px}
+td.r,th.r{text-align:right;white-space:nowrap}
 .vazio{color:var(--muted);padding:18px;text-align:center}
 .bur{font-weight:700;color:var(--bad)}
 .clic{cursor:pointer;border-bottom:1px dashed var(--brand)}
@@ -93,7 +97,8 @@ tbody tr.conferida{background:rgba(47,174,106,.06)}
   <button onclick="boot()">⟳ Atualizar</button>
 </div>
 <div class="abas">
-  <button class="aba on" id="a-fixo" onclick="troca('fixo')">🧾 Fixos e serviços</button>
+  <button class="aba on" id="a-dia" onclick="troca('dia')">📅 Vence hoje</button>
+  <button class="aba" id="a-fixo" onclick="troca('fixo')">🧾 Fixos e serviços</button>
   <button class="aba" id="a-mercadoria" onclick="troca('mercadoria')">📦 Mercadoria e insumo</button>
   <button class="aba" id="a-buracos" onclick="troca('buracos')">🕳 Buracos</button>
   <button class="aba" id="a-pedidos" onclick="troca('pedidos')">✍️ Pedidos e correções</button>
@@ -111,7 +116,8 @@ const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const $=i=>document.getElementById(i);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-let D=null, ABA='fixo';
+let D=null, ABA='dia';
+var DIA=null, DIALOJA='', DIADIAS=7;
 const MES={'01':'jan','02':'fev','03':'mar','04':'abr','05':'mai','06':'jun','07':'jul','08':'ago','09':'set','10':'out','11':'nov','12':'dez'};
 function rotulo(m){return MES[m.slice(5,7)]+'/'+m.slice(2,4)}
 function din(v){
@@ -153,7 +159,7 @@ async function verBoletos(chave,loja,mes){
 }
 function troca(a){
   ABA=a;
-  ['fixo','mercadoria','buracos','pedidos'].forEach(function(x){
+  ['dia','fixo','mercadoria','buracos','pedidos'].forEach(function(x){
     var b=$('a-'+x); if(b) b.className='aba'+(x===a?' on':'');
   });
   desenha();
@@ -470,22 +476,67 @@ function pedidos(){
   return h;
 }
 
+/* ===== 📅 Vence hoje — a agenda do dia (pedido #10 da Hellen, 17/09/2026) ===== */
+function dEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function diaTotal(a){var t=0;(a||[]).forEach(function(r){t+=Number(r.valor||0)});return t}
+function diaLinhas(a,mostraData){
+  if(!a||!a.length)return '<div class="vazio">Nada aqui.</div>';
+  var h='<table><thead><tr>'+(mostraData?'<th>Vence</th>':'')+'<th>Loja</th><th>Quem recebe</th><th>O que é</th><th class="r">Valor</th></tr></thead><tbody>';
+  a.forEach(function(r){
+    var alvo=r.fornecedor||r.categoria||'—';
+    var e=[];
+    if(r.provisao)e.push('<span class="pill p-lib selo">provisão</span>');
+    if(r.parcela)e.push('<span class="pill selo">parcela '+dEsc(r.parcela)+'</span>');
+    if(r.sem_valor_no_saipos)e.push('<span class="pill p-novo selo">sem valor no Saipos</span>');
+    var at=Number(r.atraso_dias||0);
+    if(at>0)e.push('<span class="pill p-novo selo">'+at+(at>1?' dias':' dia')+' de atraso</span>');
+    h+='<tr>'+(mostraData?'<td>'+dEsc(r.vencimento)+'</td>':'')
+      +'<td>'+dEsc(r.loja)+'</td>'
+      +'<td><b>'+dEsc(alvo)+'</b>'+(e.length?'<div>'+e.join(' ')+'</div>':'')+'</td>'
+      +'<td>'+dEsc(r.descricao||'')+'<div class="sub">'+dEsc(r.categoria||'')+(r.metodo?' · '+dEsc(r.metodo):'')+'</div></td>'
+      +'<td class="r">'+din(r.valor)+'</td></tr>';
+  });
+  return h+'</tbody></table>';
+}
+function diaBloco(tit,cor,a,mostraData,sub){
+  var q=(a?a.length:0);
+  return '<div class="card"><div class="blocotit" style="border-left:4px solid '+cor+'">'
+    +'<span>'+tit+'</span><span class="blocon">'+q+(q===1?' conta':' contas')+' · '+din(diaTotal(a))+'</span></div>'
+    +(sub?'<div class="nota">'+sub+'</div>':'')+diaLinhas(a,mostraData)+'</div>';
+}
+function agendaHtml(){
+  if(!DIA)return '<div class="vazio">Não deu para carregar a agenda do dia. Clique em ⟳ Atualizar.</div>';
+  var h='<div class="abas"><button class="aba'+(DIALOJA?'':' on')+'" onclick="diaLoja('+aspas('')+')">Todas as lojas</button>';
+  (DIA.lojas||[]).forEach(function(l){h+='<button class="aba'+(DIALOJA===l?' on':'')+'" onclick="diaLoja('+aspas(l)+')">'+dEsc(l)+'</button>'});
+  h+='</div>';
+  h+=diaBloco('📅 Vence hoje — '+dEsc(DIA.hoje||''),'var(--brand)',DIA.vence_hoje,false,'É o que precisa sair hoje.');
+  h+=diaBloco('⏰ Já venceu e não foi baixado','var(--bad)',DIA.atrasado,true,'Pode ser conta atrasada de verdade, ou conta já paga que ninguém baixou no Saipos.');
+  var sp='Os próximos '+(DIA.dias||7)+' dias.';
+  if(!DIA.proximos||!DIA.proximos.length){sp+=' <b>Está vazio porque o Saipos só nos mandou lançamentos até '+dEsc(DIA.saipos_ate_vencimento||'?')+'</b> — o robô ainda não pede os vencimentos futuros.'}
+  h+=diaBloco('📆 Vence nos próximos dias','var(--muted)',DIA.proximos,true,sp);
+  h+='<div class="nota">Só aparece o que ainda <b>não foi baixado</b> no Saipos. Quando o Saipos manda o total da nota zerado, o valor é somado pelos itens de dentro dela. Última carga do Saipos: '+dEsc(DIA.saipos_importado_em||'?')+'. <b>O Boqueirão não aparece</b> — aquela loja não tem senha do Saipos.</div>';
+  return h;
+}
+async function carregaDia(){try{DIA=await porta({dia:{dias:DIADIAS,loja:DIALOJA||null}})}catch(e){DIA=null}}
+async function diaLoja(l){DIALOJA=l;$('app').innerHTML='Carregando…';await carregaDia();desenha()}
 function desenha(){
   if(!D){$('app').innerHTML='<div class="vazio">Sem dado.</div>';return}
   var h='';
-  if(ABA==='pedidos'){h=pedidos()}
+  if(ABA==='dia'){h=agendaHtml()}
+  else if(ABA==='pedidos'){h=pedidos()}
   else if(ABA==='buracos'){h=buracos()}
   else{
     h=tabela(ABA);
     h+='<div class="nota">Cada linha é um fornecedor numa loja. O valor de cada mês é a soma dos boletos que vencem naquele mês. <b>Em aberto</b> é quantos ainda não foram baixados no Saipos. Embaixo de cada valor está o <b>dia do vencimento</b> de cada boleto daquele mês — <b>em amarelo</b> quando ainda não foi pago. <b>E-mails</b> é quantas mensagens daquele fornecedor chegaram no administrativo@ no mês mais recente com movimento.</div>';
   }
-  if(ABA!=='pedidos')h+='<div class="nota">Os lançamentos vêm das duas cargas do Saipos juntas — a manual e a do robô — sem contar duas vezes: quando o mesmo lançamento está nas duas, vale o do robô. <b>O Boqueirão não aparece</b>: aquela loja não tem senha do Saipos.</div>';
+  if(ABA!=='pedidos'&&ABA!=='dia')h+='<div class="nota">Os lançamentos vêm das duas cargas do Saipos juntas — a manual e a do robô — sem contar duas vezes: quando o mesmo lançamento está nas duas, vale o do robô. <b>O Boqueirão não aparece</b>: aquela loja não tem senha do Saipos.</div>';
   $('app').innerHTML=h;
 }
 async function boot(){
   try{
     $('app').innerHTML='Carregando…';
     D=await porta({meses:5});
+    await carregaDia();
     var em=Number(D.email_total||0);
     $('rel').textContent='Saipos atualizado '+(D.saipos_ate||'?')+' · '+em+' e-mails lidos'+(D.email_ate?(' (último em '+D.email_ate+')'):'')+' · agora '+(D.agora||'');
     desenha();
