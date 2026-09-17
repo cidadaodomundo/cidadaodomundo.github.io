@@ -34,6 +34,19 @@ tfoot td{font-weight:700;border-top:2px solid var(--line);border-bottom:none}
 .blocon{color:var(--text2);font-weight:600;font-size:14px}
 .sub{color:var(--muted);font-size:12px;margin-top:2px}
 td.r,th.r{text-align:right;white-space:nowrap}
+.dias{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.diab{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:8px 10px;min-width:86px;text-align:center;cursor:pointer;font-family:inherit}
+.diab:hover{border-color:var(--brand)}
+.diab.hoje{box-shadow:inset 0 0 0 2px var(--brand)}
+.diab.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.diab .dnum{font-size:20px;font-weight:700;line-height:1}
+.diab .dsem{font-size:11px;color:var(--muted);text-transform:uppercase}
+.diab .dqt{font-size:11px;color:var(--text2);margin-top:4px}
+.diab .dval{font-size:12px;font-weight:600;color:var(--text2)}
+.diab.on .dsem,.diab.on .dqt,.diab.on .dval{color:var(--brand-ink)}
+.aba.nb{border-color:var(--bad);color:var(--bad);font-weight:700}
+.aba.nb.on{background:var(--bad);color:#fff;border-color:var(--bad)}
+.bq{display:inline-block;margin-left:5px;font-size:11px;opacity:.75}
 .vazio{color:var(--muted);padding:18px;text-align:center}
 .bur{font-weight:700;color:var(--bad)}
 .clic{cursor:pointer;border-bottom:1px dashed var(--brand)}
@@ -117,7 +130,7 @@ const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const $=i=>document.getElementById(i);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 let D=null, ABA='dia';
-var DIA=null, DIALOJA='', DIADIAS=7;
+var DIA=null, DIALOJA='', DIAANO=null, DIAMES='', DIAESC='mes', DIASEL='';
 const MES={'01':'jan','02':'fev','03':'mar','04':'abr','05':'mai','06':'jun','07':'jul','08':'ago','09':'set','10':'out','11':'nov','12':'dez'};
 function rotulo(m){return MES[m.slice(5,7)]+'/'+m.slice(2,4)}
 function din(v){
@@ -476,49 +489,87 @@ function pedidos(){
   return h;
 }
 
-/* ===== 📅 Vence hoje — a agenda do dia (pedido #10 da Hellen, 17/09/2026) ===== */
+/* ===== 📅 Vence hoje — botoes por dia (pedido do Fabio e da Hellen, 17/09/2026) ===== */
+var SEM={SUN:'dom',MON:'seg',TUE:'ter',WED:'qua',THU:'qui',FRI:'sex',SAT:'sáb'};
 function dEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
-function diaTotal(a){var t=0;(a||[]).forEach(function(r){t+=Number(r.valor||0)});return t}
-function diaLinhas(a,mostraData){
-  if(!a||!a.length)return '<div class="vazio">Nada aqui.</div>';
-  var h='<table><thead><tr>'+(mostraData?'<th>Vence</th>':'')+'<th>Loja</th><th>Quem recebe</th><th>O que é</th><th class="r">Valor</th></tr></thead><tbody>';
-  a.forEach(function(r){
-    var alvo=r.fornecedor||r.categoria||'—';
+function dinCurto(v){
+  var n=Math.abs(Number(v||0));
+  if(n>=1000)return 'R$ '+(n/1000).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' mil';
+  return 'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
+}
+function diaLinhas(rows){
+  if(!rows||!rows.length)return '<div class="vazio">Nada para pagar aqui.</div>';
+  var h='<table><thead><tr><th>Vence</th><th>Loja</th><th>Quem recebe</th><th>O que é</th><th class="r">Valor</th></tr></thead><tbody>';
+  rows.forEach(function(r){
     var e=[];
     if(r.provisao)e.push('<span class="pill p-lib selo">provisão</span>');
     if(r.parcela)e.push('<span class="pill selo">parcela '+dEsc(r.parcela)+'</span>');
     if(r.sem_valor_no_saipos)e.push('<span class="pill p-novo selo">sem valor no Saipos</span>');
     var at=Number(r.atraso_dias||0);
     if(at>0)e.push('<span class="pill p-novo selo">'+at+(at>1?' dias':' dia')+' de atraso</span>');
-    h+='<tr>'+(mostraData?'<td>'+dEsc(r.vencimento)+'</td>':'')
-      +'<td>'+dEsc(r.loja)+'</td>'
-      +'<td><b>'+dEsc(alvo)+'</b>'+(e.length?'<div>'+e.join(' ')+'</div>':'')+'</td>'
+    h+='<tr><td>'+dEsc(r.vencimento)+'</td><td>'+dEsc(r.loja)+'</td>'
+      +'<td><b>'+dEsc(r.fornecedor||r.categoria||'—')+'</b>'+(e.length?'<div>'+e.join(' ')+'</div>':'')+'</td>'
       +'<td>'+dEsc(r.descricao||'')+'<div class="sub">'+dEsc(r.categoria||'')+(r.metodo?' · '+dEsc(r.metodo):'')+'</div></td>'
       +'<td class="r">'+din(r.valor)+'</td></tr>';
   });
   return h+'</tbody></table>';
 }
-function diaBloco(tit,cor,a,mostraData,sub){
-  var q=(a?a.length:0);
-  return '<div class="card"><div class="blocotit" style="border-left:4px solid '+cor+'">'
-    +'<span>'+tit+'</span><span class="blocon">'+q+(q===1?' conta':' contas')+' · '+din(diaTotal(a))+'</span></div>'
-    +(sub?'<div class="nota">'+sub+'</div>':'')+diaLinhas(a,mostraData)+'</div>';
-}
 function agendaHtml(){
-  if(!DIA)return '<div class="vazio">Não deu para carregar a agenda do dia. Clique em ⟳ Atualizar.</div>';
+  if(!DIA)return '<div class="vazio">Não deu para carregar. Clique em ⟳ Atualizar.</div>';
+  var nb=DIA.nao_baixados||{n:0,total:0};
   var h='<div class="abas"><button class="aba'+(DIALOJA?'':' on')+'" onclick="diaLoja('+aspas('')+')">Todas as lojas</button>';
   (DIA.lojas||[]).forEach(function(l){h+='<button class="aba'+(DIALOJA===l?' on':'')+'" onclick="diaLoja('+aspas(l)+')">'+dEsc(l)+'</button>'});
   h+='</div>';
-  h+=diaBloco('📅 Vence hoje — '+dEsc(DIA.hoje||''),'var(--brand)',DIA.vence_hoje,false,'É o que precisa sair hoje.');
-  h+=diaBloco('⏰ Já venceu e não foi baixado','var(--bad)',DIA.atrasado,true,'Pode ser conta atrasada de verdade, ou conta já paga que ninguém baixou no Saipos.');
-  var sp='Os próximos '+(DIA.dias||7)+' dias.';
-  if(!DIA.proximos||!DIA.proximos.length){sp+=' <b>Está vazio porque o Saipos só nos mandou lançamentos até '+dEsc(DIA.saipos_ate_vencimento||'?')+'</b> — o robô ainda não pede os vencimentos futuros.'}
-  h+=diaBloco('📆 Vence nos próximos dias','var(--muted)',DIA.proximos,true,sp);
-  h+='<div class="nota">Só aparece o que ainda <b>não foi baixado</b> no Saipos. Quando o Saipos manda o total da nota zerado, o valor é somado pelos itens de dentro dela. Última carga do Saipos: '+dEsc(DIA.saipos_importado_em||'?')+'. <b>O Boqueirão não aparece</b> — aquela loja não tem senha do Saipos.</div>';
+  if((DIA.anos||[]).length>1){
+    h+='<div class="abas">';
+    (DIA.anos||[]).forEach(function(y){h+='<button class="aba'+(Number(DIA.ano)===Number(y)?' on':'')+'" onclick="diaAno('+y+')">'+y+'</button>'});
+    h+='</div>';
+  }
+  h+='<div class="abas">';
+  (DIA.meses||[]).forEach(function(m){
+    var on=(DIA.escopo!=='nao_baixados' && DIA.mes===m.mes);
+    h+='<button class="aba'+(on?' on':'')+'" onclick="diaMes('+aspas(m.mes)+')">'+(MES[m.rotulo]||m.rotulo)+'<span class="bq">'+m.n+'</span></button>';
+  });
+  if(!(DIA.meses||[]).length)h+='<span class="nota">Nenhuma conta em aberto em '+DIA.ano+'.</span>';
+  h+='</div>';
+  h+='<div class="abas"><button class="aba nb'+(DIA.escopo==='nao_baixados'?' on':'')+'" onclick="diaNaoBaixados()">⏰ Não foram baixadas · '+nb.n+(Number(nb.n)===1?' conta':' contas')+' · '+din(nb.total)+'</button></div>';
+  if(DIA.escopo!=='nao_baixados'){
+    h+='<div class="dias">';
+    (DIA.dias||[]).forEach(function(d){
+      h+='<button class="diab'+(DIASEL===d.dia?' on':'')+(d.hoje?' hoje':'')+'" onclick="diaPick('+aspas(d.dia)+')">'
+        +'<div class="dnum">'+d.rotulo+'</div><div class="dsem">'+(SEM[d.diasem]||'')+(d.hoje?' · hoje':'')+'</div>'
+        +'<div class="dqt">'+d.n+(Number(d.n)===1?' conta':' contas')+'</div><div class="dval">'+dinCurto(d.total)+'</div></button>';
+    });
+    if(!(DIA.dias||[]).length)h+='<div class="vazio">Nenhuma conta em aberto neste mês.</div>';
+    h+='</div>';
+    h+='<div class="abas"><button class="aba'+(DIASEL?'':' on')+'" onclick="diaPick('+aspas('')+')">Ver o mês inteiro</button></div>';
+  }
+  var rows=(DIA.lista||[]);
+  if(DIA.escopo!=='nao_baixados' && DIASEL)rows=rows.filter(function(r){return r.dia===DIASEL});
+  var tot=0;rows.forEach(function(r){tot+=Number(r.valor||0)});
+  var tit;
+  if(DIA.escopo==='nao_baixados'){tit='⏰ Já venceram e ninguém deu baixa'}
+  else if(DIASEL){var p=String(DIASEL).split('-');tit='📅 Vence em '+p[2]+'/'+p[1]+(DIASEL===DIA.hoje_iso?' — hoje':'')}
+  else{tit='📅 Tudo que vence em '+(MES[String(DIA.mes).slice(5)]||'')+'/'+String(DIA.mes).slice(0,4)}
+  h+='<div class="card"><div class="blocotit"><span>'+tit+'</span><span class="blocon">'+rows.length+(rows.length===1?' conta':' contas')+' · '+din(tot)+'</span></div>'+diaLinhas(rows)+'</div>';
+  h+='<div class="nota">Só aparece o que ainda <b>não foi baixado</b> no Saipos. Quando o Saipos manda o total da nota zerado, o valor é somado pelos itens de dentro dela. Última carga do Saipos: '+dEsc(DIA.saipos_importado_em||'?')+' · o Saipos já nos mandou vencimentos até '+dEsc(DIA.saipos_ate_vencimento||'?')+'. <b>O Boqueirão não aparece</b> — aquela loja não tem senha do Saipos.</div>';
   return h;
 }
-async function carregaDia(){try{DIA=await porta({dia:{dias:DIADIAS,loja:DIALOJA||null}})}catch(e){DIA=null}}
-async function diaLoja(l){DIALOJA=l;$('app').innerHTML='Carregando…';await carregaDia();desenha()}
+async function carregaDia(){
+  try{DIA=await porta({dia:{loja:DIALOJA||null,ano:DIAANO,mes:DIAMES,escopo:DIAESC}})}catch(e){DIA=null}
+}
+async function diaRecarrega(){$('app').innerHTML='Carregando…';await carregaDia();desenha()}
+async function diaLoja(l){DIALOJA=l;await diaRecarrega()}
+async function diaMes(m){DIAMES=m;DIAESC='mes';DIASEL='';await diaRecarrega()}
+async function diaNaoBaixados(){DIAESC='nao_baixados';DIASEL='';await diaRecarrega()}
+function diaPick(d){DIASEL=d;desenha()}
+async function diaAno(y){
+  DIAANO=Number(y);DIAESC='mes';DIASEL='';DIAMES=String(y)+'-01';
+  $('app').innerHTML='Carregando…';
+  await carregaDia();
+  if(DIA&&(!DIA.dias||!DIA.dias.length)&&DIA.meses&&DIA.meses.length){DIAMES=DIA.meses[0].mes;await carregaDia()}
+  desenha();
+}
 function desenha(){
   if(!D){$('app').innerHTML='<div class="vazio">Sem dado.</div>';return}
   var h='';
@@ -537,6 +588,7 @@ async function boot(){
     $('app').innerHTML='Carregando…';
     D=await porta({meses:5});
     await carregaDia();
+    if(DIA){DIAANO=DIA.ano;DIAMES=DIA.mes;DIASEL=DIA.hoje_iso}
     var em=Number(D.email_total||0);
     $('rel').textContent='Saipos atualizado '+(D.saipos_ate||'?')+' · '+em+' e-mails lidos'+(D.email_ate?(' (último em '+D.email_ate+')'):'')+' · agora '+(D.agora||'');
     desenha();
