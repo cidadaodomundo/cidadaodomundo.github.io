@@ -125,6 +125,7 @@ tr.aviso td{color:#e8bb62}
   <span class="tab on" id="t_pag" onclick="setView('pag')">💵 Pagamento do dia anterior</span>
   <span class="tab" id="t_ag" onclick="setView('ag')">🔴 Agora, ao vivo</span>
   <span class="tab" id="t_maq" onclick="setView('maq')">🧾 Maquininha do dia</span>
+  <span class="tab" id="t_dup" onclick="setView('dup')">🔎 Corrida em dobro</span>
   <span class="tab" id="t_cob" onclick="setView('cob')" style="display:none">🧾 Cobrança na porta</span>
   <span class="tab" id="t_reg" onclick="setView('reg')">📜 As regras</span>
 </div>
@@ -217,14 +218,58 @@ function setView(v){if(v==='cmp')v='pag'; VIEW=v;
   $('t_pag').className='tab'+(v==='pag'?' on':'');
   $('t_ag').className='tab'+(v==='ag'?' on':'');
   $('t_maq').className='tab'+(v==='maq'?' on':'');
+  try{$('t_dup').className='tab'+(v==='dup'?' on':'')}catch(e){}
   $('t_reg').className='tab'+(v==='reg'?' on':'');
   try{$('t_cob').className='tab'+(v==='cob'?' on':'')}catch(e){}
   if(v!=='ag'&&AGT){clearInterval(AGT);AGT=null}
   if(v!=='maq'&&MAQ_TIMER){clearInterval(MAQ_TIMER);MAQ_TIMER=null}
   render()}
 function viewCob(){$('kpis').innerHTML='';$('faixa').innerHTML='';$('conteudo').innerHTML='<div class="c" style="padding:6px"><iframe src="/cobranca/?embed=1&cb='+Date.now()+'" style="width:100%;height:78vh;min-height:640px;border:0;border-radius:9px;background:var(--s0)" title="Cobrança na porta"></iframe></div><div class="m" style="margin:6px 0 10px">É a própria tela Cobrança na Porta rodando aqui dentro — mesma informação, mesmo login.</div>'}
+function escDup(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function dupQuando(t){if(!t)return '';var d=new Date(t);if(isNaN(d))return '';var p=function(x){return (x<10?'0':'')+x};return p(d.getDate())+'/'+p(d.getMonth()+1)+' '+p(d.getHours())+':'+p(d.getMinutes())}
+function dupHora(t){if(!t)return '';var d=new Date(t);if(isNaN(d))return '';var p=function(x){return (x<10?'0':'')+x};return p(d.getHours())+':'+p(d.getMinutes())}
+function dupCor(v){v=String(v||'');if(v.indexOf('PAGAR UMA')===0)return '#e66767';if(v.indexOf('CONFERIR')===0)return '#c98500';return '#2fae6a'}
+function dupCard(t,v,d,cl){return '<div class="kpi'+(cl?' '+cl:'')+'"><div class="k">'+t+'</div><div class="v">'+v+'</div>'+(d?'<div class="d">'+d+'</div>':'')+'</div>'}
+async function viewDup(){
+  var el=$('conteudo'); if(!el)return;
+  $('kpis').innerHTML=''; $('faixa').innerHTML='';
+  el.innerHTML='<div class="empty">Conferindo corrida a corrida, com o GPS…</div>';
+  var de=($('de')&&$('de').value)||null, ate=($('ate')&&$('ate').value)||null;
+  var j=null;
+  try{
+    var resp=await fetch(SB+'rpc/pagamento_dupla_consulta',{method:'POST',
+      headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({p_token:cdmTok(),p_dados:{de:de,ate:ate}})});
+    if(!resp.ok)throw new Error('porta '+resp.status);
+    j=await resp.json();
+  }catch(e){ el.innerHTML='<div class="c">Não deu para conferir agora. '+escDup(e.message||'')+'</div>'; return }
+  var R=(j&&j.resumo)||{}, L=(j&&j.linhas)||[];
+  var h='<div class="m" style="margin:0 0 8px">🔎 <b>Corrida em dobro</b> — duas entregas na mesma porta, ou o mesmo pedido saindo duas vezes, em até 3 horas. O GPS do Foody e do TrackEat diz se o motoboy foi lá de novo ou não.'+(j&&j.cache_em?(' · lista refeita <b>'+escDup(dupQuando(j.cache_em))+'</b>'):'')+'</div>';
+  h+='<div class="kpis">';
+  h+=dupCard('🔴 Pagar uma só', (R.pagar_uma||0), 'o GPS mostra uma passagem só · '+rs(R.pagar_uma_valor||0), 'w');
+  h+=dupCard('🟠 Conferir na mão', (R.conferir||0), 'sem prova de GPS · '+rs(R.conferir_valor||0));
+  h+=dupCard('🟢 Paga as duas', (R.pagar_duas||0), 'o GPS mostra duas idas: '+(R.pagar_duas_gps||0)+' · pedidos diferentes com folga de tempo: '+(R.pagar_duas_folga||0), 'g');
+  h+=dupCard('Ainda dá para barrar', (R.ainda_da||0)+' · '+rs(R.valor_ainda_em_jogo||0), 'são os "pagar uma só" ainda pendentes no TrackEat ('+(R.pendente_no_track||0)+') e os do Foody, que não têm status ('+(R.sem_status||0)+')<br>fora desta conta: '+(R.aprovado_no_track||0)+' já aprovados e '+(R.reprovado_no_track||0)+' já reprovados por alguém');
+  h+='</div>';
+  if(!L.length){ el.innerHTML=h+'<div class="c"><div class="empty">Nada para conferir no período.</div></div>'; return }
+  h+='<div class="c"><div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th>Dia</th><th>Loja</th><th>Onde</th><th>As duas corridas</th><th>O que o GPS diz</th><th>Veredito</th><th>Valor da 2ª</th></tr>';
+  L.forEach(function(r){
+    var cor=dupCor(r.veredito);
+    var gps=(r.visitas==null||r.visitas===0)?'<span style="color:var(--muted)">não achei o motoboy perto do endereço</span>':((r.visitas===1?'1 passagem':r.visitas+' idas')+' · chegou a '+(r.menor_m==null?'?':r.menor_m+' m')+(r.quem_chegou?('<div style="color:var(--muted);font-size:11.5px">'+escDup(r.quem_chegou)+'</div>'):''));
+    var corridas='<b>'+escDup(r.pedido_1)+'</b> '+dupHora(r.saiu_1)+' · '+escDup(r.entregador_1||'sem motoboy')+' · '+rs(r.valor_1)
+      +'<div>'+(r.mesmo_pedido?'<b>o mesmo pedido</b> ':'<b>'+escDup(r.pedido_2)+'</b> ')+dupHora(r.saiu_2)+' · '+escDup(r.entregador_2||'sem motoboy')+' · '+rs(r.valor_2)+'</div>'
+      +'<div style="color:var(--muted);font-size:11.5px">'+(r.minutos_entre==null?'':r.minutos_entre+' min depois')+(r.status_2?(' · no TrackEat: '+escDup(r.status_2)):'')+(r.fonte_2?(' · '+escDup(r.fonte_2)):'')+'</div>';
+    h+='<tr><td>'+escDup(String(r.dia_operacional||'').slice(8,10)+'/'+String(r.dia_operacional||'').slice(5,7))+'</td><td>'+escDup(r.unidade)+'</td>'
+      +'<td>'+escDup(r.porta_txt||'—')+'<div style="color:var(--muted);font-size:11.5px">cliente '+escDup(r.cliente_1||'?')+(r.cliente_2&&r.cliente_2!==r.cliente_1?(' e '+escDup(r.cliente_2)):'')+'</div></td>'
+      +'<td>'+corridas+'</td><td>'+gps+'</td>'
+      +'<td><span style="display:inline-block;border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:700;background:'+cor+'22;color:'+cor+'">'+escDup(r.veredito)+'</span></td>'
+      +'<td>'+rs(r.valor_2)+'</td></tr>';
+  });
+  h+='</table></div></div>';
+  el.innerHTML=h;
+}
 function viewRegras(){$('kpis').innerHTML='';$('faixa').innerHTML='';$('conteudo').innerHTML=REGRAS_HTML}
-function render(){if(VIEW==='cob'){viewCob();return}if(VIEW==='ag'){viewAgora();return}if(VIEW==='maq'){viewMaq();return}if(VIEW==='reg'){viewRegras();return}viewPag()}
+function render(){if(VIEW==='dup'){viewDup();return}if(VIEW==='cob'){viewCob();return}if(VIEW==='ag'){viewAgora();return}if(VIEW==='maq'){viewMaq();return}if(VIEW==='reg'){viewRegras();return}viewPag()}
 async function viewComparar(){
   $('faixa').innerHTML='';
   if(!PD){ $('conteudo').innerHTML='<div class="empty">Carregando…</div>'; await puxaPagDia(); }
