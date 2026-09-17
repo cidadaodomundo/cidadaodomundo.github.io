@@ -276,6 +276,19 @@ function refFora(prod,dia,uni){
   return 'não é o prato de '+d.toLowerCase();
 }
 function refCurto(n){return (n||'').split(' ').slice(0,2).join(' ')}
+function blocoExp(){
+  if(FILT!=='EXPER')return '';
+  var l=(typeof EXPLISTA!=='undefined'&&EXPLISTA?EXPLISTA:[]).filter(function(x){return UNIT==='Todas'||x.unidade===UNIT});
+  if(!l.length)return '';
+  var nomes=dayRows().filter(function(r){return UNIT==='Todas'||r.unidade===UNIT}).map(function(r){return xpKey(r.nome)});
+  var fora=l.filter(function(x){return nomes.indexOf(xpKey(x.nome_ponto||x.nome))<0});
+  var h='<div style="background:var(--surface);border:1px solid var(--line);border-left:4px solid #a855f7;border-radius:12px;padding:12px 15px;margin-bottom:12px">';
+  h+='<div style="font-weight:700">&#8987; Em experi&ecirc;ncia &mdash; '+l.length+' pessoa(s)'+(UNIT==='Todas'?'':' na '+UNIT)+'</div>';
+  h+='<div style="font-size:13px;color:var(--muted);margin-top:4px">As datas de cada uma est&atilde;o no quadro Contrato de experi&ecirc;ncia, no alto da tela.</div>';
+  if(fora.length){h+='<div style="font-size:13px;color:#e8b13a;margin-top:6px">&#9888; '+fora.length+' n&atilde;o aparece(m) no ponto deste dia, por isso n&atilde;o t&ecirc;m cart&atilde;o abaixo: '+fora.map(function(x){return (x.nome||'')}).join(' &middot; ')+'</div>';}
+  h+='</div>';
+  return h;
+}
 function blocoRef(){
   if(!REFDIA)return '';
   var uni=UNIT;
@@ -301,7 +314,7 @@ const NVMOT=function(r){var j=EVJ[r.nome+'|'+r.data];return j?j:(r.categoria==='
 const UORD={'Água Verde':0,'Ahú':1,'São Braz':2,'Boqueirão':3};
 const C={SERIO:'var(--serio)',GRAVE:'var(--grave)',INFRACAO:'var(--infra)',VERBAL:'var(--verbal)',CONFERIR:'var(--conf)',JUST:'#94a3b8',SEM:'var(--sem)'};
 const L={SERIO:'🔴 SÉRIO',GRAVE:'🟠 GRAVE',INFRACAO:'🟡 INFRAÇÃO',VERBAL:'🔵 ORIENTAÇÃO',CONFERIR:'🔎 CONFERIR',JUST:'🗓 JUSTIFICADO',SEM:'✅ OK'};
-const KL={TOTAL:'Funcionários',SERIO:'Sério',GRAVE:'Grave',INFRACAO:'Falta de batida',VERBAL:'Orientação',CONFERIR:'Conferir',JUST:'Folga, férias ou atestado',SEM:'Sem ocorrência',REFOK:'Refeição lançada',REFNAO:'Refeição NÃO lançada',REFSC:'Sem cartão'};
+const KL={TOTAL:'Funcionários',EXPER:'Em experiência',SERIO:'Sério',GRAVE:'Grave',INFRACAO:'Falta de batida',VERBAL:'Orientação',CONFERIR:'Conferir',JUST:'Folga, férias ou atestado',SEM:'Sem ocorrência',REFOK:'Refeição lançada',REFNAO:'Refeição NÃO lançada',REFSC:'Sem cartão'};
 const ACAO={
 SERIO:'RH: aplicar ADVERTÊNCIA formal assinada — política da empresa: intervalo suprimido é falta GRAVE (Art. 71 CLT). Garantir que a pausa seja cumprida integralmente. Reincidência → nova advertência / suspensão.',
 GRAVE:'RH: verificar com o gestor se a extra foi autorizada. Autorizada → pagar +50% ou compensar (banco de horas). Não autorizada → orientação escrita ao funcionário.',
@@ -407,6 +420,7 @@ function limpaTopo(){$('kpis').innerHTML='';$('units').innerHTML=''}
 /* AVISO DE FIM DE EXPERIENCIA - 16/09/2026 - regra do Fabio: 30 + 60 dias, avisar 10 dias antes dos DOIS marcos */
 var EXPLISTA=null, EXPT=null, EXPTENT=0;
 function expData(s){if(!s)return '';var p=String(s).split('-');return p[2]+'/'+p[1];}
+function xpKey(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim()}
 function expPara(){if(EXPT){clearInterval(EXPT);EXPT=null}}
 async function expCarregar(){
   try{
@@ -414,25 +428,25 @@ async function expCarregar(){
     if(!temCred)return;
     var l=await rhRPC('experiencia',{});
     if(!Array.isArray(l))return;
-    EXPLISTA=l; expPara(); expPinta();
+    EXPLISTA=l; expPara(); expPinta(); try{render()}catch(e){}
   }catch(e){}
 }
 function expPinta(){
   var box=$('expav'); if(!box) return;
   var l=EXPLISTA||[];
   if(!l.length){box.innerHTML='';return}
-  function cor(r){ if(r.situacao==='PASSOU DO PRAZO')return '#b91c1c'; if(r.situacao==='AVISO')return '#dc2626'; if(r.alerta_etapa_1)return '#b45309'; return '#334155'; }
+  function cor(r){ if(r.situacao==='PASSOU DO PRAZO')return '#b91c1c'; if(r.situacao==='AVISO')return '#dc2626'; if(r.alerta_etapa_1)return '#e8833a'; return 'var(--text)'; }
   var urg=l.filter(function(r){return r.situacao!=='EM EXPERIENCIA'||r.alerta_etapa_1});
-  var h='<div style="border:1px solid #e2e8f0;border-left:5px solid '+(urg.length?'#dc2626':'#94a3b8')+';border-radius:10px;padding:10px 12px;margin:10px 0;background:#fff">';
+  var h='<div style="border:1px solid var(--line);border-left:5px solid '+(urg.length?'#dc2626':'#94a3b8')+';border-radius:10px;padding:10px 12px;margin:10px 0;background:var(--surface);color:var(--text)">';
   h+='<div style="font-weight:700;margin-bottom:4px">&#9203; Contrato de experi&ecirc;ncia &mdash; '+l.length+' em avalia&ccedil;&atilde;o'+(urg.length?(' &middot; <span style="color:#dc2626">'+urg.length+' pedindo decis&atilde;o</span>'):'')+'</div>';
   l.forEach(function(r){
     var q=r.dias_para_marco;
     var quando = q<0 ? ('venceu h&aacute; '+(-q)+' dia(s)') : (q===0 ? 'vence HOJE' : ('faltam '+q+' dia(s)'));
-    h+='<div style="padding:6px 0;border-top:1px solid #f1f5f9">';
-    h+='<b style="color:'+cor(r)+'">'+(r.nome||'')+'</b> <span style="color:#64748b;font-size:13px">&middot; '+(r.unidade||'')+' &middot; entrou em '+expData(r.admissao)+'</span><br>';
+    h+='<div style="padding:6px 0;border-top:1px solid var(--line)">';
+    h+='<b style="color:'+cor(r)+'">'+(r.nome||'')+'</b> <span style="color:var(--muted);font-size:13px">&middot; '+(r.unidade||'')+' &middot; entrou em '+expData(r.admissao)+'</span><br>';
     h+='<span style="font-size:13px">'+(r.o_que_vence||'')+' em <b>'+expData(r.data_marco)+'</b> &mdash; '+quando+'</span>';
-    if(r.alerta_etapa_1) h+='<br><span style="font-size:13px;color:#b45309">&#9888; '+r.alerta_etapa_1+'</span>';
-    if(r.divergente_com_o_ponto) h+='<br><span style="font-size:13px;color:#b45309">&#9888; aparece ativa no Flash, mas n&atilde;o est&aacute; ativa no ponto &mdash; confira</span>';
+    if(r.alerta_etapa_1) h+='<br><span style="font-size:13px;color:#e8b13a">&#9888; '+r.alerta_etapa_1+'</span>';
+    if(r.divergente_com_o_ponto) h+='<br><span style="font-size:13px;color:#e8b13a">&#9888; aparece ativa no Flash, mas n&atilde;o est&aacute; ativa no ponto &mdash; confira</span>';
     if(r.decisao) h+='<br><span style="font-size:13px;color:#16a34a">&#10003; j&aacute; decidido: '+r.decisao+(r.decidido_por?(' &mdash; '+r.decidido_por):'')+'</span>';
     h+='</div>';
   });
@@ -572,8 +586,10 @@ function renderDay(){
   k.REFOK=_rpk.filter(function(x){return x.situacao==='OK'||x.situacao==='ACIMA DO DIREITO'}).length;
   k.REFNAO=_rpk.filter(function(x){return x.situacao==='NAO LANCOU'}).length;
   k.REFSC=_rpk.filter(function(x){return x.situacao==='SEM CARTAO'}).length;
-  const kc={TOTAL:'var(--brand)',SERIO:'var(--serio)',GRAVE:'var(--grave)',INFRACAO:'var(--infra)',VERBAL:'var(--verbal)',CONFERIR:'var(--conf)',JUST:'#94a3b8',SEM:'var(--sem)',REFOK:'#22c55e',REFNAO:'#ef4444',REFSC:'#f59e0b'};
-  $('kpis').innerHTML=['SERIO','REFNAO','GRAVE','REFSC','INFRACAO','VERBAL','CONFERIR','REFOK','JUST','SEM','TOTAL'].filter(x=>k[x]!==undefined&&(x==='TOTAL'||k[x]>0)).map(x=>
+  var _xpu=(typeof EXPLISTA!=='undefined'&&EXPLISTA?EXPLISTA:[]).filter(function(x){return UNIT==='Todas'||x.unidade===UNIT});
+  k.EXPER=_xpu.length;
+  const kc={TOTAL:'var(--brand)',EXPER:'#a855f7',SERIO:'var(--serio)',GRAVE:'var(--grave)',INFRACAO:'var(--infra)',VERBAL:'var(--verbal)',CONFERIR:'var(--conf)',JUST:'#94a3b8',SEM:'var(--sem)',REFOK:'#22c55e',REFNAO:'#ef4444',REFSC:'#f59e0b'};
+  $('kpis').innerHTML=['SERIO','REFNAO','GRAVE','REFSC','INFRACAO','VERBAL','CONFERIR','REFOK','JUST','SEM','EXPER','TOTAL'].filter(x=>k[x]!==undefined&&(x==='TOTAL'||k[x]>0)).map(x=>
     `<div class="kpi ${FILT===x?'active':''}" style="--kc:${kc[x]}" onclick="FILT=FILT==='${x}'?null:'${x}';render()">
      <div class="n">${k[x]}</div><div class="l">${KL[x]}</div><div class="cta">${FILT===x?'✕ tirar filtro':'clique para filtrar'}</div></div>`).join('');
   const uns=[...new Set(rows.map(r=>r.unidade))].sort((a,b)=>(UORD[a]??9)-(UORD[b]??9));
@@ -582,10 +598,11 @@ function renderDay(){
     return `<span class="tab ${UNIT===u?'active':''}" onclick="UNIT='${u}';render()">${u}<span class="cnt">${n}</span></span>`}).join('');
   let show=rows.filter(r=>UNIT==='Todas'||r.unidade===UNIT);
   if(FILT&&FILT.indexOf('REF')===0)show=[];
+  else if(FILT==='EXPER'){var _xn=(typeof EXPLISTA!=='undefined'&&EXPLISTA?EXPLISTA:[]).filter(function(x){return UNIT==='Todas'||x.unidade===UNIT}).map(function(x){return xpKey(x.nome_ponto||x.nome)});show=show.filter(function(r){return _xn.indexOf(xpKey(r.nome))>=0});}
   else if(FILT&&FILT!=='TOTAL')show=show.filter(r=>NV(r)===FILT);
   else show=show.filter(function(r){var n=NV(r);return n!=='SEM'&&n!=='JUST'});
   show.sort((a,b)=>(ORD[NV(a)]-ORD[NV(b)])||((UORD[a.unidade]??9)-(UORD[b.unidade]??9))||a.nome.localeCompare(b.nome));
-  if(!show.length){$('content').innerHTML='<div class="empty">'+(ARRERR&&!ALL.length?'Não foi possível carregar este bloco. Recarregue a página.':'Nenhum funcionário neste filtro.')+'</div>';$('content').insertAdjacentHTML('afterbegin',blocoRef());return}
+  if(!show.length){$('content').innerHTML='<div class="empty">'+(ARRERR&&!ALL.length?'Não foi possível carregar este bloco. Recarregue a página.':'Nenhum funcionário neste filtro.')+'</div>';$('content').insertAdjacentHTML('afterbegin',blocoExp()+blocoRef());return}
   /* 26/08/2026: os paineis O que fazer HOJE e O que o RH faz em cada caso foram retirados a pedido do Fabio.
   const doDia=rows.filter(r=>UNIT==='Todas'||r.unidade===UNIT);
   const nAv={};doDia.forEach(r=>{const n=NV(r);if(n!=='SEM')nAv[n]=(nAv[n]||0)+1});
@@ -596,7 +613,7 @@ function renderDay(){
   const nivPres=ordAcao.filter(n=>ACAO[n]);
   const painelAcao=nivPres.length?'<div class="acaobox"><div class="acaoh">📋 O que o RH faz em cada caso — vale para todas as pessoas abaixo</div>'+nivPres.map(n=>'<div class="acaoi" style="--cc:'+C[n]+'"><b>'+L[n]+'</b> '+ACAO[n]+'</div>').join('')+'</div>':'';
   */
-  $('content').innerHTML=blocoRef()+'<div class="grid">'+show.map(r=>{
+  $('content').innerHTML=blocoExp()+blocoRef()+'<div class="grid">'+show.map(r=>{
     const acao=(NV(r)==='SEM'?'':resCaixa(r));
     return `<div class="card" data-nome="${r.nome}" style="--cc:${C[NV(r)]}">
       <div class="chead"><div><div class="cname">${title(r.nome)}</div><div class="cunit">${r.unidade}</div></div>
