@@ -125,6 +125,7 @@ tr.aviso td{color:#e8bb62}
   <span class="tab on" id="t_pag" onclick="setView('pag')">💵 Pagamento do dia anterior</span>
   <span class="tab" id="t_ag" onclick="setView('ag')">🔴 Agora, ao vivo</span>
   <span class="tab" id="t_maq" onclick="setView('maq')">🧾 Maquininha do dia</span>
+  <span class="tab" id="t_cob" onclick="setView('cob')" style="display:none">🧾 Cobrança na porta</span>
   <span class="tab" id="t_reg" onclick="setView('reg')">📜 As regras</span>
 </div>
 
@@ -217,11 +218,13 @@ function setView(v){if(v==='cmp')v='pag'; VIEW=v;
   $('t_ag').className='tab'+(v==='ag'?' on':'');
   $('t_maq').className='tab'+(v==='maq'?' on':'');
   $('t_reg').className='tab'+(v==='reg'?' on':'');
+  try{$('t_cob').className='tab'+(v==='cob'?' on':'')}catch(e){}
   if(v!=='ag'&&AGT){clearInterval(AGT);AGT=null}
   if(v!=='maq'&&MAQ_TIMER){clearInterval(MAQ_TIMER);MAQ_TIMER=null}
   render()}
+function viewCob(){$('kpis').innerHTML='';$('faixa').innerHTML='';$('conteudo').innerHTML='<div class="c" style="padding:6px"><iframe src="/cobranca/?embed=1&cb='+Date.now()+'" style="width:100%;height:78vh;min-height:640px;border:0;border-radius:9px;background:var(--s0)" title="Cobrança na porta"></iframe></div><div class="m" style="margin:6px 0 10px">É a própria tela Cobrança na Porta rodando aqui dentro — mesma informação, mesmo login.</div>'}
 function viewRegras(){$('kpis').innerHTML='';$('faixa').innerHTML='';$('conteudo').innerHTML=REGRAS_HTML}
-function render(){if(VIEW==='ag'){viewAgora();return}if(VIEW==='maq'){viewMaq();return}if(VIEW==='reg'){viewRegras();return}viewPag()}
+function render(){if(VIEW==='cob'){viewCob();return}if(VIEW==='ag'){viewAgora();return}if(VIEW==='maq'){viewMaq();return}if(VIEW==='reg'){viewRegras();return}viewPag()}
 async function viewComparar(){
   $('faixa').innerHTML='';
   if(!PD){ $('conteudo').innerHTML='<div class="empty">Carregando…</div>'; await puxaPagDia(); }
@@ -927,6 +930,7 @@ async function cdmGuarda(){
   }catch(e){j=null}
   if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
   try{sessionStorage.setItem('cdm_admin',j.admin?'1':'0')}catch(e){}
+  try{var podeCob=!!j.admin||(Array.isArray(j.modulos)&&j.modulos.some(function(m){return m&&m.id==='cobranca'}));if(podeCob)$('t_cob').style.display=''}catch(e){}
   const ms=Array.isArray(j.modulos)?j.modulos:[];
   if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
   return true;
