@@ -116,16 +116,29 @@ function cardPau(){
 function pausados(){
   var P=(D&&D.pausados)||{}, ps=P.linhas||[];
   if(!ps.length || !PAU) return '';
+  var temRS=(ps[0] && ps[0].rs_dia!==undefined && ps[0].rs_dia!==null);
+  var lojas={}, ordem=[];
+  ps.forEach(function(p){ var u=p.unidade||'sem loja'; if(!lojas[u]){ lojas[u]=[]; ordem.push(u); } lojas[u].push(p); });
+  var corpo=ordem.map(function(u){
+    var soma=0; lojas[u].forEach(function(p){ soma+=(p.rs_dia||0); });
+    return '<div style="margin:10px 0 3px;font-size:11px;font-weight:800">'+esc(u)+
+      (temRS?'<span style="color:var(--muted);font-weight:600"> &#183; R$ '+soma+' por dia parados</span>':'')+'</div>'+
+      lojas[u].map(function(p){
+        var d=p.sumido_ha||0, cor=(d>=5?'var(--warn)':'var(--muted)');
+        return '<div style="padding:5px 0;font-size:12px;line-height:1.45;border-top:1px solid rgba(255,255,255,.07)">'+
+          '<b>'+esc(p.produto||'')+'</b> <span style="color:var(--muted)">&#183; '+esc(p.marca||'')+' &#183; '+esc(p.origem||'')+'</span><br>'+
+          '<span style="color:'+cor+'">sumiu ha '+d+' dia'+(d===1?'':'s')+', ultima venda '+esc(p.ultima||'')+'</span>'+
+          '<span style="color:var(--muted)">'+(temRS?' &#183; vendia R$ '+(p.rs_dia||0)+' por dia':'')+
+          ' &#183; '+(p.qtd||0)+' em '+(p.dias||0)+' dias &#183; semana passada '+(p.semana_passada||0)+'</span></div>';
+      }).join('');
+  }).join('');
   return '<div style="border-left:3px solid var(--warn);background:var(--s1);border-radius:10px;padding:9px 11px;margin:8px 0">'+
-    '<div style="color:var(--warn);font-size:11px;font-weight:800;margin-bottom:7px">ITEM QUE VENDIA E PAROU &#8212; pode ter sido pausado</div>'+
-    '<div style="max-height:150px;overflow:auto">'+ps.map(function(p){
-      return '<div style="padding:3px 0;font-size:12px;line-height:1.35">'+
-        '<b>'+esc(p.produto||'')+'</b> <span style="color:var(--muted)">&#183; '+esc(p.unidade||'')+'</span><br>'+
-        '<span style="color:var(--muted)">vendeu '+(p.qtd||0)+' em '+(p.dias||0)+' dias desta semana, a ultima vez em '+esc(p.ultima||'')+
-        ' &#183; no mesmo dia da semana passada vendeu '+(p.semana_passada||0)+'</span></div>';
-    }).join('')+'</div>'+
-    '<div class="m" style="margin-top:7px">Isto sai da VENDA do Saipos desde '+esc(P.desde||'')+', conferida em '+esc(P.em||'')+
-    '. Nao e leitura do cardapio: e suspeita. So entra o item que tambem vendia no mesmo dia da semana passada.</div></div>';
+    '<div style="color:var(--warn);font-size:11px;font-weight:800">VENDIA E PAROU &#8212; so iFood e Accon</div>'+
+    ((temRS&&P.perda_dia)?'<div style="font-size:14px;font-weight:800;margin:5px 0 2px">R$ '+P.perda_dia+' por dia deixaram de entrar</div>':'')+
+    corpo+
+    '<div class="m" style="margin-top:9px">Isto sai da VENDA do Saipos desde '+esc(P.desde||'')+', conferida em '+esc(P.em||'')+
+    '. Salao e balcao nao entram. Nao e leitura do cardapio, e suspeita pela venda &#8212; o cardapio nao e conferido desde '+esc(P.cardapio_lido_em||'?')+
+    '. So entra o item que tambem vendia no mesmo dia da semana passada.</div></div>';
 }
 
 function cardCheg(){
