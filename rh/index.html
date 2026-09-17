@@ -221,6 +221,7 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
     <button onclick="stepDay(1)">›</button>
   </div>
 </div>
+<div id="expav"></div>
 <div class="kpis" id="kpis"></div>
 <div class="units" id="units"></div>
 <div id="content"><div class="loading">Conectando…</div></div>
@@ -403,6 +404,45 @@ function render(){
   renderDay();
 }
 function limpaTopo(){$('kpis').innerHTML='';$('units').innerHTML=''}
+/* AVISO DE FIM DE EXPERIENCIA - 16/09/2026 - regra do Fabio: 30 + 60 dias, avisar 10 dias antes dos DOIS marcos */
+var EXPLISTA=null, EXPT=null, EXPTENT=0;
+function expData(s){if(!s)return '';var p=String(s).split('-');return p[2]+'/'+p[1];}
+function expPara(){if(EXPT){clearInterval(EXPT);EXPT=null}}
+async function expCarregar(){
+  try{
+    var temCred=false;try{temCred=!!(RH_CRED||rhTok()||rhPw())}catch(e){}
+    if(!temCred)return;
+    var l=await rhRPC('experiencia',{});
+    if(!Array.isArray(l))return;
+    EXPLISTA=l; expPara(); expPinta();
+  }catch(e){}
+}
+function expPinta(){
+  var box=$('expav'); if(!box) return;
+  var l=EXPLISTA||[];
+  if(!l.length){box.innerHTML='';return}
+  function cor(r){ if(r.situacao==='PASSOU DO PRAZO')return '#b91c1c'; if(r.situacao==='AVISO')return '#dc2626'; if(r.alerta_etapa_1)return '#b45309'; return '#334155'; }
+  var urg=l.filter(function(r){return r.situacao!=='EM EXPERIENCIA'||r.alerta_etapa_1});
+  var h='<div style="border:1px solid #e2e8f0;border-left:5px solid '+(urg.length?'#dc2626':'#94a3b8')+';border-radius:10px;padding:10px 12px;margin:10px 0;background:#fff">';
+  h+='<div style="font-weight:700;margin-bottom:4px">&#9203; Contrato de experi&ecirc;ncia &mdash; '+l.length+' em avalia&ccedil;&atilde;o'+(urg.length?(' &middot; <span style="color:#dc2626">'+urg.length+' pedindo decis&atilde;o</span>'):'')+'</div>';
+  l.forEach(function(r){
+    var q=r.dias_para_marco;
+    var quando = q<0 ? ('venceu h&aacute; '+(-q)+' dia(s)') : (q===0 ? 'vence HOJE' : ('faltam '+q+' dia(s)'));
+    h+='<div style="padding:6px 0;border-top:1px solid #f1f5f9">';
+    h+='<b style="color:'+cor(r)+'">'+(r.nome||'')+'</b> <span style="color:#64748b;font-size:13px">&middot; '+(r.unidade||'')+' &middot; entrou em '+expData(r.admissao)+'</span><br>';
+    h+='<span style="font-size:13px">'+(r.o_que_vence||'')+' em <b>'+expData(r.data_marco)+'</b> &mdash; '+quando+'</span>';
+    if(r.alerta_etapa_1) h+='<br><span style="font-size:13px;color:#b45309">&#9888; '+r.alerta_etapa_1+'</span>';
+    if(r.divergente_com_o_ponto) h+='<br><span style="font-size:13px;color:#b45309">&#9888; aparece ativa no Flash, mas n&atilde;o est&aacute; ativa no ponto &mdash; confira</span>';
+    if(r.decisao) h+='<br><span style="font-size:13px;color:#16a34a">&#10003; j&aacute; decidido: '+r.decisao+(r.decidido_por?(' &mdash; '+r.decidido_por):'')+'</span>';
+    h+='</div>';
+  });
+  h+='<div style="font-size:12px;color:#94a3b8;margin-top:6px">Contrato de 30 + 60 dias. O aviso acende 10 dias antes de cada marco. Data de admiss&atilde;o vem do Flash.</div>';
+  h+='</div>';
+  box.innerHTML=h;
+}
+setTimeout(function(){expCarregar()},3000);
+EXPT=setInterval(function(){ EXPTENT++; if(EXPLISTA!==null||EXPTENT>10){expPara();return} expCarregar(); },60000);
+
 function renderManual(){limpaTopo();$('content').innerHTML='<iframe class="exframe" src="manual.html" title="Manual e Regras"></iframe>'}
 const HOJE=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
 const LOJAS=SOSB?[SBUN]:['Água Verde','Ahú',SBUN];
