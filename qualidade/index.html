@@ -211,9 +211,10 @@ function filtros(){
 let REE=null,REEMOT=null,REEbusy=false,REEERRO='';
 let CV=null;
 function reeHora(t){return t?String(t).slice(11,16):'—'}
+function reeQuando(t){if(!t)return '';var d=new Date(t);if(isNaN(d))return '';var p=function(x){return (x<10?'0':'')+x};var hj=new Date();var mm=p(d.getDate())+'/'+p(d.getMonth()+1);var hh=p(d.getHours())+':'+p(d.getMinutes());return (d.toDateString()===hj.toDateString())?('hoje às '+hh):(mm+' às '+hh)}
 function reeCor(f){return f==='COZINHA'?'var(--bad)':f==='DESPACHO'?'var(--warn)':'var(--muted)'}
 async function reeRPC(acao,dados){
-  const r=await fetch(SB+'rpc/reentrega_consulta',{method:'POST',
+  const r=await fetch(SB+'rpc/reentrega2_consulta',{method:'POST',
     headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
     body:JSON.stringify({p_cred:tok(),p_acao:acao,p_dados:dados||{}})});
   const j=await r.json().catch(function(){return null});
@@ -251,13 +252,21 @@ function reeLinha(r){
   var _cz=function(t){return '<div style="color:var(--muted);font-size:11.5px">'+t+'</div>'};
   var _selo=(r.mesmo_cliente===true)?'<span class="pill p-bad">mesmo cliente</span>':(r.mesmo_cliente===false?'<span class="pill">cliente diferente</span>':'<span class="pill">nome não identificado</span>');
   var _tm=function(m){return (m==null)?'—':(m<60?(m+' min antes'):(Math.floor(m/60)+'h'+(m%60<10?'0':'')+(m%60)+' antes'))};
-  var _par=r.par_n_pedido?('<b>'+esc(r.par_n_pedido)+'</b> às '+reeHora(r.par_data_hora)+' · '+_tm(r.par_minutos)+_cz('canal: '+esc(r.par_canal||'não identificado'))+_cz('motoboy: '+esc(r.par_entregador||'—')+' · cliente '+esc(r.par_cliente_ini||'—')+' ')+_selo+_cz('mesmo endereço dos dois: '+esc(r.endereco||'—'))):'<span style="color:var(--muted)">sem par — a equipe lançou este com # no número</span>';
+  var _par=r.par_n_pedido?('1ª saída às '+reeHora(r.par_data_hora)+' · '+_tm(r.par_minutos)+_cz('canal: '+esc(r.par_canal||'não identificado'))+_cz('motoboy: '+esc(r.par_entregador||'—')+' · cliente '+esc(r.par_cliente_ini||'—')+' ')+_selo+_cz('mesmo endereço dos dois: '+esc(r.endereco||'—'))):'<span style="color:var(--muted)">sem par — a equipe lançou este com # no número</span>';
   var eq=r.familia==='COZINHA'?r.equipe_cozinha:r.familia==='DESPACHO'?r.equipe_despacho:null;
   var eqs=(eq&&eq.length)?eq.map(esc).join(', '):(r.familia?'<span style="color:var(--muted)">escala não lançada</span>':'—');
   var fam=r.familia?'<span class="pill" style="background:'+reeCor(r.familia)+';color:#fff">'+esc(r.familia)+'</span>':(r.detectada_por_endereco?(r.mesmo_cliente===true?'<span class="pill p-warn">suspeita: mesmo cliente, mesmo endereço — confirmar</span>':'<span class="pill p-warn">suspeita: mesmo endereço, nome não identificado — confirmar</span>'):'<span style="color:var(--muted)">a classificar</span>');
   var rsel=(eq&&eq.length&&r.motivo)?('<select data-u="'+esc(r.unidade)+'" data-t="'+esc(r.data_hora_pedido)+'" data-m="'+esc(r.motivo)+'" onchange="reeResp(this)"><option value="">— quem foi? —</option>'+eq.map(function(n){return '<option'+(r.responsavel===n?' selected':'')+'>'+esc(n)+'</option>'}).join('')+'</select>'):'<span style="color:var(--muted)">—</span>';
   var sel='<select data-u="'+esc(r.unidade)+'" data-t="'+esc(r.data_hora_pedido)+'" onchange="reeMarcar(this)"><option value="">— escolher —</option>'+(REEMOT||[]).map(function(m){return '<option'+(r.motivo===m.motivo?' selected':'')+'>'+esc(m.motivo)+'</option>'}).join('')+'</select>';
-  return '<tr><td>'+reeHora(r.data_hora_pedido)+'</td><td><b>'+esc(r.n_pedido||'—')+'</b>'+_cz('canal: '+esc(r.canal||'não identificado'))+_cz('cliente '+esc(r.cliente_ini||'—'))+'</td><td>'+esc(r.unidade)+'</td><td>'+esc(r.turno||'—')+'</td><td>'+esc(r.entregador||'—')+'</td><td>'+_par+'</td><td>'+sel+'</td><td>'+fam+'</td><td>'+eqs+'</td><td>'+rsel+'</td></tr>';
+  var _tp=r.tipo||'';
+  var _tpc=(_tp==='SAIU DE NOVO')?'var(--bad)':((_tp==='PROVAVEL BAIXA MANUAL')?'var(--warn)':'var(--muted)');
+  var _tpn=(_tp==='SAIU DE NOVO')?'saiu de novo':((_tp==='PROVAVEL BAIXA MANUAL')?'provável baixa manual no app do motoboy':((_tp==='LANCAMENTO DUPLICADO')?'lançamento duplicado':_tp));
+  var _tpp=_tp?'<span class="pill" style="background:'+_tpc+';color:#fff">'+esc(_tpn)+'</span>':'';
+  var _mp=(r.motivo_provavel&&r.motivo_provavel!=='sem conversa no chat')?_cz('o cliente reclamou de: '+esc(r.motivo_provavel)):_cz('sem conversa no chat do iFood');
+  var _fl=r.fala_cliente?_cz('“'+esc(String(r.fala_cliente).slice(0,200))+'”'):'';
+  var _it=r.itens?_cz('o pedido tinha: '+esc(String(r.itens).slice(0,140))):'';
+  var _ce=(r.custo_extra==null)?'':_cz('corrida extra: '+br(r.custo_extra));
+  return '<tr><td>'+reeHora(r.data_hora_pedido)+'</td><td><b>'+esc(r.n_pedido||'—')+'</b>'+_cz('canal: '+esc(r.canal||'não identificado'))+_cz('cliente '+esc(r.cliente_ini||'—'))+_cz('fonte: '+esc(r.fonte||'—'))+'</td><td>'+esc(r.unidade)+'</td><td>'+esc(r.turno||'—')+'</td><td>'+esc(r.entregador||'—')+'</td><td>'+_tpp+_par+_mp+_fl+_it+_ce+'</td><td>'+sel+'</td><td>'+fam+'</td><td>'+eqs+'</td><td>'+rsel+'</td></tr>';
 }
 
 // === 🧾 MAQUININHA — cruza Foody → Saipos → Rede → extrato/cofre → GPS, pedido por pedido ===
@@ -443,13 +452,13 @@ function motoVivo(){
 function reeAba(){
   if(REE===null)return '<div class="c"><div class="vazio">Carregando reentregas…</div></div>';
   var rs=(REE||[]).filter(function(r){return !UNI||r.unidade===UNI});
-  var h='<div class="m" style="margin:0 0 8px">🔁 A ferramenta da Central, agora aqui · <b>últimos 7 dias</b> · a lista junta o que a equipe lançou com # e o 2º pedido no mesmo endereço, no mesmo dia, até 3 horas depois, com o mesmo primeiro nome. Marcar o motivo e o responsável grava de verdade.</div>';
+  var h='<div class="m" style="margin:0 0 8px">🔁 <b>O mesmo pedido que saiu duas vezes</b> · últimos 7 dias · a lista vem do Foody e do TrackEat, traz a fala do cliente no chat do iFood e, para o dono, o custo da corrida extra. Marcar o motivo e o responsável grava de verdade.'+((rs[0]&&rs[0].cache_em)?(' · lista refeita <b>'+reeQuando(rs[0].cache_em)+'</b>'):'')+'</div>';
   if(REEERRO)h+='<div class="aviso">'+esc(REEERRO)+'</div>';
   if(!rs.length)return h+'<div class="c"><div class="vazio">Nenhuma reentrega nos últimos 7 dias'+(UNI?' na '+esc(UNI):'')+'.</div></div>';
   var dias=[];rs.forEach(function(r){if(dias.indexOf(r.dia_operacional)<0)dias.push(r.dia_operacional)});
   dias.sort();dias.reverse();
   dias.forEach(function(d){
-    h+='<h2>'+dData(d)+'</h2><div class="c"><div class="rolar"><table><tr><th>Hora</th><th>Pedido</th><th>Loja</th><th>Turno</th><th>Motoboy</th><th>1º pedido (o par)</th><th>Motivo</th><th>Família</th><th>Equipe do turno</th><th>Quem foi</th></tr>';
+    h+='<h2>'+dData(d)+'</h2><div class="c"><div class="rolar"><table><tr><th>Hora</th><th>Pedido</th><th>Loja</th><th>Turno</th><th>Motoboy</th><th>O que aconteceu</th><th>Motivo</th><th>Família</th><th>Equipe do turno</th><th>Quem foi</th></tr>';
     rs.forEach(function(r){if(r.dia_operacional===d)h+=reeLinha(r)});
     h+='</table></div></div>';
   });
