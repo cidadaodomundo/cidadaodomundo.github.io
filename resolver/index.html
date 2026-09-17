@@ -56,7 +56,7 @@ const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const $=i=>document.getElementById(i);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
-let D=null, DIAS=2, UNI='', VER='abertas', TIPO='';
+let D=null, DIAS=1, ONT=false, UNI='', VER='abertas', TIPO='';
 
 async function porta(nome,dados){
   const r=await fetch(SB+'rpc/'+nome,{method:'POST',
@@ -143,7 +143,7 @@ function chegada(){
         '<span style="color:var(--muted)">'+esc(c.diac||'')+' '+esc(c.hora||'')+' &#183; '+esc(c.unidade||'')+'</span> '+
         '<b>'+esc(c.quem||'')+'</b> <span style="color:var(--muted)">(quem viu foi o '+esc(c.fonte||'')+')</span></div>';
     }).join('')+'</div>'+
-    '<div class="m" style="margin-top:7px">O entregador chegou e ninguem marcou a chegada na tela. Periodo: '+esc(C.de||'')+' a '+esc(C.ate||'')+', conferido em '+esc(C.em||'')+'.</div></div>';
+    '<div class="m" style="margin-top:7px">O entregador chegou e ninguem marcou a chegada na tela. Dia '+esc(C.dia||'')+', conferido em '+esc(C.em||'')+'.</div></div>';
 }
 
 function bloco(tu, titulo){
@@ -326,20 +326,32 @@ function cardF(rot, val, tp, ver, cor, ic){
          '<div class="v"'+(cor?' style="color:'+cor+'"':'')+'>'+val+'</div></div>';
 }
 
+function barraFiltro(){
+  var lj=function(n,r){ return '<button class="'+(UNI===n?'on':'')+'" onclick="UNI=&quot;'+n+'&quot;;boot()">'+(r||n||'Todas')+'</button>' };
+  return '<div class="fil" style="margin:0 0 10px">'+
+     '<span style="color:var(--muted);font-size:11px;font-weight:800;align-self:center">PERÍODO</span>'+
+     '<button class="'+((DIAS===1&&!ONT)?'on':'')+'" onclick="DIAS=1;ONT=false;boot()">Hoje</button>'+
+     '<button class="'+(ONT?'on':'')+'" onclick="DIAS=1;ONT=true;boot()">Ontem</button>'+
+     '<button class="'+(DIAS===7?'on':'')+'" onclick="DIAS=7;ONT=false;boot()">7 dias</button>'+
+     '<span style="color:var(--muted);font-size:11px;font-weight:800;align-self:center;margin-left:10px">LOJA</span>'+
+     lj('','Todas')+lj('Água Verde')+lj('Ahú')+lj('São Braz')+
+     '</div>';
+}
+
 function desenha(){
   if(D===false){ $('app').innerHTML='<div class="c"><b>Não deu para carregar.</b><div class="m">Entre no portal de novo e tente outra vez.</div></div>'; return }
   if(!D){ $('app').innerHTML='<div class="load">Carregando…</div>'; return }
   const R=D.resumo||{}, itens=D.itens||[], card=D.cardapio||{};
-  let h='<div class="cards">'+
-    cardF('Esperando alguém',(R.abertas||0),'','abertas',((R.abertas||0)>0?'var(--bad)':'var(--ok)'),'⏳')+
-    cardF('Já resolvidas',(R.resolvidas||0),'','tudo','','✅')+
-    cardF('Cliente sem resposta',(R.chat||0),'chat','abertas','','💬')+
+  let h=barraFiltro()+'<div class="cards">'+
+    cardEsq()+
     cardF('Reentrega',(R.reentrega||0),'reentrega','abertas','','🔁')+
-    cardF('Negociação do iFood',(R.negociacao||0),'negociacao','abertas','','🤝')+
     cardF('Cancelado inteiro',(R.cancelamento||0),'cancelamento','abertas','','🚫')+
     cardF('Item cancelado',(R.parcial||0),'parcial','abertas','','✂️')+
+    cardF('Cliente sem resposta',(R.chat||0),'chat','abertas','','💬')+
+    cardPau()+
     cardF('Maquininha',(R.maquininha||0),'maquininha','abertas','','🧾')+
-    cardEsq()+cardPau()+cardCheg()+
+    cardF('Negociação do iFood',(R.negociacao||0),'negociacao','abertas','','🤝')+
+    cardCheg()+
   '</div>';
 
   h+=esquecidos();
@@ -350,19 +362,6 @@ function desenha(){
 
   h+=falaComigo();
 
-  h+='<div class="fil"><span style="color:var(--muted);font-size:11px;font-weight:800;align-self:center">PERÍODO</span>'+
-     '<button class="'+(DIAS===1?'on':'')+'" onclick="DIAS=1;boot()">Hoje</button>'+
-     '<button class="'+(DIAS===2?'on':'')+'" onclick="DIAS=2;boot()">Hoje e ontem</button>'+
-     '<button class="'+(DIAS===7?'on':'')+'" onclick="DIAS=7;boot()">7 dias</button>'+
-     '<span style="color:var(--muted);font-size:11px;font-weight:800;align-self:center;margin-left:10px">LOJA</span>'+
-     '<button class="'+(UNI===''?'on':'')+'" onclick="UNI=&quot;&quot;;boot()">Todas</button>'+
-     '<button class="'+(UNI==='Água Verde'?'on':'')+'" onclick="UNI=&quot;Água Verde&quot;;boot()">Água Verde</button>'+
-     '<button class="'+(UNI==='Ahú'?'on':'')+'" onclick="UNI=&quot;Ahú&quot;;boot()">Ahú</button>'+
-     '<button class="'+(UNI==='São Braz'?'on':'')+'" onclick="UNI=&quot;São Braz&quot;;boot()">São Braz</button>'+
-     '<span style="color:var(--muted);font-size:11px;font-weight:800;align-self:center;margin-left:10px">MOSTRAR</span>'+
-     '<button class="'+(VER==='abertas'?'on':'')+'" onclick="VER=&quot;abertas&quot;;desenha()">Só o que falta</button>'+
-     '<button class="'+(VER==='tudo'?'on':'')+'" onclick="VER=&quot;tudo&quot;;desenha()">Tudo, com o que já foi feito</button>'+
-     '</div>';
 
   const porTipo = TIPO ? itens.filter(function(x){return x.tipo===TIPO}) : itens;
   const lista = (VER==='abertas') ? porTipo.filter(function(x){return !x.resolvido}) : porTipo;
@@ -391,7 +390,7 @@ function desenha(){
 async function boot(){
   $('sub').textContent='carregando…';
   D=null; desenha();
-  try{ D=await porta('resolver_hoje',{dias:DIAS,unidade:UNI||null}); }
+  try{ D=await porta('resolver_hoje',{dias:DIAS,ontem:ONT,unidade:UNI||null}); }
   catch(e){ D=false; $('sub').textContent=(e&&e.message)||'erro'; desenha(); return }
   const R=D.resumo||{};
   $('sub').textContent='Cidadão do Mundo Burgers & Arts · '+(R.abertas||0)+' esperando alguém'+(UNI?' · '+UNI:'')+' · lido '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
