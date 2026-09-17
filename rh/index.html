@@ -431,6 +431,20 @@ async function expCarregar(){
     EXPLISTA=l; expPara(); expPinta(); try{render()}catch(e){}
   }catch(e){}
 }
+function xpDono(){try{return sessionStorage.getItem('cdm_admin')==='1'}catch(e){return false}}
+function xpEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function xpRot(d){return d==='nao_renovado'?'n&atilde;o renovar':(d==='efetivado'?'efetivado':(d==='prorrogado'?'prorrogado':xpEsc(d)))}
+async function xpDecidir(bt,nome,marco,dec,k){
+  var msg=document.getElementById('xpm_'+k), ta=document.getElementById('xpt_'+k);
+  if(msg)msg.innerHTML='gravando&hellip;';
+  try{
+    var res=await fetch(SB+'rpc/rh_experiencia_decidir',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_token:rhTok(),p_dados:{nome:nome,marco:marco,decisao:dec,observacao:(ta?ta.value:'')}})});
+    var j=await res.json().catch(function(){return null});
+    if(!res.ok){ if(msg)msg.innerHTML='<span style="color:#e05252">n&atilde;o gravou: '+xpEsc((j&&j.message)||('erro '+res.status))+'</span>'; return }
+    if(msg)msg.innerHTML='<span style="color:#37b46c">gravado</span>';
+    await expCarregar();
+  }catch(e){ if(msg)msg.innerHTML='<span style="color:#e05252">n&atilde;o gravou: '+xpEsc(e.message)+'</span>' }
+}
 function expPinta(){
   var box=$('expav'); if(!box) return;
   var l=EXPLISTA||[];
@@ -447,7 +461,19 @@ function expPinta(){
     h+='<span style="font-size:13px">'+(r.o_que_vence||'')+' em <b>'+expData(r.data_marco)+'</b> &mdash; '+quando+'</span>';
     if(r.alerta_etapa_1) h+='<br><span style="font-size:13px;color:#e8b13a">&#9888; '+r.alerta_etapa_1+'</span>';
     if(r.divergente_com_o_ponto) h+='<br><span style="font-size:13px;color:#e8b13a">&#9888; aparece ativa no Flash, mas n&atilde;o est&aacute; ativa no ponto &mdash; confira</span>';
-    if(r.decisao) h+='<br><span style="font-size:13px;color:#16a34a">&#10003; j&aacute; decidido: '+r.decisao+(r.decidido_por?(' &mdash; '+r.decidido_por):'')+'</span>';
+    if(r.decisao) h+='<br><span style="font-size:13px;color:#37b46c">&#10003; j&aacute; decidido: '+xpRot(r.decisao)+(r.decidido_por?(' &mdash; '+xpEsc(r.decidido_por)):'')+'</span>';
+    if(r.decisao_texto) h+='<br><span style="font-size:13px;color:var(--muted)">&ldquo;'+xpEsc(r.decisao_texto)+'&rdquo;</span>';
+    if(xpDono()){
+      var _k=String(r.nome||'').replace(/[^A-Za-z0-9]/g,'')+'_'+(r.marco||1);
+      h+='<div style="margin-top:6px">';
+      h+='<textarea id="xpt_'+_k+'" rows="2" placeholder="escreva aqui o que foi decidido e por que" style="width:100%;max-width:660px;background:var(--surface2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit;font-size:13px">'+xpEsc(r.decisao_texto||'')+'</textarea>';
+      h+='<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">';
+      ['efetivado|Efetivar|#37b46c','prorrogado|Prorrogar|#E0A81C','nao_renovado|N&atilde;o renovar|#e05252'].forEach(function(o){
+        var p=o.split('|'); var on=(r.decisao===p[0]);
+        h+='<button onclick="xpDecidir(this,&quot;'+xpEsc(r.nome||'')+'&quot;,'+(r.marco||1)+',&quot;'+p[0]+'&quot;,&quot;'+_k+'&quot;)" style="cursor:pointer;font:inherit;font-size:13px;padding:5px 12px;border-radius:8px;border:1px solid '+p[2]+';background:'+(on?p[2]:'transparent')+';color:'+(on?'#0b0e14':p[2])+'">'+p[1]+'</button>';
+      });
+      h+='</div><div id="xpm_'+_k+'" style="font-size:12px;color:var(--muted);margin-top:4px"></div></div>';
+    }
     h+='</div>';
   });
   h+='<div style="font-size:12px;color:#94a3b8;margin-top:6px">Contrato de 30 + 60 dias. O aviso acende 10 dias antes de cada marco. Data de admiss&atilde;o vem do Flash.</div>';
