@@ -163,6 +163,26 @@ function chegada(){
     '<div class="m" style="margin-top:7px">O entregador chegou e ninguem marcou a chegada na tela. Dia '+esc(C.dia||'')+', conferido em '+esc(C.em||'')+'.</div></div>';
 }
 
+var DUPO=false;
+function cardDup(){
+  var d=(D&&D.dupla)||{}, n=d.abertos||0;
+  if(!n) return cardF0('Corrida em dobro','&#128664;');
+  return '<div class="card" onclick="DUPO=!DUPO;desenha()" title="Corrida em dobro: clique para abrir ou fechar"'+
+    ' style="cursor:pointer'+(DUPO?';border-color:var(--brand)':'')+'">'+
+    '<div class="t">&#128664; Corrida em dobro '+(DUPO?'&#9650;':'&#9660;')+'</div>'+
+    '<div class="v" style="color:var(--bad)">'+n+'</div></div>';
+}
+function duplaPainel(){
+  var d=(D&&D.dupla)||{};
+  if(!DUPO || !(d.abertos>0)) return '';
+  var topo='<div style="color:var(--bad);font-size:11px;font-weight:800;margin-bottom:7px">CORRIDA EM DOBRO — A MESMA ENTREGA PODE TER SIDO PAGA DUAS VEZES</div>'+
+    '<div class="m" style="margin-bottom:8px">'+d.abertos+' sem decisão nos últimos 21 dias ("pagar uma só" e "conferir na mão") · '+(d.da_para_barrar||0)+' deles ainda pendentes no TrackEat ou do Foody. Pedido cancelado e corrida já reprovada no TrackEat não aparecem aqui.</div>';
+  if(!d.pode_decidir) return '<div style="border-left:3px solid var(--bad);background:var(--s1);border-radius:10px;padding:9px 11px;margin:8px 0">'+topo+
+    '<div class="m">Quem decide é o Fábio ou a Hellen, na tela Pagar Motoboys.</div></div>';
+  return '<div style="border-left:3px solid var(--bad);background:var(--s1);border-radius:10px;padding:9px 11px;margin:8px 0">'+topo+
+    '<iframe src="/pagamento/?aba=dup&embed=1&cb='+Date.now()+'" style="width:100%;height:75vh;min-height:560px;border:0;border-radius:9px;background:var(--s0)" title="Corrida em dobro"></iframe></div>';
+}
+
 function bloco(tu, titulo){
   var corpo='', n=0;
   ((D&&D.itens)||[]).forEach(function(l,i){
@@ -369,6 +389,7 @@ function desenha(){
     cardF('Maquininha',(R.maquininha||0),'maquininha','abertas','','🧾')+
     cardF('Negociação do iFood',(R.negociacao||0),'negociacao','abertas','','🤝')+
     cardCheg()+
+    cardDup()+
   '</div>';
 
   h+=esquecidos();
@@ -376,6 +397,8 @@ function desenha(){
   h+=pausados();
 
   h+=chegada();
+
+  h+=duplaPainel();
 
   h+=falaComigo();
 

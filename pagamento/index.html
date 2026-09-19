@@ -230,10 +230,49 @@ function dupQuando(t){if(!t)return '';var d=new Date(t);if(isNaN(d))return '';va
 function dupHora(t){if(!t)return '';var d=new Date(t);if(isNaN(d))return '';var p=function(x){return (x<10?'0':'')+x};return p(d.getHours())+':'+p(d.getMinutes())}
 function dupCor(v){v=String(v||'');if(v.indexOf('PAGAR UMA')===0)return '#e66767';if(v.indexOf('CONFERIR')===0)return '#c98500';return '#2fae6a'}
 function dupCard(t,v,d,cl){return '<div class="kpi'+(cl?' '+cl:'')+'"><div class="k">'+t+'</div><div class="v">'+v+'</div>'+(d?'<div class="d">'+d+'</div>':'')+'</div>'}
+var DUP_FIL='abertos', DUP_L=[], DUP_MSG='';
+function dupSt(s,f){
+  if(f!=='TrackEat') return '<span class="dst" style="background:#8882;color:var(--muted)">Foody · sem aprovação</span>';
+  if(s==='Aprovado') return '<span class="dst" style="background:#2fae6a22;color:#2fae6a">✅ aprovada no TrackEat</span>';
+  if(s==='Pendente') return '<span class="dst" style="background:#c9850022;color:#c98500">⏳ pendente no TrackEat</span>';
+  if(s==='Reprovado') return '<span class="dst" style="background:#e6676722;color:#e66767">⛔ reprovada no TrackEat</span>';
+  return '<span class="dst" style="background:#8882;color:var(--muted)">'+escDup(s||'sem status')+'</span>';
+}
+function dupAberto(r){ return !r.decisao && String(r.veredito||'').indexOf('PAGAR AS DUAS')!==0 }
+function dupAcao(r,i){
+  if(r.decisao){
+    var t=r.decisao==='nao_pagar'?('🚫 Não pagar a 2ª'+(r.valor_desconto!=null?' · desconto '+rs(r.valor_desconto):'')):(r.decisao==='pagar_duas'?'✅ Pagar as duas':'⛔ Reprovada no TrackEat');
+    return '<div id="dupb'+i+'"><b>'+t+'</b><div style="color:var(--muted);font-size:11.5px">'+escDup(r.decidido_por||'')+' · '+escDup(dupQuando(r.decidido_em))+(r.decisao_obs?'<br>'+escDup(r.decisao_obs):'')+'</div>'+
+      '<button class="b" style="margin-top:4px;font-size:11.5px" onclick="dupDecide('+i+',\'desfazer\')">↩ desfazer</button></div>';
+  }
+  if(String(r.veredito||'').indexOf('PAGAR AS DUAS')===0) return '<span style="color:var(--muted);font-size:12px">nada a fazer</span>';
+  return '<div id="dupb'+i+'" style="display:flex;flex-direction:column;gap:4px;min-width:160px">'+
+    '<button class="b" style="background:#e6676722;border-color:#e66767;color:#e66767" onclick="dupDecide('+i+',\'nao_pagar\')">🚫 Não pagar a 2ª'+(String(r.veredito||'').indexOf('PAGAR UMA')===0?'':' <span style="font-weight:400">(sem prova de GPS)</span>')+'</button>'+
+    '<button class="b" onclick="dupDecide('+i+',\'pagar_duas\')">✅ Pagar as duas</button>'+
+    (r.fonte_2==='TrackEat'?'<button class="b" onclick="dupDecide('+i+',\'reprovado_track\')">⛔ Já reprovei no TrackEat</button>':'')+
+    '</div>';
+}
+async function dupDecide(i,dec){
+  var r=DUP_L[i]; if(!r)return;
+  if(dec==='nao_pagar' && !confirm('Não pagar a 2ª corrida do pedido '+r.pedido_2+' para '+(r.entregador_2||'o motoboy')+'?\n\nVai entrar um desconto na conta dele do dia '+String(r.dia_operacional||'').slice(8,10)+'/'+String(r.dia_operacional||'').slice(5,7)+'. Dá para desfazer depois.'+(String(r.veredito||'').indexOf('PAGAR UMA')===0?'':'\n\nAtenção: aqui o GPS NÃO prova que ele foi uma vez só. A decisão fica gravada no seu nome.'))) return;
+  var b=document.getElementById('dupb'+i); if(b) b.innerHTML='<span style="color:var(--muted)">gravando…</span>';
+  try{
+    var resp=await fetch(SB+'rpc/pagamento_dupla_decidir',{method:'POST',
+      headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({p_token:cdmTok(),p_dados:{unidade:r.unidade,dia:r.dia_operacional,fonte_2:r.fonte_2,pedido_2:r.pedido_2,saiu_2:r.saiu_2,decisao:dec}})});
+    var j=null; try{ j=await resp.json() }catch(e){}
+    if(!resp.ok) throw new Error((j&&(j.message||j.hint))||('porta '+resp.status));
+    var av=(j&&j.msg)||'Anotado.';
+    if(dec==='nao_pagar'){ av='Pedido '+r.pedido_2+': '+(Number(j&&j.desconto)>0?('desconto de '+rs(j.desconto)+' na conta de '+(r.entregador_2||'')+'. '):'')+av; if(j&&j.dia_ja_pago&&Number(j.desconto)>0) av+=' Atenção: esse dia já foi pago — o desconto fica registrado; acerte no próximo pagamento.' }
+    else av='Pedido '+r.pedido_2+': '+av;
+    DUP_MSG=av; viewDup();
+  }catch(e){ if(b) b.innerHTML='<span style="color:#e66767">não gravou: '+escDup(e.message||'')+'</span>' }
+}
+function dupFil(f){ DUP_FIL=f; viewDup() }
 async function viewDup(){
   var el=$('conteudo'); if(!el)return;
   $('kpis').innerHTML=''; $('faixa').innerHTML='';
-  el.innerHTML='<div class="empty">Conferindo corrida a corrida, com o GPS…</div>';
+  if(!DUP_L.length) el.innerHTML='<div class="empty">Conferindo corrida a corrida, com o GPS…</div>';
   var de=($('de')&&$('de').value)||null, ate=($('ate')&&$('ate').value)||null;
   var j=null;
   try{
@@ -244,28 +283,44 @@ async function viewDup(){
     j=await resp.json();
   }catch(e){ el.innerHTML='<div class="c">Não deu para conferir agora. '+escDup(e.message||'')+'</div>'; return }
   var R=(j&&j.resumo)||{}, L=(j&&j.linhas)||[];
-  var h='<div class="m" style="margin:0 0 8px">🔎 <b>Corrida em dobro</b> — duas entregas na mesma porta, ou o mesmo pedido saindo duas vezes, em até 3 horas. O GPS do Foody e do TrackEat diz se o motoboy foi lá de novo ou não.'+(j&&j.cache_em?(' · lista refeita <b>'+escDup(dupQuando(j.cache_em))+'</b>'):'')+'</div>';
+  DUP_L=L;
+  var nAb=L.filter(dupAberto).length;
+  var h='<style>.dst{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700;margin-left:4px;white-space:nowrap}</style>';
+  h+='<div class="m" style="margin:0 0 8px">🔎 <b>Corrida em dobro</b> — duas corridas pagas na mesma porta, ou o mesmo pedido saindo duas vezes, em até 3 horas. O GPS diz se o motoboy foi lá de novo.'+(j&&j.cache_em?(' · lista refeita <b>'+escDup(dupQuando(j.cache_em))+'</b> (de hora em hora)'):'')+'</div>';
+  h+='<div class="c" style="margin:0 0 10px;font-size:12.5px;line-height:1.5"><b>Como ler cada linha:</b> '+
+     '<span class="dst" style="background:#2fae6a22;color:#2fae6a">✅ aprovada no TrackEat</span> alguém já aprovou, ela vai ser paga · '+
+     '<span class="dst" style="background:#c9850022;color:#c98500">⏳ pendente no TrackEat</span> ainda dá para barrar · '+
+     '<span class="dst" style="background:#8882;color:var(--muted)">Foody · sem aprovação</span> o Foody não tem aprovação, só o botão daqui barra.'+
+     '<br>Já saem da lista sozinhos: pedido <b>cancelado</b>, corrida <b>reprovada</b> no TrackEat e a mesma corrida repetida.'+
+     '<br><b>🚫 Não pagar a 2ª</b> lança um desconto na conta do motoboy daquele dia — só o que a corrida realmente somou (se o piso por hora já cobria, o desconto é zero). Se depois alguém reprovar a mesma corrida no TrackEat, o desconto sai sozinho.</div>';
+  if(DUP_MSG){ h+='<div class="c" style="margin:0 0 10px;border-left:3px solid #2fae6a">✔ '+escDup(DUP_MSG)+'</div>'; DUP_MSG=''; }
   h+='<div class="kpis">';
-  h+=dupCard('🔴 Pagar uma só', (R.pagar_uma||0), 'o GPS mostra uma passagem só · '+rs(R.pagar_uma_valor||0), 'w');
-  h+=dupCard('🟠 Conferir na mão', (R.conferir||0), 'sem prova de GPS · '+rs(R.conferir_valor||0));
-  h+=dupCard('🟢 Paga as duas', (R.pagar_duas||0), 'o GPS mostra duas idas: '+(R.pagar_duas_gps||0)+' · pedidos diferentes com folga de tempo: '+(R.pagar_duas_folga||0), 'g');
-  h+=dupCard('Ainda dá para barrar', (R.ainda_da||0)+' · '+rs(R.valor_ainda_em_jogo||0), 'são os "pagar uma só" ainda pendentes no TrackEat ('+(R.pendente_no_track||0)+') e os do Foody, que não têm status ('+(R.sem_status||0)+')<br>fora desta conta: '+(R.aprovado_no_track||0)+' já aprovados e '+(R.reprovado_no_track||0)+' já reprovados por alguém');
+  h+=dupCard('🔴 Falta decidir', nAb, 'pagar uma só ou conferir, sem decisão ainda', 'w');
+  h+=dupCard('Ainda dá para barrar', (R.ainda_da||0)+' · '+rs(R.valor_ainda_em_jogo||0), 'pagar uma só, pendentes no TrackEat ('+(R.pendente_no_track||0)+') ou do Foody ('+(R.sem_status||0)+')');
+  h+=dupCard('Já aprovadas no TrackEat', (R.aprovado_no_track||0), 'pagar uma só que alguém já aprovou — essas já foram pagas');
+  h+=dupCard('🟢 Paga as duas', (R.pagar_duas||0), 'o GPS mostra duas idas: '+(R.pagar_duas_gps||0)+' · pedidos diferentes com folga: '+(R.pagar_duas_folga||0), 'g');
+  h+=dupCard('Decididas', (R.decididos||0), 'não pagar a 2ª: '+(R.nao_pagar||0));
   h+='</div>';
-  if(!L.length){ el.innerHTML=h+'<div class="c"><div class="empty">Nada para conferir no período.</div></div>'; return }
-  h+='<div class="c"><div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th>Dia</th><th>Loja</th><th>Onde</th><th>As duas corridas</th><th>O que o GPS diz</th><th>Veredito</th><th>Valor da 2ª</th></tr>';
-  L.forEach(function(r){
+  h+='<div style="margin:0 0 8px;display:flex;gap:6px;flex-wrap:wrap">'+
+     '<button class="b" style="'+(DUP_FIL==='abertos'?'border-color:var(--brand);font-weight:800':'')+'" onclick="dupFil(\'abertos\')">Falta decidir ('+nAb+')</button>'+
+     '<button class="b" style="'+(DUP_FIL==='tudo'?'border-color:var(--brand);font-weight:800':'')+'" onclick="dupFil(\'tudo\')">Tudo ('+L.length+')</button></div>';
+  var rows='', n=0;
+  L.forEach(function(r,i){
+    if(DUP_FIL==='abertos' && !dupAberto(r)) return;
+    n++;
     var cor=dupCor(r.veredito);
     var gps=(r.visitas==null||r.visitas===0)?'<span style="color:var(--muted)">não achei o motoboy perto do endereço</span>':((r.visitas===1?'1 passagem':r.visitas+' idas')+' · chegou a '+(r.menor_m==null?'?':r.menor_m+' m')+(r.quem_chegou?('<div style="color:var(--muted);font-size:11.5px">'+escDup(r.quem_chegou)+'</div>'):''));
-    var corridas='<b>'+escDup(r.pedido_1)+'</b> '+dupHora(r.saiu_1)+' · '+escDup(r.entregador_1||'sem motoboy')+' · '+rs(r.valor_1)
-      +'<div>'+(r.mesmo_pedido?'<b>o mesmo pedido</b> ':'<b>'+escDup(r.pedido_2)+'</b> ')+dupHora(r.saiu_2)+' · '+escDup(r.entregador_2||'sem motoboy')+' · '+rs(r.valor_2)+'</div>'
-      +'<div style="color:var(--muted);font-size:11.5px">'+(r.minutos_entre==null?'':r.minutos_entre+' min depois')+(r.status_2?(' · no TrackEat: '+escDup(r.status_2)):'')+(r.fonte_2?(' · '+escDup(r.fonte_2)):'')+'</div>';
-    h+='<tr><td>'+escDup(String(r.dia_operacional||'').slice(8,10)+'/'+String(r.dia_operacional||'').slice(5,7))+'</td><td>'+escDup(r.unidade)+'</td>'
+    var corridas='<div>1ª <b>'+escDup(r.pedido_1)+'</b> '+dupHora(r.saiu_1)+' · '+escDup(r.entregador_1||'sem motoboy')+' · '+rs(r.valor_1)+' '+dupSt(r.status_1,r.fonte_1)+'</div>'
+      +'<div style="margin-top:3px">2ª '+(r.mesmo_pedido?'<b>o mesmo pedido</b> ':'<b>'+escDup(r.pedido_2)+'</b> ')+dupHora(r.saiu_2)+' · '+escDup(r.entregador_2||'sem motoboy')+' · '+rs(r.valor_2)+' '+dupSt(r.status_2,r.fonte_2)+'</div>'
+      +'<div style="color:var(--muted);font-size:11.5px">'+(r.minutos_entre==null?'':r.minutos_entre+' min depois')+'</div>';
+    var vtxt=String(r.veredito||''), k=vtxt.indexOf('—');
+    var ver='<span style="display:inline-block;border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:800;background:'+cor+'22;color:'+cor+'">'+escDup(k>0?vtxt.slice(0,k).trim():vtxt)+'</span>'+(k>0?'<div style="color:var(--muted);font-size:11.5px;margin-top:3px">'+escDup(vtxt.slice(k+1).trim())+'</div>':'');
+    rows+='<tr style="border-top:1px solid #8883;vertical-align:top"><td>'+escDup(String(r.dia_operacional||'').slice(8,10)+'/'+String(r.dia_operacional||'').slice(5,7))+'</td><td>'+escDup(r.unidade)+'</td>'
       +'<td>'+escDup(r.porta_txt||'—')+'<div style="color:var(--muted);font-size:11.5px">cliente '+escDup(r.cliente_1||'?')+(r.cliente_2&&r.cliente_2!==r.cliente_1?(' e '+escDup(r.cliente_2)):'')+'</div></td>'
-      +'<td>'+corridas+'</td><td>'+gps+'</td>'
-      +'<td><span style="display:inline-block;border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:700;background:'+cor+'22;color:'+cor+'">'+escDup(r.veredito)+'</span></td>'
-      +'<td>'+rs(r.valor_2)+'</td></tr>';
+      +'<td>'+corridas+'</td><td>'+gps+'</td><td>'+ver+'</td><td>'+dupAcao(r,i)+'</td></tr>';
   });
-  h+='</table></div></div>';
+  if(!n){ el.innerHTML=h+'<div class="c"><div class="empty">'+(DUP_FIL==='abertos'?'Nada esperando decisão no período. 👍':'Nada para conferir no período.')+'</div></div>'; return }
+  h+='<div class="c"><div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th>Dia</th><th>Loja</th><th>Onde</th><th>As duas corridas</th><th>O que o GPS diz</th><th>Veredito</th><th>Decisão</th></tr>'+rows+'</table></div></div>';
   el.innerHTML=h;
 }
 function viewRegras(){$('kpis').innerHTML='';$('faixa').innerHTML='';$('conteudo').innerHTML=REGRAS_HTML}
@@ -980,7 +1035,7 @@ async function cdmGuarda(){
   if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){if(!ok)return;try{$('p_sem').parentElement.style.display='none'}catch(e){}puxaPagDia();});
+cdmGuarda().then(function(ok){if(!ok)return;try{$('p_sem').parentElement.style.display='none'}catch(e){}var qs=new URLSearchParams(location.search);if(qs.get('aba')==='dup'){try{$('de').value=new Date(Date.now()-21*864e5).toISOString().slice(0,10)}catch(e){}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}}setView('dup');return}puxaPagDia();});
 </script>
 <script src="/assets/portal.js?v=3"></script>
 </body>
