@@ -402,7 +402,7 @@ async function loadAll(){
     DI=NAV.length-1;
     await svsLoad();
     await przLoad();await supLoad();
-    $('upd').textContent='atualizado '+new Date().toLocaleTimeString('pt-BR');
+    $('upd').textContent='atualizado '+new Date().toLocaleTimeString('pt-BR');(function(){if(!document.getElementById('cdmf2')){var y=document.createElement('style');y.id='cdmf2';y.textContent='#upd .cdm-fresh{display:none}';document.head.appendChild(y)}var mx='';(ATR||[]).forEach(function(p){if(p.dia_operacional>mx)mx=p.dia_operacional});if(!mx)return;var hj=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);var dd=Math.round((new Date(hj)-new Date(mx))/864e5);var s=document.createElement('span');s.style.cssText='display:inline-block;font-size:11px;line-height:1.5;padding:1px 8px;border-radius:999px;border:1px solid currentColor;margin-left:8px;white-space:nowrap;color:'+(dd<=1?'#38b26a':(dd<=2?'#e0a33a':'#e2574c'));s.textContent='pedidos até '+mx.slice(8,10)+'/'+mx.slice(5,7)+' · Foody + TrackEat'+(dd>1?' · '+dd+' dias atrás':'');$('upd').appendChild(s)})();
     render();
   }catch(e){$('conteudo').innerHTML='<div class="err">Erro ao carregar: '+e.message+'</div>'}
 }
@@ -596,16 +596,17 @@ function blocoEscala(D){
   h+='</table></div>';return h;
 }
 /* ================= EQUIPE ================= */
-function _realPorMoto(dias){var m={};(typeof ATR!=='undefined'?ATR:[]).forEach(function(p){if(dias.indexOf(p.dia_operacional)<0)return;if(!p.entregador)return;var k=p.entregador+'|'+p.unidade;var o=m[k]=m[k]||{ok:0,at:0,e:0};o.e++;if(p.no_prazo_real)o.ok++;else o.at++});return m}
+function _canon(){var c={},best={},nm={};(typeof ATR!=='undefined'?ATR:[]).forEach(function(p){if(!p.entregador)return;var ch=String(p.motoboy_chave||p.entregador);c[ch]=c[ch]||{};c[ch][p.entregador]=(c[ch][p.entregador]||0)+1;nm[p.entregador]=ch});Object.keys(c).forEach(function(ch){var b='',n=-1;Object.keys(c[ch]).forEach(function(x){if(c[ch][x]>n){n=c[ch][x];b=x}});best[ch]=b});var r={};Object.keys(nm).forEach(function(x){r[x]=best[nm[x]]});return r}
+function _realPorMoto(dias){var m={},_c=_canon();(typeof ATR!=='undefined'?ATR:[]).forEach(function(p){if(dias.indexOf(p.dia_operacional)<0)return;if(!p.entregador)return;var k=(_c[p.entregador]||p.entregador)+'|'+p.unidade;var o=m[k]=m[k]||{ok:0,at:0,e:0};o.e++;if(p.no_prazo_real)o.ok++;else o.at++});return m}
 function _tabelaTurno(dias){
   var ORD={'Almoço':1,'Tarde':2,'Jantar':3,'Madrugada':4};
-  var m={};
+  var m={},_c=_canon();
   (typeof ATR!=='undefined'?ATR:[]).forEach(function(p){
     if(dias.indexOf(p.dia_operacional)<0)return;
     if(!p.entregador)return;
     if(LOJA!=='Todas'&&String(p.unidade||'')!==LOJA)return;
-    var t=p.turno||'—', k=t+'|'+p.entregador+'|'+p.unidade;
-    var o=m[k]=m[k]||{t:t,n:p.entregador,l:p.unidade,e:0,ok:0,at:0,ds:{}};
+    var _n=_c[p.entregador]||p.entregador;var t=p.turno||'—', k=t+'|'+_n+'|'+p.unidade;
+    var o=m[k]=m[k]||{t:t,n:_n,l:p.unidade,e:0,ok:0,at:0,ds:{}};
     o.e++; if(p.no_prazo_real)o.ok++; else o.at++; o.ds[p.dia_operacional]=1;
   });
   var L=Object.keys(m).map(function(k){var o=m[k];o.d=Object.keys(o.ds).length;o.p=pctS(o.ok,o.at);return o});
@@ -643,7 +644,7 @@ function renderEquipe(){
   const rsAll=PAG.filter(r=>dias.includes(r.dia_operacional));
   const motos=aggMoto(rs).sort((a,b)=>b.e-a.e);
   const motosAll=aggMoto(rsAll);
-  var _R=_realPorMoto(dias);var _ap=function(arr){arr.forEach(function(o){var r=_R[o.n+'|'+o.l];if(r){o.ok=r.ok;o.at=r.at;o.e=r.e}})};var _add=function(arr,filtra){Object.keys(_R).forEach(function(k){var i=k.lastIndexOf('|'),nm=k.slice(0,i),un=k.slice(i+1);if(filtra&&!(LOJA==='Todas'||un===LOJA))return;for(var j=0;j<arr.length;j++){if(arr[j].n===nm&&arr[j].l===un)return}var r=_R[k];arr.push({n:nm,l:un,d:0,h:0,e:r.e,ok:r.ok,at:r.at,sem:0,v:0,g:0,c:0,rec:0,qr:0,p:pctS(r.ok,r.at),parcial:true})})};_ap(motos);_ap(motosAll);_add(motos,true);_add(motosAll,false);motos.sort(function(a,b){return b.e-a.e});
+  var _R=_realPorMoto(dias),_C=_canon();var _ap=function(arr){arr.forEach(function(o){if(_C[o.n])o.n=_C[o.n];var r=_R[o.n+'|'+o.l];if(r){o.ok=r.ok;o.at=r.at;o.e=r.e}})};var _add=function(arr,filtra){Object.keys(_R).forEach(function(k){var i=k.lastIndexOf('|'),nm=k.slice(0,i),un=k.slice(i+1);if(filtra&&!(LOJA==='Todas'||un===LOJA))return;for(var j=0;j<arr.length;j++){if(arr[j].n===nm&&arr[j].l===un)return}var r=_R[k];arr.push({n:nm,l:un,d:0,h:0,e:r.e,ok:r.ok,at:r.at,sem:0,v:0,g:0,c:0,rec:0,qr:0,p:pctS(r.ok,r.at),parcial:true})})};_ap(motos);_ap(motosAll);_add(motos,true);_add(motosAll,false);motos.sort(function(a,b){return b.e-a.e});
   let ent=0,ok=0,atr=0,sem=0,horas=0,comp=0,rec=0;
   motos.forEach(m=>{ent+=m.e;ok+=m.ok;atr+=m.at;sem+=m.sem;horas+=m.h;comp+=m.c;rec+=m.rec});
   const pct=pctS(ok,atr);
