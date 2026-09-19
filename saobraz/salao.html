@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Salão · São Braz · Cidadão do Mundo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#E0A81C;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',system-ui,sans-serif;font-size:15px;padding:18px;max-width:1180px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
+.top .rt{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+button.b.on{background:var(--brand);color:#111;border-color:var(--brand)}
+h2{font-size:15px;font-weight:800;margin:26px 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+h2 .hint,.hint{font-weight:500;font-size:11.5px;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.c{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:16px;text-align:left;color:var(--text);font-family:inherit}
+button.c{cursor:pointer}
+.c.sel{border-color:var(--brand)}
+.c .nm{font-weight:700;font-size:13px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px}
+.c .big{font-family:'Anton',sans-serif;font-size:40px;line-height:1.1;margin-top:4px}
+.c .qtd{color:var(--muted);font-size:12px;margin-top:2px}
+.c.zero .big{color:var(--ok)}
+.c.tem .big{color:var(--bad)}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap}
+.p-COZINHA,.p-bad{background:rgba(230,103,103,.15);color:var(--bad)}
+.p-BEBIDA{background:rgba(80,160,230,.15);color:#6bb4ef}
+.p-INTERNO,.p-warn{background:rgba(201,133,0,.15);color:var(--warn)}
+.p-ok{background:rgba(47,174,106,.15);color:var(--ok)}
+.p-off{background:rgba(138,137,126,.15);color:var(--muted)}
+.lista{background:var(--s1);border:1px solid var(--line);border-radius:13px}
+.it{padding:11px 14px;border-bottom:1px solid var(--line);font-size:13px}
+.it:last-child{border-bottom:none}
+.it .l1{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.it .l1 b{font-weight:700}
+.it .m{color:var(--muted);font-size:12px}
+.it .l2{color:var(--text2);margin-top:4px;line-height:1.45}
+.it.hoje{border-left:3px solid var(--brand)}
+.vazio{color:var(--muted);font-size:13px;padding:14px}
+.fresco{color:var(--muted);font-size:12px;margin:-6px 0 14px;line-height:1.6}
+.aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:11px 14px;font-size:12.5px;margin:10px 0;line-height:1.5}
+.grp{padding:10px 14px;border-bottom:1px solid var(--line)}
+.grp:last-child{border-bottom:none}
+.grp .t{font-weight:700;font-size:13px;margin-bottom:6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--s2);border:1px solid var(--line);border-radius:20px;padding:4px 10px;font-size:12px;color:var(--text2)}
+.chip i{font-style:normal;color:var(--muted);font-size:11px}
+.bar{display:flex;align-items:center;gap:8px;font-size:12.5px;margin:4px 0}
+.bar .tr{flex:1;height:8px;background:var(--s2);border-radius:5px;overflow:hidden}
+.bar .fi{height:100%;background:var(--brand)}
+.txt{color:var(--text2);font-size:13px;line-height:1.55;white-space:pre-line}
+.load{color:var(--muted);padding:30px;text-align:center}
+.erro{color:var(--bad);padding:20px}
+@media(max-width:600px){body{padding:12px}.c .big{font-size:32px}}
+</style>
+</head>
+<body>
+<div class="top">
+  <div><h1>🍽 Salão · São Braz</h1><div class="sub">Reservas, avaliações do Google e o que está fora do tablet de mesa</div></div>
+  <div class="rt"><button class="b" id="recarga">↻ Atualizar</button></div>
+</div>
+<div id="app" class="load">Carregando…</div>
+<script>
+const SBR='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function num(v){return v==null?'—':String(v).replace('.',',')}
+async function porta(acao,dados){
+  const r=await fetch(SBR+'rpc/sb_consulta',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:cdmTok(),p_acao:acao,p_dados:dados||{}})});
+  if(!r.ok){let t='';try{t=(await r.json()).message||''}catch(e){}throw new Error(t||('erro '+r.status))}
+  return r.json();
+}
+
+const CDMMODS=['sbsalao'];
+let D=null;
+function render(){
+  const d=D, a=document.getElementById('app');
+  a.className='';
+  let h='';
+  const R=d.reservas||[];
+  h+='<h2>📅 Reservas <span class="hint">de ontem até daqui a 14 dias</span></h2>';
+  if(!R.length){
+    h+='<div class="aviso">⚠️ <b>Nenhuma reserva do São Braz chegou ao sistema ainda.</b> As reservas do GetIn ainda não são puxadas sozinhas para cá. Enquanto isso, confira no GetIn — e abaixo aparece o que o grupo Salão São Braz falou de reserva no WhatsApp.</div>';
+  } else {
+    h+='<div class="lista">';R.forEach(function(r){
+      h+='<div class="it'+(r.hoje?' hoje':'')+'"><div class="l1"><b>'+esc(r.semana)+' '+esc(r.dia)+' · '+esc(r.hora||'—')+'</b><span class="pill '+(/confirm/i.test(r.status||'')&&!/a confirmar/i.test(r.status||'')?'p-ok':'p-warn')+'">'+esc(r.status||'—')+'</span>'+(r.hoje?'<span class="pill p-ok">HOJE</span>':'')+'</div>'+
+         '<div class="l2">'+esc(r.pessoas||'?')+' pessoas · '+esc(r.nome||'—')+(r.area?' · '+esc(r.area):'')+' <span class="m">· '+esc(r.origem||'')+'</span>'+(r.obs?'<br>'+esc(r.obs):'')+'</div></div>'});
+    h+='</div>'}
+  const W=d.whats||[];
+  h+='<h2 style="margin-top:16px">💬 Reserva falada no grupo Salão São Braz <span class="hint">últimos 10 dias'+(d.whats_desde?' · primeira mensagem lida em '+esc(d.whats_desde):' · ainda não chegou nenhuma mensagem desse grupo')+'</span></h2>';
+  if(!W.length){h+='<div class="lista"><div class="vazio">Nenhuma mensagem com reserva, mesa ou aniversário no grupo ainda.</div></div>'}
+  else{h+='<div class="lista">';W.forEach(function(w){h+='<div class="it"><div class="l1"><b>'+esc(w.quando)+'</b><span class="m">'+esc(w.quem||'')+'</span></div><div class="l2">'+esc(w.texto)+'</div></div>'});h+='</div>'}
+  const g=d.google;
+  h+='<h2>⭐ Google <span class="hint">'+(g?'lido em '+esc(g.em):'sem leitura')+'</span></h2>';
+  if(!g){h+='<div class="lista"><div class="vazio">Sem leitura do Google para o São Braz.</div></div>'}
+  else{
+    const S=d.google_serie||[];let dif='';
+    if(S.length>1){const a0=S[0],a1=S[S.length-1];const dn=(a1.n||0)-(a0.n||0);dif=dn>=0?'+'+dn+' avaliações desde '+esc(a0.em):''}
+    h+='<div class="cards"><div class="c"><div class="nm">Nota no Google</div><div class="big">'+num(g.nota)+'</div><div class="qtd">'+esc(g.n)+' avaliações</div></div>';
+    h+='<div class="c"><div class="nm">Novas avaliações</div><div class="big">'+(dif?dif.split(' ')[0]:'—')+'</div><div class="qtd">'+(dif?esc(dif.split(' ').slice(1).join(' ')):'sem histórico suficiente')+'</div></div></div>';
+    if(g.resumo)h+='<div class="lista" style="margin-top:12px"><div class="it"><div class="l1"><b>O que os clientes estão dizendo</b></div><div class="l2 txt">'+esc(g.resumo)+'</div></div>'+
+       (g.destaques?'<div class="it"><div class="l1"><b>Destaques</b></div><div class="l2 txt">'+esc(typeof g.destaques==='string'?g.destaques:JSON.stringify(g.destaques))+'</div></div>':'')+'</div>';
+  }
+  const G=d.goomer||[];
+  h+='<h2>📵 Fora do tablet de mesa (Goomer) <span class="hint">'+G.length+' itens · lido em '+esc(d.goomer_lido||'—')+'</span></h2>';
+  if(d.goomer_dias!=null&&d.goomer_dias>2)h+='<div class="aviso">⚠️ <b>Esta lista está velha:</b> a última leitura do Goomer foi em '+esc(d.goomer_lido)+', há '+esc(d.goomer_dias)+' dias. Pode ter item que já voltou ou que saiu depois disso.</div>';
+  if(!G.length){h+='<div class="lista"><div class="vazio">Nada fora do ar na última leitura.</div></div>'}
+  else{const gr={pausado:[],escondido:[]};G.forEach(function(x){(gr[x.estado]=gr[x.estado]||[]).push(x)});
+    h+='<div class="lista">';Object.keys(gr).forEach(function(k){if(!gr[k].length)return;
+      h+='<div class="grp"><div class="t">'+(k==='pausado'?'⏸ Pausados':k==='escondido'?'🙈 Escondidos':esc(k))+' <span class="hint">('+gr[k].length+')</span></div><div class="chips">';
+      gr[k].forEach(function(x){h+='<span class="chip">'+esc(x.item)+(x.tipo&&x.tipo!=='item'?' <i>'+esc(x.tipo)+'</i>':'')+' <i>desde '+esc(x.desde)+'</i></span>'});
+      h+='</div></div>'});h+='</div>'}
+  a.innerHTML=h;
+}
+async function carregar(){
+  const a=document.getElementById('app');a.className='load';a.textContent='Carregando…';
+  try{D=await porta('salao',{});render()}
+  catch(e){a.className='erro';a.textContent='Não consegui carregar: '+e.message}
+}
+function boot(){document.getElementById('recarga').onclick=carregar;carregar()}
+/* ===== porta unica do portal: sessao por usuario ===== */
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SBR+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:CDMMODS[0]})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(ok)boot()});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
