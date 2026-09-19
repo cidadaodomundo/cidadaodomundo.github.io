@@ -417,7 +417,7 @@ function render(){
   renderDay();
 }
 function limpaTopo(){$('kpis').innerHTML='';$('units').innerHTML=''}
-/* AVISO DE FIM DE EXPERIENCIA - 16/09/2026 - regra do Fabio: 30 + 60 dias, avisar 10 dias antes dos DOIS marcos */
+/* AVISO DE FIM DE EXPERIENCIA - 16/09/2026; 19/09/2026 pedido do Fabio: so aparece 7 dias antes e some quando a decisao e marcada; dono e gestoras (Hellen, Lanna, Rita, Arissa) marcam */
 var EXPLISTA=null, EXPT=null, EXPTENT=0;
 function expData(s){if(!s)return '';var p=String(s).split('-');return p[2]+'/'+p[1];}
 function xpKey(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim()}
@@ -431,7 +431,7 @@ async function expCarregar(){
     EXPLISTA=l; expPara(); expPinta(); try{render()}catch(e){}
   }catch(e){}
 }
-function xpDono(){try{return sessionStorage.getItem('cdm_admin')==='1'}catch(e){return false}}
+function xpDono(){try{return sessionStorage.getItem('cdm_admin')==='1'||/^(Lanna|Rita|Arissa|Hellen)\b/i.test(sessionStorage.getItem('cdm_nome')||'')}catch(e){return false}}
 function xpEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function xpRot(d){return d==='nao_renovado'?'n&atilde;o renovar':(d==='efetivado'?'efetivado':(d==='prorrogado'?'prorrogado':xpEsc(d)))}
 async function xpDecidir(bt,nome,marco,dec,k){
@@ -447,19 +447,18 @@ async function xpDecidir(bt,nome,marco,dec,k){
 }
 function expPinta(){
   var box=$('expav'); if(!box) return;
-  var l=EXPLISTA||[];
+  var l=(EXPLISTA||[]).filter(function(r){return !r.decisao && r.dias_para_marco!=null && r.dias_para_marco<=7});
   if(!l.length){box.innerHTML='';return}
   function cor(r){ if(r.situacao==='PASSOU DO PRAZO')return '#b91c1c'; if(r.situacao==='AVISO')return '#dc2626'; if(r.alerta_etapa_1)return '#e8833a'; return 'var(--text)'; }
   var urg=l.filter(function(r){return r.situacao!=='EM EXPERIENCIA'||r.alerta_etapa_1});
   var h='<div style="border:1px solid var(--line);border-left:5px solid '+(urg.length?'#dc2626':'#94a3b8')+';border-radius:10px;padding:10px 12px;margin:10px 0;background:var(--surface);color:var(--text)">';
-  h+='<div style="font-weight:700;margin-bottom:4px">&#9203; Contrato de experi&ecirc;ncia &mdash; '+l.length+' em avalia&ccedil;&atilde;o'+(urg.length?(' &middot; <span style="color:#dc2626">'+urg.length+' pedindo decis&atilde;o</span>'):'')+'</div>';
+  h+='<div style="font-weight:700;margin-bottom:4px">&#128203; Contrato de experi&ecirc;ncia &mdash; '+l.length+(l.length===1?' pessoa precisa':' pessoas precisam')+' de decis&atilde;o</div>';
   l.forEach(function(r){
     var q=r.dias_para_marco;
     var quando = q<0 ? ('venceu h&aacute; '+(-q)+' dia(s)') : (q===0 ? 'vence HOJE' : ('faltam '+q+' dia(s)'));
     h+='<div style="padding:6px 0;border-top:1px solid var(--line)">';
     h+='<b style="color:'+cor(r)+'">'+(r.nome||'')+'</b> <span style="color:var(--muted);font-size:13px">&middot; '+(r.unidade||'')+' &middot; entrou em '+expData(r.admissao)+'</span><br>';
-    h+='<span style="font-size:13px">'+(r.o_que_vence||'')+' em <b>'+expData(r.data_marco)+'</b> &mdash; '+quando+'</span>';
-    if(r.alerta_etapa_1) h+='<br><span style="font-size:13px;color:#e8b13a">&#9888; '+r.alerta_etapa_1+'</span>';
+    h+='<span style="font-size:13px">'+(r.marco==1?'1&ordf; parte da experi&ecirc;ncia (30 dias) termina':'per&iacute;odo de experi&ecirc;ncia termina')+' em <b>'+expData(r.data_marco)+'</b> &mdash; '+quando+'</span>';
     if(r.divergente_com_o_ponto) h+='<br><span style="font-size:13px;color:#e8b13a">&#9888; aparece ativa no Flash, mas n&atilde;o est&aacute; ativa no ponto &mdash; confira</span>';
     if(r.decisao) h+='<br><span style="font-size:13px;color:#37b46c">&#10003; j&aacute; decidido: '+xpRot(r.decisao)+(r.decidido_por?(' &mdash; '+xpEsc(r.decidido_por)):'')+'</span>';
     if(r.decisao_texto) h+='<br><span style="font-size:13px;color:var(--muted)">&ldquo;'+xpEsc(r.decisao_texto)+'&rdquo;</span>';
@@ -476,7 +475,7 @@ function expPinta(){
     }
     h+='</div>';
   });
-  h+='<div style="font-size:12px;color:#94a3b8;margin-top:6px">Contrato de 30 + 60 dias. O aviso acende 10 dias antes de cada marco. Data de admiss&atilde;o vem do Flash.</div>';
+  h+='<div style="font-size:12px;color:#94a3b8;margin-top:6px">Aparece 7 dias antes do fim e some quando a decis&atilde;o &eacute; marcada. Data de admiss&atilde;o vem do Flash.</div>';
   h+='</div>';
   box.innerHTML=h;
 }
