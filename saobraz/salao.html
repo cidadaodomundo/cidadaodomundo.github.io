@@ -56,6 +56,15 @@ button.c{cursor:pointer}
 .txt{color:var(--text2);font-size:13px;line-height:1.55;white-space:pre-line}
 .load{color:var(--muted);padding:30px;text-align:center}
 .erro{color:var(--bad);padding:20px}
+.pzal{border-left:3px solid var(--bad)}
+.pzbox{background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px}
+.pzops{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:6px}
+.pzop{display:flex;gap:8px;align-items:flex-start;background:var(--s1);border:1px solid var(--line);border-radius:9px;padding:8px 10px;cursor:pointer;font-size:12.5px}
+.pzop input{margin-top:3px}
+.pzfazer{margin:10px 0;font-size:13px;line-height:1.5;color:var(--text2)}
+.pzcampo{margin:8px 0;font-size:12.5px;color:var(--text2);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pzcampo input{background:var(--s1);border:1px solid var(--line);color:var(--text);border-radius:7px;padding:6px 8px;font-family:inherit;font-size:13px;min-width:180px;color-scheme:dark}
+.pzmsg{margin-top:8px;font-size:12.5px}
 @media(max-width:600px){body{padding:12px}.c .big{font-size:32px}}
 </style>
 </head>
@@ -75,8 +84,115 @@ async function porta(acao,dados){
   if(!r.ok){let t='';try{t=(await r.json()).message||''}catch(e){}throw new Error(t||('erro '+r.status))}
   return r.json();
 }
+/* ===== itens pausados: o motivo e o que fazer ===== */
+const PZ_MOT={
+  esqueceram:{ic:'🙈',t:'Esqueceram de despausar',d:'O item tem, mas ficou pausado por engano.',
+    fazer:{ifood:'Despause agora: no Gestor de Pedidos do iFood, abra Cardápio, procure o item e ligue a chave de disponível.',goomer:'Despause agora: no painel do Goomer, abra Cardápio, procure o item e marque como ativo (e visível).'},
+    depois:'Na próxima leitura do cardápio eu confiro. Se continuar pausado, volta a acender aqui.'},
+  falta_insumo:{ic:'📦',t:'Acabou o ingrediente',d:'Falta insumo no estoque (ex.: morango, pão, bebida que não chegou).',data:true,
+    fazer:{ifood:'Peça a compra e diga quando volta. Quando chegar, despause no iFood.',goomer:'Peça a compra e diga quando volta. Quando chegar, reative no Goomer.'},
+    depois:'Se passar da data e o item continuar pausado, volta a acender aqui.'},
+  equipamento:{ic:'🔧',t:'Equipamento quebrado',d:'Chopeira, fritadeira, chapa, geladeira, forno…',data:true,obs:'Qual equipamento?',
+    fazer:{ifood:'Ao salvar, abro sozinho um chamado na tela Manutenção. Quando consertar, despause no iFood.',goomer:'Ao salvar, abro sozinho um chamado na tela Manutenção. Quando consertar, reative no Goomer.'},
+    depois:'Se passar da data e continuar pausado, volta a acender aqui.'},
+  temporario:{ic:'⏸',t:'Pausado de propósito, por um tempo',d:'Fora da época (caldo no verão), pouco movimento, promoção que acabou.',data:true,
+    fazer:{ifood:'Nada agora. Diga até quando fica pausado.',goomer:'Nada agora. Diga até quando fica pausado.'},
+    depois:'Na data, volta a acender para você decidir se reativa.'},
+  saiu_cardapio:{ic:'🗑',t:'Saiu do cardápio de vez',d:'A casa não vai mais vender esse item.',
+    fazer:{ifood:'Apague o item no iFood (Cardápio → item → excluir). Item pausado para sempre confunde o cliente e esconde os pausados de verdade.',goomer:'Apague ou arquive o item no Goomer, para ele sumir do tablet de mesa.'},
+    depois:'Fica na lista cinza "falta apagar" até sumir do cardápio.'},
+  nao_existe:{ic:'❓',t:'Item não existe / cadastro errado',d:'Duplicado, nome errado, item de teste, cadastrado na loja errada.',
+    fazer:{ifood:'Apague o cadastro errado no iFood. Se o certo existe com outro nome, confira se ele está ativo.',goomer:'Apague o cadastro errado no Goomer. Se o certo existe com outro nome, confira se ele está ativo.'},
+    depois:'Fica na lista cinza "falta apagar" até sumir do cardápio.'},
+  verificar:{ic:'🔎',t:'Não sei, vou verificar',d:'Preciso perguntar para a cozinha ou para o gerente.',
+    fazer:{ifood:'Pergunte na loja e volte aqui para escolher o motivo certo.',goomer:'Pergunte na loja e volte aqui para escolher o motivo certo.'},
+    depois:'Se em 2 dias não tiver resposta, volta a acender aqui.'}
+};
+const PZ_ALERTA={nao_despausou:'Você marcou que iam despausar, mas o item continua pausado.',passou_data:'Passou a data de volta e o item continua pausado.',verificar_venceu:'Ficou em "vou verificar" há mais de 2 dias.'};
+let PZ={};
+function pzHoje(){const d=new Date(Date.now()-3*3600e3);return d.toISOString().slice(0,10)}
+function pzCh(c){return /goomer/i.test(c)?'goomer':'ifood'}
+function pzDica(x){
+  if(x.vendeu30>0&&x.dias_sem_vender!=null&&x.dias_sem_vender<=7)return '💡 Vendeu '+x.vendeu30+' em 30 dias, a última em '+esc(x.ultima_venda)+'. Parece item que devia estar no ar: acabou o ingrediente ou esqueceram de despausar?';
+  if(x.vendeu30===0&&x.dias>=30)return '💡 Pausado há '+x.dias+' dias e sem nenhuma venda em 30 dias. Talvez tenha saído do cardápio de vez.';
+  return '';
+}
+function pzItem(x,k,i){
+  const m=x.motivo&&PZ_MOT[x.motivo], ch=pzCh(x.canal);
+  let h='<div class="it pz'+(x.ordem==='1'?' pzal':'')+'" id="pz_'+k+'_'+i+'"><div class="l1">';
+  h+=m?'<span class="pill '+(x.ordem==='1'?'p-bad':x.ordem==='4'?'p-off':'p-ok')+'">'+m.ic+' '+esc(m.t)+'</span>':'<span class="pill p-warn">sem motivo</span>';
+  h+='<b>'+esc(x.item)+'</b><span class="m">'+esc(marcaCurta(x.marca))+(x.estado&&x.estado!=='pausado'?' · '+esc(x.estado):'')+' · pausado desde '+esc(x.desde)+'</span></div>';
+  h+='<div class="l2">';
+  if(x.vendeu30!=null)h+='<span class="m">Vendeu '+x.vendeu30+' em 30 dias'+(x.ultima_venda?' · última venda '+esc(x.ultima_venda):'')+'</span><br>';
+  if(x.ordem==='1')h+='<b style="color:var(--bad)">⚠️ '+esc(PZ_ALERTA[x.alerta]||'')+'</b><br>';
+  if(m){
+    h+='<span class="m">'+esc(x.quem||'')+' em '+esc(x.quando||'')+(x.volta_em?' · volta em <b>'+esc(x.volta_em)+'</b>':'')+(x.obs?' · "'+esc(x.obs)+'"':'')+(x.chamado?' · chamado de manutenção nº '+esc(x.chamado):'')+'</span><br>';
+    h+='👉 '+esc(m.fazer[ch]);
+  } else { const dc=pzDica(x); if(dc)h+=dc; }
+  h+='</div><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="b" data-pzabre="'+k+'|'+i+'">'+(m?'Mudar o motivo':'Por que está pausado?')+'</button>'+
+     (m?'<button class="b" data-pzdesfaz="'+k+'|'+i+'">Apagar resposta</button>':'')+'</div><div class="pzform" id="pzf_'+k+'_'+i+'"></div></div>';
+  return h;
+}
+function pzHtml(L,k){
+  L=L||[];PZ[k]=L;
+  if(!L.length)return '<div class="lista"><div class="vazio">Nada pausado na última leitura.</div></div>';
+  const g={'1':[],'2':[],'3':[],'4':[]};L.forEach(function(x,i){(g[x.ordem]||g['3']).push([x,i])});
+  let h='<div class="cards" style="margin-bottom:12px">'+
+    '<div class="c'+(g['1'].length?' tem':' zero')+'"><div class="nm">⚠️ Precisa de atenção</div><div class="big">'+g['1'].length+'</div><div class="qtd">passou a data ou não despausaram</div></div>'+
+    '<div class="c'+(g['2'].length?' tem':' zero')+'"><div class="nm">❔ Sem motivo</div><div class="big">'+g['2'].length+'</div><div class="qtd">ninguém disse por que está pausado</div></div>'+
+    '<div class="c"><div class="nm">✅ Com motivo</div><div class="big">'+g['3'].length+'</div><div class="qtd">pausado com explicação</div></div></div>';
+  const tit={'1':'⚠️ Precisa de atenção','2':'❔ Sem motivo — diga por que está pausado','3':'✅ Com motivo','4':'🗑 Saiu de vez ou não existe — falta apagar do cardápio'};
+  ['1','2','3','4'].forEach(function(o){if(!g[o].length)return;
+    const lista='<div class="lista">'+g[o].map(function(p){return pzItem(p[0],k,p[1])}).join('')+'</div>';
+    h+=o==='4'?'<details style="margin-top:12px"><summary class="hint" style="cursor:pointer;padding:6px 0">'+tit[o]+' ('+g[o].length+')</summary>'+lista+'</details>'
+              :'<div class="hint" style="margin:12px 0 6px;font-weight:700">'+tit[o]+' ('+g[o].length+')</div>'+lista});
+  return h;
+}
+function pzForm(k,i){
+  const x=PZ[k][i], ch=pzCh(x.canal), f=document.getElementById('pzf_'+k+'_'+i);
+  if(f.innerHTML){f.innerHTML='';return}
+  let h='<div class="pzbox"><div class="hint" style="margin-bottom:8px">Escolha o motivo de <b>'+esc(x.item)+'</b>:</div><div class="pzops">';
+  Object.keys(PZ_MOT).forEach(function(mk){const m=PZ_MOT[mk];
+    h+='<label class="pzop"><input type="radio" name="pzm_'+k+'_'+i+'" value="'+mk+'"'+(x.motivo===mk?' checked':'')+'><span><b>'+m.ic+' '+esc(m.t)+'</b><br><span class="m">'+esc(m.d)+'</span></span></label>'});
+  h+='</div><div class="pzext"></div><div class="pzmsg"></div></div>';
+  f.innerHTML=h;
+  const ext=f.querySelector('.pzext');
+  function mostra(){
+    const sel=f.querySelector('input[type=radio]:checked'); if(!sel){ext.innerHTML='';return}
+    const m=PZ_MOT[sel.value]; let e='<div class="pzfazer">👉 <b>O que fazer:</b> '+esc(m.fazer[ch])+'<br><span class="m">'+esc(m.depois)+'</span></div>';
+    if(m.obs)e+='<div class="pzcampo">'+esc(m.obs)+' <input type="text" class="pzobs" maxlength="120" placeholder="ex.: chopeira" value="'+esc(x.motivo===sel.value?x.obs||'':'')+'"></div>';
+    else e+='<div class="pzcampo">Observação (opcional) <input type="text" class="pzobs" maxlength="200" value="'+esc(x.motivo===sel.value?x.obs||'':'')+'"></div>';
+    if(m.data)e+='<div class="pzcampo">Volta quando? <input type="date" class="pzdata" min="'+pzHoje()+'"> <span class="m">(obrigatório)</span></div>';
+    e+='<button class="b on pzsalva">Salvar</button>';
+    ext.innerHTML=e;
+    ext.querySelector('.pzsalva').onclick=async function(){
+      const msg=f.querySelector('.pzmsg'), dt=ext.querySelector('.pzdata'), ob=ext.querySelector('.pzobs');
+      if(m.obs&&!(ob.value||'').trim()){msg.innerHTML='<span style="color:var(--bad)">Escreva qual equipamento.</span>';return}
+      if(m.data&&!(dt&&dt.value)){msg.innerHTML='<span style="color:var(--bad)">Diga quando o item volta.</span>';return}
+      if(m.data&&dt.value<pzHoje()){msg.innerHTML='<span style="color:var(--bad)">Essa data já passou.</span>';return}
+      this.disabled=true; msg.textContent='Salvando…';
+      try{const r=await pzGrava({acao:'responder',canal:x.canal,item:x.item,motivo:sel.value,volta_em:dt?dt.value:'',obs:ob?ob.value:''});
+        msg.innerHTML='<span style="color:var(--ok)">Salvo.'+(r.chamado?' Chamado de manutenção nº '+esc(r.chamado)+' aberto.':'')+'</span>';
+        setTimeout(function(){carregar()},700);
+      }catch(er){this.disabled=false;msg.innerHTML='<span style="color:var(--bad)">Não salvou: '+esc(er.message)+'</span>'}
+    };
+  }
+  f.querySelectorAll('input[type=radio]').forEach(function(r){r.onchange=mostra});mostra();
+}
+async function pzGrava(dados){
+  const r=await fetch(SBR+'rpc/sb_cardapio_responder',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:cdmTok(),p_dados:dados})});
+  if(!r.ok){let t='';try{t=(await r.json()).message||''}catch(e){}throw new Error(t||('erro '+r.status))}
+  return r.json();
+}
+function pzBind(root){
+  root.querySelectorAll('[data-pzabre]').forEach(function(b){b.onclick=function(){const p=b.dataset.pzabre.split('|');pzForm(p[0],+p[1])}});
+  root.querySelectorAll('[data-pzdesfaz]').forEach(function(b){b.onclick=async function(){const p=b.dataset.pzdesfaz.split('|'),x=PZ[p[0]][+p[1]];
+    if(!b.dataset.ok){b.dataset.ok='1';b.textContent='Toque de novo para apagar';b.style.borderColor='var(--bad)';return}
+    b.disabled=true;try{await pzGrava({acao:'desfazer',canal:x.canal,item:x.item});carregar()}catch(er){b.disabled=false;b.textContent='Erro: '+er.message}}});
+}
 
 const CDMMODS=['sbsalao'];
+function marcaCurta(m){return String(m||'').replace(/CIDAD[ÃA]O DO MUNDO\s*/i,'').replace(/\s*-\s*(S[ÃA]O BRAZ|SB)\s*$/i,'').trim()||String(m||'')}
 let D=null;
 function render(){
   const d=D, a=document.getElementById('app');
@@ -109,13 +225,8 @@ function render(){
   const G=d.goomer||[];
   h+='<h2>📵 Fora do tablet de mesa (Goomer) <span class="hint">'+G.length+' itens · lido em '+esc(d.goomer_lido||'—')+'</span></h2>';
   if(d.goomer_dias!=null&&d.goomer_dias>2)h+='<div class="aviso">⚠️ <b>Esta lista está velha:</b> a última leitura do Goomer foi em '+esc(d.goomer_lido)+', há '+esc(d.goomer_dias)+' dias. Pode ter item que já voltou ou que saiu depois disso.</div>';
-  if(!G.length){h+='<div class="lista"><div class="vazio">Nada fora do ar na última leitura.</div></div>'}
-  else{const gr={pausado:[],escondido:[]};G.forEach(function(x){(gr[x.estado]=gr[x.estado]||[]).push(x)});
-    h+='<div class="lista">';Object.keys(gr).forEach(function(k){if(!gr[k].length)return;
-      h+='<div class="grp"><div class="t">'+(k==='pausado'?'⏸ Pausados':k==='escondido'?'🙈 Escondidos':esc(k))+' <span class="hint">('+gr[k].length+')</span></div><div class="chips">';
-      gr[k].forEach(function(x){h+='<span class="chip">'+esc(x.item)+(x.tipo&&x.tipo!=='item'?' <i>'+esc(x.tipo)+'</i>':'')+' <i>desde '+esc(x.desde)+'</i></span>'});
-      h+='</div></div>'});h+='</div>'}
-  a.innerHTML=h;
+  h+=pzHtml(G,'go');
+  a.innerHTML=h;pzBind(a);
 }
 async function carregar(){
   const a=document.getElementById('app');a.className='load';a.textContent='Carregando…';
