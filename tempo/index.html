@@ -70,6 +70,8 @@ body.alarme{animation:fundoAl .9s ease-in-out infinite alternate}
 .mbs .pin{color:var(--ok)}
 .mbs .rua{color:var(--brand)}
 .mbs .vazio{color:var(--muted);font-size:13px}
+.mbs .prox{margin:-4px 0 12px;font-weight:700;color:var(--ok);font-size:14px}
+.mbs .reg{color:var(--muted);font-size:11.5px;margin-top:10px;line-height:1.4}
 .sug{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:14px}
 .sug h2{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;font-size:14px;letter-spacing:.04em;color:var(--brand);margin-bottom:6px}
 .sug .ex{color:var(--muted);font-size:12.5px;margin-bottom:12px;line-height:1.5}
@@ -209,15 +211,31 @@ let moto='';
    '<div class="k'+(Number(d.chuva_mm||0)>=1?' aten':'')+'"><div class="n">'+Number(d.chuva_mm||0).toFixed(1)+' mm</div><div class="l">chuva agora · '+Number(d.chuva_prob||0)+'% de chance</div></div>'+
   '</div>';
 
+  /* 19/09/2026, pedido do Fábio: quantas entregas faltam para cada motoboy e quando ele fica livre de novo.
+     A conta vem do banco (motoboy_livre_calc), com a mediana do TrackEat da loja. */
+  var mbProx = function(lst){
+    var c = lst.filter(function(m){return m.livre && m.livre_min!=null;});
+    if(!c.length) return '';
+    c.sort(function(a,b){return a.livre_min-b.livre_min;});
+    var p = c[0];
+    return '<div class="prox">🟢 '+(p.livre==='agora'?'Livre agora: ':'Próximo motoboy livre: ~'+esc(p.livre)+' — ')+esc(p.motoboy)+'</div>';
+  };
+  var mbRegua = function(r){
+    if(!r) return '';
+    return '<div class="reg">Livre ~ é estimativa: '+esc(String(r.ida_min))+' min até a 1ª entrega, '+esc(String(r.entre_min))+' min entre uma entrega e outra e '+
+      esc(String(r.volta_min))+' min de volta (mediana do TrackEat desta loja, '+esc(String(r.amostra))+' entregas dos últimos '+esc(String(r.dias))+' dias). A volta usa o mesmo tempo da ida.</div>';
+  };
   /* 05/09/2026: a tabela dos motoboys logo abaixo dos quadros, para dar cara aos numeros */
   var mb = Array.isArray(d.motoboys_lista)?d.motoboys_lista:[];
-  h+='<div class="mbs"><h2>🛵 Quem está com o aplicativo ligado neste minuto</h2>'+
+  h+='<div class="mbs"><h2>🛵 Quem está com o aplicativo ligado neste minuto</h2>'+mbProx(mb)+
     (mb.length
-      ? '<table><tr><th>Motoboy</th><th>Onde está</th><th>Distância da loja</th><th>Situação</th><th>App</th><th>Visto</th></tr>'+
+      ? '<table><tr><th>Motoboy</th><th>Onde está</th><th>Distância da loja</th><th>Situação</th><th>Faltam</th><th>Livre ~</th><th>App</th><th>Visto</th></tr>'+
         mb.map(function(m){return '<tr><td class="nome">'+esc(m.motoboy)+'</td>'+
           '<td class="'+(m.no_patio?'pin':'rua')+'">'+(m.no_patio?'🟢 ':'🛵 ')+esc(m.onde)+'</td>'+
-          '<td>'+esc(m.dist||'—')+'</td><td>'+esc(m.situacao)+'</td><td>'+esc(m.app)+'</td><td>'+esc(m.visto)+'</td></tr>'}).join('')+
-        '</table>'
+          '<td>'+esc(m.dist||'—')+'</td><td>'+esc(m.situacao)+'</td>'+
+          '<td>'+(m.faltam>0?'<b>'+esc(String(m.faltam))+'</b> '+(m.faltam==1?'entrega':'entregas'):'—')+'</td>'+
+          '<td>'+(m.livre==='agora'?'<span class="pin">agora</span>':(m.livre?'~'+esc(m.livre):'—'))+'</td><td>'+esc(m.app)+'</td><td>'+esc(m.visto)+'</td></tr>'}).join('')+
+        '</table>'+mbRegua(d.motoboys_regua)
       : '<div class="vazio">Nenhum motoboy com o aplicativo ligado nos últimos 30 minutos.</div>')+
    '</div>';
 
