@@ -52,6 +52,10 @@ h2 .q{color:var(--muted);font-family:'Barlow',sans-serif;font-weight:700;font-si
 .qd .it .m{margin-left:auto;font-weight:800}
 .qd .it.late .m{color:var(--bad)}
 .qd .it .pt{color:var(--ok);font-size:11px;font-weight:700}
+.qd .it .dd{color:var(--text2);font-size:11.5px;font-weight:700;white-space:nowrap}
+.qd .it .dd.pp{color:var(--ok)}
+.qd .it .dd.lg{color:var(--warn)}
+.qd .cb .sg{color:var(--warn);font-size:10.5px;flex:0 0 auto}
 .leg{color:var(--muted);font-size:11.5px;margin-top:10px;line-height:1.5}
 .leg .bola{margin-right:5px;vertical-align:middle;width:9px;height:9px}
 .vazio{color:var(--muted);font-size:13.5px;background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:14px}
@@ -113,6 +117,18 @@ function trocaLoja(u){
   $('sub').textContent=u+' — onde está cada pedido agora';
   $('app').innerHTML='<div class="load">Carregando…</div>';
   boot();
+}
+
+/* 20/09/2026, pedido do Fabio: a distancia que o motoboy esta de cada pedido na mao dele.
+   Vem do banco em metros (dist_m), medida em LINHA RETA entre o GPS dele agora e o endereco do pedido.
+   Sem GPS, sem endereco ou nome que nao casou: o banco manda nulo e aqui NAO se escreve nada.
+   A cor decide pelo MESMO numero que aparece escrito (arredondado), para dois "3,0 km" nunca sairem de cores diferentes. */
+function dist(m){
+  if(m===null||m===undefined) return '';
+  var mm = (m<1000) ? m : Math.round(m/100)*100;
+  var cls = (mm<300)?' pp' : (mm>=3000)?' lg' : '';
+  var txt = (m<1000) ? (m+' m') : ((mm/1000).toFixed(1).replace('.',',')+' km');
+  return '<span class="dd'+cls+'" title="em linha reta, do GPS dele ate o endereco">'+esc(txt)+'</span>';
 }
 
 /* o nome de cada etapa, do jeito que a equipe fala */
@@ -207,11 +223,12 @@ function desenha(d){
     h+='<div class="quadros">'+rua.map(function(m){
       return '<div class="qd"><div class="cb"><span class="nm">'+esc(m.motoboy)+'</span>'+
         (m.saiu_ha!=null?'<span class="sa">saiu há '+esc(m.saiu_ha)+' min</span>':'')+
+        (m.com_gps===0?'<span class="sg" title="sem sinal de GPS deste motoboy nos últimos 30 min">sem GPS</span>':'')+
         '<span class="ct">'+esc(m.quantos)+'</span></div>'+
         (m.pedidos||[]).map(function(p){
           return '<div class="it'+(p.atrasado?' late':'')+'"><span class="p">'+esc(p.pedido)+'</span>'+
             '<span class="h">'+esc(p.entrou)+'</span>'+
-            (p.onde==='porta'?'<span class="pt">na porta</span>':'')+
+            dist(p.dist_m)+(p.onde==='porta'?'<span class="pt">na porta</span>':'')+
             '<span class="m">'+esc(p.min)+' min</span></div>';
         }).join('')+'</div>';
     }).join('')+'</div>';
@@ -235,7 +252,11 @@ function legenda(d){
 
 function rodape(d){
   return 'Os pedidos vêm do TrackEat, lidos pela última vez às '+esc(d.visto_em||'—')+'. Tela montada às '+esc(d.agora)+'.'+
-    '<br>Pedido que não passa pelo TrackEat (balcão, telefone) não aparece aqui.';
+    '<br>Pedido que não passa pelo TrackEat (balcão, telefone) não aparece aqui.'+
+    '<br>A distância ao lado do pedido é do GPS do motoboy até o endereço, <b>em linha reta</b> — de moto o caminho é maior.'+
+    ' Verde = está a menos de 300 m dele. Amarelo = 3 km ou mais.'+
+    ' GPS lido pela última vez às '+esc(d.gps_visto_em||'—')+'. Motoboy sem sinal fica marcado <b>sem GPS</b> e os pedidos dele ficam sem distância,'+
+    ' em vez de receber um número inventado.';
 }
 
 async function boot(){
