@@ -348,6 +348,7 @@ function linha(l,i){
 }
 
 function filtra(tp, ver){
+  if(TIPO === tp){ TIPO=''; desenha(); return }
   TIPO = tp;
   if(ver){ VER = ver }
   desenha();
@@ -358,7 +359,7 @@ function filtra(tp, ver){
 function cardF(rot, val, tp, ver, cor, ic){
   var aceso = (tp === TIPO) && (!ver || ver === VER);
   return '<div class="card" onclick="filtra(&quot;'+tp+'&quot;,&quot;'+ver+'&quot;)"'+
-         ' title="Clique para ver so isto" style="cursor:pointer'+(aceso?';border-color:var(--brand)':'')+'">'+
+         ' title="Clique para abrir ou fechar a lista" style="cursor:pointer'+(aceso?';border-color:var(--brand)':'')+'">'+
          '<div class="t">'+(ic?ic+' ':'')+rot+'</div>'+
          '<div class="v"'+(cor?' style="color:'+cor+'"':'')+'>'+val+'</div></div>';
 }
@@ -403,21 +404,24 @@ function desenha(){
   h+=falaComigo();
 
 
-  const porTipo = TIPO ? itens.filter(function(x){return x.tipo===TIPO}) : itens;
-  const lista = (VER==='abertas') ? porTipo.filter(function(x){return !x.resolvido}) : porTipo;
-  h+='<h2 id="lista">📋 A lista</h2>';
-  if(!lista.length){
-    h+='<div class="c"><div class="vazio">'+(VER==='abertas'?'Nada esperando ninguém neste período. A casa está limpa.':'Nada neste período.')+'</div></div>';
+  if(TIPO){
+    const porTipo = itens.filter(function(x){return x.tipo===TIPO});
+    const lista = (VER==='abertas') ? porTipo.filter(function(x){return !x.resolvido}) : porTipo;
+    h+='<h2 id="lista">📋 '+rotulo(TIPO)+' <button class="mini" style="margin-left:8px" onclick="TIPO=&quot;&quot;;desenha()">fechar ✕</button></h2>';
+    if(!lista.length){
+      h+='<div class="c"><div class="vazio">'+(VER==='abertas'?'Nada esperando ninguém neste período. A casa está limpa.':'Nada neste período.')+'</div></div>';
+    }else{
+      h+=bloco('dia','☀️ De dia — até as 17h')+
+          bloco('noite','🌙 De noite — das 17h até a madrugada')+
+          bloco('sem hora','🕐 Sem hora registrada');
+    }
+    if(TIPO==='maquininha' && D.maq_cache){
+      h+='<div class="c" style="margin-top:10px"><div class="m">🧾 As comandas não cobradas da maquininha foram conferidas pela última vez em '+esc(D.maq_cache)+
+         ((D.maq_horas!=null && D.maq_horas>26)?' — <b style="color:var(--bad)">isso está velho, o robô não rodou</b>':'')+
+         '. Elas ficam na lista até alguém resolver, mesmo sendo de outro dia.</div></div>';
+    }
   }else{
-    h+=bloco('dia','☀️ De dia — até as 17h')+
-        bloco('noite','🌙 De noite — das 17h até a madrugada')+
-        bloco('sem hora','🕐 Sem hora registrada');
-  }
-
-  if(D.maq_cache){
-    h+='<div class="c" style="margin-top:10px"><div class="m">🧾 As comandas não cobradas da maquininha foram conferidas pela última vez em '+esc(D.maq_cache)+
-       ((D.maq_horas!=null && D.maq_horas>26)?' — <b style="color:var(--bad)">isso está velho, o robô não rodou</b>':'')+
-       '. Elas ficam na lista até alguém resolver, mesmo sendo de outro dia.</div></div>';
+    h+='<div class="c" style="margin-top:10px"><div class="m">👆 Clique num quadro lá em cima para ver a lista dele.</div></div>';
   }
   h+='<h2>📵 Fora do ar no cardápio</h2>'+
      '<div class="c"><b>'+(card.itens_fora_do_ar||0)+'</b> itens pausados ou escondidos'+
