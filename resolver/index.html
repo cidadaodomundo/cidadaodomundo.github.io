@@ -97,6 +97,12 @@ var MOT_GER=['Resolvido com o cliente','Ja estava certo','Nao era problema nosso
 
 var FAM='BEBIDA';
 var ESQ=false;
+function soUm(q){
+  var era={ESQ:ESQ,PAU:PAU,CHG:CHG,DUPO:DUPO}[q];
+  ESQ=false;PAU=false;CHG=false;DUPO=false;TIPO='';
+  if(q==='ESQ')ESQ=!era; if(q==='PAU')PAU=!era; if(q==='CHG')CHG=!era; if(q==='DUPO')DUPO=!era;
+  desenha();
+}
 var PAU=false;
 var CHG=false;
 
@@ -107,7 +113,7 @@ function cardF0(rot, ic){
 function cardPau(){
   var ps=((D&&D.pausados)||{}).linhas||[];
   if(!ps.length) return cardF0('Parou de vender','&#9208;&#65039;');
-  return '<div class="card" onclick="PAU=!PAU;desenha()" title="Clique para abrir ou fechar"'+
+  return '<div class="card" onclick="soUm(&quot;PAU&quot;)" title="Clique para abrir ou fechar"'+
     ' style="cursor:pointer'+(PAU?';border-color:var(--brand)':'')+'">'+
     '<div class="t">&#9208;&#65039; Parou de vender '+(PAU?'&#9650;':'&#9660;')+'</div>'+
     '<div class="v" style="color:var(--warn)">'+ps.length+'</div></div>';
@@ -144,7 +150,7 @@ function pausados(){
 function cardCheg(){
   var cs=((D&&D.chegada)||{}).linhas||[];
   if(!cs.length) return cardF0('Chegada nao sinalizada','&#128757;');
-  return '<div class="card" onclick="CHG=!CHG;desenha()" title="Clique para abrir ou fechar"'+
+  return '<div class="card" onclick="soUm(&quot;CHG&quot;)" title="Clique para abrir ou fechar"'+
     ' style="cursor:pointer'+(CHG?';border-color:var(--brand)':'')+'">'+
     '<div class="t">&#128757; Chegada nao sinalizada '+(CHG?'&#9650;':'&#9660;')+'</div>'+
     '<div class="v" style="color:var(--bad)">'+cs.length+'</div></div>';
@@ -167,7 +173,7 @@ var DUPO=false;
 function cardDup(){
   var d=(D&&D.dupla)||{}, n=d.abertos||0;
   if(!n) return cardF0('Corrida em dobro','&#128664;');
-  return '<div class="card" onclick="DUPO=!DUPO;desenha()" title="Corrida em dobro: clique para abrir ou fechar"'+
+  return '<div class="card" onclick="soUm(&quot;DUPO&quot;)" title="Corrida em dobro: clique para abrir ou fechar"'+
     ' style="cursor:pointer'+(DUPO?';border-color:var(--brand)':'')+'">'+
     '<div class="t">&#128664; Corrida em dobro '+(DUPO?'&#9650;':'&#9660;')+'</div>'+
     '<div class="v" style="color:var(--bad)">'+n+'</div></div>';
@@ -199,7 +205,7 @@ function bloco(tu, titulo){
 function cardEsq(){
   var es=(D&&D.esquecidos)||[];
   if(!es.length) return cardF0('Esqueceram na sacola','&#128717;&#65039;');
-  return '<div class="card" onclick="ESQ=!ESQ;desenha()" title="Clique para abrir ou fechar"'+
+  return '<div class="card" onclick="soUm(&quot;ESQ&quot;)" title="Clique para abrir ou fechar"'+
     ' style="cursor:pointer'+(ESQ?';border-color:var(--brand)':'')+'">'+
     '<div class="t">Esqueceram na sacola '+(ESQ?'▲':'▼')+'</div>'+
     '<div class="v" style="color:var(--bad)">'+es.length+'</div></div>';
@@ -349,6 +355,7 @@ function linha(l,i){
 
 function filtra(tp, ver){
   if(TIPO === tp){ TIPO=''; desenha(); return }
+  ESQ=false;PAU=false;CHG=false;DUPO=false;
   TIPO = tp;
   if(ver){ VER = ver }
   desenha();
