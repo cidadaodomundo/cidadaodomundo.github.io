@@ -48,6 +48,12 @@ details.c>summary .tt{flex:1}
 .bz{background:none;border:none;color:var(--muted);font-size:11.5px;cursor:pointer;padding:2px 0;text-decoration:underline}
 .bz:hover{color:var(--text)}
 .cx-off{opacity:.35;cursor:default}
+.cal{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:12px}
+.cal input[type=date]{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:6px 9px;font-family:inherit;font-size:13px;color-scheme:dark}
+.cal button[disabled]{opacity:.35;cursor:default}
+.resumo{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px}
+.resumo>div{background:var(--s1);border:1px solid var(--line);border-radius:11px;padding:10px 12px;font-size:12px;color:var(--muted)}
+.resumo b{display:block;font-size:22px;color:var(--text)}
 .nl{display:flex;gap:6px;margin-top:6px}
 .nl .nota{flex:1;min-width:0;background:var(--s2);border:1px dashed var(--line);color:var(--text);border-radius:8px;padding:6px 9px;font-size:12px;font-family:inherit}
 .nl .nota:focus{outline:none;border-style:solid;border-color:var(--brand)}
@@ -101,6 +107,7 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
   </div>
 </div>
 
+<div class="cal" id="cal"></div>
 <div id="app"><div class="load">Carregando…</div></div>
 
 <script>
@@ -121,6 +128,32 @@ const loja=id=>LOJA[id]||('loja '+id);
 const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
 
 let MARCAS={},QUEM='';
+let DIA='';
+function desenhaCal(){
+  const hj=hojeISO(),d=DIA||hj;
+  $('cal').innerHTML='<span class="tag">📅 Dia</span>'+
+    '<button class="b mini" onclick="mudaDia(-1)" title="dia anterior">◀</button>'+
+    '<input type="date" value="'+d+'" max="'+hj+'" onchange="DIA=(this.value>=hojeISO()?\'\':this.value);boot()">'+
+    '<button class="b mini" onclick="mudaDia(1)" title="dia seguinte"'+(d>=hj?' disabled':'')+'>▶</button>'+
+    (d!==hj?'<button class="b mini bp" onclick="DIA=\'\';boot()">Voltar para hoje</button>':'<span class="m" style="margin:0">hoje: o que está esperando alguém resolver</span>');
+}
+function mudaDia(n){const x=new Date((DIA||hojeISO())+'T12:00:00');x.setDate(x.getDate()+n);const v=x.toLocaleDateString('sv-SE');DIA=(v>=hojeISO()?'':v);boot()}
+async function bootDia(){
+  $('app').innerHTML='<div class="load">Carregando o dia '+br(DIA)+'…</div>';
+  let r;
+  try{const x=await fetch(SB+'rpc/respostas_dia',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:tok(),p_dia:DIA})});if(!x.ok)throw 0;r=await x.json()}
+  catch(e){$('app').innerHTML='<div class="vazio">Não deu para carregar este dia. Entre no portal de novo e tente outra vez.</div>';return}
+  const NOME={manutencao:'Manutenção',reserva:'Reserva',encomenda:'Encomenda',compra:'Compra',manual:'Pedido',chamado:'Chamado iFood',pausado:'Item pausado'};
+  const lin=(ic,x,extra)=>'<div class="it"><div class="cx cx-off">'+ic+'</div><div class="tx"><b>'+esc(x.titulo)+'</b> <span class="pill p-off">'+esc(NOME[x.fonte]||x.fonte)+'</span>'+(x.prioridade==='urgente'?' <span class="pill p-bad">urgente</span>':'')+(extra||'')+'</div></div>';
+  const ch=r.chegou||[],rs=r.resolvido||[],ab=r.aberto||[];
+  let h='<div class="resumo"><div><b>'+ch.length+'</b>chegou</div><div><b>'+rs.length+'</b>resolvido</div><div><b>'+ab.length+'</b>em aberto no fim do dia</div><div><b>'+(r.compras_abertas||0)+'</b>compras em aberto</div></div>';
+  h+=bloco('dc','📥 Chegou em '+br(DIA),ch.length,ch.map(x=>lin('＋',x,x.detalhe?'<div class="m">'+esc(String(x.detalhe).slice(0,220))+'</div>':'')).join(''),true);
+  h+=bloco('dr','✅ Resolvido em '+br(DIA),rs.length,rs.map(x=>lin('✔',x,'<div class="m">'+(x.por?esc(x.por)+' · ':'')+esc(x.quando||'')+'</div>'+(x.recado?'<div class="rec">💬 '+esc(x.recado)+'</div>':''))).join(''),true);
+  h+=bloco('da','⏳ Continuava em aberto no fim de '+br(DIA),ab.length,ab.map(x=>lin('·',x,'<div class="m">desde '+esc(br(x.desde))+'</div>')).join(''),false);
+  if(!ch.length&&!rs.length&&!ab.length)h+='<div class="vazio">Nada registrado neste dia.</div>';
+  h+='<div class="aviso">Você está olhando um dia que já passou: aqui é só consulta. Para marcar ✔ ou escrever observação, volte para hoje. Reservas, chamados do iFood e avaliações não entram no histórico do dia.</div>';
+  $('app').innerHTML=h;
+}
 async function porta(acao,dados){
   const r=await fetch(SB+'rpc/respostas_consulta',{method:'POST',
     headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
@@ -181,6 +214,8 @@ function bloco(id,titulo,n,corpo,aberto){
 }
 
 async function boot(){
+  desenhaCal();
+  if(DIA&&DIA!==hojeISO()){await bootDia();return}
   const [ult,pend,cham,pau,res,man,enc,com,dad]=await Promise.all([
     get('ifood_fato_avaliacao?select=data_avaliacao&order=data_avaliacao.desc&limit=1'),
     get('ifood_fato_avaliacao?select=id_loja,data_avaliacao,nota,comentario&status_avaliacao=eq.PENDING_REPLY&data_avaliacao=gte.'+dMenos(30)+'&order=data_avaliacao.asc&limit=100'),
