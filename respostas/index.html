@@ -48,9 +48,26 @@ details.c>summary .tt{flex:1}
 .bz{background:none;border:none;color:var(--muted);font-size:11.5px;cursor:pointer;padding:2px 0;text-decoration:underline}
 .bz:hover{color:var(--text)}
 .cx-off{opacity:.35;cursor:default}
-.cal{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:12px}
-.cal input[type=date]{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:6px 9px;font-family:inherit;font-size:13px;color-scheme:dark}
-.cal button[disabled]{opacity:.35;cursor:default}
+.cal{display:block;background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:12px}
+.calcab{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.calcab b{font-size:15px;text-transform:capitalize;min-width:120px;text-align:center}
+.calcab button[disabled]{opacity:.35;cursor:default}
+.leg{margin-left:auto;display:flex;gap:10px;font-size:11px}
+.lc{color:var(--warn);font-style:normal;font-weight:700}
+.lr{color:var(--ok);font-style:normal;font-weight:700}
+.grade{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.grade .sem{font-size:10.5px;color:var(--muted);text-align:center;text-transform:uppercase;font-weight:700}
+.grade .q{background:var(--s2);border:1px solid var(--line);border-radius:8px;min-height:48px;padding:4px 6px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between}
+.grade .q:hover{border-color:var(--brand)}
+.grade .q.vazio{background:none;border:none;cursor:default}
+.grade .q.fut{opacity:.3;cursor:default}
+.grade .q.fut:hover{border-color:var(--line)}
+.grade .q.hj{border-color:var(--brand)}
+.grade .q.sel{background:var(--brand);border-color:var(--brand)}
+.grade .q.sel .n,.grade .q.sel .lc,.grade .q.sel .lr{color:var(--brand-ink)}
+.grade .n{font-size:13px;font-weight:800}
+.grade .qc{display:flex;gap:6px;font-size:11px;flex-wrap:wrap}
+@media (max-width:640px){.grade .q{min-height:40px;padding:3px}.grade .qc{font-size:9.5px;gap:3px}.leg{margin-left:0}}
 .resumo{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px}
 .resumo>div{background:var(--s1);border:1px solid var(--line);border-radius:11px;padding:10px 12px;font-size:12px;color:var(--muted)}
 .resumo b{display:block;font-size:22px;color:var(--text)}
@@ -129,15 +146,38 @@ const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){retur
 
 let MARCAS={},QUEM='';
 let DIA='';
-function desenhaCal(){
-  const hj=hojeISO(),d=DIA||hj;
-  $('cal').innerHTML='<span class="tag">📅 Dia</span>'+
-    '<button class="b mini" onclick="mudaDia(-1)" title="dia anterior">◀</button>'+
-    '<input type="date" value="'+d+'" max="'+hj+'" onchange="DIA=(this.value>=hojeISO()?\'\':this.value);boot()">'+
-    '<button class="b mini" onclick="mudaDia(1)" title="dia seguinte"'+(d>=hj?' disabled':'')+'>▶</button>'+
-    (d!==hj?'<button class="b mini bp" onclick="DIA=\'\';boot()">Voltar para hoje</button>':'<span class="m" style="margin:0">hoje: o que está esperando alguém resolver</span>');
+let MES='',MESDADOS=null,MESCARREGADO='';
+const MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+async function carregaMes(){
+  const m=MES||hojeISO().slice(0,7);
+  if(MESCARREGADO===m&&MESDADOS)return;
+  MESDADOS=null;
+  try{const x=await fetch(SB+'rpc/respostas_mes',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:tok(),p_mes:m+'-01'})});if(x.ok){const j=await x.json();if(m!==(MES||hojeISO().slice(0,7)))return;MESDADOS={};(j.dias||[]).forEach(d=>{MESDADOS[String(d.dia).slice(0,10)]=d});MESCARREGADO=m}}catch(e){}
 }
-function mudaDia(n){const x=new Date((DIA||hojeISO())+'T12:00:00');x.setDate(x.getDate()+n);const v=x.toLocaleDateString('sv-SE');DIA=(v>=hojeISO()?'':v);boot()}
+function mudaMes(n){const m=(MES||hojeISO().slice(0,7)).split('-').map(Number);const x=new Date(m[0],m[1]-1+n,1);const v=x.getFullYear()+'-'+('0'+(x.getMonth()+1)).slice(-2);if(v>hojeISO().slice(0,7))return;MES=v;desenhaCal()}
+function escolheDia(d){DIA=(d>=hojeISO()?'':d);MES=d.slice(0,7);boot()}
+async function desenhaCal(){
+  const hj=hojeISO(),sel=DIA||hj,m=MES||sel.slice(0,7);MES=m;
+  await carregaMes();
+  const [a,mm]=m.split('-').map(Number);
+  const prim=new Date(a,mm-1,1).getDay(),nd=new Date(a,mm,0).getDate();
+  let h='<div class="calcab"><button class="b mini" onclick="mudaMes(-1)" title="mês anterior">◀</button>'+
+    '<b>'+MESES[mm-1]+' '+a+'</b>'+
+    '<button class="b mini" onclick="mudaMes(1)" title="mês seguinte"'+(m>=hj.slice(0,7)?' disabled':'')+'>▶</button>'+
+    (DIA?'<button class="b mini bp" onclick="DIA=\'\';MES=\'\';boot()">Voltar para hoje</button>':'<span class="m" style="margin:0">hoje: o que está esperando alguém resolver — clique num dia para ver o que aconteceu</span>')+
+    '<span class="leg"><span class="lc">+ chegou</span><span class="lr">✔ resolvido</span></span></div>';
+  h+='<div class="grade">'+['dom','seg','ter','qua','qui','sex','sáb'].map(x=>'<div class="sem">'+x+'</div>').join('');
+  for(let k=0;k<prim;k++)h+='<div class="q vazio"></div>';
+  for(let d=1;d<=nd;d++){
+    const iso=m+'-'+('0'+d).slice(-2),info=(MESDADOS&&MESDADOS[iso])||{},fut=iso>hj;
+    const c=Number(info.chegou)||0,r=Number(info.resolvido)||0;
+    h+='<div class="q'+(fut?' fut':'')+(iso===sel?' sel':'')+(iso===hj?' hj':'')+'"'+(fut?'':' onclick="escolheDia(\''+iso+'\')"')+' title="'+(fut?'':c+' chegou · '+r+' resolvido')+'">'+
+      '<span class="n">'+d+'</span>'+(fut?'':'<span class="qc">'+(c?'<i class="lc">+'+c+'</i>':'')+(r?'<i class="lr">✔'+r+'</i>':'')+'</span>')+'</div>';
+  }
+  h+='</div>';
+  if(!MESDADOS)h+='<div class="m">não deu para carregar os números do mês</div>';
+  $('cal').innerHTML=h;
+}
 async function bootDia(){
   $('app').innerHTML='<div class="load">Carregando o dia '+br(DIA)+'…</div>';
   let r;
@@ -218,6 +258,8 @@ function bloco(id,titulo,n,corpo,aberto){
 }
 
 async function boot(){
+  if(DIA)MES=DIA.slice(0,7);
+  MESCARREGADO='';
   desenhaCal();
   if(DIA&&DIA!==hojeISO()){await bootDia();return}
   const [ult,pend,cham,pau,res,man,enc,com,dad]=await Promise.all([
