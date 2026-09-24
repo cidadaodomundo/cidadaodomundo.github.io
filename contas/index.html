@@ -47,6 +47,8 @@ td.r,th.r{text-align:right;white-space:nowrap}
 .diab.feito:not(.on){border-color:#1f6b45;background:#0f2a1d}
 .diab .dab{font-size:11px;font-weight:700;color:#ff6b6b;margin-top:2px}
 .diab.on .dab{color:#8a0000}
+.diab .dbk{font-size:11px;color:#86c8ff;margin-top:2px}
+.diab.on .dbk{color:var(--brand-ink)}
 .legcal{font-size:12px;color:var(--muted);margin:4px 0 8px}
 .diab.on .dbx{color:var(--brand-ink)}
 .diab.on .dsem,.diab.on .dqt,.diab.on .dval{color:var(--brand-ink)}
@@ -125,6 +127,7 @@ tbody tr.conferida{background:rgba(47,174,106,.06)}
   <button class="aba" id="a-fixo" onclick="troca('fixo')">🧾 Fixos e serviços</button>
   <button class="aba" id="a-mercadoria" onclick="troca('mercadoria')">📦 Mercadoria e insumo</button>
   <button class="aba" id="a-buracos" onclick="troca('buracos')">🕳 Buracos</button>
+  <button class="aba" id="a-receber" onclick="troca('receber')">💰 A receber</button>
   <button class="aba" id="a-pedidos" onclick="troca('pedidos')">✍️ Pedidos e correções</button>
   <button onclick="contaNova()">➕ Lançar conta que não veio por e-mail</button>
 </div>
@@ -184,9 +187,10 @@ async function verBoletos(chave,loja,mes){
 }
 function troca(a){
   ABA=a;
-  ['dia','fixo','mercadoria','buracos','pedidos'].forEach(function(x){
+  ['dia','fixo','mercadoria','buracos','receber','pedidos'].forEach(function(x){
     var b=$('a-'+x); if(b) b.className='aba'+(x===a?' on':'');
   });
+  if(a==='receber'&&(!RC||RC.erro)){rcCarrega();return}
   desenha();
 }
 function seloPago(r){
@@ -692,12 +696,118 @@ function desenha(){
   if(ABA==='dia'){h=agendaHtml()}
   else if(ABA==='pedidos'){h=pedidos()}
   else if(ABA==='buracos'){h=buracos()}
+  else if(ABA==='receber'){h=receberHtml()}
   else{
     h=tabela(ABA);
     h+='<div class="nota">Cada linha é um fornecedor numa loja. O valor de cada mês é a soma dos boletos que vencem naquele mês. <b>Em aberto</b> é quantos ainda não foram baixados no Saipos. Embaixo de cada valor está o <b>dia do vencimento</b> de cada boleto daquele mês — <b>em amarelo</b> quando ainda não foi pago. <b>E-mails</b> é quantas mensagens daquele fornecedor chegaram no administrativo@ no mês mais recente com movimento.</div>';
   }
-  if(ABA!=='pedidos'&&ABA!=='dia')h+='<div class="nota">Os lançamentos vêm das duas cargas do Saipos juntas — a manual e a do robô — sem contar duas vezes: quando o mesmo lançamento está nas duas, vale o do robô. <b>O Boqueirão não aparece</b>: aquela loja não tem senha do Saipos.</div>';
+  if(ABA!=='pedidos'&&ABA!=='dia'&&ABA!=='receber')h+='<div class="nota">Os lançamentos vêm das duas cargas do Saipos juntas — a manual e a do robô — sem contar duas vezes: quando o mesmo lançamento está nas duas, vale o do robô. <b>O Boqueirão não aparece</b>: aquela loja não tem senha do Saipos.</div>';
   $('app').innerHTML=h;
+}
+
+// ===== A RECEBER =====
+var RC=null, RCMES='', RCLOJA='', RCDIA='', RCLISTA=null, RCABERTO=false, RCCARREGA=false, RCSEQ=0;
+async function rcPorta(dados){
+  var r=await fetch(SB+'rpc/contas_receber',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:cdmTok(),p_dados:dados})});
+  var j=null; try{j=await r.json()}catch(e){}
+  if(!r.ok)throw new Error((j&&(j.message||j.details||j.hint))||('erro '+r.status));
+  return j;
+}
+async function rcCarrega(){
+  var my=++RCSEQ;
+  $('app').innerHTML='Carregando…';
+  var novo;
+  try{novo=await rcPorta({mes:RCMES||null,loja:RCLOJA||null})}catch(e){novo={erro:e.message}}
+  if(my!==RCSEQ)return;
+  RC=novo; if(!RC.erro)RCMES=RC.mes;
+  RCLISTA=null;
+  if(!RC.erro){
+    if(!RCDIA&&!RCABERTO&&String(RC.hoje_iso||'').slice(0,7)===RCMES)RCDIA=RC.hoje_iso;
+    if(RCDIA||RCABERTO){var l;try{l=await rcPorta(RCABERTO?{aberto:true,loja:RCLOJA||null}:{dia:RCDIA,loja:RCLOJA||null})}catch(e){l={erro:e.message}}
+      if(my!==RCSEQ)return; RCLISTA=l;}
+  }
+  desenha();
+}
+async function rcMes(m){RCMES=m;RCDIA='';RCABERTO=false;await rcCarrega()}
+async function rcLoja(l){RCLOJA=l;await rcCarrega()}
+async function rcDia(d){
+  var my=++RCSEQ;
+  RCDIA=d;RCABERTO=false;RCCARREGA=true;RCLISTA=null;desenha();
+  var j;try{j=await rcPorta({dia:d,loja:RCLOJA||null})}catch(e){j={erro:e.message}}
+  if(my!==RCSEQ)return;
+  RCLISTA=j;RCCARREGA=false;desenha();
+}
+async function rcAberto(){
+  var my=++RCSEQ;
+  RCABERTO=true;RCDIA='';RCCARREGA=true;RCLISTA=null;desenha();
+  var j;try{j=await rcPorta({aberto:true,loja:RCLOJA||null})}catch(e){j={erro:e.message}}
+  if(my!==RCSEQ)return;
+  RCLISTA=j;RCCARREGA=false;desenha();
+}
+function rcLinhas(rows){
+  if(!rows.length)return '<div class="vazio">Nada aqui.</div>';
+  var h='<table><thead><tr><th>Vence</th><th>Loja</th><th>De onde vem</th><th>O que é</th><th class="r">Valor</th><th>Situação</th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    var st=r.recebido?'<div style="color:#6fe0a5">✅ recebido no Saipos '+dEsc(r.baixa||'')+'</div>':'<div style="color:#ff6b6b;font-weight:700">🔴 em aberto no Saipos</div>';
+    if(r.banco)st+='<div class="sub" style="color:#86c8ff">🏦 entrou no banco '+dEsc(r.banco.data)+' · '+dEsc(r.banco.descricao||'')+(r.banco.conta?' · '+dEsc(r.banco.conta):'')+'</div>';
+    h+='<tr><td>'+dEsc(r.vencimento)+'</td><td>'+dEsc(r.loja)+'</td><td><b>'+dEsc(r.onde||'—')+'</b></td>'
+      +'<td>'+dEsc(r.quem||'')+'<div class="sub">'+dEsc(r.categoria||'')+(r.metodo?' · '+dEsc(r.metodo):'')+'</div></td>'
+      +'<td class="r">'+din(r.valor)+'</td><td>'+st+'</td></tr>';
+  });
+  return h+'</tbody></table>';
+}
+function rcResumo(rows){
+  var g={};rows.forEach(function(r){var k=r.onde||'—';if(!g[k])g[k]={n:0,t:0};g[k].n++;g[k].t+=Number(r.valor||0)});
+  var ks=Object.keys(g).sort(function(a,b){return g[b].t-g[a].t});
+  if(!ks.length)return '';
+  var h='<table><thead><tr><th>Entra por</th><th class="r">Lançamentos</th><th class="r">Total</th></tr></thead><tbody>';
+  ks.forEach(function(k){h+='<tr><td><b>'+dEsc(k)+'</b></td><td class="r">'+g[k].n+'</td><td class="r">'+din(g[k].t)+'</td></tr>'});
+  return h+'</tbody></table>';
+}
+function receberHtml(){
+  if(!RC)return '<div class="vazio">Carregando…</div>';
+  if(RC.erro)return '<div class="card"><div class="vazio">Não deu para carregar: '+dEsc(RC.erro)+'</div></div>';
+  var h='<div class="aviso">Aqui é o dinheiro que <b>entra</b>. O Saipos costuma marcar a venda como recebida no mesmo dia, até a do iFood e a da maquininha, que só caem na conta depois. Por isso cada linha mostra também se aquele valor <b>entrou no banco</b>, pelo extrato do Organizze (até '+dEsc(RC.banco_ate||'?')+'). O total 🏦 do banco é sempre das contas todas juntas, mesmo quando você escolhe uma loja.</div>';
+  h+='<div class="abas"><button class="aba'+(RCLOJA?'':' on')+'" onclick="rcLoja('+aspas('')+')">Todas as lojas</button>';
+  (RC.lojas||[]).forEach(function(l){h+='<button class="aba'+(RCLOJA===l?' on':'')+'" onclick="rcLoja('+aspas(l)+')">'+dEsc(l)+'</button>'});
+  h+='</div><div class="abas">';
+  (RC.meses||[]).forEach(function(m){h+='<button class="aba'+(!RCABERTO&&RCMES===m.mes?' on':'')+'" onclick="rcMes('+aspas(m.mes)+')">'+(MES[String(m.mes).slice(5)]||dEsc(m.mes))+'<span class="bq">'+Number(m.n||0)+'</span></button>'});
+  h+='</div>';
+  var ab=RC.aberto||{n:0,total:0};
+  h+='<div class="abas"><button class="aba nb'+(RCABERTO?' on':'')+'" onclick="rcAberto()">🔴 Em aberto no Saipos · '+Number(ab.n||0)+(Number(ab.n)===1?' lançamento':' lançamentos')+' · '+din(ab.total)+'</button></div>';
+  h+='<div class="legcal">🔴 ainda em aberto no Saipos · ✅ já recebido no Saipos · 🏦 total que entrou no banco nesse dia · quadro verde = nada em aberto · <b>amarelo</b> = o dia que você está vendo · contorno amarelo = hoje</div>';
+  h+='<div class="dias">';
+  (RC.dias||[]).forEach(function(d){
+    var on=!RCABERTO&&RCDIA===d.dia;
+    h+='<button class="diab'+(Number(d.n_ab)?'':' feito')+(on?' on':'')+(d.hoje?' hoje':'')+'" onclick="rcDia('+aspas(d.dia)+')">'
+      +'<div class="dnum">'+dEsc(d.rotulo)+'</div><div class="dsem">'+(SEM[d.diasem]||'')+(d.hoje?' · hoje':'')+'</div>'
+      +(Number(d.n_ab)?'<div class="dab">🔴 '+Number(d.n_ab)+' em aberto</div><div class="dval">'+dinCurto(d.t_ab)+'</div>':'')
+      +(Number(d.n_rc)?'<div class="dbx">✅ '+Number(d.n_rc)+' · '+dinCurto(d.t_rc)+'</div>':'')
+      +(d.banco?'<div class="dbk">🏦 '+dinCurto(d.banco)+'</div>':'')+'</button>';
+  });
+  if(!(RC.dias||[]).length)h+='<div class="vazio">Nada a receber neste mês.</div>';
+  h+='</div>';
+  if(RCCARREGA)return h+'<div class="card"><div class="vazio">Carregando…</div></div>';
+  if(!RCLISTA)return h+'<div class="nota">Clique num dia para ver o que entra nele.</div>';
+  if(RCLISTA.erro)return h+'<div class="card"><div class="vazio">Não deu para carregar: '+dEsc(RCLISTA.erro)+'</div></div>';
+  var rows=RCLISTA.lista||[], tot=0;rows.forEach(function(r){tot+=Number(r.valor||0)});
+  var tit;
+  if(RCABERTO)tit='🔴 Em aberto no Saipos (vencidos e próximos 60 dias)';
+  else{var p=String(RCDIA).split('-');tit='💰 Entra em '+dEsc(p[2]+'/'+p[1])+(RCDIA===RC.hoje_iso?' — hoje':'')}
+  h+='<div class="card"><div class="blocotit"><span>'+tit+'</span><span class="blocon">'+rows.length+(rows.length===1?' lançamento':' lançamentos')+' · '+din(tot)+'</span></div>';
+  if(!RCABERTO)h+='<div class="mtit2">Resumo por onde o dinheiro entra</div>'+rcResumo(rows);
+  h+='<div class="mtit2" style="margin-top:10px">Lançamento por lançamento</div>'+rcLinhas(rows)+'</div>';
+  if(!RCABERTO){
+    var bd=RCLISTA.banco_do_dia||[], bt=0;bd.forEach(function(b){bt+=Number(b.total||0)});
+    h+='<div class="card"><div class="blocotit"><span>🏦 O que entrou no banco neste dia (Organizze)</span><span class="blocon">'+din(bt)+'</span></div>';
+    if(!bd.length)h+='<div class="vazio">Nada no extrato deste dia'+(RCLISTA.banco_ate?' (o extrato vai até '+dEsc(RCLISTA.banco_ate)+')':'')+'.</div>';
+    else{h+='<table><thead><tr><th>Conta</th><th class="r">Entradas</th><th class="r">Total</th></tr></thead><tbody>';bd.forEach(function(b){h+='<tr><td><b>'+dEsc(b.conta)+'</b></td><td class="r">'+Number(b.n||0)+'</td><td class="r">'+din(b.total)+'</td></tr>'});h+='</tbody></table>'}
+    h+='</div>';
+  }
+  h+='<div class="nota">Vem do Saipos (lançamentos com valor de entrada) e do extrato do Organizze. <b>🏦 entrou no banco</b> aparece quando achei no extrato uma entrada com o mesmo valor, até 3 dias antes ou 7 depois do vencimento. Venda de cartão e de iFood costuma cair somada num repasse só, então nem sempre dá para achar uma por uma: para essas, compare o total do dia no quadro 🏦. <b>O Boqueirão não aparece</b>: aquela loja não tem senha do Saipos.</div>';
+  return h;
 }
 async function boot(){
   try{
