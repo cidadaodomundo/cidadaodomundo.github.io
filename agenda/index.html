@@ -139,6 +139,7 @@ function porDia(){
 }
 const SEMANA=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
 let VER='';   // 'dia:AAAA-MM-DD' | 'mes' | 'atras' | 'sem'
+let ABRIU=false; // so na primeira abertura: dia de hoje vazio e com atrasadas -> abre nas Atrasadas
 function atrasada(x){ var q=quandoDe(x); return x.status!=='feita' && q && q<D.hoje; }
 function linha(x,mostraDia){
   var fe=(x.status==='feita'), q=quandoDe(x);
@@ -168,6 +169,8 @@ function desenhaMes(){
             .sort(function(a,b){ return (b.dias_parada||0)-(a.dias_parada||0); });
   var nMes=todos.filter(function(x){ var q=quandoDe(x); return q && q.indexOf(pref)===0; }).length;
   if(!VER || (VER.indexOf('dia:')===0 && VER.slice(4,12)!==pref)){ VER=(D.hoje.indexOf(pref)===0)?('dia:'+D.hoje):'mes'; }
+  if(VER==='dia:'+D.hoje && !(M[D.hoje]||[]).length && atras.length && !ABRIU){ VER='atras'; }
+  ABRIU=true;
 
   var h='<div class="abas">';
   h+='<button class="aba nb'+(VER==='atras'?' on':'')+'" onclick="ver(\'atras\')">🔴 Atrasadas<span class="bq">'+atras.length+'</span></button>';
