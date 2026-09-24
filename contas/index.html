@@ -728,6 +728,7 @@ async function rcCarrega(){
     if(RCDIA||RCABERTO){var l;try{l=await rcPorta(RCABERTO?{aberto:true,loja:RCLOJA||null}:{dia:RCDIA,loja:RCLOJA||null})}catch(e){l={erro:e.message}}
       if(my!==RCSEQ)return; RCLISTA=l;}
   }
+  RCCARREGA=false;
   desenha();
 }
 async function rcMes(m){RCMES=m;RCDIA='';RCABERTO=false;await rcCarrega()}
@@ -794,7 +795,7 @@ function receberHtml(){
   if(RCLISTA.erro)return h+'<div class="card"><div class="vazio">Não deu para carregar: '+dEsc(RCLISTA.erro)+'</div></div>';
   var rows=RCLISTA.lista||[], tot=0;rows.forEach(function(r){tot+=Number(r.valor||0)});
   var tit;
-  if(RCABERTO)tit='🔴 Em aberto no Saipos (vencidos e próximos 60 dias)';
+  if(RCABERTO)tit='🔴 Em aberto no Saipos (vencidos até 180 dias atrás e próximos 60 dias)';
   else{var p=String(RCDIA).split('-');tit='💰 Entra em '+dEsc(p[2]+'/'+p[1])+(RCDIA===RC.hoje_iso?' — hoje':'')}
   h+='<div class="card"><div class="blocotit"><span>'+tit+'</span><span class="blocon">'+rows.length+(rows.length===1?' lançamento':' lançamentos')+' · '+din(tot)+'</span></div>';
   if(!RCABERTO)h+='<div class="mtit2">Resumo por onde o dinheiro entra</div>'+rcResumo(rows);
