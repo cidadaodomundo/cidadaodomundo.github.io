@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<meta name="robots" content="noindex">
+<title>Futebol de Quinta · Colômbia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#E0A81C;--brand-ink:#111110;--ok:#2fae6a;--bad:#e66767}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',system-ui,sans-serif;font-size:15px;padding:16px;max-width:900px;margin:0 auto}
+h1{font-family:'Anton',sans-serif;font-weight:400;font-size:30px;letter-spacing:.5px;line-height:1}
+h1 span{color:var(--brand)}
+.sub{color:var(--muted);font-size:13px;margin-top:6px}
+h2{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);margin:22px 0 10px}
+.box{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:14px}
+textarea{width:100%;min-height:110px;background:var(--s2);border:1px solid var(--line);border-radius:10px;color:var(--text);font:inherit;padding:10px;resize:vertical}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+button{font:inherit;cursor:pointer}
+.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px 14px;font-weight:700}
+.b:hover{border-color:var(--brand)}
+.b.go{background:var(--brand);color:var(--brand-ink);border-color:var(--brand);font-size:17px;padding:14px 22px;flex:1}
+.b.sm{padding:6px 10px;font-size:13px}
+select{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:9px;font:inherit;font-weight:700}
+label.l{color:var(--text2);font-size:13px;font-weight:600}
+.pl{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.pl:last-child{border-bottom:0}
+.pl .nm{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl.off .nm{color:var(--muted);text-decoration:line-through}
+.stars button{background:none;border:0;color:#4a4943;font-size:20px;padding:0 1px;line-height:1}
+.stars button.on{color:var(--brand)}
+.gk{background:var(--s2);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:4px 7px;font-size:12px;font-weight:800}
+.gk.on{background:rgba(47,174,106,.18);border-color:var(--ok);color:var(--ok)}
+.x{background:none;border:0;color:var(--muted);font-size:18px;padding:0 4px}
+.cnt{color:var(--muted);font-size:13px}
+.teams{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.tm{background:var(--s1);border:1px solid var(--line);border-top:5px solid var(--c);border-radius:13px;padding:12px 14px}
+.tm h3{font-family:'Anton',sans-serif;font-weight:400;font-size:20px;letter-spacing:.4px;display:flex;justify-content:space-between;align-items:baseline}
+.tm h3 small{font-family:'Barlow',sans-serif;font-size:12px;color:var(--muted);font-weight:600}
+.tm ol{margin:8px 0 0 20px;line-height:1.7}
+.tm li .g{color:var(--ok);font-size:11px;font-weight:800;margin-left:4px}
+.hint{color:var(--muted);font-size:12.5px;margin-top:8px;line-height:1.4}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ok);color:#fff;padding:10px 16px;border-radius:10px;font-weight:700;display:none}
+</style>
+</head>
+<body>
+
+<h1>FUTEBOL DE <span>QUINTA</span></h1>
+<div class="sub">Colômbia · divide os times equilibrados</div>
+
+<h2>1 · Quem vai jogar</h2>
+<div class="box">
+  <textarea id="cola" placeholder="Cole aqui a lista do WhatsApp (um nome por linha). Números, traços e emojis são limpos sozinhos."></textarea>
+  <div class="row">
+    <button class="b" id="add">Adicionar nomes</button>
+    <button class="b sm" id="todos">Marcar todos</button>
+    <button class="b sm" id="nenhum">Desmarcar todos</button>
+    <span class="cnt" id="cnt"></span>
+  </div>
+  <div class="hint">Toque no nome para marcar quem veio hoje. As estrelas são o nível de cada um (a página lembra na próxima quinta). <b>GOL</b> = goleiro, vai um para cada time.</div>
+  <div id="lista" style="margin-top:8px"></div>
+</div>
+
+<h2>2 · Sortear</h2>
+<div class="box">
+  <div class="row" style="margin-top:0">
+    <label class="l">Times</label>
+    <select id="nt"><option>2</option><option selected>3</option><option>4</option><option>5</option></select>
+    <label class="l">Jogadores por time</label>
+    <select id="pt"><option value="0">todos</option><option>5</option><option>6</option><option>7</option><option>8</option><option>11</option></select>
+  </div>
+  <div class="row"><button class="b go" id="sortear">⚽ Dividir os times</button></div>
+</div>
+
+<div id="res" style="display:none">
+  <h2>3 · Times</h2>
+  <div class="teams" id="teams"></div>
+  <div class="row">
+    <button class="b" id="copiar">Copiar para o WhatsApp</button>
+    <button class="b" id="whats">Mandar no WhatsApp</button>
+    <button class="b" id="de-novo">Sortear de novo</button>
+  </div>
+</div>
+
+<div class="toast" id="toast">Copiado!</div>
+
+<script>
+const KEY='futebol-quinta-colombia';
+const CORES=[['Amarelo','#E0A81C'],['Azul','#3b82f6'],['Vermelho','#e66767'],['Verde','#2fae6a'],['Branco','#e8e6de']];
+let S={players:[]};
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&Array.isArray(s.players))S=s}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const $=id=>document.getElementById(id);
+const esc=t=>t.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function limpa(l){
+  return l.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu,'')
+          .replace(/^[\s\d.\-–—)*•:]+/,'').replace(/\s+/g,' ').trim();
+}
+$('add').onclick=()=>{
+  const nomes=$('cola').value.split(/\n/).map(limpa).filter(n=>n.length>1);
+  nomes.forEach(n=>{
+    const p=S.players.find(p=>p.name.toLowerCase()===n.toLowerCase());
+    if(p)p.on=true;else S.players.push({name:n,lvl:3,gk:false,on:true});
+  });
+  $('cola').value='';save();render();
+};
+$('todos').onclick=()=>{S.players.forEach(p=>p.on=true);save();render()};
+$('nenhum').onclick=()=>{S.players.forEach(p=>p.on=false);save();render()};
+
+function render(){
+  const L=$('lista');L.innerHTML='';
+  S.players.forEach((p,i)=>{
+    const d=document.createElement('div');d.className='pl'+(p.on?'':' off');
+    let st='<span class="stars">';for(let k=1;k<=5;k++)st+=`<button data-s="${k}" class="${k<=p.lvl?'on':''}">★</button>`;st+='</span>';
+    d.innerHTML=`<input type="checkbox" ${p.on?'checked':''}><span class="nm">${esc(p.name)}</span>${st}<button class="gk ${p.gk?'on':''}">GOL</button><button class="x" title="Apagar">×</button>`;
+    d.querySelector('input').onchange=e=>{p.on=e.target.checked;save();render()};
+    d.querySelector('.nm').onclick=()=>{p.on=!p.on;save();render()};
+    d.querySelectorAll('.stars button').forEach(b=>b.onclick=()=>{p.lvl=+b.dataset.s;save();render()});
+    d.querySelector('.gk').onclick=()=>{p.gk=!p.gk;save();render()};
+    d.querySelector('.x').onclick=()=>{if(confirm('Apagar '+p.name+' da lista?')){S.players.splice(i,1);save();render()}};
+    L.appendChild(d);
+  });
+  const n=S.players.filter(p=>p.on).length;
+  $('cnt').textContent=n+' confirmados de '+S.players.length;
+}
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+const soma=t=>t.reduce((s,p)=>s+p.lvl,0);
+
+function dividir(){
+  const nt=+$('nt').value, pt=+$('pt').value;
+  let pres=shuffle(S.players.filter(p=>p.on));
+  if(pres.length<nt){alert('Poucos jogadores marcados.');return}
+  let fora=[];
+  if(pt&&pres.length>nt*pt){fora=pres.slice(nt*pt);pres=pres.slice(0,nt*pt)}
+  const T=Array.from({length:nt},()=>[]);
+  // goleiros primeiro, um por time
+  const gks=pres.filter(p=>p.gk).sort((a,b)=>b.lvl-a.lvl);
+  const lin=pres.filter(p=>!p.gk).sort((a,b)=>b.lvl-a.lvl);
+  const ordem=[...gks.slice(0,nt),...lin,...gks.slice(nt)];
+  // distribui: cada jogador vai para o time mais fraco que ainda tem vaga
+  const cap=Math.ceil(pres.length/nt);
+  ordem.forEach(p=>{
+    const opc=T.filter(t=>t.length<cap).sort((a,b)=>a.length-b.length||soma(a)-soma(b));
+    opc[0].push(p);
+  });
+  // ajuste fino: troca jogadores de linha se diminuir a diferença
+  for(let it=0;it<200;it++){
+    const s=T.map(soma);const mx=s.indexOf(Math.max(...s)),mn=s.indexOf(Math.min(...s));
+    const dif=s[mx]-s[mn];let feito=false;
+    for(const a of shuffle([...T[mx]])){if(a.gk)continue;
+      for(const b of shuffle([...T[mn]])){if(b.gk)continue;
+        const d=a.lvl-b.lvl; if(d>0&&Math.abs(dif-2*d)<dif){
+          T[mx][T[mx].indexOf(a)]=b;T[mn][T[mn].indexOf(b)]=a;feito=true;break}}
+      if(feito)break}
+    if(!feito)break;
+  }
+  shuffle(T);
+  mostrar(T,fora);
+}
+
+let ULT='';
+function mostrar(T,fora){
+  const W=$('teams');W.innerHTML='';
+  let txt='⚽ *FUTEBOL DE QUINTA — COLÔMBIA*\n';
+  T.forEach((t,i)=>{
+    const [nome,cor]=CORES[i%CORES.length];
+    const g=t.filter(p=>p.gk),l=shuffle(t.filter(p=>!p.gk)),ord=[...g,...l];
+    const d=document.createElement('div');d.className='tm';d.style.setProperty('--c',cor);
+    d.innerHTML=`<h3>${nome.toUpperCase()}<small>força ${soma(t)} · ${t.length} jog.</small></h3><ol>`+
+      ord.map(p=>`<li>${esc(p.name)}${p.gk?'<span class="g">GOL</span>':''}</li>`).join('')+'</ol>';
+    W.appendChild(d);
+    txt+=`\n*Time ${nome}*\n`+ord.map((p,k)=>`${k+1}. ${p.name}${p.gk?' 🧤':''}`).join('\n')+'\n';
+  });
+  if(fora.length){
+    const d=document.createElement('div');d.className='tm';d.style.setProperty('--c','#8a897e');
+    d.innerHTML='<h3>PRÓXIMOS<small>esperando vaga</small></h3><ol>'+fora.map(p=>`<li>${esc(p.name)}</li>`).join('')+'</ol>';
+    W.appendChild(d);
+    txt+='\n*Próximos*\n'+fora.map((p,k)=>`${k+1}. ${p.name}`).join('\n')+'\n';
+  }
+  ULT=txt;$('res').style.display='';$('res').scrollIntoView({behavior:'smooth'});
+}
+$('sortear').onclick=dividir;$('de-novo').onclick=dividir;
+$('copiar').onclick=async()=>{try{await navigator.clipboard.writeText(ULT)}catch(e){const t=document.createElement('textarea');t.value=ULT;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove()}
+  const o=$('toast');o.style.display='block';setTimeout(()=>o.style.display='none',1500)};
+$('whats').onclick=()=>window.open('https://wa.me/?text='+encodeURIComponent(ULT),'_blank');
+render();
+</script>
+</body>
+</html>
