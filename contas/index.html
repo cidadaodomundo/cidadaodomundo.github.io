@@ -582,16 +582,16 @@ function agendaHtml(){
   if(!(DIA.meses||[]).length)h+='<span class="nota">Nenhuma conta em aberto em '+DIA.ano+'.</span>';
   h+='</div>';
   h+='<div class="abas"><button class="aba nb'+(DIA.escopo==='nao_baixados'?' on':'')+'" onclick="diaNaoBaixados()">⏰ Não foram baixadas · '+nb.n+(Number(nb.n)===1?' conta':' contas')+' · '+din(nb.total)+'</button></div>';
-  if(DIA.escopo!=='nao_baixados'){
+  {
     h+='<div class="dias">';
     (DIA.dias||[]).forEach(function(d){
-      h+='<button class="diab'+(DIASEL===d.dia?' on':'')+(d.hoje?' hoje':'')+'" onclick="diaPick('+aspas(d.dia)+')">'
+      h+='<button class="diab'+(DIA.escopo!=='nao_baixados'&&DIASEL===d.dia?' on':'')+(d.hoje?' hoje':'')+'" onclick="diaPick('+aspas(d.dia)+')">'
         +'<div class="dnum">'+d.rotulo+'</div><div class="dsem">'+(SEM[d.diasem]||'')+(d.hoje?' · hoje':'')+'</div>'
         +'<div class="dqt">'+d.n+(Number(d.n)===1?' conta':' contas')+'</div><div class="dval">'+dinCurto(d.total)+'</div></button>';
     });
     if(!(DIA.dias||[]).length)h+='<div class="vazio">Nenhuma conta em aberto neste mês.</div>';
     h+='</div>';
-    h+='<div class="abas"><button class="aba'+(DIASEL?'':' on')+'" onclick="diaPick('+aspas('')+')">Ver o mês inteiro</button></div>';
+    h+='<div class="abas"><button class="aba'+(DIA.escopo!=='nao_baixados'&&!DIASEL?' on':'')+'" onclick="diaPick('+aspas('')+')">Ver o mês inteiro</button></div>';
   }
   var rows=(DIA.lista||[]);
   if(DIA.escopo!=='nao_baixados' && DIASEL)rows=rows.filter(function(r){return r.dia===DIASEL});
@@ -611,7 +611,7 @@ async function diaRecarrega(){$('app').innerHTML='Carregando…';await carregaDi
 async function diaLoja(l){DIALOJA=l;await diaRecarrega()}
 async function diaMes(m){DIAMES=m;DIAESC='mes';DIASEL='';await diaRecarrega()}
 async function diaNaoBaixados(){DIAESC='nao_baixados';DIASEL='';await diaRecarrega()}
-function diaPick(d){DIASEL=d;desenha()}
+async function diaPick(d){DIASEL=d;if(DIA&&DIA.escopo==='nao_baixados'){DIAESC='mes';await diaRecarrega();return}desenha()}
 async function diaAno(y){
   DIAANO=Number(y);DIAESC='mes';DIASEL='';DIAMES=String(y)+'-01';
   $('app').innerHTML='Carregando…';
