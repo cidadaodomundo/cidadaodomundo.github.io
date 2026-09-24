@@ -15,9 +15,34 @@ h1{font-size:22px;font-weight:800}
 .top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
 .top .rt{margin-left:auto}
 button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+button.bp{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.cnt{color:var(--muted);font-weight:500;font-size:12px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.chips .n{opacity:.7;font-weight:700;margin-left:3px}
+.c.urg{border-left:3px solid var(--bad)}
+.c.feito{opacity:.75}
+.lin1{display:flex;gap:12px;align-items:flex-start}
+.lin1 .corpo{flex:1;min-width:0}
+.cx{width:24px;height:24px;flex:none;border:2px solid var(--line);border-radius:6px;background:var(--s2);cursor:pointer;display:grid;place-items:center;font-size:14px;color:var(--ok);margin-top:1px}
+.cx:hover{border-color:var(--ok)}
+.cx.on{border-color:var(--ok);background:rgba(47,174,106,.12)}
+.hist{margin-top:7px;border-left:2px solid var(--line);padding-left:9px}
+.hist .ln{font-size:12px;color:var(--text2);margin:2px 0}
+.hist details.mais{margin:0}
+.hist details.mais summary{font-size:11.5px;padding:0;color:var(--muted)}
+.acoes{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;align-items:center}
+.acoes .nota{flex:1;min-width:200px;background:var(--s2);border:1px dashed var(--line);color:var(--text);border-radius:8px;padding:7px 10px;font-size:12.5px;font-family:inherit}
+.acoes .nota:focus{outline:none;border-style:solid;border-color:var(--brand)}
+.mini{padding:6px 9px!important;font-size:12px!important;background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:8px;font-family:inherit}
+.form{background:var(--s2);border:1px solid var(--line);border-radius:11px;padding:13px;margin-bottom:14px;display:none}
+.form.on{display:block}
+.form input,.form select,.form textarea{width:100%;background:var(--s1);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;margin-bottom:8px}
+.form .lin{display:flex;gap:8px;flex-wrap:wrap}
+.form .lin>*{flex:1;min-width:130px}
+.tag{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:7px}
 h2{font-size:15px;font-weight:800;margin:24px 0 10px}
 .c{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:10px}
-.c .nm{font-weight:800;font-size:14.5px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.c .nm{font-weight:800;font-size:14.5px}
 .pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700}
 .p-urg{background:rgba(230,103,103,.15);color:var(--bad)}
 .p-nor{background:rgba(201,133,0,.15);color:var(--warn)}
@@ -42,9 +67,22 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
 </head>
 <body>
 <div class="top">
-  <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>🔧 Manutenção</h1><div class="sub">o que está quebrado, por loja — alimentado pelo WhatsApp e pelo caderno</div></div></div>
-  <div class="rt"><button class="b" onclick="location.reload()">↻ Atualizar</button></div>
+  <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>🔧 Manutenção</h1><div class="sub">o que está quebrado, por loja — marque ✔ quando resolver e anote o que aconteceu</div></div></div>
+  <div class="rt"><button class="b bp" onclick="abreForm()">+ Novo chamado</button> <button class="b" onclick="boot()">↻ Atualizar</button></div>
 </div>
+
+<div class="form" id="frm">
+  <div class="tag">Abrir chamado novo</div>
+  <input id="f_item" placeholder="O que quebrou? (ex.: Freezer da cozinha)" maxlength="120">
+  <div class="lin">
+    <select id="f_unid"><option value="">Loja…</option><option>Água Verde</option><option>São Braz</option><option>Ahú</option><option>Boqueirão</option><option>Todas</option></select>
+    <select id="f_prio"><option value="normal">Normal</option><option value="urgente">Urgente</option><option value="quando_der">Quando der</option></select>
+  </div>
+  <textarea id="f_desc" rows="2" placeholder="Detalhe (opcional)" maxlength="600"></textarea>
+  <div class="lin" style="justify-content:flex-end"><button class="b bp" onclick="salvaNovo()" style="flex:none">Salvar</button><button class="b" onclick="abreForm(false)" style="flex:none">Cancelar</button></div>
+</div>
+
+<div class="chips" id="chips"></div>
 <div id="app"><div class="load">Carregando…</div></div>
 
 <script>
@@ -53,38 +91,82 @@ const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const H={apikey:KEY,Authorization:'Bearer '+KEY};
 const $=i=>document.getElementById(i);
 let SOLOJA=null;try{const _u=new URLSearchParams(location.search).get('u');if(_u)SOLOJA=_u}catch(e){}
-const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+let FILTRO=SOLOJA||'';
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const br=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'';
-function dias(d){const n=Math.round((new Date()-new Date(d+'T00:00:00'))/86400000);return n<=0?'hoje':(n+' dias')}
+function dias(d){const n=Math.round((new Date()-new Date(d+'T00:00:00'))/86400000);return n<=0?'hoje':(n+' dia'+(n>1?'s':''))}
 async function get(q){try{const r=await fetch(SB+q,{headers:H});return r.ok?await r.json():[]}catch(e){return []}}
 const PRI={urgente:['urgente','p-urg'],normal:['normal','p-nor'],quando_der:['quando der','p-qdd']};
-
+const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
+async function acao(a,dados){
+  const r=await fetch(SB+'rpc/manutencao_acao',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:tok(),p_acao:a,p_dados:dados||{}})});
+  if(!r.ok)throw new Error('porta '+r.status);
+  return await r.json();
+}
+async function faz(a,dados,erro){try{await acao(a,dados);await boot()}catch(e){alert(erro||'Não deu para gravar. Entre no portal de novo e tente outra vez.')}}
+function resolver(id,v){if(v&&!confirm('Marcar este chamado como RESOLVIDO?'))return;faz('resolver',{id:id,feito:v})}
+async function anotar(id,el){const t=el.value.trim();if(!t)return;el.disabled=true;try{await acao('anotar',{id:id,texto:t});await boot()}catch(e){el.disabled=false;alert('Não deu para gravar a observação.')}}
+function teclaNota(ev,id,el){if(ev.key==='Enter'){ev.preventDefault();anotar(id,el)}}
+function abreForm(v){const e=$('frm');e.classList.toggle('on',v!==false&&!e.classList.contains('on'));if(e.classList.contains('on'))$('f_item').focus()}
+async function salvaNovo(){
+  const it=$('f_item').value.trim(),u=$('f_unid').value;
+  if(!it||!u){alert('Escreva o que quebrou e escolha a loja.');return}
+  try{await acao('novo',{item:it,unidade:u,prioridade:$('f_prio').value,descricao:$('f_desc').value.trim()});
+    $('f_item').value='';$('f_desc').value='';abreForm(false);await boot()}
+  catch(e){alert('Não deu para salvar. Entre no portal de novo e tente outra vez.')}
+}
+function filtra(u){FILTRO=u;boot()}
+function historico(obs){
+  const p=String(obs||'').split(' | ').map(s=>s.trim()).filter(Boolean);
+  if(!p.length)return '';
+  const ult=p.slice(-2),antes=p.slice(0,-2);
+  let h='<div class="hist">';
+  if(antes.length)h+='<details class="mais"><summary>ver '+antes.length+' anotação(ões) antiga(s)</summary>'+antes.map(x=>'<div class="ln">'+esc(x)+'</div>').join('')+'</details>';
+  h+=ult.map(x=>'<div class="ln">'+esc(x)+'</div>').join('')+'</div>';
+  return h;
+}
+let ROWS=[];
 async function boot(){
-  const rows=await get('manutencao_chamado?select=id,unidade,item,descricao,prioridade,status,origem,aberto_em,resolvido_em,obs&order=status.asc,prioridade.asc,aberto_em.asc&limit=200');
-  const rowsF=SOLOJA?rows.filter(function(r){return r.unidade===SOLOJA||r.unidade==='Todas'}):rows;
+  ROWS=await get('manutencao_chamado?select=id,unidade,item,descricao,prioridade,status,origem,aberto_em,resolvido_em,obs&order=aberto_em.asc&limit=300');
+  const lojasTodas=['Água Verde','São Braz','Ahú','Boqueirão'];
+  const ab=ROWS.filter(r=>r.status!=='resolvido');
+  if(!SOLOJA){
+    $('chips').innerHTML=['',...lojasTodas].map(u=>{const n=u?ab.filter(r=>r.unidade===u||r.unidade==='Todas').length:ab.length;
+      return '<button class="b'+(FILTRO===u?' bp':'')+'" onclick="filtra(\''+u+'\')">'+(u||'Todas')+' <span class="n">'+n+'</span></button>'}).join('');
+  }
+  const rowsF=FILTRO?ROWS.filter(r=>r.unidade===FILTRO||r.unidade==='Todas'):ROWS;
   const abertos=rowsF.filter(r=>r.status!=='resolvido');
-  const resolvidos=rowsF.filter(r=>r.status==='resolvido').slice(0,30);
+  const resolvidos=rowsF.filter(r=>r.status==='resolvido').sort((a,b)=>String(b.resolvido_em).localeCompare(String(a.resolvido_em))).slice(0,30);
+  const ord={urgente:0,normal:1,quando_der:2};
+  abertos.sort((a,b)=>(ord[a.prioridade]??1)-(ord[b.prioridade]??1)||String(a.aberto_em).localeCompare(String(b.aberto_em)));
   let h='';
-  if(!abertos.length){h+='<div class="vazio">nenhum chamado aberto — ou ninguém lançou ainda</div>'}
-  const lojas={};abertos.forEach(r=>{(lojas[r.unidade]=lojas[r.unidade]||[]).push(r)});
-  Object.keys(lojas).sort().forEach(u=>{
-    const l=lojas[u];
-    h+='<h2>'+esc(u)+' <span style="color:var(--muted);font-weight:500;font-size:12px">'+l.length+' aberto'+(l.length>1?'s':'')+'</span></h2>';
-    l.sort((a,b)=>(a.prioridade==='urgente'?0:1)-(b.prioridade==='urgente'?0:1));
+  if(!abertos.length)h+='<div class="vazio">nenhum chamado aberto aqui 🎉</div>';
+  const grupos={};abertos.forEach(r=>{(grupos[r.unidade]=grupos[r.unidade]||[]).push(r)});
+  Object.keys(grupos).sort((a,b)=>a.localeCompare(b,'pt-BR')).forEach(u=>{
+    const l=grupos[u];
+    h+='<h2>'+esc(u)+' <span class="cnt">'+l.length+' aberto'+(l.length>1?'s':'')+'</span></h2>';
     l.forEach(r=>{
       const p=PRI[r.prioridade]||PRI.normal;
-      h+='<div class="c"><div class="nm">'+esc(r.item)+
-         '<span><span class="pill '+p[1]+'">'+p[0]+'</span>'+(r.status==='agendado'?' <span class="pill p-ok">agendado</span>':'')+'</span></div>'+
-         (r.descricao?'<div class="d">'+esc(r.descricao)+'</div>':'')+
-         '<div class="m">aberto há '+dias(r.aberto_em)+' ('+br(r.aberto_em)+') · veio do '+esc(r.origem)+(r.obs?' · '+esc(r.obs):'')+'</div></div>';
+      h+='<div class="c'+(r.prioridade==='urgente'?' urg':'')+'"><div class="lin1">'+
+        '<div class="cx" title="Marcar como resolvido" onclick="resolver('+r.id+',true)"></div>'+
+        '<div class="corpo"><div class="nm">'+esc(r.item)+' <span class="pill '+p[1]+'">'+p[0]+'</span>'+(r.status==='agendado'?' <span class="pill p-ok">agendado</span>':'')+'</div>'+
+        (r.descricao?'<div class="d">'+esc(r.descricao)+'</div>':'')+
+        '<div class="m">aberto há '+dias(r.aberto_em)+' ('+br(r.aberto_em)+') · veio do '+esc(r.origem)+'</div>'+
+        historico(r.obs)+
+        '<div class="acoes"><input class="nota" placeholder="✏️ escreva uma observação e aperte Enter" maxlength="400" onkeydown="teclaNota(event,'+r.id+',this)">'+
+        '<button class="b mini" onclick="anotar('+r.id+',this.previousSibling)">Gravar</button>'+
+        '<select class="mini" onchange="faz(\'situacao\',{id:'+r.id+',status:this.value})"><option value="aberto"'+(r.status!=='agendado'?' selected':'')+'>aberto</option><option value="agendado"'+(r.status==='agendado'?' selected':'')+'>agendado</option></select>'+
+        '<select class="mini" onchange="faz(\'prioridade\',{id:'+r.id+',prioridade:this.value})">'+Object.keys(PRI).map(k=>'<option value="'+k+'"'+(r.prioridade===k?' selected':'')+'>'+PRI[k][0]+'</option>').join('')+'</select>'+
+        '</div></div></div></div>';
     });
   });
   if(resolvidos.length){
-    h+='<details><summary>✅ resolvidos recentes ('+resolvidos.length+')</summary>';
-    resolvidos.forEach(r=>{h+='<div class="c"><div class="nm">'+esc(r.item)+'<span class="pill p-ok">resolvido '+br(r.resolvido_em)+'</span></div><div class="m">'+esc(r.unidade)+'</div></div>'});
+    h+='<details class="res"><summary>✅ resolvidos recentes ('+resolvidos.length+')</summary>';
+    resolvidos.forEach(r=>{h+='<div class="c feito"><div class="lin1"><div class="cx on" title="Reabrir" onclick="if(confirm(\'Reabrir este chamado?\'))resolver('+r.id+',false)">✔</div><div class="corpo"><div class="nm">'+esc(r.item)+' <span class="pill p-ok">resolvido '+br(r.resolvido_em)+'</span></div><div class="m">'+esc(r.unidade)+'</div>'+historico(r.obs)+'</div></div></div>'});
     h+='</details>';
   }
-  h+='<div class="aviso">Esta tela é alimentada pela varredura do WhatsApp (12h e 20h) e pelas sessões com o Claude. Para lançar ou dar baixa num chamado, avise no grupo Manutenção Cidadão — a varredura pega — ou fale com o Fábio.</div>';
+  h+='<div class="aviso">✔ fecha o chamado (e aparece como resolvido também em Precisa de Resposta). Toda observação fica gravada com seu nome e a hora. A varredura do WhatsApp (12h e 20h) continua abrindo e atualizando chamados sozinha.</div>';
   $('app').innerHTML=h;
 }
 

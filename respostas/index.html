@@ -48,6 +48,10 @@ details.c>summary .tt{flex:1}
 .bz{background:none;border:none;color:var(--muted);font-size:11.5px;cursor:pointer;padding:2px 0;text-decoration:underline}
 .bz:hover{color:var(--text)}
 .cx-off{opacity:.35;cursor:default}
+.nl{display:flex;gap:6px;margin-top:6px}
+.nl .nota{flex:1;min-width:0;background:var(--s2);border:1px dashed var(--line);color:var(--text);border-radius:8px;padding:6px 9px;font-size:12px;font-family:inherit}
+.nl .nota:focus{outline:none;border-style:solid;border-color:var(--brand)}
+button.mini{padding:5px 10px;font-size:12px}
 .form{background:var(--s2);border:1px solid var(--line);border-radius:11px;padding:13px;margin-bottom:14px;display:none}
 .form.on{display:block}
 .form input,.form select,.form textarea{width:100%;background:var(--s1);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;margin-bottom:8px}
@@ -131,12 +135,21 @@ async function marca(f,r,valor){
   try{await porta('marcar',{fonte:f,ref:String(r),feito:valor});await boot()}
   catch(e){alert('Não deu para marcar. Entre no portal de novo e tente outra vez.')}
 }
-async function recado(f,r){
-  const at=mk(f,r).recado||'';
-  const t=prompt('Escreva um recado para a equipe (deixe vazio para apagar):',at);
-  if(t===null)return;
-  try{await porta('recado',{fonte:f,ref:String(r),recado:t});await boot()}
-  catch(e){alert('Não deu para gravar o recado.')}
+async function recado(f,r,el){
+  const t=el.value.trim();
+  if(!t&&!mk(f,r).recado)return;
+  el.disabled=true;
+  try{
+    if(f==='manutencao'){if(!t){el.disabled=false;return}await manut('anotar',{id:r,texto:t})}
+    else await porta('recado',{fonte:f,ref:String(r),recado:t});
+    await boot();
+  }catch(e){el.disabled=false;alert('Não deu para gravar a observação.')}
+}
+function teclaRec(ev,f,r,el){if(ev.key==='Enter'){ev.preventDefault();recado(f,r,el)}}
+async function manut(a,dados){
+  const x=await fetch(SB+'rpc/manutencao_acao',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:tok(),p_acao:a,p_dados:dados||{}})});
+  if(!x.ok)throw new Error('porta '+x.status);return await x.json();
 }
 function abreForm(v){const e=$('frm');e.classList.toggle('on',v!==false&&!e.classList.contains('on'));if(e.classList.contains('on'))$('f_titulo').focus()}
 async function salvaNovo(){
@@ -155,12 +168,14 @@ function item(f,r,corpo,podeMarcar){
   else{h+='<div class="cx'+(ft?' on':'')+'" onclick="marca(\''+f+'\',\''+String(r).replace(/'/g,"")+'\','+(ft?'false':'true')+')">'+(ft?'✔':'')+'</div>'}
   h+='<div class="tx">'+corpo;
   if(ft&&m.feito_por)h+='<div class="m">✔ '+esc(m.feito_por)+' resolveu hoje</div>';
-  if(m.recado)h+='<div class="rec">💬 '+esc(m.recado)+'<div class="m">— '+esc(m.recado_por||'')+'</div></div>';
-  h+='<button class="bz" onclick="recado(\''+f+'\',\''+String(r).replace(/'/g,"")+'\')">'+(m.recado?'editar recado':'escrever recado')+'</button>';
+  if(m.recado&&f!=='manutencao')h+='<div class="rec">💬 '+esc(m.recado)+'<div class="m">— '+esc(m.recado_por||'')+'</div></div>';
+  const rr=String(r).replace(/'/g,"");
+  h+='<div class="nl"><input class="nota" maxlength="400" placeholder="'+(f==='manutencao'?'✏️ observação (vai para o histórico do chamado) — Enter grava':(m.recado?'✏️ trocar o recado — Enter grava (vazio apaga)':'✏️ observação — Enter grava'))+'" onkeydown="teclaRec(event,\''+f+'\',\''+rr+'\',this)"><button class="b mini" onclick="recado(\''+f+'\',\''+rr+'\',this.previousSibling)">Gravar</button></div>';
   h+='</div></div>';
   return h;
 }
 function bloco(id,titulo,n,corpo,aberto){
+  if(!corpo)return '';
   const pil=n>0?'<span class="pill '+(n>4?'p-bad':'p-warn')+'">'+n+'</span>':'<span class="pill p-ok">0</span>';
   return '<details class="c" id="b_'+id+'"'+(aberto?' open':'')+'><summary><span class="seta">▶</span><span class="tt">'+titulo+'</span>'+pil+'</summary><div class="corpo">'+(corpo||'<div class="vazio">nada pendente</div>')+'</div></details>';
 }
@@ -172,7 +187,7 @@ async function boot(){
     get('ifood_fato_negociacao?select=id,id_loja,data,motivo,valor_pedido,resposta_loja&data=gte.'+dMenos(14)+'&order=data.asc&limit=100'),
     get('cardapio_pausado?select=unidade,canal,item,primeiro_visto&visto_em=gte.'+dMenos(2)+'&order=primeiro_visto.asc&limit=800'),
     get('salao_reserva?select=id,unidade,data,hora,pessoas,area,status,sinal_pago,observacao&data=gte.'+hojeISO()+'&data=lte.'+dMais(7)+'&order=data.asc,hora.asc&limit=100'),
-    get('manutencao_chamado?select=id,unidade,item,descricao,prioridade,status,aberto_em&status=neq.resolvido&order=aberto_em.asc&limit=200'),
+    get('manutencao_chamado?select=id,unidade,item,descricao,prioridade,status,aberto_em,obs&status=neq.resolvido&order=aberto_em.asc&limit=200'),
     get('encomenda?select=id,unidade,data_entrega,hora,descricao,qtd_itens,status,responsavel&data_entrega=gte.'+dMenos(1)+'&order=data_entrega.asc&limit=100'),
     get('compra_item?select=id,unidade,item,quantidade,status,quem_pediu,criado_em&criado_em=gte.'+dMenos(30)+'&order=criado_em.asc&limit=200'),
     porta('listar').catch(()=>({marcas:[],manuais:[],feitos7:[],quem:''}))
@@ -195,16 +210,19 @@ async function boot(){
 
   /* 1 - manutencao urgente */
   const mUrg=man.filter(c=>c.prioridade==='urgente'||c.prioridade==='alta');
+  const mNorN=man.length-mUrg.length;
   h+=bloco('mu','🚨 Manutenção urgente',mUrg.filter(c=>abertoHoje(chave('manutencao',c.id))).length,
     mUrg.map(c=>item('manutencao',c.id,
       '<b>'+esc(c.unidade)+' · '+esc(c.item)+'</b> <span class="pill p-bad">'+esc(c.prioridade)+'</span>'+
-      '<div class="m">'+esc(c.descricao||'')+' · aberto há '+dias(c.aberto_em)+' dia(s) · '+esc(c.status)+'</div>')).join(''),true);
+      '<div class="m">'+(c.descricao?esc(c.descricao)+' · ':'')+'aberto há '+dias(c.aberto_em)+' dia(s) · '+esc(c.status)+'</div>'+
+      (c.obs?'<div class="rec">📝 '+esc(String(c.obs).split(' | ').pop())+'</div>':''))).join('')+
+    (mUrg.length||mNorN?'<div class="m" style="margin-top:8px"><a href="/manutencao/" style="color:var(--brand)">Ver todos os chamados na tela Manutenção'+(mNorN?' (+'+mNorN+' não urgentes)':'')+' →</a></div>':''),true);
 
   /* 2 - reservas dos proximos 7 dias */
   const hj=hojeISO(),amn=dMais(1);
   const pend7=res.filter(function(r){const t=String(r.status||'').toLowerCase();return r.sinal_pago!==true||(t.indexOf('confirm')>=0&&t.indexOf('confirmad')<0)});
   h+=bloco('rs','🪑 Reservas dos próximos 7 dias',pend7.filter(r=>abertoHoje(chave('reserva',r.id))).length,
-    res.map(function(r){
+    pend7.map(function(r){
       const d=String(r.data).slice(0,10);
       const semSinal=r.sinal_pago!==true;
       const st=String(r.status||'').toLowerCase();const aConf=st.indexOf('confirm')>=0&&st.indexOf('confirmad')<0;
@@ -243,13 +261,6 @@ async function boot(){
       '<b>'+esc(c.unidade)+' · '+esc(c.item)+'</b>'+(c.quantidade?' <span class="pill p-off">'+esc(c.quantidade)+'</span>':'')+
       '<div class="m">pedido por '+esc(c.quem_pediu||'—')+' há '+dias(c.criado_em)+' dia(s)</div>')).join(''),false);
 
-  /* 6 - manutencao normal */
-  const mNor=man.filter(c=>c.prioridade!=='urgente'&&c.prioridade!=='alta');
-  h+=bloco('mn','🔧 Manutenção — resto da fila',mNor.filter(c=>abertoHoje(chave('manutencao',c.id))).length,
-    mNor.map(c=>item('manutencao',c.id,
-      '<b>'+esc(c.unidade)+' · '+esc(c.item)+'</b> <span class="pill p-off">'+esc(c.prioridade||'')+'</span>'+
-      '<div class="m">'+esc(c.descricao||'')+' · aberto há '+dias(c.aberto_em)+' dia(s)</div>')).join(''),false);
-
   /* 7 - chamados ifood */
   const abertos=cham.filter(c=>!c.resposta_loja);
   h+=bloco('ci','🎧 Chamados do iFood sem resposta da loja',abertos.filter(c=>abertoHoje(chave('chamado',c.id))).length,
@@ -266,7 +277,7 @@ async function boot(){
 
   /* 9 - avaliacoes do ifood, fechada no fim */
   let ha='';
-  if(!pend.length){ha='<div class="vazio">nenhuma pendente na última carga</div>'}
+  if(!pend.length){ha=''}
   else{
     const porLoja={};pend.forEach(a=>{(porLoja[a.id_loja]=porLoja[a.id_loja]||[]).push(a)});
     Object.keys(porLoja).forEach(id=>{
@@ -294,7 +305,7 @@ async function boot(){
         '</div></div>';
     }).join(''),false);
 
-  h+='<div class="aviso">A caixinha resolve de verdade: marcar fecha o item na aba de origem (manutenção vira resolvido, compra vira comprada, encomenda ganha você como dono). Desmarcar desfaz e devolve como estava. Reserva, chamado do iFood e item pausado só ficam riscados — esses o portal não fecha sozinho. O recado fica 7 dias, e tudo que foi resolvido na semana está na última faixa. O que vem do iFood depende das capturas de 9h e 17h — o selo cinza mostra até quando ele vai. Avaliações do iFood ainda se respondem no aplicativo do parceiro.'+(QUEM?' Você está como <b>'+esc(QUEM)+'</b>.':'')+'</div>';
+  h+='<div class="aviso">✔ resolve de verdade: manutenção vira resolvida, compra vira comprada, encomenda ganha você como dono (desmarcar desfaz). Reserva, chamado do iFood e item pausado só ficam riscados. Observação de manutenção vai para o histórico do chamado; as outras ficam 7 dias. Faixas sem nada pendente ficam escondidas.'+(QUEM?' Você está como <b>'+esc(QUEM)+'</b>.':'')+'</div>';
   $('app').innerHTML=h;
 }
 
