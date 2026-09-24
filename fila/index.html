@@ -79,6 +79,19 @@ h2 .q{color:var(--muted);font-family:'Barlow',sans-serif;font-weight:700;font-si
 .mbs .sin-r{background:var(--bad);box-shadow:0 0 0 3px rgba(230,103,103,.18)}
 .mbs .sin-n{background:transparent;box-shadow:none}
 .mbs .leg{color:var(--muted);font-size:11.5px;margin-top:10px}
+.cz{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:22px}
+.cz .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.cz .c{background:var(--s2);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+.cz .c.aqui{border-color:var(--brand)}
+.cz .c .nm{font-weight:800;font-size:14px;margin-bottom:6px}
+.cz .c .nota{font-size:28px;font-weight:800;line-height:1}
+.cz .c .qtd{color:var(--muted);font-size:12px;margin-top:5px;line-height:1.5}
+.cz .pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;margin-top:6px}
+.cz .p-ok{background:rgba(47,174,106,.15);color:var(--ok)}
+.cz .p-bad{background:rgba(230,103,103,.15);color:var(--bad)}
+.cz .p-off{background:rgba(138,137,126,.15);color:var(--muted)}
+.cz .leg{margin-top:10px}
+.cz h2 .q{text-transform:none;font-weight:600}
 @media (max-width:640px){body{padding:12px}.linha .mb{display:none}.res{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
@@ -187,6 +200,50 @@ function mbBloco(d){
    '</div>';
 }
 
+/* 24/09/2026, pedido do Fabio: o quadro do tempo de preparo da Central Cozinha, aqui dentro,
+   para a equipe ver se a cozinha esta demorando HOJE. Mesma fonte da Central Cozinha
+   (cozinha_vw_preparo_dia: do pedido entrar ate ficar pronto no Foody), sem conta nova no banco.
+   Hoje = dia operacional: ate as 5h da manha ainda conta como o dia anterior. */
+var CZ=null;
+function czDia(dMenos){
+  var t=new Date(Date.now()-5*36e5-dMenos*864e5);
+  return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(t);
+}
+async function czPega(){
+  try{
+    var r=await fetch(SB+'cozinha_vw_preparo_dia?select=unidade,dia_operacional,pedidos,preparo_medio_min&dia_operacional=gte.'+czDia(7),{headers:{apikey:KEY,Authorization:'Bearer '+KEY}});
+    return r.ok?await r.json():null;
+  }catch(e){return null}
+}
+function czMedia(rows){
+  var p=0,s=0;
+  rows.forEach(function(r){var n=Number(r.pedidos||0),m=Number(r.preparo_medio_min); if(n>0&&isFinite(m)){p+=n;s+=n*m;}});
+  return p?{min:s/p,pedidos:p}:null;
+}
+function czMin(n){return n.toFixed(1).replace('.',',')+' min';}
+function czBloco(){
+  var h='<div class="cz"><h2>⏱ Tempo da cozinha hoje <span class="q">do pedido entrar até ficar pronto · comparado com a média dos 7 dias anteriores</span></h2>';
+  if(!CZ) return h+'<div class="vazio">Não consegui ler o tempo da cozinha agora.</div></div>';
+  var hoje=czDia(0);
+  h+='<div class="cards">'+['Água Verde','São Braz','Ahú'].map(function(u){
+    var a=czMedia(CZ.filter(function(r){return r.unidade===u&&r.dia_operacional===hoje;}));
+    var b=czMedia(CZ.filter(function(r){return r.unidade===u&&r.dia_operacional<hoje;}));
+    var c='<div class="c'+(u===UNI?' aqui':'')+'"><div class="nm">'+esc(u)+'</div>';
+    if(!a) return c+'<div class="qtd">nenhum pedido pronto hoje ainda'+(b?'<br>normal: '+czMin(b.min):'')+'</div></div>';
+    var sel='<span class="pill p-off">sem comparação</span>';
+    if(b){
+      var dif=a.min-b.min;
+      sel=dif>=0.5?'<span class="pill p-bad">▲ '+czMin(dif)+' mais lento que o normal</span>'
+         :dif<=-0.5?'<span class="pill p-ok">▼ '+czMin(-dif)+' mais rápido que o normal</span>'
+         :'<span class="pill p-off">no normal</span>';
+    }
+    return c+'<div class="nota">'+czMin(a.min)+'</div><div class="qtd">'+a.pedidos+' pedido'+(a.pedidos===1?'':'s')+' hoje'+
+      (b?' · normal: '+czMin(b.min):'')+'</div>'+sel+'</div>';
+  }).join('')+'</div>';
+  return h+'<div class="leg">Mesmo número da tela Central Cozinha. Vem do Foody: conta só pedido que já ficou pronto — o que ainda está na chapa entra quando ficar pronto. '+
+    '"Normal" é a média dos 7 dias anteriores desta loja, pesando cada dia pelo movimento. Selo vermelho = meio minuto ou mais acima do normal.</div></div>';
+}
+
 function desenha(d){
   if(!d){ $('app').innerHTML='<div class="vazio">Não consegui ler os pedidos agora. Tente o botão Atualizar.</div>'; return; }
   var r=d.resumo||{}, h='';
@@ -196,6 +253,8 @@ function desenha(d){
      '<div class="k rx"><div class="n">'+esc(r.pronto)+'</div><div class="l">Prontos esperando motoboy</div></div>'+
      '<div class="k br"><div class="n">'+esc(r.rua)+'</div><div class="l">Na rua · '+esc(r.motoboys)+' motoboy'+(r.motoboys===1?'':'s')+'</div></div>'+
      '</div>';
+
+  h+=czBloco();
 
   h+=mbBloco(d);
 
@@ -261,7 +320,8 @@ function rodape(d){
 
 async function boot(){
   const t=(function(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}})();
-  const d=await rpc('fila_pedidos',{p_token:t,p_unidade:UNI});
+  const [d,cz]=await Promise.all([rpc('fila_pedidos',{p_token:t,p_unidade:UNI}),czPega()]);
+  CZ=cz;
   desenha(d);
 }
 
