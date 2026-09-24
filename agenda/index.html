@@ -38,6 +38,8 @@ button.ok{background:var(--brand);color:var(--brand-ink);border-color:var(--bran
 .diab .dqt{font-size:11px;color:var(--text2);margin-top:4px}
 .diab .dat{font-size:11px;color:var(--bad);font-weight:700}
 .diab.on .dsem,.diab.on .dqt{color:var(--brand-ink)}
+.diab.vz{opacity:.5}
+.diab.fds:not(.on){background:#161615}
 .lista{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:6px 12px;margin-top:6px}
 .ltit{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;font-family:'Barlow Condensed',sans-serif;font-size:16px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);padding:8px 0 6px;border-bottom:1px solid var(--line)}
 .tr{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
@@ -178,23 +180,21 @@ function desenhaMes(){
   h+='<button class="aba'+(VER==='mes'?' on':'')+'" onclick="ver(\'mes\')">Ver o mês inteiro<span class="bq">'+nMes+'</span></button>';
   h+='</div>';
 
-  var dias=Object.keys(M).filter(function(k){ return k.indexOf(pref)===0; });
-  if(D.hoje.indexOf(pref)===0 && dias.indexOf(D.hoje)<0)dias.push(D.hoje);
-  dias.sort();
+  var dias=[], nDias=new Date(ANO,MES+1,0).getDate();
+  for(var i=1;i<=nDias;i++)dias.push(pref+dd(i));
   h+='<div class="dias">';
   dias.forEach(function(k){
     var L=M[k]||[], p=k.split('-');
     var ab=L.filter(function(x){return x.status!=='feita'}).length;
     var fe=L.length-ab, at=(k<D.hoje)?ab:0;
-    var ehHoje=(k===D.hoje);
-    h+='<button class="diab'+(VER==='dia:'+k?' on':'')+(ehHoje?' hoje':'')+'" onclick="ver(\'dia:'+k+'\')">'
+    var ehHoje=(k===D.hoje), dw=new Date(Number(p[0]),Number(p[1])-1,Number(p[2])).getDay();
+    h+='<button class="diab'+(VER==='dia:'+k?' on':'')+(ehHoje?' hoje':'')+(L.length?'':' vz')+((dw===0||dw===6)?' fds':'')+'" onclick="ver(\'dia:'+k+'\')">'
       +'<div class="dnum">'+Number(p[2])+'</div>'
-      +'<div class="dsem">'+SEMANA[new Date(Number(p[0]),Number(p[1])-1,Number(p[2])).getDay()].slice(0,3)+(ehHoje?' · hoje':'')+'</div>'
+      +'<div class="dsem">'+SEMANA[dw].slice(0,3)+(ehHoje?' · hoje':'')+'</div>'
       +(at?'<div class="dat">'+at+' atrasada'+(at===1?'':'s')+'</div>'
-          :'<div class="dqt">'+ab+(ab===1?' tarefa':' tarefas')+(fe?' · '+fe+' ✓':'')+'</div>')
+          :'<div class="dqt">'+(L.length?(ab+(ab===1?' tarefa':' tarefas')+(fe?' · '+fe+' ✓':'')):'livre')+'</div>')
       +'</button>';
   });
-  if(!dias.length)h+='<div class="vazio">Nenhuma tarefa com data neste mês.</div>';
   h+='</div>';
 
   var tit, L, mostraDia=false, novoDia='';
