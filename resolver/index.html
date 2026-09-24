@@ -98,16 +98,56 @@ var MOT_GER=['Resolvido com o cliente','Ja estava certo','Nao era problema nosso
 var FAM='BEBIDA';
 var ESQ=false;
 function soUm(q){
-  var era={ESQ:ESQ,PAU:PAU,CHG:CHG,DUPO:DUPO}[q];
-  ESQ=false;PAU=false;CHG=false;DUPO=false;TIPO='';
-  if(q==='ESQ')ESQ=!era; if(q==='PAU')PAU=!era; if(q==='CHG')CHG=!era; if(q==='DUPO')DUPO=!era;
+  var era={ESQ:ESQ,PAU:PAU,CHG:CHG,DUPO:DUPO,FDA:FDA}[q];
+  ESQ=false;PAU=false;CHG=false;DUPO=false;FDA=false;TIPO='';
+  if(q==='ESQ')ESQ=!era; if(q==='PAU')PAU=!era; if(q==='CHG')CHG=!era; if(q==='DUPO')DUPO=!era; if(q==='FDA')FDA=!era;
   desenha();
 }
 var PAU=false;
+var FDA=false;
 var CHG=false;
 
 function cardF0(rot, ic){
   return '<div class="card" style="opacity:.5"><div class="t">'+(ic?ic+' ':'')+rot+'</div><div class="v">0</div></div>';
+}
+
+function cardFda(){
+  var c=(D&&D.cardapio)||{}, n=c.itens_fora_do_ar||0;
+  if(!n) return cardF0('Fora do ar no delivery','&#128245;');
+  var velho=(c.leituras||[]).some(function(l){return l.dias>1});
+  return '<div class="card" onclick="soUm(&quot;FDA&quot;)" title="Clique para abrir ou fechar"'+
+    ' style="cursor:pointer'+(FDA?';border-color:var(--brand)':'')+'">'+
+    '<div class="t">&#128245; Fora do ar no delivery '+(FDA?'&#9650;':'&#9660;')+'</div>'+
+    '<div class="v" style="color:var(--warn)">'+n+'</div>'+
+    (velho?'<div style="font-size:10px;color:var(--bad);font-weight:700">leitura velha</div>':'')+'</div>';
+}
+
+function foraDoAr(){
+  var c=(D&&D.cardapio)||{}, ls=c.lista||[], le=c.leituras||[];
+  if(!FDA || !ls.length) return '';
+  var lojas={}, ordem=[];
+  ls.forEach(function(x){ var k=(x.unidade||'sem loja'); if(!lojas[k]){ lojas[k]=[]; ordem.push(k); } lojas[k].push(x); });
+  var corpo=ordem.map(function(u){
+    var canais={}, oc=[];
+    lojas[u].forEach(function(x){ if(!canais[x.canal]){ canais[x.canal]=[]; oc.push(x.canal); } canais[x.canal].push(x); });
+    return '<div style="margin:12px 0 3px;font-size:13px;font-weight:800">'+esc(u)+'</div>'+
+      oc.map(function(cn){
+        var l=le.filter(function(z){return z.unidade===u && z.canal===cn})[0]||{};
+        var cor=(l.dias>1?'var(--bad)':'var(--muted)');
+        return '<div style="margin:6px 0 2px;font-size:11px;font-weight:800">'+esc(cn)+' &#183; '+canais[cn].length+
+          ' <span style="color:'+cor+';font-weight:700">&#183; lido em '+esc(l.lido_em||'?')+
+          (l.dias>1?' (ha '+l.dias+' dias &#8212; pode ja ter mudado)':'')+'</span></div>'+
+          canais[cn].map(function(x){
+            return '<div style="padding:4px 0;font-size:12px;line-height:1.45;border-top:1px solid rgba(255,255,255,.07)">'+
+              '<b>'+esc(x.item||'')+'</b> <span style="color:var(--muted)">&#183; '+esc(x.tipo||'')+' &#183; '+esc(x.estado||'')+
+              ' desde '+esc(x.desde||'?')+'</span><br><span style="color:var(--muted);font-size:11px">'+esc(x.marca||'')+'</span></div>';
+          }).join('');
+      }).join('');
+  }).join('');
+  return '<div style="border-left:3px solid var(--warn);background:var(--s1);border-radius:10px;padding:9px 11px;margin:8px 0">'+
+    '<div style="color:var(--warn);font-size:11px;font-weight:800">PAUSADO OU ESCONDIDO NO CARDAPIO &#8212; so iFood e Accon (tablet do salao nao entra)</div>'+
+    corpo+
+    '<div class="m" style="margin-top:9px">Isto e o que o robo viu no cardapio na data de cada leitura. Para religar, abra o Gestor de Pedidos do iFood ou o painel da Accon.</div></div>';
 }
 
 function cardPau(){
@@ -355,7 +395,7 @@ function linha(l,i){
 
 function filtra(tp, ver){
   if(TIPO === tp){ TIPO=''; desenha(); return }
-  ESQ=false;PAU=false;CHG=false;DUPO=false;
+  ESQ=false;PAU=false;CHG=false;DUPO=false;FDA=false;
   TIPO = tp;
   if(ver){ VER = ver }
   desenha();
@@ -398,6 +438,7 @@ function desenha(){
     cardF('Negociação do iFood',(R.negociacao||0),'negociacao','abertas','','🤝')+
     cardCheg()+
     cardDup()+
+    cardFda()+
   '</div>';
 
   h+=esquecidos();
@@ -407,6 +448,8 @@ function desenha(){
   h+=chegada();
 
   h+=duplaPainel();
+
+  h+=foraDoAr();
 
   h+=falaComigo();
 
@@ -427,14 +470,9 @@ function desenha(){
          ((D.maq_horas!=null && D.maq_horas>26)?' — <b style="color:var(--bad)">isso está velho, o robô não rodou</b>':'')+
          '. Elas ficam na lista até alguém resolver, mesmo sendo de outro dia.</div></div>';
     }
-  }else{
+  }else if(!(ESQ||PAU||CHG||DUPO||FDA)){
     h+='<div class="c" style="margin-top:10px"><div class="m">👆 Clique num quadro lá em cima para ver a lista dele.</div></div>';
   }
-  h+='<h2>📵 Fora do ar no cardápio</h2>'+
-     '<div class="c"><b>'+(card.itens_fora_do_ar||0)+'</b> itens pausados ou escondidos'+
-     (card.ate?' <span class="m" style="display:inline">· última varredura em '+esc(card.ate)+'</span>':'')+
-     '<div class="m">Aqui não dá para resolver um por um: abra a tela do cardápio para ver e religar.</div></div>';
-
   $('app').innerHTML=h;
 }
 
