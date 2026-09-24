@@ -43,6 +43,9 @@ td.r,th.r{text-align:right;white-space:nowrap}
 .diab .dsem{font-size:11px;color:var(--muted);text-transform:uppercase}
 .diab .dqt{font-size:11px;color:var(--text2);margin-top:4px}
 .diab .dval{font-size:12px;font-weight:600;color:var(--text2)}
+.diab .dbx{font-size:11px;color:#6fe0a5;margin-top:2px}
+.diab.ok{opacity:.8}
+.diab.on .dbx{color:var(--brand-ink)}
 .diab.on .dsem,.diab.on .dqt,.diab.on .dval{color:var(--brand-ink)}
 .aba.nb{border-color:var(--bad);color:var(--bad);font-weight:700}
 .aba.nb.on{background:var(--bad);color:#fff;border-color:var(--bad)}
@@ -136,6 +139,7 @@ const $=i=>document.getElementById(i);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 let D=null, ABA='dia';
 var DIA=null, DIALOJA='', DIAANO=null, DIAMES='', DIAESC='mes', DIASEL='';
+var BXD=null, BXL=null, BXDIA='', BXCARREGA=false;
 const MES={'01':'jan','02':'fev','03':'mar','04':'abr','05':'mai','06':'jun','07':'jul','08':'ago','09':'set','10':'out','11':'nov','12':'dez'};
 function rotulo(m){return MES[m.slice(5,7)]+'/'+m.slice(2,4)}
 function din(v){
@@ -595,12 +599,18 @@ function agendaHtml(){
   h+='<div class="abas"><button class="aba nb'+(DIA.escopo==='nao_baixados'?' on':'')+'" onclick="diaNaoBaixados()">⏰ Não foram baixadas · '+nb.n+(Number(nb.n)===1?' conta':' contas')+' · '+din(nb.total)+'</button></div>';
   {
     h+='<div class="dias">';
-    (DIA.dias||[]).forEach(function(d){
-      h+='<button class="diab'+(DIA.escopo!=='nao_baixados'&&DIASEL===d.dia?' on':'')+(d.hoje?' hoje':'')+'" onclick="diaPick('+aspas(d.dia)+')">'
+    var mapa={};
+    (DIA.dias||[]).forEach(function(d){mapa[d.dia]={d:d,ab:d,bx:null}});
+    ((BXD&&BXD.dias)||[]).forEach(function(d){if(mapa[d.dia])mapa[d.dia].bx=d;else mapa[d.dia]={d:d,ab:null,bx:d}});
+    var chaves=Object.keys(mapa).sort();
+    chaves.forEach(function(k){
+      var m=mapa[k], d=m.d;
+      h+='<button class="diab'+(m.ab?'':' ok')+(DIA.escopo!=='nao_baixados'&&DIASEL===d.dia?' on':'')+(d.hoje?' hoje':'')+'" onclick="diaPick('+aspas(d.dia)+')">'
         +'<div class="dnum">'+d.rotulo+'</div><div class="dsem">'+(SEM[d.diasem]||'')+(d.hoje?' · hoje':'')+'</div>'
-        +'<div class="dqt">'+d.n+(Number(d.n)===1?' conta':' contas')+'</div><div class="dval">'+dinCurto(d.total)+'</div></button>';
+        +(m.ab?'<div class="dqt">'+m.ab.n+(Number(m.ab.n)===1?' conta':' contas')+'</div><div class="dval">'+dinCurto(m.ab.total)+'</div>':'<div class="dqt">✅ tudo baixado</div>')
+        +(m.bx?'<div class="dbx">✅ '+m.bx.n+(Number(m.bx.n)===1?' baixada':' baixadas')+'</div>':'')+'</button>';
     });
-    if(!(DIA.dias||[]).length)h+='<div class="vazio">Nenhuma conta em aberto neste mês.</div>';
+    if(!chaves.length)h+='<div class="vazio">Nenhuma conta neste mês.</div>';
     h+='</div>';
     h+='<div class="abas"><button class="aba'+(DIA.escopo!=='nao_baixados'&&!DIASEL?' on':'')+'" onclick="diaPick('+aspas('')+')">Ver o mês inteiro</button></div>';
   }
@@ -612,11 +622,53 @@ function agendaHtml(){
   else if(DIASEL){var p=String(DIASEL).split('-');tit='📅 Vence em '+p[2]+'/'+p[1]+(DIASEL===DIA.hoje_iso?' — hoje':'')}
   else{tit='📅 Tudo que vence em '+(MES[String(DIA.mes).slice(5)]||'')+'/'+String(DIA.mes).slice(0,4)}
   h+='<div class="card"><div class="blocotit"><span>'+tit+'</span><span class="blocon">'+rows.length+(rows.length===1?' conta':' contas')+' · '+din(tot)+'</span></div>'+diaLinhas(rows)+'</div>';
+  if(DIA.escopo!=='nao_baixados' && DIASEL){
+    var bq=bxDoDia(DIASEL), pp=String(DIASEL).split('-');
+    h+='<div class="card"><div class="blocotit"><span>✅ Já baixadas no Saipos — vencimento '+pp[2]+'/'+pp[1]+'</span><span class="blocon">'+(bq?bq.n+(Number(bq.n)===1?' conta':' contas')+' · '+din(bq.total):'0 contas')+'</span></div>';
+    if(!bq)h+='<div class="vazio">Nenhuma conta baixada neste dia.</div>';
+    else if(BXDIA===DIASEL&&BXL)h+=bxLinhas(BXL);
+    else h+='<div class="abas"><button class="aba" onclick="verBaixadas()">'+(BXCARREGA?'Carregando…':'✅ Ver as já baixadas deste dia · '+bq.n+(Number(bq.n)===1?' conta':' contas'))+'</button></div>';
+    h+='</div>';
+  }
   h+='<div class="nota">Só aparece o que ainda <b>não foi baixado</b> no Saipos. Quando o Saipos manda o total da nota zerado, o valor é somado pelos itens de dentro dela. Última carga do Saipos: '+dEsc(DIA.saipos_importado_em||'?')+' · o Saipos já nos mandou vencimentos até '+dEsc(DIA.saipos_ate_vencimento||'?')+'. <b>O Boqueirão não aparece</b> — aquela loja não tem senha do Saipos.</div>';
   return h;
 }
 async function carregaDia(){
   try{DIA=await porta({dia:{loja:DIALOJA||null,ano:DIAANO,mes:DIAMES,escopo:DIAESC}})}catch(e){DIA=null}
+  BXL=null;BXDIA='';
+  try{BXD=DIA?await bxPorta({mes:DIA.mes,loja:DIALOJA||null}):null}catch(e){BXD=null}
+}
+async function bxPorta(dados){
+  var r=await fetch(SB+'rpc/contas_baixadas',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:cdmTok(),p_dados:dados})});
+  var j=null; try{j=await r.json()}catch(e){}
+  if(!r.ok)throw new Error((j&&(j.message||j.details||j.hint))||('erro '+r.status));
+  return j;
+}
+function bxDoDia(d){var l=(BXD&&BXD.dias)||[];for(var i=0;i<l.length;i++){if(l[i].dia===d)return l[i]}return null}
+async function verBaixadas(){
+  if(!DIASEL)return;
+  BXCARREGA=true;desenha();
+  var alvo=DIASEL, lj=DIALOJA;
+  try{var j=await bxPorta({dia:alvo,loja:lj||null});if(lj===DIALOJA){BXL=j.lista||[];BXDIA=alvo}}catch(e){BXL=null;BXDIA='';alert('Não deu para carregar: '+e.message)}
+  BXCARREGA=false;desenha();
+}
+function bxLinhas(rows){
+  if(!rows.length)return '<div class="vazio">Nenhuma conta baixada neste dia.</div>';
+  var h='<table><thead><tr><th>Vence</th><th>Loja</th><th>Quem recebe</th><th>O que é</th><th class="r">Valor</th><th>Baixa e banco</th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    var ex=r.extrato;
+    var b='<div>✅ baixa no Saipos '+dEsc(r.baixa||'')+'</div>';
+    if(ex)b+='<div class="sub" style="color:#86c8ff">🏦 saiu do banco '+dEsc(ex.data)+(ex.forma?' · '+dEsc(formaNome(ex.forma)):'')+' · '+dEsc(ex.descricao||'')+(ex.conta?' · '+dEsc(ex.conta):'')+(ex.valor_bate===false?' <b style="color:#ffcf4d">⚠️ no banco saiu '+din(ex.valor)+'</b>':'')+(ex.mesmo_nome?'':' <b style="color:#ffcf4d">⚠️ só o valor bate</b>')+'</div>';
+    else if(/cart/i.test(r.metodo||''))b+='<div class="sub">💳 cartão — confira na fatura</div>';
+    else b+='<div class="sub" style="color:#ffa0a0">❓ não achei no banco</div>';
+    if(r.forma)b+='<div class="sub">marcado: '+dEsc(formaNome(r.forma))+(r.forma_por?' por '+dEsc(r.forma_por):'')+'</div>';
+    h+='<tr><td>'+dEsc(r.vencimento)+'</td><td>'+dEsc(r.loja)+'</td><td><b>'+dEsc(r.fornecedor||r.categoria||'—')+'</b></td>'
+      +'<td>'+dEsc(r.descricao||'')+'<div class="sub">'+dEsc(r.categoria||'')+(r.metodo?' · '+dEsc(r.metodo):'')+'</div>'+(r.obs?'<div class="lobs">✍️ '+dEsc(r.obs)+' <span class="quem">— '+dEsc(r.obs_por||'')+'</span></div>':'')+'</td>'
+      +'<td class="r">'+din(r.valor)+'</td><td>'+b+'</td></tr>';
+  });
+  return h+'</tbody></table>';
 }
 async function diaRecarrega(){$('app').innerHTML='Carregando…';await carregaDia();desenha()}
 async function diaLoja(l){DIALOJA=l;await diaRecarrega()}
