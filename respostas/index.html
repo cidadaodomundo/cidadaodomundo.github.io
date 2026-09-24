@@ -52,22 +52,20 @@ details.c>summary .tt{flex:1}
 .calcab{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
 .calcab b{font-size:15px;text-transform:capitalize;min-width:120px;text-align:center}
 .calcab button[disabled]{opacity:.35;cursor:default}
-.leg{margin-left:auto;display:flex;gap:10px;font-size:11px}
-.lc{color:var(--warn);font-style:normal;font-weight:700}
-.lr{color:var(--ok);font-style:normal;font-weight:700}
-.grade{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
-.grade .sem{font-size:10.5px;color:var(--muted);text-align:center;text-transform:uppercase;font-weight:700}
-.grade .q{background:var(--s2);border:1px solid var(--line);border-radius:8px;min-height:48px;padding:4px 6px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between}
-.grade .q:hover{border-color:var(--brand)}
-.grade .q.vazio{background:none;border:none;cursor:default}
-.grade .q.fut{opacity:.3;cursor:default}
-.grade .q.fut:hover{border-color:var(--line)}
-.grade .q.hj{border-color:var(--brand)}
-.grade .q.sel{background:var(--brand);border-color:var(--brand)}
-.grade .q.sel .n,.grade .q.sel .lc,.grade .q.sel .lr{color:var(--brand-ink)}
-.grade .n{font-size:13px;font-weight:800}
-.grade .qc{display:flex;gap:6px;font-size:11px;flex-wrap:wrap}
-@media (max-width:640px){.grade .q{min-height:40px;padding:3px}.grade .qc{font-size:9.5px;gap:3px}.leg{margin-left:0}}
+.legcal{font-size:12px;color:var(--muted);margin:4px 0 8px}
+.dias{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.diab{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:8px 10px;min-width:86px;text-align:center;cursor:pointer;font-family:inherit}
+.diab:hover{border-color:var(--brand)}
+.diab.hoje{box-shadow:inset 0 0 0 2px var(--brand)}
+.diab.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.diab .dnum{font-size:20px;font-weight:700;line-height:1}
+.diab .dsem{font-size:11px;color:var(--muted);text-transform:uppercase}
+.diab .dqt{font-size:11px;color:var(--muted);margin-top:4px}
+.diab .dbx{font-size:11px;color:#6fe0a5;margin-top:2px}
+.diab.feito:not(.on){border-color:#1f6b45;background:#0f2a1d}
+.diab .dab{font-size:11px;font-weight:700;color:#ff6b6b;margin-top:2px}
+.diab.on .dab{color:#8a0000}
+.diab.on .dbx,.diab.on .dsem,.diab.on .dqt{color:var(--brand-ink)}
 .resumo{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px}
 .resumo>div{background:var(--s1);border:1px solid var(--line);border-radius:11px;padding:10px 12px;font-size:12px;color:var(--muted)}
 .resumo b{display:block;font-size:22px;color:var(--text)}
@@ -157,25 +155,28 @@ async function carregaMes(){
 function mudaMes(n){const m=(MES||hojeISO().slice(0,7)).split('-').map(Number);const x=new Date(m[0],m[1]-1+n,1);const v=x.getFullYear()+'-'+('0'+(x.getMonth()+1)).slice(-2);if(v>hojeISO().slice(0,7))return;MES=v;desenhaCal()}
 function escolheDia(d){DIA=(d>=hojeISO()?'':d);MES=d.slice(0,7);boot()}
 async function desenhaCal(){
-  const hj=hojeISO(),sel=DIA||hj,m=MES||sel.slice(0,7);MES=m;
+  const hj=hojeISO(),sel=DIA||'',m=MES||(sel||hj).slice(0,7);MES=m;
   await carregaMes();
   const [a,mm]=m.split('-').map(Number);
-  const prim=new Date(a,mm-1,1).getDay(),nd=new Date(a,mm,0).getDate();
+  const nd=new Date(a,mm,0).getDate(),SEMN=['DOM','SEG','TER','QUA','QUI','SEX','SÁB'];
   let h='<div class="calcab"><button class="b mini" onclick="mudaMes(-1)" title="mês anterior">◀</button>'+
     '<b>'+MESES[mm-1]+' '+a+'</b>'+
-    '<button class="b mini" onclick="mudaMes(1)" title="mês seguinte"'+(m>=hj.slice(0,7)?' disabled':'')+'>▶</button>'+
-    (DIA?'<button class="b mini bp" onclick="DIA=\'\';MES=\'\';boot()">Voltar para hoje</button>':'<span class="m" style="margin:0">hoje: o que está esperando alguém resolver — clique num dia para ver o que aconteceu</span>')+
-    '<span class="leg"><span class="lc">+ chegou</span><span class="lr">✔ resolvido</span></span></div>';
-  h+='<div class="grade">'+['dom','seg','ter','qua','qui','sex','sáb'].map(x=>'<div class="sem">'+x+'</div>').join('');
-  for(let k=0;k<prim;k++)h+='<div class="q vazio"></div>';
+    '<button class="b mini" onclick="mudaMes(1)" title="mês seguinte"'+(m>=hj.slice(0,7)?' disabled':'')+'>▶</button></div>';
+  h+='<div class="legcal">🔴 chegou nesse dia e ainda não foi resolvido · ✅ resolvido nesse dia · quadro verde = tudo que chegou no dia já foi resolvido · <b>amarelo</b> = o dia que você está vendo · contorno amarelo = hoje</div>';
+  h+='<div class="dias">';
   for(let d=1;d<=nd;d++){
-    const iso=m+'-'+('0'+d).slice(-2),info=(MESDADOS&&MESDADOS[iso])||{},fut=iso>hj;
-    const c=Number(info.chegou)||0,r=Number(info.resolvido)||0;
-    h+='<div class="q'+(fut?' fut':'')+(iso===sel?' sel':'')+(iso===hj?' hj':'')+'"'+(fut?'':' onclick="escolheDia(\''+iso+'\')"')+' title="'+(fut?'':c+' chegou · '+r+' resolvido')+'">'+
-      '<span class="n">'+d+'</span>'+(fut?'':'<span class="qc">'+(c?'<i class="lc">+'+c+'</i>':'')+(r?'<i class="lr">✔'+r+'</i>':'')+'</span>')+'</div>';
+    const iso=m+'-'+('0'+d).slice(-2);
+    if(iso>hj)break;
+    const info=(MESDADOS&&MESDADOS[iso])||{},c=Number(info.chegou)||0,ab=Number(info.aberto)||0,r=Number(info.resolvido)||0;
+    const feito=c>0&&ab===0;
+    h+='<button class="diab'+(feito?' feito':'')+(iso===sel?' on':'')+(iso===hj?' hoje':'')+'" onclick="escolheDia(\''+iso+'\')">'+
+      '<div class="dnum">'+('0'+d).slice(-2)+'</div><div class="dsem">'+SEMN[new Date(a,mm-1,d).getDay()]+(iso===hj?' · hoje':'')+'</div>'+
+      (ab?'<div class="dab">🔴 '+ab+' sem resolver</div>':(c?'<div class="dbx">✅ tudo resolvido</div>':'<div class="dqt">nada chegou</div>'))+
+      (r?'<div class="dbx">✅ '+r+(r===1?' resolvido':' resolvidos')+'</div>':'')+'</button>';
   }
   h+='</div>';
   if(!MESDADOS)h+='<div class="m">não deu para carregar os números do mês</div>';
+  h+='<div class="calcab"><button class="b mini'+(!DIA?' bp':'')+'" onclick="DIA=\'\';MES=\'\';boot()">Ver o que está em aberto hoje</button></div>';
   $('cal').innerHTML=h;
 }
 async function bootDia(){
