@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Ligar o WhatsApp do SAC · Cidadão do Mundo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#E0A81C;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',system-ui,sans-serif;font-size:15px;padding:16px;max-width:760px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:13px;margin-top:4px}
+.est{margin:16px 0;padding:12px 14px;border-radius:12px;font-weight:700;font-size:16px;border:1px solid var(--line);background:var(--s1)}
+.est.ok{border-color:var(--ok);color:#7fe0a8}
+.est.bad{border-color:var(--bad);color:#ffb0b0}
+.est.warn{border-color:var(--warn);color:#ffd27a}
+.grid{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+.qrwrap{position:relative;background:#fff;padding:18px;border-radius:14px;border:6px solid #e11;animation:pisca 1s infinite;width:300px;max-width:100%}
+.qrwrap.parado{animation:none;border-color:var(--line)}
+@keyframes pisca{50%{border-color:#ff9a9a;box-shadow:0 0 22px #e11}}
+.qrtag{position:absolute;top:-16px;left:50%;transform:translateX(-50%);background:#e11;color:#fff;font-weight:800;font-size:13px;padding:3px 10px;border-radius:8px;white-space:nowrap}
+#qr{width:252px;height:252px;max-width:100%;display:flex;align-items:center;justify-content:center;color:#333;font-weight:600;text-align:center;margin:0 auto}
+#qr img,#qr canvas{width:100%!important;height:auto!important}
+.passos{flex:1;min-width:240px}
+.passos ol{padding-left:20px;line-height:1.55;color:var(--text2)}
+.passos li{margin-bottom:8px}
+.passos b{color:var(--text)}
+.rel{color:var(--muted);font-size:12.5px;margin-top:10px}
+button.b{background:var(--brand);color:#111;border:0;border-radius:10px;padding:10px 14px;font-weight:800;font-size:14px;cursor:pointer;margin-top:12px}
+.hid{display:none}
+</style>
+</head>
+<body>
+<h1>📱 Ligar o WhatsApp do SAC</h1>
+<div class="sub">Água Verde · celular do SAC 41 9947-3007 · o QR se troca sozinho</div>
+
+<div id="est" class="est">Buscando…</div>
+
+<div class="grid">
+  <div id="qrwrap" class="qrwrap"><span class="qrtag">ESCANEIE AQUI</span><div id="qr">carregando…</div></div>
+  <div class="passos">
+    <ol>
+      <li>Pegue o <b>celular do SAC</b> (41 9947-3007) e abra o WhatsApp.</li>
+      <li>Toque nos <b>3 pontinhos</b> (em cima, à direita) → <b>Aparelhos conectados</b>.</li>
+      <li>Se aparecer algum aparelho na lista, toque nele e em <b>Sair</b>.</li>
+      <li>Toque em <b>Conectar um aparelho</b> (botão verde) e aponte para o quadrado com borda vermelha.</li>
+      <li>Se disser <b>“código inválido”</b>, espere 5 segundos e aponte de novo.</li>
+    </ol>
+    <div id="rel" class="rel"></div>
+    <button id="denovo" class="b hid">Mostrar o QR de novo</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const PASSO_MS=5000, LIMITE_MS=10*60*1000;
+let timer=null, inicio=0, ultimoQr='';
+
+function tok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function el(i){return document.getElementById(i)}
+function estado(txt,cls){const e=el('est');e.textContent=txt;e.className='est'+(cls?' '+cls:'')}
+
+function desenha(qr){
+  if(qr===ultimoQr) return;
+  ultimoQr=qr; const box=el('qr'); box.innerHTML='';
+  if(!qr){box.textContent='Esperando um QR novo… (pode levar até 1 minuto)';return}
+  new QRCode(box,{text:qr,width:252,height:252,correctLevel:QRCode.CorrectLevel.L});
+}
+
+async function busca(){
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/sac_qr_ver',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:tok()})});
+    if(r.ok) j=await r.json();
+  }catch(e){j=null}
+  if(!j){estado('Não consegui ler agora. Tentando de novo…','warn');return}
+  const st=String(j.status||'');
+  el('rel').textContent='Última notícia do PC: há '+(j.segundos==null?'?':j.segundos)+' s';
+  if(st==='CONECTADO'){estado('✅ CONECTADO — o WhatsApp do SAC está ligado. Pode fechar esta tela.','ok');desenha('');el('qr').textContent='✅ Conectado';el('qrwrap').classList.add('parado');para(false);return}
+  if(st==='AUTENTICADO'){estado('⏳ QR aceito — terminando de conectar…','warn');desenha('');el('qr').textContent='⏳ Conectando…';return}
+  if(st==='FALHOU'||st==='CAIU'){estado('⚠️ Caiu. Em até 5 minutos aparece um QR novo aqui. Antes, faça o passo 3 (Sair dos aparelhos velhos).','bad');desenha('');return}
+  el('qrwrap').classList.remove('parado');
+  if(st==='QR'&&j.qr){estado('🔴 Esperando escanear','bad');desenha(j.qr)}
+  else{estado('⏳ O PC está gerando um QR novo…','warn');desenha('')}
+}
+
+function tique(){
+  if(document.hidden) return;
+  if(Date.now()-inicio>LIMITE_MS){para(true);return}
+  busca();
+}
+function comeca(){
+  el('denovo').classList.add('hid'); el('qrwrap').classList.remove('parado');
+  inicio=Date.now(); ultimoQr=null; busca();
+  if(timer) clearInterval(timer);
+  timer=setInterval(tique,PASSO_MS);
+}
+function para(mostrarBotao){
+  if(timer){clearInterval(timer);timer=null}
+  if(mostrarBotao){estado('Pausado depois de 10 minutos para não gastar internet.','warn');desenha('');el('qr').textContent='Pausado';el('qrwrap').classList.add('parado');el('denovo').classList.remove('hid')}
+}
+el('denovo').addEventListener('click',comeca);
+window.addEventListener('pagehide',function(){para(false)});
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&timer)busca()});
+
+function boot(){comeca()}
+
+/* ===== porta unica do portal ===== */
+const CDMMODS=['sacqr'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'sacqr'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){ if(ok) boot(); });
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
