@@ -44,7 +44,10 @@ td.r,th.r{text-align:right;white-space:nowrap}
 .diab .dqt{font-size:11px;color:var(--text2);margin-top:4px}
 .diab .dval{font-size:12px;font-weight:600;color:var(--text2)}
 .diab .dbx{font-size:11px;color:#6fe0a5;margin-top:2px}
-.diab.ok{opacity:.8}
+.diab.feito:not(.on){border-color:#1f6b45;background:#0f2a1d}
+.diab .dab{font-size:11px;font-weight:700;color:#ff6b6b;margin-top:2px}
+.diab.on .dab{color:#8a0000}
+.legcal{font-size:12px;color:var(--muted);margin:4px 0 8px}
 .diab.on .dbx{color:var(--brand-ink)}
 .diab.on .dsem,.diab.on .dqt,.diab.on .dval{color:var(--brand-ink)}
 .aba.nb{border-color:var(--bad);color:var(--bad);font-weight:700}
@@ -598,6 +601,7 @@ function agendaHtml(){
   h+='</div>';
   h+='<div class="abas"><button class="aba nb'+(DIA.escopo==='nao_baixados'?' on':'')+'" onclick="diaNaoBaixados()">⏰ Não foram baixadas · '+nb.n+(Number(nb.n)===1?' conta':' contas')+' · '+din(nb.total)+'</button></div>';
   {
+    h+='<div class="legcal">🔴 contas ainda sem baixa no Saipos · ✅ contas já baixadas · quadro verde = dia todo resolvido · <b>amarelo</b> = o dia que você está vendo · contorno amarelo = hoje</div>';
     h+='<div class="dias">';
     var mapa={};
     (DIA.dias||[]).forEach(function(d){mapa[d.dia]={d:d,ab:d,bx:null}});
@@ -605,9 +609,9 @@ function agendaHtml(){
     var chaves=Object.keys(mapa).sort();
     chaves.forEach(function(k){
       var m=mapa[k], d=m.d;
-      h+='<button class="diab'+(m.ab?'':' ok')+(DIA.escopo!=='nao_baixados'&&DIASEL===d.dia?' on':'')+(d.hoje?' hoje':'')+'" onclick="diaPick('+aspas(d.dia)+')">'
+      h+='<button class="diab'+(m.ab?'':' feito')+(DIA.escopo!=='nao_baixados'&&DIASEL===d.dia?' on':'')+(d.hoje?' hoje':'')+'" onclick="diaPick('+aspas(d.dia)+')">'
         +'<div class="dnum">'+d.rotulo+'</div><div class="dsem">'+(SEM[d.diasem]||'')+(d.hoje?' · hoje':'')+'</div>'
-        +(m.ab?'<div class="dqt">'+m.ab.n+(Number(m.ab.n)===1?' conta':' contas')+'</div><div class="dval">'+dinCurto(m.ab.total)+'</div>':'<div class="dqt">✅ tudo baixado</div>')
+        +(m.ab?'<div class="dab">🔴 '+m.ab.n+(Number(m.ab.n)===1?' não baixada':' não baixadas')+'</div><div class="dval">'+dinCurto(m.ab.total)+'</div>':'<div class="dbx">✅ tudo baixado</div>')
         +(m.bx?'<div class="dbx">✅ '+m.bx.n+(Number(m.bx.n)===1?' baixada':' baixadas')+'</div>':'')+'</button>';
     });
     if(!chaves.length)h+='<div class="vazio">Nenhuma conta neste mês.</div>';
