@@ -552,6 +552,13 @@ function diaLinhas(rows){
     if(at>0)e.push('<span class="pill p-novo selo">'+at+(at>1?' dias':' dia')+' de atraso</span>');
     var ex=r.extrato;
     if(r.dobro)e.push('<span class="pill p-novo selo">⚠️ pode estar lançada em dobro no Saipos</span>');
+    var semEx='';
+    if(!ex){
+      if(/cart/i.test(r.metodo||''))semEx='💳 cartão — confira na fatura';
+      else if(r.extrato_ate_iso&&r.dia>r.extrato_ate_iso)semEx='⏳ o banco ainda não mandou '+dEsc(r.vencimento)+' (extrato até '+dEsc(r.extrato_ate)+')';
+      else if(r.extrato_ate)semEx='❌ não saiu do banco até '+dEsc(r.extrato_ate);
+    }
+    if(semEx)e.push('<span class="pill '+(semEx.indexOf('❌')===0?'p-fabio':'p-lib')+' selo">'+semEx+'</span>');
     if(ex)e.push('<span class="pill '+(ex.mesmo_nome?'p-fabio':'p-novo')+' selo">💸 saiu do banco '+dEsc(ex.data)+' — falta baixar no Saipos</span>');
     var sel='<select class="fpag'+(r.forma?' on':'')+'" onchange="formaMuda('+aspas(String(r.id))+',this)"><option value="">— marcar —</option>';
     FORMAS.forEach(function(f){sel+='<option value="'+f[0]+'"'+(r.forma===f[0]?' selected':'')+'>'+f[1]+'</option>'});
