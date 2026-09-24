@@ -550,10 +550,13 @@ function diaLinhas(rows){
     if(r.sem_valor_no_saipos)e.push('<span class="pill p-novo selo">sem valor no Saipos</span>');
     var at=Number(r.atraso_dias||0);
     if(at>0)e.push('<span class="pill p-novo selo">'+at+(at>1?' dias':' dia')+' de atraso</span>');
+    var ex=r.extrato;
+    if(ex)e.push('<span class="pill '+(ex.mesmo_nome?'p-fabio':'p-novo')+' selo">💸 saiu do banco '+dEsc(ex.data)+' — falta baixar no Saipos</span>');
     var sel='<select class="fpag'+(r.forma?' on':'')+'" onchange="formaMuda('+aspas(String(r.id))+',this)"><option value="">— marcar —</option>';
     FORMAS.forEach(function(f){sel+='<option value="'+f[0]+'"'+(r.forma===f[0]?' selected':'')+'>'+f[1]+'</option>'});
     sel+='</select>';
     var quem=r.forma?'<div class="sub">'+(r.forma_origem==='auto'?'achado no extrato':'marcado por '+dEsc(r.forma_por||''))+'</div>':(r.metodo?'<div class="sub">Saipos diz: '+dEsc(r.metodo)+'</div>':'');
+    if(ex)quem+='<div class="sub" style="color:#86c8ff">🏦 extrato '+dEsc(ex.data)+(ex.forma?' · '+dEsc(formaNome(ex.forma)):'')+' · '+dEsc(ex.descricao||'')+(ex.conta?' · '+dEsc(ex.conta):'')+(ex.mesmo_nome?'':' <b style="color:#ffcf4d">⚠️ só o valor bate, confira o nome</b>')+'</div>';
     var ob=r.obs?'<div class="lobs">✍️ '+dEsc(r.obs)+' <span class="quem">— '+dEsc(r.obs_por||'')+(r.obs_em?' · '+dEsc(r.obs_em):'')+'</span></div>':'';
     h+='<tr><td>'+dEsc(r.vencimento)+'</td><td>'+dEsc(r.loja)+'</td>'
       +'<td><b>'+dEsc(r.fornecedor||r.categoria||'—')+'</b>'+(e.length?'<div>'+e.join(' ')+'</div>':'')+'</td>'
