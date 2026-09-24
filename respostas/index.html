@@ -96,9 +96,9 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
       <option value="">Loja: todas</option>
       <option value="Água Verde">Água Verde</option>
       <option value="São Braz">São Braz</option>
-      <option value="Ahú">Ahú</option>
+      <option value="Ahú">Ahú</option><option value="Boqueirão">Boqueirão</option>
           </select>
-    <select id="f_prio"><option value="normal">Normal</option><option value="urgente">Urgente</option></select>
+    <select id="f_prio"><option value="normal">Normal</option><option value="urgente">Urgente</option><option value="quando_der">Quando der</option></select>
   </div>
   <textarea id="f_det" rows="2" placeholder="Detalhe (opcional)" maxlength="600"></textarea>
   <div class="lin" style="justify-content:flex-end">
@@ -178,6 +178,7 @@ async function recado(f,r,el){
     await boot();
   }catch(e){el.disabled=false;alert('Não deu para gravar a observação.')}
 }
+async function mSel(id,a,d){try{d.id=id;await manut(a,d);await boot()}catch(e){alert('Não deu para gravar.')}}
 function teclaRec(ev,f,r,el){if(ev.key==='Enter'){ev.preventDefault();recado(f,r,el)}}
 async function manut(a,dados){
   const x=await fetch(SB+'rpc/manutencao_acao',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
@@ -189,7 +190,10 @@ async function salvaNovo(){
   const t=$('f_titulo').value.trim();
   if(!t){alert('Escreva o que precisa ser resolvido.');return}
   try{
-    await porta('novo',{titulo:t,setor:$('f_setor').value,unidade:$('f_unid').value,prioridade:$('f_prio').value,detalhe:$('f_det').value.trim()});
+    if($('f_setor').value==='manutencao'){
+      if(!$('f_unid').value){alert('Para chamado de manutenção, escolha a loja.');return}
+      await manut('novo',{item:t,unidade:$('f_unid').value,prioridade:$('f_prio').value,descricao:$('f_det').value.trim()});
+    }else await porta('novo',{titulo:t,setor:$('f_setor').value,unidade:$('f_unid').value,prioridade:$('f_prio').value,detalhe:$('f_det').value.trim()});
     $('f_titulo').value='';$('f_det').value='';abreForm(false);await boot();
   }catch(e){alert('Não deu para salvar. Entre no portal de novo e tente outra vez.')}
 }
@@ -243,15 +247,18 @@ async function boot(){
   cham.forEach(c=>poe('chamado',c.id,'Chamado iFood '+loja(c.id_loja)+' '+br(c.data)));
   let h='';
 
-  /* 1 - manutencao urgente */
-  const mUrg=man.filter(c=>c.prioridade==='urgente'||c.prioridade==='alta');
-  const mNorN=man.length-mUrg.length;
-  h+=bloco('mu','🚨 Manutenção urgente',mUrg.filter(c=>abertoHoje(chave('manutencao',c.id))).length,
-    mUrg.map(c=>item('manutencao',c.id,
-      '<b>'+esc(c.unidade)+' · '+esc(c.item)+'</b> <span class="pill p-bad">'+esc(c.prioridade)+'</span>'+
-      '<div class="m">'+(c.descricao?esc(c.descricao)+' · ':'')+'aberto há '+dias(c.aberto_em)+' dia(s) · '+esc(c.status)+'</div>'+
-      (c.obs?'<div class="rec">📝 '+esc(String(c.obs).split(' | ').pop())+'</div>':''))).join('')+
-    (mUrg.length||mNorN?'<div class="m" style="margin-top:8px"><a href="/manutencao/" style="color:var(--brand)">Ver todos os chamados na tela Manutenção'+(mNorN?' (+'+mNorN+' não urgentes)':'')+' →</a></div>':''),true);
+  /* 1 - manutencao: todos os chamados abertos (a aba Manutencao saiu do menu em 24/09) */
+  const PR={urgente:0,alta:0,normal:1,quando_der:2};
+  const mTodos=man.slice().sort((a,b)=>((PR[a.prioridade]??1)-(PR[b.prioridade]??1))||String(a.unidade).localeCompare(String(b.unidade),'pt-BR')||String(a.aberto_em).localeCompare(String(b.aberto_em)));
+  const nUrg=mTodos.filter(c=>(c.prioridade==='urgente'||c.prioridade==='alta')&&abertoHoje(chave('manutencao',c.id))).length;
+  const PRN={urgente:['urgente','p-bad'],alta:['urgente','p-bad'],normal:['normal','p-warn'],quando_der:['quando der','p-off']};
+  h+=bloco('mu','🔧 Manutenção'+(nUrg?' <span class="pill p-bad">'+nUrg+' urgente'+(nUrg>1?'s':'')+'</span>':''),mTodos.filter(c=>abertoHoje(chave('manutencao',c.id))).length,
+    mTodos.map(c=>{const p=PRN[c.prioridade]||PRN.normal;return item('manutencao',c.id,
+      '<b>'+esc(c.unidade)+' · '+esc(c.item)+'</b> <span class="pill '+p[1]+'">'+p[0]+'</span>'+(c.status==='agendado'?' <span class="pill p-ok">agendado</span>':'')+
+      '<div class="m">'+(c.descricao?esc(c.descricao)+' · ':'')+'aberto há '+dias(c.aberto_em)+' dia(s)</div>'+
+      (c.obs?'<div class="rec">📝 '+esc(String(c.obs).split(' | ').pop())+'</div>':'')+
+      '<div class="nl"><select class="b mini" onchange="mSel('+Number(c.id)+',\'situacao\',{status:this.value})"><option value="aberto"'+(c.status!=='agendado'?' selected':'')+'>aberto</option><option value="agendado"'+(c.status==='agendado'?' selected':'')+'>agendado</option></select>'+
+      '<select class="b mini" onchange="mSel('+Number(c.id)+',\'prioridade\',{prioridade:this.value})">'+['urgente','normal','quando_der'].map(k=>'<option value="'+k+'"'+(((c.prioridade==='alta'?'urgente':c.prioridade)===k)?' selected':'')+'>'+(k==='quando_der'?'quando der':k)+'</option>').join('')+'</select></div>')}).join(''),true);
 
   /* 2 - reservas dos proximos 7 dias */
   const hj=hojeISO(),amn=dMais(1);
