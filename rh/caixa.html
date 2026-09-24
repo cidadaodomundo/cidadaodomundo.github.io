@@ -70,7 +70,9 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
 
 <div class="aviso">Aqui chega o que os robôs acharam e <b>ainda não virou registro</b>. Nada entra na ficha de ninguém sem alguém clicar em Aprovar. O nome de quem aprovou fica gravado.</div>
 
+<div id="alertas"></div>
 <div class="cont" id="cont"></div>
+<div id="lote" style="margin-bottom:14px"></div>
 
 <div class="abas">
   <button class="aba on" id="a_novo" onclick="verAba('novo')">📥 Esperando você</button>
@@ -84,8 +86,8 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const H={apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'};
-const COR={ADVERTENCIA:'var(--adv)',SUSPENSAO:'var(--dang)',ATESTADO:'var(--atest)',DECLARACAO:'#4a90d9',FALTA:'var(--dang)',FERIAS:'var(--folga)',BATIDA:'var(--warn)',PARA_O_FLASH:'#6b7686',ENTROU:'var(--ok)',SAIU:'var(--warn)',SEM_DONO:'#4a90d9',FOLGA_ABONADA:'var(--folga)'};
-const ROT={ADVERTENCIA:'📄 ADVERTÊNCIA',SUSPENSAO:'⛔ SUSPENSÃO',ATESTADO:'🩺 ATESTADO',DECLARACAO:'🕐 DECLARAÇÃO',FALTA:'🚫 FALTA A CONFIRMAR',FERIAS:'🏖 FÉRIAS',BATIDA:'⏱ BATIDA',PARA_O_FLASH:'📤 LANÇAR NO FLASH',ENTROU:'🆕 ENTROU E FALTA CADASTRAR',SAIU:'👋 SAIU E CONTINUA NO FLASH',SEM_DONO:'🍽 COME E NÃO TEM DONO',FOLGA_ABONADA:'🏖 FOLGA COMBINADA'};
+const COR={COMBINADO:'#3aa6a0',COBERTURA:'#4a90d9',ORIENTACAO:'#e8833a',AVISOU_ANTES:'#8e6bc9',ERRO_CORRIGIDO:'#6b7686',ADVERTENCIA:'var(--adv)',SUSPENSAO:'var(--dang)',ATESTADO:'var(--atest)',DECLARACAO:'#4a90d9',FALTA:'var(--dang)',FERIAS:'var(--folga)',BATIDA:'var(--warn)',PARA_O_FLASH:'#6b7686',ENTROU:'var(--ok)',SAIU:'var(--warn)',SEM_DONO:'#4a90d9',FOLGA_ABONADA:'var(--folga)'};
+const ROT={COMBINADO:'🤝 COMBINADO FIXO',COBERTURA:'🏪 COBRIU OUTRA LOJA',ORIENTACAO:'🗣 ORIENTADO',AVISOU_ANTES:'📞 AVISOU ANTES',ERRO_CORRIGIDO:'🔧 ERRO JÁ CORRIGIDO',ADVERTENCIA:'📄 ADVERTÊNCIA',SUSPENSAO:'⛔ SUSPENSÃO',ATESTADO:'🩺 ATESTADO',DECLARACAO:'🕐 DECLARAÇÃO',FALTA:'🚫 FALTA A CONFIRMAR',FERIAS:'🏖 FÉRIAS',BATIDA:'⏱ BATIDA',PARA_O_FLASH:'📤 LANÇAR NO FLASH',ENTROU:'🆕 ENTROU E FALTA CADASTRAR',SAIU:'👋 SAIU E CONTINUA NO FLASH',SEM_DONO:'🍽 COME E NÃO TEM DONO',FOLGA_ABONADA:'🏖 FOLGA COMBINADA'};
 let CRED=null, ABA='novo', GENTE=[];
 const $=id=>document.getElementById(id);
 const br=d=>d?String(d).slice(0,10).split('-').reverse().join('/'):'—';
@@ -120,14 +122,21 @@ async function carregar(){
       +'<span class="pill">Aprovados: <b>'+(c.aprovado||0)+'</b></span>'
       +'<span class="pill">Recusados: <b>'+(c.recusado||0)+'</b></span>';
   if(!GENTE.length){const g=await porta('sugerir_nomes',{});if(Array.isArray(g))GENTE=g;}
+  /* 24/09/2026: 3 orientacoes ou mais em 7 dias = aviso no topo */
+  const al=await porta('alertas',{});
+  $('alertas').innerHTML=(Array.isArray(al)&&al.length)?al.map(function(a){
+    return '<div class="aviso" style="border-color:#6b1e26;background:#3a1418;color:#f0a0a0">⚠ <b>'+esc(a.nome)+'</b> ('+esc(a.unidade||'')+') já foi orientado <b>'+a.vezes+' vezes</b> nos últimos 7 dias — a última em '+br(a.ultima)+'. Hora de conversar de outro jeito.</div>'}).join(''):'';
   const l=await porta('listar',{situacao:ABA});
   $('sub').textContent=(c&&c.quem?('você entrou como '+c.quem+' · '):'')+'atualizado '+new Date().toLocaleTimeString('pt-BR');
   if(!Array.isArray(l)||!l.length){
+    $('lote').innerHTML='';
     $('lista').innerHTML='<div class="vazio">'+(ABA==='novo'
       ?'Nada esperando você. 👏<br>Quando um robô achar advertência, atestado ou batida para arrumar, aparece aqui.'
       :'Nada aqui ainda.')+'</div>';
     return;
   }
+  const nEx=(ABA==='novo')?l.filter(explicado).length:0;
+  $('lote').innerHTML=nEx?'<button class="btn aprovar" onclick="aprovarLote('+nEx+')">✓ Aprovar tudo que a Rita já explicou ('+nEx+')</button> <span class="det">não inclui falta, atestado, advertência, férias, folga nem batida para ajustar no Flash — esses você olha um por um</span>':'';
   $('lista').innerHTML=l.map(linha).join('');
 }
 function opcoes(sel){
@@ -159,6 +168,7 @@ function linha(r){
     +'</div><span class="tag">'+(ROT[r.tipo]||r.tipo)+'</span></div>'
     +(r.nome_oficial&&r.nome_oficial!==r.nome_lido?'<div class="det">o robô leu <b>'+esc(r.nome_lido)+'</b> e casou com o cadastro</div>':'')
     +(r.detalhe?'<div class="det">'+esc(r.detalhe)+'</div>':'')
+    +(r.vezes_orientado_7d>0?'<div class="det" style="color:'+(r.vezes_orientado_7d>=3?'#f0a0a0':'var(--warn)')+'">🗣 orientado '+r.vezes_orientado_7d+(r.vezes_orientado_7d==1?' vez':' vezes')+' em 7 dias'+(r.vezes_orientado_7d>=3?' — 3 ou mais, hora de conversar de outro jeito':'')+'</div>':'')
     +(r.o_que_aconteceu?'<div style="margin:6px 0;padding:8px 10px;border-radius:8px;background:rgba(56,189,248,.12);border-left:3px solid #38bdf8"><b>O que aconteceu no ponto</b><br>'+esc(r.o_que_aconteceu)+'</div>':'')
     +'<div class="det">veio de: '+(r.fonte||'—')+'</div>'
     +(r.resposta?'<div style="margin:6px 0;padding:8px 10px;border-radius:8px;background:rgba(34,197,94,.12);border-left:3px solid #22c55e"><b>Resposta</b> — '+esc(r.respondido_por||'—')+' em '+br(r.respondido_em)+'<br>'+esc(r.resposta)+'</div>':'')
@@ -178,6 +188,16 @@ async function responder(id){
   if(m)m.textContent='enviando…';
   const r=await porta('responder',{id:id,texto:txt});
   if(r&&r.ok===false){ if(m)m.textContent=r.erro||'não deu certo'; return; }
+  carregar();
+}
+/* 24/09/2026: aprovar em lote o que ja veio explicado pelo cartao do ponto (mesma regra da porta no banco) */
+const LOTE_TIPOS=['PARA_O_FLASH','COMBINADO','COBERTURA','ORIENTACAO','AVISOU_ANTES','ERRO_CORRIGIDO'];
+function explicado(r){return r.situacao==='novo'&&LOTE_TIPOS.indexOf(r.tipo)>=0&&!!r.nome_oficial&&r.fonte==='portal · cartao do ponto'&&/— escrito por /.test(r.detalhe||'')}
+async function aprovarLote(n){
+  if(!confirm('Aprovar de uma vez os '+n+' cartões que já vieram explicados?'))return;
+  const r=await porta('aprovar_explicados',{});
+  if(r&&r.ok===false){alert(r.erro||'não deu certo');return}
+  if(r&&r.aprovados!=null)alert('✅ '+r.aprovados+' aprovados.');
   carregar();
 }
 async function decidir(id,ok){

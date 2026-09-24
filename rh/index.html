@@ -314,7 +314,7 @@ const NVMOT=function(r){var j=EVJ[r.nome+'|'+r.data];return j?j:(r.categoria==='
 const UORD={'Água Verde':0,'Ahú':1,'São Braz':2,'Boqueirão':3};
 const C={SERIO:'var(--serio)',GRAVE:'var(--grave)',INFRACAO:'var(--infra)',VERBAL:'var(--verbal)',CONFERIR:'var(--conf)',JUST:'#94a3b8',SEM:'var(--sem)'};
 const L={SERIO:'🔴 SÉRIO',GRAVE:'🟠 GRAVE',INFRACAO:'🟡 INFRAÇÃO',VERBAL:'🔵 ORIENTAÇÃO',CONFERIR:'🔎 CONFERIR',JUST:'🗓 JUSTIFICADO',SEM:'✅ OK'};
-const KL={TOTAL:'Funcionários',EXPER:'Em experiência',SERIO:'Sério',GRAVE:'Grave',INFRACAO:'Falta de batida',VERBAL:'Orientação',CONFERIR:'Conferir',JUST:'Folga, férias ou atestado',SEM:'Sem ocorrência',REFOK:'Refeição lançada',REFNAO:'Refeição NÃO lançada',REFSC:'Sem cartão'};
+const KL={TOTAL:'Funcionários',EXPER:'Em experiência',SERIO:'Sério',GRAVE:'Grave',INFRACAO:'Falta de batida',VERBAL:'Orientação',CONFERIR:'Conferir',JUST:'Folga, férias, atestado ou combinado',SEM:'Sem ocorrência',REFOK:'Refeição lançada',REFNAO:'Refeição NÃO lançada',REFSC:'Sem cartão'};
 const ACAO={
 SERIO:'RH: aplicar ADVERTÊNCIA formal assinada — política da empresa: intervalo suprimido é falta GRAVE (Art. 71 CLT). Garantir que a pausa seja cumprida integralmente. Reincidência → nova advertência / suspensão.',
 GRAVE:'RH: verificar com o gestor se a extra foi autorizada. Autorizada → pagar +50% ou compensar (banco de horas). Não autorizada → orientação escrita ao funcionário.',
@@ -375,10 +375,12 @@ async function loadAll(){
     ARRERR=0;
     ALL=arrOk(await fetch(SB+'fato_espelho_dia?ativo=eq.true'+(SOSB?'&unidade=eq.'+encodeURIComponent('São Braz'):'')+'&data=gte.'+cutoff+'&data=lte.'+hojeBR+'&select=nome,unidade,data,dia_semana,categoria,nivel,tag,jornada_liquida_min,intervalo_real_min,jornada_contratada_min,extra_min&order=data.asc',{headers:H}).then(r=>r.json()),'espelho do dia');
     const _det=await rhRPC('espelho',{de:cutoff,ate:hojeBR});
-    if(_det.length){const _m={};_det.forEach(d=>{_m[d.nome+'|'+d.data]=d});ALL.forEach(r=>{const x=_m[r.nome+'|'+r.data];if(x){r.detalhe=x.detalhe;r.marcacoes_txt=x.marcacoes_txt;r.esc_entrada=x.esc_entrada;r.esc_saida=x.esc_saida;r.esc_intervalo_min=x.esc_intervalo_min}})}
+    if(_det.length){const _m={};_det.forEach(d=>{_m[d.nome+'|'+d.data]=d});ALL.forEach(r=>{const x=_m[r.nome+'|'+r.data];if(x){r.detalhe=x.detalhe;r.marcacoes_txt=x.marcacoes_txt;r.esc_entrada=x.esc_entrada;r.esc_saida=x.esc_saida;r.esc_intervalo_min=x.esc_intervalo_min;r.combinado=x.combinado}})}
     DAYS=[...new Set(ALL.map(r=>r.data))].filter(function(d){return d<=hojeBR}).sort();
     try{
       EVJ={};REFP=[];REFI=[];REFDIA='';
+      /* 24/09/2026: combinado fixo ou cobertura de loja registrado pela Rita = justificado, nao vira pendencia */
+      ALL.forEach(function(r){if(r.combinado)EVJ[r.nome+'|'+r.data]='🤝 '+String(r.combinado).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})});
       const _ev=await rhRPC('eventos',{de:new Date(Date.now()-90*864e5).toISOString().slice(0,10),ate:'2099-12-31'});
       (_ev||[]).forEach(function(e){
         if(['FERIAS','ATESTADO','LICENCA','FOLGA_ABONADA','DECLARACAO'].indexOf(e.tipo)<0)return;
@@ -647,6 +649,7 @@ function renderDay(){
       ${r.esc_entrada?`<div class="mk mkesc"><span class="mkic">📋</span>${escLinha(r)}</div>`:''}
       <div class="jr">Trabalhou <b>${fmt(r.jornada_liquida_min)}</b> · Intervalo <b>${r.intervalo_real_min==null?'—':r.intervalo_real_min+' min'}</b> · Deveria <b>${fmt(r.jornada_contratada_min)}</b>${r.extra_min>10?' · <b style="color:var(--grave)">'+r.extra_min+' min a mais</b>':r.extra_min<-10?' · <b style="color:var(--verbal)">'+Math.abs(r.extra_min)+' min a menos</b>':r.extra_min?' · <span style="color:var(--muted)">'+Math.abs(r.extra_min)+' min '+(r.extra_min>0?'a mais':'a menos')+' · dentro da tolerância</span>':''}</div>
       ${r.detalhe?`<div class="det">▸ ${r.detalhe}</div>`:(RH_SEM_SENHA&&NV(r)!=='SEM'?'<div class="det" style="opacity:.65">▸ — detalhe protegido; entre com a senha do escritório</div>':'')}
+      ${NV(r)==='JUST'&&NVMOT(r)?'<div class="det">🗓 '+NVMOT(r)+'</div>':''}
       ${acao}</div>`}).join('')+'</div>';
   rfPintaRefeicao(DAYS[DI]);
   resPinta(DAYS[DI]);
@@ -826,16 +829,28 @@ function rfLoja(){return RF.loja||''}
 /* ===== ✍️ A RITA RESOLVE PELO CARTAO + 🔴 PONTO AO VIVO (11/09/2026) ===== */
 var VIVOT=null, RES={};
 function resEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+/* 24/09/2026: botoes novos — cada um faz a coisa certa sozinho (combinado fixo vale para sempre, cobertura, orientacao contada) */
+var RESBOT=[['orientado','✅ Resolvido'],['cobriu_loja','🏪 Cobriu outra loja'],['combinado_fixo','🤝 Combinado fixo'],
+  ['orientei','🗣 Orientei a pessoa'],['avisou_antes','📞 Avisou antes'],['erro_corrigido','🔧 Erro de batida, já corrigido'],
+  ['relogio','🕐 Relogio com defeito'],['esqueceu_bater','🙋 Esqueceu de bater'],
+  ['atestado','📄 Atestado'],['folga','🏖 Folga combinada'],['falta','❌ Nao veio']];
+var RESLOJAS=['Água Verde','São Braz','Ahú','Boqueirão'];
+var RESDIAS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 function resCaixa(r){
   var nm=resEsc(r.nome), dia=resEsc(r.data);
-  return '<div class="resbox" data-nome="'+nm+'" data-dia="'+dia+'" data-dec="outro"'
+  var dow=r.data?new Date(r.data+'T12:00:00').getDay():-1;
+  return '<div class="resbox" data-nome="'+nm+'" data-dia="'+dia+'" data-dec="outro" data-cat="'+resEsc(r.categoria||'')+'"'
     +' style="margin-top:8px;padding:8px;border-top:1px dashed rgba(255,255,255,.18)">'
     +'<div style="font-size:11px;opacity:.7;margin-bottom:6px">✍️ o que aconteceu? (fica registrado com o seu nome)</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">'
-    + [['orientado','✅ Resolvido'],['outro','🕐 Relogio com defeito'],['outro','🙋 Esqueceu de bater'],
-       ['atestado','📄 Atestado'],['folga','🏖 Folga combinada'],['falta','❌ Nao veio']]
-      .map(function(x){return '<button type="button" onclick="resRapido(this,\''+x[0]+'\',\''+x[1].replace(/^\S+\s/,'')+'\')" style="font-size:11px;padding:3px 7px;cursor:pointer;border-radius:10px">'+x[1]+'</button>'}).join('')
+    + RESBOT.map(function(x){return '<button type="button" class="resbt" onclick="resRapido(this,\''+x[0]+'\',\''+x[1].replace(/^\S+\s/,'')+'\')" style="font-size:11px;padding:3px 7px;cursor:pointer;border-radius:10px">'+x[1]+'</button>'}).join('')
     +'</div>'
+    +'<div class="resloja" style="display:none;font-size:12px;margin-bottom:6px">Foi para qual loja? '
+      +RESLOJAS.filter(function(u){return u!==r.unidade}).map(function(u){
+        return '<label style="margin-right:8px"><input type="radio" name="rl_'+nm+dia+'" value="'+u+'"> '+u+'</label>'}).join('')+'</div>'
+    +'<div class="resdias" style="display:none;font-size:12px;margin-bottom:6px">Vale para sempre, nestes dias: '
+      +RESDIAS.map(function(d,i){return '<label style="margin-right:6px"><input type="checkbox" value="'+i+'"'+(i===dow?' checked':'')+'> '+d+'</label>'}).join('')
+      +'<div style="opacity:.7;font-size:11px">só para este tipo de apontamento: '+resEsc(r.tag||r.categoria||'—')+'. Nesses dias ele aparece como justificado e não pede mais explicação. Não vale para intervalo abaixo do legal.</div></div>'
     +'<textarea rows="2" placeholder="escreva aqui..." style="width:100%;padding:6px;font-size:12px"></textarea>'
     +'<div style="display:flex;gap:6px;align-items:center;margin-top:4px">'
     +'<button type="button" onclick="resSalvar(this)" style="padding:4px 10px;cursor:pointer">Salvar</button>'
@@ -845,6 +860,9 @@ function resCaixa(r){
 function resRapido(btn,dec,txt){
   var box=btn.closest('.resbox'); if(!box)return;
   box.setAttribute('data-dec',dec);
+  box.querySelectorAll('.resbt').forEach(function(b){b.style.outline=(b===btn)?'2px solid #38bdf8':''});
+  box.querySelector('.resloja').style.display=(dec==='cobriu_loja')?'block':'none';
+  box.querySelector('.resdias').style.display=(dec==='combinado_fixo')?'block':'none';
   var ta=box.querySelector('textarea');
   ta.value = ta.value ? (ta.value.replace(/\s*$/,'')+' — '+txt) : txt;
   ta.focus();
@@ -852,15 +870,30 @@ function resRapido(btn,dec,txt){
 async function resSalvar(btn){
   var box=btn.closest('.resbox'); if(!box)return;
   var ta=box.querySelector('textarea'), msg=box.querySelector('.resmsg');
-  var txt=(ta.value||'').trim();
+  var txt=(ta.value||'').trim(), dec=box.getAttribute('data-dec')||'outro';
+  var extra={};
   if(!txt){msg.style.color='#e66767';msg.textContent='Escreva alguma coisa antes de salvar.';return}
+  if(dec==='cobriu_loja'){
+    var rl=box.querySelector('.resloja input:checked');
+    if(!rl){msg.style.color='#e66767';msg.textContent='Marque para qual loja a pessoa foi.';return}
+    extra.loja=rl.value;
+  }
+  if(dec==='combinado_fixo'){
+    var ds=[];box.querySelectorAll('.resdias input:checked').forEach(function(c){ds.push(c.value)});
+    if(!ds.length){msg.style.color='#e66767';msg.textContent='Marque pelo menos um dia da semana.';return}
+    extra.dias=ds; extra.categoria=box.getAttribute('data-cat')||'';
+  }
   msg.style.color='';msg.textContent='Salvando…';
   try{
-    await rfOp('ponto_resolver',{nome:box.getAttribute('data-nome'),dia:box.getAttribute('data-dia'),
-      texto:txt,decisao:box.getAttribute('data-dec')||'outro',quem:rfNome()||'RH'});
+    var rr=await rfOp('ponto_resolver',Object.assign({nome:box.getAttribute('data-nome'),dia:box.getAttribute('data-dia'),
+      texto:txt,decisao:dec,quem:rfNome()||'RH'},extra));
+    if(rr&&rr.ok===false){msg.style.color='#e66767';msg.textContent='Nao deu: '+(rr.erro||'recusado');return}
     msg.style.color='#2fae6a';
-    msg.textContent = (box.getAttribute('data-dec')==='orientado')
-      ? '✅ salvo' : '✅ salvo — foi para a Caixa do RH, esperando o ok do Fabio';
+    msg.textContent = dec==='orientado' ? '✅ salvo'
+      : dec==='combinado_fixo' ? '✅ combinado guardado — nesses dias vira justificado e não pede mais explicação'
+      : dec==='cobriu_loja' ? '✅ cobertura guardada — este dia deixa de ser pendência'
+      : dec==='orientei' ? '✅ orientação contada na ficha da pessoa'
+      : '✅ salvo — foi para a Caixa do RH, esperando o ok do Fabio';
     ta.value='';
     await resPinta(box.getAttribute('data-dia'));
   }catch(e){msg.style.color='#e66767';msg.textContent='Nao deu: '+e.message}
