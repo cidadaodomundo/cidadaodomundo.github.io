@@ -116,10 +116,12 @@ function cardFda(){
   if(!n) return cardF0('Fora do ar no delivery','&#128245;');
   var velho=(c.leituras||[]).filter(function(l){return l.dias>1}).length;
   var eter=(c.lista||[]).filter(function(x){return x.classe==='eterno'}).length;
+  var semResp=(c.lista||[]).filter(function(x){return x.chave && !x.resolvido}).length;
   return '<div class="card" onclick="soUm(&quot;FDA&quot;)" title="Clique para abrir ou fechar"'+
     ' style="cursor:pointer'+(FDA?';border-color:var(--brand)':'')+'">'+
     '<div class="t">&#128245; Fora do ar no delivery '+(FDA?'&#9650;':'&#9660;')+'</div>'+
     '<div class="v" style="color:var(--warn)">'+n+'</div>'+
+    (semResp?'<div style="font-size:10px;color:var(--warn);font-weight:700">'+semResp+' sem resposta da loja</div>':'')+
     (eter?'<div style="font-size:10px;color:var(--bad);font-weight:700">'+eter+' para tirar do cardapio</div>':'')+
     (velho?'<div style="font-size:10px;color:var(--bad);font-weight:700">'+velho+' sem leitura recente</div>':'')+'</div>';
 }
@@ -152,7 +154,8 @@ function foraDoAr(){
                         : (x.tipo||'');
                 return '<div style="padding:4px 0;font-size:12px;line-height:1.45;border-top:1px solid rgba(255,255,255,.07)">'+
                   '<b>'+esc(x.item||'')+'</b> <span style="color:var(--muted)">&#183; '+esc(x.estado||'')+' desde '+esc(x.desde||'?')+
-                  ' &#183; '+sub+'</span><br><span style="color:var(--muted);font-size:11px">'+esc(x.marca||'')+'</span></div>';
+                  ' &#183; '+sub+'</span><br><span style="color:var(--muted);font-size:11px">'+esc(x.marca||'')+'</span>'+
+                  respPau(x)+'</div>';
               }).join('');
           }).join('');
       }).join('');
@@ -162,6 +165,37 @@ function foraDoAr(){
     (ls.length?corpo:'<div class="m" style="margin-top:6px">Nada pausado nas leituras de ontem para ca.</div>')+
     (semLer.length?'<div style="margin-top:10px;font-size:12px;color:var(--bad);font-weight:700">Sem leitura de ontem para ca, fora da conta: '+semLer.join(' &#183; ')+'</div>':'')+
     '<div class="m" style="margin-top:9px">"Nunca vendeu" = nenhuma venda desse item na loja (salao ou delivery) desde o inicio do historico do Saipos. Isto e o que o robo viu no cardapio na data de cada leitura. Para religar, abra o Gestor de Pedidos do iFood ou o painel da Accon.</div></div>';
+}
+
+// 24/09/2026 (chat-enxugar-msgs-delivery-24-09): resposta da loja a cada item pausado.
+// Item respondido sai do QUADRO DE PAUSADOS do WhatsApp. "Despausei" vale ate a proxima leitura do cardapio;
+// "Acabou" vale 2 dias; o resto vale 30 dias (regra em pausado_status no banco).
+var MOT_PAU=['Despausei','Acabou, vai repor','Tirar do cardapio / pausa de proposito'];
+function respPau(x){
+  var ls=((D&&D.cardapio)||{}).lista||[], i=ls.indexOf(x);
+  if(i<0 || !x.chave) return '';
+  if(x.resolvido){
+    return '<div style="margin-top:5px"><span class="feito">&#10004; '+esc(x.quem||'')+'</span> '+
+      '<span class="m">'+esc(x.resolvido_em||'')+' &#183; '+esc(x.o_que_foi_feito||'')+'</span> '+
+      '<button class="mini" onclick="reabrePau('+i+')">reabrir</button></div>';
+  }
+  return '<div style="margin-top:5px">'+
+    (x.contradito?'<div style="color:var(--bad);font-size:11px;font-weight:700;margin-bottom:4px">&#9888;&#65039; '+esc(x.quem||'')+' marcou "despausei" em '+esc(x.resolvido_em||'')+', mas a leitura seguinte ainda viu pausado</div>':'')+
+    ((x.dias_parado>=2)?'<div style="color:var(--warn);font-size:11px;font-weight:700;margin-bottom:4px">&#9200; '+x.dias_parado+' dias sem resposta</div>':'')+
+    MOT_PAU.map(function(m,k){ return '<button class="mini" style="margin:0 4px 4px 0" onclick="marcaPau('+i+','+k+')">'+esc(m)+'</button>' }).join('')+
+    '</div>';
+}
+async function marcaPau(i,k){
+  var x=(((D&&D.cardapio)||{}).lista||[])[i]; if(!x) return;
+  try{ await porta('resolver_marcar',{tipo:'pausado',chave:x.chave,unidade:x.unidade,o_que_foi_feito:MOT_PAU[k]}); }
+  catch(e){ alert('Nao consegui gravar: '+e.message); return; }
+  boot();
+}
+async function reabrePau(i){
+  var x=(((D&&D.cardapio)||{}).lista||[])[i]; if(!x) return;
+  try{ await porta('resolver_marcar',{tipo:'pausado',chave:x.chave,desfazer:true}); }
+  catch(e){ alert('Nao consegui reabrir: '+e.message); return; }
+  boot();
 }
 
 function cardPau(){
