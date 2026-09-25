@@ -155,6 +155,7 @@ function foraDoAr(){
                 return '<div style="padding:4px 0;font-size:12px;line-height:1.45;border-top:1px solid rgba(255,255,255,.07)">'+
                   '<b>'+esc(x.item||'')+'</b> <span style="color:var(--muted)">&#183; '+esc(x.estado||'')+' desde '+esc(x.desde||'?')+
                   ' &#183; '+sub+'</span><br><span style="color:var(--muted);font-size:11px">'+esc(x.marca||'')+'</span>'+
+                  (function(){ var p=parouTambem(x); return p?'<br><span style="color:var(--warn);font-size:11px;font-weight:700">&#9208;&#65039; tambem em Parou de vender: '+esc(p.produto||'')+', ultima venda '+esc(p.ultima||'')+'</span>':''; })()+
                   respPau(x)+'</div>';
               }).join('');
           }).join('');
@@ -204,7 +205,47 @@ function cardPau(){
   return '<div class="card" onclick="soUm(&quot;PAU&quot;)" title="Clique para abrir ou fechar"'+
     ' style="cursor:pointer'+(PAU?';border-color:var(--brand)':'')+'">'+
     '<div class="t">&#9208;&#65039; Parou de vender '+(PAU?'&#9650;':'&#9660;')+'</div>'+
-    '<div class="v" style="color:var(--warn)">'+ps.length+'</div></div>';
+    '<div class="v" style="color:var(--warn)">'+ps.length+'</div>'+
+    (function(){
+      var n={pausado:0,no_ar:0,sem_leitura:0};
+      ps.forEach(function(p){ n[situCard(p).k]++; });
+      return (n.pausado?'<div style="font-size:10px;color:var(--warn);font-weight:700">'+n.pausado+' pausado no cardapio</div>':'')+
+        (n.no_ar?'<div style="font-size:10px;color:var(--bad);font-weight:700">'+n.no_ar+' no ar e sem venda</div>':'')+
+        (n.sem_leitura?'<div style="font-size:10px;color:var(--muted);font-weight:700">'+n.sem_leitura+' sem leitura recente</div>':'');
+    })()+'</div>';
+}
+
+// 25/09/2026 (chat-parou-x-foradoar-25-09): "Parou de vender" cruzado com "Fora do ar no delivery".
+// Mesma regua de nome da funcao cardapio_pausado_vendas: palavras de 4+ letras do item do cardapio,
+// todas presentes no nome do produto do Saipos, mesma loja e mesmo canal (iFood / Accon).
+function normNome(t){
+  return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+}
+var PAL_FORA=['para','pessoa','pessoas','litro','litros','beer','delivery','chopp','promo','desconto','classicos','classico'];
+function canalDe(origem){ return /accon/i.test(origem||'')?'Accon':'iFood'; }
+// vale nos dois sentidos: "Caldo verde com calabresa" (iFood) casa com "CALDO VERDE" (Saipos) e vice-versa
+function palavras(t){
+  return normNome(String(t||'').replace(/\(.*?\)/g,'')).replace(/[^a-z ]+/g,' ').split(/\s+/)
+    .filter(function(w){ return w.length>=4 && PAL_FORA.indexOf(w)<0; });
+}
+function contem(toks, t){
+  var p=normNome(t).replace(/[^a-z0-9 ]+/g,' ');
+  return toks.length>0 && toks.every(function(w){ return p.indexOf(w)>=0; });
+}
+function casaNome(itemCard, produto){
+  return contem(palavras(itemCard), produto) || contem(palavras(produto), itemCard);
+}
+function situCard(p){
+  var c=(D&&D.cardapio)||{}, cn=canalDe(p.origem);
+  var l=(c.leituras||[]).filter(function(z){ return z.unidade===p.unidade && z.canal===cn; })[0];
+  var x=(c.lista||[]).filter(function(z){ return z.unidade===p.unidade && z.canal===cn && casaNome(z.item,p.produto); })[0];
+  if(x) return {k:'pausado', cn:cn, l:l, x:x};
+  if(l && l.dias<=1) return {k:'no_ar', cn:cn, l:l};
+  return {k:'sem_leitura', cn:cn, l:l};
+}
+function parouTambem(x){
+  var ps=((D&&D.pausados)||{}).linhas||[];
+  return ps.filter(function(p){ return p.unidade===x.unidade && canalDe(p.origem)===x.canal && casaNome(x.item,p.produto); })[0];
 }
 
 function pausados(){
@@ -217,22 +258,37 @@ function pausados(){
     var soma=0; lojas[u].forEach(function(p){ soma+=(p.rs_dia||0); });
     return '<div style="margin:10px 0 3px;font-size:11px;font-weight:800">'+esc(u)+
       (temRS?'<span style="color:var(--muted);font-weight:600"> &#183; R$ '+soma+' por dia parados</span>':'')+'</div>'+
-      lojas[u].map(function(p){
-        var d=p.sumido_ha||0, cor=(d>=5?'var(--warn)':'var(--muted)');
-        return '<div style="padding:5px 0;font-size:12px;line-height:1.45;border-top:1px solid rgba(255,255,255,.07)">'+
-          '<b>'+esc(p.produto||'')+'</b> <span style="color:var(--muted)">&#183; '+esc(p.marca||'')+' &#183; '+esc(p.origem||'')+'</span><br>'+
-          '<span style="color:'+cor+'">sumiu ha '+d+' dia'+(d===1?'':'s')+', ultima venda '+esc(p.ultima||'')+'</span>'+
-          '<span style="color:var(--muted)">'+(temRS?' &#183; vendia R$ '+(p.rs_dia||0)+' por dia':'')+
-          ' &#183; '+(p.qtd||0)+' em '+(p.dias||0)+' dias &#183; semana passada '+(p.semana_passada||0)+'</span></div>';
+      [['pausado','&#128245; PAUSADO NO CARDAPIO &#8212; e o mesmo item do quadro Fora do ar no delivery; responda la','var(--warn)'],
+       ['no_ar','&#9989; NO AR NO CARDAPIO &#8212; nao esta pausado, mas nao vendeu: conferir foto, preco, nome ou se o cliente sumiu','var(--bad)'],
+       ['sem_leitura','&#10067; CARDAPIO SEM LEITURA RECENTE &#8212; nao da para dizer se esta pausado','var(--muted)']].map(function(g){
+        var xs=lojas[u].filter(function(p){ return situCard(p).k===g[0]; });
+        if(!xs.length) return '';
+        return '<div style="margin:8px 0 2px;font-size:10px;font-weight:800;color:'+g[2]+'">'+g[1]+' ('+xs.length+')</div>'+
+          xs.map(function(p){
+            var d=p.sumido_ha||0, cor=(d>=5?'var(--warn)':'var(--muted)'), st=situCard(p);
+            var lido=st.l?('lido em '+esc(st.l.lido_em||'?')):'nunca lido';
+            var tag = st.k==='pausado' ? 'no cardapio do '+st.cn+': &#128245; '+esc(st.x.item||'')+' &#183; '+esc(st.x.estado||'')+' desde '+esc(st.x.desde||'?')+' ('+lido+')'
+                    : st.k==='no_ar'   ? 'no cardapio do '+st.cn+': no ar ('+lido+')'
+                    : 'cardapio do '+st.cn+' '+lido+(st.l&&st.l.dias?' (ha '+st.l.dias+' dias)':'');
+            return '<div style="padding:5px 0;font-size:12px;line-height:1.45;border-top:1px solid rgba(255,255,255,.07)">'+
+              '<b>'+esc(p.produto||'')+'</b> <span style="color:var(--muted)">&#183; '+esc(p.marca||'')+' &#183; '+esc(p.origem||'')+'</span><br>'+
+              '<span style="color:'+cor+'">sumiu ha '+d+' dia'+(d===1?'':'s')+', ultima venda '+esc(p.ultima||'')+'</span>'+
+              '<span style="color:var(--muted)">'+(temRS?' &#183; vendia R$ '+(p.rs_dia||0)+' por dia':'')+
+              ' &#183; '+(p.qtd||0)+' em '+(p.dias||0)+' dias &#183; semana passada '+(p.semana_passada||0)+'</span><br>'+
+              '<span style="font-size:11px;color:'+g[2]+';font-weight:700">'+tag+'</span></div>';
+          }).join('');
       }).join('');
   }).join('');
+  var le=((D&&D.cardapio)||{}).leituras||[];
+  var lidos=le.map(function(l){ return esc(l.unidade)+' '+esc(l.canal)+' '+esc(l.lido_em||'?'); }).join(' &#183; ');
   return '<div style="border-left:3px solid var(--warn);background:var(--s1);border-radius:10px;padding:9px 11px;margin:8px 0">'+
     '<div style="color:var(--warn);font-size:11px;font-weight:800">VENDIA E PAROU &#8212; so iFood e Accon</div>'+
     ((temRS&&P.perda_dia)?'<div style="font-size:14px;font-weight:800;margin:5px 0 2px">R$ '+P.perda_dia+' por dia deixaram de entrar</div>':'')+
     corpo+
     '<div class="m" style="margin-top:9px">Isto sai da VENDA do Saipos desde '+esc(P.desde||'')+', conferida em '+esc(P.em||'')+
-    '. Salao e balcao nao entram. Nao e leitura do cardapio, e suspeita pela venda &#8212; o cardapio nao e conferido desde '+esc(P.cardapio_lido_em||'?')+
-    '. So entra o item que tambem vendia no mesmo dia da semana passada.</div></div>';
+    '. Salao e balcao nao entram. So entra o item que tambem vendia no mesmo dia da semana passada. '+
+    'Cada item foi cruzado com o quadro Fora do ar no delivery (mesma loja, mesmo canal, mesmo nome). '+
+    'Ultima leitura do cardapio do delivery: '+(lidos||'nenhuma')+'. O tablet do salao nao entra.</div></div>';
 }
 
 function cardCheg(){
