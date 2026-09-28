@@ -530,32 +530,61 @@ function cardPz(){
     '<div class="t">&#9208;&#65039; Cardapio pausado '+(PZ?'&#9650;':'&#9660;')+'</div>'+
     '<div class="v" style="color:var(--warn)">'+ab.length+'</div>'+
     '<div style="font-size:10px;color:var(--warn);font-weight:700">'+pr+' pratos e '+(ab.length-pr)+' complementos</div>'+
+    (function(){ var s=ab.filter(function(x){return x.chave && !x.resolvido}).length; return s?'<div style="font-size:10px;color:var(--bad);font-weight:700">'+s+' sem resposta da loja</div>':''; })()+
     (vo?'<div style="font-size:10px;color:var(--ok);font-weight:700">'+vo+' voltaram ao ar no periodo</div>':'')+
     ((PZD.lido_min!=null&&PZD.lido_min>20)?'<div style="font-size:10px;color:var(--bad);font-weight:700">leitura parada ha '+tempoFora(PZD.lido_min)+'</div>':'')+
     '</div>';
+}
+// 28/09/2026 (pedido do Fabio): a loja responde em cada item pausado se pode excluir ou se vai voltar a vender.
+// Grava pela mesma porta e na mesma chave do antigo "Fora do ar" (resolver_marcar tipo 'pausado'), entao as respostas antigas continuam valendo.
+// Validade (regra pausado_status no banco): "Despausei" vale ate a proxima leitura; "Acabou..." 2 dias; o resto 30 dias.
+var MOT_PZ=['Despausei','Acabou, vai voltar a vender','Pode excluir do cardapio'];
+function respPz(x){
+  var ls=(PZD&&PZD.linhas)||[], i=ls.indexOf(x);
+  if(i<0 || !x.chave) return '';
+  if(x.resolvido){
+    return '<span class="feito">&#10004; '+esc(x.quem||'')+'</span> <span class="m">'+esc(x.em||'')+' &#183; '+esc(x.o_que||'')+'</span> '+
+      '<button class="mini" onclick="reabrePz('+i+')">reabrir</button>';
+  }
+  return (x.contradito?'<div style="color:var(--bad);font-size:11px;font-weight:700;margin-bottom:4px">&#9888;&#65039; '+esc(x.quem||'')+' marcou "despausei" em '+esc(x.em||'')+', mas o iFood ainda mostra pausado</div>':'')+
+    MOT_PZ.map(function(m,k){ return '<button class="mini" style="margin:0 4px 4px 0" onclick="marcaPz('+i+','+k+')">'+esc(m)+'</button>' }).join('');
+}
+async function marcaPz(i,k){
+  var x=((PZD&&PZD.linhas)||[])[i]; if(!x) return;
+  try{ await porta('resolver_marcar',{tipo:'pausado',chave:x.chave,unidade:x.unidade,o_que_foi_feito:MOT_PZ[k]}); }
+  catch(e){ alert('Nao consegui gravar: '+e.message); return; }
+  boot();
+}
+async function reabrePz(i){
+  var x=((PZD&&PZD.linhas)||[])[i]; if(!x) return;
+  try{ await porta('resolver_marcar',{tipo:'pausado',chave:x.chave,desfazer:true}); }
+  catch(e){ alert('Nao consegui reabrir: '+e.message); return; }
+  boot();
 }
 function linhaPz(x){
   return '<tr><td>'+esc(x.unidade)+'</td><td>'+esc(x.marca)+'</td>'+
     '<td><b>'+esc(x.item)+'</b>'+(x.tipo==='Complemento'?' <span style="color:var(--muted);font-size:10px">complemento</span>':'')+'</td>'+
     '<td style="white-space:nowrap">'+(x.minimo?'antes de ':'')+esc(x.pausou||'?')+'</td>'+
     '<td style="white-space:nowrap">'+(x.voltou?esc(x.voltou):'<span style="color:var(--warn)">ainda pausado</span>')+'</td>'+
-    '<td style="white-space:nowrap">'+(x.minimo?'pelo menos ':'')+tempoFora(x.minutos)+'</td></tr>';
+    '<td style="white-space:nowrap">'+(x.minimo?'pelo menos ':'')+tempoFora(x.minutos)+'</td>'+
+    (x.aberta?'<td style="min-width:220px">'+respPz(x)+'</td>':'')+'</tr>';
 }
 function pausasPz(){
   if(!PZ) return '';
   if(!PZD||PZD.erro) return '<div class="c" style="margin-top:10px"><div class="m">Nao deu para carregar as pausas'+(PZD&&PZD.erro?': '+esc(PZD.erro):'')+'.</div></div>';
   var ls=PZD.linhas||[];
-  var grupo=function(tit,cor,arr){
+  var grupo=function(tit,cor,arr,resp){
     if(!arr.length) return '';
     return '<div style="color:'+cor+';font-size:11px;font-weight:800;margin:10px 0 4px">'+tit+' ('+arr.length+')</div>'+
-      '<div style="overflow-x:auto"><table class="pz"><tr><th>Loja</th><th>Marca</th><th>Item</th><th>Pausou</th><th>Voltou</th><th>Tempo fora</th></tr>'+
+      '<div style="overflow-x:auto"><table class="pz"><tr><th>Loja</th><th>Marca</th><th>Item</th><th>Pausou</th><th>Voltou</th><th>Tempo fora</th>'+(resp?'<th>A loja responde</th>':'')+'</tr>'+
       arr.map(linhaPz).join('')+'</table></div>';
   };
   return '<div style="border-left:3px solid var(--warn);background:var(--s1);border-radius:10px;padding:9px 11px;margin:8px 0">'+
     '<div style="color:var(--warn);font-size:11px;font-weight:800">CARDAPIO DO iFOOD &#8212; hora que pausou, hora que voltou e quanto tempo ficou fora</div>'+
     '<div class="m" style="margin-top:4px">Lido direto do iFood a cada 5 minutos (ultima leitura '+esc(PZD.lido_em||'?')+'). A hora tem margem de ate 5 minutos. '+
-    '"Antes de" e "pelo menos" = ja estava pausado quando o robo comecou a olhar, em 28/09. Boqueirao, Accon e tablet do salao nao entram.</div>'+
-    (ls.length? grupo('&#128245; PAUSADO AGORA','var(--warn)',ls.filter(function(x){return x.aberta}))+
+    '"Antes de" e "pelo menos" = ja estava pausado quando o robo comecou a olhar, em 28/09. Boqueirao, Accon e tablet do salao nao entram. '+
+    'Em cada item pausado, a loja diz se pode excluir do cardapio ou se vai voltar a vender.</div>'+
+    (ls.length? grupo('&#128245; PAUSADO AGORA','var(--warn)',ls.filter(function(x){return x.aberta}),true)+
                grupo('&#9989; VOLTOU AO AR NO PERIODO','var(--ok)',ls.filter(function(x){return !x.aberta}))
              : '<div class="m" style="margin-top:6px">Nada pausado neste periodo.</div>')+
     '</div>';
