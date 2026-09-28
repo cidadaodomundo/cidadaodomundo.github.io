@@ -24,6 +24,7 @@ button.b:hover{border-color:var(--brand)}
 .aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:11px 14px;font-size:12.5px;margin:14px 0}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:6px}
 .card{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:12px 14px}
+.pz{width:100%;border-collapse:collapse;font-size:12px}.pz th{text-align:left;color:var(--muted);font-size:10px;font-weight:800;padding:4px 6px;border-bottom:1px solid var(--line)}.pz td{padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:top}
 .card .t{color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
 .card .v{font-size:26px;font-weight:700;margin-top:4px}
 .fil{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
@@ -98,9 +99,9 @@ var MOT_GER=['Resolvido com o cliente','Ja estava certo','Nao era problema nosso
 var FAM='BEBIDA';
 var ESQ=false;
 function soUm(q){
-  var era={ESQ:ESQ,PAU:PAU,CHG:CHG,DUPO:DUPO,FDA:FDA}[q];
-  ESQ=false;PAU=false;CHG=false;DUPO=false;FDA=false;TIPO='';
-  if(q==='ESQ')ESQ=!era; if(q==='PAU')PAU=!era; if(q==='CHG')CHG=!era; if(q==='DUPO')DUPO=!era; if(q==='FDA')FDA=!era;
+  var era={ESQ:ESQ,PAU:PAU,CHG:CHG,DUPO:DUPO,FDA:FDA,PZ:PZ}[q];
+  ESQ=false;PAU=false;CHG=false;DUPO=false;FDA=false;PZ=false;TIPO='';
+  if(q==='ESQ')ESQ=!era; if(q==='PAU')PAU=!era; if(q==='CHG')CHG=!era; if(q==='DUPO')DUPO=!era; if(q==='FDA')FDA=!era; if(q==='PZ')PZ=!era;
   desenha();
 }
 var PAU=false;
@@ -507,6 +508,59 @@ function filtra(tp, ver){
   if(el && el.scrollIntoView){ el.scrollIntoView({behavior:'smooth', block:'start'}) }
 }
 
+// 28/09/2026 (chat-ifood-apis-28-09): "Cardapio pausado" substitui os quadros "Parou de vender" e "Fora do ar no delivery".
+// Mostra a hora que cada item do iFood pausou, a hora que voltou e quanto tempo ficou fora.
+// Fonte: porta resolver_pausas, que le ifood_cardapio_pausa (robo ifood-cardapio-api, API oficial do iFood, a cada 5 min).
+// As funcoes antigas (cardPau, pausados, cardFda, foraDoAr) continuam no arquivo, so nao sao mais desenhadas.
+var PZ=false, PZD=null;
+function tempoFora(m){
+  if(m==null) return '?';
+  if(m<60) return m+' min';
+  if(m<1440) return Math.floor(m/60)+'h'+(m%60<10?'0':'')+(m%60);
+  var d=Math.floor(m/1440), h=Math.floor((m%1440)/60);
+  return d+(d===1?' dia':' dias')+(h?' e '+h+'h':'');
+}
+function cardPz(){
+  if(PZD===null) return '<div class="card" style="opacity:.5"><div class="t">&#9208;&#65039; Cardapio pausado</div><div class="v">&#8230;</div></div>';
+  if(PZD.erro) return '<div class="card" style="opacity:.5"><div class="t">&#9208;&#65039; Cardapio pausado</div><div class="v">&#8212;</div></div>';
+  var ls=PZD.linhas||[], ab=ls.filter(function(x){return x.aberta}), vo=ls.length-ab.length;
+  var pr=ab.filter(function(x){return x.tipo==='Item principal'}).length;
+  return '<div class="card" onclick="soUm(&quot;PZ&quot;)" title="Clique para abrir ou fechar"'+
+    ' style="cursor:pointer'+(PZ?';border-color:var(--brand)':'')+'">'+
+    '<div class="t">&#9208;&#65039; Cardapio pausado '+(PZ?'&#9650;':'&#9660;')+'</div>'+
+    '<div class="v" style="color:var(--warn)">'+ab.length+'</div>'+
+    '<div style="font-size:10px;color:var(--warn);font-weight:700">'+pr+' pratos e '+(ab.length-pr)+' complementos</div>'+
+    (vo?'<div style="font-size:10px;color:var(--ok);font-weight:700">'+vo+' voltaram ao ar no periodo</div>':'')+
+    ((PZD.lido_min!=null&&PZD.lido_min>20)?'<div style="font-size:10px;color:var(--bad);font-weight:700">leitura parada ha '+tempoFora(PZD.lido_min)+'</div>':'')+
+    '</div>';
+}
+function linhaPz(x){
+  return '<tr><td>'+esc(x.unidade)+'</td><td>'+esc(x.marca)+'</td>'+
+    '<td><b>'+esc(x.item)+'</b>'+(x.tipo==='Complemento'?' <span style="color:var(--muted);font-size:10px">complemento</span>':'')+'</td>'+
+    '<td style="white-space:nowrap">'+(x.minimo?'antes de ':'')+esc(x.pausou||'?')+'</td>'+
+    '<td style="white-space:nowrap">'+(x.voltou?esc(x.voltou):'<span style="color:var(--warn)">ainda pausado</span>')+'</td>'+
+    '<td style="white-space:nowrap">'+(x.minimo?'pelo menos ':'')+tempoFora(x.minutos)+'</td></tr>';
+}
+function pausasPz(){
+  if(!PZ) return '';
+  if(!PZD||PZD.erro) return '<div class="c" style="margin-top:10px"><div class="m">Nao deu para carregar as pausas'+(PZD&&PZD.erro?': '+esc(PZD.erro):'')+'.</div></div>';
+  var ls=PZD.linhas||[];
+  var grupo=function(tit,cor,arr){
+    if(!arr.length) return '';
+    return '<div style="color:'+cor+';font-size:11px;font-weight:800;margin:10px 0 4px">'+tit+' ('+arr.length+')</div>'+
+      '<div style="overflow-x:auto"><table class="pz"><tr><th>Loja</th><th>Marca</th><th>Item</th><th>Pausou</th><th>Voltou</th><th>Tempo fora</th></tr>'+
+      arr.map(linhaPz).join('')+'</table></div>';
+  };
+  return '<div style="border-left:3px solid var(--warn);background:var(--s1);border-radius:10px;padding:9px 11px;margin:8px 0">'+
+    '<div style="color:var(--warn);font-size:11px;font-weight:800">CARDAPIO DO iFOOD &#8212; hora que pausou, hora que voltou e quanto tempo ficou fora</div>'+
+    '<div class="m" style="margin-top:4px">Lido direto do iFood a cada 5 minutos (ultima leitura '+esc(PZD.lido_em||'?')+'). A hora tem margem de ate 5 minutos. '+
+    '"Antes de" e "pelo menos" = ja estava pausado quando o robo comecou a olhar, em 28/09. Boqueirao, Accon e tablet do salao nao entram.</div>'+
+    (ls.length? grupo('&#128245; PAUSADO AGORA','var(--warn)',ls.filter(function(x){return x.aberta}))+
+               grupo('&#9989; VOLTOU AO AR NO PERIODO','var(--ok)',ls.filter(function(x){return !x.aberta}))
+             : '<div class="m" style="margin-top:6px">Nada pausado neste periodo.</div>')+
+    '</div>';
+}
+
 function cardF(rot, val, tp, ver, cor, ic){
   var aceso = (tp === TIPO) && (!ver || ver === VER);
   return '<div class="card" onclick="filtra(&quot;'+tp+'&quot;,&quot;'+ver+'&quot;)"'+
@@ -537,23 +591,20 @@ function desenha(){
     cardF('Cancelado inteiro',(R.cancelamento||0),'cancelamento','abertas','','🚫')+
     cardF('Item cancelado',(R.parcial||0),'parcial','abertas','','✂️')+
     cardF('Cliente sem resposta',(R.chat||0),'chat','abertas','','💬')+
-    cardPau()+
     cardF('Maquininha',(R.maquininha||0),'maquininha','abertas','','🧾')+
     cardF('Negociação do iFood',(R.negociacao||0),'negociacao','abertas','','🤝')+
     cardCheg()+
     cardDup()+
-    cardFda()+
+    cardPz()+
   '</div>';
 
   h+=esquecidos();
 
-  h+=pausados();
+  h+=pausasPz();
 
   h+=chegada();
 
   h+=duplaPainel();
-
-  h+=foraDoAr();
 
   h+=falaComigo();
 
@@ -574,7 +625,7 @@ function desenha(){
          ((D.maq_horas!=null && D.maq_horas>26)?' — <b style="color:var(--bad)">isso está velho, o robô não rodou</b>':'')+
          '. Elas ficam na lista até alguém resolver, mesmo sendo de outro dia.</div></div>';
     }
-  }else if(!(ESQ||PAU||CHG||DUPO||FDA)){
+  }else if(!(ESQ||PAU||CHG||DUPO||FDA||PZ)){
     h+='<div class="c" style="margin-top:10px"><div class="m">👆 Clique num quadro lá em cima para ver a lista dele.</div></div>';
   }
   $('app').innerHTML=h;
@@ -582,7 +633,8 @@ function desenha(){
 
 async function boot(){
   $('sub').textContent='carregando…';
-  D=null; desenha();
+  D=null; PZD=null; desenha();
+  porta('resolver_pausas',{dias:DIAS,ontem:ONT,unidade:UNI||null}).then(function(j){PZD=j||{linhas:[]};desenha()}).catch(function(e){PZD={erro:(e&&e.message)||'erro'};desenha()});
   try{ D=await porta('resolver_hoje',{dias:DIAS,ontem:ONT,unidade:UNI||null}); }
   catch(e){ D=false; $('sub').textContent=(e&&e.message)||'erro'; desenha(); return }
   const R=D.resumo||{};
