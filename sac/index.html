@@ -52,7 +52,7 @@ input[type=date]{background:var(--s2);border:1px solid var(--line);color:var(--t
 <div id="fresco" class="fresco"></div>
 <div class="abas" id="abas"></div>
 <div id="app"><div class="load">Carregando…</div></div>
-<div class="aviso">O robô lê cada mensagem assim que ela chega e junta por conversa. <b>Vermelho</b> = a pessoa pediu algo e o SAC ainda não respondeu. <b>Amarelo</b> = a última palavra foi dela, mas talvez não precise de resposta. Marque <b>✓ Resolvido</b> quando cuidar. Cliente aparece pelas iniciais e o final do telefone; nos resumos o robô troca o nome do cliente pela inicial, mas algum nome escrito diferente pode escapar. O dia vira às 5h da manhã.</div>
+<div class="aviso">O robô lê cada mensagem assim que ela chega e junta por conversa. <b>Vermelho</b> = a pessoa pediu algo e o SAC ainda não respondeu. <b>Amarelo</b> = a última palavra foi dela, mas talvez não precise de resposta. Marque <b>✓ Resolvido</b> quando cuidar. Cliente aparece pelas iniciais e o final do telefone; nos resumos o robô troca o nome do cliente pela inicial, mas algum nome escrito diferente pode escapar. O dia vira às 5h da manhã. A aba <b>Fora do trabalho</b> mostra as mensagens que a IA marcou como fora do trabalho — é a leitura dela, confira na conversa antes de agir.</div>
 <script>
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
@@ -68,7 +68,7 @@ const ASS={lanche_do_motoboy:'🍔 Lanche do motoboy',cobranca_pagamento:'💰 C
 const assLbl=a=>ASS[a]||(a?a.replace(/_/g,' '):'—');
 const LOJA={agua_verde:'Água Verde',sao_braz:'São Braz',ahu:'Ahú',boqueirao:'Boqueirão'};
 const PARA={compras:'🛒 Compras',manutencao:'🔧 Manutenção',encomendas:'🎉 Encomendas'};
-const ABAS=[['esperando','🔴 Esperando resposta'],['clientes','🙋 Clientes'],['motoboys','🛵 Motoboys'],['de_fora','🌍 De fora'],['lojas','🏪 Lojas e gerência'],['encaminhados','📦 Mandados para outras telas']];
+const ABAS=[['esperando','🔴 Esperando resposta'],['clientes','🙋 Clientes'],['motoboys','🛵 Motoboys'],['de_fora','🌍 De fora'],['lojas','🏪 Lojas e gerência'],['pessoal','🙂 Fora do trabalho'],['encaminhados','📦 Mandados para outras telas']];
 let DIA='',ABA='esperando',D=null,TIMER=null;
 function hojeOp(){const d=new Date(Date.now()-5*3600*1000);return d.toLocaleDateString('sv-SE')}
 function mudaDia(n){const d=new Date(Date.now()-5*3600*1000-n*86400000);DIA=n===0?'':d.toLocaleDateString('sv-SE');boot()}
@@ -76,6 +76,7 @@ function escolhe(v){DIA=(v&&v<hojeOp())?v:'';boot()}
 function min(m){if(m==null)return '';if(m<60)return m+' min';const h=Math.floor(m/60);return h+'h'+String(m%60).padStart(2,'0')}
 function naAba(c,a){
   if(a==='esperando')return c.situacao==='esperando_resposta'&&!c.feito;
+  if(a==='pessoal')return (c.pessoais||0)>0;
   if(a==='lojas')return c.aba==='lojas'||c.aba==='gerencia';
   return c.aba===a;
 }
@@ -87,8 +88,8 @@ function cartao(c){
   else if(ult)pill='<span class="pill p-warn">última palavra dele · '+esc(c.esperando_desde||'')+'</span>';
   else pill='<span class="pill p-off">respondido</span>';
   const ass=(c.assuntos&&c.assuntos.length?c.assuntos:[c.assunto]).filter(Boolean).map(a=>'<span class="pill p-br">'+esc(assLbl(a))+'</span>').join(' ');
-  const rs=(c.resumos||[]).map(r=>'<div>• '+esc(r)+'</div>').join('');
-  const extra=[c.loja?('loja '+esc(LOJA[c.loja]||c.loja)):'',(c.pedidos&&c.pedidos.length)?('pedido '+c.pedidos.map(esc).join(', ')):'',c.e_grupo?'grupo':'',c.sem_ler?(c.sem_ler+' msg ainda sem ler'):''].filter(Boolean).join(' · ');
+  const rs=((ABA==='pessoal'?c.resumos_pessoais:c.resumos)||[]).map(r=>'<div>• '+esc(r)+'</div>').join('');
+  const extra=[c.loja?('loja '+esc(LOJA[c.loja]||c.loja)):'',(c.pedidos&&c.pedidos.length)?('pedido '+c.pedidos.map(esc).join(', ')):'',c.e_grupo?'grupo':'',c.sem_ler?(c.sem_ler+' msg ainda sem ler'):'',c.pessoais?(c.pessoais+' fora do trabalho'):''].filter(Boolean).join(' · ');
   const bt=c.feito?'<button class="b" onclick="marca(\''+esc(c.conversa_id)+'\',\''+esc(c.dia)+'\',false)">desfazer</button>':'<button class="b bp" onclick="marca(\''+esc(c.conversa_id)+'\',\''+esc(c.dia)+'\',true)">✓ Resolvido</button>';
   return '<div class="c'+(esp?' esp':'')+(ult?' ult':'')+(c.feito?' feito':'')+'"><div class="l1"><span class="nm">'+esc(c.nome)+'</span>'+pill+'<span class="rt">'+bt+'</span></div>'
     +'<div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">'+ass+'</div>'
@@ -105,7 +106,7 @@ function desenha(){
     return;
   }
   const l=cs.filter(c=>naAba(c,ABA));
-  $('app').innerHTML=l.length?l.map(cartao).join(''):'<div class="vazio">'+(ABA==='esperando'?'Ninguém esperando resposta agora. 👍':'Nenhuma conversa nesta aba neste dia.')+'</div>';
+  $('app').innerHTML=l.length?l.map(cartao).join(''):'<div class="vazio">'+(ABA==='esperando'?'Ninguém esperando resposta agora. 👍':ABA==='pessoal'?'Nenhuma conversa fora do trabalho neste dia.':'Nenhuma conversa nesta aba neste dia.')+'</div>';
 }
 async function marca(cid,dia,feito){
   try{await porta('marcar',{conversa_id:cid,dia:dia,feito:feito});await boot(true)}catch(e){alert('Não consegui marcar: '+e.message)}
