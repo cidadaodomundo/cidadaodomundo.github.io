@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Central do SAC · Cidadão do Mundo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#E0A81C;--brand-ink:#111110;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1100px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:14px}
+.top .rt{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+button.b:hover{border-color:var(--brand)}
+button.bp,button.b.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+input[type=date]{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:7px 9px;font-family:inherit}
+.dot{width:40px;height:40px;border-radius:11px;background:var(--brand);color:var(--brand-ink);display:grid;place-items:center;font-weight:800;font-size:16px}
+.abas{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.abas button .n{display:inline-block;margin-left:6px;background:rgba(0,0,0,.25);border-radius:99px;padding:0 7px;font-size:11.5px}
+.fresco{font-size:12px;color:var(--muted);margin-bottom:12px}
+.fresco.bad{color:var(--bad)}
+.c{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:12px 14px;margin-bottom:9px}
+.c.esp{border-left:4px solid var(--bad)}
+.c.ult{border-left:4px solid var(--warn)}
+.c.feito{opacity:.55}
+.l1{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.l1 .nm{font-weight:700;font-size:15px}
+.l1 .rt{margin-left:auto;display:flex;gap:6px;align-items:center}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700}
+.p-bad{background:rgba(230,103,103,.15);color:var(--bad)}
+.p-warn{background:rgba(201,133,0,.15);color:var(--warn)}
+.p-off{background:rgba(138,137,126,.15);color:var(--muted)}
+.p-ok{background:rgba(47,174,106,.15);color:var(--ok)}
+.p-br{background:rgba(224,168,28,.15);color:var(--brand)}
+.rs{margin-top:7px;font-size:13.5px;color:var(--text2)}
+.rs div{padding:2px 0}
+.m{color:var(--muted);font-size:11.5px;margin-top:6px}
+.load,.vazio{color:var(--muted);padding:24px;text-align:center}
+.aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:11px 14px;font-size:12.5px;margin-top:16px}
+@media(max-width:600px){body{padding:12px}.l1 .rt{margin-left:0;width:100%}}
+</style>
+</head>
+<body>
+<div class="top">
+  <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>💬 Central do SAC</h1><div class="sub">WhatsApp do SAC Água Verde (41 9947-3007) — lido pelo robô, conversa por conversa</div></div></div>
+  <div class="rt"><button class="b" id="bHoje" onclick="mudaDia(0)">Hoje</button><button class="b" id="bOntem" onclick="mudaDia(1)">Ontem</button><input type="date" id="dDia" onchange="escolhe(this.value)"><button class="b" onclick="boot()">↻</button></div>
+</div>
+<div id="fresco" class="fresco"></div>
+<div class="abas" id="abas"></div>
+<div id="app"><div class="load">Carregando…</div></div>
+<div class="aviso">O robô lê cada mensagem assim que ela chega e junta por conversa. <b>Vermelho</b> = a pessoa pediu algo e o SAC ainda não respondeu. <b>Amarelo</b> = a última palavra foi dela, mas talvez não precise de resposta. Marque <b>✓ Resolvido</b> quando cuidar. Cliente aparece pelas iniciais e o final do telefone; nos resumos o robô troca o nome do cliente pela inicial, mas algum nome escrito diferente pode escapar. O dia vira às 5h da manhã.</div>
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
+async function porta(acao,dados){
+  const r=await fetch(SB+'rpc/sac_consulta',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:tok(),p_acao:acao,p_dados:dados||{}})});
+  if(!r.ok)throw new Error('porta '+r.status);
+  return r.json();
+}
+const ASS={lanche_do_motoboy:'🍔 Lanche do motoboy',cobranca_pagamento:'💰 Cobrança / pagamento',cliente_nao_atende_endereco:'📍 Cliente não atende / endereço',app_do_motoboy_travado:'📱 App do motoboy travado',problema_no_pedido:'⚠️ Problema no pedido',reclamacao_cliente:'😠 Reclamação de cliente',pedido_de_cliente:'🛍 Pedido de cliente',duvida_de_cliente:'❓ Dúvida de cliente',status_da_entrega:'🛵 Status da entrega',escala_folga_cobertura:'📅 Escala / folga / cobertura',cadastro_dados_motoboy:'🪪 Cadastro de motoboy',insumo_entre_lojas:'📦 Insumo entre lojas',pedido_de_compra_insumo:'🛒 Pedido de compra',fornecedor_entrega_oferta:'🚚 Fornecedor',manutencao_conserto:'🔧 Manutenção',encomenda_grande:'🎉 Encomenda grande',cardapio_estoque:'📋 Cardápio / estoque',reserva_salao:'🍽 Reserva do salão',vaga_emprego:'💼 Vaga de emprego',recado_da_gerencia:'📌 Recado da gerência',pessoal_fora_do_trabalho:'🙂 Pessoal',outro:'• Outro'};
+const assLbl=a=>ASS[a]||(a?a.replace(/_/g,' '):'—');
+const LOJA={agua_verde:'Água Verde',sao_braz:'São Braz',ahu:'Ahú',boqueirao:'Boqueirão'};
+const PARA={compras:'🛒 Compras',manutencao:'🔧 Manutenção',encomendas:'🎉 Encomendas'};
+const ABAS=[['esperando','🔴 Esperando resposta'],['clientes','🙋 Clientes'],['motoboys','🛵 Motoboys'],['de_fora','🌍 De fora'],['lojas','🏪 Lojas e gerência'],['encaminhados','📦 Mandados para outras telas']];
+let DIA='',ABA='esperando',D=null,TIMER=null;
+function hojeOp(){const d=new Date(Date.now()-5*3600*1000);return d.toLocaleDateString('sv-SE')}
+function mudaDia(n){const d=new Date(Date.now()-5*3600*1000-n*86400000);DIA=n===0?'':d.toLocaleDateString('sv-SE');boot()}
+function escolhe(v){DIA=(v&&v<hojeOp())?v:'';boot()}
+function min(m){if(m==null)return '';if(m<60)return m+' min';const h=Math.floor(m/60);return h+'h'+String(m%60).padStart(2,'0')}
+function naAba(c,a){
+  if(a==='esperando')return c.situacao==='esperando_resposta'&&!c.feito;
+  if(a==='lojas')return c.aba==='lojas'||c.aba==='gerencia';
+  return c.aba===a;
+}
+function cartao(c){
+  const esp=c.situacao==='esperando_resposta'&&!c.feito, ult=c.situacao==='ultima_palavra_dele'&&!c.feito;
+  let pill='';
+  if(c.feito)pill='<span class="pill p-ok">✓ resolvido'+(c.feito_por?' por '+esc(c.feito_por):'')+'</span>';
+  else if(esp)pill='<span class="pill p-bad">esperando há '+esc(min(c.esperando_min))+'</span>';
+  else if(ult)pill='<span class="pill p-warn">última palavra dele · '+esc(c.esperando_desde||'')+'</span>';
+  else pill='<span class="pill p-off">respondido</span>';
+  const ass=(c.assuntos&&c.assuntos.length?c.assuntos:[c.assunto]).filter(Boolean).map(a=>'<span class="pill p-br">'+esc(assLbl(a))+'</span>').join(' ');
+  const rs=(c.resumos||[]).map(r=>'<div>• '+esc(r)+'</div>').join('');
+  const extra=[c.loja?('loja '+esc(LOJA[c.loja]||c.loja)):'',(c.pedidos&&c.pedidos.length)?('pedido '+c.pedidos.map(esc).join(', ')):'',c.e_grupo?'grupo':'',c.sem_ler?(c.sem_ler+' msg ainda sem ler'):''].filter(Boolean).join(' · ');
+  const bt=c.feito?'<button class="b" onclick="marca(\''+esc(c.conversa_id)+'\',\''+esc(c.dia)+'\',false)">desfazer</button>':'<button class="b bp" onclick="marca(\''+esc(c.conversa_id)+'\',\''+esc(c.dia)+'\',true)">✓ Resolvido</button>';
+  return '<div class="c'+(esp?' esp':'')+(ult?' ult':'')+(c.feito?' feito':'')+'"><div class="l1"><span class="nm">'+esc(c.nome)+'</span>'+pill+'<span class="rt">'+bt+'</span></div>'
+    +'<div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">'+ass+'</div>'
+    +(rs?'<div class="rs">'+rs+'</div>':'')
+    +'<div class="m">'+esc(c.primeira||'')+' → '+esc(c.ultima||'')+' · '+c.msgs+' mensagens ('+c.msgs_sac+' do SAC)'+(extra?' · '+extra:'')+'</div></div>';
+}
+function desenha(){
+  if(!D)return;
+  const cs=D.casos||[];
+  $('abas').innerHTML=ABAS.map(([k,t])=>{const n=k==='encaminhados'?(D.encaminhados||[]).length:cs.filter(c=>naAba(c,k)).length;return '<button class="b'+(ABA===k?' on':'')+'" onclick="ABA=\''+k+'\';desenha()">'+t+'<span class="n">'+n+'</span></button>'}).join('');
+  if(ABA==='encaminhados'){
+    const e=D.encaminhados||[];
+    $('app').innerHTML=e.length?e.map(x=>'<div class="c"><div class="l1"><span class="nm">'+esc(x.item||'')+(x.quantidade?' · '+esc(x.quantidade):'')+'</span><span class="pill p-br">'+esc(PARA[x.para]||x.para)+'</span><span class="pill p-off">'+esc(x.hora)+'</span></div><div class="rs"><div>'+esc(x.resumo||'')+'</div></div></div>').join(''):'<div class="vazio">Nada foi mandado para Compras, Manutenção ou Encomendas neste dia.</div>';
+    return;
+  }
+  const l=cs.filter(c=>naAba(c,ABA));
+  $('app').innerHTML=l.length?l.map(cartao).join(''):'<div class="vazio">'+(ABA==='esperando'?'Ninguém esperando resposta agora. 👍':'Nenhuma conversa nesta aba neste dia.')+'</div>';
+}
+async function marca(cid,dia,feito){
+  try{await porta('marcar',{conversa_id:cid,dia:dia,feito:feito});await boot(true)}catch(e){alert('Não consegui marcar: '+e.message)}
+}
+async function boot(quieto){
+  $('bHoje').classList.toggle('on',!DIA);$('bOntem').classList.toggle('on',DIA===new Date(Date.now()-5*3600*1000-86400000).toLocaleDateString('sv-SE'));
+  $('dDia').value=DIA||hojeOp();
+  if(!quieto)$('app').innerHTML='<div class="load">Carregando…</div>';
+  try{D=await porta('listar',DIA?{dia:DIA}:{})}catch(e){$('app').innerHTML='<div class="vazio">Não consegui ler agora ('+esc(e.message)+'). Tente ↻.</div>';return}
+  const f=v=>v?new Date(v).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'—';
+  const atras=D.chegou_ate?Math.round((Date.now()-new Date(D.chegou_ate))/60000):null;
+  $('fresco').className='fresco'+((atras!=null&&atras>60)||D.sem_ler_2h>40?' bad':'');
+  $('fresco').innerHTML='Última mensagem que chegou: <b>'+f(D.chegou_ate)+'</b>'+(atras!=null&&atras>60?' (há '+min(atras)+' — o carteiro pode estar parado)':'')+' · lido pelo robô até <b>'+f(D.lido_ate)+'</b>'+(D.sem_ler_2h?' · '+D.sem_ler_2h+' mensagens das últimas 2h ainda na fila':'')+' · atualiza sozinho a cada minuto';
+  desenha();
+  clearTimeout(TIMER);TIMER=document.hidden?null:setTimeout(()=>boot(true),60000);
+}
+document.addEventListener('visibilitychange',function(){if(document.hidden){clearTimeout(TIMER);TIMER=null}else{boot(true)}});
+window.addEventListener('pagehide',function(){clearTimeout(TIMER)});
+
+/* ===== porta unica do portal ===== */
+const CDMMODS=['sac'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'sac'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(ok)boot()});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
