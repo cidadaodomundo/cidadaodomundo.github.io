@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#E0A81C">
-<title>Delivery · São Braz · Cidadão do Mundo</title>
+<title>Central · São Braz · Cidadão do Mundo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <style>
 :root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#E0A81C;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
@@ -65,12 +65,16 @@ button.c{cursor:pointer}
 .pzcampo{margin:8px 0;font-size:12.5px;color:var(--text2);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .pzcampo input{background:var(--s1);border:1px solid var(--line);color:var(--text);border-radius:7px;padding:6px 8px;font-family:inherit;font-size:13px;min-width:180px;color-scheme:dark}
 .pzmsg{margin-top:8px;font-size:12.5px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}
+.chips .b{padding:6px 10px;font-size:12px}
+.pre{white-space:pre-wrap;word-break:break-word}
+.foto{display:block;max-width:100%;max-height:420px;border-radius:9px;margin-top:8px}
 @media(max-width:600px){body{padding:12px}.c .big{font-size:32px}}
 </style>
 </head>
 <body>
 <div class="top">
-  <div><h1>🛵 Delivery · São Braz</h1><div class="sub">Erros da loja, itens pausados e o que o cliente disse no iFood</div></div>
+  <div><h1>🏪 Central · São Braz</h1><div class="sub">Fechamento do dia, o que falaram do São Braz, SAC, erros, pausados e avaliações</div></div>
   <div class="rt" id="per">
     <button class="b" data-d="1">Hoje</button>
     <button class="b on" data-d="7">7 dias</button>
@@ -196,6 +200,80 @@ function pzBind(root){
     b.disabled=true;try{await pzGrava({acao:'desfazer',canal:x.canal,item:x.item});carregar()}catch(er){b.disabled=false;b.textContent='Erro: '+er.message}}});
 }
 
+/* ===== Central Sao Braz: fechamento do dia, escala, falas do WhatsApp e SAC (sb_central) ===== */
+async function central(){
+  const r=await fetch(SBR+'rpc/sb_central',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:cdmTok(),p_dados:{dias:DIAS}})});
+  if(!r.ok){let t='';try{t=(await r.json()).message||''}catch(e){}throw new Error(t||('erro '+r.status))}
+  return r.json();
+}
+let C=null, CERR='', FONTE='', ASSUNTO='';
+const FONTES=[['','Tudo'],['grupo','Grupos do São Braz'],['ia','Outros grupos (a IA marcou São Braz)']];
+function assuntoNome(a){return String(a||'outro').replace(/_/g,' ')}
+function fotoBtn(w,t){return '<button class="b" data-foto="'+esc(w)+'">📷 '+esc(t)+'</button>'}
+function htmlCentral(){
+  if(CERR)return '<h2>📋 Fechamento do dia</h2><div class="lista"><div class="vazio">Não consegui carregar esta parte: '+esc(CERR)+'</div></div>';
+  const c=C||{}, f=c.fresco||{};
+  let h='<div class="fresco">WhatsApp dos grupos lido até '+esc(f.grupo||'—')+' · SAC até '+esc(f.sac||'—')+' · separação por loja feita pela IA até '+esc(f.ia||'—')+' (grupos) e '+esc(f.sac_ia||'—')+' (SAC)</div>';
+  const F=c.fechamento||[], nok=F.filter(function(x){return x.chegou}).length;
+  h+='<h2>📋 Fechamento do dia <span class="hint">o Diego manda no grupo Cidadão São Braz – Diretoria · chegou em '+nok+' de '+F.length+' dias</span></h2><div class="lista">';
+  F.forEach(function(x){
+    h+='<div class="it"><div class="l1">'+(x.chegou?'<span class="pill p-ok">✅ chegou</span>':'<span class="pill p-bad">não chegou</span>')+'<b>'+esc(x.semana)+' '+esc(x.dia)+'</b>';
+    if(x.chegou)h+='<span class="m">'+esc(x.hora)+' · '+esc(x.quem)+'</span>';
+    if(x.cobrado)h+='<span class="pill p-warn">⏰ o robô cobrou no grupo</span>';
+    h+='</div>';
+    if(x.chegou){
+      h+='<div class="l2 pre">'+esc(x.texto)+'</div>';
+      const fs=x.fotos||[];
+      h+='<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">'+(fs.length?fs.map(function(w,i){return fotoBtn(w,'foto '+(i+1))}).join(''):'<span class="m">sem foto nesse dia</span>')+'</div>';
+    }
+    h+='</div>'});
+  h+='</div>';
+  const E=c.escala||[];
+  h+='<h2>📅 Escala da semana <span class="hint">o Diego manda até domingo, no mesmo grupo</span></h2>';
+  h+=E.length?'<div class="lista"><div class="it"><div class="l1"><b>'+esc(E[0].quando)+'</b><span class="m">'+esc(E[0].quem)+'</span></div><div class="l2 pre">'+esc(E[0].texto)+'</div></div></div>'
+             :'<div class="lista"><div class="vazio">A escala da semana ainda não chegou no grupo (procurei nos últimos 30 dias).</div></div>';
+  const FL=(c.falas||[]).filter(function(x){return !FONTE||x.fonte===FONTE});
+  h+='<h2>💬 O que falaram do São Braz <span class="hint">'+FL.length+' mensagens no período (mostro até 150)</span></h2><div class="chips">';
+  FONTES.forEach(function(o){h+='<button class="b'+(FONTE===o[0]?' on':'')+'" data-fonte="'+o[0]+'">'+esc(o[1])+'</button>'});
+  h+='</div>';
+  if(!FL.length)h+='<div class="lista"><div class="vazio">Nenhuma mensagem no período.</div></div>';
+  else{h+='<div class="lista">';FL.forEach(function(x){
+    h+='<div class="it"><div class="l1"><b>'+esc(x.quem||'—')+'</b><span class="m">'+esc(x.quando)+' · '+esc(x.onde)+'</span>'+(x.assunto?'<span class="pill p-off">'+esc(assuntoNome(x.assunto))+'</span>':'')+'</div>'+
+       '<div class="l2 pre">'+(x.texto?esc(x.texto):'<i class="m">('+esc(x.tipo||'mídia')+')</i>')+'</div>'+
+       (x.foto?'<div style="margin-top:6px">'+fotoBtn(x.foto,'ver '+(x.tipo==='video'?'vídeo':x.tipo==='document'?'arquivo':'foto'))+'</div>':'')+'</div>'});
+    h+='</div>'}
+  const SA=c.sac_assuntos||[], SL=(c.sac||[]).filter(function(x){return !ASSUNTO||(x.assunto||'outro')===ASSUNTO});
+  h+='<h2>🎧 SAC — o que precisa de ação no São Braz <span class="hint">'+(c.sac_total||0)+' no período · resumo feito pela IA · conversa com cliente fica de fora</span></h2>';
+  if(SA.length){h+='<div class="chips"><button class="b'+(ASSUNTO?'':' on')+'" data-assunto="">Tudo</button>';
+    SA.forEach(function(a){h+='<button class="b'+(ASSUNTO===a.assunto?' on':'')+'" data-assunto="'+esc(a.assunto)+'">'+esc(assuntoNome(a.assunto))+' · '+a.n+'</button>'});h+='</div>'}
+  if(!SL.length)h+='<div class="lista"><div class="vazio">Nada do SAC precisando de ação no período.</div></div>';
+  else{h+='<div class="lista">';SL.forEach(function(x){
+    h+='<div class="it"><div class="l1"><b>'+esc(x.quem||'—')+'</b><span class="m">'+esc(x.quando)+' · '+esc(x.onde)+' · '+esc(x.papel||'')+'</span><span class="pill p-off">'+esc(assuntoNome(x.assunto))+'</span></div><div class="l2">'+esc(x.texto)+'</div></div>'});
+    h+='</div>'}
+  return h;
+}
+async function verFoto(b){
+  b.disabled=true;const t0=b.textContent;b.textContent='Abrindo…';
+  try{
+    const r=await fetch(SBR+'rpc/sb_central_foto',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:cdmTok(),p_wa_id:b.dataset.foto})});
+    if(!r.ok){let t='';try{t=(await r.json()).message||''}catch(e){}throw new Error(t||('erro '+r.status))}
+    const j=await r.json();
+    if(!j.ok){b.textContent='📷 foto ainda não guardada pelo robô';return}
+    const mime=String(j.mime||'image/jpeg'), src='data:'+mime+';base64,'+j.base64;
+    let el;
+    if(/^video\//.test(mime)){el=document.createElement('video');el.controls=true}
+    else if(/^image\//.test(mime)){el=document.createElement('img')}
+    else{el=document.createElement('a');el.textContent='abrir arquivo';el.download='arquivo';el.style.color='var(--brand)'}
+    if(el.tagName==='A')el.href=src;else el.src=src;
+    el.className='foto';b.insertAdjacentElement('afterend',el);b.remove();
+  }catch(er){b.disabled=false;b.textContent=t0+' (erro: '+er.message+')'}
+}
+function centralBind(a){
+  a.querySelectorAll('[data-fonte]').forEach(function(b){b.onclick=function(){FONTE=b.dataset.fonte;render()}});
+  a.querySelectorAll('[data-assunto]').forEach(function(b){b.onclick=function(){ASSUNTO=b.dataset.assunto;render()}});
+  a.querySelectorAll('[data-foto]').forEach(function(b){b.onclick=function(){verFoto(b)}});
+}
+
 const CDMMODS=['sbdelivery'];
 let DIAS=7, D=null, FILTRO=null;
 function marcaCurta(m){return String(m||'').replace(/CIDAD[ÃA]O DO MUNDO\s*/i,'').replace(/\s*-\s*(S[ÃA]O BRAZ|SB)\s*$/i,'').trim()||String(m||'')}
@@ -203,7 +281,8 @@ const TIPOS=[['COZINHA','🍳','Erro da cozinha','veio errado ou impróprio'],['
 function render(){
   const d=D, a=document.getElementById('app'), f=d.fresco||{};
   a.className='';
-  let h='<div class="fresco">Período: <b>'+esc(d.de)+' a '+esc(d.ate)+'</b> · pedidos e chat do iFood até '+esc(f.gestor_web||'—')+
+  let h=htmlCentral();
+  h+='<h2 style="margin-top:34px">🛵 Delivery</h2><div class="fresco">Período: <b>'+esc(d.de)+' a '+esc(d.ate)+'</b> · pedidos e chat do iFood até '+esc(f.gestor_web||'—')+
         ' · cancelamentos até '+esc(f.cancelamento||'—')+' <i>(o iFood manda com atraso)</i> · avaliações até '+esc(f.avaliacao||'—')+'</div>';
   const t=d.erros_total||{};
   h+='<h2>⚠️ Erros da loja <span class="hint">toque num quadro para ver só aquele tipo</span></h2><div class="cards">';
@@ -236,13 +315,15 @@ function render(){
   if(B.length){h+='<h2 style="margin-top:16px">O que elogiaram <span class="hint">últimos '+B.length+' comentários</span></h2><div class="lista">';
     B.forEach(function(r){h+='<div class="it"><div class="l1"><span class="pill p-ok">'+esc(r.nota)+'★</span><b>'+esc(r.quando)+'</b><span class="m">'+esc(marcaCurta(r.marca))+'</span></div><div class="l2">"'+esc(r.comentario)+'"</div></div>'});
     h+='</div>'}
-  a.innerHTML=h;pzBind(a);
+  a.innerHTML=h;pzBind(a);centralBind(a);
   a.querySelectorAll('[data-f]').forEach(function(b){b.onclick=function(){FILTRO=(FILTRO===b.dataset.f?null:b.dataset.f);render()}});
   const lp=document.getElementById('limpa');if(lp)lp.onclick=function(ev){ev.preventDefault();FILTRO=null;render()};
 }
 async function carregar(){
   const a=document.getElementById('app');a.className='load';a.textContent='Carregando…';
-  try{D=await porta('delivery',{dias:DIAS});render()}
+  try{
+    const cp=central().then(function(j){C=j;CERR=''},function(e){C=null;CERR=e.message});
+    D=await porta('delivery',{dias:DIAS});await cp;render()}
   catch(e){a.className='erro';a.textContent='Não consegui carregar: '+e.message}
 }
 function boot(){
