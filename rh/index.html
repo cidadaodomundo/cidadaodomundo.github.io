@@ -804,8 +804,9 @@ cdmGuarda().then(function(ok){if(ok)loadAll()});
 </script>
 <script>
 /* ===== 🍽 REFEIÇÃO DA EQUIPE — veio da tela de Operação em 21/08/2026 ===== */
-var RF={aba:'dia',loja:'',dia:[],fila:[],moto:[],cart:[],equipe:[],offset:[],saipos:[],cartloja:'Água Verde'};
-var RFUNI=['Água Verde','São Braz','Ahú'];
+/* 30/09: quem so tem o Ponto · Sao Braz (SOSB) ve so o Sao Braz tambem nestas abas */
+var RF={aba:'dia',loja:(SOSB?SBUN:''),dia:[],fila:[],moto:[],cart:[],equipe:[],offset:[],saipos:[],cartloja:(SOSB?SBUN:'Água Verde')};
+var RFUNI=SOSB?[SBUN]:['Água Verde','São Braz','Ahú'];
 function rfArr(x){return Array.isArray(x)?x:[]}
 function rfEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function rfBr(s){return s?String(s).slice(8,10)+'/'+String(s).slice(5,7):'—'}
@@ -914,7 +915,7 @@ async function resPinta(dia){
   });
 }
 /* ---- 🔴 Ponto ao vivo ---- */
-var VIVO={loja:'Água Verde'};
+var VIVO={loja:(SOSB?SBUN:'Água Verde')};
 function vivoLoja(v){VIVO.loja=v;renderVivo()}
 async function renderVivo(){
   limpaTopo();
@@ -981,7 +982,7 @@ async function vivoCarrega(){
 }
 
 /* ===== 🍽 COMANDAS — a lista da Rita, com recado por comanda (11/09/2026) ===== */
-var CMD={loja:'Água Verde',lista:[],equipe:[]};
+var CMD={loja:(SOSB?SBUN:'Água Verde'),lista:[],equipe:[]};
 function cmdSetLoja(v){CMD.loja=v;renderComandas()}
 async function renderComandas(){
   limpaTopo();
@@ -1028,7 +1029,7 @@ function renderRefeicao(){
   var h='<div class="rf-bar">'+
     abas.map(function(a){return '<button class="rf-tab'+(RF.aba===a[0]?' on':'')+'" onclick="rfSet(\'' + a[0] + '\')">'+a[1]+'</button>'}).join('')+
     '<select class="rf-sel" style="margin-left:auto;width:auto" onchange="RF.loja=this.value;rfSet(RF.aba)">'+
-    '<option value="">Todas as lojas</option>'+
+    (SOSB?'':'<option value="">Todas as lojas</option>')+
     RFUNI.map(function(u){return '<option'+(RF.loja===u?' selected':'')+'>'+rfEsc(u)+'</option>'}).join('')+
     '</select></div><div id="rfbox"><div class="rf-load">Carregando…</div></div>';
   document.getElementById('content').innerHTML=h;
