@@ -131,18 +131,19 @@ function cartao(x){
   return h+'</div>';
 }
 function aviso(a){
-  let h='<div class="card" style="--cc:'+(AVCOR[a.tipo]||'var(--warn)')+'"><div class="nm2">'+esc(a.titulo)+'</div><div class="m" style="margin-top:4px">'+esc(a.texto)+'</div>';
+  let h='<div class="card" style="--cc:'+(a.resolvido?'var(--ok)':(AVCOR[a.tipo]||'var(--warn)'))+'"><div class="nm2">'+(a.resolvido?'✅ ':'')+esc(a.titulo)+'</div><div class="m" style="margin-top:4px">'+esc(a.texto)+'</div>';
   h+=htmlNotas(notasDe(function(n){return n.chave===a.chave}));
-  h+=htmlEscreve('chave',a.chave,'O que aconteceu? (fica gravado com o seu nome e o escritório vê)');
+  if(!a.resolvido)h+=htmlEscreve('chave',a.chave,'O que aconteceu? (fica gravado com o seu nome e o escritório vê)');
   return h+'</div>';
 }
 function render(){
   const a=document.getElementById('app'), l=D.lido||{};
   a.className='';
   let h='<div class="fresco">Ponto do relógio lido até '+esc(l.ponto||'—')+' · refeições do Saipos até '+esc(l.refeicao||'—')+' · avisos dos últimos 7 dias</div>';
-  const AV=D.avisos||[];
-  h+='<h2>⚠️ Para você resolver <span class="hint">'+AV.length+' aviso(s) do São Braz</span></h2>';
-  h+=AV.length?AV.map(aviso).join(''):'<div class="lista"><div class="vazio">Nenhum aviso nos últimos 7 dias. 👏</div></div>';
+  const AV=(D.avisos||[]).filter(function(x){return !x.resolvido}), AR=(D.avisos||[]).filter(function(x){return x.resolvido});
+  h+='<h2>⚠️ Para você resolver <span class="hint">'+AV.length+' aviso(s) do São Braz · escreveu a explicação, o aviso sai daqui; se acontecer de novo em outro dia, ele volta</span></h2>';
+  h+=AV.length?AV.map(aviso).join(''):'<div class="lista"><div class="vazio">Nada para resolver. 👏</div></div>';
+  if(AR.length)h+='<details style="margin-top:10px"><summary class="hint" style="cursor:pointer;padding:6px 0">✅ Já explicados nos últimos 7 dias ('+AR.length+')</summary>'+AR.map(aviso).join('')+'</details>';
   const IT=D.itens||[], nNovo=IT.filter(function(x){return x.situacao==='novo'}).length;
   h+='<h2>📥 Na Caixa do RH <span class="hint">o que você escreveu nos cartões do ponto e o que os robôs acharam · quem aprova é o escritório</span></h2>';
   h+='<div class="abas"><button class="b'+(ABA==='novo'?' on':'')+'" data-aba="novo">⏳ Esperando o escritório · '+nNovo+'</button><button class="b'+(ABA==='feito'?' on':'')+'" data-aba="feito">✅ Já decididos (30 dias) · '+(IT.length-nNovo)+'</button></div>';
