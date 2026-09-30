@@ -214,10 +214,10 @@ function htmlCentral(){
   if(CERR)return '<h2>📋 Fechamento do dia</h2><div class="lista"><div class="vazio">Não consegui carregar esta parte: '+esc(CERR)+'</div></div>';
   const c=C||{}, f=c.fresco||{};
   let h='<div class="fresco">WhatsApp dos grupos lido até '+esc(f.grupo||'—')+' · SAC até '+esc(f.sac||'—')+' · separação por loja feita pela IA até '+esc(f.ia||'—')+' (grupos) e '+esc(f.sac_ia||'—')+' (SAC)</div>';
-  const F=c.fechamento||[], nok=F.filter(function(x){return x.chegou}).length;
-  h+='<h2>📋 Fechamento do dia <span class="hint">o Diego manda no grupo Cidadão São Braz – Diretoria · chegou em '+nok+' de '+F.length+' dias</span></h2><div class="lista">';
+  const F=c.fechamento||[], nok=F.filter(function(x){return x.chegou}).length, nabertos=F.filter(function(x){return x.chegou||!x.terca}).length;
+  h+='<h2>📋 Fechamento do dia <span class="hint">o Diego manda no grupo Cidadão São Braz – Diretoria · chegou em '+nok+' de '+nabertos+' dias (terça não conta)</span></h2><div class="lista">';
   F.forEach(function(x){
-    h+='<div class="it"><div class="l1">'+(x.chegou?'<span class="pill p-ok">✅ chegou</span>':'<span class="pill p-bad">não chegou</span>')+'<b>'+esc(x.semana)+' '+esc(x.dia)+'</b>';
+    h+='<div class="it"><div class="l1">'+(x.chegou?'<span class="pill p-ok">✅ chegou</span>':(x.terca?'<span class="pill p-off">terça · loja normalmente fechada</span>':'<span class="pill p-bad">não chegou</span>'))+'<b>'+esc(x.semana)+' '+esc(x.dia)+'</b>';
     if(x.chegou)h+='<span class="m">'+esc(x.hora)+' · '+esc(x.quem)+'</span>';
     if(x.cobrado)h+='<span class="pill p-warn">⏰ o robô cobrou no grupo</span>';
     h+='</div>';
