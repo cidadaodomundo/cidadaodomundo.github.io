@@ -105,7 +105,7 @@ const LOGO="//acconimages.s3.amazonaws.com/merchants/logos/378-1755286245137.png
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const H={apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'};
-const DESC={delivery:'Diário, equipe e iFood do delivery',escala:'Previsão de chuva e escala dos motoboys',rh:'Ponto do dia das gestoras',salao:'Avaliações e gestão do salão',rhsb:'Ponto do dia — só São Braz',ifoodsb:'Notas, cancelamentos e chamados — só São Braz',ponto:'Consulta por tipo, guia e visão geral do ponto',ifood:'Notas, cancelamentos, chamados e Selo Super',reuniao:'Resumo semanal: avaliações, cancelamentos e RH',escritorio:'Financeiro, contas a pagar e usuários',operacao:'Perdas e sobras jogadas fora'};
+const DESC={agora:'Resolver, tempo de entrega, chegada e fila — o que fazer agora',qualidade:'Como fomos: prazo, cancelamentos, avaliações e painel do dia',delivery:'Diário, equipe e iFood do delivery',escala:'Previsão de chuva e escala dos motoboys',rh:'Ponto do dia das gestoras',salao:'Avaliações e gestão do salão',rhsb:'Ponto do dia — só São Braz',ifoodsb:'Notas, cancelamentos e chamados — só São Braz',ponto:'Consulta por tipo, guia e visão geral do ponto',ifood:'Notas, cancelamentos, chamados e Selo Super',reuniao:'Resumo semanal: avaliações, cancelamentos e RH',escritorio:'Financeiro, contas a pagar e usuários',operacao:'Perdas e sobras jogadas fora'};
 const GRUPOS=['Delivery','Gestão','Escritório','São Braz','Proprietário'];
 const $=id=>document.getElementById(id);
 let MODULOS=[];
@@ -184,7 +184,9 @@ function mi(m){return '<div class="mi'+(ATUAL===m.id?' on':'')+'" onclick="abrir
 function inicio(){ATUAL=null;location.hash='';$('titulo').textContent='Início';$('rt').innerHTML='';
   let h='<div class="home"><img src="'+LOGO+'"><h1>Portal de Gestão</h1><div class="s">'+esc(NOME)+' — escolha um módulo</div><div id="fresco" style="text-align:center;margin-top:10px"></div><div class="cards">';
   const gs=GRUPOS.slice();
-  mods().forEach(m=>{if(gs.indexOf(m.grupo)<0)gs.push(m.grupo)});
+  /* 30/09/2026: modulo com grupo comecando por "_" continua ligado (a trava de acesso das telas precisa dele),
+     mas nao ganha cartao: ele aparece dentro de outra tela (ex.: as abas da tela Agora). */
+  mods().forEach(m=>{if(gs.indexOf(m.grupo)<0&&String(m.grupo||'').charAt(0)!=='_')gs.push(m.grupo)});
   gs.forEach(g=>{const list=mods().filter(m=>m.grupo===g);if(!list.length)return;
     h+='<div class="gh">'+esc(g)+'</div>'+list.map(m=>'<div class="card" onclick="abrir(\''+m.id+'\')"><div class="ic">'+(m.icone||'')+'</div><div class="t">'+esc(m.nome)+'</div><div class="d">'+esc(DESC[m.id]||'')+'</div></div>').join('')});
   if(!mods().length)h+='<div class="gh">Sem módulos liberados</div><div class="card"><div class="t">Nada por aqui ainda</div><div class="d">Peça ao Fábio para liberar os módulos do seu usuário.</div></div>';

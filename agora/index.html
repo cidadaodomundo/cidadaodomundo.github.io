@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Agora · Delivery · Cidadão do Mundo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#E0A81C;--brand-ink:#111110;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;display:flex;flex-direction:column}
+.topo{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--s1)}
+.topo h1{font-family:'Barlow Condensed','Barlow',sans-serif;font-size:20px;letter-spacing:.3px;margin-right:10px}
+.aba{background:var(--s2);color:var(--text2);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.aba.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.aba .d{display:block;font-size:10.5px;font-weight:600;opacity:.8}
+#quadro{flex:1;min-height:0}
+#quadro iframe{width:100%;height:100%;border:0;display:block;background:var(--s0)}
+.vazio{color:var(--muted);padding:24px}
+@media (max-width:700px){.topo{padding:8px 10px}.aba{padding:7px 11px;font-size:13px}.aba .d{display:none}}
+</style>
+</head>
+<body>
+<div class="topo"><h1>🔴 Agora</h1><div id="abas"></div></div>
+<div id="quadro"><div class="vazio">Carregando…</div></div>
+<!-- a caixa "Anotação da equipe nesta tela" (assets/portal.js) ja aparece dentro de cada tela da aba; esta marca evita uma segunda caixa aqui fora -->
+<div class="cdm-nota-tela" style="display:none"></div>
+<script>
+/* 30/09/2026, pedido do Fabio: juntar as telas do "agora" do delivery numa so.
+   Esta tela nao le dado nenhum: so mostra, uma de cada vez, as telas que ja existiam
+   (Resolver hoje, Tempo de Entrega, Chegada do dia, Fila de Pedidos). Cada uma continua
+   com a propria trava de acesso e as proprias contas. So uma fica aberta por vez, para
+   nao deixar tela escondida buscando dado sozinha. */
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const ABAS=[
+  {id:'resolver',t:'🔥 Resolver hoje',d:'o que está esperando alguém',url:'/resolver/'},
+  {id:'tempo',t:'⏱ Tempo de entrega',d:'sobe ou desce a faixa',url:'/tempo/'},
+  {id:'chegada',t:'🛵 Chegada',d:'quem chegou e quem está rodando',url:'/chegada/'},
+  {id:'fila',t:'🍔 Fila de pedidos',d:'cozinha e rua agora',url:'/fila/'}
+];
+let MINHAS=[], ATUAL='';
+function $(i){return document.getElementById(i)}
+function pinta(){
+  $('abas').innerHTML=MINHAS.map(function(a){
+    return '<button class="aba'+(a.id===ATUAL?' on':'')+'" onclick="vai(\''+a.id+'\')">'+a.t+'<span class="d">'+a.d+'</span></button>';
+  }).join('');
+}
+function vai(id){
+  const a=MINHAS.find(function(x){return x.id===id})||MINHAS[0];
+  if(!a){$('quadro').innerHTML='<div class="vazio">Nenhuma tela do delivery liberada para você.</div>';return}
+  ATUAL=a.id;
+  try{localStorage.setItem('cdm_agora_aba',a.id)}catch(e){}
+  $('quadro').innerHTML='<iframe src="'+a.url+'?cb='+Date.now()+'" title="'+a.t+'"></iframe>';
+  pinta();
+}
+function boot(ms){
+  const ids=ms.map(function(m){return m&&m.id});
+  MINHAS=ABAS.filter(function(a){return ids.indexOf(a.id)>=0});
+  let ult='';try{ult=localStorage.getItem('cdm_agora_aba')||''}catch(e){}
+  vai(ult);
+}
+
+/* ===== porta unica do portal ===== */
+const CDMMODS=['agora'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return null}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'agora'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return null}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return null}
+  return ms;
+}
+cdmGuarda().then(function(ms){if(ms)boot(ms)});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
