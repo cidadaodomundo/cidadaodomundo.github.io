@@ -71,7 +71,7 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
 
 <div class="top">
   <div>
-    <h1>📊 Qualidade do Delivery · O MÊS</h1>
+    <h1>📊 Como fomos · Qualidade do Delivery</h1>
     <div class="sub" id="sub">carregando…</div>
   </div>
   <div class="rt">
@@ -185,7 +185,7 @@ function filtros(){
     h+='<button class="'+(UNI===l.unidade?'on':'')+'" onclick="UNI=\''+esc(l.unidade).replace(/'/g,"\\'")+'\';boot()">'+esc(l.unidade)+'</button>';
   });
   h+='</div>';
-  const vivas=[['resumo','⚡ Resumo'],['dia','🗓 Dia a dia'],['pessoas','🛵 Motoboys'],['turnos','🕐 Por turno'],['cancel','🚫 Cancelamentos'],['ree','🔁 Reentregas'],['maq','🧾 Maquininha']];
+  const vivas=[['resumo','⚡ Resumo'],['prazo','⏱ Prazo pelo iFood'],['painel','📋 Painel do dia'],['dia','🗓 Dia a dia'],['pessoas','🛵 Motoboys'],['turnos','🕐 Por turno'],['cancel','🚫 Cancelamentos'],['ree','🔁 Reentregas'],['maq','🧾 Maquininha']];
   const analise=[['cliente','⭐ Avaliações'],['super','🏆 Selo Super'],['neg','🤝 Negociações'],['pausados','📵 Fora do ar (cardápios online)']];
     const abaBtn=function(a){return '<button class="'+(ABA===a[0]?'on':'')+'" onclick="vaiPara(\''+a[0]+'\')">'+a[1]+'</button>'};
   h+='<div class="fil"><span style="color:var(--muted);font-size:10.5px;font-weight:800;align-self:center;letter-spacing:.5px">AO VIVO</span>';
@@ -471,6 +471,7 @@ function vaiPara(a){
   if(a==='dia'&&!DD){desenha();puxaDia();return}
   if(a==='super'&&!SU){desenha();puxaSuper();return}
   if(a==='neg'&&NEG===null){desenha();negPuxa();return}
+  if(a==='prazo'&&PZ===null){desenha();pzPuxa();return}
   if(a==='ree'&&REE===null){desenha();reePuxa();return}
   if(a==='cancel'&&(!CC||!CV)){desenha();puxaCanc();puxaCancVivo();return}
   if(a==='cliente'&&!SU){desenha();puxaSuper();return}
@@ -871,6 +872,45 @@ function motivos(){
   return h;
 }
 
+/* 30/09/2026, pedido do Fabio: o prazo medido pelo Gestor Web do iFood, sem depender do TrackEat.
+   Porta delivery_prazo_gw (ultimos 14 dias, loja escolhida). Dia com menos de 90% dos pedidos medidos
+   fica cinza e NAO entra no total: o robo do chat nao rodou o dia todo e o numero nao vale. */
+let PZ=null;
+async function pzPuxa(){
+  try{ PZ=await porta('delivery_prazo_gw',{unidade:UNI||null}); }
+  catch(e){ PZ={erro:(e&&e.message)||'falhou'} }
+  desenha();
+}
+function pzAba(){
+  if(PZ===null)return '<div class="c"><div class="load">Buscando o prazo no Gestor Web…</div></div>';
+  if(PZ.erro)return '<div class="c"><b>Não deu para buscar o prazo.</b><div class="m">'+esc(PZ.erro)+'</div></div>';
+  var L=Array.isArray(PZ.por_dia)?PZ.por_dia:[];
+  var bom=function(r){return r.pedidos>0&&(r.cobertura||0)>=90;};
+  var tot={}; L.filter(bom).forEach(function(r){var t=tot[r.unidade]||(tot[r.unidade]={m:0,ok:0,d:0});t.m+=r.medidos;t.ok+=r.no_prazo;t.d++;});
+  var h='<div class="c"><b>⏱ Pedidos do iFood entregues até a hora prometida ao cliente</b>'+
+    '<div class="m">Fonte: hora de entrega marcada no Gestor Web do iFood (lida em '+esc(PZ.gw_lido_em||'—')+') contra a hora prometida. '+
+    'Pedidos contados no Saipos. Últimos 14 dias. Dia em que o robô mediu menos de 90% dos pedidos fica cinza e não entra na média. '+
+    'Boqueirão fica de fora (não tem Saipos e não dá baixa da entrega no iFood). Pedidos fora do iFood não têm essa medida.</div>';
+  var ks=Object.keys(tot);
+  if(ks.length){
+    h+='<div class="fil" style="margin-top:10px">';
+    ks.forEach(function(u){var t=tot[u];h+='<div class="c" style="margin:0 8px 0 0;min-width:170px"><div class="m">'+esc(u)+'</div><div style="font-size:24px;font-weight:800">'+(t.m?String(Math.round(1000*t.ok/t.m)/10).replace('.',','):'—')+'%</div><div class="m">'+n(t.ok)+' de '+n(t.m)+' pedidos · '+t.d+' dia'+(t.d>1?'s que valem':' que vale')+'</div></div>';});
+    h+='</div>';
+  } else h+='<div class="vazio">Nenhum dia com medida suficiente no período.</div>';
+  h+='</div>';
+  if(!L.length)return h+'<div class="c"><div class="vazio">Sem pedidos no período.</div></div>';
+  h+='<div class="c"><div class="rolar"><table><tr><th>Dia</th><th>Loja</th><th>Pedidos iFood</th><th>Medidos</th><th>No prazo</th><th>Pedido → entrega</th><th>Na rua</th></tr>';
+  L.forEach(function(r){
+    var ok=bom(r);
+    var pct=(r.pct==null?'—':String(r.pct).replace('.',',')+'%');
+    h+='<tr'+(ok?'':' style="opacity:.55"')+'><td>'+dData(r.dia)+'</td><td>'+esc(r.unidade)+'</td><td>'+n(r.pedidos)+'</td>'+
+      '<td>'+n(r.medidos)+' <span class="m">('+(r.cobertura==null?'—':r.cobertura+'%')+')</span></td>'+
+      '<td>'+(ok?'<b>'+pct+'</b>':(r.medidos?'<span class="m">não vale — robô mediu só '+r.cobertura+'%</span>':'<span class="m">sem medida (robô parado)</span>'))+'</td>'+
+      '<td>'+(!ok||r.med_total==null?'—':String(r.med_total).replace('.',',')+' min')+'</td><td>'+(!ok||r.med_rua==null?'—':String(r.med_rua).replace('.',',')+' min')+'</td></tr>';
+  });
+  return h+'</table></div><div class="m">Pedido → entrega e Na rua: mediana (o do meio) em minutos.</div></div>';
+}
+
 let NEG=null;
 async function negPuxa(){
   try{ NEG=await porta('qualidade_negociacoes',{periodo:perNome(),dias:DIAS,unidade:UNI||null}); }
@@ -967,12 +1007,14 @@ function desenha(){
   else if(ABA==='cancel')h+=cancVivo()+parciais()+cancelamentos();
   else if(ABA==='maq')h+=maqAba();
   else if(ABA==='neg')h+=negAba();
+  else if(ABA==='prazo')h+=pzAba();
+  else if(ABA==='painel')h+='<div class="c" style="padding:6px"><iframe src="/delivery/central.html?cb='+Date.now()+'" style="width:100%;height:82vh;min-height:620px;border:0;border-radius:9px;background:var(--s0)" title="Painel do dia"></iframe></div>';
   $('app').innerHTML=h;
 }
 
 async function boot(){
   $('app').innerHTML='<div class="load">Carregando…</div>';
-  DD=null;SU=null;CC=null;CV=null;NEG=null;
+  DD=null;SU=null;CC=null;CV=null;NEG=null;PZ=null;
   try{ D=await puxa(); }
   catch(e){ $('app').innerHTML='<div class="c">Não deu para carregar. '+esc(e.message||'')+'</div>'; return }
   try{ CC=await porta('qualidade_cancelamentos',{periodo:perNome(),dias:DIAS,unidade:UNI||null}); }catch(e){ CC=null }
@@ -983,6 +1025,7 @@ async function boot(){
   desenha();
   if(ABA==='dia'&&!DD)puxaDia();
   if(ABA==='neg'&&NEG===null)negPuxa();
+  if(ABA==='prazo'&&PZ===null)pzPuxa();
   if(ABA==='cancel'&&!CV)puxaCancVivo();
 }
 
