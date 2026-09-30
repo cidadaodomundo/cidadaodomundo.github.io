@@ -133,6 +133,13 @@ function desenhaMaq(){
    que o iFood ja registrou - com um campo "o que aconteceu" em cada linha. O formulario grande saiu:
    em 30 dias os 145 lancamentos foram todos de pedido do iFood, e o que a equipe escreve de novo e a
    observacao (o motivo era copiado do iFood). A explicacao e gravada pela mesma acao de antes (cancel_novo). */
+/* 30/09/2026: onde o pedido foi falado - WhatsApp do SAC (texto so para o dono) e grupos da equipe (so grupo, hora e quem) */
+function falas(l){
+  if(!Array.isArray(l)||!l.length)return '';
+  return '<div class="assin" style="margin-top:6px">💬 '+l.map(function(c){
+    return esc(c.onde||'')+' · '+esc(c.quando||'')+(c.quem?' · '+esc(c.quem):'')+(c.texto?': <i>'+esc(c.texto)+'</i>':'');
+  }).join('<br>💬 ')+'</div>';
+}
 function blocoIfood(dono){
   const l=D.cancel_ifood||[];
   const ex={}; (D.cancelamentos||[]).forEach(function(c){ if(c.n_pedido&&!ex[c.n_pedido]) ex[c.n_pedido]=c; });
@@ -145,7 +152,7 @@ function blocoIfood(dono){
     (dono?'<th>Valor</th><th>Reembolso</th>':'')+'<th>O que aconteceu</th></tr>';
   l.forEach(function(o){
     h+='<tr><td>'+esc(o.dia)+'</td><td>'+esc(o.hora)+'</td><td>'+esc(o.marca)+'</td>'+
-       '<td>'+esc(o.n_pedido)+'</td><td>'+(o.motivo_ifood?esc(o.motivo_ifood):'<span class="assin">o iFood manda o motivo no dia seguinte</span>')+'</td>';
+       '<td>'+esc(o.n_pedido)+'</td><td>'+(o.motivo_ifood?esc(o.motivo_ifood)+(o.motivo_fonte?'<div class="assin">fonte: '+esc(o.motivo_fonte)+'</div>':''):'<span class="assin">o iFood ainda não mandou o motivo</span>')+falas(o.conversas)+'</td>';
     if(dono){
       h+='<td>'+(o.valor==null?'—':'R$ '+Number(o.valor).toFixed(2).replace('.',','))+'</td>'+
          '<td><span style="color:'+(o.reembolsado?'var(--ok)':'var(--bad)')+'">'+
