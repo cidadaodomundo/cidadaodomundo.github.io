@@ -108,6 +108,23 @@ var PAU=false;
 var FDA=false;
 var CHG=false;
 
+/* 30/09/2026, pedido do Fabio (telas honestas): Reentrega, Chegada nao sinalizada e Corrida em dobro dependem
+   do TrackEat. Quando ele parou, o cartao nao pode mostrar 0 como se estivesse tudo certo: fica cinza e diz desde quando.
+   Quem sabe desde quando e o medidor de frescor (fato_frescor, aberto para leitura), lido 1x por abertura. */
+var FR=null;
+async function frPega(){
+  try{
+    var r=await fetch(SB+'fato_frescor?select=fonte,ultimo_dia,farol&fonte=eq.delivery_entrega',{headers:{apikey:KEY,Authorization:'Bearer '+KEY}});
+    if(r.ok){var o={};(await r.json()).forEach(function(x){o[x.fonte]=x;});FR=o;}
+  }catch(e){}
+}
+function frParado(f){var x=FR&&FR[f];if(!x||x.farol!=='PARADO'||!x.ultimo_dia)return null;var p=String(x.ultimo_dia).split('-');return p[2]+'/'+p[1];}
+function cardSemDado(rot, ic){
+  var q=frParado('delivery_entrega');
+  if(!q) return null;
+  return '<div class="card" style="opacity:.75;border-style:dashed" title="Sem dado: o TrackEat parou"><div class="t">'+(ic?ic+' ':'')+rot+'</div>'+
+    '<div class="v" style="color:var(--muted)">—</div><div style="font-size:10px;color:var(--muted);font-weight:700">TrackEat parado desde '+q+'</div></div>';
+}
 function cardF0(rot, ic){
   return '<div class="card" style="opacity:.5"><div class="t">'+(ic?ic+' ':'')+rot+'</div><div class="v">0</div></div>';
 }
@@ -294,7 +311,7 @@ function pausados(){
 
 function cardCheg(){
   var cs=((D&&D.chegada)||{}).linhas||[];
-  if(!cs.length) return cardF0('Chegada nao sinalizada','&#128757;');
+  if(!cs.length) return cardSemDado('Chegada nao sinalizada','&#128757;')||cardF0('Chegada nao sinalizada','&#128757;');
   return '<div class="card" onclick="soUm(&quot;CHG&quot;)" title="Clique para abrir ou fechar"'+
     ' style="cursor:pointer'+(CHG?';border-color:var(--brand)':'')+'">'+
     '<div class="t">&#128757; Chegada nao sinalizada '+(CHG?'&#9650;':'&#9660;')+'</div>'+
@@ -317,7 +334,7 @@ function chegada(){
 var DUPO=false;
 function cardDup(){
   var d=(D&&D.dupla)||{}, n=d.abertos||0;
-  if(!n) return cardF0('Corrida em dobro','&#128664;');
+  if(!n) return cardSemDado('Corrida em dobro','&#128664;')||cardF0('Corrida em dobro','&#128664;');
   return '<div class="card" onclick="soUm(&quot;DUPO&quot;)" title="Corrida em dobro: clique para abrir ou fechar"'+
     ' style="cursor:pointer'+(DUPO?';border-color:var(--brand)':'')+'">'+
     '<div class="t">&#128664; Corrida em dobro '+(DUPO?'&#9650;':'&#9660;')+'</div>'+
@@ -616,7 +633,7 @@ function desenha(){
   const R=D.resumo||{}, itens=D.itens||[], card=D.cardapio||{};
   let h=barraFiltro()+'<div class="cards">'+
     cardEsq()+
-    cardF('Reentrega',(R.reentrega||0),'reentrega','abertas','','🔁')+
+    ((!R.reentrega&&cardSemDado('Reentrega','🔁'))||cardF('Reentrega',(R.reentrega||0),'reentrega','abertas','','🔁'))+
     cardF('Cancelado inteiro',(R.cancelamento||0),'cancelamento','abertas','','🚫')+
     cardF('Item cancelado',(R.parcial||0),'parcial','abertas','','✂️')+
     cardF('Cliente sem resposta',(R.chat||0),'chat','abertas','','💬')+
@@ -664,6 +681,7 @@ async function boot(){
   $('sub').textContent='carregando…';
   D=null; PZD=null; desenha();
   porta('resolver_pausas',{dias:DIAS,ontem:ONT,unidade:UNI||null}).then(function(j){PZD=j||{linhas:[]};desenha()}).catch(function(e){PZD={erro:(e&&e.message)||'erro'};desenha()});
+  if(!FR) frPega().then(function(){ if(D) desenha(); });
   try{ D=await porta('resolver_hoje',{dias:DIAS,ontem:ONT,unidade:UNI||null}); }
   catch(e){ D=false; $('sub').textContent=(e&&e.message)||'erro'; desenha(); return }
   const R=D.resumo||{};

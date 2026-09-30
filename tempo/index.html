@@ -34,6 +34,9 @@ button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);bor
 .a-sobe{background:rgba(230,103,103,.14);border:1px solid var(--bad);color:#ffbcbc}
 .a-desce{background:rgba(77,157,224,.14);border:1px solid var(--azul);color:#bcdcff}
 .a-ok{background:rgba(47,174,106,.14);border:1px solid var(--ok);color:#b6f0d0}
+.a-cego{background:rgba(138,137,126,.14);border:1px solid var(--muted);color:var(--text2)}
+.cinza .alvo{border-color:var(--muted)}
+.cinza .alvo .n{color:var(--muted)}
 .moto{border-radius:14px;padding:16px 18px;margin-bottom:16px;line-height:1.5;background:rgba(224,168,28,.12);border:1px solid var(--gold);color:#ffe7ab;font-size:15.5px;font-weight:700}
 .moto .p{display:block;font-size:13.5px;font-weight:600;margin-top:7px;opacity:.9}
 .res{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
@@ -150,7 +153,7 @@ function cdmCab(d){
 }
 function cdmRetrato(d){
   var p=d.pedidos||[];
-  if(!p.length) return '<div class="cdmret"><h3>Ninguém com pedido na mão agora</h3></div>';
+  if(!p.length) return '<div class="cdmret"><h3>'+((d.cego===true&&d.loja_status!=='fechada')?'Sem dado ao vivo — não dá para saber quem está com pedido na mão':'Ninguém com pedido na mão agora')+'</h3></div>';
   var por={},ordem=[];
   p.forEach(function(x){var k=x.entregador?x.entregador:'— ainda sem motoboy';if(!por[k]){por[k]=[];ordem.push(k)}por[k].push(x)});
   var h='<div class="cdmret"><h3>O que está acontecendo agora — '+p.length+' pedido'+(p.length>1?'s':'')+'</h3>';
@@ -190,6 +193,15 @@ function pinta(d){
 
   if(parados>0&&Number(d.pedidos_hora||0)>0&&(aco==='subir'||sug>prom+4)){cls='vermelho';acao='<div class="acao a-sobe">🛵 A FILA NÃO ESTÁ ANDANDO — '+motos+' motoboy'+(motos===1?'':'s')+' na rua hoje<span class="p">'+(prontos>0?prontos+' pedido'+(prontos===1?'':'s')+' pronto'+(prontos===1?'':'s')+' esperando quem leve':parados+' pedido'+(parados===1?'':'s')+' já passou da hora prometida'+idadeGW)+'. Não dá para chamar mais ninguém no meio do turno — com quem está na rua, o jeito é '+(pSug&&aco==='subir'?'trocar para '+faixa(pSug,pDe,pAte):'subir para a próxima faixa')+' enquanto a prateleira não baixa.</span></div>';}
   else if(parados>0&&Number(d.pedidos_hora||0)>0){cls='azul';acao='<div class="acao a-desce">⏸ A FILA NÃO ESTÁ ANDANDO — mas o tempo que você promete já cobre<span class="p">'+(prontos>0?prontos+' pedido'+(prontos===1?'':'s')+' pronto'+(prontos===1?'':'s')+' esperando quem leve':parados+' pedido'+(parados===1?'':'s')+' já passou da hora'+idadeGW)+', com '+motos+' motoboy'+(motos===1?'':'s')+' na rua hoje. Você promete '+prom+' min e a conta pede '+sug+' — a faixa não precisa mexer agora. O gargalo é a retirada: veja quem saiu para rota longa antes de baixar o tempo.</span></div>';}
+  /* 30/09/2026, pedido do Fábio (telas honestas): quando o banco diz que está cego (nenhuma fonte
+     ao vivo atualizou) ou a loja está fechada, a tela não pode pintar verde "Fique". Fica cinza e diz por quê. */
+  const cego=(d.cego===true||d.cor==='cinza');
+  const nv=function(v){return cego?'—':v;};
+  if(cego){
+    cls='cinza';
+    if(d.loja_status==='fechada'){acao='<div class="acao a-cego">🔒 Loja fechada no iFood — nada a decidir agora<span class="p">A faixa fica como está até a loja abrir.</span></div>';}
+    else{acao='<div class="acao a-cego">⚪ SEM DADO AO VIVO — não dá para dizer se o tempo sobe ou desce<span class="p">'+esc(d.cego_motivo||'as fontes ao vivo não atualizaram')+'. A faixa segue '+(pAtual?'na '+esc(pAtual):'em '+prom+' min')+'. Até o dado voltar, decida olhando o Gestor de Pedidos do iFood.</span></div>';}
+  }
 let moto='';
   if(parados>0&&Number(d.pedidos_hora||0)>0){
     moto='<div class="moto">🛵 '+motos+' motoboy'+(motos===1?'':'s')+' na rua agora — a conta é feita com quem está trabalhando hoje.'+
@@ -199,20 +211,21 @@ let moto='';
       '<span class="p">O ritmo de entrada está bom ('+ppm+' por motoboy), mas a comida está esfriando no balcão. Vale olhar se alguém saiu para uma rota longa.</span></div>';
   }
 
+  if(cego) moto='';
   let h='<div class="'+cls+'">'+
    '<div class="tri">'+
     '<div class="big"><div class="n">'+prom+'<span> min</span></div><div class="l">'+(pAtual?'faixa '+esc(pAtual)+' no iFood':'prometido no iFood')+'</div><div class="x">o cliente enxerga '+(prom+10)+' min</div></div>'+
     '<div class="big alvo"><div class="n">'+(pSug?esc(pSug):sug+'<span> min</span>')+'</div><div class="l">'+(pSug?'a faixa que a conta pede':'a conta pede')+'</div><div class="x">'+(pSug?'a conta pede '+sug+' min · faixa '+pDe+'–'+pAte:'cobre 8 de cada 10 pedidos')+'</div></div>'+
-    '<div class="big"><div class="n">'+(ppm==null?'—':ppm)+'</div><div class="l">pedidos por motoboy</div><div class="x">'+clima+' · o limite hoje é '+lim+'</div></div>'+
+    '<div class="big"><div class="n">'+(ppm==null||cego?'—':ppm)+'</div><div class="l">pedidos por motoboy</div><div class="x">'+clima+' · o limite hoje é '+lim+'</div></div>'+
    '</div>'+acao+moto+'</div>';
 
   h+='<div class="res">'+
-   '<div class="k"><div class="n">'+motos+'</div><div class="l">motoboys na rua hoje</div></div>'+
-   '<div class="k"><div class="n">'+Number(d.pedidos_hora||0)+'</div><div class="l">pedidos na última hora</div></div>'+
-   '<div class="k'+(prontos>=10?' mal':(prontos>=5?' aten':''))+'"><div class="n">'+prontos+'</div><div class="l">prontos esperando motoboy</div></div>'+
-   '<div class="k"><div class="n">'+Number(d.esperando_cozinha||0)+'</div><div class="l">na fila da cozinha</div></div>'+
-   '<div class="k'+(Number(d.preparo_p80||0)>22?' aten':'')+'"><div class="n">'+Number(d.preparo_p80||0)+' min</div><div class="l">preparo</div></div>'+
-   '<div class="k'+(antigo>90?' mal':'')+'"><div class="n">'+antigo+' min</div><div class="l">o pedido mais antigo</div></div>'+
+   '<div class="k"><div class="n">'+nv(motos)+'</div><div class="l">motoboys na rua hoje</div></div>'+
+   '<div class="k"><div class="n">'+nv(Number(d.pedidos_hora||0))+'</div><div class="l">pedidos na última hora</div></div>'+
+   '<div class="k'+(prontos>=10?' mal':(prontos>=5?' aten':''))+'"><div class="n">'+nv(prontos)+'</div><div class="l">prontos esperando motoboy</div></div>'+
+   '<div class="k"><div class="n">'+nv(Number(d.esperando_cozinha||0))+'</div><div class="l">na fila da cozinha</div></div>'+
+   '<div class="k'+(Number(d.preparo_p80||0)>22?' aten':'')+'"><div class="n">'+nv(Number(d.preparo_p80||0)+' min')+'</div><div class="l">preparo</div></div>'+
+   '<div class="k'+(antigo>90?' mal':'')+'"><div class="n">'+nv(antigo+' min')+'</div><div class="l">o pedido mais antigo</div></div>'+
    '<div class="k'+(Number(d.chuva_mm||0)>=1?' aten':'')+'"><div class="n">'+Number(d.chuva_mm||0).toFixed(1)+' mm</div><div class="l">chuva agora · '+Number(d.chuva_prob||0)+'% de chance</div></div>'+
   '</div>';
 
@@ -258,7 +271,7 @@ let moto='';
           '<td>'+(m.faltam>0?'<b>'+esc(String(m.faltam))+'</b> '+(m.faltam==1?'entrega':'entregas'):'—')+'</td>'+
           '<td>'+(m.livre==='agora'?'<span class="pin">agora</span>':(m.livre?'~'+esc(m.livre):'—'))+'</td><td>'+esc(m.app)+'</td><td>'+esc(m.visto)+'</td></tr>'}).join('')+
         '</table>'+mbLegenda(mb)+mbRegua(d.motoboys_regua)
-      : '<div class="vazio">Nenhum motoboy com o aplicativo ligado nos últimos 30 minutos.</div>')+
+      : '<div class="vazio">'+((d.cego===true&&d.loja_status!=='fechada')?'Sem dado ao vivo do aplicativo dos motoboys — não dá para saber quem está na rua.':'Nenhum motoboy com o aplicativo ligado nos últimos 30 minutos.')+'</div>')+
    '</div>';
 
   /* 13/09/2026, pedido do Fábio: a caixa onde a equipe do delivery escreve o que mudar */
