@@ -157,7 +157,7 @@ function blocoIfood(dono){
          (e?'<div class="assin">'+esc(e.lancado_por||'')+' · '+esc(e.quando||'')+' · <span class="x" data-apaga="'+e.id+'">apagar</span></div>':'')+'</td></tr>';
     }else{
       h+='<td><input type="text" id="ex_'+esc(o.n_pedido)+'" placeholder="o que aconteceu?" style="min-width:180px"> '+
-         '<button class="b" data-sv="'+esc(o.n_pedido)+'" data-mot="'+esc(o.motivo_ifood||'')+'">salvar</button></td></tr>';
+         '<button class="b" data-sv="'+esc(o.n_pedido)+'" data-dia="'+esc(o.dia)+'" data-mot="'+esc(o.motivo_ifood||'')+'">salvar</button></td></tr>';
     }
   });
   h+='</table>';
@@ -259,7 +259,11 @@ document.addEventListener('click',async function(ev){
   if(ev.target.dataset&&ev.target.dataset.sv){
     const p=ev.target.dataset.sv, m=ev.target.dataset.mot||'', inp=$('ex_'+p), t=inp?inp.value.trim():'';
     if(!t){alert('Escreva o que aconteceu com este pedido.');if(inp)inp.focus();return}
-    try{ await porta('cancel_novo',{canal:'iFood',n_pedido:p,motivo:m||'cancelado no iFood',observacao:t}); await boot(); }
+    /* grava no DIA DO PEDIDO (a linha so fica "explicada" quando o dia bate), nao no dia escolhido la em cima */
+    const dm=String(ev.target.dataset.dia||''), ref=String($('dia').value||''), y=Number(ref.slice(0,4))||new Date().getFullYear();
+    let diaPed=null; if(/^\d{2}\/\d{2}$/.test(dm)){ const mm=Number(dm.slice(3,5)), yy=(ref&&mm>Number(ref.slice(5,7)))?y-1:y; diaPed=yy+'-'+dm.slice(3,5)+'-'+dm.slice(0,2); }
+    const dd={canal:'iFood',n_pedido:p,motivo:m||'cancelado no iFood',observacao:t}; if(diaPed)dd.dia=diaPed;
+    try{ await porta('cancel_novo',dd); await boot(); }
     catch(e){ alert('Não deu para salvar.') }
     return;
   }
