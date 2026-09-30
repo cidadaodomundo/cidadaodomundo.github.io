@@ -876,6 +876,7 @@ function motivos(){
    Porta delivery_prazo_gw (ultimos 14 dias, loja escolhida). Dia com menos de 90% dos pedidos medidos
    fica cinza e NAO entra no total: o robo do chat nao rodou o dia todo e o numero nao vale. */
 let PZ=null;
+const PZ_COB_MIN=90; /* cobertura minima para o dia valer: abaixo disso o robo do chat nao rodou o dia todo */
 async function pzPuxa(){
   try{ PZ=await porta('delivery_prazo_gw',{unidade:UNI||null}); }
   catch(e){ PZ={erro:(e&&e.message)||'falhou'} }
@@ -885,11 +886,11 @@ function pzAba(){
   if(PZ===null)return '<div class="c"><div class="load">Buscando o prazo no Gestor Web…</div></div>';
   if(PZ.erro)return '<div class="c"><b>Não deu para buscar o prazo.</b><div class="m">'+esc(PZ.erro)+'</div></div>';
   var L=Array.isArray(PZ.por_dia)?PZ.por_dia:[];
-  var bom=function(r){return r.pedidos>0&&(r.cobertura||0)>=90;};
+  var bom=function(r){return r.pedidos>0&&(r.cobertura||0)>=PZ_COB_MIN;};
   var tot={}; L.filter(bom).forEach(function(r){var t=tot[r.unidade]||(tot[r.unidade]={m:0,ok:0,d:0});t.m+=r.medidos;t.ok+=r.no_prazo;t.d++;});
   var h='<div class="c"><b>⏱ Pedidos do iFood entregues até a hora prometida ao cliente</b>'+
     '<div class="m">Fonte: hora de entrega marcada no Gestor Web do iFood (lida em '+esc(PZ.gw_lido_em||'—')+') contra a hora prometida. '+
-    'Pedidos contados no Saipos. Últimos 14 dias. Dia em que o robô mediu menos de 90% dos pedidos fica cinza e não entra na média. '+
+    'Pedidos contados no Saipos. De '+dData(PZ.de)+' a '+dData(PZ.ate)+'. Dia em que o robô mediu menos de '+PZ_COB_MIN+'% dos pedidos fica cinza e não entra na média. '+
     'Boqueirão fica de fora (não tem Saipos e não dá baixa da entrega no iFood). Pedidos fora do iFood não têm essa medida.</div>';
   var ks=Object.keys(tot);
   if(ks.length){
@@ -1008,7 +1009,7 @@ function desenha(){
   else if(ABA==='maq')h+=maqAba();
   else if(ABA==='neg')h+=negAba();
   else if(ABA==='prazo')h+=pzAba();
-  else if(ABA==='painel')h+='<div class="c" style="padding:6px"><iframe src="/delivery/central.html?cb='+Date.now()+'" style="width:100%;height:82vh;min-height:620px;border:0;border-radius:9px;background:var(--s0)" title="Painel do dia"></iframe></div>';
+  else if(ABA==='painel')h+='<div class="c" style="padding:6px"><iframe src="/delivery/central.html" style="width:100%;height:82vh;min-height:620px;border:0;border-radius:9px;background:var(--s0)" title="Painel do dia"></iframe></div>';
   $('app').innerHTML=h;
 }
 
