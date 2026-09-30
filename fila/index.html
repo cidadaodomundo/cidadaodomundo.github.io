@@ -96,6 +96,7 @@ h2 .q{color:var(--muted);font-family:'Barlow',sans-serif;font-weight:700;font-si
 .vivo{display:inline-flex;align-items:center;gap:7px;color:var(--ok);font-size:12.5px;font-weight:700;margin-right:10px}
 .vivo i{width:9px;height:9px;border-radius:50%;background:var(--ok);animation:pisca 1.6s infinite}
 .vivo.velho{color:var(--bad)} .vivo.velho i{background:var(--bad)}
+.parado{background:rgba(138,137,126,.14);border:1px solid var(--muted);color:var(--text2);border-radius:12px;padding:12px 16px;margin-bottom:14px;font-size:14px;font-weight:600;line-height:1.5}
 @keyframes pisca{0%{box-shadow:0 0 0 0 rgba(47,174,106,.6)}70%{box-shadow:0 0 0 8px rgba(47,174,106,0)}100%{box-shadow:0 0 0 0 rgba(47,174,106,0)}}
 @media (max-width:640px){body{padding:12px}.linha .mb{display:none}.res{grid-template-columns:repeat(2,1fr)}}
 </style>
@@ -244,7 +245,7 @@ function mbBloco(d){
           '<td>'+(m.livre==='agora'?'<span class="pin">agora</span>':(m.livre?'~'+esc(m.livre):'—'))+'</td>'+
           '<td>'+esc(m.app)+'</td><td>'+esc(m.visto)+'</td></tr>'}).join('')+
         '</table>'+leg(mb)+reg(d.motoboys_regua)
-      : '<div class="vazio">Nenhum motoboy com o aplicativo ligado nos últimos 30 minutos.</div>')+
+      : '<div class="vazio">'+(TEP?'Sem dado do aplicativo dos motoboys (TrackEat) desde '+TEP+'.':'Nenhum motoboy com o aplicativo ligado nos últimos 30 minutos.')+'</div>')+
    '</div>';
 }
 
@@ -288,7 +289,7 @@ function czBloco(){
     b=czMedia(CZ.filter(function(r){return r.unidade===UNI&&r.dia_operacional<hoje;}));
   }
   if(!CZ) h+=kc('Cozinha hoje','—','não consegui ler','var(--muted)');
-  else if(!a) h+=kc('Cozinha hoje','—','nenhum pronto ainda'+(b?' · normal '+czMin(b.min):''),'var(--muted)');
+  else if(!a) h+=kc('Cozinha hoje','—',(TEP?'sem dado desde '+TEP:'nenhum pronto ainda')+(b?' · normal '+czMin(b.min):''),'var(--muted)');
   else{
     var dif=b?a.min-b.min:0;
     var cor=!b?'var(--text)':dif>=0.5?'var(--bad)':dif<=-0.5?'var(--ok)':'var(--text)';
@@ -306,6 +307,13 @@ function czBloco(){
   if(pct!=null&&bp!=null){var d=pct-bp; cmp=Math.abs(d)<0.05?'= média':'<span class="'+(d>0?'up':'dn')+'">'+(d>0?'▲':'▼')+' '+Math.abs(d).toFixed(1).replace('.',',')+' vs média</span>';}
   var pf=function(x){return String(x).replace('.',',')+'%';};
   var esq=Array.isArray(PN.esquecidos)?PN.esquecidos:[];
+  var FOP=frParado('delivery_pedido');
+  if(TEP&&!ent){
+    var sd='sem dado desde '+TEP, cz='var(--muted)';
+    h+=kc('Entregas','—',sd,cz)+kc('Motoboys','—',sd,cz)+kc('% no prazo real','—',sd,cz)+kc('Atrasos reais','—',sd,cz)+
+       kc('Sem código','—',FOP?'Foody parado desde '+FOP:sd,cz)+kc('🔁 Reentrega','—',sd,cz)+
+       kc('Esqueceram na sacola',esq.length,esq.length?'cliente reclamou no chat':'nenhuma reclamação 🎉',esq.length?'var(--bad)':'var(--ok)');
+  } else
   h+=kc('Entregas',ent,PN.ultima_entrega?'última às '+esc(PN.ultima_entrega):'nenhuma ainda','var(--roxo)')+
      kc('Motoboys',PN.motoboys||0,'entregaram hoje','var(--roxo)')+
      kc('% no prazo real',pct==null?'—':pf(pct),cmp,pct==null?'var(--muted)':pct>=85?'var(--ok)':pct>=70?'var(--warn)':'var(--bad)')+
@@ -329,14 +337,17 @@ function czBloco(){
 function desenha(d){
   if(!d){ $('app').innerHTML='<div class="vazio">Não consegui ler os pedidos agora. Tente o botão Atualizar.</div>'; return; }
   var r=d.resumo||{}, h='';
+  TEP=(!d.visto_em)?frParado('delivery_entrega'):null;
+  var tr=function(v){return TEP?'—':esc(v);};
+  if(TEP) h+='<div class="parado">⚪ O TrackEat não manda dado desde '+TEP+'. Por isso esta tela está vazia — <b>não quer dizer que não há pedido</b>. Acompanhe pelo Gestor de Pedidos do iFood até o TrackEat voltar.</div>';
   COR=coresRotas(d.grupos); COR_MB={};
   (d.na_rua||[]).forEach(function(m){ var p=(m.pedidos||[]).filter(function(x){return x.grupo})[0]; if(p&&m.motoboy&&!COR_MB[m.motoboy]) COR_MB[m.motoboy]=quad(p.grupo); });
   (d.na_loja||[]).forEach(function(p){ if(p.motoboy&&p.grupo&&!COR_MB[p.motoboy]) COR_MB[p.motoboy]=quad(p.grupo); });
 
   h+='<div class="res">'+
-     '<div class="k vm"><div class="n">'+esc(r.preparo)+'</div><div class="l">Em preparo na cozinha</div></div>'+
-     '<div class="k rx"><div class="n">'+esc(r.pronto)+'</div><div class="l">Prontos esperando motoboy</div></div>'+
-     '<div class="k br"><div class="n">'+esc(r.rua)+'</div><div class="l">Na rua · '+esc(r.motoboys)+' motoboy'+(r.motoboys===1?'':'s')+'</div></div>'+
+     '<div class="k vm"><div class="n">'+tr(r.preparo)+'</div><div class="l">Em preparo na cozinha</div></div>'+
+     '<div class="k rx"><div class="n">'+tr(r.pronto)+'</div><div class="l">Prontos esperando motoboy</div></div>'+
+     '<div class="k br"><div class="n">'+tr(r.rua)+'</div><div class="l">Na rua'+(TEP?'':' · '+esc(r.motoboys)+' motoboy'+(r.motoboys===1?'':'s'))+'</div></div>'+
      '</div>';
 
   h+=czBloco();
@@ -345,7 +356,7 @@ function desenha(d){
 
   var loja=Array.isArray(d.na_loja)?d.na_loja:[];
   h+='<div class="bloco"><h2>Na loja <span class="q">'+loja.length+' pedido'+(loja.length===1?'':'s')+'</span></h2>';
-  if(!loja.length){ h+='<div class="vazio">Nenhum pedido esperando na loja neste minuto.</div>'; }
+  if(!loja.length){ h+='<div class="vazio">'+(TEP?'Sem dado do TrackEat desde '+TEP+'.':'Nenhum pedido esperando na loja neste minuto.')+'</div>'; }
   else{
     h+=loja.map(function(p){
       var bola=(p.onde==='preparo')?'b-vm':'b-rx';
@@ -362,7 +373,7 @@ function desenha(d){
 
   var rua=Array.isArray(d.na_rua)?d.na_rua:[];
   h+='<div class="bloco"><h2>Na rua com os motoboys <span class="q">'+esc(r.rua)+' pedido'+(r.rua===1?'':'s')+'</span></h2>';
-  if(!rua.length){ h+='<div class="vazio">Nenhum pedido na rua neste minuto.</div>'; }
+  if(!rua.length){ h+='<div class="vazio">'+(TEP?'Sem dado do TrackEat desde '+TEP+'.':'Nenhum pedido na rua neste minuto.')+'</div>'; }
   else{
     h+='<div class="quadros">'+rua.map(function(m){
       var g1=(m.pedidos||[]).filter(function(x){return x.grupo})[0], c1=g1&&COR[Number(g1.grupo)];
@@ -411,11 +422,24 @@ function rodape(d){
    passou a rodar de minuto em minuto, entao o que aparece tem no maximo ~2 min.
    O selo "ao vivo" no topo conta os segundos desde a ultima leitura boa SEM usar a internet (so relogio na tela)
    e fica VERMELHO se passar de 3 min sem conseguir. Os dois timers param quando a aba sai da frente. */
+/* 30/09/2026, pedido do Fabio (telas honestas): quando a fonte parou, a tela diz desde quando em vez de
+   mostrar zero e selo verde. Quem sabe desde quando cada fonte parou e o medidor de frescor (fato_frescor,
+   ja aberto para leitura; aqui lemos 2 linhas). Lido no maximo 1x a cada 10 min, dentro da leitura normal (sem timer novo). */
+var FR=null, FR_EM=0, TEP=null;
+async function frPega(){
+  if(FR&&Date.now()-FR_EM<600000) return FR;
+  try{
+    var r=await fetch(SB+'fato_frescor?select=fonte,ultimo_dia,farol&fonte=in.(delivery_entrega,delivery_pedido)',{headers:{apikey:KEY,Authorization:'Bearer '+KEY}});
+    if(r.ok){var o={};(await r.json()).forEach(function(x){o[x.fonte]=x;});FR=o;FR_EM=Date.now();}
+  }catch(e){}
+  return FR;
+}
+function frParado(f){var x=FR&&FR[f];if(!x||x.farol!=='PARADO'||!x.ultimo_dia)return null;var p=String(x.ultimo_dia).split('-');return p[2]+'/'+p[1];}
 var VEZ=0, OK_EM=0;
 async function boot(){
   const t=(function(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}})();
   const minha=++VEZ, uni=UNI;
-  const [d,cz,pn]=await Promise.all([rpc('fila_pedidos',{p_token:t,p_unidade:uni}),czPega(),rpc('fila_painel',{p_token:t,p_unidade:uni})]);
+  const [d,cz,pn]=await Promise.all([rpc('fila_pedidos',{p_token:t,p_unidade:uni}),czPega(),rpc('fila_painel',{p_token:t,p_unidade:uni}),frPega()]);
   if(minha!==VEZ||uni!==UNI) return;   /* trocou de loja no meio: descarta a resposta velha */
   CZ=cz; PN=pn;
   if(d){ OK_EM=Date.now(); desenha(d); } else if(!OK_EM){ desenha(null); }
@@ -424,6 +448,7 @@ async function boot(){
 function selo(){
   var v=$('vivo'); if(!v) return;
   if(!OK_EM){ v.className='vivo velho'; v.innerHTML='<i></i>sem leitura'; return; }
+  if(TEP){ v.className='vivo velho'; v.innerHTML='<i></i>TrackEat parado desde '+TEP; return; }
   var s=Math.round((Date.now()-OK_EM)/1000);
   v.className='vivo'+(s>180?' velho':'');
   v.innerHTML='<i></i>'+(s>180?'sem atualizar há '+Math.floor(s/60)+' min':'ao vivo · há '+s+' s');
