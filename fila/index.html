@@ -308,7 +308,21 @@ function czBloco(){
   var pf=function(x){return String(x).replace('.',',')+'%';};
   var esq=Array.isArray(PN.esquecidos)?PN.esquecidos:[];
   var FOP=frParado('delivery_pedido');
-  if(TEP&&!ent){
+  var G=PN.gw;
+  if(TEP&&!ent&&G){
+    /* 30/09/2026, pedido do Fabio: "vamos deixar ele vivo". TrackEat parado: entregas e prazo vem do
+       Gestor de Pedidos do iFood (conta fila_painel, bloco gw), mesma regra da aba Prazo pelo iFood. */
+    var sd='sem dado desde '+TEP, cz='var(--muted)';
+    var gm=G.medidos||0, gok=G.no_prazo||0, gat=gm-gok;
+    var gp=gm?Math.round(1000*gok/gm)/10:null, gb=G.base_n?Math.round(1000*G.base_ok/G.base_n)/10:null, gc='';
+    if(gp!=null&&gb!=null){var gd=gp-gb; gc=Math.abs(gd)<0.05?'= média':'<span class="'+(gd>0?'up':'dn')+'">'+(gd>0?'▲':'▼')+' '+Math.abs(gd).toFixed(1).replace('.',',')+' vs média</span>';}
+    h+=kc('Entregas',G.entregas||0,G.ultima_entrega?'última às '+esc(G.ultima_entrega)+' · iFood':'nenhuma ainda · iFood','var(--roxo)')+
+       kc('Motoboys','—','o iFood não diz quem levou',cz)+
+       kc('% no prazo',gp==null?'—':pf(gp),gc||'pelo iFood',gp==null?'var(--muted)':gb==null?'var(--text)':gp>=gb?'var(--ok)':gp>=gb-5?'var(--warn)':'var(--bad)')+
+       kc('Atrasos',gat,gat?'acima do horário prometido':'nenhum 🎉',gat?'var(--bad)':'var(--ok)')+
+       kc('Sem código','—',FOP?'Foody parado desde '+FOP:sd,cz)+kc('🔁 Reentrega','—',sd,cz)+
+       kc('Esqueceram na sacola',esq.length,esq.length?'cliente reclamou no chat':'nenhuma reclamação 🎉',esq.length?'var(--bad)':'var(--ok)');
+  } else if(TEP&&!ent){
     var sd='sem dado desde '+TEP, cz='var(--muted)';
     h+=kc('Entregas','—',sd,cz)+kc('Motoboys','—',sd,cz)+kc('% no prazo real','—',sd,cz)+kc('Atrasos reais','—',sd,cz)+
        kc('Sem código','—',FOP?'Foody parado desde '+FOP:sd,cz)+kc('🔁 Reentrega','—',sd,cz)+
@@ -328,8 +342,10 @@ function czBloco(){
       return 'pedido '+esc(e.pedido||'?')+' às '+esc(e.quando)+(fam[e.familia]?' ('+fam[e.familia]+')':'');
     }).join(' · ')+'</div>';
   }
+  if(TEP&&!ent&&G) h+='<div class="leg"><b>Com o TrackEat parado, entregas, % no prazo e atrasos vêm do Gestor de Pedidos do iFood</b>, lido às '+esc(G.lido_em||'—')+
+     ' (o robô lê de 15 em 15 min). Só pedidos de entrega do iFood — site próprio, balcão e telefone não entram. No prazo = concluído até a hora prometida ao cliente, mesma conta da aba Prazo pelo iFood da tela Como fomos; a média é do mesmo dia da semana nas 4 semanas anteriores, nos dias em que o robô leu.</div>';
   h+='<div class="leg">Cozinha: do pedido entrar até ficar pronto (Foody), comparado com os 7 dias anteriores desta loja. '+
-     'Entregas, prazo, atrasos e sem código: mesma conta da Central do Delivery; a média do prazo é do mesmo dia da semana nas 4 semanas anteriores. '+
+     (TEP&&!ent&&G?'':'Entregas, prazo, atrasos e sem código: mesma conta da Central do Delivery; a média do prazo é do mesmo dia da semana nas 4 semanas anteriores. ')+
      'Reentrega e esqueceram na sacola: mesma conta da tela Resolver hoje — chat do iFood lido pela última vez em '+esc(PN.chat_lido_em||'—')+'.</div></div>';
   return h;
 }
@@ -339,12 +355,19 @@ function desenha(d){
   var r=d.resumo||{}, h='';
   TEP=(!d.visto_em)?frParado('delivery_entrega'):null;
   var tr=function(v){return TEP?'—':esc(v);};
-  if(TEP) h+='<div class="parado">⚪ O TrackEat não manda dado desde '+TEP+'. Por isso esta tela está vazia — <b>não quer dizer que não há pedido</b>. Acompanhe pelo Gestor de Pedidos do iFood até o TrackEat voltar.</div>';
+  var GV=(TEP&&PN&&PN.gw)?PN.gw:null;
+  if(GV) h+='<div class="parado">⚪ O TrackEat não manda dado desde '+TEP+'. Os números de cima e o placar do dia estão vindo do <b>Gestor de Pedidos do iFood</b>, lido às '+esc(GV.lido_em||'—')+' — só pedidos de entrega do iFood. A lista pedido a pedido e os motoboys continuam sem dado até o TrackEat voltar.</div>';
+  else if(TEP) h+='<div class="parado">⚪ O TrackEat não manda dado desde '+TEP+'. Por isso esta tela está vazia — <b>não quer dizer que não há pedido</b>. Acompanhe pelo Gestor de Pedidos do iFood até o TrackEat voltar.</div>';
   COR=coresRotas(d.grupos); COR_MB={};
   (d.na_rua||[]).forEach(function(m){ var p=(m.pedidos||[]).filter(function(x){return x.grupo})[0]; if(p&&m.motoboy&&!COR_MB[m.motoboy]) COR_MB[m.motoboy]=quad(p.grupo); });
   (d.na_loja||[]).forEach(function(p){ if(p.motoboy&&p.grupo&&!COR_MB[p.motoboy]) COR_MB[p.motoboy]=quad(p.grupo); });
 
-  h+='<div class="res">'+
+  if(GV) h+='<div class="res">'+
+     '<div class="k vm"><div class="n">'+esc(GV.na_loja)+'</div><div class="l">Na loja · em preparo ou esperando motoboy (iFood)</div></div>'+
+     '<div class="k rx"><div class="n">—</div><div class="l">Prontos esperando motoboy · o iFood não separa</div></div>'+
+     '<div class="k br"><div class="n">'+esc(GV.na_rua)+'</div><div class="l">Na rua (iFood)</div></div>'+
+     '</div>';
+  else h+='<div class="res">'+
      '<div class="k vm"><div class="n">'+tr(r.preparo)+'</div><div class="l">Em preparo na cozinha</div></div>'+
      '<div class="k rx"><div class="n">'+tr(r.pronto)+'</div><div class="l">Prontos esperando motoboy</div></div>'+
      '<div class="k br"><div class="n">'+tr(r.rua)+'</div><div class="l">Na rua'+(TEP?'':' · '+esc(r.motoboys)+' motoboy'+(r.motoboys===1?'':'s'))+'</div></div>'+
