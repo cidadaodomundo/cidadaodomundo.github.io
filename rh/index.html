@@ -955,12 +955,29 @@ function vivoInt(x){
   if(x.int_saiu&&x.int_voltou)return rfEsc(x.int_saiu)+' → '+rfEsc(x.int_voltou)+(x.int_min?' <span class="rfu">'+rfNum(x.int_min)+' min</span>':'');
   return '—';
 }
+/* 30/09/2026: coluna Refeicao no Ponto ao vivo — o que a pessoa lancou hoje no Saipos (vw_refeicao_lancada) */
+function vivoRefTxt(r){
+  var t={ALMOCO:'almoço',JANTAR:'jantar',LANCHE:'lanche',CAFE:'café'}[String(r.tipo_refeicao||'').toUpperCase()]||rfEsc(String(r.tipo_refeicao||'refeição').toLowerCase());
+  var p=String(r.produto||'').replace(/^(SEGUNDA|TERCA|TERÇA|QUARTA|QUINTA|SEXTA|SABADO|SÁBADO|DOMINGO)\s*-\s*/i,'').replace(/\s*FUNCION[AÁ]RIOS?\s*$/i,'').toLowerCase();
+  var q=Number(r.quantidade||1);
+  return (q>1?q+'× ':'')+t+(p?' <span class="rfu">'+rfEsc(p)+'</span>':'');
+}
+function vivoRef(x,ref){
+  if(ref===null)return '<span class="rfu">não consegui ler</span>';
+  var l=ref[rfNorm(x.nome)]||[];
+  if(l.length)return '🍽 '+l.map(vivoRefTxt).join('<br>🍽 ');
+  return Number(x.batidas||0)>0?'<span class="rfu">não lançou</span>':'—';
+}
 async function vivoCarrega(){
   var alvo=document.getElementById('vivowrap'); if(!alvo)return;
   var j=null;
   try{j=await rfOp('ponto_ao_vivo',{unidade:VIVO.loja})}
   catch(e){alvo.innerHTML='<div class="err">Nao consegui ler o ponto: '+rfEsc(e.message)+'</div>';return}
   var g=rfArr(j&&j.gente), lido=j&&j.lido_em?String(j.lido_em).slice(11,16):null;
+  var ref={}, dref=(j&&j.dia)?String(j.dia).slice(0,10):rfHoje();
+  try{rfArr(await rfOp('refeicao_lancada',{de:dref,ate:dref,unidade:VIVO.loja})).forEach(function(r){
+    if(!r.dono_nome)return; var k=rfNorm(r.dono_nome); (ref[k]=ref[k]||[]).push(r)})}
+  catch(e){ref=null}
   var dentro=g.filter(function(x){return x.dentro&&!x.no_intervalo});
   var nointer=g.filter(function(x){return x.no_intervalo});
   var jasaiu=g.filter(function(x){return Number(x.batidas||0)>0&&!x.dentro});
@@ -969,16 +986,17 @@ async function vivoCarrega(){
         :'⚠️ Ainda nao houve leitura do relogio hoje nesta loja.')+'</div>';
   h+='<div class="rf-aviso"><b>'+dentro.length+'</b> na loja agora · <b>'+nointer.length+'</b> no intervalo · <b>'+jasaiu.length+'</b> ja sairam · <b>'+nadabateu.length+'</b> ainda nao bateram ponto</div>';
   if(!g.length){alvo.innerHTML=h+'<div class="rf-empty">Ninguem bateu ponto hoje nesta loja.</div>';return}
-  h+='<div class="rf-wrap"><table class="rf-tb"><tr><th>Funcionario</th><th>Situacao</th><th class="n">Entrada</th><th class="n">Intervalo</th><th class="n">Saida</th><th class="n">Batidas</th></tr>';
+  h+='<div class="rf-wrap"><table class="rf-tb"><tr><th>Funcionario</th><th>Situacao</th><th class="n">Entrada</th><th class="n">Intervalo</th><th class="n">Saida</th><th>Refeicao</th><th class="n">Batidas</th></tr>';
   g.forEach(function(x){
     h+='<tr><td><b>'+rfEsc(x.nome)+'</b></td>'
       +'<td>'+vivoSit(x)+'</td>'
       +'<td class="n">'+(x.entrou?rfEsc(String(x.entrou).slice(0,5)):'—')+'</td>'
       +'<td class="n">'+vivoInt(x)+'</td>'
       +'<td class="n">'+(x.saida?rfEsc(String(x.saida).slice(0,5)):'—')+'</td>'
+      +'<td>'+vivoRef(x,ref)+'</td>'
       +'<td class="n">'+rfNum(x.batidas)+(Number(x.batidas)%2===1&&Number(x.batidas)>1?' <span class="rfu">impar</span>':'')+'</td></tr>';
   });
-  alvo.innerHTML=h+'</table></div>';
+  alvo.innerHTML=h+'</table></div><div class="rf-nota">Refeição: o que foi lançado hoje no Saipos com o nome ou a comanda da pessoa. "não lançou" = bateu ponto e ainda não tem refeição no Saipos.</div>';
 }
 
 /* ===== 🍽 COMANDAS — a lista da Rita, com recado por comanda (11/09/2026) ===== */
