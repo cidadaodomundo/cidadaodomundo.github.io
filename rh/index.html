@@ -213,6 +213,7 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
       <button class="view" id="vcmd" onclick="setView('comandas')">🍽 Comandas</button>
       <button class="view" id="vguia" onclick="setView('guia')">📖 Guia RH — o que fazer</button>
   <button class="view" id="vman" onclick="setView('manual')">📕 Manual & Regras</button>
+  <button class="view" id="vfunc" onclick="setView('funcionarios')">🗂 Funcionários</button>
 </div>
 <div class="toolbar" id="toolbar">
   <div class="datenav" id="datenav">
@@ -402,8 +403,8 @@ async function loadAll(){
   }catch(e){$('content').innerHTML='<div class="err">Erro: '+e.message+'</div>'}
 }
 function setView(v){VIEW=v;FILT=null;if(VIVOT){clearInterval(VIVOT);VIVOT=null}
-  ['vday','vesc','vequipe','vref','vvivo','vcmd','vguia','vman'].forEach(id=>{const b=$(id);if(b)b.classList.remove('active')});
-  const ab=$({day:'vday',escala:'vesc',equipe:'vequipe',refeicao:'vref',vivo:'vvivo',comandas:'vcmd',guia:'vguia',manual:'vman'}[v]||'vday');if(ab)ab.classList.add('active');
+  ['vday','vesc','vequipe','vref','vvivo','vcmd','vguia','vman','vfunc'].forEach(id=>{const b=$(id);if(b)b.classList.remove('active')});
+  const ab=$({day:'vday',escala:'vesc',equipe:'vequipe',refeicao:'vref',vivo:'vvivo',comandas:'vcmd',guia:'vguia',manual:'vman',funcionarios:'vfunc'}[v]||'vday');if(ab)ab.classList.add('active');
   $('toolbar').style.display=v==='day'?'flex':'none';
   render();}
 function stepDay(d){DI=Math.min(Math.max(DI+d,0),DAYS.length-1);FILT=null;render()}
@@ -413,6 +414,7 @@ function render(){
   if(VIEW==='escala')return renderEscala();
   if(VIEW==='equipe')return renderEquipeSetor();
   if(VIEW==='manual')return renderManual();
+  if(VIEW==='funcionarios')return renderFuncionarios();
   if(VIEW==='vivo')return renderVivo();
   if(VIEW==='comandas')return renderComandas();
   if(VIEW==='refeicao')return renderRefeicao();
@@ -484,6 +486,102 @@ function expPinta(){
 setTimeout(function(){expCarregar()},3000);
 EXPT=setInterval(function(){ EXPTENT++; if(EXPLISTA!==null||EXPTENT>10){expPara();return} expCarregar(); },60000);
 
+/* ABA FUNCIONARIOS - 01/10/2026 pedido do Fabio: lista de todos, com botoes para desligar quem saiu, ferias e observacao.
+   Le e grava pela porta rh_funcionario_porta (token da sessao; so dono e gestoras Hellen, Lanna, Rita, Arissa). Cada mudanca fica no historico rh_funcionario_log. */
+(function(){if(SOSB){var b=document.getElementById('vfunc');if(b)b.style.display='none'}})();
+var FUN={lista:null,avisos:[],loja:'Todas',busca:'',desl:false,erro:''};
+async function funRPC(acao,dados){
+  var r=await fetch(SB+'rpc/rh_funcionario_porta',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_token:rhTok(),p_acao:acao,p_dados:dados||{}})});
+  var j=await r.json().catch(function(){return null});
+  if(!r.ok)throw new Error((j&&j.message)||('erro '+r.status));
+  return j;
+}
+async function funCarregar(){
+  try{var j=await funRPC('listar',{});FUN.lista=(j&&j.lista)||[];FUN.avisos=(j&&j.avisos)||[];FUN.erro=''}
+  catch(e){FUN.lista=[];FUN.avisos=[];FUN.erro=e.message}
+  if(VIEW==='funcionarios')funPinta();
+}
+function renderFuncionarios(){limpaTopo();if(FUN.lista===null){$('content').innerHTML='<div class="loading">Carregando funcion&aacute;rios&hellip;</div>';funCarregar();return}funPinta()}
+function funDia(s){if(!s)return '';var p=String(s).slice(0,10).split('-');return p[2]+'/'+p[1]+'/'+p[0]}
+function funFerias(f){return !!f.afastado_desde&&(!f.afastado_ate||String(f.afastado_ate)>=HOJE())}
+function funMsg(id,t,cor){var m=document.getElementById('fm_'+id);if(m)m.innerHTML='<span style="color:'+(cor||'var(--muted)')+'">'+t+'</span>'}
+async function funAcao(id,acao,dados,okTxt){
+  funMsg(id,'gravando&hellip;');
+  try{dados=dados||{};dados.id=id;await funRPC(acao,dados);await funCarregar();funMsg(id,okTxt||'gravado','#37b46c')}
+  catch(e){funMsg(id,'n&atilde;o gravou: '+xpEsc(e.message),'#e05252')}
+}
+function funNome(id){var f=(FUN.lista||[]).filter(function(x){return x.id===id})[0];return f?title(f.nome):''}
+function funDesligar(id){
+  var t=prompt('Desligar '+funNome(id)+'?\n\nEla(e) sai da lista do ponto, da escala e da equipe. Escreva o motivo (ex.: demitido, pediu as contas, fim da experiencia):','');
+  if(t===null)return;
+  funAcao(id,'desligar',{texto:t},'desligado(a) &mdash; saiu da lista');
+}
+function funReativar(id){if(!confirm('Voltar '+funNome(id)+' para a lista de ativos?'))return;funAcao(id,'reativar',{},'reativado(a)')}
+function funAbreFerias(id){var b=document.getElementById('ff_'+id);if(b)b.style.display=b.style.display==='none'?'flex':'none'}
+function funSalvaFerias(id){
+  var de=(document.getElementById('ffd_'+id)||{}).value||'',ate=(document.getElementById('ffa_'+id)||{}).value||'',mo=(document.getElementById('ffm_'+id)||{}).value||'Férias';
+  if(!de||!ate){funMsg(id,'preencha o primeiro dia e o dia da volta','#e05252');return}
+  funAcao(id,'ferias',{de:de,ate:ate,motivo:mo},'f&eacute;rias gravadas');
+}
+function funTiraFerias(id){if(!confirm('Tirar as férias/afastamento de '+funNome(id)+'?'))return;funAcao(id,'tirar_ferias',{},'f&eacute;rias retiradas')}
+function funSalvaObs(id){var t=document.getElementById('fo_'+id);funAcao(id,'obs',{texto:t?t.value:''},'observa&ccedil;&atilde;o salva')}
+function funFiltro(k,v){FUN[k]=v;funPinta()}
+function funPinta(){
+  var c=$('content');if(!c)return;
+  if(FUN.erro){c.innerHTML='<div class="err">'+xpEsc(FUN.erro)+'</div>';return}
+  var L=FUN.lista||[],lojas=['Todas'];L.forEach(function(f){if(f.unidade&&lojas.indexOf(f.unidade)<0)lojas.push(f.unidade)});
+  var busca=xpKey(FUN.busca);
+  var vis=L.filter(function(f){return (FUN.desl||f.ativo)&&(FUN.loja==='Todas'||f.unidade===FUN.loja)&&(!busca||xpKey(f.nome).indexOf(busca)>=0)});
+  var nAt=L.filter(function(f){return f.ativo}).length,nFe=L.filter(function(f){return f.ativo&&funFerias(f)}).length,nDe=L.length-nAt;
+  var h='';
+  var av=FUN.avisos||[];
+  if(av.length){
+    h+='<div style="border:1px solid var(--line);border-left:5px solid #dc2626;border-radius:10px;padding:10px 12px;margin:10px 0;background:var(--surface)">';
+    h+='<div style="font-weight:700;margin-bottom:4px">&#9888; J&aacute; avisaram que '+(av.length===1?'esta pessoa saiu':'estas pessoas sa&iacute;ram')+' &mdash; mas ainda '+(av.length===1?'est&aacute;':'est&atilde;o')+' na lista</div>';
+    av.forEach(function(a){
+      h+='<div style="padding:6px 0;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap">';
+      h+='<div style="flex:1;min-width:220px"><b>'+xpEsc(a.nome)+'</b> <span style="color:var(--muted);font-size:12px">&middot; '+xpEsc(a.unidade||'')+'</span><br><span style="font-size:12.5px;color:var(--muted)">'+xpEsc(a.fonte)+': &ldquo;'+xpEsc(a.texto)+'&rdquo;</span></div>';
+      h+='<button class="btn" style="border-color:#e05252;color:#e05252" onclick="funDesligar('+Number(a.id)+')">Confirmar sa&iacute;da</button>';
+      h+='<div id="fm_'+Number(a.id)+'" style="font-size:12px;width:100%"></div></div>';
+    });
+    h+='<div style="font-size:12px;color:var(--muted);margin-top:6px">Vem da Caixa do RH (aprovada) e do quadro do contrato de experi&ecirc;ncia. Some quando a sa&iacute;da &eacute; confirmada.</div></div>';
+  }
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0">';
+  lojas.forEach(function(l){h+='<button class="btn" style="'+(FUN.loja===l?'background:var(--brand);color:var(--brand-ink);border-color:var(--brand)':'')+'" onclick="funFiltro(\'loja\',this.dataset.l)" data-l="'+xpEsc(l)+'">'+xpEsc(l)+'</button>'});
+  h+='<input id="fbusca" placeholder="procurar nome" value="'+xpEsc(FUN.busca)+'" oninput="FUN.busca=this.value;funPinta();var e=document.getElementById(\'fbusca\');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length)}" style="background:var(--surface2);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:8px 10px;font:inherit;font-size:13px;min-width:160px">';
+  h+='<label style="font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" '+(FUN.desl?'checked':'')+' onchange="funFiltro(\'desl\',this.checked)"> mostrar desligados</label>';
+  h+='<span style="font-size:12.5px;color:var(--muted);margin-left:auto">'+nAt+' ativos &middot; '+nFe+' de f&eacute;rias/afastados &middot; '+nDe+' desligados</span></div>';
+  if(!vis.length)h+='<div class="loading">Ningu&eacute;m com esse filtro.</div>';
+  vis.forEach(function(f){
+    var id=Number(f.id),fe=funFerias(f);
+    var chip=!f.ativo?'<span style="background:#3a1d1d;color:#f08a8a;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">DESLIGADO</span>'
+      :(fe?'<span style="background:#3a3018;color:#E0A81C;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">'+xpEsc((f.afastado_motivo||'Férias').toUpperCase())+' '+funDia(f.afastado_desde).slice(0,5)+' &rarr; '+(f.afastado_ate?funDia(f.afastado_ate).slice(0,5):'?')+'</span>'
+      :'<span style="background:#173326;color:#37b46c;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">ATIVO</span>');
+    var hor=(f.entrada&&f.saida)?(f.entrada+'&ndash;'+f.saida):'sem hor&aacute;rio';
+    h+='<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:8px 0;background:var(--surface);'+(f.ativo?'':'opacity:.7')+'">';
+    h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>'+xpEsc(f.nome)+'</b> '+chip+' <span style="color:var(--muted);font-size:12.5px">'+xpEsc(f.unidade||'')+' &middot; '+xpEsc(f.setor||'sem setor')+' &middot; '+hor+(f.folgas?' &middot; folga '+xpEsc(f.folgas):'')+'</span></div>';
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">';
+    if(f.ativo){
+      h+='<button class="btn" style="border-color:#e05252;color:#e05252" onclick="funDesligar('+id+')">&#10006; Desligar (saiu)</button>';
+      h+='<button class="btn" style="border-color:#E0A81C;color:#E0A81C" onclick="funAbreFerias('+id+')">&#127796; F&eacute;rias / afastamento</button>';
+      if(f.afastado_desde)h+='<button class="btn" onclick="funTiraFerias('+id+')">Tirar f&eacute;rias</button>';
+    }else{
+      h+='<button class="btn" style="border-color:#37b46c;color:#37b46c" onclick="funReativar('+id+')">&#8634; Reativar</button>';
+    }
+    h+='</div>';
+    h+='<div id="ff_'+id+'" style="display:none;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;font-size:13px">';
+    h+='<label>de <input type="date" id="ffd_'+id+'" value="'+xpEsc(f.afastado_desde||'')+'" style="background:var(--surface2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:5px"></label>';
+    h+='<label>volta em <input type="date" id="ffa_'+id+'" value="'+xpEsc(f.afastado_ate||'')+'" style="background:var(--surface2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:5px"></label>';
+    h+='<select id="ffm_'+id+'" style="background:var(--surface2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:5px">';
+    ['Férias','Atestado','Afastamento INSS','Licença'].forEach(function(m){h+='<option'+((f.afastado_motivo||'Férias')===m?' selected':'')+'>'+m+'</option>'});
+    h+='</select><button class="btn" onclick="funSalvaFerias('+id+')">Salvar</button></div>';
+    h+='<textarea id="fo_'+id+'" rows="2" placeholder="observa&ccedil;&otilde;es (hor&aacute;rio combinado, aviso pr&eacute;vio, o que precisar)" style="width:100%;margin-top:8px;background:var(--surface2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit;font-size:13px">'+xpEsc(f.obs||'')+'</textarea>';
+    h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px"><button class="btn" onclick="funSalvaObs('+id+')">Salvar observa&ccedil;&atilde;o</button>';
+    if(f.ultima)h+='<span style="font-size:12px;color:var(--muted)">&uacute;ltima mudan&ccedil;a: '+xpEsc(f.ultima.acao)+' por '+xpEsc(f.ultima.quem)+' em '+xpEsc(f.ultima.quando)+'</span>';
+    h+='<span id="fm_'+id+'" style="font-size:12px"></span></div></div>';
+  });
+  c.innerHTML=h;
+}
 function renderManual(){limpaTopo();$('content').innerHTML='<iframe class="exframe" src="manual.html" title="Manual e Regras"></iframe>'}
 const HOJE=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
 const LOJAS=SOSB?[SBUN]:['Água Verde','Ahú',SBUN];
