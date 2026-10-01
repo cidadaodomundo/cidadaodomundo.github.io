@@ -55,33 +55,56 @@ const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 const br=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'';
 async function get(q){try{const r=await fetch(SB+q,{headers:H});return r.ok?await r.json():[]}catch(e){return []}}
 const ST={pedido:['pedido','p-ped'],comprado:['comprado','p-com'],entregue:['entregue','p-ent']};
+/* 01/10/2026 (obra 109): a tela deixa de ser so leitura. Botoes Comprado / Chegou / Nao e compra / Reabrir
+   pela porta compras_acao (exige login). Canceladas nao aparecem mais. O robo da faxina marca com aviso
+   o que parece nao ser compra ou esta parado ha muito tempo; quem decide e a pessoa, no botao. */
+async function acao(a,id){
+  const r=await fetch(SB+'rpc/compras_acao',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:cdmTok(),p_acao:a,p_dados:{id:id}})});
+  if(!r.ok){let m='não deu certo';try{const j=await r.json();if(j&&j.message)m=j.message}catch(e){}throw new Error(m)}
+  return await r.json();
+}
+async function faz(a,id,btn){
+  try{if(btn)btn.disabled=true;await acao(a,id);await boot()}
+  catch(e){if(btn)btn.disabled=false;const d=$('erro');if(d){d.textContent='Não consegui gravar: '+e.message;d.style.display='block'}}
+}
+function bt(a,id,txt,cor){return '<button onclick="faz(\''+a+'\','+id+',this)" style="margin:2px 4px 2px 0;padding:4px 9px;border-radius:8px;border:1px solid '+cor+';background:transparent;color:'+cor+';cursor:pointer;font-size:12px">'+txt+'</button>'}
 
 async function boot(){
-  const rows=await get('compra_item?select=id,unidade,item,quantidade,status,quem_pediu,origem,criado_em,obs&order=criado_em.desc&limit=200');
-  const rowsF=SOLOJA?rows.filter(function(r){return r.unidade===SOLOJA}):rows;
-  const ativos=rowsF.filter(r=>r.status!=='entregue');
-  const entregues=rowsF.filter(r=>r.status==='entregue').slice(0,20);
-  let h='';
+  const abertos=await get('compra_item?select=id,unidade,item,quantidade,status,quem_pediu,origem,criado_em,obs,robo_aviso&status=in.(pedido,comprado)&order=criado_em.desc&limit=400');
+  const ent=await get('compra_item?select=id,unidade,item,criado_em,atualizado_em&status=eq.entregue&order=atualizado_em.desc.nullslast&limit=20');
+  const so=function(r){return !SOLOJA||r.unidade===SOLOJA};
+  const ativos=abertos.filter(so);
+  const entregues=ent.filter(so);
+  const nAviso=ativos.filter(r=>r.robo_aviso).length;
+  let h='<div id="erro" style="display:none;color:#e0645c;margin:8px 0"></div>';
+  if(nAviso)h+='<div class="aviso" style="margin-bottom:10px">⚠ '+nAviso+' pedido(s) marcados pelo robô da faxina. Confira e clique: <b>Chegou</b> ou <b>Não é compra</b> (some da lista), ou <b>Ainda precisa</b> (fica).</div>';
   if(!ativos.length){
-    h+='<div class="vazio">Nenhum pedido de compra em aberto anotado ainda. Esta prateleira enche sozinha a partir das varreduras do WhatsApp (12h e 20h) — os grupos Listas São Braz e Listas Ahu são as fontes principais.</div>';
+    h+='<div class="vazio">Nenhum pedido de compra em aberto. Esta lista enche sozinha com o que aparece no WhatsApp (grupos, SAC e conversas de trabalho), de 2 em 2 minutos.</div>';
   } else {
     const lojas={};ativos.forEach(r=>{(lojas[r.unidade]=lojas[r.unidade]||[]).push(r)});
     Object.keys(lojas).sort().forEach(u=>{
-      h+='<h2>'+esc(u)+'</h2><table><tr><th>Item</th><th>Qtd</th><th>Situação</th><th>Quem pediu</th><th>Quando</th></tr>';
+      h+='<h2>'+esc(u)+' <span style="color:var(--muted);font-size:13px">('+lojas[u].length+')</span></h2><table><tr><th>Item</th><th>Qtd</th><th>Situação</th><th>Quem pediu</th><th>Quando</th><th>O que fazer</th></tr>';
       lojas[u].forEach(r=>{
         const s=ST[r.status]||ST.pedido;
-        h+='<tr><td>'+esc(r.item)+(r.obs?'<div class="m">'+esc(r.obs)+'</div>':'')+'</td><td>'+esc(r.quantidade||'—')+'</td>'+
-           '<td><span class="pill '+s[1]+'">'+s[0]+'</span></td><td>'+esc(r.quem_pediu||'—')+'</td><td>'+br(r.criado_em)+'</td></tr>';
+        let b='';
+        if(r.robo_aviso)b+=bt('chegou',r.id,'Chegou','#8fbf6a')+bt('nao_compra',r.id,'Não é compra','#e0645c')+bt('confirmar',r.id,'Ainda precisa','#E0A81C');
+        else {
+          if(r.status==='pedido')b+=bt('comprado',r.id,'Comprado','#E0A81C');
+          b+=bt('chegou',r.id,'Chegou','#8fbf6a')+bt('nao_compra',r.id,'Não é compra','#9a9a9a');
+        }
+        h+='<tr><td>'+esc(r.item)+(r.robo_aviso?'<div class="m" style="color:#E0A81C">⚠ '+esc(r.robo_aviso)+'</div>':'')+(r.obs?'<div class="m">'+esc(r.obs)+'</div>':'')+'</td><td>'+esc(r.quantidade||'—')+'</td>'+
+           '<td><span class="pill '+s[1]+'">'+s[0]+'</span></td><td>'+esc(r.quem_pediu||'—')+'</td><td>'+br(r.criado_em)+'</td><td>'+b+'</td></tr>';
       });
       h+='</table>';
     });
   }
   if(entregues.length){
-    h+='<h2 style="color:var(--muted)">entregues recentes</h2><table><tr><th>Item</th><th>Loja</th><th>Quando</th></tr>';
-    entregues.forEach(r=>{h+='<tr><td>'+esc(r.item)+'</td><td>'+esc(r.unidade)+'</td><td>'+br(r.criado_em)+'</td></tr>'});
+    h+='<h2 style="color:var(--muted)">chegaram recentemente</h2><table><tr><th>Item</th><th>Loja</th><th>Pedido em</th><th></th></tr>';
+    entregues.forEach(r=>{h+='<tr><td>'+esc(r.item)+'</td><td>'+esc(r.unidade)+'</td><td>'+br(r.criado_em)+'</td><td>'+bt('reabrir',r.id,'Reabrir','#9a9a9a')+'</td></tr>'});
     h+='</table>';
   }
-  h+='<div class="aviso">Tela alimentada pela varredura do WhatsApp (12h e 20h). Para entrar aqui, o pedido tem que passar pelos grupos de listas ou pela Rita.</div>';
+  h+='<div class="aviso">Tela alimentada pela Central de Mensagens (WhatsApp, de 2 em 2 min). Quando alguém avisa no WhatsApp que chegou, o robô fecha sozinho; senão, use os botões.</div>';
   $('app').innerHTML=h;
 }
 
