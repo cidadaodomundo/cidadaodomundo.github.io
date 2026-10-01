@@ -128,7 +128,7 @@ function historico(obs){
 }
 let ROWS=[];
 async function boot(){
-  ROWS=await get('manutencao_chamado?select=id,unidade,item,descricao,prioridade,status,origem,aberto_em,resolvido_em,obs&order=aberto_em.asc&limit=300');
+  ROWS=await get('manutencao_chamado?select=id,unidade,item,descricao,prioridade,status,origem,aberto_em,resolvido_em,obs,robo_aviso&order=aberto_em.asc&limit=300');
   const lojasTodas=['Água Verde','São Braz','Ahú','Boqueirão'];
   const ab=ROWS.filter(r=>r.status!=='resolvido');
   if(!SOLOJA){
@@ -152,6 +152,10 @@ async function boot(){
         '<div class="cx" title="Marcar como resolvido" onclick="resolver('+r.id+',true)"></div>'+
         '<div class="corpo"><div class="nm">'+esc(r.item)+' <span class="pill '+p[1]+'">'+p[0]+'</span>'+(r.status==='agendado'?' <span class="pill p-ok">agendado</span>':'')+'</div>'+
         (r.descricao?'<div class="d">'+esc(r.descricao)+'</div>':'')+
+        (r.robo_aviso?'<div class="d" style="color:#E0A81C">⚠ '+esc(r.robo_aviso)+'<br>'+
+          '<button class="b mini" onclick="resolver('+r.id+',true)">Já resolvido</button> '+
+          '<button class="b mini" onclick="faz(\'nao_conserto\',{id:'+r.id+'})">Não é conserto</button> '+
+          '<button class="b mini" onclick="faz(\'confirmar\',{id:'+r.id+'})">Ainda aberto</button></div>':'')+
         '<div class="m">aberto há '+dias(r.aberto_em)+' ('+br(r.aberto_em)+') · veio do '+esc(r.origem)+'</div>'+
         historico(r.obs)+
         '<div class="acoes"><input class="nota" placeholder="✏️ escreva uma observação e aperte Enter" maxlength="400" onkeydown="teclaNota(event,'+r.id+',this)">'+
