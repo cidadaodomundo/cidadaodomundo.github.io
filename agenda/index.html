@@ -156,6 +156,7 @@ function linha(x,mostraDia){
   var at=atrasada(x);
   return '<div class="tr'+(fe?' feita':'')+'">'
     +'<button class="ck" title="'+(fe?'Clique para desmarcar':'Marcar como feita')+'" onclick="check('+x.id+')">'+(fe?'✓ Feita':'✓ Fiz')+'</button>'
+    +(fe?'':bts(x.id))
     +'<span class="d'+(x.esfera==='pessoal'?' p':'')+'"></span>'
     +'<div class="tx" onclick="abreItem('+x.id+')"><div class="tt">'+esc(x.titulo)+'</div>'
     +(sub.length?'<div class="sb'+(at?' bad':'')+'">'+(at?'atrasada · ':'')+sub.join(' · ')+'</div>':'')
@@ -215,7 +216,7 @@ function desenhaMes(){
   if(feL.length){ h+='<div class="grp">Feitas hoje</div>'; feL.forEach(function(x){ h+=linha(x,mostraDia); }); }
   h+='</div>';
 
-  h+='<div class="nota">Esta tela é só sua — ninguém mais do portal enxerga. <b>Bolinha dourada é trabalho, azul é pessoal.</b> Clique num dia para ver as tarefas dele; o botão verde ✓ Fiz marca como feita (clicando de novo, desmarca); clique no nome para abrir, mudar o dia ou anotar. O que tem dia e hora vira compromisso no seu Google Agenda e toca alarme no celular; o que só tem prazo fica aqui. Os lembretes que se repetem todo dia continuam no Google e não entram nesta lista. Tarefa feita só aparece aqui no dia em que foi marcada.</div>';
+  h+='<div class="nota">Esta tela é só sua — ninguém mais do portal enxerga. <b>Bolinha dourada é trabalho, azul é pessoal.</b> Clique num dia para ver as tarefas dele; o botão verde ✓ Fiz marca como feita (clicando de novo, desmarca); ✗ Cancelado tira da agenda; ⏭ Adiar muda o dia — o Google acompanha na próxima rodada do robô; clique no nome para abrir, mudar o dia ou anotar. O que tem dia e hora vira compromisso no seu Google Agenda e toca alarme no celular; o que só tem prazo fica aqui. Os lembretes que se repetem todo dia continuam no Google e não entram nesta lista. Tarefa feita só aparece aqui no dia em que foi marcada.</div>';
   $('app').innerHTML=h;
 }
 function ver(v){ VER=v; desenhaMes(); }
@@ -238,6 +239,7 @@ function abreItem(id){
   if(it.no_google){ h+='<span class="pill">no Google</span>'; }
   h+='</div>';
   if(it.detalhe){ h+='<div class="obs">'+esc(it.detalhe)+'</div>'; }
+  h+='<div id="f-ctx" class="obs">Buscando a conversa…</div>';
   h+='<label class="lb">Sua observação</label><textarea id="f-obs" rows="2">'+esc(it.observacao||'')+'</textarea>';
   h+='<label class="lb">Dia e hora (vai para o Google e toca alarme)</label><input type="datetime-local" id="f-q" value="'+esc(dh)+'">';
   h+='<label class="lb">Ou só um prazo, sem hora</label><input type="date" id="f-p" value="'+esc(it.prazo||'')+'">';
@@ -245,11 +247,12 @@ function abreItem(id){
   h+='<div class="mbt"><button class="ok" onclick="salvaItem('+id+')">Salvar</button>';
   h+='<button onclick="check('+id+')">'+(it.status==='feita'?'↩ Desmarcar':'✓ Já fiz')+'</button>';
   h+='<button onclick="viraEsfera('+id+",'"+(it.esfera==='pessoal'?'trabalho':'pessoal')+"')\">"+(it.esfera==='pessoal'?'💼 Virar trabalho':'🏠 Virar pessoal')+'</button>';
+  if(it.status!=='feita'){ h+='<button onclick="cancela('+id+')">✗ Cancelado</button><button onclick="adia('+id+')">⏭ Adiar</button>'; }
   h+='<button onclick="arquiva('+id+')">🗑 Tirar</button>';
   h+='<button onclick="fecha()">Fechar</button></div>';
   h+='<div class="mnota">Compromisso novo com hora só aparece no celular na próxima rodada do robô, não na hora.</div>';
   h+='<div id="f-msg" class="mbad"></div>';
-  abre(h);
+  abre(h); carregaCtx(id);
 }
 async function salvaItem(id){
   try{
@@ -261,6 +264,41 @@ async function salvaItem(id){
 async function check(id){ try{ await porta('check',{id:id}); fecha(); await boot(); }catch(e){ alert('Não deu para marcar.'); } }
 async function arquiva(id){ if(!confirm('Tirar da agenda? Some daqui, mas fica guardado.'))return; try{ await porta('arquivar',{id:id}); fecha(); await boot(); }catch(e){ alert('Não deu para tirar.'); } }
 async function viraEsfera(id,nova){ try{ await porta('esfera',{id:id,esfera:nova}); fecha(); await boot(); }catch(e){ alert('Não deu para trocar.'); } }
+
+/* 02/10/2026 (Fabio): botoes Cancelado e Adiar + a conversa que gerou o item. O Google acompanha na rodada do robo da agenda. */
+function bts(id){ return '<button class="ck" style="border-color:#e0645c;color:#e0645c" title="Nao vai acontecer" onclick="cancela('+id+')">✗ Cancelado</button>'
+  +'<button class="ck" style="border-color:#6aa0e0;color:#6aa0e0" title="Mudar o dia" onclick="adia('+id+')">⏭ Adiar</button>'; }
+async function cancela(id){ if(!confirm('Marcar como cancelado? Sai da agenda e o robô tira do Google na próxima rodada.'))return; try{ await porta('cancelar',{id:id}); fecha(); await boot(); }catch(e){ alert('Não deu para cancelar.'); } }
+function adia(id){
+  var it=acha(id); if(!it)return;
+  var h='<div class="mtit">⏭ Adiar: '+esc(it.titulo)+'</div>';
+  h+='<label class="lb">Novo dia e hora</label><input type="datetime-local" id="a-q">';
+  h+='<label class="lb">Ou só o novo dia, sem hora</label><input type="date" id="a-p">';
+  h+='<div class="mbt"><button class="ok" onclick="salvaAdia('+id+')">Adiar</button><button onclick="fecha()">Voltar</button></div>';
+  h+='<div class="mnota">O Google e o celular acompanham na próxima rodada do robô da agenda (até 2 horas).</div><div id="a-msg" class="mbad"></div>';
+  abre(h);
+}
+async function salvaAdia(id){
+  var q=$('a-q').value, p=$('a-p').value;
+  if(!q&&!p){ $('a-msg').textContent='Escolha o novo dia.'; return; }
+  try{ await porta('adiar',{id:id,quando:q,prazo:(q?'':p)}); fecha(); await boot(); }catch(e){ $('a-msg').textContent='Não deu para adiar.'; }
+}
+async function carregaCtx(id){
+  var el=$('f-ctx'); if(!el)return;
+  try{
+    var r=await porta('contexto',{id:id});
+    if(!r||!r.achou){ el.innerHTML='<span class="mnota">Este item não tem conversa ligada (foi escrito à mão ou por um robô sem mensagem).</span>'; return; }
+    var h='<div style="font-weight:600;margin-bottom:4px">💬 '+(r.tipo==='grupo'?'Grupo ':'Conversa com ')+esc(r.conversa)+'</div>';
+    (r.msgs||[]).forEach(function(m){
+      h+='<div style="margin:3px 0;padding:4px 6px;border-radius:6px;'+(m.principal?'background:rgba(224,168,28,.18);border-left:3px solid #E0A81C':'')+'">'
+        +'<span style="color:#8a897e;font-size:12px">'+esc(m.hora)+' · '+esc(m.quem)+'</span><br>'
+        +(m.texto?esc(m.texto).replace(/\n/g,'<br>'):'')
+        +(m.midia?' <i>📎 foto ou arquivo (ainda não guardado no portal)</i>':'')+'</div>';
+    });
+    h+='<div class="mnota">Em destaque, a mensagem que gerou o item. Para responder, abra essa conversa no seu WhatsApp.</div>';
+    el.innerHTML=h;
+  }catch(e){ el.innerHTML='<span class="mnota">Não deu para buscar a conversa.</span>'; }
+}
 
 function abreNova(dia){
   var h='<div class="mtit">Escrever na agenda</div>';
