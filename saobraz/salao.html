@@ -54,6 +54,41 @@ button.c{cursor:pointer}
 .bar .tr{flex:1;height:8px;background:var(--s2);border-radius:5px;overflow:hidden}
 .bar .fi{height:100%;background:var(--brand)}
 .txt{color:var(--text2);font-size:13px;line-height:1.55;white-space:pre-line}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-top:6px}
+.tile{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:20px;cursor:pointer;text-align:left;color:var(--text);font-family:inherit;display:flex;flex-direction:column;gap:6px;transition:border-color .15s,transform .1s}
+.tile:hover{border-color:var(--brand);transform:translateY(-2px)}
+.tile .ic{font-size:24px;line-height:1}
+.tile .tt{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.9px;color:var(--text2)}
+.tile .big{font-size:32px;font-weight:800;line-height:1.05;margin:2px 0}
+.tile .sub2{font-size:12.5px;color:var(--muted);line-height:1.45}
+.tile .go{margin-top:auto;padding-top:10px;font-size:12px;font-weight:700;color:var(--muted)}
+.tile:hover .go{color:var(--brand)}
+.tile.atencao .big{color:var(--brand)}
+.voltar{background:none;border:1px solid var(--line);color:var(--text2);border-radius:9px;padding:7px 13px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.voltar:hover{border-color:var(--text2);color:var(--text)}
+.barra{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.barra .tit{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.9px;color:var(--muted)}
+.mini{color:var(--muted);font-size:11.5px;margin-top:2px}
+.sit{font-size:11px;color:var(--muted)}
+.ok2{color:var(--ok)}
+.at{color:var(--warn)}
+.turno{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin:10px 0 4px}
+.linha{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--line);color:var(--text2)}
+.linha:last-child{border-bottom:none}
+.linha b{color:var(--text);font-weight:600}
+.ctx{color:var(--muted);font-size:12.5px;margin:2px 0 14px}
+.evq{background:var(--s1);border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:13px;padding:14px 16px;margin-bottom:16px}
+.evq .tt{font-weight:800;font-size:14.5px;margin-bottom:2px}
+.evq .ctx{margin:0 0 8px}
+.evl{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px;color:var(--text2)}
+.evl:last-child{border-bottom:none}
+.evl .qd{color:var(--text);font-weight:700;min-width:118px;font-variant-numeric:tabular-nums}
+.evl .oq{color:var(--text);font-weight:600}
+.evl .fa{margin-left:auto;color:var(--muted);font-size:11.5px;white-space:nowrap}
+.tchips{display:flex;gap:8px;margin:14px 0 16px;flex-wrap:wrap}
+.tchip{background:var(--s1);border:1px solid var(--line);color:var(--text2);border-radius:999px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.tchip.on{background:var(--brand);border-color:var(--brand);color:#111110}
+a.src{color:var(--text);text-decoration:none;font-weight:600}
 .load{color:var(--muted);padding:30px;text-align:center}
 .erro{color:var(--bad);padding:20px}
 .pzal{border-left:3px solid var(--bad)}
@@ -194,9 +229,156 @@ function pzBind(root){
 const CDMMODS=['sbsalao'];
 function marcaCurta(m){return String(m||'').replace(/CIDAD[ÃA]O DO MUNDO\s*/i,'').replace(/\s*-\s*(S[ÃA]O BRAZ|SB)\s*$/i,'').trim()||String(m||'')}
 let D=null;
-function render(){
-  const d=D, a=document.getElementById('app');
-  a.className='';
+/* ===== mesmo formato da Central Salão (pedido do Fábio, 02/10/2026: "fazer igual ao do
+   agua verde, porem somente com informações do sao braz"): quadro de eventos da cidade
+   no topo e cartões que abrem cada assunto. Tudo aqui é só do São Braz. ===== */
+const LOJA='São Braz';
+const SB_DIAS=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+const plural=(n,s,p)=>n+' '+(n===1?s:p);
+const brd=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'';
+const hojeISO=()=>new Date().toLocaleDateString('sv-SE');
+function dMais(n){const d=new Date();d.setDate(d.getDate()+n);return d.toLocaleDateString('sv-SE')}
+function dMenos(n){const d=new Date();d.setDate(d.getDate()-n);return d.toLocaleDateString('sv-SE')}
+function diasEntre(a,b){return Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/86400000)}
+async function rest(q){try{const r=await fetch(SBR+q,{headers:{apikey:KEY,Authorization:'Bearer '+KEY}});return r.ok?await r.json():[]}catch(e){return []}}
+
+/* ----- Equipe do salão (copiado da Central Salão, só São Braz) ----- */
+let TURNO='auto';
+function turnoAgora(){return new Date().getHours()>=16?'Noite':'Dia'}
+function turnoAtivo(){return TURNO==='auto'?turnoAgora():TURNO}
+function setTurno(t){TURNO=t;rota()}
+function turnoDe(hora){if(!hora)return null;return String(hora).slice(0,5)>='15:00'?'Noite':'Dia'}
+const SITU={OK:['tudo certo','ok2'],ATRASO:['entrou atrasado','at'],
+ BATIDAS_INCOMPLETAS:['batidas incompletas','at'],FALTA_A_CONFIRMAR:['a confirmar','at'],
+ FOLGA:['folga',''],ESCALA_DIVERGENTE:['horário diferente da escala','at'],
+ TURNO_DIVERGENTE:['turno diferente do cadastro','at'],INTERVALO_ABAIXO_LEGAL:['intervalo abaixo do legal','at'],
+ INTERVALO_ABAIXO_PADRAO:['intervalo curto','at'],TETO_10H:['passou de 10 horas','at'],
+ JORNADA_A_MENOR:['jornada menor que a contratada','at'],AFASTADO:['afastado',''],
+ HORA_EXTRA:['hora extra','at'],FERIAS:['férias',''],LOJA_FECHADA:['loja fechada',''],
+ TRABALHO_EM_FOLGA:['trabalhou na folga','at'],CADASTRO:['cadastro a ajustar','at']};
+function situ(c){
+  const s=SITU[c]; if(s)return s;
+  const t=String(c||'');
+  if(t.indexOf('FALTA')>=0||t.indexOf('AUSEN')>=0)return ['a confirmar','at'];
+  return [t.toLowerCase().replace(/_/g,' '),''];
+}
+/* Quem é do salão. A escala vem da MESMA prateleira que as gestoras preenchem na
+   Central do RH. Duas portas de entrada, porque as duas acontecem na vida real:
+   1) a posição lançada no dia fala em Atendimento/Caixa;
+   2) a pessoa é do setor Salão no cadastro, mesmo lançada em outra posição.
+   Medido em 26/08: a Marcia aparece no Atendimento/Caixa do São Braz e o cadastro
+   dela diz Cozinha. Filtrar só por um dos dois perde gente. */
+const FORA=['FOLGA','Falta/Ausente','Férias','Atestado','Afastado'];
+function setorDe(pessoas,nome){const p=pessoas.filter(x=>x.nome===nome)[0];return p?(p.setor||''):''}
+function ehSalao(reg,pessoas){
+  const pos=String(reg.posicao||'');
+  if(FORA.indexOf(pos)>=0)return false;
+  if(pos.indexOf('Atendimento')>=0)return true;
+  return setorDe(pessoas,reg.nome)==='Salão';
+}
+/* a escala também usa "Noite/Madrugada" e "Integral" — medido no banco em 26/08 */
+function ehTurno(v,t){
+  const s=String(v||'');
+  if(s.indexOf('Integral')>=0)return true;
+  return t==='Noite'?s.indexOf('Noite')>=0:s.indexOf('Dia')>=0;
+}
+
+function blocoEquipe(d){
+  const hoje=hojeISO(), dow=new Date().getDay(), t=turnoAtivo();
+  const ultPonto=d.ponto.length?d.ponto.map(p=>p.data).sort().slice(-1)[0]:null;
+  let h='<div class="ctx">'+SB_DIAS[dow]+', '+brd(hoje)+' · escala lançada pela loja, ponto vindo do Flash e movimento de balcão do Saipos</div>';
+  h+='<div class="tchips">'+
+     '<button class="tchip'+(t==='Dia'?' on':'')+'" onclick="setTurno(\'Dia\')">☀️ Dia</button>'+
+     '<button class="tchip'+(t==='Noite'?' on':'')+'" onclick="setTurno(\'Noite\')">🌙 Noite</button>'+
+     '</div>';
+  h+='<div class="cards">';
+  [LOJA].forEach(u=>{
+    const daLoja=d.escala.filter(e=>e.unidade===u&&ehSalao(e,d.pessoas));
+    const doDia=daLoja.filter(e=>e.data===hoje&&ehTurno(e.turno,t));
+    const ultDia=daLoja.length?daLoja.map(e=>e.data).sort().slice(-1)[0]:null;
+    const min=d.cobertura.filter(c=>c.unidade===u&&Number(c.dia_semana)===dow&&ehTurno(c.turno,t))
+                         .reduce((m,c)=>Math.max(m,Number(c.minimo)||0),0);
+    /* quem responde pelo salão nesta loja: o cadastro diz Salão, mais quem a Central
+       do RH lançou no atendimento nos últimos dias, mesmo com outro setor no cadastro */
+    const nomesEscala={};daLoja.forEach(e=>{nomesEscala[e.nome]=1});
+    const doSalao=d.pessoas.filter(p=>p.unidade===u&&(p.setor==='Salão'||nomesEscala[p.nome]));
+    const comPonto=doSalao.filter(p=>p.entrada);
+    const gerencia=doSalao.length-comPonto.length;
+    const doTurno=comPonto.filter(p=>turnoDe(p.entrada)===t).map(p=>p.nome);
+    const pt=ultPonto?d.ponto.filter(p=>p.data===ultPonto&&p.unidade===u&&doTurno.indexOf(p.nome)>=0):[];
+    let sel='';
+    if(min)sel='<span class="pill '+(doDia.length>=min?'p-ok':'p-bad')+'">'+doDia.length+' de '+min+'</span>';
+    h+='<div class="c"><div class="nm">'+u+sel+'</div>';
+
+    h+='<div class="turno">Escala de hoje · '+t+'</div>';
+    if(doDia.length){
+      doDia.forEach(g=>{
+        const bateu=pt.filter(p=>p.nome===g.nome)[0];
+        const pos=String(g.posicao||'');
+        const setor=setorDe(d.pessoas,g.nome);
+        let obs='';
+        if(pos.indexOf('Atendimento')<0)obs='hoje em '+pos.split(',')[0];
+        else if(setor&&setor!=='Salão')obs='no cadastro é do setor '+setor;
+        h+='<div class="linha"><b>'+esc(g.nome)+'</b><span class="sit">'+
+           (bateu&&bateu.entrada?String(bateu.entrada).slice(0,5)+' no último dia':'')+'</span></div>'+
+           (obs?'<div class="mini">'+esc(obs)+'</div>':'');
+      });
+    } else if(daLoja.filter(e=>e.data===hoje).length){
+      h+='<div class="vazio">ninguém lançado neste turno hoje</div>';
+    } else {
+      h+='<div class="vazio">escala de hoje ainda não lançada'+(ultDia?' — a última foi '+brd(ultDia):'')+'</div>';
+    }
+    if(!min)h+='<div class="mini">sem mínimo de gente cadastrado para esta loja neste turno</div>';
+
+    h+='<div class="turno">Ponto de '+(ultPonto?brd(ultPonto):'sem dado')+' · '+t+'</div>';
+    if(pt.length){
+      pt.forEach(p=>{
+        const s=situ(p.categoria);
+        h+='<div class="linha"><b>'+esc(p.nome)+'</b><span>'+
+           (p.entrada?String(p.entrada).slice(0,5)+'–'+(p.saida?String(p.saida).slice(0,5):'?'):'—')+
+           ' <span class="sit '+s[1]+'">'+esc(s[0])+'</span></span></div>';
+      });
+    } else h+='<div class="vazio">o ponto deste turno ainda não chegou</div>';
+    if(gerencia)h+='<div class="mini">gerência não entra no ponto</div>';
+
+    /* Balcão: cada loja mostra o SEU último dia reportado. Loja sem linha nenhuma
+       não vira zero — vira "sem dado", porque o Saipos não fecha o dia na hora. */
+    const naLoja=d.balcao?d.balcao.filter(x=>x.unidade===u):[];
+    if(naLoja.length){
+      const diaLoja=naLoja.map(x=>String(x.dia_operacional).slice(0,10)).sort().slice(-1)[0];
+      const b=naLoja.filter(x=>String(x.dia_operacional).slice(0,10)===diaLoja);
+      const canc=b.filter(x=>x.cancelado).length;
+      /* cada linha é uma venda (chave única no Saipos); parte delas não tem
+         número de pedido — são vendas de mesa. Contar linha, não n_pedido. */
+      h+='<div class="turno">Balcão em '+brd(diaLoja)+'</div>'+
+         '<div class="linha"><span>vendas registradas na loja</span><b>'+b.length+'</b></div>'+
+         (canc?'<div class="linha"><span>desses, cancelados</span><b>'+canc+'</b></div>':'')+
+         '<div class="mini">o Saipos não separa por turno e não fecha o dia na hora</div>';
+    } else {
+      h+='<div class="turno">Balcão</div><div class="vazio">o Saipos ainda não reportou esta loja nos últimos dias</div>';
+    }
+    h+='</div>';
+  });
+  h+='</div>';
+  return h;
+}
+function resumoEquipe(d){
+  const hoje=hojeISO();
+  let dia=0, noite=0, semEscala=[];
+  [LOJA].forEach(u=>{
+    const doDia=d.escala.filter(e=>e.unidade===u&&e.data===hoje&&ehSalao(e,d.pessoas));
+    if(!doDia.length){semEscala.push(u);return}
+    dia+=doDia.filter(e=>ehTurno(e.turno,'Dia')).length;
+    noite+=doDia.filter(e=>ehTurno(e.turno,'Noite')).length;
+  });
+  return {big:(dia+noite)?('☀️ '+dia+'  ·  🌙 '+noite):'—',
+    sub:(dia+noite)?('pessoas na escala de hoje, dia e noite'+(semEscala.length?' · falta lançar':''))
+                   :'a escala de hoje ainda não foi lançada',
+    atencao:semEscala.length>0};
+}
+
+/* ----- Reservas ----- */
+function secReservas(d){
   let h='';
   const R=d.reservas||[];
   h+='<h2>📅 Reservas <span class="hint">de ontem até daqui a 14 dias</span></h2>';
@@ -211,26 +393,156 @@ function render(){
   h+='<h2 style="margin-top:16px">💬 Reserva falada no grupo Salão São Braz <span class="hint">últimos 10 dias'+(d.whats_desde?' · primeira mensagem lida em '+esc(d.whats_desde):' · ainda não chegou nenhuma mensagem desse grupo')+'</span></h2>';
   if(!W.length){h+='<div class="lista"><div class="vazio">Nenhuma mensagem com reserva, mesa ou aniversário no grupo ainda.</div></div>'}
   else{h+='<div class="lista">';W.forEach(function(w){h+='<div class="it"><div class="l1"><b>'+esc(w.quando)+'</b><span class="m">'+esc(w.quem||'')+'</span></div><div class="l2">'+esc(w.texto)+'</div></div>'});h+='</div>'}
-  const g=d.google;
-  h+='<h2>⭐ Google <span class="hint">'+(g?'lido em '+esc(g.em):'sem leitura')+'</span></h2>';
-  if(!g){h+='<div class="lista"><div class="vazio">Sem leitura do Google para o São Braz.</div></div>'}
-  else{
-    const S=d.google_serie||[];let dif='';
-    if(S.length>1){const a0=S[0],a1=S[S.length-1];const dn=(a1.n||0)-(a0.n||0);dif=dn>=0?'+'+dn+' avaliações desde '+esc(a0.em):''}
-    h+='<div class="cards"><div class="c"><div class="nm">Nota no Google</div><div class="big">'+num(g.nota)+'</div><div class="qtd">'+esc(g.n)+' avaliações</div></div>';
-    h+='<div class="c"><div class="nm">Novas avaliações</div><div class="big">'+(dif?dif.split(' ')[0]:'—')+'</div><div class="qtd">'+(dif?esc(dif.split(' ').slice(1).join(' ')):'sem histórico suficiente')+'</div></div></div>';
-    if(g.resumo)h+='<div class="lista" style="margin-top:12px"><div class="it"><div class="l1"><b>O que os clientes estão dizendo</b></div><div class="l2 txt">'+esc(g.resumo)+'</div></div>'+
-       (g.destaques?'<div class="it"><div class="l1"><b>Destaques</b></div><div class="l2 txt">'+esc(typeof g.destaques==='string'?g.destaques:JSON.stringify(g.destaques))+'</div></div>':'')+'</div>';
-  }
-  const G=d.goomer||[];
-  h+='<h2>📵 Fora do tablet de mesa (Goomer) <span class="hint">'+G.length+' itens · lido em '+esc(d.goomer_lido||'—')+'</span></h2>';
-  if(d.goomer_dias!=null&&d.goomer_dias>2)h+='<div class="aviso">⚠️ <b>Esta lista está velha:</b> a última leitura do Goomer foi em '+esc(d.goomer_lido)+', há '+esc(d.goomer_dias)+' dias. Pode ter item que já voltou ou que saiu depois disso.</div>';
-  h+=pzHtml(G,'go');
-  a.innerHTML=h;pzBind(a);
+  return h;
 }
+function resumoReservas(d){
+  /* a porta manda de ontem em diante; o cartão conta só de hoje em diante */
+  const ontem=brd(dMenos(1)).slice(0,5);
+  const R=(d.reservas||[]).filter(function(r){return r.dia!==ontem}), W=d.whats||[];
+  if(!R.length)return {big:'—',sub:'nenhuma reserva chegou do GetIn'+(W.length?' · '+plural(W.length,'mensagem','mensagens')+' de reserva no grupo':''),atencao:false};
+  const pessoas=R.reduce(function(s,r){return s+(Number(r.pessoas)||0)},0);
+  const hoje=R.filter(function(r){return r.hoje}).length;
+  return {big:plural(R.length,'reserva','reservas'),
+    sub:pessoas+' pessoas'+(hoje?' · '+hoje+' hoje':'')+' · a próxima é '+esc(R[0].dia||'—')+(W.length?' · '+plural(W.length,'mensagem','mensagens')+' no grupo':''),
+    atencao:hoje>0};
+}
+
+/* ----- Google: nota e o que o cliente falou ----- */
+function googleDif(d){
+  const S=d.google_serie||[];
+  if(S.length>1){const a0=S[0],a1=S[S.length-1];const dn=(a1.n||0)-(a0.n||0);if(dn>=0)return {n:'+'+dn,desde:a0.em}}
+  return null;
+}
+function secGoogle(d){
+  const g=d.google;
+  let h='<h2>⭐ Google <span class="hint">'+(g?'lido em '+esc(g.em):'sem leitura')+'</span></h2>';
+  if(!g)return h+'<div class="lista"><div class="vazio">Sem leitura do Google para o São Braz.</div></div>';
+  const dif=googleDif(d);
+  h+='<div class="cards"><div class="c"><div class="nm">Nota no Google</div><div class="big">'+num(g.nota)+'</div><div class="qtd">'+esc(g.n)+' avaliações</div></div>';
+  h+='<div class="c"><div class="nm">Novas avaliações</div><div class="big">'+(dif?esc(dif.n):'—')+'</div><div class="qtd">'+(dif?'avaliações desde '+esc(dif.desde):'sem histórico suficiente')+'</div></div></div>';
+  return h;
+}
+function resumoGoogle(d){
+  const g=d.google;
+  if(!g)return {big:'—',sub:'sem leitura do Google',atencao:false};
+  const dif=googleDif(d);
+  return {big:num(g.nota),sub:esc(g.n)+' avaliações'+(dif?' · '+esc(dif.n)+' desde '+esc(dif.desde):''),atencao:Number(g.nota)<4.2};
+}
+function destaquesLista(g){
+  let v=g&&g.destaques;
+  if(typeof v==='string'){try{v=JSON.parse(v)}catch(e){return v?[{texto:v}]:[]}}
+  return Array.isArray(v)?v.map(function(x){return typeof x==='string'?{texto:x}:(x||{})}).filter(function(x){return x.texto}):[];
+}
+function secCliente(d){
+  const g=d.google;
+  let h='<h2>💬 O que o cliente falou <span class="hint">'+(g?'Google · lido em '+esc(g.em):'sem leitura')+'</span></h2>';
+  if(!g||(!g.resumo&&!destaquesLista(g).length))return h+'<div class="lista"><div class="vazio">Nenhum comentário guardado do Google ainda.</div></div>';
+  h+='<div class="lista">';
+  if(g.resumo)h+='<div class="it"><div class="l1"><b>O que os clientes estão dizendo</b></div><div class="l2 txt">'+esc(g.resumo)+'</div></div>';
+  destaquesLista(g).forEach(function(x){
+    h+='<div class="it"><div class="l2">“'+esc(x.texto)+'”</div><div class="m">'+esc(x.autor||'')+(x.autor&&x.quando?' · ':'')+esc(x.quando||'')+'</div></div>';
+  });
+  return h+'</div>';
+}
+function resumoCliente(d){
+  const n=destaquesLista(d.google).length;
+  return {big:n?plural(n,'fala','falas'):'—',sub:n?'comentários guardados na última leitura do Google':'nenhum comentário guardado ainda',atencao:false};
+}
+
+/* ----- Cardápio fora do tablet (Goomer) ----- */
+function secTablet(d){
+  const G=d.goomer||[];
+  let h='<h2>📵 Fora do tablet de mesa (Goomer) <span class="hint">'+G.length+' itens · lido em '+esc(d.goomer_lido||'—')+'</span></h2>';
+  if(d.goomer_dias!=null&&d.goomer_dias>2)h+='<div class="aviso">⚠️ <b>Esta lista está velha:</b> a última leitura do Goomer foi em '+esc(d.goomer_lido)+', há '+esc(d.goomer_dias)+' dias. Pode ter item que já voltou ou que saiu depois disso.</div>';
+  return h+pzHtml(G,'go');
+}
+function resumoTablet(d){
+  const G=d.goomer||[];
+  if(!G.length)return {big:'—',sub:'nada pausado na última leitura'+(d.goomer_lido?' ('+esc(d.goomer_lido)+')':''),atencao:false};
+  const at=G.filter(function(x){return String(x.ordem)==='1'||String(x.ordem)==='2'}).length;
+  return {big:plural(G.length,'item','itens'),sub:'fora do ar no tablet'+(at?' · '+at+' sem motivo ou passou da data':'')+' · lido em '+esc(d.goomer_lido||'—'),atencao:at>0};
+}
+
+/* ================= PRÓXIMOS EVENTOS NA CIDADE =================
+   Pedido do Fábio (02/10/2026): saber com 7 dias de antecedência quando tem
+   jogo, show ou evento grande em Curitiba, para se precaver. A lista mora em
+   evento_cidade (agenda pública, cada linha com o link da fonte). */
+const EV_DIAS=7;
+const EV_IC={jogo_casa:'⚽',jogo_fora:'📺',selecao:'🇧🇷',show:'🎤',outro:'📌'};
+const EV_TP={jogo_casa:'jogo em Curitiba',jogo_fora:'jogo fora (TV)',selecao:'Seleção (TV)',show:'show',outro:'evento'};
+function blocoEventos(lista,meta){
+  const hoje=hojeISO(), ate=brd(dMais(EV_DIAS)).slice(0,5);
+  const quando=meta&&meta.conferida?brd(new Date(meta.conferida).toLocaleDateString('sv-SE')):'';
+  const vaiAte=meta&&meta.ultimo?brd(meta.ultimo):'';
+  let h='<div class="evq"><div class="tt">📅 Próximos dias na cidade · até '+ate+'</div>';
+  h+='<div class="ctx">jogos, shows e eventos grandes de Curitiba'+(quando?' · lista conferida em '+quando:'')+(vaiAte?' · a lista vai até '+vaiAte:'')+'</div>';
+  if(!lista.length){
+    h+='<div class="vazio">'+(vaiAte?'Nenhum jogo, show ou evento grande na lista até '+ate+'.':'A lista não tem nenhum evento daqui para a frente — ela precisa ser atualizada.')+'</div></div>';
+    return h;
+  }
+  lista.forEach(e=>{
+    const dt=new Date(e.data+'T12:00:00'), falta=diasEntre(hoje,e.data);
+    const hora=e.hora?String(e.hora).slice(0,5):'hora ?';
+    h+='<div class="evl"><span class="qd">'+SB_DIAS[dt.getDay()].slice(0,3)+' '+brd(e.data).slice(0,5)+' · '+esc(hora)+'</span>'+
+       '<span>'+(EV_IC[e.tipo]||'📌')+' <span class="oq">'+esc(e.titulo)+'</span>'+(e.local?' · '+esc(e.local):'')+'</span>'+
+       (e.a_confirmar?'<span class="pill p-off">a confirmar</span>':'')+
+       '<span class="fa">'+esc(EV_TP[e.tipo]||'evento')+' · '+(falta<=0?'hoje':falta===1?'amanhã':'faltam '+falta+' dias')+
+       (e.fonte_url?' · <a class="src" href="'+esc(e.fonte_url).replace(/"/g,'&quot;')+'" target="_blank" rel="noopener">fonte ↗</a>':'')+'</span></div>';
+  });
+  h+='</div>';
+  return h;
+}
+
+/* ----- capa e navegação ----- */
+const SECOES={
+  equipe:{ic:'👥',tt:'Equipe do salão',resumo:resumoEquipe,corpo:blocoEquipe},
+  tablet:{ic:'📵',tt:'Cardápio no tablet',resumo:resumoTablet,corpo:secTablet},
+  reservas:{ic:'🪑',tt:'Reservas do salão',resumo:resumoReservas,corpo:secReservas},
+  cliente:{ic:'💬',tt:'O que o cliente falou',resumo:resumoCliente,corpo:secCliente},
+  google:{ic:'⭐',tt:'Nota no Google',resumo:resumoGoogle,corpo:secGoogle}
+};
+function capa(d){
+  let h=blocoEventos(d.eventos||[],d.evMeta)+'<div class="tiles">';
+  Object.keys(SECOES).forEach(function(k){
+    const s=SECOES[k], r=s.resumo(d);
+    h+='<button class="tile'+(r.atencao?' atencao':'')+'" onclick="location.hash=\''+k+'\'">'+
+       '<div class="ic">'+s.ic+'</div><div class="tt">'+s.tt+'</div>'+
+       '<div class="big">'+r.big+'</div><div class="sub2">'+r.sub+'</div>'+
+       '<div class="go">abrir →</div></button>';
+  });
+  return h+'</div>';
+}
+function rota(){
+  if(!D)return;
+  const a=document.getElementById('app');a.className='';
+  const k=(location.hash||'').replace('#','');
+  if(SECOES[k]){
+    a.innerHTML='<div class="barra"><button class="voltar" onclick="location.hash=&quot;&quot;">← Voltar</button>'+
+      '<span class="tit">'+SECOES[k].ic+' '+SECOES[k].tt+'</span></div>'+SECOES[k].corpo(D);
+    pzBind(a);
+  } else a.innerHTML=capa(D);
+  window.scrollTo(0,0);
+}
+function render(){rota()}
+window.addEventListener('hashchange',rota);
 async function carregar(){
   const a=document.getElementById('app');a.className='load';a.textContent='Carregando…';
-  try{D=await porta('salao',{});render()}
+  const U='&unidade=eq.'+encodeURIComponent(LOJA);
+  try{
+    const [base,escala,ponto,pessoas,cobertura,balcao,eventos,evUlt]=await Promise.all([
+      porta('salao',{}),
+      rest('fato_escala_posicao?select=data,nome,turno,posicao,unidade&data=gte.'+dMenos(7)+U+'&order=data.desc&limit=200'),
+      rest('fato_espelho_dia?select=nome,unidade,data,entrada,saida,categoria&data=gte.'+dMenos(3)+U+'&order=data.desc&limit=150'),
+      rest('dim_funcionario?select=nome,unidade,setor,entrada,ativo&ativo=is.true'+U+'&limit=100'),
+      rest('escala_cobertura_min?select=unidade,setor,turno,dia_semana,funcao,minimo&setor=ilike.*Sal*'+U+'&limit=50'),
+      rest('saipos_venda_status?select=unidade,dia_operacional,n_pedido,cancelado&canal=is.null&dia_operacional=gte.'+dMenos(3)+U+'&limit=150'),
+      rest('evento_cidade?select=data,hora,tipo,titulo,local,fonte_url,a_confirmar&data=gte.'+hojeISO()+'&data=lte.'+dMais(EV_DIAS)+'&order=data.asc,hora.asc.nullslast&limit=40'),
+      rest('evento_cidade?select=data,atualizado_em&data=gte.'+hojeISO()+'&order=data.desc&limit=1')
+    ]);
+    D=Object.assign({},base,{escala:escala,ponto:ponto,pessoas:pessoas,cobertura:cobertura,balcao:balcao,eventos:eventos,
+      evMeta:{conferida:evUlt[0]&&evUlt[0].atualizado_em,ultimo:evUlt[0]&&evUlt[0].data}});
+    render();
+  }
   catch(e){a.className='erro';a.textContent='Não consegui carregar: '+e.message}
 }
 function boot(){document.getElementById('recarga').onclick=carregar;carregar()}
