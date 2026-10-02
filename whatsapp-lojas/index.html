@@ -54,10 +54,10 @@ a{color:var(--brand)}
 
 <div class="passos">
   <ol>
-    <li>No cartão da loja, clique em <b>Gerar QR</b>. Em até 1 minuto aparece o quadrado com borda vermelha.</li>
+    <li>No cartão da loja, clique em <b>Gerar QR</b> e espere aparecer o quadrado com borda vermelha.</li>
     <li>Pegue o <b>celular daquela loja</b>, abra o WhatsApp e toque nos <b>3 pontinhos</b> (em cima, à direita) → <b>Aparelhos conectados</b>.</li>
     <li>Toque em <b>Conectar um aparelho</b> (botão verde) e aponte para o quadrado com borda vermelha.</li>
-    <li>Se disser <b>“código inválido”</b>, espere 5 segundos e aponte de novo.</li>
+    <li>Se disser <b>“código inválido”</b>, espere um pouco e aponte de novo.</li>
     <li>Quando o cartão ficar <b>verde</b>, pronto. Ele mostra o número que conectou — confira se é o da loja certa.</li>
   </ol>
 </div>
@@ -126,13 +126,15 @@ function cartao(n){
   else if(st==='QR'&&n.qr){cls='qr';pc='qr';pill='🔴 Esperando escanear';
     corpo='<div class="qrwrap"><span class="qrtag">ESCANEIE AQUI</span><div class="qrbox" id="qr_'+esc(n.id)+'"></div></div>';}
   else if(st==='QR'||st==='ABRINDO'||st==='PEDIDO'){pc='warn';pill='⏳ Preparando o QR';
-    corpo='<div class="linha">O computador do escritório está abrindo o WhatsApp desta loja. Leva até 1 minuto.</div>';}
+    corpo='<div class="linha">O computador do escritório está abrindo o WhatsApp desta loja. Espere um pouco.</div>';}
   else if(st==='AUTENTICADO'){pc='warn';pill='⏳ Conectando';
     corpo='<div class="linha">QR aceito — terminando de conectar…</div>';}
-  else if(st==='CAIU'||st==='FALHOU'){cls='bad';pc='bad';pill='⚠️ Caiu';
-    corpo='<div class="linha">Caiu. O PC tenta de novo sozinho e mostra um QR novo aqui. Antes, no celular, em <b>Aparelhos conectados</b>, toque no aparelho velho e em <b>Sair</b>.</div>';}
+  else if((st==='CAIU'||st==='FALHOU')&&n.ligado){cls='bad';pc='bad';pill='⚠️ Caiu';
+    corpo='<div class="linha">Caiu. O computador tenta de novo sozinho e mostra um QR novo aqui. Antes, no celular, em <b>Aparelhos conectados</b>, toque no aparelho velho e em <b>Sair</b>.</div>';}
+  else if(st==='CAIU'||st==='FALHOU'){cls='bad';pc='bad';pill='⚠️ Não ligou';
+    corpo='<div class="linha">O computador tentou algumas vezes e não conseguiu, e parou para não ficar insistindo. Clique em <b>Gerar QR</b> para tentar de novo. Se repetir, me avise.</div>';}
   else if(st==='PAUSADO'){pc='warn';pill='Pausado';
-    corpo='<div class="linha">Ninguém escaneou em 15 minutos. Clique em <b>Gerar QR</b> quando estiver com o celular da loja na mão.</div>';}
+    corpo='<div class="linha">Ninguém escaneou a tempo e o computador parou de esperar. Clique em <b>Gerar QR</b> quando estiver com o celular da loja na mão.</div>';}
   else {corpo='<div class="linha fraca">Ainda não ligado. Clique em <b>Gerar QR</b> quando estiver com o celular da loja na mão.</div>';}
   if(pcMudo) alerta='<div class="linha alerta">⚠️ O computador do escritório não dá notícia '+esc(tempo(n.seg_vivo==null?n.seg_status:n.seg_vivo))+'. Ele está ligado?</div>';
   let bt='';
@@ -186,7 +188,7 @@ function comeca(){
 }
 function para(mostrarBotao){
   if(timer){clearInterval(timer);timer=null} passo=0;
-  if(mostrarBotao){el('rel').textContent='Pausado depois de 10 minutos para não gastar internet.';el('denovo').classList.remove('hid')}
+  if(mostrarBotao){el('rel').textContent='Pausado para não gastar internet.';el('denovo').classList.remove('hid')}
 }
 
 el('cards').addEventListener('click',async function(ev){
