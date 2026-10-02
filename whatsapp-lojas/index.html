@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Ligar WhatsApp das lojas · Cidadão do Mundo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#E0A81C;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',system-ui,sans-serif;font-size:15px;padding:16px;max-width:1100px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:13px;margin-top:4px}
+.passos{margin:16px 0;padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:var(--s1)}
+.passos ol{padding-left:20px;line-height:1.55;color:var(--text2)}
+.passos li{margin-bottom:4px}
+.passos b{color:var(--text)}
+.aviso{margin:10px 0;padding:10px 14px;border-radius:12px;border:1px solid var(--warn);color:#ffd27a;font-weight:600}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.card.ok{border-color:var(--ok)}
+.card.qr{border-color:#e11}
+.card.bad{border-color:var(--bad)}
+.topo{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.nome{font-size:18px;font-weight:800}
+.pill{font-size:12px;font-weight:800;padding:3px 9px;border-radius:999px;background:var(--s2);color:var(--text2);white-space:nowrap}
+.pill.ok{background:#173d29;color:#7fe0a8}
+.pill.bad{background:#4a1f1f;color:#ffb0b0}
+.pill.warn{background:#4a3a12;color:#ffd27a}
+.pill.qr{background:#e11;color:#fff}
+.linha{color:var(--text2);font-size:13.5px}
+.linha.fraca{color:var(--muted);font-size:12.5px}
+.linha.alerta{color:#ffd27a;font-weight:600}
+.qrwrap{position:relative;background:#fff;padding:14px;border-radius:12px;border:6px solid #e11;animation:pisca 1s infinite;margin:10px auto 2px;width:100%;max-width:290px}
+@keyframes pisca{50%{border-color:#ff9a9a;box-shadow:0 0 22px #e11}}
+.qrtag{position:absolute;top:-16px;left:50%;transform:translateX(-50%);background:#e11;color:#fff;font-weight:800;font-size:13px;padding:3px 10px;border-radius:8px;white-space:nowrap}
+.qrbox{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;color:#333;font-weight:600;text-align:center}
+.qrbox img,.qrbox canvas{width:100%!important;height:auto!important}
+.botoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:4px}
+button.b{background:var(--brand);color:#111;border:0;border-radius:10px;padding:9px 14px;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit}
+button.l{background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer;font-family:inherit}
+button:disabled{opacity:.5;cursor:default}
+.novo{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;align-items:center}
+.novo input{background:var(--s1);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;min-width:220px;flex:1;max-width:320px}
+.rel{color:var(--muted);font-size:12.5px;margin-top:12px}
+.hid{display:none}
+a{color:var(--brand)}
+</style>
+</head>
+<body>
+<h1>📱 Ligar WhatsApp das lojas</h1>
+<div class="sub">Um cartão por número · o QR se troca sozinho · o robô só lê, nunca manda mensagem</div>
+
+<div class="passos">
+  <ol>
+    <li>No cartão da loja, clique em <b>Gerar QR</b>. Em até 1 minuto aparece o quadrado com borda vermelha.</li>
+    <li>Pegue o <b>celular daquela loja</b>, abra o WhatsApp e toque nos <b>3 pontinhos</b> (em cima, à direita) → <b>Aparelhos conectados</b>.</li>
+    <li>Toque em <b>Conectar um aparelho</b> (botão verde) e aponte para o quadrado com borda vermelha.</li>
+    <li>Se disser <b>“código inválido”</b>, espere 5 segundos e aponte de novo.</li>
+    <li>Quando o cartão ficar <b>verde</b>, pronto. Ele mostra o número que conectou — confira se é o da loja certa.</li>
+  </ol>
+</div>
+
+<div id="aviso" class="aviso hid"></div>
+<div id="cards" class="cards"><div class="card"><div class="linha">Buscando…</div></div></div>
+
+<div id="novo" class="novo hid">
+  <input id="novoNome" maxlength="40" placeholder="Outro número (ex.: Delivery Água Verde)">
+  <button id="novoBtn" class="l">+ Criar cartão</button>
+</div>
+<div id="rel" class="rel"></div>
+<button id="denovo" class="b hid">Atualizar de novo</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const RAPIDO_MS=5000, LENTO_MS=60000, LIMITE_MS=10*60*1000;
+const ESPERANDO=['PEDIDO','ABRINDO','QR','AUTENTICADO'];
+let timer=null, passo=0, inicio=0, ultimoQr={}, ADMIN=false;
+
+function tok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function el(i){return document.getElementById(i)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+async function porta(nome,corpo){
+  const r=await fetch(SB+'rpc/'+nome,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify(corpo)});
+  const t=await r.text();
+  if(!r.ok){let m=t;try{m=JSON.parse(t).message||t}catch(e){}throw new Error(m)}
+  return t?JSON.parse(t):null;
+}
+function fone(n){
+  n=String(n||'').replace(/\D/g,''); if(!n) return '';
+  if(n.indexOf('55')===0&&n.length>=12) n=n.slice(2);
+  const ddd=n.slice(0,2), r=n.slice(2);
+  return ddd+' '+r.slice(0,-4)+'-'+r.slice(-4);
+}
+function tempo(s){
+  if(s==null) return '';
+  if(s<90) return 'agora há pouco';
+  if(s<3600) return 'há '+Math.round(s/60)+' min';
+  if(s<172800) return 'há '+Math.round(s/3600)+' h';
+  return 'há '+Math.round(s/86400)+' dias';
+}
+function msgs(q,s){
+  if(q==null) return '';
+  return q+(q===1?' mensagem':' mensagens')+' nas últimas 24h'+(s!=null?' · última '+tempo(s):'');
+}
+
+function cartaoSac(s){
+  if(!s) return '';
+  const ok=s.status==='CONECTADO';
+  return '<div class="card'+(ok?' ok':' bad')+'"><div class="topo"><div class="nome">SAC Água Verde</div>'+
+    '<span class="pill '+(ok?'ok':'bad')+'">'+(ok?'✅ Conectado':'⚠️ '+esc(s.status||'?'))+'</span></div>'+
+    '<div class="linha">'+esc(msgs(s.msgs_24h,s.seg_ultima))+'</div>'+
+    '<div class="linha fraca">Este já funciona pela tela própria: <a href="/sac/qr.html">Ligar WhatsApp do SAC</a></div></div>';
+}
+
+function cartao(n){
+  const st=String(n.status||'DESLIGADO');
+  let cls='', pill='Desligado', pc='', corpo='', alerta='';
+  const pcMudo = n.ligado && (n.seg_vivo==null ? (n.seg_status>120) : (n.seg_vivo>180));
+  if(st==='CONECTADO'){cls='ok';pc='ok';pill='✅ Conectado';
+    corpo='<div class="linha">'+(n.meu_numero?'Número <b>'+esc(fone(n.meu_numero))+'</b>':'Número ainda não identificado')+'</div>'+
+          '<div class="linha">'+esc(msgs(n.msgs_24h,n.seg_ultima))+'</div>';}
+  else if(st==='QR'&&n.qr){cls='qr';pc='qr';pill='🔴 Esperando escanear';
+    corpo='<div class="qrwrap"><span class="qrtag">ESCANEIE AQUI</span><div class="qrbox" id="qr_'+esc(n.id)+'"></div></div>';}
+  else if(st==='QR'||st==='ABRINDO'||st==='PEDIDO'){pc='warn';pill='⏳ Preparando o QR';
+    corpo='<div class="linha">O computador do escritório está abrindo o WhatsApp desta loja. Leva até 1 minuto.</div>';}
+  else if(st==='AUTENTICADO'){pc='warn';pill='⏳ Conectando';
+    corpo='<div class="linha">QR aceito — terminando de conectar…</div>';}
+  else if(st==='CAIU'||st==='FALHOU'){cls='bad';pc='bad';pill='⚠️ Caiu';
+    corpo='<div class="linha">Caiu. O PC tenta de novo sozinho e mostra um QR novo aqui. Antes, no celular, em <b>Aparelhos conectados</b>, toque no aparelho velho e em <b>Sair</b>.</div>';}
+  else if(st==='PAUSADO'){pc='warn';pill='Pausado';
+    corpo='<div class="linha">Ninguém escaneou em 15 minutos. Clique em <b>Gerar QR</b> quando estiver com o celular da loja na mão.</div>';}
+  else {corpo='<div class="linha fraca">Ainda não ligado. Clique em <b>Gerar QR</b> quando estiver com o celular da loja na mão.</div>';}
+  if(pcMudo) alerta='<div class="linha alerta">⚠️ O computador do escritório não dá notícia '+esc(tempo(n.seg_vivo==null?n.seg_status:n.seg_vivo))+'. Ele está ligado?</div>';
+  let bt='';
+  if(!n.ligado||st==='PAUSADO'||st==='CAIU'||st==='FALHOU') bt+='<button class="b" data-acao="ligar" data-id="'+esc(n.id)+'">Gerar QR</button>';
+  if(ADMIN&&n.ligado) bt+='<button class="l" data-acao="desligar" data-id="'+esc(n.id)+'">Desligar</button>';
+  return '<div class="card '+cls+'"><div class="topo"><div class="nome">'+esc(n.nome)+'</div><span class="pill '+pc+'">'+pill+'</span></div>'+
+    corpo+alerta+(bt?'<div class="botoes">'+bt+'</div>':'')+'</div>';
+}
+
+function desenhaQrs(lista){
+  const vivos={};
+  lista.forEach(function(n){
+    if(n.status!=='QR'||!n.qr) return;
+    vivos[n.id]=1;
+    const box=el('qr_'+n.id); if(!box) return;
+    if(ultimoQr[n.id]===n.qr&&box.firstChild) return;
+    ultimoQr[n.id]=n.qr; box.innerHTML='';
+    new QRCode(box,{text:n.qr,width:252,height:252,correctLevel:QRCode.CorrectLevel.L});
+  });
+  Object.keys(ultimoQr).forEach(function(k){if(!vivos[k]) delete ultimoQr[k]});
+}
+
+async function busca(){
+  let j=null;
+  try{ j=await porta('wpp_numero_ver',{p_token:tok()}); }catch(e){ j=null; }
+  if(!j){el('aviso').textContent='Não consegui ler agora. Tentando de novo…';el('aviso').classList.remove('hid');return null}
+  el('aviso').classList.add('hid');
+  ADMIN=!!j.admin;
+  const lista=Array.isArray(j.numeros)?j.numeros:[];
+  // os cartoes com QR sao redesenhados sem perder o QR que ja esta na tela
+  const antes={}; document.querySelectorAll('.qrbox').forEach(function(b){antes[b.id]=b});
+  el('cards').innerHTML=cartaoSac(j.sac)+lista.map(cartao).join('');
+  document.querySelectorAll('.qrbox').forEach(function(b){ if(antes[b.id]&&antes[b.id].firstChild){ b.replaceWith(antes[b.id]); } });
+  desenhaQrs(lista);
+  el('novo').classList.toggle('hid',!ADMIN);
+  el('rel').textContent='Atualizado às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  return lista;
+}
+
+async function ciclo(){
+  if(document.hidden) return;
+  if(Date.now()-inicio>LIMITE_MS){para(true);return}
+  const lista=await busca();
+  const rapido=!!(lista&&lista.some(function(n){return n.ligado&&ESPERANDO.indexOf(n.status)>=0}));
+  const quero=rapido?RAPIDO_MS:LENTO_MS;
+  if(quero!==passo){ if(timer) clearInterval(timer); passo=quero; timer=setInterval(ciclo,passo); }
+}
+function comeca(){
+  el('denovo').classList.add('hid');
+  inicio=Date.now(); passo=0; ciclo();
+}
+function para(mostrarBotao){
+  if(timer){clearInterval(timer);timer=null} passo=0;
+  if(mostrarBotao){el('rel').textContent='Pausado depois de 10 minutos para não gastar internet.';el('denovo').classList.remove('hid')}
+}
+
+el('cards').addEventListener('click',async function(ev){
+  const b=ev.target.closest('button[data-acao]'); if(!b) return;
+  const acao=b.getAttribute('data-acao'), id=b.getAttribute('data-id');
+  if(acao==='desligar'&&!confirm('Desligar este número? O robô para de ler as mensagens dele.')) return;
+  b.disabled=true;
+  try{ await porta('wpp_numero_acao',{p_token:tok(),p_acao:acao,p_dados:{id:id}}); }
+  catch(e){ alert('Não deu: '+e.message); }
+  comeca();
+});
+el('novoBtn').addEventListener('click',async function(){
+  const nome=el('novoNome').value.trim(); if(!nome) return;
+  el('novoBtn').disabled=true;
+  try{ await porta('wpp_numero_acao',{p_token:tok(),p_acao:'novo',p_dados:{nome:nome}}); el('novoNome').value=''; }
+  catch(e){ alert('Não deu: '+e.message); }
+  el('novoBtn').disabled=false; comeca();
+});
+el('denovo').addEventListener('click',comeca);
+window.addEventListener('pagehide',function(){para(false)});
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&timer)busca()});
+
+function boot(){comeca()}
+
+/* ===== porta unica do portal ===== */
+const CDMMODS=['wpplojas'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'wpplojas'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){ if(ok) boot(); });
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
