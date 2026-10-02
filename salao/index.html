@@ -45,6 +45,14 @@ a.src:hover{text-decoration:underline}
 .badge{background:var(--s2);border:1px solid var(--line);border-radius:20px;padding:7px 13px;font-size:12.5px;color:var(--text2);text-decoration:none;display:flex;align-items:center;gap:6px}
 .badge b{color:var(--text)}
 .aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:11px 14px;font-size:12.5px;margin-top:14px}
+.evq{background:var(--s1);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:13px;padding:14px 16px;margin-bottom:16px}
+.evq .tt{font-weight:800;font-size:14.5px;margin-bottom:2px}
+.evq .ctx{margin:0 0 8px}
+.evl{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px;color:var(--text2)}
+.evl:last-child{border-bottom:none}
+.evl .qd{color:var(--text);font-weight:700;min-width:118px;font-variant-numeric:tabular-nums}
+.evl .oq{color:var(--text);font-weight:600}
+.evl .fa{margin-left:auto;color:var(--muted);font-size:11.5px;white-space:nowrap}
 .load{color:var(--muted);padding:30px;text-align:center}
 .linha{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--line);color:var(--text2)}
 .linha:last-child{border-bottom:none}
@@ -147,6 +155,7 @@ const fmtN=n=>(n==null?'—':n.toLocaleString('pt-BR'));
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const br=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'';
 const hojeISO=()=>new Date().toLocaleDateString('sv-SE');
+function dMais(n){const d=new Date();d.setDate(d.getDate()+n);return d.toLocaleDateString('sv-SE')}
 function dMenos(n){const d=new Date();d.setDate(d.getDate()-n);return d.toLocaleDateString('sv-SE')}
 function diasEntre(a,b){return Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/86400000)}
 async function get(q){try{const r=await fetch(SB+q,{headers:H});return r.ok?await r.json():[]}catch(e){return []}}
@@ -454,8 +463,40 @@ const SECOES={
 };
 let DADOS=null;
 
+/* ================= PRÓXIMOS EVENTOS NA CIDADE =================
+   Pedido do Fábio (02/10/2026): saber com 7 dias de antecedência quando tem
+   jogo, show ou evento grande em Curitiba, para se precaver. A lista mora em
+   evento_cidade (agenda pública, cada linha com o link da fonte). "Perto da
+   Água Verde" = Arena da Baixada. */
+const EV_DIAS=7;
+const EV_IC={jogo_casa:'⚽',jogo_fora:'📺',selecao:'🇧🇷',show:'🎤',outro:'📌'};
+const EV_TP={jogo_casa:'jogo em Curitiba',jogo_fora:'jogo fora (TV)',selecao:'Seleção (TV)',show:'show',outro:'evento'};
+function blocoEventos(lista,meta){
+  const hoje=hojeISO(), ate=br(dMais(EV_DIAS)).slice(0,5);
+  const quando=meta&&meta.conferida?br(new Date(meta.conferida).toLocaleDateString('sv-SE')):'';
+  const vaiAte=meta&&meta.ultimo?br(meta.ultimo):'';
+  let h='<div class="evq"><div class="tt">📅 Próximos dias na cidade · até '+ate+'</div>';
+  h+='<div class="ctx">jogos, shows e eventos grandes de Curitiba'+(quando?' · lista conferida em '+quando:'')+(vaiAte?' · a lista vai até '+vaiAte:'')+'</div>';
+  if(!lista.length){
+    h+='<div class="vazio">'+(vaiAte?'Nenhum jogo, show ou evento grande na lista até '+ate+'.':'A lista não tem nenhum evento daqui para a frente — ela precisa ser atualizada.')+'</div></div>';
+    return h;
+  }
+  lista.forEach(e=>{
+    const dt=new Date(e.data+'T12:00:00'), falta=diasEntre(hoje,e.data);
+    const hora=e.hora?String(e.hora).slice(0,5):'hora ?';
+    h+='<div class="evl"><span class="qd">'+DIAS[dt.getDay()].slice(0,3)+' '+br(e.data).slice(0,5)+' · '+esc(hora)+'</span>'+
+       '<span>'+(EV_IC[e.tipo]||'📌')+' <span class="oq">'+esc(e.titulo)+'</span>'+(e.local?' · '+esc(e.local):'')+'</span>'+
+       (e.perto_av?'<span class="pill p-warn">perto da Água Verde</span>':'')+
+       (e.a_confirmar?'<span class="pill p-off">a confirmar</span>':'')+
+       '<span class="fa">'+esc(EV_TP[e.tipo]||'evento')+' · '+(falta<=0?'hoje':falta===1?'amanhã':'faltam '+falta+' dias')+
+       (e.fonte_url?' · <a class="src" href="'+esc(e.fonte_url).replace(/"/g,'&quot;')+'" target="_blank" rel="noopener">fonte ↗</a>':'')+'</span></div>';
+  });
+  h+='</div>';
+  return h;
+}
+
 function capa(d){
-  let h='<div class="tiles">';
+  let h=blocoEventos(d.eventos||[],d.evMeta)+'<div class="tiles">';
   Object.keys(SECOES).forEach(k=>{
     const s=SECOES[k], r=s.resumo(d);
     h+='<button class="tile'+(r.atencao?' atencao':'')+'" onclick="abre(\'' + k + '\')">'+
@@ -483,7 +524,7 @@ function render(d){DADOS=d;rota()}
 window.addEventListener('hashchange',rota);
 
 async function boot(){
-  const [gRows,escala,ponto,pessoas,cobertura,pausados,balcao,reservas]=await Promise.all([
+  const [gRows,escala,ponto,pessoas,cobertura,pausados,balcao,reservas,eventos,evUlt]=await Promise.all([
     get('google_fato_avaliacao?select=unidade,id_loja,nota,num_avaliacoes,resumo,destaques,data_coleta&order=data_coleta.desc&limit=200'),
     get('fato_escala_posicao?select=data,nome,turno,posicao,unidade&data=gte.'+dMenos(7)+'&order=data.desc&limit=400'),
     get('fato_espelho_dia?select=nome,unidade,data,entrada,saida,categoria&data=gte.'+dMenos(3)+'&order=data.desc&limit=300'),
@@ -491,10 +532,13 @@ async function boot(){
     get('escala_cobertura_min?select=unidade,setor,turno,dia_semana,funcao,minimo&setor=ilike.*Sal*&limit=100'),
     get('cardapio_pausado?select=unidade,marca,item,tipo,estado,primeiro_visto,visto_em&canal=ilike.*Goomer*&order=primeiro_visto.asc&limit=400'),
     get('saipos_venda_status?select=unidade,dia_operacional,n_pedido,cancelado&canal=is.null&dia_operacional=gte.'+dMenos(3)+'&limit=300'),
-    get('salao_reserva?select=unidade,data,hora,pessoas,area,sinal_pago,status,observacao,origem&data=gte.'+hojeISO()+'&order=data.asc&limit=100')
+    get('salao_reserva?select=unidade,data,hora,pessoas,area,sinal_pago,status,observacao,origem&data=gte.'+hojeISO()+'&order=data.asc&limit=100'),
+    get('evento_cidade?select=data,hora,tipo,titulo,local,perto_av,fonte_url,a_confirmar&data=gte.'+hojeISO()+'&data=lte.'+dMais(EV_DIAS)+'&order=data.asc,hora.asc.nullslast&limit=40'),
+    get('evento_cidade?select=data,atualizado_em&data=gte.'+hojeISO()+'&order=data.desc&limit=1')
   ]);
   const G={};gRows.forEach(x=>{if(!G[x.unidade])G[x.unidade]=x});
-  render({google:G,escala:escala,ponto:ponto,pessoas:pessoas,cobertura:cobertura,pausados:pausados,balcao:balcao,reservas:reservas});
+  render({google:G,escala:escala,ponto:ponto,pessoas:pessoas,cobertura:cobertura,pausados:pausados,balcao:balcao,reservas:reservas,eventos:eventos,
+    evMeta:{conferida:evUlt[0]&&evUlt[0].atualizado_em,ultimo:evUlt[0]&&evUlt[0].data}});
 }
 
 /* ===== porta unica do portal: sessao por usuario ===== */
