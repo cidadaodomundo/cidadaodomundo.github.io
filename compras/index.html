@@ -5,45 +5,47 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#E0A81C">
 <title>Compras no Mercado Livre · Cidadão do Mundo</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
-<style>
-:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#E0A81C;--brand-ink:#111110;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1100px;margin:0 auto}
-h1{font-size:22px;font-weight:800}
-.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
-.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
-.top .rt{margin-left:auto}
-button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
-h2{font-size:15px;font-weight:800;margin:24px 0 10px}
-table{width:100%;border-collapse:collapse;background:var(--s1);border:1px solid var(--line);border-radius:13px;overflow:hidden}
-th,td{padding:9px 12px;text-align:left;font-size:13px;border-bottom:1px solid var(--line)}
-th{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px}
-tr:last-child td{border-bottom:none}
-.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700}
-.p-ped{background:rgba(201,133,0,.15);color:var(--warn)}
-.p-com{background:rgba(47,174,106,.15);color:var(--ok)}
-.p-ent{background:rgba(138,137,126,.15);color:var(--muted)}
-.load{color:var(--muted);padding:30px;text-align:center}
-.vazio{color:var(--muted);font-size:13px;padding:16px;background:var(--s1);border:1px solid var(--line);border-radius:13px}
-.dot{width:40px;height:40px;border-radius:11px;background:var(--brand);color:var(--brand-ink);display:grid;place-items:center;font-weight:800;font-size:16px}
-.aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:11px 14px;font-size:12.5px;margin-top:16px}
-.m{color:var(--muted);font-size:11.5px}
-
-/* cara da casa 04-09-2026 */
-h1,.gatebox h1{font-weight:400}
-h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.01em;line-height:1.06}
-
-/* cabe no celular 04-09-2026 — filas de aba nunca vazam ate 900px; o resto so em tela estreita */
-@media (max-width:900px){.views,.tabs,.abas,.fil,.pes,.filtros,.chips,.lojas,.periodos{display:flex;flex-wrap:wrap;gap:6px;width:auto;max-width:100%;min-width:0}.views>*,.tabs>*,.abas>*,.fil>*,.pes>*{flex:0 0 auto;max-width:100%}}@media (max-width:640px){body{padding-left:12px;padding-right:12px}table{display:block;width:max-content;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}h1{font-size:clamp(18px,6.2vw,26px);word-break:break-word}img,svg,canvas,iframe{max-width:100%}}
-</style>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/cdm-ui.css?v=4">
 </head>
 <body>
-<div class="top">
-  <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>🛒 Compras no Mercado Livre</h1><div class="sub">o que foi pedido para comprar no Mercado Livre — vem das conversas com a Rita no WhatsApp (link + quantidade)</div></div></div>
-  <div class="rt"><button class="b" onclick="location.reload()">↻ Atualizar</button></div>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>🛒 Compras no Mercado Livre</h1>
+      <div class="placar" id="placar"><span class="pl">Carregando…</span></div>
+    </div>
+    <div class="rt">
+      <a class="volta" href="/index.html">← Portal</a>
+      <button class="bx" onclick="boot(true)" title="Buscar de novo">🔄 Atualizar</button>
+      <button class="novo" onclick="abre(null)">➕ Nova compra</button>
+    </div>
+  </div>
+
+  <div class="chips" id="chips"></div>
+  <div class="busca"><span class="lupa">🔎</span><input id="q" placeholder="Procurar: copo, pano, lâmpada, quem pediu…" oninput="pinta()"></div>
+  <div id="app"><div class="vazio"><span class="em">🛒</span>Carregando…</div></div>
 </div>
-<div id="app"><div class="load">Carregando…</div></div>
+
+<dialog id="dlg">
+  <div class="dh"><h3 id="d_tit">Nova compra</h3><button class="x" onclick="fecha()" aria-label="Fechar">✕</button></div>
+  <div class="db">
+    <div class="f"><label for="d_item">🛍️ O que comprar</label><input id="d_item" placeholder="Ex.: Pano de prato 12 unidades" maxlength="200"></div>
+    <div class="cp2">
+      <div class="f"><label for="d_qtd">🔢 Quantidade</label><input id="d_qtd" placeholder="Ex.: 2 caixas" maxlength="40"></div>
+      <div class="f"><label for="d_unid">📍 Loja</label><select id="d_unid"></select></div>
+    </div>
+    <div class="f"><label for="d_link">🔗 Link do Mercado Livre</label><input id="d_link" inputmode="url" placeholder="https://www.mercadolivre.com.br/…" maxlength="500">
+      <div class="dica">Cole o link do produto. Se não for do Mercado Livre, o botão de abrir não aparece.</div></div>
+    <div class="f"><label for="d_obs">📝 Observação</label><input id="d_obs" placeholder="Ex.: cor preta · urgente para sábado" maxlength="400">
+      <div class="dica" id="d_obs_dica">Fica anotada no histórico da compra, com o seu nome e a hora.</div></div>
+  </div>
+  <div class="df">
+    <button class="bx" onclick="fecha()">Cancelar</button>
+    <button class="sal" id="d_sal" onclick="salva()">💾 Salvar</button>
+  </div>
+</dialog>
+<div class="toast" id="toast"></div>
 
 <script>
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
@@ -51,63 +53,191 @@ const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const H={apikey:KEY,Authorization:'Bearer '+KEY};
 const $=i=>document.getElementById(i);
 let SOLOJA=null;try{const _u=new URLSearchParams(location.search).get('u');if(_u)SOLOJA=_u}catch(e){}
-const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const br=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'';
-async function get(q){try{const r=await fetch(SB+q,{headers:H});return r.ok?await r.json():[]}catch(e){return []}}
-const ST={pedido:['falta comprar','p-ped'],comprado:['comprado, esperando chegar','p-com'],entregue:['chegou','p-ent']};
-/* 01/10/2026 04h (Fabio): tela vira so Mercado Livre. Insumos e listas das lojas sairam (outro grupo/app cuida). */
-function lk(u){u=String(u||'');return /^https:\/\/([a-z0-9-]+\.)*(mercadolivre\.com\.br|meli\.la)\//i.test(u)?' <a href="'+esc(u)+'" target="_blank" rel="noopener" style="color:#E0A81C;white-space:nowrap">abrir no Mercado Livre ↗</a>':''}
-/* 01/10/2026 (obra 109): a tela deixa de ser so leitura. Botoes Comprado / Chegou / Nao e compra / Reabrir
-   pela porta compras_acao (exige login). Canceladas nao aparecem mais. O robo da faxina marca com aviso
-   o que parece nao ser compra ou esta parado ha muito tempo; quem decide e a pessoa, no botao. */
-async function acao(a,id){
+function dias(d){const h=new Date();h.setHours(0,0,0,0);const n=Math.round((h-new Date(String(d).slice(0,10)+'T00:00:00'))/86400000);return n<=0?'hoje':(n+' dia'+(n>1?'s':''))}
+function quando(d){const t=dias(d);return t==='hoje'?'hoje':'há '+t}
+
+/* 01/10/2026 04h (Fabio): tela e so Mercado Livre. Insumos e listas das lojas sairam (outro grupo/app cuida).
+   01/10/2026 (obra 109): botoes Comprado / Chegou / Nao e compra / Reabrir pela porta compras_acao.
+   02/10/2026 (obra 114): visual do kit + Nova compra e Editar. */
+const LOJAS=['Água Verde','São Braz','Ahú','Boqueirão'];
+const ST={pedido:['🛒','Falta comprar','ambar'],comprado:['🚚','Comprado, esperando chegar','verde'],entregue:['📦','Chegou','cinza']};
+function ml(u){u=String(u||'');return /^https:\/\/([a-z0-9-]+\.)*(mercadolivre\.com\.br|meli\.la)\//i.test(u)?u:''}
+
+let ROWS=[],FEITOS=[],FILTRO='',EDITA=null;
+
+async function get(q){const r=await fetch(SB+q,{headers:H});if(!r.ok)throw new Error('leitura '+r.status);return await r.json()}
+async function acao(a,dados){
   const r=await fetch(SB+'rpc/compras_acao',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
-    body:JSON.stringify({p_token:cdmTok(),p_acao:a,p_dados:{id:id}})});
+    body:JSON.stringify({p_token:cdmTok(),p_acao:a,p_dados:dados||{}})});
   if(!r.ok){let m='não deu certo';try{const j=await r.json();if(j&&j.message)m=j.message}catch(e){}throw new Error(m)}
   return await r.json();
 }
+let tt=null;
+function aviso(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on')},2600)}
+const OK={comprado:'🚚 Marcado como comprado',chegou:'📦 Chegou! Saiu da lista',nao_compra:'🙅 Saiu da lista: não era compra',confirmar:'🛒 Ok, continua na lista',reabrir:'↩️ Voltou para a lista'};
 async function faz(a,id,btn){
-  try{if(btn)btn.disabled=true;await acao(a,id);await boot()}
-  catch(e){if(btn)btn.disabled=false;const d=$('erro');if(d){d.textContent='Não consegui gravar: '+e.message;d.style.display='block'}}
+  try{if(btn)btn.disabled=true;await acao(a,{id:id});await boot();aviso(OK[a]||'✅ Feito')}
+  catch(e){if(btn)btn.disabled=false;aviso('😕 Não consegui gravar: '+e.message)}
 }
-function bt(a,id,txt,cor){return '<button onclick="faz(\''+a+'\','+id+',this)" style="margin:2px 4px 2px 0;padding:4px 9px;border-radius:8px;border:1px solid '+cor+';background:transparent;color:'+cor+';cursor:pointer;font-size:12px">'+txt+'</button>'}
 
-async function boot(){
-  const abertos=await get('compra_item?select=id,unidade,item,quantidade,status,quem_pediu,origem,criado_em,obs,robo_aviso,link&canal=eq.mercado_livre&status=in.(pedido,comprado)&order=criado_em.desc&limit=200');
-  const ent=await get('compra_item?select=id,unidade,item,criado_em,atualizado_em&canal=eq.mercado_livre&status=eq.entregue&order=atualizado_em.desc.nullslast&limit=20');
-  const so=function(r){return !SOLOJA||r.unidade===SOLOJA};
-  const ativos=abertos.filter(so);
-  const entregues=ent.filter(so);
-  const nAviso=ativos.filter(r=>r.robo_aviso).length;
-  let h='<div id="erro" style="display:none;color:#e0645c;margin:8px 0"></div>';
-  if(nAviso)h+='<div class="aviso" style="margin-bottom:10px">⚠ '+nAviso+' pedido(s) marcados pelo robô da faxina. Confira e clique: <b>Chegou</b> ou <b>Não é compra</b> (some da lista), ou <b>Ainda precisa</b> (fica).</div>';
-  if(!ativos.length){
-    h+='<div class="vazio">Nada para comprar no Mercado Livre agora. Quando a Rita mandar um link do Mercado Livre no WhatsApp, ele aparece aqui sozinho em até 3 minutos.</div>';
-  } else {
-    const lojas={};ativos.forEach(r=>{(lojas[r.unidade]=lojas[r.unidade]||[]).push(r)});
-    Object.keys(lojas).sort().forEach(u=>{
-      h+='<h2>'+esc(u)+' <span style="color:var(--muted);font-size:13px">('+lojas[u].length+')</span></h2><table><tr><th>Item</th><th>Qtd</th><th>Situação</th><th>Quem pediu</th><th>Quando</th><th>O que fazer</th></tr>';
-      lojas[u].forEach(r=>{
-        const s=ST[r.status]||ST.pedido;
-        let b='';
-        if(r.robo_aviso)b+=bt('chegou',r.id,'Chegou','#8fbf6a')+bt('nao_compra',r.id,'Não é compra','#e0645c')+bt('confirmar',r.id,'Ainda precisa','#E0A81C');
-        else {
-          if(r.status==='pedido')b+=bt('comprado',r.id,'Comprado','#E0A81C');
-          b+=bt('chegou',r.id,'Chegou','#8fbf6a')+bt('nao_compra',r.id,'Não é compra','#9a9a9a');
-        }
-        h+='<tr><td>'+esc(r.item)+lk(r.link)+(r.robo_aviso?'<div class="m" style="color:#E0A81C">⚠ '+esc(r.robo_aviso)+'</div>':'')+(r.obs?'<div class="m">'+esc(r.obs)+'</div>':'')+'</td><td>'+esc(r.quantidade||'—')+'</td>'+
-           '<td><span class="pill '+s[1]+'">'+s[0]+'</span></td><td>'+esc(r.quem_pediu||'—')+'</td><td>'+br(r.criado_em)+'</td><td>'+b+'</td></tr>';
-      });
-      h+='</table>';
+function historico(obs){
+  const p=String(obs||'').split(' | ').map(function(s){return s.trim()}).filter(Boolean);
+  if(!p.length)return '';
+  const ult=p.slice(-2),antes=p.slice(0,-2);
+  let h='<div class="hist">';
+  if(antes.length)h+='<details><summary>🕘 ver '+antes.length+' anotação(ões) antiga(s)</summary>'+antes.map(function(x){return '<div class="ln">'+esc(x)+'</div>'}).join('')+'</details>';
+  return h+ult.map(function(x){return '<div class="ln">💬 '+esc(x)+'</div>'}).join('')+'</div>';
+}
+
+function pintaChips(){
+  const lojas=SOLOJA?[]:LOJAS.filter(function(u){return ROWS.some(function(r){return r.unidade===u})});
+  ROWS.forEach(function(r){if(!SOLOJA&&lojas.indexOf(r.unidade)<0)lojas.push(r.unidade)});
+  const conta=function(f){return ROWS.filter(f).length};
+  const fs=[{k:'',e:'🛍️',r:'Tudo',n:ROWS.length}]
+    .concat(lojas.map(function(u){return {k:'u:'+u,e:'🏪',r:u,n:conta(function(r){return r.unidade===u})}}))
+    .concat([{k:'s:pedido',e:'🛒',r:'Falta comprar',n:conta(function(r){return r.status==='pedido'})},
+             {k:'s:comprado',e:'🚚',r:'A caminho',n:conta(function(r){return r.status==='comprado'})}]);
+  $('chips').innerHTML=fs.map(function(f){
+    return '<button class="chip'+(FILTRO===f.k?' on':'')+'" data-f="'+esc(f.k)+'"><span class="em">'+f.e+'</span>'+esc(f.r)+'<span class="ct">'+f.n+'</span></button>';
+  }).join('');
+}
+function passa(r){
+  if(!FILTRO)return true;
+  if(FILTRO.indexOf('u:')===0)return r.unidade===FILTRO.slice(2);
+  if(FILTRO.indexOf('s:')===0)return r.status===FILTRO.slice(2);
+  return true;
+}
+function bate(r,q){return !q||[r.item,r.quantidade,r.unidade,r.quem_pediu,r.obs].join(' ').toLowerCase().indexOf(q)>=0}
+
+function cartao(r){
+  const s=ST[r.status]||ST.pedido,l=ml(r.link);
+  let h='<div class="c">'+
+    '<div class="ch"><div class="av">'+s[0]+'</div>'+
+      '<div><div class="nm">'+esc(r.item)+'</div><div class="st">'+(r.quantidade?'🔢 '+esc(r.quantidade)+' · ':'')+
+        'pedido por '+esc(r.quem_pediu||'?')+' '+quando(r.criado_em)+' ('+br(r.criado_em)+')</div></div>'+
+      '<button class="ed" data-ed="'+r.id+'" title="Mudar esta compra">✏️ Editar</button></div>'+
+    '<div class="tags"><span class="tg '+s[2]+'">'+s[0]+' '+s[1]+'</span></div>';
+  if(r.robo_aviso){
+    h+='<div class="robo"><div>🤖 '+esc(r.robo_aviso)+'</div><div class="bts">'+
+      '<button class="bt mini" data-a="chegou" data-id="'+r.id+'">📦 Chegou</button>'+
+      '<button class="bt mini" data-a="nao_compra" data-id="'+r.id+'">🙅 Não é compra</button>'+
+      '<button class="bt mini" data-a="confirmar" data-id="'+r.id+'">🛒 Ainda precisa</button></div></div>';
+  }
+  h+=historico(r.obs);
+  h+='<div class="acs">'+
+    (r.status==='pedido'?'<button class="bt res" data-a="comprado" data-id="'+r.id+'"><span class="ic">🚚</span>Comprado</button>':'')+
+    (r.robo_aviso?'':'<button class="bt '+(r.status==='pedido'?'lig':'res')+'" data-a="chegou" data-id="'+r.id+'"><span class="ic">📦</span>Chegou</button>')+
+    (l?'<a class="bt ml" href="'+esc(l)+'" target="_blank" rel="noopener"><span class="ic">🛒</span>Abrir</a>':'')+
+  '</div>';
+  if(!r.robo_aviso)h+='<div class="linha-mini"><button class="bt mini" data-a="nao_compra" data-id="'+r.id+'">🙅 Não é compra</button></div>';
+  return h+'</div>';
+}
+function cartaoFeito(r){
+  return '<div class="c feito"><div class="ch"><div class="av">📦</div>'+
+    '<div><div class="nm">'+esc(r.item)+'</div><div class="st">'+esc(r.unidade)+' · pedido em '+br(r.criado_em)+'</div></div>'+
+    '<button class="ed" data-a="reabrir" data-id="'+r.id+'" title="Voltar para a lista">↩️ Reabrir</button></div></div>';
+}
+
+function pinta(){
+  const q=($('q').value||'').trim().toLowerCase();
+  const lista=ROWS.filter(function(r){return passa(r)&&bate(r,q)});
+  const feitos=FEITOS.filter(function(r){return (!FILTRO||FILTRO.indexOf('u:')!==0||r.unidade===FILTRO.slice(2))&&bate(r,q)});
+  let h='';
+  const nAviso=ROWS.filter(function(r){return r.robo_aviso}).length;
+  if(nAviso)h+='<div class="robo" style="margin-bottom:14px"><div>🤖 <b>'+nAviso+'</b> pedido(s) marcados pelo robô da faxina. Confira cada um: <b>Chegou</b> ou <b>Não é compra</b> (some da lista), ou <b>Ainda precisa</b> (fica).</div></div>';
+  if(!lista.length){
+    h+='<div class="vazio"><span class="em">🎉</span>'+(ROWS.length?'Nada nesse filtro.':'Nada para comprar no Mercado Livre agora. Quando a Rita mandar um link do Mercado Livre no WhatsApp, ele aparece aqui sozinho em até 3 minutos.')+'</div>';
+  }else{
+    const grupos={};
+    lista.forEach(function(r){(grupos[r.unidade]=grupos[r.unidade]||[]).push(r)});
+    Object.keys(grupos).sort(function(a,b){return a.localeCompare(b,'pt-BR')}).forEach(function(u){
+      const l=grupos[u];
+      h+='<div class="grp"><span class="em">🏪</span><h2>'+esc(u)+'</h2><span class="ct">'+l.length+'</span></div>'+
+        '<div class="grade">'+l.map(cartao).join('')+'</div>';
     });
   }
-  if(entregues.length){
-    h+='<h2 style="color:var(--muted)">chegaram recentemente</h2><table><tr><th>Item</th><th>Loja</th><th>Pedido em</th><th></th></tr>';
-    entregues.forEach(r=>{h+='<tr><td>'+esc(r.item)+'</td><td>'+esc(r.unidade)+'</td><td>'+br(r.criado_em)+'</td><td>'+bt('reabrir',r.id,'Reabrir','#9a9a9a')+'</td></tr>'});
-    h+='</table>';
-  }
-  h+='<div class="aviso">Tela alimentada pelo WhatsApp (conversas com a Rita, de 3 em 3 min): cada link do Mercado Livre vira um pedido. Clique <b>Comprado</b> quando fizer a compra e <b>Chegou</b> quando a entrega chegar.</div>';
+  if(feitos.length)h+='<details class="mais"><summary>📦 Chegaram recentemente ('+feitos.length+')</summary><div class="grade">'+feitos.map(cartaoFeito).join('')+'</div></details>';
+  h+='<div class="aviso2">Tela alimentada pelo WhatsApp (conversas com a Rita, de 3 em 3 min): cada link do Mercado Livre vira um pedido. '+
+     'Toque em <b>🚚 Comprado</b> quando fizer a compra e em <b>📦 Chegou</b> quando a entrega chegar. Pedido que veio fora do WhatsApp? <b>➕ Nova compra</b>.</div>';
   $('app').innerHTML=h;
+}
+
+/* ---- janela de editar / nova compra ---- */
+function abre(id){
+  const r=id==null?null:ROWS.find(function(x){return x.id===id});
+  EDITA=r?r.id:null;
+  const lojas=SOLOJA?[SOLOJA]:LOJAS.slice();if(r&&lojas.indexOf(r.unidade)<0)lojas.push(r.unidade);
+  $('d_unid').innerHTML=(r||SOLOJA?'':'<option value="">Escolha a loja…</option>')+lojas.map(function(u){return '<option value="'+esc(u)+'">🏪 '+esc(u)+'</option>'}).join('');
+  $('d_tit').textContent=r?'✏️ Editar compra':'➕ Nova compra';
+  $('d_item').value=r?r.item:'';
+  $('d_qtd').value=r?(r.quantidade||''):'';
+  $('d_unid').value=r?r.unidade:(SOLOJA||(FILTRO.indexOf('u:')===0?FILTRO.slice(2):''));
+  $('d_link').value=r?(r.link||''):'';
+  $('d_obs').value='';
+  $('d_obs').placeholder=r?'O que mudou? (opcional)':'Ex.: cor preta · urgente para sábado';
+  $('d_sal').disabled=false;
+  const d=$('dlg');
+  if(d.showModal)d.showModal();else d.setAttribute('open','');
+  setTimeout(function(){$('d_item').focus()},30);
+}
+function fecha(){const d=$('dlg');if(d.close)d.close();else d.removeAttribute('open')}
+
+async function salva(){
+  if($('d_sal').disabled)return;
+  const it=$('d_item').value.trim(),u=$('d_unid').value,lk=$('d_link').value.trim();
+  if(!it){aviso('✋ Escreva o que comprar');$('d_item').focus();return}
+  if(!u){aviso('✋ Escolha a loja');$('d_unid').focus();return}
+  if(lk&&!/^https?:\/\//i.test(lk)){aviso('✋ O link tem que começar com https://');$('d_link').focus();return}
+  const dados={item:it,unidade:u,quantidade:$('d_qtd').value.trim(),link:lk,obs:$('d_obs').value.trim()};
+  $('d_sal').disabled=true;
+  try{
+    const novo=EDITA==null;
+    if(novo){const r=await acao('novo',dados);if(r&&r.id)EDITA=r.id}
+    else{dados.id=EDITA;await acao('editar',dados)}
+    fecha();
+    await boot();
+    aviso(novo?'🎉 Compra cadastrada!':'✅ Compra atualizada!');
+  }catch(e){
+    $('d_sal').disabled=false;
+    aviso('😕 Não deu para salvar: '+e.message);
+  }
+}
+
+/* ---- cliques ---- */
+document.addEventListener('click',function(ev){
+  const t=ev.target.closest('[data-f],[data-ed],[data-a]');
+  if(!t)return;
+  if(t.hasAttribute('data-f')){FILTRO=t.getAttribute('data-f');pintaChips();pinta()}
+  else if(t.hasAttribute('data-ed'))abre(Number(t.getAttribute('data-ed')));
+  else if(t.hasAttribute('data-a')){
+    const a=t.getAttribute('data-a'),id=Number(t.getAttribute('data-id'));
+    if(a==='nao_compra'&&!confirm('Tirar da lista? (não é uma compra)'))return;
+    faz(a,id,t);
+  }
+});
+$('dlg').addEventListener('keydown',function(ev){if(ev.key==='Enter'&&ev.target.tagName==='INPUT'){ev.preventDefault();salva()}});
+
+async function boot(manual){
+  let abertos,ent;
+  try{
+    abertos=await get('compra_item?select=id,unidade,item,quantidade,status,quem_pediu,origem,criado_em,obs,robo_aviso,link&canal=eq.mercado_livre&status=in.(pedido,comprado)&order=criado_em.desc&limit=200');
+    ent=await get('compra_item?select=id,unidade,item,criado_em,atualizado_em&canal=eq.mercado_livre&status=eq.entregue&order=atualizado_em.desc.nullslast&limit=20');
+  }catch(e){
+    $('app').innerHTML='<div class="vazio"><span class="em">🔌</span>Não deu para carregar as compras. Entre no portal de novo.</div>';
+    return;
+  }
+  const so=function(r){return !SOLOJA||r.unidade===SOLOJA};
+  ROWS=abertos.filter(so);FEITOS=ent.filter(so);
+  const falta=ROWS.filter(function(r){return r.status==='pedido'}).length;
+  const cam=ROWS.filter(function(r){return r.status==='comprado'}).length;
+  const rb=ROWS.filter(function(r){return r.robo_aviso}).length;
+  $('placar').innerHTML='<span class="pl">🛒 <b>'+falta+'</b> falta comprar</span><span class="pl">🚚 <b>'+cam+'</b> a caminho</span>'+
+    (rb?'<span class="pl">🤖 <b>'+rb+'</b> para conferir</span>':'')+(SOLOJA?'<span class="pl">🏪 '+esc(SOLOJA)+'</span>':'');
+  pintaChips();
+  pinta();
+  if(manual)aviso('🔄 Atualizado');
 }
 
 /* ===== porta unica do portal ===== */
