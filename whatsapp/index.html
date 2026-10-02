@@ -60,7 +60,7 @@ const TELA={manutencao:'Manutenção',compras_ml:'Compras ML',encomenda:'Encomen
   regra_da_casa:'Regra da casa',sistema_com_defeito:'Sistema com defeito',vigilancia_sanitaria:'Vigilância / nutri'};
 const LOJA={agua_verde:'Água Verde',ahu:'Ahú',sao_braz:'São Braz'};
 const ACAO={fechar:'diz que já foi resolvido',atualizar:'traz novidade',abrir:'assunto novo',anotar:'para saber'};
-let DADOS=[],FILTRO='',TELAS=[];
+let DADOS=[],FILTRO='',TELAS=[],VERBAIXA=false;
 async function porta(a,d){
   const r=await fetch(SB+'rpc/central_sugestao_porta',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
     body:JSON.stringify({p_token:cdmTok(),p_acao:a,p_dados:d||{}})});
@@ -86,18 +86,21 @@ async function faz(a,id,btn){
   catch(e){btn.disabled=false;const d=$('erro');if(d){d.style.color='#e0645c';d.textContent='Não consegui gravar: '+e.message;d.style.display='block'}}
 }
 function filtra(i){const t=(i<0?'':TELAS[i]);FILTRO=(FILTRO===t?'':t);desenha()}
+function trocaBaixa(){VERBAIXA=!VERBAIXA;FILTRO='';desenha()}
 function desenha(){
-  const cont={};DADOS.forEach(s=>{cont[s.tela]=(cont[s.tela]||0)+1});
+  const VIS=DADOS.filter(s=>VERBAIXA||s.certeza!=='baixa');const nBaixa=DADOS.filter(s=>s.certeza==='baixa').length;
+  const cont={};VIS.forEach(s=>{cont[s.tela]=(cont[s.tela]||0)+1});
   let h='<div id="erro" style="display:none;margin:8px 0"></div>';
   h+='<div class="aviso">Período de teste: <b>Aceitar</b> faz a mudança no portal; <b>Não é isso</b> descarta. Cada clique ensina quanto o robô acerta.</div>';
-  if(!DADOS.length){$('app').innerHTML=h+'<div class="vazio">Nenhuma sugestão esperando. O robô lê o WhatsApp sozinho; o que ele achar aparece aqui.</div>';return}
-  h+='<div class="chips"><span class="chip'+(FILTRO?'':' on')+'" onclick="filtra(-1)">Todas ('+DADOS.length+')</span>';
+  if(nBaixa)h+='<div class="chips"><span class="chip'+(VERBAIXA?' on':'')+'" onclick="trocaBaixa()">'+(VERBAIXA?'Esconder as de certeza baixa':'Ver também as de certeza baixa')+' ('+nBaixa+')</span></div>';
+  if(!VIS.length){$('app').innerHTML=h+'<div class="vazio">Nenhuma sugestão esperando. O robô lê o WhatsApp sozinho; o que ele achar aparece aqui.</div>';return}
+  h+='<div class="chips"><span class="chip'+(FILTRO?'':' on')+'" onclick="filtra(-1)">Todas ('+VIS.length+')</span>';
   TELAS=Object.keys(cont).sort((a,b)=>cont[b]-cont[a]);
   TELAS.forEach((t,i)=>{
     h+='<span class="chip'+(FILTRO===t?' on':'')+'" onclick="filtra('+i+')">'+esc(TELA[t]||t)+' ('+cont[t]+')</span>';
   });
   h+='</div>';
-  DADOS.filter(s=>!FILTRO||s.tela===FILTRO).forEach(s=>{
+  VIS.filter(s=>!FILTRO||s.tela===FILTRO).forEach(s=>{
     h+='<div class="card"><div class="l1"><span>'+esc(s.quando||'')+'</span><span>·</span><span>'+esc(s.de||'')+'</span>'+
       (s.loja?'<span>·</span><span>'+esc(LOJA[s.loja]||s.loja)+'</span>':'')+
       '<span class="pill p-tela">'+esc(TELA[s.tela]||s.tela)+'</span>'+
