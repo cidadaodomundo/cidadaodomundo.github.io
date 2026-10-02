@@ -116,8 +116,23 @@ const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const H={apikey:KEY,Authorization:'Bearer '+KEY};
 const $=i=>document.getElementById(i);
-let UNI=['Água Verde','São Braz','Ahú'];
-try{const _u=new URLSearchParams(location.search).get('u');if(_u&&UNI.indexOf(_u)>=0){UNI=[_u]}}catch(e){}
+const UNI_TODAS=['Água Verde','São Braz','Ahú'];
+let UNI=UNI_TODAS.slice();
+/* ?u= no endereço trava a tela numa loja (é como o São Braz entra) e esconde os botões */
+let UNI_TRAVADA=false;
+try{const _u=new URLSearchParams(location.search).get('u');if(_u&&UNI.indexOf(_u)>=0){UNI=[_u];UNI_TRAVADA=true}}catch(e){}
+/* sem trava: os botões de loja escolhem; a escolha fica guardada só nesta aba */
+if(!UNI_TRAVADA){try{const _s=sessionStorage.getItem('salao_loja');if(_s&&UNI_TODAS.indexOf(_s)>=0)UNI=[_s]}catch(e){}}
+function daLoja(l){return (l||[]).filter(x=>UNI.indexOf(x.unidade)>=0)}
+function setLoja(u){UNI=u?[u]:UNI_TODAS.slice();try{sessionStorage.setItem('salao_loja',u||'')}catch(e){}rota()}
+function lojaChips(){
+  if(UNI_TRAVADA)return '';
+  const todas=UNI.length===UNI_TODAS.length;
+  return '<div class="chips">'+
+    '<button class="chip'+(todas?' on':'')+'" onclick="setLoja(\'\')">Todas as lojas</button>'+
+    UNI_TODAS.map(u=>'<button class="chip'+(!todas&&UNI[0]===u?' on':'')+'" onclick="setLoja(\''+u+'\')">'+u+'</button>').join('')+
+    '</div>';
+}
 const DIAS=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
 
 /* --- snapshot manual: tudo que nao tem robo (pesquisado na internet em 13/08/2026) --- */
@@ -397,7 +412,7 @@ function blocoReservas(res){
   return h;
 }
 function resumoReservas(d){
-  const l=d.reservas||[];
+  const l=daLoja(d.reservas);
   if(!l.length)return {big:'—',sub:'nenhuma reserva anotada de hoje em diante',atencao:false};
   const pessoas=l.reduce((s,r)=>s+(Number(r.pessoas)||0),0);
   const prox=l.map(r=>String(r.data).slice(0,10)).sort()[0];
@@ -431,9 +446,10 @@ function resumoEquipe(d){
     atencao:semEscala.length>0};
 }
 function resumoGoomer(d){
-  if(!d.pausados.length)return {big:'—',sub:'a varredura dos tablets ainda não trouxe nada',atencao:false};
+  const pz=daLoja(d.pausados);
+  if(!pz.length)return {big:'—',sub:'a varredura dos tablets ainda não trouxe nada',atencao:false};
   const chave={}, hoje=hojeISO();
-  d.pausados.forEach(p=>{chave[p.unidade+'|'+p.item]=String(p.primeiro_visto).slice(0,10)});
+  pz.forEach(p=>{chave[p.unidade+'|'+p.item]=String(p.primeiro_visto).slice(0,10)});
   const ks=Object.keys(chave);
   const maisVelho=ks.map(k=>chave[k]).sort()[0];
   const dias=diasEntre(maisVelho,hoje);
@@ -450,14 +466,15 @@ function resumoGoogle(d){
   const menor=Math.min.apply(null,notas);
   const loja=UNI.filter(u=>d.google[u]&&+d.google[u].nota===menor)[0];
   const media=notas.reduce((a,b)=>a+b,0)/notas.length;
+  if(notas.length===1)return {big:nb(menor),sub:'nota de '+loja+' no Google',atencao:menor<4.2};
   return {big:nb(media),sub:'média das lojas · a mais baixa é '+loja+' com '+nb(menor),atencao:menor<4.2};
 }
 
 /* ================= CAPA E NAVEGAÇÃO ================= */
 const SECOES={
   equipe:{ic:'👥',tt:'Equipe do salão',resumo:resumoEquipe,corpo:d=>blocoEquipe(d)},
-  tablet:{ic:'📵',tt:'Cardápio no tablet',resumo:resumoGoomer,corpo:d=>blocoGoomer(d.pausados)},
-  reservas:{ic:'🪑',tt:'Reservas do salão',resumo:resumoReservas,corpo:d=>blocoReservas(d.reservas)},
+  tablet:{ic:'📵',tt:'Cardápio no tablet',resumo:resumoGoomer,corpo:d=>blocoGoomer(daLoja(d.pausados))},
+  reservas:{ic:'🪑',tt:'Reservas do salão',resumo:resumoReservas,corpo:d=>blocoReservas(daLoja(d.reservas))},
   cliente:{ic:'💬',tt:'O que o cliente falou',resumo:resumoClientes,corpo:d=>blocoClientes(d.google)},
   google:{ic:'⭐',tt:'Nota no Google',resumo:resumoGoogle,corpo:d=>blocoGoogle(d.google)+blocoMarca()}
 };
@@ -514,9 +531,9 @@ function rota(){
   const k=(location.hash||'').replace('#','');
   if(SECOES[k]){
     $('app').innerHTML='<div class="barra"><button class="voltar" onclick="location.hash=&quot;&quot;">← Voltar</button>'+
-      '<span class="tit">'+SECOES[k].ic+' '+SECOES[k].tt+'</span></div>'+SECOES[k].corpo(DADOS);
+      '<span class="tit">'+SECOES[k].ic+' '+SECOES[k].tt+'</span></div>'+lojaChips()+SECOES[k].corpo(DADOS);
   } else {
-    $('app').innerHTML=capa(DADOS);
+    $('app').innerHTML=lojaChips()+capa(DADOS);
   }
   window.scrollTo(0,0);
 }
