@@ -81,8 +81,8 @@ button.b.on{background:var(--brand);color:var(--brand-ink);border-color:var(--br
   </div>
   <div class="rt per" id="per">
     <button class="chip" data-d="1">Hoje</button>
+    <button class="chip" data-d="ontem">Ontem</button>
     <button class="chip on" data-d="7">7 dias</button>
-    <button class="chip" data-d="14">14 dias</button>
   </div>
 </div>
 <div id="app" class="load">Carregando…</div>
@@ -98,8 +98,10 @@ async function rpc(nome,corpo){
   return r.json();
 }
 function porta(acao,dados){return rpc('sb_consulta',{p_token:cdmTok(),p_acao:acao,p_dados:dados||{}})}
-function central(){return rpc('sb_central',{p_token:cdmTok(),p_dados:{dias:DIAS}})}
-function erros(){return rpc('sb_erros',{p_token:cdmTok(),p_dados:{dias:DIAS}})}
+/* 03/10/2026 pedido do Fabio: periodo Hoje, Ontem e 7 dias (os tres motores entendem 'ontem') */
+function per(){return {dias:DIAS,ontem:ONTEM}}
+function central(){return rpc('sb_central',{p_token:cdmTok(),p_dados:per()})}
+function erros(){return rpc('sb_erros',{p_token:cdmTok(),p_dados:per()})}
 /* ===== itens pausados: o motivo e o que fazer ===== */
 const PZ_MOT={
   esqueceram:{ic:'🙈',t:'Esqueceram de despausar',d:'O item tem, mas ficou pausado por engano.',
@@ -226,7 +228,7 @@ async function verFoto(b){
 
 /* ===== estado ===== */
 const CDMMODS=['sbdelivery'];
-let DIAS=7, D=null, C=null, E=null, DERR='', CERR='', EERR='', ABERTO=null, FONTE='', ASSUNTO='';
+let DIAS=7, ONTEM=false, D=null, C=null, E=null, DERR='', CERR='', EERR='', ABERTO=null, FONTE='', ASSUNTO='';
 const FONTES=[['','Tudo'],['grupo','Grupos do São Braz'],['ia','Outros grupos (a IA marcou São Braz)']];
 function marcaCurta(m){return String(m||'').replace(/CIDAD[ÃA]O DO MUNDO\s*/i,'').replace(/\s*-\s*(S[ÃA]O BRAZ|SB)\s*$/i,'').trim()||String(m||'')}
 function assuntoNome(a){return String(a||'outro').replace(/_/g,' ')}
@@ -429,7 +431,7 @@ function render(){
   const mal=QP.concat(QE).filter(function(q){return q.k==='mal'}).length;
   const sac=(E&&E.problemas)||[], sem=sac.filter(function(x){return x.pendente}).length+abertos(itensDe('chat')).length;
   document.getElementById('placar').innerHTML=
-    '<span class="pl">Período <b>'+esc((E&&E.de)||(D&&D.de)||'')+(DIAS>1?' a '+esc((E&&E.ate)||(D&&D.ate)||''):'')+'</b></span>'+
+    '<span class="pl">Período <b>'+esc((E&&E.de)||(D&&D.de)||'')+(DIAS>1&&!ONTEM?' a '+esc((E&&E.ate)||(D&&D.ate)||''):'')+'</b></span>'+
     '<span class="pl"><b>'+mal+'</b> quadro'+(mal===1?'':'s')+' com problema</span>'+
     (sem?'<span class="pl" style="border-color:rgba(230,103,103,.5)"><b style="color:#ff9a9a">'+sem+'</b> sem solução registrada</span>':'');
   let h=fontes();
@@ -460,7 +462,7 @@ function primeiroComProblema(){
 }
 async function carregar(){
   const a=document.getElementById('app');a.className='load';a.textContent='Carregando…';
-  const p1=porta('delivery',{dias:DIAS}).then(function(j){D=j;DERR=''},function(e){D=null;DERR=e.message});
+  const p1=porta('delivery',per()).then(function(j){D=j;DERR=''},function(e){D=null;DERR=e.message});
   const p2=central().then(function(j){C=j;CERR=''},function(e){C=null;CERR=e.message});
   const p3=erros().then(function(j){E=j;EERR=''},function(e){E=null;EERR=e.message});
   await Promise.all([p1,p2,p3]);
@@ -470,7 +472,7 @@ async function carregar(){
 }
 function boot(){
   document.querySelectorAll('#per [data-d]').forEach(function(b){b.onclick=function(){
-    DIAS=+b.dataset.d;document.querySelectorAll('#per [data-d]').forEach(function(x){x.classList.toggle('on',x===b)});carregar()}});
+    ONTEM=b.dataset.d==='ontem';DIAS=ONTEM?1:+b.dataset.d;document.querySelectorAll('#per [data-d]').forEach(function(x){x.classList.toggle('on',x===b)});carregar()}});
   carregar();
 }
 /* ===== porta unica do portal: sessao por usuario ===== */
