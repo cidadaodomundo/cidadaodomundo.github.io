@@ -44,7 +44,6 @@ button.b:hover{border-color:var(--text2)}
 .painel .ph h3{font-family:'Anton',Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:19px;letter-spacing:.02em}
 .painel .ph .ct{color:var(--muted);font-size:13px;font-weight:600}
 .painel .ph .fecha{margin-left:auto}
-.painel h3.turno{font-size:14px;font-weight:800;margin:14px 0 6px}
 .nota{color:var(--muted);font-size:12px;margin-top:12px;line-height:1.5}
 .pz{width:100%;border-collapse:collapse;font-size:12.5px}.pz th{text-align:left;color:var(--muted);font-size:10.5px;font-weight:800;padding:4px 6px;border-bottom:1px solid var(--line)}.pz td{padding:6px;border-bottom:1px solid var(--line);vertical-align:top}
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -409,19 +408,6 @@ function duplaPainel(){
     '<iframe src="/pagamento/?aba=dup&embed=1&cb='+Date.now()+'" style="width:100%;height:75vh;min-height:560px;border:0;border-radius:9px;background:var(--s0)" title="Corrida em dobro"></iframe></div>';
 }
 
-function bloco(tu, titulo){
-  var corpo='', n=0;
-  ((D&&D.itens)||[]).forEach(function(l,i){
-    if(TIPO && l.tipo!==TIPO) return;
-    if(VER!=='tudo' && l.resolvido) return;
-    if((l.turno||'sem hora')!==tu) return;
-    n++; corpo+=linha(l,i);
-  });
-  if(!n) return '';
-  return '<h3 class="turno">'+titulo+' <span style="color:var(--muted);font-weight:600">('+n+')</span></h3>'+
-    '<div class="c"><table><tr><th>Quando</th><th>Loja</th><th>O que &eacute;</th><th>Pedido</th><th>Situa&ccedil;&atilde;o</th></tr>'+corpo+'</table></div>';
-}
-
 function cardEsq(){
   var es=(D&&D.esquecidos)||[];
   if(!es.length) return cardF0('Errado no pedido','&#128717;&#65039;');
@@ -571,24 +557,6 @@ async function reabrir(i){
   boot();
 }
 
-function linha(l,i){
-  return '<tr><td style="white-space:nowrap">'+esc(l.quando||'')+'</td>'+
-    '<td style="white-space:nowrap">'+esc(l.unidade||'')+'</td>'+
-    '<td>'+esc(rotulo(l.tipo))+'<div class="m">'+esc(l.o_que_e||'')+'</div></td>'+
-    '<td>'+esc(l.referencia||'')+
-      ((l.fotos>0)?' <button class="mini" onclick="verFotos('+i+')">📷 '+l.fotos+(l.fotos>1?' fotos':' foto')+'</button>':'')+
-      (l.tem_conversa?' <button class="mini" onclick="verConversa('+i+')">💬 conversa</button>':'')+
-      ((l.n_conversas>1)?'<div style="margin-top:5px;color:var(--warn);font-size:12px">⚠️ '+l.n_conversas+' conversas com esse numero de pedido — nao da para saber qual e</div>':'')+
-      (l.cliente_disse?'<div style="margin-top:5px;color:var(--brand);font-size:13px">“'+esc(l.cliente_disse)+'”</div>':'')+
-      '<div class="m">'+esc(l.detalhe||'')+'</div></td>'+
-    '<td style="white-space:nowrap">'+
-      (l.resolvido
-        ? '<span class="feito">✔ '+esc(l.quem||'')+'</span><div class="m">'+esc(l.resolvido_em||'')+' · '+esc(l.o_que_foi_feito||'')+'</div>'+
-          '<button class="mini" style="margin-top:6px" onclick="reabrir('+i+')">reabrir</button>'
-        : campoEscrita(l,i))+
-    '</td></tr>';
-}
-
 function filtra(tp, ver){
   if(TIPO === tp){ TIPO=''; desenha(); return }
   ESQ=false;PAU=false;CHG=false;DUPO=false;FDA=false;PZ=false;
@@ -707,6 +675,16 @@ function cardTot(R, tp, rot, ic){
     '</div>';
 }
 function cardParc(R){ return cardTot(R,'parcial','Item cancelado','✂️'); }
+/* a Maquininha nao tem periodo: a comanda fica na lista ate alguem resolver, de qualquer dia.
+   Por isso o numero e so o que espera alguem (o total juntaria semanas de casos ja resolvidos). */
+function cardMaq(R){
+  var ab=+R.maquininha||0;
+  if(!ab) return cardF0('Maquininha','🧾');
+  return '<div class="card mal'+(TIPO==='maquininha'?' on':'')+'" onclick="filtra(&quot;maquininha&quot;,&quot;abertas&quot;)" title="Clique para abrir ou fechar a lista">'+
+    '<div class="t">🧾 Maquininha</div><div class="v">'+ab+'</div>'+
+    '<div class="qs" style="color:#ff9a9a">esperando alguém</div>'+
+    '<div class="qs">de qualquer dia, até alguém resolver</div></div>';
+}
 
 /* 03/10/2026 (chat-resolver-itemcancelado-03-10), pedido do Fabio: "quero que use aqui aquele front end bonito"
    — a lista do Item cancelado em cartoes, igual ao AO VIVO da Central Cozinha. Cada cartao e uma tabela de uma
@@ -719,6 +697,31 @@ function parteDet(s){
   });
   return o;
 }
+/* cartao dos outros quadros (Cliente sem resposta, Negociacao, Maquininha, Reentrega): o banco manda o_que_e e detalhe soltos */
+function cartaoGeral(l,i){
+  var ok=!!l.resolvido, q=String(l.quando||''), tm=/ \d{2}:\d{2}$/.test(q);
+  var det=String(l.detalhe||'').split(' | ').join(' · ');
+  if(l.cliente_disse && det===l.cliente_disse) det='';
+  return '<table class="vv'+(ok?' ok':'')+'" data-cdm-livre><tr data-cdm-chave="'+esc(l.chave||'')+'">'+
+    '<td class="hrc"><div class="hr">'+esc(tm?q.slice(6):(q||'—'))+'</div><div class="ha">'+esc(tm?haQuando(q):'')+'</div></td>'+
+    '<td><div class="tt">'+esc(rotulo(l.tipo))+' '+(ok?'<span class="pill p-ok">resolvido</span>':'<span class="pill p-bad">esperando alguém</span>')+'</div>'+
+      '<div class="lj"><b>'+esc(l.unidade||'')+'</b> · pedido <b>'+esc(l.referencia||'—')+'</b></div>'+
+      (l.cliente_disse?'<div class="ds">“'+esc(l.cliente_disse)+'”</div>':'')+
+      (l.o_que_e?'<div class="it">'+esc(l.o_que_e)+'</div>':'')+
+      ((det||l.valor!=null)?'<div class="rs">'+esc(det)+(l.valor!=null?(det?' · ':'')+'R$ '+esc(Number(l.valor).toFixed(2).replace('.',',')):'')+'</div>':'')+
+      (FONTE_TIPO[l.tipo]?'<div class="fn">Fonte: '+esc(FONTE_TIPO[l.tipo])+'</div>':'')+
+      ((l.fotos>0||l.tem_conversa)?'<div class="vbt">'+
+        ((l.fotos>0)?'<button class="mini" onclick="verFotos('+i+')">📷 '+l.fotos+(l.fotos>1?' fotos':' foto')+'</button>':'')+
+        (l.tem_conversa?'<button class="mini" onclick="verConversa('+i+')">💬 conversa</button>':'')+'</div>':'')+
+      ((l.n_conversas>1)?'<div style="margin-top:5px;color:var(--warn);font-size:12px">⚠️ '+l.n_conversas+' conversas com esse numero de pedido — nao da para saber qual e</div>':'')+
+    '</td>'+
+    '<td class="sit">'+
+      (ok
+        ? '<span class="feito">✔ '+esc(l.quem||'')+'</span><div class="m">'+esc(l.resolvido_em||'')+' · '+esc(l.o_que_foi_feito||'')+'</div>'+
+          '<button class="mini" style="margin-top:6px" onclick="reabrir('+i+')">reabrir</button>'
+        : campoEscrita(l,i))+
+    '</td></tr></table>';
+}
 function haQuando(q){
   var m=String(q||'').match(/^(\d{2})\/(\d{2}) (\d{2}):(\d{2})$/); if(!m) return '';
   var n=new Date(), t=new Date(n.getFullYear(),+m[2]-1,+m[1],+m[3],+m[4]);
@@ -728,8 +731,11 @@ function haQuando(q){
   if(min<1440) return 'há '+Math.floor(min/60)+'h'+(min%60<10?'0':'')+(min%60);
   return m[1]+'/'+m[2];
 }
+var FONTE_TIPO={chat:'Chat do iFood (Gestor Web)',negociacao:'Negociação do iFood',maquininha:'Conferência da maquininha (Saipos × Rede)'};
 function cartaoParc(l,i){
-  var d=parteDet(l.detalhe), ok=!!l.resolvido, cc=(l.tipo==='cancelamento');
+  var cc=(l.tipo==='cancelamento'), pc=(l.tipo==='parcial');
+  if(!cc && !pc) return cartaoGeral(l,i);
+  var d=parteDet(l.detalhe), ok=!!l.resolvido;
   var disse=d['disse']||l.cliente_disse||'', item=d['item']||'';
   if(item && disse && (disse.indexOf(item)>=0 || item.indexOf(disse)>=0)) item='';
   var hora=String(l.quando||'').slice(6)||'—';
@@ -777,12 +783,12 @@ function desenha(){
   const R=D.resumo||{}, itens=D.itens||[], card=D.cardapio||{};
   let h=BF+'<div class="cards">'+
     cardEsq()+
-    ((!R.reentrega&&cardSemDado('Reentrega','🔁'))||cardF('Reentrega',(R.reentrega||0),'reentrega','abertas','','🔁'))+
+    ((!R.reentrega&&cardSemDado('Reentrega','🔁'))||cardTot(R,'reentrega','Reentrega','🔁'))+
     cardTot(R,'cancelamento','Cancelado inteiro','🚫')+
     cardParc(R)+
-    cardF('Cliente sem resposta',(R.chat||0),'chat','abertas','','💬')+
-    cardF('Maquininha',(R.maquininha||0),'maquininha','abertas','','🧾')+
-    cardF('Negociação do iFood',(R.negociacao||0),'negociacao','abertas','','🤝')+
+    cardTot(R,'chat','Cliente sem resposta','💬')+
+    cardMaq(R)+
+    cardTot(R,'negociacao','Negociação do iFood','🤝')+
     cardCheg()+
     cardDup()+
     cardPz()+
@@ -802,12 +808,9 @@ function desenha(){
     h+='<div class="painel" id="painel"><div class="ph"><h3>'+rotulo(TIPO)+'</h3><span class="ct">'+(VER==='abertas'?'só o que ainda espera alguém':'tudo do período')+'</span><button class="b fecha" onclick="fechaTudo()">fechar ✕</button></div>';
     if(!lista.length){
       h+='<div class="c"><div class="vazio">'+(VER==='abertas'?'Nada esperando ninguém neste período. A casa está limpa.':'Nada neste período.')+'</div></div>';
-    }else if(TIPO==='parcial' || TIPO==='cancelamento'){
-      h+='<div class="vv-lista">'+itens.map(function(l,i){ return (l.tipo===TIPO && (VER!=='abertas'||!l.resolvido)) ? cartaoParc(l,i) : ''; }).join('')+'</div>';
     }else{
-      h+=bloco('dia','☀️ De dia — até as 17h')+
-          bloco('noite','🌙 De noite — das 17h até a madrugada')+
-          bloco('sem hora','🕐 Sem hora registrada');
+      /* 03/10/2026: todos os quadros em cartoes (antes: tabela dividida em De dia / De noite, funcoes bloco e linha) */
+      h+='<div class="vv-lista">'+itens.map(function(l,i){ return (l.tipo===TIPO && (VER!=='abertas'||!l.resolvido)) ? cartaoParc(l,i) : ''; }).join('')+'</div>';
     }
     if(TIPO==='maquininha' && D.maq_cache){
       h+='<div class="c" style="margin-top:10px"><div class="m">🧾 As comandas não cobradas da maquininha foram conferidas pela última vez em '+esc(D.maq_cache)+
