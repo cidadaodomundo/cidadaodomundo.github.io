@@ -5,113 +5,125 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#E0A81C">
 <title>Fila de Pedidos · Cidadão do Mundo</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/cdm-ui.css?v=4">
 <style>
-:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#E0A81C;--brand-ink:#111110;--ok:#2fae6a;--bad:#e66767;--roxo:#a98bf5;--warn:#c98500}
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1180px;margin:0 auto}
-h1{font-size:22px;font-weight:800}
-.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
-.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:16px}
-.top .rt{margin-left:auto}
-button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
-.dot{width:40px;height:40px;border-radius:11px;background:var(--brand);color:var(--brand-ink);display:grid;place-items:center;font-size:18px}
-.lojas{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
-.lj{background:var(--s2);border:1px solid var(--line);color:var(--text2);border-radius:999px;padding:8px 16px;font-size:13.5px;font-weight:700;cursor:pointer}
-.lj.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
-.res{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:20px}
-.k{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:13px 16px}
-.k .n{font-size:32px;font-weight:800;line-height:1}
-.k .l{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.7px;margin-top:5px}
-.k.vm .n{color:var(--bad)} .k.rx .n{color:var(--roxo)} .k.br .n{color:var(--brand)}
-h2{font-family:'Anton',Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:14px;letter-spacing:.05em;color:var(--brand);margin:0 0 11px}
-h2 .q{color:var(--muted);font-family:'Barlow',sans-serif;font-weight:700;font-size:12.5px;letter-spacing:0}
-.bloco{margin-bottom:22px}
+/* 03/10/2026 (chat-visual-fila-03-10): pedido do Fabio — mesmo visual e mesma dinamica do Delivery · Sao Braz.
+   Mesmos botoes, mesmas leituras do banco e mesmos timers; mudou so a aparencia.
+   Tela de balcao: as listas continuam SEMPRE abertas; tocar num quadro de cima so marca o quadro e rola ate a lista dele. */
+:root{--roxo:#a98bf5}
+.per{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:7px 11px;font-size:13px;font-weight:700}
+button.b:hover{border-color:var(--text2)}
+.lojas{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
+.lojas .rot{color:var(--muted);font-size:12px;font-weight:800;margin-right:2px}
+.lojas .chip{padding:7px 13px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.cards>*{min-width:0}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:14px 15px;color:var(--text);display:flex;flex-direction:column;gap:3px;transition:border-color .15s,transform .08s}
+.card[onclick]{cursor:pointer}
+.card[onclick]:hover{border-color:#5a5952}
+.card[onclick]:active{transform:scale(.98)}
+.card .t{font-size:13px;font-weight:800;color:var(--text2);line-height:1.3;display:flex;align-items:center;gap:6px}
+.card .v{font-family:'Anton',Impact,sans-serif;font-weight:400;font-size:42px;line-height:1.05;margin:0}
+.card .qs{color:var(--muted);font-size:12px;font-weight:700;line-height:1.35}
+.card.mal{border-left:4px solid var(--bad)}
+.card.mal .v{color:#ff8a8a}
+.card.aviso{border-left:4px solid var(--warn)}
+.card.aviso .v{color:var(--warn)}
+.card.bem .v{color:#7fe0aa}
+.card.sd{border-style:dashed}
+.card.sd .v{color:var(--muted)}
+.card.on{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand) inset}
+.sec{scroll-margin-top:12px}
+.sec>.grp:first-child{margin-top:24px}
+.sec.on .lista,.sec.on .qd{border-color:var(--brand)}
+.sec.on>.grp h2{color:var(--brand)}
 .bola{display:inline-block;width:11px;height:11px;border-radius:50%;flex:0 0 auto}
 .b-vm{background:var(--bad);box-shadow:0 0 0 3px rgba(230,103,103,.2)}
 .b-rx{background:var(--roxo);box-shadow:0 0 0 3px rgba(169,139,245,.2)}
-.linha{display:flex;align-items:center;gap:11px;background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:6px}
-.linha .ped{font-weight:800;font-size:16px;min-width:56px}
-.linha .est{color:var(--text2);font-size:13px}
+.lista{background:var(--s1);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.linha{display:flex;align-items:center;gap:11px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.linha:last-child{border-bottom:none}
+.linha .ped{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:21px;letter-spacing:.02em;min-width:56px;line-height:1}
+.linha .est{color:var(--text2);font-size:13.5px;font-weight:600}
 .linha .mb{color:var(--muted);font-size:12.5px;margin-left:4px}
 .linha .dir{margin-left:auto;display:flex;align-items:center;gap:14px}
 .linha .hr{color:var(--muted);font-size:12.5px}
-.linha .mn{font-weight:800;font-size:15px;min-width:62px;text-align:right}
-.linha.late{border-color:rgba(230,103,103,.5);background:rgba(230,103,103,.07)}
-.linha.late .mn{color:var(--bad)}
+.linha .mn{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:20px;min-width:62px;text-align:right;line-height:1}
+.linha .mn,.linha .hr{white-space:nowrap}
+.linha.late{border-left:4px solid var(--bad);background:rgba(230,103,103,.07)}
+.linha.late .mn{color:#ff8a8a}
 .quadros{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:11px}
-.qd{background:var(--s1);border:1px solid var(--line);border-radius:13px;overflow:hidden}
-.qd .cb{display:flex;align-items:baseline;gap:7px;padding:10px 13px;background:var(--s2);border-bottom:1px solid var(--line)}
-.qd .cb .nm{font-weight:800;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.qd .cb .ct{margin-left:auto;color:var(--brand);font-weight:800;font-size:13.5px;flex:0 0 auto}
-.qd .cb .sa{color:var(--muted);font-size:11px;flex:0 0 auto}
-.qd .it{display:flex;align-items:center;gap:8px;padding:7px 13px;border-bottom:1px solid rgba(52,51,47,.5);font-size:13.5px}
+.quadros>*{min-width:0}
+.qd{background:var(--s1);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+.qd .cb{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.qd .cb .nm{font-weight:800;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qd .cb .ct{margin-left:auto;font-family:'Anton',Impact,sans-serif;font-weight:400;font-size:24px;line-height:1;color:var(--brand);flex:0 0 auto}
+.qd .cb .sa{color:var(--muted);font-size:12px;font-weight:600;flex:0 0 auto}
+.qd .it{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--line);font-size:13.5px}
 .qd .it:last-child{border-bottom:0}
-.qd .it .p{font-weight:800;min-width:44px}
-.qd .it .h{color:var(--muted);font-size:11.5px}
-.qd .it .m{margin-left:auto;font-weight:800;white-space:nowrap}
-.qd .it.late .m{color:var(--bad)}
-.qd .it .pt{color:var(--ok);font-size:11px;font-weight:700;white-space:nowrap}
-.qd .it .dd{color:var(--text2);font-size:11.5px;font-weight:700;white-space:nowrap}
-.qd .it .dd.pp{color:var(--ok)}
+.qd .it .p{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;letter-spacing:.02em;min-width:46px;line-height:1}
+.qd .it .h{color:var(--muted);font-size:12px}
+.qd .it .m{margin-left:auto;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;white-space:nowrap;line-height:1}
+.qd .it.late{background:rgba(230,103,103,.07)}
+.qd .it.late .m{color:#ff8a8a}
+.qd .it .pt{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800;white-space:nowrap;background:rgba(37,163,95,.15);color:#7fe0aa}
+.qd .it .dd{color:var(--text2);font-size:12px;font-weight:700;white-space:nowrap}
+.qd .it .dd.pp{color:#7fe0aa}
 .qd .it .dd.lg{color:var(--warn)}
-.qd .cb .sg{color:var(--warn);font-size:10.5px;flex:0 0 auto}
-.leg{color:var(--muted);font-size:11.5px;margin-top:10px;line-height:1.5}
+.qd .cb .sg{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:800;white-space:nowrap;background:rgba(201,133,0,.16);color:var(--warn);flex:0 0 auto}
+.leg{color:var(--muted);font-size:12px;margin-top:10px;line-height:1.5}
 .leg .bola{margin-right:5px;vertical-align:middle;width:9px;height:9px}
-.vazio{color:var(--muted);font-size:13.5px;background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:14px}
-.load{color:var(--muted);padding:26px 0}
-.rod{color:var(--muted);font-size:11.5px;border-top:1px solid var(--line);margin-top:22px;padding-top:12px;line-height:1.6}
-.mbs{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:22px;overflow-x:auto}
-.mbs h2{margin-bottom:12px}
+.vazio{color:var(--muted);font-size:14px;background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:18px 14px;text-align:center}
+.load{color:var(--muted);padding:40px 10px;text-align:center}
+.mbs{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:14px 16px;overflow-x:auto}
 .mbs table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:540px}
-.mbs th{text-align:left;color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;font-weight:700;padding:0 10px 9px 0;border-bottom:1px solid var(--line)}
+.mbs th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.6px;font-weight:700;padding:0 10px 9px 0;border-bottom:1px solid var(--line)}
 .mbs td{padding:11px 10px;border-bottom:1px solid var(--line);color:var(--text2)}
 .mbs td:first-child,.mbs th:first-child{padding-left:0}
 .mbs tr:last-child td{border-bottom:0}
-.mbs .nome{color:var(--text);font-weight:600}
-.mbs .pin{color:var(--ok)}
+.mbs .nome{color:var(--text);font-weight:700}
+.mbs .pin{color:#7fe0aa}
 .mbs .rua{color:var(--brand)}
-.mbs .vazio{color:var(--muted);font-size:13px;background:none;border:0;padding:0}
-.mbs .prox{margin:-4px 0 12px;font-weight:700;color:var(--ok);font-size:14px}
-.mbs .reg{color:var(--muted);font-size:11.5px;margin-top:10px;line-height:1.4}
+.mbs .vazio{font-size:14px;background:none;border:0;padding:8px 0;text-align:left}
+.mbs .prox{margin:0 0 12px;font-weight:800;color:#7fe0aa;font-size:14.5px}
+.mbs .reg{color:var(--muted);font-size:12px;margin-top:10px;line-height:1.45}
 .mbs .sin{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:middle}
 .mbs .sin-v{background:var(--ok);box-shadow:0 0 0 3px rgba(47,174,106,.18)}
 .mbs .sin-r{background:var(--bad);box-shadow:0 0 0 3px rgba(230,103,103,.18)}
 .mbs .sin-n{background:transparent;box-shadow:none}
-.mbs .leg{color:var(--muted);font-size:11.5px;margin-top:10px}
-.cz{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:22px}
-.cz h2 .q{text-transform:none;font-weight:600}
-.cz .kk{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:8px}
-.cz .kc{background:var(--s2);border:1px solid var(--line);border-left:3px solid var(--muted);border-radius:10px;padding:9px 11px;min-width:0}
-.cz .kc .t{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;font-weight:700;line-height:1.25}
-.cz .kc .v{font-size:24px;font-weight:800;line-height:1.1;margin-top:3px}
-.cz .kc .s{color:var(--muted);font-size:11px;margin-top:3px;line-height:1.35}
-.cz .up{color:var(--ok);font-weight:700}.cz .dn{color:var(--bad);font-weight:700}
-.cz .esq{margin-top:10px;font-size:12.5px;color:var(--text2)}
-.cz .esq b{color:var(--bad)}
-.cz .leg{margin-top:10px}
+.cz .up{color:#7fe0aa;font-weight:800}.cz .dn{color:#ff9a9a;font-weight:800}
+.cz .esq{margin-top:10px;font-size:13px;color:var(--text2);background:var(--s1);border:1px solid var(--line);border-left:4px solid var(--bad);border-radius:13px;padding:10px 13px;line-height:1.5}
+.cz .esq b{color:#ff9a9a}
 .rc{display:inline-block;width:13px;height:13px;border-radius:3px;flex:0 0 auto;border:1px solid rgba(255,255,255,.35);vertical-align:middle}
 .qd .cb .rc{align-self:center}
 .mbs .rc{margin-right:8px}
-.vivo{display:inline-flex;align-items:center;gap:7px;color:var(--ok);font-size:12.5px;font-weight:700;margin-right:10px}
+.vivo{display:inline-flex;align-items:center;gap:7px;color:#7fe0aa;font-size:13px;font-weight:700;background:var(--s1);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
 .vivo i{width:9px;height:9px;border-radius:50%;background:var(--ok);animation:pisca 1.6s infinite}
-.vivo.velho{color:var(--bad)} .vivo.velho i{background:var(--bad)}
-.parado{background:rgba(138,137,126,.14);border:1px solid var(--muted);color:var(--text2);border-radius:12px;padding:12px 16px;margin-bottom:14px;font-size:14px;font-weight:600;line-height:1.5}
+.vivo.velho{color:#ff9a9a;border-color:rgba(230,103,103,.5)} .vivo.velho i{background:var(--bad)}
+.parado{background:var(--s1);border:1.5px dashed #4a4943;color:var(--text2);border-radius:13px;padding:12px 16px;margin-bottom:14px;font-size:14px;font-weight:600;line-height:1.5}
 @keyframes pisca{0%{box-shadow:0 0 0 0 rgba(47,174,106,.6)}70%{box-shadow:0 0 0 8px rgba(47,174,106,0)}100%{box-shadow:0 0 0 0 rgba(47,174,106,0)}}
-@media (max-width:640px){body{padding:12px}.linha .mb{display:none}.res{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:640px){.linha .mb{display:none}.linha{gap:9px;padding:10px 12px}.linha .dir{gap:8px}.linha .ped{min-width:0;font-size:19px}.linha .mn{min-width:0;font-size:18px}.linha .hr{font-size:11.5px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.card .v{font-size:34px}.per{width:100%}.quadros{grid-template-columns:1fr}.lojas{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}.lojas .chip{flex:0 0 auto}}
 </style>
 </head>
 <body>
+<div class="wrap">
 <div class="top">
-  <div style="display:flex;gap:10px;align-items:center"><div class="dot">🍔</div><div><h1>Fila de Pedidos</h1><div class="sub" id="sub">Água Verde — onde está cada pedido agora</div></div></div>
-  <div class="rt"><span class="vivo" id="vivo"><i></i>ao vivo</span><button class="b" onclick="boot()">↻ Atualizar</button></div>
+  <div>
+    <h1>🍔 Fila de Pedidos</h1>
+    <div class="placar" id="placar"><span class="pl">Loja <b>Água Verde</b></span></div>
+  </div>
+  <div class="rt per"><span class="vivo" id="vivo"><i></i>ao vivo</span><button class="b" onclick="boot()" title="Ler de novo">↻ Atualizar</button></div>
 </div>
 <div class="lojas" id="lojas">
-  <button class="lj on" data-u="Água Verde" onclick="trocaLoja('Água Verde')">Água Verde</button>
-  <button class="lj" data-u="São Braz" onclick="trocaLoja('São Braz')">São Braz</button>
-  <button class="lj" data-u="Ahú" onclick="trocaLoja('Ahú')">Ahú</button>
+  <span class="rot">LOJA</span>
+  <button class="chip on" data-u="Água Verde" onclick="trocaLoja('Água Verde')">Água Verde</button>
+  <button class="chip" data-u="São Braz" onclick="trocaLoja('São Braz')">São Braz</button>
+  <button class="chip" data-u="Ahú" onclick="trocaLoja('Ahú')">Ahú</button>
 </div>
 <div id="app"><div class="load">Carregando…</div></div>
+</div>
 
 <script>
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
@@ -131,11 +143,35 @@ try{var _u=localStorage.getItem('cdm_fila_uni'); if(_u==='Água Verde'||_u==='S�
 
 function trocaLoja(u){
   UNI=u; try{localStorage.setItem('cdm_fila_uni',u)}catch(e){}
-  var bs=document.querySelectorAll('#lojas .lj');
+  var bs=document.querySelectorAll('#lojas .chip');
   for(var i=0;i<bs.length;i++){ bs[i].classList.toggle('on', bs[i].getAttribute('data-u')===u); }
-  $('sub').textContent=u+' — onde está cada pedido agora';
+  placar('');
   $('app').innerHTML='<div class="load">Carregando…</div>';
   OK_EM=0; boot();
+}
+
+/* 03/10/2026 (visual do Delivery · Sao Braz): placar de pilulas no topo e quadros que levam ate a lista.
+   As listas Na loja e Na rua ficam sempre abertas (tela de balcao): o quadro so fica marcado e a tela rola ate a lista dele.
+   Um quadro marcado por vez; tocar de novo desmarca. */
+function placar(extra){
+  var p=$('placar'); if(p) p.innerHTML='<span class="pl">Loja <b>'+esc(UNI)+'</b></span>'+(extra||'');
+}
+var ABERTO=null;
+function secDe(id){ return id==='rua'?'sec_rua':'sec_loja'; }
+function marcaAberto(){
+  var cs=document.querySelectorAll('#app .card[data-q]');
+  for(var i=0;i<cs.length;i++){ cs[i].classList.toggle('on', cs[i].getAttribute('data-q')===ABERTO); }
+  ['sec_loja','sec_rua'].forEach(function(s){ var e=$(s); if(e) e.classList.toggle('on', !!ABERTO&&secDe(ABERTO)===s); });
+}
+function vaiPara(id){
+  ABERTO=(ABERTO===id?null:id); marcaAberto();
+  var p=ABERTO&&$(secDe(ABERTO)); if(p&&p.scrollIntoView) p.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function qAgora(id,tit,v,s,k){
+  var clica=id&&k!=='sd';
+  return '<div class="card'+(k?' '+k:'')+(clica&&ABERTO===id?' on':'')+'"'+
+    (clica?' data-q="'+id+'" onclick="vaiPara(&quot;'+id+'&quot;)" title="Toque para ir até a lista"':'')+'>'+
+    '<div class="t">'+tit+'</div><div class="v">'+v+'</div><div class="qs">'+s+'</div></div>';
 }
 
 /* 20/09/2026, pedido do Fabio: a distancia que o motoboy esta de cada pedido na mao dele.
@@ -206,8 +242,8 @@ function nomeEtapa(o){
    entao as duas nunca podem discordar. */
 function mbBloco(d){
   if(d.motoboys===null||d.motoboys===undefined){
-    return '<div class="mbs"><h2>🛵 Quem está com o aplicativo ligado neste minuto</h2>'+
-      '<div class="vazio">Não consegui ler os motoboys neste minuto.</div></div>';
+    return '<div class="grp"><span class="em">📱</span><h2>Motoboys</h2><span class="ct">quem está com o aplicativo ligado neste minuto</span></div>'+
+      '<div class="mbs"><div class="vazio">Não consegui ler os motoboys neste minuto.</div></div>';
   }
   var mb=Array.isArray(d.motoboys)?d.motoboys:[];
   var sinal=function(m){
@@ -235,7 +271,7 @@ function mbBloco(d){
       ' min de volta (mediana do TrackEat desta loja, '+esc(String(r.amostra))+' entregas dos últimos '+
       esc(String(r.dias))+' dias). A volta usa o mesmo tempo da ida.</div>';
   };
-  return '<div class="mbs"><h2>🛵 Quem está com o aplicativo ligado neste minuto</h2>'+prox(mb)+
+  return '<div class="grp"><span class="em">📱</span><h2>Motoboys</h2><span class="ct">quem está com o aplicativo ligado neste minuto</span></div>'+'<div class="mbs">'+prox(mb)+
     (mb.length
       ? '<table><tr><th>Motoboy</th><th>Onde está</th><th>Distância da loja</th><th>Situação</th><th>Faltam</th><th>Livre ~</th><th>App</th><th>Visto</th></tr>'+
         mb.map(function(m){return '<tr><td class="nome">'+sinal(m)+(COR_MB[m.motoboy]||'')+esc(m.motoboy)+'</td>'+
@@ -276,12 +312,15 @@ function czMin(n){return n.toFixed(1).replace('.',',')+' min';}
    (reentrega aberta, esqueceram na sacola). Tudo vem da conta fila_painel no banco, que usa
    as MESMAS regras daquelas telas, para nunca discordarem. */
 var PN=null;
+/* 03/10/2026: cada numero do dia vira quadro no estilo do Delivery · Sao Braz. A cor que ja vinha decide o jeito do quadro:
+   vermelho = borda vermelha (problema), verde = numero verde, cinza = tracejado (sem dado), amarelo = borda amarela. */
 function kc(t,v,s,cor){
-  return '<div class="kc" style="border-left-color:'+cor+'"><div class="t">'+t+'</div>'+
-    '<div class="v" style="color:'+cor+'">'+v+'</div><div class="s">'+(s||'&nbsp;')+'</div></div>';
+  var k=cor==='var(--bad)'?'mal':cor==='var(--ok)'?'bem':cor==='var(--muted)'?'sd':cor==='var(--warn)'?'aviso':'';
+  return '<div class="card'+(k?' '+k:'')+'"><div class="t">'+t+'</div>'+
+    '<div class="v"'+(k?'':' style="color:'+cor+'"')+'>'+v+'</div><div class="qs">'+(s||'&nbsp;')+'</div></div>';
 }
 function czBloco(){
-  var h='<div class="cz"><h2>📊 '+esc(UNI)+' — o dia até agora <span class="q">'+(PN&&PN.dia?esc(PN.dia):'')+'</span></h2><div class="kk">';
+  var h='<div class="grp"><span class="em">📊</span><h2>'+esc(UNI)+' — o dia até agora</h2><span class="ct">'+(PN&&PN.dia?esc(PN.dia):'')+'</span></div><div class="cz"><div class="cards">';
   /* cozinha: so a loja escolhida */
   var hoje=czDia(0), a=null, b=null;
   if(CZ){
@@ -362,26 +401,37 @@ function desenha(d){
   (d.na_rua||[]).forEach(function(m){ var p=(m.pedidos||[]).filter(function(x){return x.grupo})[0]; if(p&&m.motoboy&&!COR_MB[m.motoboy]) COR_MB[m.motoboy]=quad(p.grupo); });
   (d.na_loja||[]).forEach(function(p){ if(p.motoboy&&p.grupo&&!COR_MB[p.motoboy]) COR_MB[p.motoboy]=quad(p.grupo); });
 
-  if(GV) h+='<div class="res">'+
-     '<div class="k vm"><div class="n">'+esc(GV.na_loja)+'</div><div class="l">Na loja · em preparo ou esperando motoboy (iFood)</div></div>'+
-     '<div class="k rx"><div class="n">—</div><div class="l">Prontos esperando motoboy · o iFood não separa</div></div>'+
-     '<div class="k br"><div class="n">'+esc(GV.na_rua)+'</div><div class="l">Na rua (iFood)</div></div>'+
+  var loja=Array.isArray(d.na_loja)?d.na_loja:[];
+  var rua=Array.isArray(d.na_rua)?d.na_rua:[];
+  var atrLoja=function(prep){return loja.filter(function(p){return (p.onde==='preparo')===prep&&p.atrasado;}).length;};
+  var aPrep=atrLoja(true), aPront=atrLoja(false), aRua=0;
+  rua.forEach(function(m){ aRua+=(m.pedidos||[]).filter(function(p){return p.atrasado;}).length; });
+  var aTot=aPrep+aPront+aRua;
+  placar((TEP?'':'<span class="pl"'+(aTot?' style="border-color:rgba(230,103,103,.5)"':'')+'><b'+(aTot?' style="color:#ff9a9a"':'')+'>'+aTot+'</b> pedido'+(aTot===1?'':'s')+' passando do normal</span>')+
+    (d.visto_em?'<span class="pl">TrackEat lido <b>'+esc(d.visto_em)+'</b></span>':''));
+  /* quadros do "agora": borda vermelha quando tem pedido passando do normal, numero verde quando zero, tracejado sem dado */
+  var kA=function(n,a){return TEP?'sd':a?'mal':(+n?'':'bem');};
+  var sA=function(n,a){return TEP?'sem dado desde '+TEP:!(+n)?'nenhum agora':a?'<span style="color:#ff9a9a">'+a+' passando do normal</span>':(d.regua?'todos no tempo normal':'sem histórico para medir demora');};
+  h+='<div class="grp"><span class="em">📍</span><h2>Agora</h2><span class="ct">onde está cada pedido · toque num quadro para ir até a lista</span></div>';
+  if(GV) h+='<div class="cards">'+
+     qAgora('preparo','<span class="bola b-vm"></span>Na loja',esc(GV.na_loja),'em preparo ou esperando motoboy · iFood',+GV.na_loja?'':'bem')+
+     qAgora(null,'<span class="bola b-rx"></span>Prontos esperando motoboy','—','o iFood não separa','sd')+
+     qAgora('rua','🛵 Na rua',esc(GV.na_rua),'pelo iFood',+GV.na_rua?'':'bem')+
      '</div>';
-  else h+='<div class="res">'+
-     '<div class="k vm"><div class="n">'+tr(r.preparo)+'</div><div class="l">Em preparo na cozinha</div></div>'+
-     '<div class="k rx"><div class="n">'+tr(r.pronto)+'</div><div class="l">Prontos esperando motoboy</div></div>'+
-     '<div class="k br"><div class="n">'+tr(r.rua)+'</div><div class="l">Na rua'+(TEP?'':' · '+esc(r.motoboys)+' motoboy'+(r.motoboys===1?'':'s'))+'</div></div>'+
+  else h+='<div class="cards">'+
+     qAgora('preparo','<span class="bola b-vm"></span>Em preparo na cozinha',tr(r.preparo),sA(r.preparo,aPrep),kA(r.preparo,aPrep))+
+     qAgora('pronto','<span class="bola b-rx"></span>Prontos esperando motoboy',tr(r.pronto),sA(r.pronto,aPront),kA(r.pronto,aPront))+
+     qAgora('rua','🛵 Na rua',tr(r.rua),TEP?'sem dado desde '+TEP:esc(r.motoboys)+' motoboy'+(r.motoboys===1?'':'s')+(aRua?' · <span style="color:#ff9a9a">'+aRua+' passando do normal</span>':''),kA(r.rua,aRua))+
      '</div>';
 
   h+=czBloco();
 
   h+=mbBloco(d);
 
-  var loja=Array.isArray(d.na_loja)?d.na_loja:[];
-  h+='<div class="bloco"><h2>Na loja <span class="q">'+loja.length+' pedido'+(loja.length===1?'':'s')+'</span></h2>';
+  h+='<div class="sec" id="sec_loja"><div class="grp"><span class="em">🍳</span><h2>Na loja</h2><span class="ct">'+loja.length+' pedido'+(loja.length===1?'':'s')+'</span></div>';
   if(!loja.length){ h+='<div class="vazio">'+(TEP?'Sem dado do TrackEat desde '+TEP+'.':'Nenhum pedido esperando na loja neste minuto.')+'</div>'; }
   else{
-    h+=loja.map(function(p){
+    h+='<div class="lista">'+loja.map(function(p){
       var bola=(p.onde==='preparo')?'b-vm':'b-rx';
       return '<div class="linha'+(p.atrasado?' late':'')+'">'+
         '<span class="bola '+bola+'"></span>'+quad(p.grupo)+
@@ -390,12 +440,11 @@ function desenha(d){
         (p.motoboy?'<span class="mb">· '+esc(p.motoboy)+'</span>':'')+
         '<span class="dir"><span class="hr">entrou '+esc(p.entrou)+'</span>'+
         '<span class="mn">'+esc(p.min)+' min</span></span></div>';
-    }).join('');
+    }).join('')+'</div>';
   }
   h+=legenda(d)+'</div>';
 
-  var rua=Array.isArray(d.na_rua)?d.na_rua:[];
-  h+='<div class="bloco"><h2>Na rua com os motoboys <span class="q">'+esc(r.rua)+' pedido'+(r.rua===1?'':'s')+'</span></h2>';
+  h+='<div class="sec" id="sec_rua"><div class="grp"><span class="em">🛵</span><h2>Na rua com os motoboys</h2><span class="ct">'+esc(r.rua)+' pedido'+(r.rua===1?'':'s')+'</span></div>';
   if(!rua.length){ h+='<div class="vazio">'+(TEP?'Sem dado do TrackEat desde '+TEP+'.':'Nenhum pedido na rua neste minuto.')+'</div>'; }
   else{
     h+='<div class="quadros">'+rua.map(function(m){
@@ -416,6 +465,7 @@ function desenha(d){
 
   h+='<div class="rod">'+rodape(d)+'</div>';
   $('app').innerHTML=h;
+  marcaAberto();
 }
 
 function legenda(d){
