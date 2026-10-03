@@ -46,6 +46,37 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .ab.on{color:var(--text);background:var(--s1);border-color:var(--line);border-bottom-color:var(--s1);margin-bottom:-1px}
 #ifr-desp{width:100%;border:0;height:calc(100vh - 210px);min-height:560px;display:block}
 
+/* AO VIVO 03-10-2026 (obra 22) */
+.vv-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:-2px 0 10px}
+.vv-bar .b{padding:6px 10px;font-size:12.5px}
+.vv-st{color:var(--muted);font-size:12px}
+.vv-fr{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.vv-fr span{background:var(--s2);border:1px solid var(--line);border-radius:999px;padding:3px 9px;font-size:11px;color:var(--text2)}
+.vv-cats{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
+.vv-cats span{background:var(--s1);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600}
+.vv-lista{display:grid;gap:10px}
+.vv{background:var(--s1);border:1px solid var(--line);border-left:5px solid var(--warn);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:72px 1fr;gap:12px}
+.vv.s-cozinha{border-left-color:var(--bad)}
+.vv.s-expedição{border-left-color:var(--muted)}
+.vv.grave{border-color:var(--bad);background:#2a1716}
+.vv.novo{animation:vvpisca 1.2s ease-in-out 6}
+@keyframes vvpisca{0%,100%{box-shadow:0 0 0 0 rgba(230,103,103,0)}50%{box-shadow:0 0 0 4px rgba(230,103,103,.55)}}
+.vv .hr{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;line-height:1}
+.vv .ha{color:var(--muted);font-size:11.5px;margin-top:3px}
+.vv .tt{font-size:17px;font-weight:800;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vv .lj{color:var(--text2);font-size:13px;margin-top:2px}
+.vv .ds{margin-top:6px;font-size:14px;color:var(--text);font-style:italic}
+.vv .it{margin-top:3px;font-size:12.5px;color:var(--text2)}
+.vv .rs{margin-top:6px;font-size:12px;color:var(--muted)}
+.vv .fn{margin-top:2px;font-size:11px;color:var(--muted)}
+.p-novo{background:var(--bad);color:#fff}
+body.tv{max-width:none;padding:14px 22px;font-size:18px}
+body.tv .top,body.tv .abas,body.tv #app,body.tv .vv-bar .so-pc{display:none}
+body.tv .vv .tt{font-size:24px}
+body.tv .vv .ds{font-size:19px}
+body.tv .vv .hr{font-size:32px}
+body.tv .vv{grid-template-columns:96px 1fr}
+
 /* cara da casa 04-09-2026 */
 h1,.gatebox h1{font-weight:400}
 h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.01em;line-height:1.06}
@@ -64,7 +95,7 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
   </div>
 </div>
 <div class="abas"><button class="ab on" id="aba-b-cozinha" onclick="mostraAba('cozinha')">👨‍🍳 Cozinha</button><button class="ab" id="aba-b-desp" onclick="mostraAba('desp')">🗑 Desperdício</button></div>
-<div id="pane-cozinha"><div id="app"><div class="load">Carregando cozinha…</div></div></div>
+<div id="pane-cozinha"><div id="vivo"></div><div id="app"><div class="load">Carregando cozinha…</div></div></div>
 <div id="pane-desp" style="display:none"><iframe id="ifr-desp" src="about:blank" title="Desperdicio"></iframe></div>
 
 <script>
@@ -105,6 +136,7 @@ async function pega(url){
 }
 
 async function boot(){
+  vivoDesenha(); vivoBusca(); vivoLiga();
   const d7=diaISO(7), d14=diaISO(14), d30=diaISO(30);
   const [prep,canc,paus,itens]=await Promise.all([
     pega('cozinha_vw_preparo_dia?select=unidade,dia_operacional,pedidos,preparo_medio_min&dia_operacional=gte.'+d14),
@@ -124,9 +156,136 @@ function filtros(){
   });
   $('filtros').innerHTML=h;
 }
-function setLoja(u){ LOJA_SEL=u; filtros(); render(); }
+function setLoja(u){ LOJA_SEL=u; filtros(); render(); vivoDesenha(); }
 
 const daLoja = u => LOJA_SEL==='todas' || u===LOJA_SEL;
+
+/* ---------- 0. AO VIVO (03/10/2026, obra 22) ----------
+   Pedido do Fabio: a cozinha tem que saber do erro na hora em que ele aparece.
+   Porta cozinha_ao_vivo: Gestor Web, chat e negociacao do iFood, SAC, grupos de WhatsApp das lojas,
+   cancelamento por culpa da casa e avaliacao ruim. Busca de 1 em 1 minuto SO com a aba Cozinha aberta
+   e a janela visivel; o timer morre (clearInterval) ao trocar de aba, esconder a janela ou sair. */
+let VIVO=null, VIVO_VISTOS=null, VIVO_TIMER=null, VIVO_ONTEM=false, VIVO_ERRO='', VIVO_NOVOS=[];
+let VIVO_SOM=false; try{ VIVO_SOM=localStorage.getItem('cdm_cozinha_som')==='1'; }catch(e){}
+const VIVO_NOVO_MIN=30; /* erro com menos de 30 min ganha a etiqueta NOVO */
+const hhmm = s => { try{ return new Date(s).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'}); }catch(e){ return '—'; } };
+const ddmm = s => { try{ return new Date(s).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',timeZone:'America/Sao_Paulo'}); }catch(e){ return '—'; } };
+const haMin = ts => { const m=Math.max(0,Math.round((Date.now()-ts)/60000)); return m<60? 'há '+m+' min' : 'há '+Math.floor(m/60)+'h'+String(m%60).padStart(2,'0'); };
+
+async function vivoBusca(){
+  try{
+    const r=await fetch(SB+'rpc/cozinha_ao_vivo',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({p_token:cdmTok(),p_dados:{ontem:VIVO_ONTEM}})});
+    if(!r.ok){ VIVO_ERRO='Não consegui ler os erros agora (código '+r.status+'). Tento de novo em 1 minuto.'; vivoDesenha(); return; }
+    const j=await r.json(); VIVO_ERRO='';
+    const lista=j.erros||[];
+    VIVO_NOVOS = (VIVO_VISTOS && !VIVO_ONTEM) ? lista.filter(e=>!VIVO_VISTOS.has(e.k)).map(e=>e.k) : [];
+    VIVO_VISTOS=new Set(lista.map(e=>e.k));
+    VIVO=j; vivoDesenha();
+    const meus=lista.filter(e=>VIVO_NOVOS.indexOf(e.k)>=0 && daLoja(e.loja));
+    if(meus.length) vivoAlerta(meus);
+  }catch(e){ VIVO_ERRO='Sem conexão agora. Tento de novo em 1 minuto.'; vivoDesenha(); }
+}
+function vivoLiga(){ if(!VIVO_TIMER) VIVO_TIMER=setInterval(vivoBusca,60000); }
+function vivoDesliga(){ if(VIVO_TIMER){ clearInterval(VIVO_TIMER); VIVO_TIMER=null; } }
+function vivoAbaCozinha(){ return $('pane-cozinha').style.display!=='none'; }
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible' && vivoAbaCozinha() && VIVO){ vivoBusca(); vivoLiga(); } else vivoDesliga();
+});
+window.addEventListener('pagehide',vivoDesliga);
+
+function vivoDia(o){ VIVO_ONTEM=!!o; VIVO_VISTOS=null; VIVO=null; vivoDesenha(); vivoBusca(); }
+function vivoSom(){
+  VIVO_SOM=!VIVO_SOM; try{ localStorage.setItem('cdm_cozinha_som',VIVO_SOM?'1':'0'); }catch(e){}
+  if(VIVO_SOM){ apito(); try{ if(window.Notification && Notification.permission==='default') Notification.requestPermission(); }catch(e){} }
+  vivoDesenha();
+}
+function vivoTV(){
+  const on=!document.body.classList.contains('tv'); document.body.classList.toggle('tv',on);
+  try{ if(on && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(function(){});
+       if(!on && document.fullscreenElement) document.exitFullscreen(); }catch(e){}
+  vivoDesenha();
+}
+/* apito: dois osciladores, sem nenhuma chamada de rede */
+function apito(){
+  try{ const C=window.AudioContext||window.webkitAudioContext; if(!C) return; const ac=new C();
+    [0,0.35].forEach(function(t){ const o=ac.createOscillator(), g=ac.createGain(); o.type='square'; o.frequency.value=880;
+      g.gain.value=0.15; o.connect(g); g.connect(ac.destination); o.start(ac.currentTime+t); o.stop(ac.currentTime+t+0.22); });
+    setTimeout(function(){ try{ac.close();}catch(e){} },1500);
+  }catch(e){}
+}
+function vivoAlerta(novos){
+  if(!VIVO_SOM) return;
+  apito();
+  try{ if(window.Notification && Notification.permission==='granted'){
+    novos.slice(0,3).forEach(function(e){ new Notification(e.titulo+' · '+e.loja,{body:(e.pedido?'Pedido '+e.pedido+' · ':'')+(e.disse||'')}); }); } }catch(e){}
+}
+
+function vivoDesenha(){
+  const el=$('vivo'); if(!el) return;
+  const tv=document.body.classList.contains('tv');
+  let h='<div class="sec"><h2>🔴 '+(VIVO_ONTEM?'Erros de ontem':'AO VIVO · erros de hoje')+' <span class="hint">cliente reclamou, iFood cancelou ou a loja avisou no grupo · atualiza sozinho a cada 1 minuto</span></h2>';
+  h+='<div class="vv-bar">'
+   + '<button class="b'+(VIVO_ONTEM?'':' on')+'" onclick="vivoDia(false)">Hoje</button>'
+   + '<button class="b'+(VIVO_ONTEM?' on':'')+'" onclick="vivoDia(true)">Ontem</button>'
+   + '<button class="b'+(VIVO_SOM?' on':'')+'" onclick="vivoSom()">'+(VIVO_SOM?'🔔 Som ligado':'🔕 Ligar som')+'</button>'
+   + '<button class="b" onclick="vivoTV()">'+(tv?'✖ Sair do modo TV':'📺 Modo TV')+'</button>'
+   + '<span class="vv-st">'+(VIVO? 'conferido às '+hhmm(VIVO.agora)+' · dia da cozinha '+esc(VIVO.dia)+' (das 6h às 6h)' : 'carregando…')+'</span></div>';
+  if(VIVO_ERRO) h+='<div class="aviso">'+esc(VIVO_ERRO)+'</div>';
+  if(!VIVO){ el.innerHTML=h+'</div>'; return; }
+
+  const f=VIVO.frescor||{};
+  const fr=[['Gestor Web',f.gestor_web],['Chat iFood',f.chat_ifood],['SAC',f.sac],['Grupos WhatsApp',f.grupos],['Negociação iFood',f.negociacao]];
+  h+='<div class="vv-fr"><span style="background:none;border:0;padding-left:0">última novidade de cada fonte:</span>'+fr.map(x=>'<span>'+x[0]+' '+(x[1]?(ddmm(x[1])===ddmm(Date.now())?'':ddmm(x[1])+' ')+hhmm(x[1]):'—')+'</span>').join('')
+   + '<span>Avaliações iFood até '+(f.avaliacao?dBR(f.avaliacao).slice(0,5):'—')+'</span></div>';
+
+  const lista=(VIVO.erros||[]).filter(e=>daLoja(e.loja));
+  const n=s=>lista.filter(e=>e.setor===s).length;
+  const graves=lista.filter(e=>e.grave).length;
+  h+='<div class="cards">'
+   + '<div class="c"><div class="nm">Erros '+(VIVO_ONTEM?'ontem':'hoje')+'</div><div class="nota">'+fmtN(lista.length)+'</div><div class="qtd">'+(graves?'<span class="pill p-bad">🚨 '+graves+' grave'+(graves>1?'s':'')+'</span>':'pedidos com problema')+'</div></div>'
+   + '<div class="c"><div class="nm">Cozinha <span class="pill p-bad">comida</span></div><div class="nota">'+fmtN(n('cozinha'))+'</div><div class="qtd">errado, cru, adicional, sabor, porção</div></div>'
+   + '<div class="c"><div class="nm">Montagem <span class="pill p-warn">sacola</span></div><div class="nota">'+fmtN(n('montagem'))+'</div><div class="qtd">faltou item, bebida ou sobremesa</div></div>'
+   + (n('expedição')?'<div class="c"><div class="nm">Expedição <span class="pill p-off">saída</span></div><div class="nota">'+fmtN(n('expedição'))+'</div><div class="qtd">chegou frio</div></div>':'')
+   + '</div>';
+
+  const cats={}; lista.forEach(e=>{ cats[e.titulo]=(cats[e.titulo]||0)+1; });
+  const ck=Object.keys(cats).sort((a,b)=>cats[b]-cats[a]);
+  if(ck.length) h+='<div class="vv-cats">'+ck.map(k=>'<span>'+esc(k)+' · '+cats[k]+'</span>').join('')+'</div>';
+
+  if(!lista.length){
+    h+='<div class="semdado">Nenhum erro registrado '+(VIVO_ONTEM?'ontem':'hoje até agora')+(LOJA_SEL==='todas'?'':' em '+esc(LOJA_SEL))+'. Confira acima a última novidade de cada fonte — se alguma parou, o zero pode ser só falta de dado.</div>';
+  }else{
+    h+='<div class="vv-lista">';
+    lista.forEach(function(e){
+      const novo = !VIVO_ONTEM && (VIVO_NOVOS.indexOf(e.k)>=0 || (Date.now()-e.ts) < VIVO_NOVO_MIN*60000);
+      h+='<div class="vv s-'+esc(e.setor)+(e.grave?' grave':'')+(VIVO_NOVOS.indexOf(e.k)>=0?' novo':'')+'">'
+       + '<div><div class="hr">'+esc(e.hora)+'</div><div class="ha">'+(VIVO_ONTEM?'':haMin(e.ts))+'</div></div><div>'
+       + '<div class="tt">'+esc(e.titulo)+(novo?' <span class="pill p-novo">NOVO</span>':'')
+       + ' <span class="pill '+(e.setor==='cozinha'?'p-bad':e.setor==='montagem'?'p-warn':'p-off')+'">'+esc(e.setor)+'</span></div>'
+       + '<div class="lj"><b>'+esc(e.loja)+'</b>'+(e.pedido?' · pedido <b>'+esc(e.pedido)+'</b>':' · sem nº de pedido')+(e.marca?' · '+esc(e.marca):'')+'</div>'
+       + (e.disse?'<div class="ds">“'+esc(e.disse)+'”</div>':'')
+       + (e.item?'<div class="it">Item: '+esc(e.item)+'</div>':'')
+       + '<div class="rs">'+(e.pendente?'<span class="pill p-bad">sem solução registrada</span> ':'')+'Como ficou: '+esc(e.resolveu||'—')+'</div>'
+       + '<div class="fn">Fonte: '+esc(e.fontes||'—')+'</div>'
+       + '</div></div>';
+    });
+    h+='</div>';
+  }
+
+  const av=(VIVO.avaliacoes||[]).filter(a=>daLoja(a.loja));
+  if(av.length){
+    h+='<h2>⭐ O que escreveram na avaliação <span class="hint">iFood · notas 1 a 3 com comentário · últimos 7 dias (o iFood entrega com 1 a 2 dias de atraso)</span></h2><div class="vv-lista">';
+    av.slice(0,15).forEach(function(a){
+      h+='<div class="vv s-'+esc(a.setor)+(a.grave?' grave':'')+'"><div><div class="hr">'+esc(a.dia)+'</div><div class="ha">nota '+esc(a.nota)+'</div></div><div>'
+       + '<div class="tt">'+esc(a.titulo)+'</div><div class="lj"><b>'+esc(a.loja)+'</b>'+(a.pedido?' · pedido '+esc(a.pedido):'')+'</div>'
+       + '<div class="ds">“'+esc(a.disse)+'”</div></div></div>';
+    });
+    h+='</div>';
+  }
+  if(!tv) h+='<div class="aviso">Cada erro aparece uma vez só, mesmo quando chega por várias fontes. <b>Cozinha</b> = a comida saiu errada; <b>montagem</b> = faltou coisa na sacola; <b>expedição</b> = chegou frio. O Boqueirão fica de fora (loja à parte). O nome do erro é dado pelas palavras do cliente — se algum vier com o nome errado, me avise.</div>';
+  el.innerHTML=h+'</div>';
+}
 
 /* ---------- 1. TEMPO DE PREPARO ---------- */
 /* media ponderada: cada dia pesa pelo numero de pedidos daquele dia */
@@ -313,6 +472,7 @@ $('pane-desp').style.display=d?'':'none';
 $('aba-b-cozinha').className=d?'ab':'ab on';
 $('aba-b-desp').className=d?'ab on':'ab';
 var fl=$('filtros');if(fl)fl.style.display=d?'none':'';
+if(d)vivoDesliga();else{vivoBusca();vivoLiga();}
 if(d){var f=$('ifr-desp');if(f.getAttribute('src')==='about:blank')f.setAttribute('src','/operacao/?embed=1');}}
 cdmGuarda().then(function(ok){if(ok)boot()});
 </script>
