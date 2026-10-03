@@ -569,14 +569,20 @@ function cardPz(){
 // Grava pela mesma porta e na mesma chave do antigo "Fora do ar" (resolver_marcar tipo 'pausado'), entao as respostas antigas continuam valendo.
 // Validade (regra pausado_status no banco): "Despausei" vale ate a proxima leitura; "Acabou..." 2 dias; o resto 30 dias.
 var MOT_PZ=['Despausei','Acabou, vai voltar a vender','Pode excluir do cardapio'];
+// 03/10/2026 (chat-pausados-whatsapp-03-10): resposta escrita pelo robo que le o WhatsApp e as anotacoes
+// mostra embaixo a mensagem que ele usou, para a equipe conferir e reabrir se estiver errado.
+function provaPz(x){
+  return x.prova?'<div class="m" style="font-size:10px;margin-top:3px">&#128233; '+esc(x.prova)+'</div>':'';
+}
 function respPz(x){
   var ls=(PZD&&PZD.linhas)||[], i=ls.indexOf(x);
   if(i<0 || !x.chave) return '';
   if(x.resolvido){
     return '<span class="feito">&#10004; '+esc(x.quem||'')+'</span> <span class="m">'+esc(x.em||'')+' &#183; '+esc(x.o_que||'')+'</span> '+
-      '<button class="mini" onclick="reabrePz('+i+')">reabrir</button>';
+      '<button class="mini" onclick="reabrePz('+i+')">reabrir</button>'+provaPz(x);
   }
-  return (x.contradito?'<div style="color:var(--bad);font-size:11px;font-weight:700;margin-bottom:4px">&#9888;&#65039; '+esc(x.quem||'')+' marcou "despausei" em '+esc(x.em||'')+', mas o iFood ainda mostra pausado</div>':'')+
+  return (x.contradito?'<div style="color:var(--bad);font-size:11px;font-weight:700;margin-bottom:4px">&#9888;&#65039; '+esc(x.quem||'')+
+      (/^Despausar/i.test(x.o_que||'')?' pediu para despausar em ':' marcou "despausei" em ')+esc(x.em||'')+', mas o iFood ainda mostra pausado</div>'+provaPz(x):'')+
     MOT_PZ.map(function(m,k){ return '<button class="mini" style="margin:0 4px 4px 0" onclick="marcaPz('+i+','+k+')">'+esc(m)+'</button>' }).join('');
 }
 async function marcaPz(i,k){
