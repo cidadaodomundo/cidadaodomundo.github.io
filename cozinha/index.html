@@ -138,13 +138,13 @@ async function pega(url){
 async function boot(){
   VIVO_PRONTO=true; vivoDesenha(); vivoBusca(); vivoLiga();
   const d7=diaISO(7), d14=diaISO(14), d30=diaISO(30);
-  const [prep,canc,paus,itens]=await Promise.all([
+  pzBusca();
+  const [prep,canc,itens]=await Promise.all([
     pega('cozinha_vw_preparo_dia?select=unidade,dia_operacional,pedidos,preparo_medio_min&dia_operacional=gte.'+d14),
     pega('ifood_fato_cancelamento?select=id_loja,data,motivo,valor_cancelamento&data=gte.'+d30),
-    pega('cardapio_pausado?select=canal,unidade,marca,item,tipo,estado,primeiro_visto,visto_em&estado=in.(pausado,escondido)&limit=600'),
     pega('rpc/cozinha_itens_top?p_dias=7')
   ]);
-  DADO={prep:prep,canc:canc,paus:paus,itens:itens,d7:d7,d14:d14,d30:d30};
+  DADO={prep:prep,canc:canc,itens:itens,d7:d7,d14:d14,d30:d30};
   filtros();
   render();
 }
@@ -182,6 +182,7 @@ async function vivoBusca(){
     VIVO_NOVOS = (VIVO_VISTOS && !VIVO_ONTEM) ? lista.filter(e=>!VIVO_VISTOS.has(e.k)).map(e=>e.k) : [];
     VIVO_VISTOS=new Set(lista.map(e=>e.k));
     VIVO=j; vivoDesenha();
+    if(!VIVO_ONTEM && Date.now()-PZ_T > 270000) pzBusca();
     const meus=lista.filter(e=>VIVO_NOVOS.indexOf(e.k)>=0 && daLoja(e.loja));
     if(meus.length) vivoAlerta(meus);
   }catch(e){ VIVO_ERRO='Sem conexão agora. Tento de novo em 1 minuto.'; vivoDesenha(); }
@@ -383,38 +384,81 @@ function secErro(){
   return h+'</div>';
 }
 
-/* ---------- 3. ITEM PAUSADO ---------- */
+/* ---------- 3. ITEM PAUSADO ----------
+   03/10/2026 (chat-cozinha-ao-vivo-03-10), pedido do Fabio: "essa parte tem que estar viva... use o mesmo criterio"
+   do Resolver hoje > Cardapio pausado. Porta cozinha_pausados (copia so-leitura de resolver_pausas): iFood pela porta
+   oficial (robo de 5 em 5 min) + a resposta da loja tirada do WhatsApp/anotacao, com a mensagem como prova.
+   Tablet da mesa vem da varredura do Goomer. O Accon nao e lido desde o fim de agosto: so aparece o aviso.
+   Recarrega junto com o AO VIVO, no maximo a cada 5 min (a fonte nao muda mais rapido que isso). */
+let PZ=null, PZ_T=0, PZ_ERRO='';
+async function pzBusca(){
+  try{
+    const r=await fetch(SB+'rpc/cozinha_pausados',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({p_token:cdmTok(),p_dados:{}})});
+    if(!r.ok){ PZ_ERRO='Não consegui ler os itens fora do ar agora (código '+r.status+').'; }
+    else { PZ=await r.json(); PZ_ERRO=''; PZ_T=Date.now(); }
+  }catch(e){ PZ_ERRO='Sem conexão para ler os itens fora do ar.'; }
+  if(DADO && DADO.d7) render();
+}
+function tempoFora(m){
+  if(m==null) return '?';
+  if(m<60) return m+' min';
+  if(m<1440) return Math.floor(m/60)+'h'+(m%60<10?'0':'')+(m%60);
+  const d=Math.floor(m/1440), h=Math.floor((m%1440)/60);
+  return d+(d===1?' dia':' dias')+(h?' e '+h+'h':'');
+}
+function pzResp(x){
+  const prova = x.prova? '<div style="color:var(--muted);font-size:11px;margin-top:2px">📩 '+esc(x.prova)+'</div>' : '';
+  if(x.resolvido) return '<span class="pill p-ok">✔ '+esc(x.quem||'loja')+'</span> <span style="color:var(--text2);font-size:12px">'+esc(x.em||'')+' · '+esc(x.o_que||'')+'</span>'+prova;
+  if(x.contradito) return '<span class="pill p-bad">⚠️ '+esc(x.quem||'')+(/^Despausar/i.test(x.o_que||'')?' pediu para despausar':' disse que despausou')+' em '+esc(x.em||'')+', mas o iFood ainda mostra pausado</span>'+prova;
+  return '<span class="pill p-bad">sem resposta da loja</span>';
+}
 function secPausado(){
-  let h='<div class="sec"><h2>⏸ Item fora do ar <span class="hint">o que a cozinha tirou do cardápio — iFood, tablet da mesa e Accon</span></h2>';
-  const rows=DADO.paus.filter(r=>daLoja(r.unidade));
-  if(!rows.length){ return h+'<div class="semdado">Nenhum item registrado como fora do ar. Isso vem da varredura de cardápio — se ela não rodou hoje, o quadro pode estar desatualizado.</div></div>'; }
+  let h='<div class="sec"><h2>⏸ Item fora do ar agora <span class="hint">iFood lido pela porta oficial a cada 5 min · com o que a loja respondeu no WhatsApp ou na tela Resolver hoje</span></h2>';
+  if(PZ_ERRO) h+='<div class="aviso">'+esc(PZ_ERRO)+' Tento de novo em alguns minutos.</div>';
+  if(!PZ) return h+(PZ_ERRO?'':'<div class="load">Carregando itens fora do ar…</div>')+'</div>';
 
-  const ate=rows.map(r=>r.visto_em).sort().slice(-1)[0];
-  const hoje=new Date(ate+'T12:00:00');
-  const dias = r => r.primeiro_visto? Math.max(0,Math.round((hoje-new Date(r.primeiro_visto+'T12:00:00'))/864e5)) : null;
-
+  const ifd=(PZ.linhas||[]).filter(x=>x.aberta && daLoja(x.unidade));
+  const tab=(PZ.tablet||[]).filter(x=>daLoja(x.unidade));
+  const semResp=x=>!x.resolvido;
   const alvo = LOJA_SEL==='todas' ? UNI : [LOJA_SEL];
   h+='<div class="cards">';
   alvo.forEach(function(u){
-    const a=rows.filter(r=>r.unidade===u);
-    const velhos=a.filter(r=>(dias(r)||0)>=2).length;
-    h+='<div class="c"><div class="nm">'+esc(u)+(velhos?'<span class="pill p-bad">'+velhos+' há 2+ dias</span>':(a.length?'<span class="pill p-ok">recentes</span>':''))+'</div>'
-     + '<div class="nota">'+fmtN(a.length)+'</div><div class="qtd">itens fora do ar</div></div>';
+    const a=ifd.filter(x=>x.unidade===u), s=a.filter(semResp).length, t=tab.filter(x=>x.unidade===u).length;
+    h+='<div class="c"><div class="nm">'+esc(u)+(s?'<span class="pill p-bad">'+s+' sem resposta</span>':(a.length?'<span class="pill p-ok">todos respondidos</span>':''))+'</div>'
+     + '<div class="nota">'+fmtN(a.length)+'</div><div class="qtd">fora do ar no iFood'+(t?' · '+fmtN(t)+' no tablet da mesa':'')+'</div></div>';
   });
   h+='</div>';
 
-  const ord=rows.slice().sort((a,b)=>(dias(b)||0)-(dias(a)||0)).slice(0,40);
-  h+='<div class="store" style="margin-top:14px"><table><tr><th>Item</th><th>Loja</th><th>Marca</th><th>Onde</th><th>Estado</th><th class="n">Parado há</th></tr>';
-  ord.forEach(function(r){
-    const d=dias(r);
-    const cl = d>=2?'p-bad':'p-off';
-    h+='<tr><td>'+esc(r.item)+'</td><td>'+esc(r.unidade)+'</td><td style="color:var(--text2)">'+esc(r.marca||'—')+'</td>'
-     + '<td style="color:var(--text2)">'+esc(r.canal)+'</td><td>'+esc(r.estado)+'</td>'
-     + '<td class="n" data-k="'+(d==null?-1:d)+'"><span class="pill '+cl+'">'+(d==null?'—':(d===0?'hoje':d+' dia'+(d>1?'s':'')))+'</span></td></tr>';
+  const lidoMin=PZ.lido_min==null?null:Number(PZ.lido_min);
+  h+='<div class="aviso">Última leitura do iFood: <b>'+esc(PZ.lido_em||'—')+'</b>'
+   + (lidoMin!=null&&lidoMin>20?' — <b style="color:var(--bad)">a leitura está parada há '+tempoFora(lidoMin)+'</b>, a lista pode estar velha':'')
+   + '. Tablet da mesa lido em <b>'+esc(PZ.tablet_lido||'—')+'</b>. O Accon não é lido desde <b>'+esc(PZ.accon_lido||'—')+'</b> — por isso ele não entra aqui.</div>';
+
+  /* sem resposta e "disse que despausou mas continua pausado" primeiro; depois o que esta parado ha mais tempo */
+  const ord=ifd.slice().sort((a,b)=>((a.resolvido?1:0)-(b.resolvido?1:0)) || ((b.minutos||0)-(a.minutos||0)));
+  const MAX=60;
+  h+='<div class="store" style="margin-top:14px"><table><tr><th>Item</th><th>Loja</th><th>Marca</th><th>Fora do ar desde</th><th class="n">Há</th><th>O que a loja disse</th></tr>';
+  ord.slice(0,MAX).forEach(function(x){
+    h+='<tr><td><b>'+esc(x.item)+'</b>'+(x.tipo==='Complemento'?' <span style="color:var(--muted);font-size:10px">complemento</span>':'')+'</td>'
+     + '<td>'+esc(x.unidade)+'</td><td style="color:var(--text2)">'+esc(x.marca||'—')+'</td>'
+     + '<td style="white-space:nowrap">'+(x.minimo?'antes de ':'')+esc(x.pausou||'?')+'</td>'
+     + '<td class="n" data-k="'+(x.minutos==null?-1:x.minutos)+'">'+(x.minimo?'pelo menos ':'')+tempoFora(x.minutos)+'</td>'
+     + '<td style="min-width:220px">'+pzResp(x)+'</td></tr>';
   });
   h+='</table></div>';
-  if(rows.length>40) h+='<div class="aviso">Mostrando os 40 parados há mais tempo, de '+fmtN(rows.length)+' no total.</div>';
-  h+='<div class="aviso">Última varredura de cardápio: <b>'+dBR(ate)+'</b>.</div>';
+  if(ord.length>MAX) h+='<div class="aviso">Mostrando '+MAX+' de '+fmtN(ord.length)+' itens: primeiro os sem resposta da loja, depois os parados há mais tempo. A lista completa, com os botões para responder, está em Resolver hoje › Cardápio pausado.</div>';
+
+  if(tab.length){
+    h+='<h2>📱 Tablet da mesa <span class="hint">itens desligados no tablet (Goomer) · leitura de '+esc(PZ.tablet_lido||'—')+'</span></h2>'
+     + '<div class="store"><table><tr><th>Item</th><th>Loja</th><th>Estado</th><th>Desde</th><th class="n">Há</th></tr>';
+    tab.slice().sort((a,b)=>(b.dias||0)-(a.dias||0)).slice(0,40).forEach(function(x){
+      h+='<tr><td>'+esc(x.item)+'</td><td>'+esc(x.unidade)+'</td><td>'+esc(x.estado)+'</td><td>'+esc(x.desde||'—')+'</td>'
+       + '<td class="n" data-k="'+(x.dias==null?-1:x.dias)+'">'+(x.dias==null?'—':(x.dias===0?'hoje':x.dias+' dia'+(x.dias>1?'s':'')))+'</td></tr>';
+    });
+    h+='</table></div>';
+    if(tab.length>40) h+='<div class="aviso">Mostrando os 40 parados há mais tempo, de '+fmtN(tab.length)+' no tablet.</div>';
+  }
   return h+'</div>';
 }
 
