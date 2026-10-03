@@ -54,6 +54,26 @@ td{padding:9px 8px 9px 0;border-top:1px solid var(--line);vertical-align:top}
 .mini:hover{border-color:var(--text2)}
 .feito{color:#7fe0aa;font-weight:700}
 @media (max-width:640px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.card .v{font-size:34px}.per{width:100%}}
+/* 03/10/2026 (chat-resolver-itemcancelado-03-10): cartoes do Item cancelado, mesmo visual do AO VIVO da Central Cozinha */
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700}
+.p-ok{background:rgba(47,174,106,.15);color:var(--ok)}
+.p-bad{background:rgba(230,103,103,.15);color:var(--bad)}
+.vv-lista{display:grid;gap:10px}
+table.vv{background:var(--s1);border:1px solid var(--line);border-left:5px solid var(--bad);border-radius:12px;border-collapse:separate;border-spacing:0}
+table.vv.ok{border-left-color:var(--ok)}
+table.vv td{border-top:0;padding:12px 14px;vertical-align:top}
+table.vv td.hrc{width:72px;padding-right:0}
+table.vv td.sit{width:250px}
+.vv .hr{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;line-height:1;white-space:nowrap}
+.vv .ha{color:var(--muted);font-size:11.5px;margin-top:3px}
+.vv .tt{font-size:17px;font-weight:800;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vv .lj{color:var(--text2);font-size:13px;margin-top:2px}
+.vv .ds{margin-top:6px;font-size:14px;color:var(--text);font-style:italic}
+.vv .it{margin-top:3px;font-size:12.5px;color:var(--text2)}
+.vv .rs{margin-top:6px;font-size:12px;color:var(--muted)}
+.vv .fn{margin-top:2px;font-size:11px;color:var(--muted)}
+.vv .vbt{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+@media (max-width:640px){table.vv,table.vv tbody{display:block}table.vv tr{display:grid;grid-template-columns:64px minmax(0,1fr)}table.vv td{padding:12px 10px}table.vv td.hrc{padding-right:0}.vv .hr{font-size:21px}table.vv td.sit{grid-column:1/-1;width:auto;padding-top:0}table.vv td.hrc{width:auto}}
 </style>
 </head>
 <body>
@@ -678,6 +698,52 @@ function cardParc(R){
     '</div>';
 }
 
+/* 03/10/2026 (chat-resolver-itemcancelado-03-10), pedido do Fabio: "quero que use aqui aquele front end bonito"
+   — a lista do Item cancelado em cartoes, igual ao AO VIVO da Central Cozinha. Cada cartao e uma tabela de uma
+   linha so, para a anotacao do portal.js continuar aparecendo (ela procura linha de tabela com botao).
+   O banco manda a marca em o_que_e e o detalhe com rotulos: "disse: ... | item: ... | como ficou: ... | de onde veio: ...". */
+function parteDet(s){
+  var o={};
+  String(s||'').split(/ \| (?=(?:disse|item|como ficou|de onde veio): )/).forEach(function(p){
+    var m=p.match(/^(disse|item|como ficou|de onde veio): ([\s\S]*)$/); if(m) o[m[1]]=m[2];
+  });
+  return o;
+}
+function haQuando(q){
+  var m=String(q||'').match(/^(\d{2})\/(\d{2}) (\d{2}):(\d{2})$/); if(!m) return '';
+  var n=new Date(), t=new Date(n.getFullYear(),+m[2]-1,+m[1],+m[3],+m[4]);
+  if(t>n) t.setFullYear(t.getFullYear()-1);
+  var min=Math.round((n-t)/60000);
+  if(min<60) return 'há '+min+' min';
+  if(min<1440) return 'há '+Math.floor(min/60)+'h'+(min%60<10?'0':'')+(min%60);
+  return m[1]+'/'+m[2];
+}
+function cartaoParc(l,i){
+  var d=parteDet(l.detalhe), ok=!!l.resolvido;
+  var disse=d['disse']||l.cliente_disse||'', item=d['item']||'';
+  if(item && disse && (disse.indexOf(item)>=0 || item.indexOf(disse)>=0)) item='';
+  var hora=String(l.quando||'').slice(6)||'—';
+  return '<table class="vv'+(ok?' ok':'')+'" data-cdm-livre><tr data-cdm-chave="'+esc(l.chave||'')+'">'+
+    '<td class="hrc"><div class="hr">'+esc(hora)+'</div><div class="ha">'+esc(haQuando(l.quando))+'</div></td>'+
+    '<td><div class="tt">✂️ Item cancelado '+(ok?'<span class="pill p-ok">resolvido</span>':'<span class="pill p-bad">esperando alguém</span>')+'</div>'+
+      '<div class="lj"><b>'+esc(l.unidade||'')+'</b> · pedido <b>'+esc(l.referencia||'')+'</b>'+(l.o_que_e?' · '+esc(l.o_que_e):'')+'</div>'+
+      (disse?'<div class="ds">“'+esc(disse)+'”</div>':'')+
+      (item?'<div class="it">Item no iFood: '+esc(item)+'</div>':'')+
+      '<div class="rs">Como ficou: '+esc(d['como ficou']||'—')+'</div>'+
+      '<div class="fn">Fonte: '+esc(d['de onde veio']||'—')+'</div>'+
+      ((l.fotos>0||l.tem_conversa)?'<div class="vbt">'+
+        ((l.fotos>0)?'<button class="mini" onclick="verFotos('+i+')">📷 '+l.fotos+(l.fotos>1?' fotos':' foto')+'</button>':'')+
+        (l.tem_conversa?'<button class="mini" onclick="verConversa('+i+')">💬 conversa</button>':'')+'</div>':'')+
+      ((l.n_conversas>1)?'<div style="margin-top:5px;color:var(--warn);font-size:12px">⚠️ '+l.n_conversas+' conversas com esse numero de pedido — nao da para saber qual e</div>':'')+
+    '</td>'+
+    '<td class="sit">'+
+      (ok
+        ? '<span class="feito">✔ '+esc(l.quem||'')+'</span><div class="m">'+esc(l.resolvido_em||'')+' · '+esc(l.o_que_foi_feito||'')+'</div>'+
+          '<button class="mini" style="margin-top:6px" onclick="reabrir('+i+')">reabrir</button>'
+        : campoEscrita(l,i))+
+    '</td></tr></table>';
+}
+
 function barraFiltro(){
   var lj=function(n,r){ return '<button class="chip'+(UNI===n?' on':'')+'" onclick="UNI=&quot;'+n+'&quot;;boot()">'+(r||n||'Todas')+'</button>' };
   var pe=$('per');
@@ -723,6 +789,8 @@ function desenha(){
     h+='<div class="painel" id="painel"><div class="ph"><h3>'+rotulo(TIPO)+'</h3><span class="ct">'+(VER==='abertas'?'só o que ainda espera alguém':'tudo do período')+'</span><button class="b fecha" onclick="fechaTudo()">fechar ✕</button></div>';
     if(!lista.length){
       h+='<div class="c"><div class="vazio">'+(VER==='abertas'?'Nada esperando ninguém neste período. A casa está limpa.':'Nada neste período.')+'</div></div>';
+    }else if(TIPO==='parcial'){
+      h+='<div class="vv-lista">'+itens.map(function(l,i){ return (l.tipo==='parcial' && (VER!=='abertas'||!l.resolvido)) ? cartaoParc(l,i) : ''; }).join('')+'</div>';
     }else{
       h+=bloco('dia','☀️ De dia — até as 17h')+
           bloco('noite','🌙 De noite — das 17h até a madrugada')+
