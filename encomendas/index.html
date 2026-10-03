@@ -77,6 +77,10 @@ const LOJAS=['Água Verde','São Braz','Ahú','Boqueirão','A definir'];
 const ST={anotada:['📝','Anotada','ambar'],confirmada:['✅','Confirmada','verde'],em_producao:['🍳','Em produção','verde'],entregue:['📦','Entregue','cinza'],cancelada:['🚫','Cancelada','cinza']};
 const PROX={anotada:['confirmada','✅','Confirmar'],confirmada:['em_producao','🍳','Em produção'],em_producao:['entregue','📦','Entregue']};
 const ABERTA=function(r){return r.status!=='entregue'&&r.status!=='cancelada'};
+/* pedido do Fábio (03/10): "essas antigas ja foram, queremos saber das que estao pra vir" —
+   aberta com data antes de hoje sai da lista principal e vai para o bloco "Já passaram" */
+const PASSOU=function(r){return ABERTA(r)&&!!r.data_entrega&&r.data_entrega<hojeISO()};
+const VIGENTE=function(r){return ABERTA(r)&&!PASSOU(r)};
 
 let ROWS=[],FILTRO='',EDITA=null;
 
@@ -118,7 +122,7 @@ function historico(obs){
 }
 
 function pintaChips(){
-  const ab=ROWS.filter(ABERTA);
+  const ab=ROWS.filter(VIGENTE);
   const lojas=SOLOJA?[]:LOJAS.filter(function(u){return ab.some(function(r){return r.unidade===u})});
   ab.forEach(function(r){if(!SOLOJA&&lojas.indexOf(r.unidade)<0)lojas.push(r.unidade)});
   const conta=function(f){return ab.filter(f).length};
@@ -167,7 +171,8 @@ function cartao(r){
     h+='<div class="acs">'+
       (!r.responsavel?'<button class="bt res" data-a="assumir" data-id="'+r.id+'"><span class="ic">👤</span>Assumir</button>':'')+
       (nx?'<button class="bt '+(r.responsavel?'res':'lig')+'" data-a="situacao" data-st="'+nx[0]+'" data-id="'+r.id+'"><span class="ic">'+nx[1]+'</span>'+nx[2]+'</button>':'')+
-      '<button class="bt lig" data-cont="'+r.id+'"><span class="ic">📞</span>Ver contato</button></div>';
+      '<button class="bt lig" data-cont="'+r.id+'"><span class="ic">📞</span>Ver contato</button>'+
+      '<button class="bt lig" data-a="fechar" data-id="'+r.id+'"><span class="ic">✔️</span>Fechar</button></div>';
   }
   h+='<div class="rodc">🗓️ Anotada em '+br(r.criado_em)+' · veio do '+esc(r.origem||'?')+'</div>';
   return h+'</div>';
@@ -179,19 +184,23 @@ function grupo(em,titulo,l){
 }
 function pinta(){
   const q=($('q').value||'').trim().toLowerCase();
-  const hoje=hojeISO();
   const vis=ROWS.filter(function(r){return passa(r)&&bate(r,q)});
-  const abertas=vis.filter(function(r){return ABERTA(r)&&(!r.data_entrega||r.data_entrega>=hoje||r.robo_aviso)});
+  const abertas=vis.filter(VIGENTE);
+  const passadas=vis.filter(PASSOU).sort(function(a,b){return String(b.data_entrega).localeCompare(String(a.data_entrega))});
+  PASSADAS=passadas.map(function(r){return r.id});
   const conferir=abertas.filter(function(r){return r.robo_aviso});
   const resto=abertas.filter(function(r){return !r.robo_aviso});
   const semData=resto.filter(function(r){return !r.data_entrega});
   const comData=resto.filter(function(r){return r.data_entrega}).sort(function(a,b){return String(a.data_entrega+(a.hora||'')).localeCompare(String(b.data_entrega+(b.hora||'')))});
   const semana=comData.filter(function(r){return difDias(r.data_entrega)<=7});
   const depois=comData.filter(function(r){return difDias(r.data_entrega)>7});
-  const hist=vis.filter(function(r){return abertas.indexOf(r)<0}).sort(function(a,b){return String(b.data_entrega||b.criado_em).localeCompare(String(a.data_entrega||a.criado_em))});
+  const hist=vis.filter(function(r){return !ABERTA(r)}).sort(function(a,b){return String(b.data_entrega||b.criado_em).localeCompare(String(a.data_entrega||a.criado_em))});
   let h='';
-  if(!abertas.length)h+='<div class="vazio"><span class="em">🎉</span>'+(ROWS.length?'Nada aberto nesse filtro.':'Nenhuma encomenda aberta.')+'</div>';
+  if(!abertas.length)h+='<div class="vazio"><span class="em">🎉</span>'+(passadas.length?'Nenhuma encomenda para vir nesse filtro. Embaixo estão as que já passaram e continuam abertas.':(ROWS.length?'Nada aberto nesse filtro.':'Nenhuma encomenda aberta.'))+'</div>';
   h+=grupo('🤖','Vieram de mensagens — confira',conferir)+grupo('⏰','Próximos 7 dias',semana)+grupo('📆','Mais pra frente',depois)+grupo('📅','Data a combinar',semData);
+  if(passadas.length)h+='<details class="mais"><summary>⌛ Já passaram — feche as que já aconteceram ('+passadas.length+')</summary>'+
+    '<div class="acs" style="margin:10px 0"><button class="bt res" data-fecha-todas="1"><span class="ic">✔️</span>Fechar todas as que já passaram</button></div>'+
+    '<div class="grade">'+passadas.map(cartao).join('')+'</div></details>';
   if(hist.length)h+='<details class="mais"><summary>🕘 Histórico recente ('+hist.length+')</summary><div class="grade">'+hist.map(cartao).join('')+'</div></details>';
   h+='<div class="aviso2">🤖 O robô caçador lê, de 5 em 5 minutos, as mensagens de clientes no SAC e o que o leitor do WhatsApp achou, e cria a encomenda aqui para você conferir. '+
      'Encomenda <b>🔴 Sem dono</b> precisa de alguém que toque em <b>👤 Assumir</b>. O contato do cliente fica guardado fora da tela, no botão <b>📞 Ver contato</b>.</div>';
@@ -252,11 +261,22 @@ async function salva(){
   }
 }
 
+/* ---- fechar de uma vez as que já passaram ---- */
+let PASSADAS=[];
+async function fechaTodas(btn){
+  const ids=PASSADAS.slice();
+  if(!ids.length)return;
+  if(!confirm('Fechar as '+ids.length+' encomendas com data que já passou? Elas saem da lista (ficam no histórico).'))return;
+  btn.disabled=true;let ok=0;
+  for(const id of ids){try{await acao('situacao',{id:id,status:'entregue'});ok++}catch(e){}}
+  await boot();aviso('✔️ '+ok+' de '+ids.length+' fechadas');
+}
 /* ---- cliques ---- */
 document.addEventListener('click',function(ev){
-  const t=ev.target.closest('[data-f],[data-ed],[data-a],[data-grava],[data-cont]');
+  const t=ev.target.closest('[data-f],[data-ed],[data-a],[data-grava],[data-cont],[data-fecha-todas]');
   if(!t)return;
   const id=Number(t.getAttribute('data-id')||t.getAttribute('data-ed')||t.getAttribute('data-grava')||t.getAttribute('data-cont'));
+  if(t.hasAttribute('data-fecha-todas')){fechaTodas(t);return}
   if(t.hasAttribute('data-f')){FILTRO=t.getAttribute('data-f');pintaChips();pinta()}
   else if(t.hasAttribute('data-ed'))abre(id);
   else if(t.hasAttribute('data-grava'))anotar(id);
@@ -264,6 +284,7 @@ document.addEventListener('click',function(ev){
   else if(t.hasAttribute('data-a')){
     const a=t.getAttribute('data-a');
     if(a==='nao_encomenda'&&!confirm('Tirar da lista? (não é uma encomenda)'))return;
+    if(a==='fechar'){if(!confirm('Fechar esta encomenda? Ela sai da lista (fica no histórico).'))return;faz('situacao',{id:id,status:'entregue'},'✔️ Fechada! Saiu da lista',t);return}
     if(a==='situacao'){const st=t.getAttribute('data-st');faz('situacao',{id:id,status:st},OK[st],t)}
     else faz(a,{id:id},OK[a],t);
   }
@@ -279,14 +300,14 @@ async function boot(manual){
   let rows;
   try{
     rows=await get('encomenda?select=id,unidade,data_entrega,hora,descricao,qtd_itens,status,responsavel,origem,criado_em,obs,robo_aviso'+
-      '&or=(data_entrega.gte.'+corte+',and(data_entrega.is.null,status.in.(anotada,confirmada,em_producao)),robo_aviso.not.is.null)&order=data_entrega.asc.nullsfirst&limit=150');
+      '&or=(data_entrega.gte.'+corte+',status.in.(anotada,confirmada,em_producao),robo_aviso.not.is.null)&order=data_entrega.asc.nullsfirst&limit=150');
   }catch(e){
     $('app').innerHTML='<div class="vazio"><span class="em">🔌</span>Não deu para carregar as encomendas. Entre no portal de novo.</div>';
     return;
   }
   try{if(ehDono()){const _r=await fetch(SB+'rpc/dinheiro_consulta',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_token:cdmTok(),p_acao:'encomenda'})});if(_r.ok){const _m=(await _r.json())||[];const _k={};_m.forEach(function(x){_k[x.id]=x.valor});rows.forEach(function(r){if(_k[r.id]!=null)r.valor=_k[r.id]})}}}catch(e){}
   ROWS=SOLOJA?rows.filter(function(r){return r.unidade===SOLOJA}):rows;
-  const ab=ROWS.filter(ABERTA);
+  const ab=ROWS.filter(VIGENTE);
   const conf=ab.filter(function(r){return r.robo_aviso}).length;
   const sd=ab.filter(function(r){return !r.responsavel}).length;
   const prox=ab.filter(function(r){return r.data_entrega&&difDias(r.data_entrega)>=0&&difDias(r.data_entrega)<=7}).length;
