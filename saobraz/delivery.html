@@ -81,8 +81,8 @@ button.b.on{background:var(--brand);color:var(--brand-ink);border-color:var(--br
   </div>
   <div class="rt per" id="per">
     <button class="chip" data-d="1">Hoje</button>
+    <button class="chip" data-d="ontem">Ontem</button>
     <button class="chip on" data-d="7">7 dias</button>
-    <button class="chip" data-d="14">14 dias</button>
   </div>
 </div>
 <div id="app" class="load">Carregando…</div>
@@ -98,8 +98,10 @@ async function rpc(nome,corpo){
   return r.json();
 }
 function porta(acao,dados){return rpc('sb_consulta',{p_token:cdmTok(),p_acao:acao,p_dados:dados||{}})}
-function central(){return rpc('sb_central',{p_token:cdmTok(),p_dados:{dias:DIAS}})}
-function erros(){return rpc('sb_erros',{p_token:cdmTok(),p_dados:{dias:DIAS}})}
+/* 03/10/2026 pedido do Fabio: periodo Hoje, Ontem e 7 dias (os tres motores entendem 'ontem') */
+function per(){return {dias:DIAS,ontem:ONTEM}}
+function central(){return rpc('sb_central',{p_token:cdmTok(),p_dados:per()})}
+function erros(){return rpc('sb_erros',{p_token:cdmTok(),p_dados:per()})}
 /* ===== itens pausados: o motivo e o que fazer ===== */
 const PZ_MOT={
   esqueceram:{ic:'🙈',t:'Esqueceram de despausar',d:'O item tem, mas ficou pausado por engano.',
@@ -226,7 +228,7 @@ async function verFoto(b){
 
 /* ===== estado ===== */
 const CDMMODS=['sbdelivery'];
-let DIAS=7, D=null, C=null, E=null, DERR='', CERR='', EERR='', ABERTO=null, FONTE='', ASSUNTO='';
+let DIAS=7, ONTEM=false, D=null, C=null, E=null, DERR='', CERR='', EERR='', ABERTO=null, FONTE='', ASSUNTO='';
 const FONTES=[['','Tudo'],['grupo','Grupos do São Braz'],['ia','Outros grupos (a IA marcou São Braz)']];
 function marcaCurta(m){return String(m||'').replace(/CIDAD[ÃA]O DO MUNDO\s*/i,'').replace(/\s*-\s*(S[ÃA]O BRAZ|SB)\s*$/i,'').trim()||String(m||'')}
 function assuntoNome(a){return String(a||'outro').replace(/_/g,' ')}
@@ -237,11 +239,32 @@ function abertos(L){return L.filter(function(x){return !x.resolvido})}
 
 /* ===== os quadros ===== */
 /* cada quadro: id, emoji, titulo, numero, frase de baixo, classe (mal | bem | sd | neutro) */
+/* 03/10/2026 pedido do Fabio: erros de comida e de bebida separados por tipo, para achar o erro e ajustar rapido */
+const CATS=[['BEB','🥤','Bebida esquecida','bebida que não foi na sacola'],
+            ['COM','🍔','Comida esquecida','item de comida que faltou'],
+            ['RUIM','🍳','Comida ruim','crua, fria, queimada, pouca, sem sabor'],
+            ['VAZ','💧','Vazou ou embalagem','vazou, derramou, revirado, amassado'],
+            ['ERR','🔄','Veio errado','item trocado ou errado'],
+            ['OUT','❓','Outra reclamação','reclamação sem tipo claro']];
+function probDe(c){return ((E&&E.problemas)||[]).filter(function(x){return (x.cats||[]).indexOf(c)>=0})}
+function quadrosPedido(){
+  if(EERR)return [{id:'_e',em:'⚠️',t:'Erros no pedido',n:'—',s:'não carregou: '+EERR,k:'sd'}];
+  return CATS.map(function(c){
+    const L=probDe(c[0]), sp=L.filter(function(x){return x.pendente}).length;
+    return {id:'p_'+c[0],em:c[1],t:c[2],n:L.length,s:L.length?(sp?sp+' sem solução registrada':c[3]):c[3],k:L.length?'mal':'bem'};
+  });
+}
+function repetidos(){
+  const P=(E&&E.problemas)||[], cont={};
+  P.forEach(function(x){(x.palavras||[]).forEach(function(w){w=String(w).toLowerCase();cont[w]=(cont[w]||0)+1})});
+  const L=Object.keys(cont).map(function(w){return [w,cont[w]]}).sort(function(a,b){return b[1]-a[1]}).slice(0,10);
+  if(!L.length)return '';
+  return '<div class="subchips" style="margin:10px 0 0;align-items:center"><span class="hint" style="font-weight:700">O que mais aparece nas reclamações:</span>'+
+    L.map(function(p){return '<span class="pill p-off">'+esc(p[0])+' · '+p[1]+'</span>'}).join('')+'</div>';
+}
 function quadrosErro(){
   const Q=[];
-  if(EERR){Q.push({id:'_e',em:'⚠️',t:'Erros do pedido',n:'—',s:'não carregou: '+EERR,k:'sd'});return Q}
-  const S=(E&&E.sacola)||[], sp=S.filter(function(x){return x.pendente}).length;
-  Q.push({id:'sacola',em:'🧺',t:'Errado no pedido',n:S.length,s:S.length?(sp?sp+' sem solução registrada':'todos com solução'):'faltou item, veio errado ou ruim',k:S.length?'mal':'bem'});
+  if(EERR){Q.push({id:'_e',em:'⚠️',t:'Atendimento e entrega',n:'—',s:'não carregou: '+EERR,k:'sd'});return Q}
   const ch=itensDe('chat'), cha=abertos(ch).length;
   Q.push({id:'chat',em:'💬',t:'Cliente sem resposta',n:cha,s:cha?'no chat do iFood, a loja não respondeu':'todo cliente foi respondido',k:cha?'mal':'bem'});
   const ng=itensDe('negociacao');
@@ -297,15 +320,17 @@ function listaItens(L,vazio){
   L=L.slice().sort(function(a,b){return (a.resolvido?1:0)-(b.resolvido?1:0)});
   return '<div class="lista">'+L.map(itemHtml).join('')+'</div>';
 }
-function listaSacola(){
-  const S=(E&&E.sacola)||[];
-  if(!S.length)return '<div class="lista"><div class="vz">Nenhum pedido com item faltando, errado ou ruim neste período. 👏</div></div>';
+function listaProb(c){
+  const S=probDe(c);
+  if(!S.length)return '<div class="lista"><div class="vz">Nenhum caso deste tipo no período. 👏</div></div>';
+  const nome={};CATS.forEach(function(k){nome[k[0]]=k[1]+' '+k[2]});
   return '<div class="lista">'+S.map(function(x){
-    const tp=String(x.tipo||'').split(' + ').map(function(t){return '<span class="pill '+(/FALTOU/.test(t)?'p-bad':/ERRADO/.test(t)?'p-warn':'p-azul')+'">'+esc(t)+'</span>'}).join(' ');
-    return '<div class="it'+(x.pendente?' pend':'')+'"><div class="l1">'+tp+'<b>Pedido '+esc(x.pedido)+'</b><span class="m">'+esc(x.quando)+' · '+esc(String(x.familia||'').toLowerCase())+'</span></div>'+
+    const tp=(x.cats||[]).map(function(t){return '<span class="pill '+(t===c?'p-bad':'p-off')+'">'+esc(nome[t]||t)+'</span>'}).join(' ');
+    const st=x.pendente?'<span class="pill p-bad">⏳ sem solução registrada</span>':(!x.resolveu?'':/^Pedido cancelado/.test(x.resolveu)?'<span class="pill p-off">'+esc(x.resolveu)+'</span>':'<span class="pill p-ok">✅ '+esc(x.resolveu)+'</span>');
+    return '<div class="it'+(x.pendente?' pend':'')+'"><div class="l1">'+tp+'<b>Pedido '+esc(x.pedido)+'</b><span class="m">'+esc(x.quando)+(x.marca?' · '+esc(marcaCurta(x.marca)):'')+'</span></div>'+
       '<div class="l2">'+(x.item?'<b style="color:var(--text)">'+esc(x.item)+'</b><br>':'')+(x.disse?'"'+esc(x.disse)+'"':'')+
-      '<br><span class="m">Veio de: '+esc(x.fontes)+'</span><br>'+
-      (x.pendente?'<span class="pill p-bad">⏳ sem solução registrada</span>':'<span class="pill p-ok">✅ '+esc(x.resolveu||'resolvido')+'</span>')+'</div></div>';
+      (x.extra?'<br><span class="m">Também: '+esc(x.extra)+'</span>':'')+
+      '<br><span class="m">Veio de: '+esc(x.fontes)+'</span>'+(st?'<br>'+st:'')+'</div></div>';
   }).join('')+'</div>';
 }
 function listaAval(){
@@ -365,13 +390,13 @@ function listaWhats(){
        '<div class="l2 pre">'+(x.texto?esc(x.texto):'<i class="m">('+esc(x.tipo||'mídia')+')</i>')+'</div>'+
        (x.foto?'<div style="margin-top:6px">'+fotoBtn(x.foto,'ver '+(x.tipo==='video'?'vídeo':x.tipo==='document'?'arquivo':'foto'))+'</div>':'')+'</div>'}).join('')+'</div>';
 }
-const TITULOS={sacola:'🧺 Errado no pedido',chat:'💬 Cliente sem resposta',negociacao:'🤝 Reclamou no iFood',atraso:'⏰ Chegou atrasado',cancelado:'🚫 Pedido cancelado',
+const TITULOS={p_BEB:'🥤 Bebida esquecida',p_COM:'🍔 Comida esquecida',p_RUIM:'🍳 Comida ruim',p_VAZ:'💧 Vazou ou embalagem',p_ERR:'🔄 Veio errado',p_OUT:'❓ Outra reclamação',chat:'💬 Cliente sem resposta',negociacao:'🤝 Reclamou no iFood',atraso:'⏰ Chegou atrasado',cancelado:'🚫 Pedido cancelado',
   aval:'⭐ Nota de 1 a 3',sac:'🎧 SAC pediu ação',maquininha:'🧾 Maquininha',pausados:'📵 Pausado no iFood',fechamento:'📋 Fechamento do dia',escala:'📅 Escala da semana',
   whats:'📱 WhatsApp do São Braz',elogios:'👏 Elogios'};
 function painel(){
   if(!ABERTO||!TITULOS[ABERTO])return '<div class="nota" style="margin-top:12px">👆 Toque num quadro para ver a lista dele.</div>';
   let corpo='', ct='';
-  if(ABERTO==='sacola'){corpo=listaSacola();ct='junta Gestor Web, negociação e chat do iFood, SAC e WhatsApp — um pedido por linha'}
+  if(ABERTO.indexOf('p_')===0){corpo=listaProb(ABERTO.slice(2));ct='chat, Gestor Web e reclamações do iFood, SAC, avaliações e cancelamentos — um pedido por linha'}
   else if(ABERTO==='chat'){corpo=listaItens(itensDe('chat'),'Todo cliente que escreveu no chat do iFood foi respondido.');ct='o cliente escreveu por último e ninguém da loja respondeu'}
   else if(ABERTO==='negociacao'){corpo=listaItens(itensDe('negociacao'),'Nenhuma reclamação aberta no iFood neste período.');ct='o cliente abriu reclamação dentro do iFood'}
   else if(ABERTO==='atraso'){corpo=listaItens(itensDe('atraso'),'Nenhum pedido chegou mais de 10 min depois do prometido.');ct='hora em que o pedido foi marcado entregue no iFood × hora prometida ao cliente'}
@@ -402,15 +427,18 @@ function fontes(){
 /* ===== desenha ===== */
 function render(){
   const a=document.getElementById('app');a.className='';
-  const QE=quadrosErro(), QR=quadrosRotina();
-  const mal=QE.filter(function(q){return q.k==='mal'}).length;
-  const sac=(E&&E.sacola)||[], sem=sac.filter(function(x){return x.pendente}).length+abertos(itensDe('chat')).length;
+  const QP=quadrosPedido(), QE=quadrosErro(), QR=quadrosRotina();
+  const mal=QP.concat(QE).filter(function(q){return q.k==='mal'}).length;
+  const sac=(E&&E.problemas)||[], sem=sac.filter(function(x){return x.pendente}).length+abertos(itensDe('chat')).length;
   document.getElementById('placar').innerHTML=
-    '<span class="pl">Período <b>'+esc((E&&E.de)||(D&&D.de)||'')+(DIAS>1?' a '+esc((E&&E.ate)||(D&&D.ate)||''):'')+'</b></span>'+
+    '<span class="pl">Período <b>'+esc((E&&E.de)||(D&&D.de)||'')+(DIAS>1&&!ONTEM?' a '+esc((E&&E.ate)||(D&&D.ate)||''):'')+'</b></span>'+
     '<span class="pl"><b>'+mal+'</b> quadro'+(mal===1?'':'s')+' com problema</span>'+
     (sem?'<span class="pl" style="border-color:rgba(230,103,103,.5)"><b style="color:#ff9a9a">'+sem+'</b> sem solução registrada</span>':'');
   let h=fontes();
-  h+='<div class="grp"><span class="em">🔴</span><h2>O que deu errado</h2><span class="ct">toque num quadro para ver a lista</span></div>';
+  h+='<div class="grp"><span class="em">🍳</span><h2>Erros no pedido</h2><span class="ct">cozinha e balcão · toque num quadro para ver os pedidos</span></div>';
+  h+='<div class="quadros">'+QP.map(qHtml).join('')+'</div>'+repetidos();
+  if(ABERTO&&QP.some(function(q){return q.id===ABERTO}))h+=painel();
+  h+='<div class="grp"><span class="em">🛵</span><h2>Atendimento e entrega</h2></div>';
   h+='<div class="quadros">'+QE.map(qHtml).join('')+'</div>';
   if(ABERTO&&QE.some(function(q){return q.id===ABERTO}))h+=painel();
   h+='<div class="grp"><span class="em">📋</span><h2>Rotina da loja</h2></div>';
@@ -429,12 +457,12 @@ function render(){
   a.querySelectorAll('[data-foto]').forEach(function(b){b.onclick=function(){verFoto(b)}});
 }
 function primeiroComProblema(){
-  const q=quadrosErro().filter(function(q){return q.k==='mal'})[0];
+  const q=quadrosPedido().concat(quadrosErro()).filter(function(q){return q.k==='mal'})[0];
   return q?q.id:null;
 }
 async function carregar(){
   const a=document.getElementById('app');a.className='load';a.textContent='Carregando…';
-  const p1=porta('delivery',{dias:DIAS}).then(function(j){D=j;DERR=''},function(e){D=null;DERR=e.message});
+  const p1=porta('delivery',per()).then(function(j){D=j;DERR=''},function(e){D=null;DERR=e.message});
   const p2=central().then(function(j){C=j;CERR=''},function(e){C=null;CERR=e.message});
   const p3=erros().then(function(j){E=j;EERR=''},function(e){E=null;EERR=e.message});
   await Promise.all([p1,p2,p3]);
@@ -444,7 +472,7 @@ async function carregar(){
 }
 function boot(){
   document.querySelectorAll('#per [data-d]').forEach(function(b){b.onclick=function(){
-    DIAS=+b.dataset.d;document.querySelectorAll('#per [data-d]').forEach(function(x){x.classList.toggle('on',x===b)});carregar()}});
+    ONTEM=b.dataset.d==='ontem';DIAS=ONTEM?1:+b.dataset.d;document.querySelectorAll('#per [data-d]').forEach(function(x){x.classList.toggle('on',x===b)});carregar()}});
   carregar();
 }
 /* ===== porta unica do portal: sessao por usuario ===== */
