@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#E0A81C">
 <title>Precisa de Resposta · Cidadão do Mundo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/cdm-ui.css?v=4">
 <style>
 :root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#E0A81C;--brand-ink:#111110;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -80,6 +81,34 @@ button.mini{padding:5px 10px;font-size:12px}
 .form .lin>*{flex:1;min-width:130px}
 .tag{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
 
+/* padrao do kit 03/10/2026 (obra 114): faixas e itens em cartao, botoes maiores */
+body{max-width:none;padding:18px 16px}
+h1{font-size:clamp(26px,5vw,38px);line-height:1.02}
+.top{border-bottom:none;padding-bottom:0;margin-bottom:16px}
+details.c{display:block;padding:0;gap:0;border-radius:18px;margin-bottom:12px}
+details.c>summary{padding:15px 18px;gap:11px}
+details.c>summary .tt{font-family:'Anton',Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:18px;letter-spacing:.02em}
+.corpo{padding:0 14px 14px}
+.pill{border-radius:10px;padding:4px 9px;font-size:12px}
+.it{background:var(--s2);border:1px solid var(--line);border-radius:14px;padding:12px 13px;margin:9px 0;gap:12px}
+.it:last-child{border-bottom:1px solid var(--line)}
+.it .cx{width:30px;height:30px;border-radius:10px;font-size:17px;border-width:2px}
+.it .tx{font-size:14.5px;line-height:1.4}
+.rec{border-radius:11px;padding:8px 11px;font-size:13px}
+.m{font-size:12.5px;margin-top:4px}
+.nl{gap:7px;margin-top:9px}
+.nl .nota{border:1.5px dashed #4a4943;border-radius:12px;padding:9px 11px;font-size:13.5px}
+.nl .nota:focus{border-color:var(--text2)}
+button.b{border-radius:12px;padding:9px 14px;font-size:13.5px;font-weight:700}
+button.b:hover{border-color:#fff}
+button.mini,select.b.mini{padding:7px 11px;font-size:12.5px;border-radius:11px}
+select.b{background:var(--s2);border:1px solid var(--line);color:var(--text);font-family:inherit}
+.cal{border-radius:18px;padding:12px 16px;margin-bottom:14px}
+.diab{border-radius:14px;padding:9px 11px}
+.resumo>div{border-radius:14px}
+.aviso{border-radius:13px;line-height:1.5}
+#app>.vazio{padding:40px 10px;text-align:center}
+
 /* cara da casa 04-09-2026 */
 h1,.gatebox h1{font-weight:400}
 h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.01em;line-height:1.06}
@@ -89,41 +118,44 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
 </style>
 </head>
 <body>
+<div class="wrap">
 <div class="top">
-  <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>📣 Precisa de Resposta</h1><div class="sub">tudo que está esperando alguém resolver — marque o que já foi feito</div></div></div>
-  <div class="rt"><button class="b bp" onclick="abreForm()">+ Acrescentar</button><button class="b" onclick="location.reload()">↻ Atualizar</button></div>
+  <div>
+    <h1>📣 Precisa de Resposta</h1>
+    <div class="placar" id="placar"><span class="pl">Carregando…</span></div>
+  </div>
+  <div class="rt">
+    <a class="volta" href="/index.html">← Portal</a>
+    <button class="bx" onclick="boot();aviso('🔄 Atualizado')" title="Buscar de novo">🔄 Atualizar</button>
+    <button class="novo" onclick="abreForm()">➕ Acrescentar</button>
+  </div>
 </div>
 
-<div class="form" id="frm">
-  <div class="tag" style="margin-bottom:7px">Acrescentar uma pendência na mão</div>
-  <input id="f_titulo" placeholder="O que precisa ser resolvido?" maxlength="200">
-  <div class="lin">
-    <select id="f_setor">
-      <option value="geral">Setor: geral</option>
-      <option value="nutricao">Nutrição</option>
-      <option value="manutencao">Manutenção</option>
-      <option value="salao">Salão</option>
-      <option value="cozinha">Cozinha</option>
-      <option value="delivery">Delivery</option>
-      <option value="rh">RH</option>
-    </select>
-    <select id="f_unid">
-      <option value="">Loja: todas</option>
-      <option value="Água Verde">Água Verde</option>
-      <option value="São Braz">São Braz</option>
-      <option value="Ahú">Ahú</option><option value="Boqueirão">Boqueirão</option>
-          </select>
-    <select id="f_prio"><option value="normal">Normal</option><option value="urgente">Urgente</option><option value="quando_der">Quando der</option></select>
+<dialog id="frm">
+  <div class="dh"><h3>➕ Acrescentar pendência</h3><button class="x" onclick="abreForm(false)" aria-label="Fechar">✕</button></div>
+  <div class="db">
+    <div class="f"><label for="f_titulo">📣 O que precisa ser resolvido</label><input id="f_titulo" placeholder="Ex.: Ligar para o fornecedor de gás" maxlength="200"></div>
+    <div class="cp2">
+      <div class="f"><label for="f_setor">🏷️ Setor</label><select id="f_setor">
+        <option value="geral">📋 Geral</option><option value="nutricao">🥗 Nutrição</option><option value="manutencao">🔧 Manutenção</option>
+        <option value="salao">🍽️ Salão</option><option value="cozinha">👨‍🍳 Cozinha</option><option value="delivery">🛵 Delivery</option><option value="rh">👥 RH</option></select></div>
+      <div class="f"><label for="f_unid">📍 Loja</label><select id="f_unid">
+        <option value="">📍 Todas</option><option value="Água Verde">🏪 Água Verde</option><option value="São Braz">🏪 São Braz</option>
+        <option value="Ahú">🏪 Ahú</option><option value="Boqueirão">🏪 Boqueirão</option></select></div>
+    </div>
+    <div class="f"><label for="f_prio">🚦 Prioridade</label><select id="f_prio"><option value="normal">🟡 Normal</option><option value="urgente">🔴 Urgente</option><option value="quando_der">⚪ Quando der</option></select></div>
+    <div class="f"><label for="f_det">📝 Detalhe</label><textarea id="f_det" placeholder="Opcional" maxlength="600"></textarea></div>
   </div>
-  <textarea id="f_det" rows="2" placeholder="Detalhe (opcional)" maxlength="600"></textarea>
-  <div class="lin" style="justify-content:flex-end">
-    <button class="b bp" onclick="salvaNovo()" style="flex:none">Salvar</button>
-    <button class="b" onclick="abreForm(false)" style="flex:none">Cancelar</button>
+  <div class="df">
+    <button class="bx" onclick="abreForm(false)">Cancelar</button>
+    <button class="sal" id="f_sal" onclick="salvaNovo()">💾 Salvar</button>
   </div>
-</div>
+</dialog>
+<div class="toast" id="toast"></div>
 
 <div class="cal" id="cal"></div>
 <div id="app"><div class="load">Carregando…</div></div>
+</div>
 
 <script>
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
@@ -181,6 +213,7 @@ async function desenhaCal(){
 }
 async function bootDia(){
   $('app').innerHTML='<div class="load">Carregando o dia '+br(DIA)+'…</div>';
+  $('placar').innerHTML='<span class="pl">📅 Vendo o dia <b>'+br(DIA)+'</b> — só consulta</span>';
   let r;
   try{const x=await fetch(SB+'rpc/respostas_dia',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:tok(),p_dia:DIA})});if(!x.ok)throw 0;r=await x.json()}
   catch(e){$('app').innerHTML='<div class="vazio">Não deu para carregar este dia. Entre no portal de novo e tente outra vez.</div>';return}
@@ -206,8 +239,8 @@ const chave=(f,r)=>f+'|'+r;
 function mk(f,r){return MARCAS[chave(f,r)]||{}}
 
 async function marca(f,r,valor){
-  try{await porta('marcar',{fonte:f,ref:String(r),feito:valor});await boot()}
-  catch(e){alert('Não deu para marcar. Entre no portal de novo e tente outra vez.')}
+  try{await porta('marcar',{fonte:f,ref:String(r),feito:valor});await boot();aviso(valor?'✅ Resolvido! Boa!':'↩️ Desmarcado')}
+  catch(e){aviso('😕 Não deu para marcar. Entre no portal de novo e tente outra vez.')}
 }
 async function recado(f,r,el){
   const t=el.value.trim();
@@ -216,27 +249,32 @@ async function recado(f,r,el){
   try{
     if(f==='manutencao'){if(!t){el.disabled=false;return}await manut('anotar',{id:r,texto:t})}
     else await porta('recado',{fonte:f,ref:String(r),recado:t});
-    await boot();
-  }catch(e){el.disabled=false;alert('Não deu para gravar a observação.')}
+    await boot();aviso('📝 Observação gravada');
+  }catch(e){el.disabled=false;aviso('😕 Não deu para gravar a observação.')}
 }
-async function mSel(id,a,d){try{d.id=id;await manut(a,d);await boot()}catch(e){alert('Não deu para gravar.')}}
+async function mSel(id,a,d){try{d.id=id;await manut(a,d);await boot()}catch(e){aviso('😕 Não deu para gravar.')}}
 function teclaRec(ev,f,r,el){if(ev.key==='Enter'){ev.preventDefault();recado(f,r,el)}}
 async function manut(a,dados){
   const x=await fetch(SB+'rpc/manutencao_acao',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
     body:JSON.stringify({p_token:tok(),p_acao:a,p_dados:dados||{}})});
   if(!x.ok)throw new Error('porta '+x.status);return await x.json();
 }
-function abreForm(v){const e=$('frm');e.classList.toggle('on',v!==false&&!e.classList.contains('on'));if(e.classList.contains('on'))$('f_titulo').focus()}
+function abreForm(v){const d=$('frm');if(v===false){if(d.close)d.close();else d.removeAttribute('open');return}
+  $('f_sal').disabled=false;if(d.showModal)d.showModal();else d.setAttribute('open','');setTimeout(function(){$('f_titulo').focus()},30)}
+let _tt=null;
+function aviso(m){const t=$('toast');if(!t)return;t.textContent=m;t.classList.add('on');clearTimeout(_tt);_tt=setTimeout(function(){t.classList.remove('on')},2600)}
 async function salvaNovo(){
   const t=$('f_titulo').value.trim();
-  if(!t){alert('Escreva o que precisa ser resolvido.');return}
+  if($('f_sal').disabled)return;
+  if(!t){aviso('✋ Escreva o que precisa ser resolvido');$('f_titulo').focus();return}
+  $('f_sal').disabled=true;
   try{
     if($('f_setor').value==='manutencao'){
-      if(!$('f_unid').value){alert('Para chamado de manutenção, escolha a loja.');return}
+      if(!$('f_unid').value){$('f_sal').disabled=false;aviso('✋ Para chamado de manutenção, escolha a loja');$('f_unid').focus();return}
       await manut('novo',{item:t,unidade:$('f_unid').value,prioridade:$('f_prio').value,descricao:$('f_det').value.trim()});
     }else await porta('novo',{titulo:t,setor:$('f_setor').value,unidade:$('f_unid').value,prioridade:$('f_prio').value,detalhe:$('f_det').value.trim()});
-    $('f_titulo').value='';$('f_det').value='';abreForm(false);await boot();
-  }catch(e){alert('Não deu para salvar. Entre no portal de novo e tente outra vez.')}
+    $('f_titulo').value='';$('f_det').value='';abreForm(false);await boot();aviso('🎉 Pendência anotada!');
+  }catch(e){$('f_sal').disabled=false;aviso('😕 Não deu para salvar. Entre no portal de novo e tente outra vez.')}
 }
 
 function item(f,r,corpo,podeMarcar){
@@ -270,7 +308,7 @@ async function boot(){
     get('cardapio_pausado?select=unidade,canal,item,primeiro_visto&visto_em=gte.'+dMenos(2)+'&order=primeiro_visto.asc&limit=800'),
     get('salao_reserva?select=id,unidade,data,hora,pessoas,area,status,sinal_pago,observacao&data=gte.'+hojeISO()+'&data=lte.'+dMais(7)+'&order=data.asc,hora.asc&limit=100'),
     get('manutencao_chamado?select=id,unidade,item,descricao,prioridade,status,aberto_em,obs&status=neq.resolvido&order=aberto_em.asc&limit=200'),
-    get('encomenda?select=id,unidade,data_entrega,hora,descricao,qtd_itens,status,responsavel&data_entrega=gte.'+dMenos(1)+'&order=data_entrega.asc&limit=100'),
+    get('encomenda?select=id,unidade,data_entrega,hora,descricao,qtd_itens,status,responsavel&or=(data_entrega.gte.'+dMenos(1)+',and(data_entrega.is.null,status.in.(anotada,confirmada,em_producao)))&order=data_entrega.asc.nullslast&limit=100'),
     get('compra_item?select=id,unidade,item,quantidade,status,quem_pediu,criado_em&criado_em=gte.'+dMenos(30)+'&order=criado_em.asc&limit=200'),
     porta('listar').catch(()=>({marcas:[],manuais:[],feitos7:[],quem:''}))
   ]);
@@ -284,7 +322,7 @@ async function boot(){
   const abertoHoje=k=>!(MARCAS[k]&&MARCAS[k].feito===true);
   man.forEach(c=>poe('manutencao',c.id,c.unidade+' · '+c.item));
   res.forEach(r=>poe('reserva',r.id,'Reserva '+r.unidade+' '+br(r.data)));
-  enc.forEach(e=>poe('encomenda',e.id,'Encomenda '+e.unidade+' '+br(e.data_entrega)));
+  enc.forEach(e=>poe('encomenda',e.id,'Encomenda '+e.unidade+' '+(e.data_entrega?br(e.data_entrega):'(data a combinar)')));
   com.forEach(c=>poe('compra',c.id,c.unidade+' · '+c.item));
   manuais.forEach(x=>poe('manual',x.id,x.titulo));
   cham.forEach(c=>poe('chamado',c.id,'Chamado iFood '+loja(c.id_loja)+' '+br(c.data)));
@@ -333,10 +371,10 @@ async function boot(){
       (x.detalhe?'<br>'+esc(x.detalhe):'')+'</div>')).join(''),true);
 
   /* 4 - encomendas sem dono */
-  const semDono=enc.filter(e=>!e.responsavel||!String(e.responsavel).trim());
+  const semDono=enc.filter(e=>(!e.responsavel||!String(e.responsavel).trim())&&e.status!=='entregue'&&e.status!=='cancelada');
   h+=bloco('ed','📦 Encomendas grandes sem dono',semDono.filter(e=>abertoHoje(chave('encomenda',e.id))).length,
     semDono.map(e=>item('encomenda',e.id,
-      '<b>'+esc(e.unidade)+' · entrega '+br(e.data_entrega)+' '+String(e.hora||'').slice(0,5)+'</b> <span class="pill p-bad">sem dono</span>'+
+      '<b>'+esc(e.unidade)+' · '+(e.data_entrega?'entrega '+br(e.data_entrega)+' '+String(e.hora||'').slice(0,5):'data a combinar')+'</b> <span class="pill p-bad">sem dono</span>'+
       '<div class="m">'+esc(e.descricao||'')+(e.qtd_itens?' · '+e.qtd_itens+' itens':'')+' · '+esc(e.status||'')+'</div>')).join(''),true);
 
   /* 5 - compras pedidas e nao resolvidas */
@@ -390,6 +428,12 @@ async function boot(){
         '</div></div>';
     }).join(''),false);
 
+  const _nMan=mTodos.filter(c=>abertoHoje(chave('manutencao',c.id))).length,_nRes=pend7.filter(r=>abertoHoje(chave('reserva',r.id))).length,
+    _nMao=manuais.filter(x=>abertoHoje(chave('manual',x.id))).length,_nEnc=semDono.filter(e=>abertoHoje(chave('encomenda',e.id))).length,
+    _nCom=cAb.filter(c=>abertoHoje(chave('compra',c.id))).length,_nCh=abertos.filter(c=>abertoHoje(chave('chamado',c.id))).length;
+  $('placar').innerHTML='<span class="pl">📣 <b>'+(_nMan+_nRes+_nMao+_nEnc+_nCom+_nCh)+'</b> esperando alguém</span>'+
+    (nUrg?'<span class="pl">🔴 <b>'+nUrg+'</b> urgente'+(nUrg>1?'s':'')+'</span>':'')+'<span class="pl">🔧 <b>'+_nMan+'</b></span><span class="pl">🪑 <b>'+_nRes+'</b></span>'+
+    '<span class="pl">🥗 <b>'+_nMao+'</b></span><span class="pl">📦 <b>'+_nEnc+'</b></span><span class="pl">🛒 <b>'+_nCom+'</b></span><span class="pl">🎧 <b>'+_nCh+'</b></span>';
   h+='<div class="aviso">✔ resolve de verdade: manutenção vira resolvida, compra vira comprada, encomenda ganha você como dono (desmarcar desfaz). Reserva, chamado do iFood e item pausado só ficam riscados. Observação de manutenção vai para o histórico do chamado; as outras ficam 7 dias. Faixas sem nada pendente ficam escondidas.'+(QUEM?' Você está como <b>'+esc(QUEM)+'</b>.':'')+'</div>';
   $('app').innerHTML=h;
 }
