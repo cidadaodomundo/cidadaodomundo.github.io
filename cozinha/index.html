@@ -136,7 +136,7 @@ async function pega(url){
 }
 
 async function boot(){
-  vivoDesenha(); vivoBusca(); vivoLiga();
+  VIVO_PRONTO=true; vivoDesenha(); vivoBusca(); vivoLiga();
   const d7=diaISO(7), d14=diaISO(14), d30=diaISO(30);
   const [prep,canc,paus,itens]=await Promise.all([
     pega('cozinha_vw_preparo_dia?select=unidade,dia_operacional,pedidos,preparo_medio_min&dia_operacional=gte.'+d14),
@@ -165,7 +165,7 @@ const daLoja = u => LOJA_SEL==='todas' || u===LOJA_SEL;
    Porta cozinha_ao_vivo: Gestor Web, chat e negociacao do iFood, SAC, grupos de WhatsApp das lojas,
    cancelamento por culpa da casa e avaliacao ruim. Busca de 1 em 1 minuto SO com a aba Cozinha aberta
    e a janela visivel; o timer morre (clearInterval) ao trocar de aba, esconder a janela ou sair. */
-let VIVO=null, VIVO_VISTOS=null, VIVO_TIMER=null, VIVO_ONTEM=false, VIVO_ERRO='', VIVO_NOVOS=[];
+let VIVO_PRONTO=false, VIVO=null, VIVO_VISTOS=null, VIVO_TIMER=null, VIVO_ONTEM=false, VIVO_ERRO='', VIVO_NOVOS=[];
 let VIVO_SOM=false; try{ VIVO_SOM=localStorage.getItem('cdm_cozinha_som')==='1'; }catch(e){}
 const VIVO_NOVO_MIN=30; /* erro com menos de 30 min ganha a etiqueta NOVO */
 const hhmm = s => { try{ return new Date(s).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'}); }catch(e){ return '—'; } };
@@ -190,9 +190,10 @@ function vivoLiga(){ if(!VIVO_TIMER) VIVO_TIMER=setInterval(vivoBusca,60000); }
 function vivoDesliga(){ if(VIVO_TIMER){ clearInterval(VIVO_TIMER); VIVO_TIMER=null; } }
 function vivoAbaCozinha(){ return $('pane-cozinha').style.display!=='none'; }
 document.addEventListener('visibilitychange',function(){
-  if(document.visibilityState==='visible' && vivoAbaCozinha() && VIVO){ vivoBusca(); vivoLiga(); } else vivoDesliga();
+  if(document.visibilityState==='visible' && vivoAbaCozinha() && VIVO_PRONTO){ vivoBusca(); vivoLiga(); } else vivoDesliga();
 });
 window.addEventListener('pagehide',vivoDesliga);
+window.addEventListener('pageshow',function(){ if(VIVO_PRONTO && vivoAbaCozinha() && document.visibilityState==='visible'){ vivoBusca(); vivoLiga(); } });
 
 function vivoDia(o){ VIVO_ONTEM=!!o; VIVO_VISTOS=null; VIVO=null; vivoDesenha(); vivoBusca(); }
 function vivoSom(){
@@ -243,9 +244,9 @@ function vivoDesenha(){
   const n=s=>lista.filter(e=>e.setor===s).length;
   const graves=lista.filter(e=>e.grave).length;
   h+='<div class="cards">'
-   + '<div class="c"><div class="nm">Erros '+(VIVO_ONTEM?'ontem':'hoje')+'</div><div class="nota">'+fmtN(lista.length)+'</div><div class="qtd">'+(graves?'<span class="pill p-bad">🚨 '+graves+' grave'+(graves>1?'s':'')+'</span>':'pedidos com problema')+'</div></div>'
-   + '<div class="c"><div class="nm">Cozinha <span class="pill p-bad">comida</span></div><div class="nota">'+fmtN(n('cozinha'))+'</div><div class="qtd">errado, cru, adicional, sabor, porção</div></div>'
-   + '<div class="c"><div class="nm">Montagem <span class="pill p-warn">sacola</span></div><div class="nota">'+fmtN(n('montagem'))+'</div><div class="qtd">faltou item, bebida ou sobremesa</div></div>'
+   + '<div class="c"><div class="nm">Erros '+(VIVO_ONTEM?'ontem':'hoje')+'</div><div class="nota">'+fmtN(lista.length)+'</div><div class="qtd">'+(graves?'<span class="pill p-bad">🚨 '+graves+' grave'+(graves>1?'s':'')+'</span>':'erros registrados')+'</div></div>'
+   + '<div class="c"><div class="nm">Cozinha <span class="pill p-bad">comida</span></div><div class="nota">'+fmtN(n('cozinha'))+'</div><div class="qtd">a comida saiu errada, crua, ruim, sem adicional ou acabou</div></div>'
+   + '<div class="c"><div class="nm">Montagem <span class="pill p-warn">sacola</span></div><div class="nota">'+fmtN(n('montagem'))+'</div><div class="qtd">faltou coisa na sacola ou a embalagem vazou</div></div>'
    + (n('expedição')?'<div class="c"><div class="nm">Expedição <span class="pill p-off">saída</span></div><div class="nota">'+fmtN(n('expedição'))+'</div><div class="qtd">chegou frio</div></div>':'')
    + '</div>';
 
@@ -275,7 +276,7 @@ function vivoDesenha(){
 
   const av=(VIVO.avaliacoes||[]).filter(a=>daLoja(a.loja));
   if(av.length){
-    h+='<h2>⭐ O que escreveram na avaliação <span class="hint">iFood · notas 1 a 3 com comentário · últimos 7 dias (o iFood entrega com 1 a 2 dias de atraso)</span></h2><div class="vv-lista">';
+    h+='<h2>⭐ O que escreveram na avaliação <span class="hint">iFood · notas 1 a 3 com comentário · últimos 7 dias · chegaram até '+(f.avaliacao?dBR(f.avaliacao).slice(0,5):'—')+' — o iFood manda com atraso</span></h2><div class="vv-lista">';
     av.slice(0,15).forEach(function(a){
       h+='<div class="vv s-'+esc(a.setor)+(a.grave?' grave':'')+'"><div><div class="hr">'+esc(a.dia)+'</div><div class="ha">nota '+esc(a.nota)+'</div></div><div>'
        + '<div class="tt">'+esc(a.titulo)+'</div><div class="lj"><b>'+esc(a.loja)+'</b>'+(a.pedido?' · pedido '+esc(a.pedido):'')+'</div>'
@@ -283,7 +284,7 @@ function vivoDesenha(){
     });
     h+='</div>';
   }
-  if(!tv) h+='<div class="aviso">Cada erro aparece uma vez só, mesmo quando chega por várias fontes. <b>Cozinha</b> = a comida saiu errada; <b>montagem</b> = faltou coisa na sacola; <b>expedição</b> = chegou frio. O Boqueirão fica de fora (loja à parte). O nome do erro é dado pelas palavras do cliente — se algum vier com o nome errado, me avise.</div>';
+  if(!tv) h+='<div class="aviso">Quando várias fontes falam do mesmo pedido, o erro aparece uma vez só. Erro avisado em grupo sem loja no nome aparece só em Todas as lojas. <b>Cozinha</b> = a comida saiu errada; <b>montagem</b> = faltou coisa na sacola; <b>expedição</b> = chegou frio. O Boqueirão fica de fora (loja à parte). O nome do erro é dado pelas palavras do cliente — se algum vier com o nome errado, me avise.</div>';
   el.innerHTML=h+'</div>';
 }
 
