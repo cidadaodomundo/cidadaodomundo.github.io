@@ -431,6 +431,7 @@ function esquecidos(){
           var ico = e.pendente ? '⚠ ' : (cor==='var(--ok)' ? '✔ ' : '✋ ');
           return '<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:12px;line-height:1.4">'+
             '<div><span style="color:var(--muted)">'+esc(e.quando||'')+'</span> · <b>'+esc(e.unidade||'')+'</b> · pedido <b>'+esc(e.pedido||'')+'</b>'+
+            (e.marca?' · <span style="color:var(--text2)">'+esc(e.marca)+'</span>':'')+
             ' <span style="font-size:10px;font-weight:800;color:var(--warn);margin-left:4px">'+esc(e.tipo||'')+'</span></div>'+
             '<div style="color:var(--brand)">“'+esc(e.disse||'')+'”</div>'+
             (e.item && (e.disse||'').indexOf(e.item)<0 && e.item.indexOf(e.disse||'~')<0 ? '<div style="color:var(--text2)">Item no iFood: '+esc(e.item)+'</div>' : '')+
@@ -663,6 +664,20 @@ function cardF(rot, val, tp, ver, cor, ic){
          '<div class="v"'+(cor?' style="color:'+cor+'"':'')+'>'+val+'</div></div>';
 }
 
+/* 03/10/2026 (chat-resolver-itemcancelado-03-10), pedido do Fabio: "tiveram varios itens cancelados e reembolsados"
+   e o quadro mostrava 0, porque so contava o que ainda esperava alguem. Agora o numero grande e o total do periodo
+   (mesmas fontes do Errado no pedido) e a linha de baixo diz quantos ainda esperam alguem. Abre a lista inteira. */
+function cardParc(R){
+  var tot=+R.parcial_total||0, ab=+R.parcial||0;
+  if(!tot) return cardF0('Item cancelado','✂️');
+  return '<div class="card '+(ab?'mal':'aviso')+(TIPO==='parcial'?' on':'')+'" onclick="filtra(&quot;parcial&quot;,&quot;tudo&quot;)" title="Clique para abrir ou fechar a lista">'+
+    '<div class="t">✂️ Item cancelado</div>'+
+    '<div class="v">'+tot+'</div>'+
+    (ab ? '<div class="qs" style="color:#ff9a9a">'+ab+' esperando alguém</div>'
+        : '<div class="qs" style="color:#7fe0aa">todos com solução</div>')+
+    '</div>';
+}
+
 function barraFiltro(){
   var lj=function(n,r){ return '<button class="chip'+(UNI===n?' on':'')+'" onclick="UNI=&quot;'+n+'&quot;;boot()">'+(r||n||'Todas')+'</button>' };
   var pe=$('per');
@@ -685,7 +700,7 @@ function desenha(){
     cardEsq()+
     ((!R.reentrega&&cardSemDado('Reentrega','🔁'))||cardF('Reentrega',(R.reentrega||0),'reentrega','abertas','','🔁'))+
     cardF('Cancelado inteiro',(R.cancelamento||0),'cancelamento','abertas','','🚫')+
-    cardF('Item cancelado',(R.parcial||0),'parcial','abertas','','✂️')+
+    cardParc(R)+
     cardF('Cliente sem resposta',(R.chat||0),'chat','abertas','','💬')+
     cardF('Maquininha',(R.maquininha||0),'maquininha','abertas','','🧾')+
     cardF('Negociação do iFood',(R.negociacao||0),'negociacao','abertas','','🤝')+
