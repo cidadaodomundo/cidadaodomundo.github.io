@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<script src="/assets/chaves.js?v=1"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#E0A81C">
@@ -442,12 +443,12 @@ function cancVivo(){
   if(CV===null)return h+'<div class="c"><div class="load">Buscando as fontes vivas…</div></div>';
   if(CV===false)return h+'<div class="c"><div class="vazio">não deu para carregar as fontes vivas — tente Atualizar</div></div>'+'<h2>📋 O quadro oficial do iFood (atrasa 1 dia)</h2>';
   const f=CV.fontes||{};
-  h+='<div class="m" style="margin:0 0 8px">Este bloco é o <b>' + esc((CV.janela&&CV.janela.rotulo)||'turno de hoje') + '</b>' + ((CV.janela&&CV.janela.de)?' (' + esc(CV.janela.de) + ' → ' + esc(CV.janela.ate) + ')':'') + ', não segue o período dos botões · Saipos atualizado '+(f.saipos?String(f.saipos).slice(11,16):'—')+' · última conversa do iFood '+(f.chat?String(f.chat).slice(11,16):'—')+' · porta oficial '+(f.api?String(f.api).slice(11,16):'—')+' · Gestor Web '+(f.gw?String(f.gw).slice(11,16):'—')+' · Foody de 15 em 15 min.</div>';
+  h+='<div class="m" style="margin:0 0 8px">Este bloco é o <b>' + esc((CV.janela&&CV.janela.rotulo)||'turno de hoje') + '</b>' + ((CV.janela&&CV.janela.de)?' (' + esc(CV.janela.de) + ' → ' + esc(CV.janela.ate) + ')':'') + ', não segue o período dos botões · Saipos atualizado '+(f.saipos?String(f.saipos).slice(11,16):'—')+' · última conversa do iFood '+(f.chat?String(f.chat).slice(11,16):'—')+' · porta oficial '+(f.api?String(f.api).slice(11,16):'—')+' · Gestor Web '+(f.gw?String(f.gw).slice(11,16):'—')+(window.CDM_FOODY===false?'.':' · Foody de 15 em 15 min.')+'</div>';
   const L=CV.por_loja||[];
   if(!L.length)h+='<div class="c"><div class="vazio">Nenhum cancelamento (total ou parcial) registrado hoje até agora.</div></div>';
   else{
-    h+='<div class="c"><div class="rolar"><table><tr><th>Loja</th><th>Cancelados (Saipos)</th><th>Parciais (itens tirados)</th><th>Foody cancelado</th><th>Porta oficial</th><th>Gestor Web</th></tr>';
-    L.forEach(function(l){h+='<tr><td><b>'+esc(l.unidade)+'</b></td><td>'+n(l.totais)+'</td><td>'+n(l.parciais)+(l.itens?' <span class="m">('+n(l.itens)+' itens)</span>':'')+'</td><td>'+n(l.foody)+'</td><td>'+n(l.api_cancel)+'</td><td>'+n(l.gw_cancel)+'</td></tr>'});
+    h+='<div class="c"><div class="rolar"><table><tr><th>Loja</th><th>Cancelados (Saipos)</th><th>Parciais (itens tirados)</th>'+(window.CDM_FOODY===false?'':'<th>Foody cancelado</th>')+'<th>Porta oficial</th><th>Gestor Web</th></tr>';
+    L.forEach(function(l){h+='<tr><td><b>'+esc(l.unidade)+'</b></td><td>'+n(l.totais)+'</td><td>'+n(l.parciais)+(l.itens?' <span class="m">('+n(l.itens)+' itens)</span>':'')+'</td>'+(window.CDM_FOODY===false?'':'<td>'+n(l.foody)+'</td>')+'<td>'+n(l.api_cancel)+'</td><td>'+n(l.gw_cancel)+'</td></tr>'});
     h+='</table></div></div>';
   }
   const ch=CV.chats||{};
@@ -480,7 +481,7 @@ function motoVivo(){
 function reeAba(){
   if(REE===null)return '<div class="c"><div class="vazio">Carregando reentregas…</div></div>';
   var rs=(REE||[]).filter(function(r){return !UNI||r.unidade===UNI});
-  var h='<div class="m" style="margin:0 0 8px">🔁 <b>O mesmo pedido que saiu duas vezes</b> · últimos 7 dias · a lista vem do Foody e do TrackEat, traz a fala do cliente no chat do iFood e, para o dono, o custo da corrida extra. Marcar o motivo e o responsável grava de verdade.'+((rs[0]&&rs[0].cache_em)?(' · lista refeita <b>'+reeQuando(rs[0].cache_em)+'</b>'):'')+'</div>';
+  var h='<div class="m" style="margin:0 0 8px">🔁 <b>O mesmo pedido que saiu duas vezes</b> · últimos 7 dias · a lista vem do '+(window.CDM_FOODY===false?'TrackEat':'Foody e do TrackEat')+', traz a fala do cliente no chat do iFood e, para o dono, o custo da corrida extra. Marcar o motivo e o responsável grava de verdade.'+((rs[0]&&rs[0].cache_em)?(' · lista refeita <b>'+reeQuando(rs[0].cache_em)+'</b>'):'')+'</div>';
   if(REEERRO)h+='<div class="aviso">'+esc(REEERRO)+'</div>';
   if(!rs.length)return h+'<div class="c"><div class="vazio">Nenhuma reentrega nos últimos 7 dias'+(UNI?' na '+esc(UNI):'')+'.</div></div>';
   var dias=[];rs.forEach(function(r){if(dias.indexOf(r.dia_operacional)<0)dias.push(r.dia_operacional)});
