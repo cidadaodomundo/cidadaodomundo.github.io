@@ -164,6 +164,44 @@ body.alarme{animation:fundoAl .9s ease-in-out infinite alternate;min-height:100v
   .lojas::-webkit-scrollbar{display:none}
   .lojas .chip{flex:0 0 auto}
 }
+/* 04/10/2026 (chat-cartoes-operacao-04-10): cartoes iguais aos do Resolver hoje / AO VIVO da Central Cozinha */
+.vv-lista{display:grid;gap:10px}
+.vv-lista.duas{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
+.vv-lista>*{min-width:0}
+div.vv{background:var(--s1);border:1px solid var(--line);border-left:5px solid var(--warn);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px}
+div.vv.ok{border-left-color:var(--ok)}
+div.vv.bad{border-left-color:var(--bad);background:rgba(230,103,103,.06)}
+div.vv.off{border-left-color:var(--muted)}
+.vv .hr{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;line-height:1;white-space:nowrap}
+.vv .ha{color:var(--muted);font-size:11.5px;margin-top:3px}
+.vv .tt{font-size:17px;font-weight:800;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vv .lj{color:var(--text2);font-size:13px;margin-top:2px}
+.vv .rs{margin-top:6px;font-size:12px;color:var(--muted)}
+.vv .vit{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 0;border-top:1px solid var(--line);font-size:13px;margin-top:6px}
+.vv .vit .p{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;line-height:1}
+.vv .vit .h{color:var(--muted);font-size:12px}
+.vv .vit .m{margin-left:auto;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;white-space:nowrap;line-height:1}
+.vv .vit .m{color:var(--text);margin-top:0}
+.vv .vit.late .m{color:#ff8a8a}
+.vv .vit .dd{color:var(--text2);font-size:12px;font-weight:700;white-space:nowrap}
+.vv .vit .dd.pp{color:#7fe0aa}
+.vv .vit .dd.lg{color:var(--warn)}
+.vv .pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:800;white-space:nowrap}
+.vv .p-ok{background:rgba(47,174,106,.15);color:#7fe0aa}
+.vv .p-bad{background:rgba(230,103,103,.15);color:#ff9a9a}
+.vv .p-warn{background:rgba(201,133,0,.16);color:var(--warn)}
+.vv .p-off{background:var(--s3);color:var(--text2)}
+.vv .sin{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:middle}
+.vv .sin-v{background:var(--ok);box-shadow:0 0 0 3px rgba(47,174,106,.18)}
+.vv .sin-r{background:var(--bad);box-shadow:0 0 0 3px rgba(230,103,103,.18)}
+.vv .sin-n{display:none}
+.mbs .prox{margin:0 0 10px;font-weight:800;color:#7fe0aa;font-size:14.5px}
+.mbs .reg{color:var(--muted);font-size:12px;margin-top:10px;line-height:1.45}
+.mbs .vazio{font-size:14px}
+.mbs .leg .sin{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.mbs .leg .sin-v{background:var(--ok)}
+.mbs .leg .sin-r{background:var(--bad)}
+@media (max-width:640px){div.vv{grid-template-columns:62px minmax(0,1fr);gap:8px;padding:12px 10px}.vv .hr{font-size:19px}.vv-lista.duas{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -213,13 +251,16 @@ function cdmRetrato(d){
   if(!p.length) return cab('O que está acontecendo agora','')+'<div class="lista caixa"><div class="vz">'+((d.cego===true&&d.loja_status!=='fechada')?'Sem dado ao vivo — não dá para saber quem está com pedido na mão':'Ninguém com pedido na mão agora')+'</div></div></div>';
   var por={},ordem=[];
   p.forEach(function(x){var k=x.entregador?x.entregador:'— ainda sem motoboy';if(!por[k]){por[k]=[];ordem.push(k)}por[k].push(x)});
-  var h=cab('O que está acontecendo agora',p.length+' pedido'+(p.length>1?'s':'')+' · um grupo por motoboy')+'<div class="lista caixa">';
+  /* 04/10/2026 (chat-cartoes-operacao-04-10): um cartao por motoboy (ou "ainda sem motoboy"), o pedido mais antigo em destaque */
+  var h=cab('O que está acontecendo agora',p.length+' pedido'+(p.length>1?'s':'')+' · um cartão por motoboy')+'<div class="vv-lista duas">';
   ordem.forEach(function(k){
-    h+='<div class="it gh"><div class="l1"><b>'+esc(k)+'</b><span class="pill p-off">'+por[k].length+'</span></div></div>';
-    por[k].forEach(function(x){
-      var c=(x.min>=60)?'p-bad':((x.min>=45)?'p-warn':'p-off');
-      h+='<div class="it'+(x.min>=60?' pend':'')+'"><div class="l1"><span class="pill '+c+'">'+x.min+' min</span><b>'+esc(x.pedido)+'</b><span class="m">'+esc(x.etapa)+' · entrou '+esc(x.entrou)+'</span></div></div>';
-    });
+    var ms=por[k].map(function(x){return Number(x.min);}).filter(function(n){return isFinite(n);}), mx=ms.length?Math.max.apply(null,ms):null;
+    h+='<div class="vv '+(mx==null?'off':(mx>=60?'bad':(mx>=45?'':'off')))+'"><div><div class="hr">'+(mx==null?'—':mx)+'</div><div class="ha">min, o mais antigo</div></div><div>'+
+      '<div class="tt">'+esc(k)+' <span class="pill p-off">'+por[k].length+' '+(por[k].length===1?'pedido':'pedidos')+'</span></div>'+
+      por[k].map(function(x){
+        return '<div class="vit'+(x.min>=60?' late':'')+'"><span class="p">'+esc(x.pedido)+'</span><span class="h">'+esc(x.etapa)+' · entrou '+esc(x.entrou)+'</span><span class="m">'+esc(x.min)+' min</span></div>';
+      }).join('')+
+    '</div></div>';
   });
   return h+'</div></div>';
 }
@@ -352,13 +393,16 @@ let moto='';
   h+='<div class="painel" id="sec_mbs"><div class="ph"><h3>🛵 Quem está com o aplicativo ligado neste minuto</h3>'+(mb.length?'<span class="ct">'+mb.length+' motoboy'+(mb.length===1?'':'s')+'</span>':'')+'<button class="b fecha" data-fecha="1">fechar ✕</button></div>'+
     '<div class="mbs caixa">'+mbProx(mb)+
     (mb.length
-      ? '<table><tr><th>Motoboy</th><th>Onde está</th><th>Distância da loja</th><th>Situação</th><th>Faltam</th><th>Livre ~</th><th>App</th><th>Visto</th></tr>'+
-        mb.map(function(m){return '<tr><td class="nome">'+mbSinal(m)+esc(m.motoboy)+'</td>'+
-          '<td class="'+(m.no_patio?'pin':'rua')+'">'+(m.no_patio?'🟢 ':'🛵 ')+esc(m.onde)+'</td>'+
-          '<td>'+esc(m.dist||'—')+'</td><td>'+esc(m.situacao)+'</td>'+
-          '<td>'+(m.faltam>0?'<b>'+esc(String(m.faltam))+'</b> '+(m.faltam==1?'entrega':'entregas'):'—')+'</td>'+
-          '<td>'+(m.livre==='agora'?'<span class="pin">agora</span>':(m.livre?'~'+esc(m.livre):'—'))+'</td><td>'+esc(m.app)+'</td><td>'+esc(m.visto)+'</td></tr>'}).join('')+
-        '</table>'+mbLegenda(mb)+mbRegua(d.motoboys_regua)
+      /* 04/10/2026 (chat-cartoes-operacao-04-10): um cartao por motoboy, igual a Fila e ao Resolver hoje */
+      ? '<div class="vv-lista duas">'+mb.map(function(m){
+          var livre=(m.livre==='agora'), naosei=(m.faltam===null||m.faltam===undefined), cls=naosei?'off':((m.faltam>0)?'':(livre||m.no_patio?'ok':'off'));
+          return '<div class="vv '+cls+'"><div><div class="hr">'+(livre?'agora':(m.livre?'~'+esc(m.livre):'—'))+'</div><div class="ha">livre</div></div><div>'+
+            '<div class="tt">'+mbSinal(m)+esc(m.motoboy)+' <span class="pill '+(m.no_patio?'p-ok':'p-warn')+'">'+(m.no_patio?'🟢 ':'🛵 ')+esc(m.onde)+'</span></div>'+
+            '<div class="lj">'+(m.dist?esc(m.dist)+' da loja · ':'')+esc(m.situacao||'')+'</div>'+
+            '<div class="rs">'+(naosei?'o TrackEat não tem este motoboy agora':(m.faltam>0?'<b style="color:var(--text)">'+esc(String(m.faltam))+'</b> '+(m.faltam==1?'entrega na mão':'entregas na mão'):'sem entrega na mão'))+
+              ' · app '+esc(m.app||'—')+' · visto '+esc(m.visto||'—')+'</div>'+
+          '</div></div>';
+        }).join('')+'</div>'+mbLegenda(mb)+mbRegua(d.motoboys_regua)
       : '<div class="vazio">'+((d.cego===true&&d.loja_status!=='fechada')?'Sem dado ao vivo do aplicativo dos motoboys — não dá para saber quem está na rua.':'Nenhum motoboy com o aplicativo ligado nos últimos 30 minutos.')+'</div>')+
    '</div></div>';
   h+=cdmRetrato(d);
