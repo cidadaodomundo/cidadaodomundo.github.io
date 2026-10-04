@@ -55,6 +55,18 @@ h1{font-size:17px;font-weight:800}
 .refbox ul{list-style:none;margin:8px 0 0;padding:0;max-height:260px;overflow:auto}
 .refbox li{font-size:12px;padding:3px 0;border-bottom:1px solid var(--line)}
 .rfu{color:var(--muted);font-size:11px;font-weight:600}
+/* 04/10/2026 (chat-cartoes-gestao-04-10): cartoes iguais ao Resolver hoje (Ponto ao vivo) */
+.vv-lista{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.vv-lista>*{min-width:0}
+div.vv{background:var(--bg);border:1px solid var(--line);border-left:5px solid var(--muted);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px}
+div.vv.ok{border-left-color:var(--sem)}
+div.vv.warn{border-left-color:var(--infra)}
+.vv .hr{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;line-height:1;white-space:nowrap}
+.vv .ha{color:var(--muted);font-size:11.5px;margin-top:3px}
+.vv .tt{font-size:16px;font-weight:800}
+.vv .lj{font-size:13px;margin-top:4px}
+.vv .rs{margin-top:6px;font-size:12px;color:var(--muted)}
+@media (max-width:640px){.vv-lista{grid-template-columns:1fr}div.vv{grid-template-columns:54px minmax(0,1fr);gap:8px;padding:12px 10px}.vv .hr{font-size:20px}}
 .rfx{color:var(--infra);font-size:11px;font-weight:700}
 .units{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .tab{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:8px 17px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;display:flex;gap:8px;align-items:center}
@@ -1095,17 +1107,20 @@ async function vivoCarrega(){
         :'⚠️ Ainda nao houve leitura do relogio hoje nesta loja.')+'</div>';
   h+='<div class="rf-aviso"><b>'+dentro.length+'</b> na loja agora · <b>'+nointer.length+'</b> no intervalo · <b>'+jasaiu.length+'</b> ja sairam · <b>'+nadabateu.length+'</b> ainda nao bateram ponto</div>';
   if(!g.length){alvo.innerHTML=h+'<div class="rf-empty">Ninguem bateu ponto hoje nesta loja.</div>';return}
-  h+='<div class="rf-wrap"><table class="rf-tb"><tr><th>Funcionario</th><th>Situacao</th><th class="n">Entrada</th><th class="n">Intervalo</th><th class="n">Saida</th><th>Refeicao</th><th class="n">Batidas</th></tr>';
-  g.forEach(function(x){
-    h+='<tr><td><b>'+rfEsc(x.nome)+'</b></td>'
-      +'<td>'+vivoSit(x)+'</td>'
-      +'<td class="n">'+(x.entrou?rfEsc(String(x.entrou).slice(0,5)):'—')+'</td>'
-      +'<td class="n">'+vivoInt(x)+'</td>'
-      +'<td class="n">'+(x.saida?rfEsc(String(x.saida).slice(0,5)):'—')+'</td>'
-      +'<td>'+vivoRef(x,ref)+'</td>'
-      +'<td class="n">'+rfNum(x.batidas)+(Number(x.batidas)%2===1&&Number(x.batidas)>1?' <span class="rfu">impar</span>':'')+'</td></tr>';
-  });
-  alvo.innerHTML=h+'</table></div><div class="rf-nota">Refeição: o que foi lançado hoje no Saipos com o nome ou a comanda da pessoa. "não lançou" = bateu ponto e ainda não tem refeição no Saipos.</div>';
+  /* 04/10/2026 (chat-cartoes-gestao-04-10): um cartao por pessoa, igual aos do Resolver hoje - mesma ordem e mesmos
+     textos da tabela antiga. Faixa verde = na loja, amarela = no intervalo, cinza = o resto (nunca vermelho: quem nao
+     bateu ainda nao e falta). */
+  h+='<div class="vv-lista">'+g.map(function(x){
+    var cor=x.no_intervalo?'warn':(x.dentro?'ok':'');
+    return '<div class="vv '+cor+'"><div><div class="hr">'+(x.entrou?rfEsc(String(x.entrou).slice(0,5)):'—')+'</div><div class="ha">entrada</div></div><div style="min-width:0">'
+      +'<div class="tt">'+rfEsc(x.nome)+'</div>'
+      +'<div class="lj">'+vivoSit(x)+'</div>'
+      +'<div class="rs">intervalo '+vivoInt(x)+' · saída '+(x.saida?rfEsc(String(x.saida).slice(0,5)):'—')
+        +' · '+(lido?rfNum(x.batidas)+(Number(x.batidas)==1?' batida':' batidas')+(Number(x.batidas)%2===1&&Number(x.batidas)>1?' <span class="rfu">impar</span>':''):'batidas —')+'</div>'
+      +'<div class="rs">'+vivoRef(x,ref)+'</div>'
+    +'</div></div>';
+  }).join('')+'</div>';
+  alvo.innerHTML=h+'<div class="rf-nota">Refeição: o que foi lançado hoje no Saipos com o nome ou a comanda da pessoa. "não lançou" = bateu ponto e ainda não tem refeição no Saipos.</div>';
 }
 
 /* ===== 🍽 COMANDAS — a lista da Rita, com recado por comanda (11/09/2026) ===== */
