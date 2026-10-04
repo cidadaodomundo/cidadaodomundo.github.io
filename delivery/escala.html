@@ -43,6 +43,20 @@ input[type=text]{background:var(--s2);border:1px solid var(--line);border-radius
 .pw{background:rgba(224,169,58,.16);color:#e0a93a}
 .pb{background:rgba(230,103,103,.16);color:#f19191}
 .pi{background:rgba(57,135,229,.16);color:#7fb4f2}
+/* 04/10/2026 (chat-cartoes-delivery-04-10): cartoes iguais ao Resolver hoje na aba Chegou no horario? */
+.vv-lista{display:grid;gap:10px}
+.vv-lista.duas{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.vv-lista>*{min-width:0}
+div.vv{background:var(--s0);border:1px solid var(--line);border-left:5px solid var(--warn);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px}
+div.vv.ok{border-left-color:var(--good)}
+div.vv.bad{border-left-color:var(--bad)}
+div.vv.off{border-left-color:var(--muted)}
+.vv .hr{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;line-height:1;white-space:nowrap}
+.vv .ha{color:var(--muted);font-size:11.5px;margin-top:3px}
+.vv .tt{font-size:16px;font-weight:800;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vv .lj{color:var(--text2);font-size:13px;margin-top:2px}
+.vv .rs{margin-top:6px;font-size:12px;color:var(--muted)}
+@media (max-width:640px){.vv-lista.duas{grid-template-columns:1fr}div.vv{grid-template-columns:54px minmax(0,1fr);gap:8px;padding:12px 10px}.vv .hr{font-size:20px}}
 .pm{background:rgba(138,137,126,.16);color:#a8a79b}
 .empty{color:var(--muted);font-size:12.5px;padding:6px 0}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:26px;background:#122419;border:1px solid var(--good);color:#7ee2ae;padding:13px 22px;border-radius:12px;font-weight:800;display:none;z-index:50;max-width:90%;text-align:center}
@@ -602,50 +616,60 @@ h+='<div class="tabs">'+['Todas'].concat(LOJAS).map(l=>'<span class="tab '+(LOJA
 
   h+='<div class="hint">A chegada é a hora que o <b>balcão anotou</b> na tela Chegada do dia. Sem anotação, vale o GPS do pátio; nos dias antigos, o QR ou a 1ª coleta do Foody.'+(tol!=null?' Atrasado = chegou mais de <b>'+tol+' min</b> depois do combinado.':'')+'</div>';
 
-  h+='<div class="sec"><h2>👤 Por motoboy</h2><div class="hs">clique no cabeçalho para ordenar</div>';
+  h+='<div class="sec"><h2>👤 Por motoboy</h2><div class="hs">quem foi escalado mais vezes primeiro</div>';
   const by={};
-  a.forEach(x=>{const k=x.nome;by[k]=by[k]||{nome:k,dias:0,noH:0,atr:0,falt:0,semQR:0,soma:0,cnt:0,ent:0};
-    const o=by[k];o.dias++;o.ent+=Number(x.entregas||0);
+  a.forEach(x=>{const k=x.nome;by[k]=by[k]||{nome:k,dias:0,noH:0,atr:0,falt:0,semQR:0,soma:0,cnt:0,ent:0,entDia:{},semFoody:{}};
+    /* 04/10/2026: entregas vem do dia inteiro e se repete em cada turno do dia - soma uma vez por loja e dia */
+    const o=by[k];o.dias++;const kd=x.unidade+'|'+x.dia_op;
+    /* sem 1a coleta = o Foody nao tem esse dia (o banco poe 0 no lugar do vazio): nao conta como zero entregas */
+    if(x.primeira_coleta==null)o.semFoody[kd]=1;else if(!o.entDia[kd]){o.entDia[kd]=1;o.ent+=Number(x.entregas||0)}
     if(x.status==='No horário')o.noH++;else if(x.status==='Faltou')o.falt++;else if(x.status==='Sem check-in')o.semQR++;else o.atr++;
     if(x.atraso_min!=null){o.soma+=Number(x.atraso_min);o.cnt++}});
   const arr=Object.values(by).sort((x,y)=>y.dias-x.dias);
   if(!arr.length)h+='<div class="empty">sem dados ainda</div>';
   else{
-    h+='<table id="tbMoto"><tr>'+['Motoboy','Dias','No horário','Atrasos','Sem registro','Atraso médio','Entregas'].map((c,i)=>'<th onclick="sortT(\'tbMoto\','+i+')" style="cursor:pointer">'+c+' ⇅</th>').join('')+'</tr>';
-    arr.forEach(o=>{
+    /* 04/10/2026 (chat-cartoes-delivery-04-10): um cartao por motoboy, igual aos do Resolver hoje. Mesmos numeros
+       da tabela antiga; a faixa da esquerda fica cinza (nao se pinta o motoboy por meta fixa), o selo de % segue como era. */
+    h+='<div class="vv-lista duas">'+arr.map(o=>{
       const pct=o.dias?Math.round(100*o.noH/o.dias):0;
-      h+='<tr><td>'+esc(o.nome)+'</td><td class="num">'+o.dias+'</td>'+
-         '<td class="num"><span class="pill '+(pct>=80?'pg':pct>=60?'pw':'pb')+'">'+pct+'%</span></td>'+
-         '<td class="num">'+o.atr+'</td><td class="num">'+(o.falt?'<span style="color:#f19191">'+o.falt+'</span>':'0')+'</td>'+
-         
-         '<td class="num">'+(DONO?(o.cnt?Math.round(o.soma/o.cnt)+' min':'—'):'·')+'</td><td class="num">'+o.ent+'</td></tr>';
-    });
-    h+='</table>';
+      return '<div class="vv off"><div><div class="hr">'+o.dias+'</div><div class="ha">'+(o.dias==1?'turno escalado':'turnos escalados')+'</div></div><div style="min-width:0">'+
+        '<div class="tt">'+esc(o.nome)+' <span class="pill '+(pct>=80?'pg':pct>=60?'pw':'pb')+'">'+pct+'% no horário</span></div>'+
+        '<div class="lj">'+o.noH+' no horário · '+o.atr+(o.atr==1?' atraso':' atrasos')+' · '+(o.falt?'<span style="color:#f19191">'+o.falt+' sem registro</span>':'0 sem registro')+'</div>'+
+        '<div class="rs">'+(DONO?'atraso médio '+(o.cnt?Math.round(o.soma/o.cnt)+' min':'—')+' · ':'')+(function(){const c=Object.keys(o.entDia).length, sf=Object.keys(o.semFoody).filter(k=>!o.entDia[k]).length;
+          return c?(o.ent+(o.ent==1?' entrega':' entregas')+(sf?' · '+sf+(sf==1?' dia':' dias')+' sem dado do Foody':'')):'entregas: sem dado do Foody';})()+'</div>'+
+      '</div></div>';
+    }).join('')+'</div>';
   }
   h+='</div>';
 
   h+='<div class="sec"><h2>📋 Dia a dia</h2><div class="hs">combinado × chegada real</div>';
   if(!a.length)h+='<div class="empty">sem dados ainda</div>';
   else{
-    h+='<table id="tbDia"><tr>'+['Dia','Motoboy','Loja','Turno','Combinado','Chegou','Diferença','Situação','Entregas'].map((c,i)=>'<th onclick="sortT(\'tbDia\','+i+')" style="cursor:pointer">'+c+' ⇅</th>').join('')+'</tr>';
-    a.slice(0,300).forEach(x=>{
+    /* 04/10/2026 (chat-cartoes-delivery-04-10): um cartao por motoboy por dia - hora combinada grande, o dia embaixo */
+    h+='<div class="vv-lista duas">'+a.slice(0,300).map(x=>{
       const st=x.status;
       const cls=st==='No horário'?'pg':st==='Atrasado'?'pw':st==='Sem check-in'?'pi':'pb';
+      const cor=st==='No horário'?'ok':st==='Atrasado'?'':(st==='Sem check-in'||st==='Faltou')?'off':'bad';
       const stx=st==='Sem check-in'?'—':st==='Faltou'?'sem registro':st;
       const dif=x.atraso_min==null?'—':(Number(x.atraso_min)>0?'+'+x.atraso_min+' min':x.atraso_min+' min');
-      h+='<tr><td>'+br(x.dia_op)+'</td><td>'+esc(x.nome)+'</td><td class="small">'+esc(x.unidade)+'</td><td class="small">'+esc(x.turno||'—')+'</td>'+
-         '<td>'+hmT(x.entrada)+'</td><td>'+hm(x.chegada_efetiva)+(x.fonte_chegada?' <span class="pill pi">'+esc(x.fonte_chegada==='Foody (1ª coleta)'?'Foody':x.fonte_chegada)+'</span>':'')+'</td>'+
-         '<td class="num" style="color:'+(x.atraso_min>(tol!=null?tol:5)?'#f19191':'#5fd396')+'">'+dif+'</td>'+
-         '<td><span class="pill '+cls+'">'+stx+'</span></td><td class="num">'+(x.entregas||0)+'</td></tr>';
-    });
-    h+='</table>';
+      return '<div class="vv '+cor+'"><div><div class="hr">'+hmT(x.entrada)+'</div><div class="ha">'+br(x.dia_op)+' · combinado</div></div><div style="min-width:0">'+
+        '<div class="tt">'+esc(x.nome)+' <span class="pill '+cls+'">'+stx+'</span></div>'+
+        '<div class="lj">'+esc(x.unidade)+' · '+esc(x.turno||'—')+'</div>'+
+        '<div class="rs">chegou '+hm(x.chegada_efetiva)+(x.fonte_chegada?' <span class="pill pi">'+esc(x.fonte_chegada==='Foody (1ª coleta)'?'Foody':x.fonte_chegada)+'</span>':'')+
+          ' · <span style="color:'+(x.atraso_min>(tol!=null?tol:5)?'#f19191':'#5fd396')+'">'+dif+'</span>'+
+          (x.primeira_coleta!=null&&x.entregas!=null?' · '+x.entregas+(Number(x.entregas)==1?' entrega no dia':' entregas no dia'):' · entregas: sem dado do Foody')+'</div>'+
+      '</div></div>';
+    }).join('')+'</div>';
   }
   h+='</div>';
 
   if(fora.length){
-    h+='<div class="sec"><h2>❓ Rodou sem estar na escala</h2><div class="hs">apareceu no Foody mas não estava escalado — confira se foi troca de última hora</div><table><tr><th>Dia</th><th>Motoboy</th><th>Loja</th><th class="num">Entregas</th><th>1ª coleta</th></tr>';
-    fora.slice(0,60).forEach(f=>{h+='<tr><td>'+br(f.dia_op)+'</td><td>'+esc(f.nome)+'</td><td class="small">'+esc(f.unidade)+'</td><td class="num">'+f.entregas+'</td><td>'+hm(f.primeira_coleta)+'</td></tr>'});
-    h+='</table></div>';
+    h+='<div class="sec"><h2>❓ Rodou sem estar na escala</h2><div class="hs">apareceu no Foody mas não estava escalado — confira se foi troca de última hora</div><div class="vv-lista duas">'+fora.slice(0,60).map(f=>
+      '<div class="vv off"><div><div class="hr">'+hm(f.primeira_coleta)+'</div><div class="ha">'+br(f.dia_op)+' · 1ª coleta</div></div><div style="min-width:0">'+
+        '<div class="tt">'+esc(f.nome)+' <span class="pill pw">fora da escala</span></div>'+
+        '<div class="lj">'+esc(f.unidade)+'</div>'+
+        '<div class="rs">'+f.entregas+(Number(f.entregas)==1?' entrega':' entregas')+'</div>'+
+      '</div></div>').join('')+'</div></div>';
   }
   $('conteudo').innerHTML=h;
 }
