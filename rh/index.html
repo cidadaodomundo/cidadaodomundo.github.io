@@ -514,7 +514,7 @@ async function funCarregar(){
   if(VIEW==='funcionarios')funPinta();
 }
 /* nao redesenha com caixa de ferias/observacao aberta: o recarregamento de 15 em 15 min apagaria o que esta sendo digitado */
-function funEditando(){return [].some.call(document.querySelectorAll('#content tr[id^="ff_"],#content tr[id^="fob_"]'),function(e){return e.style.display!=='none'})}
+function funEditando(){return [].some.call(document.querySelectorAll('#content [id^="ff_"],#content [id^="fob_"]'),function(e){return e.style.display!=='none'})}
 function renderFuncionarios(){limpaTopo();if(FUN.lista!==null&&funEditando())return;if(FUN.lista===null){$('content').innerHTML='<div class="loading">Carregando funcion&aacute;rios&hellip;</div>';funCarregar();return}funPinta()}
 function funDia(s){if(!s)return '';var p=String(s).slice(0,10).split('-');return p[2]+'/'+p[1]+'/'+p[0]}
 function funFerias(f){return !!f.afastado_desde&&(!f.afastado_ate||String(f.afastado_ate)>=HOJE())}
@@ -563,11 +563,15 @@ function funPinta(){
   h+='</div></div>';
   var av=[],_vis={};(FUN.avisos||[]).forEach(function(a){if(!_vis[a.id]){_vis[a.id]=1;av.push(a)}});
   if(av.length){
-    h+='<div class="rf-card" style="border-left:4px solid #dc2626;padding:8px 12px"><div style="font-weight:700;font-size:12.5px;margin-bottom:4px">&#9888; J&aacute; avisaram que saiu &mdash; ainda est&aacute; na lista</div><table class="rf-tb" data-cdm-sem-nota>';
+    h+='<div class="rf-card" style="border-left:4px solid #dc2626;padding:8px 12px"><div style="font-weight:700;font-size:12.5px;margin-bottom:8px">&#9888; J&aacute; avisaram que saiu &mdash; ainda est&aacute; na lista</div><div class="vv-lista">';
+    /* 04/10/2026 (chat-cartoes-gestao-04-10): um cartao por aviso, mesmo botao */
     av.forEach(function(a){
-      h+='<tr><td><b>'+xpEsc(a.nome)+'</b> <span class="rfu">'+xpEsc(a.unidade||'')+'</span></td><td class="rfu">'+xpEsc(a.fonte)+': &ldquo;'+xpEsc(a.texto)+'&rdquo;</td><td class="n">'+funBt('#e05252','Confirmar sa&iacute;da','funDesligar('+Number(a.id)+')')+' <span id="fm_'+Number(a.id)+'"></span></td></tr>';
+      h+='<div class="vv warn"><div><div class="hr" style="font-size:20px">&#9888;</div><div class="ha">avisaram</div></div><div style="min-width:0">'
+        +'<div class="tt">'+xpEsc(a.nome)+' <span class="rfu">'+xpEsc(a.unidade||'')+'</span></div>'
+        +'<div class="rs">'+xpEsc(a.fonte)+': &ldquo;'+xpEsc(a.texto)+'&rdquo;</div>'
+        +'<div style="margin-top:6px">'+funBt('#e05252','Confirmar sa&iacute;da','funDesligar('+Number(a.id)+')')+' <span id="fm_'+Number(a.id)+'"></span></div></div></div>';
     });
-    h+='</table></div>';
+    h+='</div></div>';
   }
   h+='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 4px">Loja: ';
   lojas.forEach(function(l){h+='<button class="view'+(FUN.loja===l?' active':'')+'" data-l="'+xpEsc(l)+'" onclick="funFiltro(\'loja\',this.dataset.l)">'+xpEsc(l)+'</button>'});
@@ -579,7 +583,10 @@ function funPinta(){
     var gs=vis.filter(doSetor(s));if(!gs.length)return;
     var nAt=gs.filter(function(f){return f.ativo}).length;
     h+='<div class="rf-h2">'+xpEsc(s)+' <span class="hint">'+nAt+(nAt===1?' ativo':' ativos')+(gs.length>nAt?' &middot; '+(gs.length-nAt)+' desligado(s)':'')+'</span></div>';
-    h+='<div class="rf-card" style="padding:4px 10px"><div class="rf-wrap"><table class="rf-tb" data-cdm-sem-nota><tr><th>Funcion&aacute;rio</th>'+(FUN.loja==='Todas'?'<th>Loja</th>':'')+'<th>Hor&aacute;rio</th><th>Folga</th><th>Situa&ccedil;&atilde;o</th><th>Observa&ccedil;&atilde;o</th><th class="n">A&ccedil;&otilde;es</th></tr>';
+    /* 04/10/2026 (chat-cartoes-gestao-04-10): um cartao por pessoa, igual ao Ponto ao vivo. Mesmos botoes, mesmos ids
+       (fm_, ff_, ffd_, ffa_, ffm_, fob_, fo_) e as mesmas caixas de ferias e observacao, agora dentro do cartao.
+       Faixa verde = ativo; amarela = ferias/afastado; cinza = desligado. */
+    h+='<div class="vv-lista">';
     gs.forEach(function(f){
       var id=Number(f.id),fe=funFerias(f);
       var sit=!f.ativo?'<span style="color:#f08a8a;font-weight:700">desligado</span>'
@@ -588,20 +595,21 @@ function funPinta(){
       var ob=String(f.obs||''),obc=xpEsc(ob.slice(0,70))+(ob.length>70?'&hellip;':'');
       var ac=f.ativo?(funBt('#E0A81C','F&eacute;rias','funAbreFerias('+id+')')+' '+(f.afastado_desde?funBt('#8b95a5','Tirar f&eacute;rias','funTiraFerias('+id+')')+' ':'')+funBt('#e05252','Desligar','funDesligar('+id+')'))
         :funBt('#37b46c','Reativar','funReativar('+id+')');
-      h+='<tr'+(f.ativo?'':' style="opacity:.6"')+'><td><b>'+xpEsc(f.nome)+'</b></td>'+(FUN.loja==='Todas'?'<td class="rfu">'+xpEsc(f.unidade||'')+'</td>':'')
-        +'<td class="n" style="text-align:left">'+((f.entrada&&f.saida)?(f.entrada+'&ndash;'+f.saida):'<span class="rfu">&mdash;</span>')+'</td>'
-        +'<td class="rfu">'+xpEsc(f.folgas||'')+'</td><td>'+sit+'</td>'
-        +'<td style="max-width:300px"><span class="rfu" title="'+xpEsc(ob)+'">'+obc+'</span> '+funBt('#8b95a5','&#9998;','funAbreObs('+id+')')+'</td>'
-        +'<td class="n">'+ac+'<div id="fm_'+id+'" style="font-size:11px"></div></td></tr>';
-      h+='<tr id="ff_'+id+'" style="display:none"><td colspan="7"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px">'
+      h+='<div class="vv '+(!f.ativo?'':(fe?'warn':'ok'))+'"'+(f.ativo?'':' style="opacity:.6"')+'><div><div class="hr">'+(f.entrada?xpEsc(f.entrada):'&mdash;')+'</div><div class="ha">'+(f.saida?'at&eacute; '+xpEsc(f.saida):'hor&aacute;rio')+'</div></div><div style="min-width:0">'
+        +'<div class="tt">'+xpEsc(f.nome)+'</div>'
+        +'<div class="lj">'+sit+(FUN.loja==='Todas'&&f.unidade?' &middot; <span class="rfu">'+xpEsc(f.unidade)+'</span>':'')+(f.folgas?' &middot; <span class="rfu">folga '+xpEsc(f.folgas)+'</span>':'')+'</div>'
+        +'<div class="rs"><span title="'+xpEsc(ob)+'">'+(ob?obc:'sem observa&ccedil;&atilde;o')+'</span> '+funBt('#8b95a5','&#9998;','funAbreObs('+id+')')+'</div>'
+        +'<div style="margin-top:8px">'+ac+'<div id="fm_'+id+'" style="font-size:11px"></div></div>';
+      h+='<div id="ff_'+id+'" style="display:none;margin-top:8px"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px">'
         +'de <input type="date" id="ffd_'+id+'" value="'+xpEsc(f.afastado_desde||'')+'" style="'+inp+'"> volta em <input type="date" id="ffa_'+id+'" value="'+xpEsc(f.afastado_ate||'')+'" style="'+inp+'"> <select id="ffm_'+id+'" style="'+inp+'">';
       ['Férias','Atestado','Afastamento INSS','Licença'].forEach(function(m){h+='<option'+((f.afastado_motivo||'Férias')===m?' selected':'')+'>'+m+'</option>'});
-      h+='</select>'+funBt('#E0A81C','Salvar','funSalvaFerias('+id+')')+'</div></td></tr>';
-      h+='<tr id="fob_'+id+'" style="display:none"><td colspan="7"><textarea id="fo_'+id+'" rows="3" placeholder="observa&ccedil;&otilde;es (hor&aacute;rio combinado, aviso pr&eacute;vio, o que precisar)" style="width:100%;'+inp+'">'+xpEsc(ob)+'</textarea>'
-        +'<div style="display:flex;gap:8px;align-items:center;margin-top:4px">'+funBt('#e8edf4','Salvar observa&ccedil;&atilde;o','funSalvaObs('+id+')')
-        +(f.ultima?'<span class="rfu">&uacute;ltima mudan&ccedil;a: '+xpEsc(f.ultima.acao)+' por '+xpEsc(f.ultima.quem)+' em '+xpEsc(f.ultima.quando)+'</span>':'')+'</div></td></tr>';
+      h+='</select>'+funBt('#E0A81C','Salvar','funSalvaFerias('+id+')')+'</div></div>';
+      h+='<div id="fob_'+id+'" style="display:none;margin-top:8px"><textarea id="fo_'+id+'" rows="3" placeholder="observa&ccedil;&otilde;es (hor&aacute;rio combinado, aviso pr&eacute;vio, o que precisar)" style="width:100%;'+inp+'">'+xpEsc(ob)+'</textarea>'
+        +'<div style="display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap">'+funBt('#e8edf4','Salvar observa&ccedil;&atilde;o','funSalvaObs('+id+')')
+        +(f.ultima?'<span class="rfu">&uacute;ltima mudan&ccedil;a: '+xpEsc(f.ultima.acao)+' por '+xpEsc(f.ultima.quem)+' em '+xpEsc(f.ultima.quando)+'</span>':'')+'</div></div>';
+      h+='</div></div>';
     });
-    h+='</table></div></div>';
+    h+='</div>';
   });
   c.innerHTML=h;
 }
