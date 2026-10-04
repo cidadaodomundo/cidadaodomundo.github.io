@@ -45,6 +45,25 @@ td{padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:
 .x:hover{color:var(--bad)}
 .aviso{color:var(--muted);font-size:12px;margin:18px 0 30px;line-height:1.5}
 .vazio{color:var(--muted);font-size:13px;padding:8px 0}
+/* 04/10/2026 (chat-cartoes-delivery-04-10): cartoes iguais ao Resolver hoje na aba Cancelamentos */
+.vv-lista{display:grid;gap:10px;margin-bottom:10px}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700}
+.p-ok{background:rgba(47,174,106,.15);color:var(--ok)}
+.p-bad{background:rgba(230,103,103,.15);color:var(--bad)}
+table.vv{margin-top:0;background:var(--s1);border:1px solid var(--line);border-left:5px solid var(--bad);border-radius:12px;border-collapse:separate;border-spacing:0}
+table.vv.ok{border-left-color:var(--ok)}
+table.vv td{border-bottom:0;padding:12px 14px;vertical-align:top}
+table.vv td.hrc{width:72px;padding-right:0}
+table.vv td.sit{width:250px}
+table.vv td.sit input{width:100%;margin-bottom:6px}
+.vv .hr{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;line-height:1;white-space:nowrap}
+.vv .ha{color:var(--muted);font-size:11.5px;margin-top:3px}
+.vv .tt{font-size:17px;font-weight:800;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vv .lj{color:var(--text2);font-size:13px;margin-top:2px}
+.vv .it{margin-top:6px;font-size:13.5px;color:var(--text)}
+.vv .rs{margin-top:6px;font-size:12px;color:var(--muted)}
+.vv .fn{margin-top:2px;font-size:11px;color:var(--muted)}
+.vv .feito{color:#7fe0aa;font-weight:700}
 
 /* cara da casa 04-09-2026 */
 h1,.gatebox h1{font-weight:400}
@@ -52,6 +71,7 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
 
 /* cabe no celular 04-09-2026 — filas de aba nunca vazam ate 900px; o resto so em tela estreita */
 @media (max-width:900px){.views,.tabs,.abas,.fil,.pes,.filtros,.chips,.lojas,.periodos{display:flex;flex-wrap:wrap;gap:6px;width:auto;max-width:100%;min-width:0}.views>*,.tabs>*,.abas>*,.fil>*,.pes>*{flex:0 0 auto;max-width:100%}}@media (max-width:640px){body{padding-left:12px;padding-right:12px}table{display:block;width:max-content;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}h1{font-size:clamp(18px,6.2vw,26px);word-break:break-word}img,svg,canvas,iframe{max-width:100%}}
+@media (max-width:640px){table.vv,table.vv tbody{display:block;width:100%;overflow:visible}table.vv tr{display:grid;grid-template-columns:64px minmax(0,1fr)}table.vv td{padding:12px 10px}table.vv td.hrc{width:auto;padding-right:0}.vv .hr{font-size:21px}table.vv td.sit{grid-column:1/-1;width:auto;padding-top:0}}
 </style>
 </head>
 <body>
@@ -234,30 +254,42 @@ function blocoIfood(dono){
   const ex={}; (D.cancelamentos||[]).forEach(function(c){ if(c.n_pedido&&!ex[c.n_pedido]) ex[c.n_pedido]=c; });
   if(!l.length)return '<div class="c"><b>🍔 Cancelados no iFood</b><div class="vazio">Nenhum cancelamento do iFood nestes 7 dias.</div></div>';
   const falta=l.filter(function(o){return !o.explicado}).length;
-  let h='<div class="c"><b>🍔 Cancelados no iFood — últimos 7 dias ('+l.length+')</b>'+
+  /* 04/10/2026 (chat-cartoes-delivery-04-10), pedido do Fabio: "pode levar para as outras telas" — a tabela
+     vira cartoes iguais ao Resolver hoje. Cada cartao e uma tabela de uma linha so (data-cdm-livre), para a
+     anotacao do portal.js continuar na linha; a chave e a mesma de antes ("dia | hora | marca"), para nao
+     perder o que a equipe ja escreveu. Primeiro os sem explicacao, depois os explicados, cada grupo do mais novo. */
+  let h='<div class="c"><b>🍔 Cancelados no iFood — últimos 7 dias: '+l.length+'</b>'+
     '<div class="assin">'+(falta?'<b style="color:#fff">'+falta+' sem explicação.</b> ':'Todos explicados. ')+
-    'Escreva em cada um o que aconteceu de verdade (ex.: faltou refrigerante, foi batata no lugar de anéis). O resto o iFood já mandou sozinho.</div>'+
-    '<table><tr><th>Dia</th><th>Hora</th><th>Marca</th><th>Pedido</th><th>Motivo do iFood</th>'+
-    (dono?'<th>Valor</th><th>Reembolso</th>':'')+'<th>O que aconteceu</th></tr>';
-  l.forEach(function(o){
-    h+='<tr><td>'+esc(o.dia)+'</td><td>'+esc(o.hora)+'</td><td>'+esc(o.marca)+'</td>'+
-       '<td>'+esc(o.n_pedido)+'</td><td>'+(o.motivo_ifood?esc(o.motivo_ifood)+(o.motivo_fonte?'<div class="assin">fonte: '+esc(o.motivo_fonte)+'</div>':''):'<span class="assin">o iFood ainda não mandou o motivo</span>')+falas(o.conversas)+'</td>';
-    if(dono){
-      h+='<td>'+(o.valor==null?'—':'R$ '+Number(o.valor).toFixed(2).replace('.',','))+'</td>'+
-         '<td><span style="color:'+(o.reembolsado?'var(--ok)':'var(--bad)')+'">'+
-         (o.reembolsado?'reembolsado '+(o.reembolso==null?'':'R$ '+Number(o.reembolso).toFixed(2).replace('.',',')):'sem reembolso')+'</span></td>';
-    }
-    const e=ex[o.n_pedido];
-    if(o.explicado){
-      h+='<td><span style="color:var(--ok)">✔ '+esc((e&&(e.observacao||e.motivo))||'explicado')+'</span>'+
-         (e?'<div class="assin">'+esc(e.lancado_por||'')+' · '+esc(e.quando||'')+' · <span class="x" data-apaga="'+e.id+'">apagar</span></div>':'')+'</td></tr>';
-    }else{
-      h+='<td><input type="text" id="ex_'+esc(o.n_pedido)+'" placeholder="o que aconteceu?" style="min-width:180px"> '+
-         '<button class="b" data-sv="'+esc(o.n_pedido)+'" data-dia="'+esc(o.dia)+'" data-mot="'+esc(o.motivo_ifood||'')+'">salvar</button></td></tr>';
-    }
-  });
-  h+='</table>';
-  return h+(dono?'<div class="assin">Reembolso é o que o iFood devolveu para a loja neste pedido. Sem reembolso quer dizer que a comida saiu e o dinheiro não entrou. O valor pode mudar nos primeiros dias, porque o reembolso demora a cair.</div>':'')+'</div>';
+    'Escreva em cada um o que aconteceu de verdade (ex.: faltou refrigerante, foi batata no lugar de anéis). O resto o iFood já mandou sozinho.</div></div>';
+  const ord=l.filter(function(o){return !o.explicado}).concat(l.filter(function(o){return o.explicado}));
+  h+='<div class="vv-lista">'+ord.map(function(o){ return cartaoCancel(o,ex[o.n_pedido],dono); }).join('')+'</div>';
+  return h+(dono?'<div class="assin" style="margin-bottom:10px">Reembolso é o que o iFood devolveu para a loja neste pedido. Sem reembolso quer dizer que a comida saiu e o dinheiro não entrou. O valor pode mudar nos primeiros dias, porque o reembolso demora a cair.</div>':'');
+}
+function chaveCancel(o){
+  const lp=function(t){return String(t==null?'':t).replace(/\s+/g,' ').trim().slice(0,60)};
+  return [lp(o.dia),lp(o.hora),lp(o.marca)].filter(function(t){return t}).join(' | ').slice(0,200);
+}
+function cartaoCancel(o,e,dono){
+  const ok=!!o.explicado, rs=function(v){return 'R$ '+Number(v).toFixed(2).replace('.',',')};
+  let h='<table class="vv'+(ok?' ok':'')+'" data-cdm-livre><tr data-cdm-chave="'+esc(chaveCancel(o))+'">'+
+    '<td class="hrc"><div class="hr">'+esc(o.hora||'—')+'</div><div class="ha">'+esc(o.dia||'')+'</div></td>'+
+    '<td><div class="tt">🚫 Cancelado no iFood '+(ok?'<span class="pill p-ok">explicado</span>':'<span class="pill p-bad">sem explicação</span>')+'</div>'+
+      '<div class="lj"><b>'+esc(o.marca||'')+'</b> · pedido <b>'+esc(o.n_pedido||'—')+'</b></div>'+
+      (o.motivo_ifood
+        ? '<div class="it">Motivo do iFood: '+esc(o.motivo_ifood)+'</div>'+(o.motivo_fonte?'<div class="fn">Fonte: '+esc(o.motivo_fonte)+'</div>':'')
+        : '<div class="rs">O iFood ainda não mandou o motivo</div>')+
+      (dono?'<div class="rs">Valor do pedido '+(o.valor==null?'—':esc(rs(o.valor)))+' · '+
+        '<span style="color:'+(o.reembolsado?'var(--ok)':'var(--bad)')+'">'+(o.reembolsado?'reembolsado'+(o.reembolso==null?'':' '+esc(rs(o.reembolso))):'sem reembolso')+'</span></div>':'')+
+      falas(o.conversas)+
+    '</td><td class="sit">';
+  if(ok){
+    h+='<span class="feito">✔ '+esc((e&&(e.observacao||e.motivo))||'explicado')+'</span>'+
+       (e?'<div class="assin">'+esc(e.lancado_por||'')+' · '+esc(e.quando||'')+' · <span class="x" data-apaga="'+e.id+'">apagar</span></div>':'');
+  }else{
+    h+='<input type="text" id="ex_'+esc(o.n_pedido)+'" placeholder="o que aconteceu?">'+
+       '<button class="b" data-sv="'+esc(o.n_pedido)+'" data-dia="'+esc(o.dia)+'" data-mot="'+esc(o.motivo_ifood||'')+'">salvar</button>';
+  }
+  return h+'</td></tr></table>';
 }
 function desenhaCancel(){
   return blocoIfood(!!D.dono);
