@@ -50,6 +50,25 @@ td{padding:9px 8px 9px 0;border-top:1px solid var(--line);vertical-align:top}
 .p-warn{background:rgba(201,133,0,.16);color:var(--warn)}
 .p-off{background:var(--s3);color:var(--text2)}
 @media (max-width:640px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.card .v{font-size:34px}.per{width:100%}}
+/* 04/10/2026 (chat-cartoes-operacao-04-10): cartoes iguais aos do Resolver hoje / AO VIVO da Central Cozinha */
+.card.sd{border-style:dashed}
+.card.sd .v{color:var(--muted)}
+.vv-lista{display:grid;gap:10px;margin-bottom:10px}
+table.vv{background:var(--s1);border:1px solid var(--line);border-left:5px solid var(--warn);border-radius:12px;border-collapse:separate;border-spacing:0;font-size:13px}
+table.vv.ok{border-left-color:var(--ok)}
+table.vv.bad{border-left-color:var(--bad)}
+table.vv.off{border-left-color:var(--muted)}
+table.vv td{border-top:0;padding:12px 14px;vertical-align:top}
+table.vv td.hrc{width:72px;padding-right:0}
+table.vv td.sit{width:250px}
+.vv .hr{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;line-height:1;white-space:nowrap}
+.vv .ha{color:var(--muted);font-size:11.5px;margin-top:3px}
+.vv .tt{font-size:17px;font-weight:800;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vv .lj{color:var(--text2);font-size:13px;margin-top:2px}
+.vv .rs{margin-top:6px;font-size:12px;color:var(--muted)}
+.vv .bal{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;margin-bottom:4px}
+.gpsparado{background:#2a1716;border:1px solid var(--bad);color:#ffb4b4;border-radius:13px;padding:11px 14px;font-size:13px;margin:0 0 12px}
+@media (max-width:640px){table.vv,table.vv tbody{display:block}table.vv tr{display:grid;grid-template-columns:64px minmax(0,1fr)}table.vv td{padding:12px 10px}table.vv td.hrc{padding-right:0}.vv .hr{font-size:21px}table.vv td.sit{grid-column:1/-1;width:auto;padding-top:0}table.vv td.hrc{width:auto}}
 </style>
 </head>
 <body>
@@ -208,7 +227,11 @@ function ondeTxt(l){
   return '<span style="color:'+cor+';font-weight:700">'+ico+'</span>'+
          '<div class="m">'+(d?esc(d)+' · ':'')+esc(q)+' · visto '+esc(l.vivo_visto||'')+'</div>';
 }
+/* 04/10/2026: com o GPS do TrackEat parado, "o sistema nao viu" era alarme falso — o sistema nem estava olhando */
+function gpsParado(){ return !!(D&&D.gps_parado) }
 function sitTxt(l){
+  if(gpsParado() && !l.sistema_txt && ['o sistema perdeu','bate','nao bate','diferenca pequena'].indexOf(l.situacao)>=0)
+    return '<span class="pill p-off">sem GPS</span>';
   var d=(l.diferenca_min===null||l.diferenca_min===undefined)?null:Math.abs(l.diferenca_min);
   if(l.situacao==='bate')return '<span class="pill p-ok">bate · '+d+' min</span>';
   if(l.situacao==='diferenca pequena')return '<span class="pill p-warn">'+d+' min de diferença</span>';
@@ -244,30 +267,35 @@ function grpTit(titulo, n, id){
   return '<div class="grp"'+(id?' id="'+id+'"':'')+'><span class="em">'+em+'</span><h2>'+tx+'</h2>'+(n!=null?'<span class="ct">'+n+'</span>':'')+'</div>';
 }
 function vaiPara(id){ var e=document.getElementById(id); if(e&&e.scrollIntoView) e.scrollIntoView({behavior:'smooth',block:'start'}); }
+/* 04/10/2026 (chat-cartoes-operacao-04-10), pedido do Fabio: cartoes iguais aos do Resolver hoje.
+   Cada cartao e uma tabela de uma linha (data-cdm-livre) para a anotacao do portal.js continuar aparecendo;
+   a chave da anotacao e a mesma de antes: "Loja | Motoboy | Escala". */
+function cartaoChegada(l, i, mostraOnde, dono, marcaEscala){
+  var sitCls = l.anotado_txt ? 'ok' : 'warn';
+  if(dono && !gpsParado() && (l.situacao==='nao bate'||l.situacao==='o sistema perdeu')) sitCls='bad';
+  var sistema = dono ? (l.sistema_txt ? 'Sistema viu às <b>'+esc(l.sistema_txt)+'</b>'
+                                      : (gpsParado() ? '' : 'Sistema: não viu')) : '';  /* com GPS parado o aviso do topo e o selo ja dizem */
+  return '<table class="vv '+(sitCls==='warn'?'':sitCls)+'" data-cdm-livre><tr data-cdm-chave="'+esc(l.unidade+' | '+l.entregador+' | '+(l.escala_txt||'—'))+'">'+
+    '<td class="hrc"><div class="hr">'+esc(l.escala_txt||'—')+'</div><div class="ha">'+(l.escala_txt?'escala':'sem escala')+'</div></td>'+
+    '<td><div class="tt">'+esc(l.entregador)+
+        (l.n_turno>1?' <span class="pill p-off">'+l.n_turno+'º turno</span>':'')+
+        (l.na_escala?(marcaEscala?' <span class="pill p-ok">na escala</span>':''):' <span class="pill p-warn">fora da escala</span>')+
+        (dono?' '+sitTxt(l):'')+'</div>'+
+      '<div class="lj"><b>'+esc(l.unidade)+'</b>'+(l.vivo_nome?' · no aplicativo: '+esc(l.vivo_nome):'')+'</div>'+
+      (mostraOnde?'<div class="rs">'+ondeTxt(l)+'</div>':'')+
+      (sistema?'<div class="rs">'+sistema+'</div>':'')+
+    '</td>'+
+    '<td class="sit"><div class="bal">Balcão anotou</div>'+
+      (l.anotado_txt
+        ? '<span style="font-size:17px;font-weight:800">'+esc(l.anotado_txt)+'</span> <span class="m" style="display:inline">'+esc(l.quem||'')+(l.digitada?' · à mão':'')+'</span><br>'+
+          '<button class="mini" style="margin-top:6px" onclick="outraHora('+i+')">trocar</button> <button class="mini" style="margin-top:6px" onclick="apagar('+i+')">apagar</button>'
+        : '<button class="mini" onclick="chegou('+i+')">Chegou agora</button> <button class="mini" onclick="outraHora('+i+')">outra hora</button>')+
+    '</td></tr></table>';
+}
 function bloco(titulo, pares, mostraOnde, dono, vazio, marcaEscala, id){
   if(!pares.length)return grpTit(titulo,null,id)+'<div class="c"><div class="vazio">'+vazio+'</div></div>';
-  let h=grpTit(titulo,pares.length,id);
-  h+='<div class="c"><div class="rolar"><table><tr>'+
-     '<th>Loja</th><th>Motoboy</th><th>Escala</th>'+(mostraOnde?'<th>Onde está agora</th>':'')+'<th>Balcão anotou</th>'+
-     (dono?'<th>Sistema</th><th>Bate?</th>':'')+'</tr>';
-  pares.forEach(function(par){
-    var l=par[0], i=par[1];
-    h+='<tr><td style="white-space:nowrap">'+esc(l.unidade)+'</td>'+
-       '<td>'+esc(l.entregador)+(l.n_turno>1?' <span class="m" style="display:inline">'+l.n_turno+'º turno</span>':'')+
-         (l.na_escala?(marcaEscala?' <span class="pill p-ok">na escala</span>':''):' <span class="pill p-warn">fora da escala</span>')+
-         (l.vivo_nome?'<div class="m">no aplicativo: '+esc(l.vivo_nome)+'</div>':'')+'</td>'+
-       '<td style="white-space:nowrap">'+(l.escala_txt?esc(l.escala_txt):'<span class="m" style="display:inline">—</span>')+'</td>'+
-       (mostraOnde?('<td style="white-space:nowrap">'+ondeTxt(l)+'</td>'):'')+
-       '<td style="white-space:nowrap">'+
-         (l.anotado_txt
-           ? '<b>'+esc(l.anotado_txt)+'</b> <span class="m" style="display:inline">'+esc(l.quem||'')+(l.digitada?' · à mão':'')+'</span><br><button class="mini" style="margin-top:5px" onclick="outraHora('+i+')">trocar</button> <button class="mini" style="margin-top:5px" onclick="apagar('+i+')">apagar</button>'
-           : '<button class="mini" onclick="chegou('+i+')">Chegou agora</button> <button class="mini" onclick="outraHora('+i+')">outra hora</button>')+
-       '</td>'+
-       (dono?('<td style="white-space:nowrap">'+(l.sistema_txt?'<b>'+esc(l.sistema_txt)+'</b>':'<span class="m" style="display:inline">não viu</span>')+'</td>'+
-              '<td style="white-space:nowrap">'+sitTxt(l)+'</td>'):'')+
-       '</tr>';
-  });
-  return h+'</table></div></div>';
+  return grpTit(titulo,pares.length,id)+'<div class="vv-lista">'+
+    pares.map(function(par){ return cartaoChegada(par[0], par[1], mostraOnde, dono, marcaEscala); }).join('')+'</div>';
 }
 
 /* uma linha por pessoa: quem faz dois turnos aparece no turno que falta anotar (ou no ultimo) */
@@ -284,7 +312,7 @@ function umPorPessoa(pares){
 function desenha(){
   if(D===false){ $('app').innerHTML='<div class="c"><b>Não deu para carregar.</b><div class="m">Entre no portal de novo e tente outra vez.</div></div>'; return }
   if(!D){ $('app').innerHTML='<div class="load">Juntando a escala com quem está com o aplicativo ligado…</div>'; return }
-  const dono=!!D.dono, L=D.linhas||[], P=D.placar||{}, vivo=!!D.ao_vivo;
+  const dono=!!D.dono, L=D.linhas||[], P=D.placar||{}, vivo=!!D.ao_vivo, gp=gpsParado();
   topoDireita(D.dia, D.hoje);
   let h='<div class="lojas"><span class="rot">LOJA</span>'+
     '<button class="chip'+(UNI===''?' on':'')+'" onclick="UNI=&quot;&quot;;boot()">Todas</button>'+
@@ -293,23 +321,31 @@ function desenha(){
     '<button class="chip'+(UNI==='São Braz'?' on':'')+'" onclick="UNI=&quot;São Braz&quot;;boot()">São Braz</button>'+
     '</div>'+
     '<div class="explica">Viu o motoboy entrar? Clique no botão. A hora anotada <b>não mexe no pagamento</b> — ela serve para conferir o relógio do sistema.'+
-    (vivo?' Em cima fica só <b>quem está rodando agora</b> — no pátio, na fila, disponível ou se mexendo na rua — com a marca <b>na escala</b> ou <b>fora da escala</b>. Quem está com o aplicativo ligado mas parado, fora da fila, fica num quadro separado. Depois da meia-noite a tela continua no dia da operação até o fim da madrugada. A tela se atualiza sozinha a cada minuto.':' Este é um dia passado: o aplicativo só mostra sinal do momento, então aqui fica só a escala e o que o balcão anotou.')+'</div>';
+    (vivo&&!gp?' Em cima fica só <b>quem está rodando agora</b> — no pátio, na fila, disponível ou se mexendo na rua — com a marca <b>na escala</b> ou <b>fora da escala</b>. Quem está com o aplicativo ligado mas parado, fora da fila, fica num quadro separado. Depois da meia-noite a tela continua no dia da operação até o fim da madrugada. A tela se atualiza sozinha a cada minuto.':vivo?' Sem o GPS, a lista abaixo é a escala do dia com o que o balcão anotou. A tela se atualiza sozinha a cada minuto.':' Este é um dia passado: o aplicativo só mostra sinal do momento, então aqui fica só a escala e o que o balcão anotou.')+'</div>';
 
   /* o mesmo placar de antes, agora em quadros; clicar leva ate a lista */
   var q=function(cls,em,t,v,qs,alvo){
     return '<div class="card '+cls+'"'+(alvo?' onclick="vaiPara(&quot;'+alvo+'&quot;)" title="Clique para ir até a lista"':'')+'>'+
       '<div class="t">'+em+' '+t+'</div><div class="v">'+v+'</div>'+(qs?'<div class="qs">'+qs+'</div>':'')+'</div>';
   };
+  if(gp) h+='<div class="gpsparado">⚠️ <b>O GPS do TrackEat está parado'+(D.gps_ultimo?' desde '+esc(D.gps_ultimo):'')+'.</b> '+
+     'A tela não sabe quem está rodando nem a hora que o sistema viu cada um — por isso não aparece "o sistema não viu". '+
+     'A anotação do balcão continua valendo: anote normalmente.</div>';
+  var semGps=function(em,t){ return '<div class="card sd"><div class="t">'+em+' '+t+'</div><div class="v">—</div><div class="qs">sem GPS: TrackEat parado</div></div>'; };
   var an=P.anotados||0, tu=P.turnos||0;
   h+='<div class="cards">'+q(an<tu?'atencao':'bem','✍️','Anotados pelo balcão',an+'/'+tu,an<tu?(tu-an)+' turno(s) sem a hora do balcão':'todos anotados',vivo?'b_rodando':'b_escala');
-  if(vivo){
+  if(vivo && gp){
+    h+=semGps('🟢','Rodando agora')+semGps('📌','Fora da escala')+semGps('📵','App ligado e parado')+semGps('⚪','Escalado sem sinal');
+  }else if(vivo){
     var fe=P.fora_escala||0, pa=P.parado||0, ss=P.sem_sinal||0;
     h+=q('','🟢','Rodando agora',(P.rodando||0),'no pátio, na fila ou na rua','b_rodando')+
        q(fe?'atencao':'bem','📌','Fora da escala',fe,fe?'rodando sem estar na escala':'todo mundo é da escala','b_rodando')+
        q(pa?'atencao':'bem','📵','App ligado e parado',pa,pa?'fora da fila, sem se mexer':'ninguém parado',pa?'b_parados':'')+
        q(ss?'mal':'bem','⚪','Escalado sem sinal',ss,ss?'na escala e sem o aplicativo ligado':'todos com o aplicativo ligado','b_semsinal');
   }
-  if(dono){
+  if(dono && gp){
+    h+=semGps('✅','Bateram')+semGps('❌','Não bateram')+semGps('👻','O sistema perdeu')+semGps('⏱','Erro médio');
+  }else if(dono){
     var nb=P.nao_bateram||0, pe=P.perdidos||0;
     h+=q('bem','✅','Bateram',(P.bateram||0),'balcão e sistema dizem a mesma hora','')+
        q(nb?'mal':'bem','❌','Não bateram',nb,'','')+
@@ -323,7 +359,7 @@ function desenha(){
     $('app').innerHTML=h; return;
   }
   const pares=L.map(function(l,i){return [l,i]});
-  if(!vivo){
+  if(!vivo || gp){
     h+=bloco('📋 A escala do dia', pares, false, dono, 'ninguém na escala deste dia', false, 'b_escala');
   }else{
     h+=bloco('🟢 Rodando agora', umPorPessoa(pares.filter(function(p){return p[0].vivo_rodando})), true, dono,
