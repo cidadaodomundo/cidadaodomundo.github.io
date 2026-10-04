@@ -1139,19 +1139,21 @@ async function renderComandas(){
     +RFUNI.map(function(u){return '<button class="view'+(CMD.loja===u?' active':'')+'" onclick="cmdSetLoja(\''+u+'\')">'+rfEsc(u)+'</button>'}).join(' ')
     +'</div>';
   if(!CMD.lista.length){$('content').innerHTML=h+'<div class="rf-empty">Nenhuma comanda cadastrada nesta loja.</div></div>';return}
-  h+='<div class="rf-wrap"><table class="rf-tb"><tr><th class="n">Comanda</th><th>Nome</th><th>De quem e</th><th>Recado para o escritorio</th><th></th></tr>';
-  CMD.lista.forEach(function(c,i){
+  /* 04/10/2026 (chat-cartoes-gestao-04-10): um cartao por comanda, igual aos do Resolver hoje. O campo de recado,
+     o botao Salvar e os ids (cmd_N) sao os mesmos; a caixa de recado ja e a anotacao desta lista. Faixa verde = o dono
+     esta na equipe ativa; amarela = sem dono, ou dono que nao esta na equipe (aparece "ficha N"); cinza = desativada. */
+  h+='<div class="vv-lista">'+CMD.lista.map(function(c,i){
     var dono=(CMD.equipe.filter(function(x){return String(x.id)===String(c.funcionario_id)})[0]||{}).nome;
-    h+='<tr'+(c.ativo?'':' style="opacity:.55"')+'>'
-      +'<td class="n"><b>'+rfEsc(c.codigo)+'</b></td>'
-      +'<td>'+rfEsc(c.nome||'—')+(c.ativo?'':' <span class="rfu">desativada</span>')+'</td>'
-      +'<td>'+rfEsc(dono||(c.funcionario_id?'ficha '+c.funcionario_id:'— sem dono —'))+'</td>'
-      +'<td><textarea id="cmd_'+i+'" rows="2" style="width:100%;min-width:220px;padding:6px" placeholder="ex.: esse cartao esta comigo, o nome esta errado, falta cadastrar...">'+rfEsc(c.recado||'')+'</textarea>'
+    var cor=!c.ativo?'':(dono?'ok':'warn');
+    return '<div class="vv '+cor+'"'+(c.ativo?'':' style="opacity:.55"')+'><div><div class="hr">'+rfEsc(c.codigo)+'</div><div class="ha">comanda</div></div><div style="min-width:0">'
+      +'<div class="tt">'+rfEsc(c.nome||'—')+(c.ativo?'':' <span class="rfu">desativada</span>')+'</div>'
+      +'<div class="lj">de quem é: '+rfEsc(dono||(c.funcionario_id?'ficha '+c.funcionario_id:'— sem dono —'))+'</div>'
+      +'<textarea id="cmd_'+i+'" rows="2" style="width:100%;margin-top:8px;padding:6px" placeholder="ex.: esse cartao esta comigo, o nome esta errado, falta cadastrar...">'+rfEsc(c.recado||'')+'</textarea>'
       +(c.recado_por?'<div class="rfu">ultimo: '+rfEsc(c.recado_por)+(c.recado_em?' · '+rfBr(String(c.recado_em).slice(0,10)):'')+'</div>':'')
-      +'</td>'
-      +'<td><button onclick="cmdSalvar('+i+')" style="padding:6px 10px;cursor:pointer">Salvar</button></td></tr>';
-  });
-  h+='</table></div><div id="cmd_msg" style="margin-top:8px"></div></div>';
+      +'<div style="margin-top:6px"><button onclick="cmdSalvar('+i+')" style="padding:6px 10px;cursor:pointer">Salvar</button></div>'
+    +'</div></div>';
+  }).join('')+'</div>';
+  h+='<div id="cmd_msg" style="margin-top:8px"></div></div>';
   $('content').innerHTML=h;
 }
 async function cmdSalvar(i){
