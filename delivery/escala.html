@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<script src="/assets/chaves.js?v=1"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#111110">
@@ -226,7 +227,7 @@ if(!ADER_INI){ADER_INI=dm7;ADER_FIM=iso(new Date(Date.now()-864e5))}
     SUG=r[0];CLIMA=r[1];ESC=r[2];ADER=r[3].aderencia||[];FORA=r[3].fora||[];
     ULT=Date.now();
     const at=CLIMA.length?CLIMA[CLIMA.length-1].atualizado_em:null;
-    $('hsub').textContent='previsão do tempo + histórico do Foody · clima atualizado '+(at?hm(at):'—')+' · esta tela: '+hm(ULT);
+    $('hsub').textContent=(window.CDM_FOODY===false?'previsão do tempo + histórico antigo de pedidos · clima atualizado ':'previsão do tempo + histórico do Foody · clima atualizado ')+(at?hm(at):'—')+' · esta tela: '+hm(ULT);
     if(!DATA)DATA=dias(8)[1];
     render();
   }catch(e){$('conteudo').innerHTML='<div class="sec"><div class="empty">Erro ao carregar: '+esc(e.message)+'</div></div>'}
@@ -538,7 +539,7 @@ const extras=ROWS.map(r=>r.nome).filter(n=>ATIVOS.indexOf(n)<0);
     });
     h+='</div>';
   });
-  h+='<div class="sec"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="text" id="novoNome" placeholder="outro motoboy (nome igual ao Foody)\u2026" style="flex:2;min-width:150px"><select id="selTurno" style="min-width:110px">'+TURNOS_ESC.map(t=>'<option>'+t+'</option>').join('')+'</select><button class="btnr" onclick="addManual()">adicionar</button></div></div>';
+  h+='<div class="sec"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="text" id="novoNome" placeholder="'+(window.CDM_FOODY===false?'outro motoboy':'outro motoboy (nome igual ao Foody)')+'\u2026" style="flex:2;min-width:150px"><select id="selTurno" style="min-width:110px">'+TURNOS_ESC.map(t=>'<option>'+t+'</option>').join('')+'</select><button class="btnr" onclick="addManual()">adicionar</button></div></div>';
   h+='<button class="btnv" onclick="salvar()">\uD83D\uDCBE SALVAR ESCALA DESTE DIA</button>';
   $('montbody').innerHTML=h;
 }
@@ -554,7 +555,7 @@ function addNome(nome,turno,ent,sai){
 function addSel(){
   const v=$('selNome').value,t=$('selTurno').value;
   if(!v){toast('escolha um motoboy',1);return}
-  if(v==='__outro__'){const n=prompt('Nome do motoboy (igual está no Foody):');if(!n)return;addNome(n.trim(),t,'','');return}
+  if(v==='__outro__'){const n=prompt(window.CDM_FOODY===false?'Nome do motoboy:':'Nome do motoboy (igual está no Foody):');if(!n)return;addNome(n.trim(),t,'','');return}
   const p=v.split('|');addNome(p[0],t,p[1],p[2]);
 }
 function aplicar(turno,n){
@@ -614,7 +615,7 @@ h+='<div class="tabs">'+['Todas'].concat(LOJAS).map(l=>'<span class="tab '+(LOJA
     kpi('Sem registro','b',falt,'nenhuma hora registrada no dia')+
   '</div>';
 
-  h+='<div class="hint">A chegada é a hora que o <b>balcão anotou</b> na tela Chegada do dia. Sem anotação, vale o GPS do pátio; nos dias antigos, o QR ou a 1ª coleta do Foody.'+(tol!=null?' Atrasado = chegou mais de <b>'+tol+' min</b> depois do combinado.':'')+'</div>';
+  h+='<div class="hint">A chegada é a hora que o <b>balcão anotou</b> na tela Chegada do dia. Sem anotação, vale o GPS do pátio'+(window.CDM_FOODY===false?'.':'; nos dias antigos, o QR ou a 1ª coleta do Foody.')+(tol!=null?' Atrasado = chegou mais de <b>'+tol+' min</b> depois do combinado.':'')+'</div>';
 
   h+='<div class="sec"><h2>👤 Por motoboy</h2><div class="hs">quem foi escalado mais vezes primeiro</div>';
   const by={};
@@ -635,8 +636,8 @@ h+='<div class="tabs">'+['Todas'].concat(LOJAS).map(l=>'<span class="tab '+(LOJA
       return '<div class="vv off"><div><div class="hr">'+o.dias+'</div><div class="ha">'+(o.dias==1?'turno escalado':'turnos escalados')+'</div></div><div style="min-width:0">'+
         '<div class="tt">'+esc(o.nome)+' <span class="pill '+(pct>=80?'pg':pct>=60?'pw':'pb')+'">'+pct+'% no horário</span></div>'+
         '<div class="lj">'+o.noH+' no horário · '+o.atr+(o.atr==1?' atraso':' atrasos')+' · '+(o.falt?'<span style="color:#f19191">'+o.falt+' sem registro</span>':'0 sem registro')+'</div>'+
-        '<div class="rs">'+(DONO?'atraso médio '+(o.cnt?Math.round(o.soma/o.cnt)+' min':'—')+' · ':'')+(function(){const c=Object.keys(o.entDia).length, sf=Object.keys(o.semFoody).filter(k=>!o.entDia[k]).length;
-          return c?(o.ent+(o.ent==1?' entrega':' entregas')+(sf?' · '+sf+(sf==1?' dia':' dias')+' sem dado do Foody':'')):'entregas: sem dado do Foody';})()+'</div>'+
+        '<div class="rs">'+(DONO?'atraso médio '+(o.cnt?Math.round(o.soma/o.cnt)+' min':'—')+' · ':'')+(window.CDM_FOODY===false?'':(function(){const c=Object.keys(o.entDia).length, sf=Object.keys(o.semFoody).filter(k=>!o.entDia[k]).length;
+          return c?(o.ent+(o.ent==1?' entrega':' entregas')+(sf?' · '+sf+(sf==1?' dia':' dias')+' sem dado do Foody':'')):'entregas: sem dado do Foody';})())+'</div>'+
       '</div></div>';
     }).join('')+'</div>';
   }
@@ -657,13 +658,13 @@ h+='<div class="tabs">'+['Todas'].concat(LOJAS).map(l=>'<span class="tab '+(LOJA
         '<div class="lj">'+esc(x.unidade)+' · '+esc(x.turno||'—')+'</div>'+
         '<div class="rs">chegou '+hm(x.chegada_efetiva)+(x.fonte_chegada?' <span class="pill pi">'+esc(x.fonte_chegada==='Foody (1ª coleta)'?'Foody':x.fonte_chegada)+'</span>':'')+
           ' · <span style="color:'+(x.atraso_min>(tol!=null?tol:5)?'#f19191':'#5fd396')+'">'+dif+'</span>'+
-          (x.primeira_coleta!=null&&x.entregas!=null?' · '+x.entregas+(Number(x.entregas)==1?' entrega no dia':' entregas no dia'):' · entregas: sem dado do Foody')+'</div>'+
+          (x.primeira_coleta!=null&&x.entregas!=null?' · '+x.entregas+(Number(x.entregas)==1?' entrega no dia':' entregas no dia'):(window.CDM_FOODY===false?'':' · entregas: sem dado do Foody'))+'</div>'+
       '</div></div>';
     }).join('')+'</div>';
   }
   h+='</div>';
 
-  if(fora.length){
+  if(fora.length&&window.CDM_FOODY!==false){
     h+='<div class="sec"><h2>❓ Rodou sem estar na escala</h2><div class="hs">apareceu no Foody mas não estava escalado — confira se foi troca de última hora</div><div class="vv-lista duas">'+fora.slice(0,60).map(f=>
       '<div class="vv off"><div><div class="hr">'+hm(f.primeira_coleta)+'</div><div class="ha">'+br(f.dia_op)+' · 1ª coleta</div></div><div style="min-width:0">'+
         '<div class="tt">'+esc(f.nome)+' <span class="pill pw">fora da escala</span></div>'+

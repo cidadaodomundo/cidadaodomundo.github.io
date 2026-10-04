@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<script src="/assets/chaves.js?v=1"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>iFood · Cidadão do Mundo</title>
@@ -161,8 +162,8 @@ function motoSair(){sessionStorage.removeItem("cdm_moto_pw");MOTO=[];render();}
 async function loadAll(){
   document.getElementById("content").innerHTML='<div class="panel muted">Carregando dados ao vivo…</div>';
   [ENTR,MOTO,LOJAS,CANC,NEG,AVAL,QUAL,SUPER]=await Promise.all([
-    fetchAll("foody_vw_entregas_dia","id_loja,unidade,dia_operacional,turno,pedidos,no_prazo,atrasados,atraso_ate_10,atraso_10_30,atraso_mais_30,atraso_medio_min,pior_atraso_min,sem_codigo,no_prazo_foody,preparo_medio_min,entrega_medio_min"),
-    fetchMoto(),
+    window.CDM_FOODY===false?Promise.resolve([]):fetchAll("foody_vw_entregas_dia","id_loja,unidade,dia_operacional,turno,pedidos,no_prazo,atrasados,atraso_ate_10,atraso_10_30,atraso_mais_30,atraso_medio_min,pior_atraso_min,sem_codigo,no_prazo_foody,preparo_medio_min,entrega_medio_min"),
+    window.CDM_FOODY===false?Promise.resolve([]):fetchMoto(),
     fetchAll("ifood_dim_loja","id_loja,nome,unidade,ativa").then(v=>v.filter(l=>l.ativa!==false)),
     fetchAll("ifood_fato_cancelamento","id_loja,id_pedido,data,turno,status_pedido,motivo,impactou_super,valor_pedido,valor_cancelamento,itens_cancelados,origem,contestavel,loja_contestou,status_contestacao,id_saipos,forma_pagamento,pagamento_online,primeiro_pedido,chat,fotos","data"),
     fetchAll("ifood_fato_negociacao","id_loja,id_pedido,data,turno,motivo,momento_solicitacao,quem_iniciou,resposta_loja,resposta_cliente,valor_reembolso,valor_cupom,cancelamento_evitado,impactou_super,id_saipos,forma_pagamento,pagamento_online,primeiro_pedido,chat,fotos","data"),
@@ -261,6 +262,7 @@ function escondeMoto(){
   Array.prototype.forEach.call(document.querySelectorAll('.bar .muted'),function(el){if((el.textContent||'').trim()==='até')el.style.display='none'});
   var c7=document.querySelector('.bar .chip[data-d="7"]');
   if(c7&&!c7.getAttribute('data-cm')){c7.setAttribute('data-cm','1');c7.onclick=function(){semanaFechada()}}
+  if(window.CDM_FOODY===false){var t0=document.getElementById('tabs');if(t0)Array.prototype.forEach.call(t0.children,function(el){var k=el.getAttribute('data-t');if(k==='entregas'||k==='moto')el.style.display='none'});}
   if(!SEMMOTO)return;
   var t=document.getElementById('tabs');
   if(t)Array.prototype.forEach.call(t.children,function(el){if(/motoboy/i.test(el.textContent||''))el.style.display='none'});
@@ -269,6 +271,7 @@ function escondeMoto(){
 function render(){
   try{SUPER=_superDedup(SUPER)}catch(e){}
   if(SEMMOTO&&F.tab==='moto')F.tab='aval';
+  if(window.CDM_FOODY===false&&(F.tab==='moto'||F.tab==='entregas'))F.tab='aval';
   setTimeout(escondeMoto,0);
   const f=filtered();
   const nota=f.aval.length?f.aval.reduce((s,r)=>s+r.nota,0)/f.aval.length:null;

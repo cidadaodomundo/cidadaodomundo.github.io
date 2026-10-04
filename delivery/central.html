@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<script src="/assets/chaves.js?v=1"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#111110">
@@ -333,7 +334,7 @@ async function przLoad(){try{
   var d14=(new Date(Date.now()-14*864e5)).toISOString().slice(0,10);
   var d3=(new Date(Date.now()-3*864e5)).toISOString().slice(0,10);
   var _rr=await Promise.all([
-    fj("foody_vw_prazo_real_dia?dia_operacional=gte."+d14+"&select=dia_operacional,unidade,entregas,no_prazo,atraso_mais_10&order=dia_operacional.desc&limit=1000"),
+    window.CDM_FOODY===false?Promise.resolve([]):fj("foody_vw_prazo_real_dia?dia_operacional=gte."+d14+"&select=dia_operacional,unidade,entregas,no_prazo,atraso_mais_10&order=dia_operacional.desc&limit=1000"),
     fj("cardapio_pausado?visto_em=gte."+d3+"&canal=in.(iFood,Accon)&select=canal,unidade,marca,item,tipo,estado,primeiro_visto,visto_em&order=primeiro_visto.asc&limit=1000")]);
   PRZ=_rr[0]||[];PAU=(_rr[1]||[]).filter(function(r){return r.unidade!=='Boqueirão'});
   PAUMAX="";PAU.forEach(function(r){if(r.visto_em>PAUMAX)PAUMAX=r.visto_em});
@@ -398,15 +399,15 @@ async function loadAll(){
   $('conteudo').innerHTML='<div class="loading">Carregando…</div>';
   try{
     [F,SC,CANC,AVAL,NEG,DIMS,ATR,PAG,ENTR]=await Promise.all([
-      pag('foody_fato_fechamento_turno_dia?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=id_loja,unidade,dia_operacional,turno,entregador,horas,entregas,no_prazo,atrasos,sem_codigo&order=dia_operacional.asc'),
-      fj('foody_fato_pedido_sem_codigo?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=id_loja,unidade,dia_operacional,turno,entregador,n_pedido,hora_pedido&order=hora_pedido.desc&limit=1000'),
+      window.CDM_FOODY===false?Promise.resolve([]):pag('foody_fato_fechamento_turno_dia?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=id_loja,unidade,dia_operacional,turno,entregador,horas,entregas,no_prazo,atrasos,sem_codigo&order=dia_operacional.asc'),
+      window.CDM_FOODY===false?Promise.resolve([]):fj('foody_fato_pedido_sem_codigo?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=id_loja,unidade,dia_operacional,turno,entregador,n_pedido,hora_pedido&order=hora_pedido.desc&limit=1000'),
       fj('ifood_fato_cancelamento?data=gte.'+(new Date(Date.now()-36*864e5)).toISOString().slice(0,10)+'&select=id_loja,id_pedido,data,turno,motivo,itens_cancelados,valor_cancelamento,valor_pedido,contestavel,loja_contestou,data_limite_contestacao&order=data.desc&limit=500'),
       fj('ifood_fato_avaliacao?data_avaliacao=gte.'+(new Date(Date.now()-14*864e5)).toISOString().slice(0,10)+'&select=id_loja,data_avaliacao,nota,tags,comentario&order=data_avaliacao.desc&limit=1000'),
       fj('ifood_fato_negociacao?data=gte.'+(new Date(Date.now()-30*864e5)).toISOString().slice(0,10)+'&select=id_loja,id_pedido,data,motivo,resposta_loja,cancelamento_evitado&order=data.desc&limit=1000'),
       fj('ifood_dim_loja?select=id_loja,nome,unidade'),
       (async()=>{BASE=await cpRPC('base');var d10=(new Date(Date.now()-10*864e5)).toISOString().slice(0,10);var ds=[...new Set(BASE.map(function(r){return r.dia_operacional}))].filter(function(d){return d>=d10});ds.forEach(function(d){CPDIAS[d]=1});var r=await Promise.all(ds.map(function(d){return cpRPC('detalhe',d)}));return [].concat.apply([],r)})(),
-      (async()=>{const d30=(new Date(Date.now()-29*864e5)).toISOString().slice(0,10);const rr=await Promise.all([pag('foody_vw_pagamento_dia?dia_operacional=gte.'+d30+'&select=dia_operacional,unidade,nome,fez,horas,horas_qr,entregas,atrasos,no_prazo,sem_codigo&order=dia_operacional.asc'),pag('foody_vw_prazo_real_dia?dia_operacional=gte.'+d30+'&select=dia_operacional,unidade,entregador,no_prazo,atrasos&order=dia_operacional.asc')]);const mp={};rr[1].forEach(function(x){const k=x.dia_operacional+'|'+x.unidade+'|'+x.entregador;const o=mp[k]=mp[k]||{ok:0,at:0};o.ok+=(+x.no_prazo||0);o.at+=(+x.atrasos||0);});return rr[0].map(function(z){const o=mp[z.dia_operacional+'|'+z.unidade+'|'+z.nome];return Object.assign({},z,{no_prazo:o?o.ok:null,atrasos:o?o.at:null});});})(),
-      fj('foody_vw_entregas_dia?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=*&order=dia_operacional.asc&limit=2000')
+      window.CDM_FOODY===false?Promise.resolve([]):(async()=>{const d30=(new Date(Date.now()-29*864e5)).toISOString().slice(0,10);const rr=await Promise.all([pag('foody_vw_pagamento_dia?dia_operacional=gte.'+d30+'&select=dia_operacional,unidade,nome,fez,horas,horas_qr,entregas,atrasos,no_prazo,sem_codigo&order=dia_operacional.asc'),pag('foody_vw_prazo_real_dia?dia_operacional=gte.'+d30+'&select=dia_operacional,unidade,entregador,no_prazo,atrasos&order=dia_operacional.asc')]);const mp={};rr[1].forEach(function(x){const k=x.dia_operacional+'|'+x.unidade+'|'+x.entregador;const o=mp[k]=mp[k]||{ok:0,at:0};o.ok+=(+x.no_prazo||0);o.at+=(+x.atrasos||0);});return rr[0].map(function(z){const o=mp[z.dia_operacional+'|'+z.unidade+'|'+z.nome];return Object.assign({},z,{no_prazo:o?o.ok:null,atrasos:o?o.at:null});});})(),
+      window.CDM_FOODY===false?Promise.resolve([]):fj('foody_vw_entregas_dia?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=*&order=dia_operacional.asc&limit=2000')
     ]);
     try{ESCH=((await escRPC('aderencia',{de:(new Date(Date.now()-8*864e5)).toISOString().slice(0,10),ate:(new Date(Date.now()+864e5)).toISOString().slice(0,10)})).aderencia||[]).sort(function(a,b){return (a.entrada||'')<(b.entrada||'')?-1:1})}catch(e){ESCH=[]}
     var _semBoq=function(a){return (a||[]).filter(function(z){return unidadeDe(z.id_loja)!=='Boqueirão'})};
@@ -416,7 +417,7 @@ async function loadAll(){
     DI=NAV.length-1;
     await svsLoad();
     await przLoad();await supLoad();
-    $('upd').textContent='atualizado '+new Date().toLocaleTimeString('pt-BR');(function(){if(!document.getElementById('cdmf2')){var y=document.createElement('style');y.id='cdmf2';y.textContent='#upd .cdm-fresh{display:none}';document.head.appendChild(y)}var mx='';(ATR||[]).forEach(function(p){if(p.dia_operacional>mx)mx=p.dia_operacional});if(!mx)return;var hj=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);var dd=Math.round((new Date(hj)-new Date(mx))/864e5);var s=document.createElement('span');s.style.cssText='display:inline-block;font-size:11px;line-height:1.5;padding:1px 8px;border-radius:999px;border:1px solid currentColor;margin-left:8px;white-space:nowrap;color:'+(dd<=1?'#38b26a':(dd<=2?'#e0a33a':'#e2574c'));s.textContent='pedidos até '+mx.slice(8,10)+'/'+mx.slice(5,7)+' · Foody + TrackEat'+(dd>1?' · '+dd+' dias atrás':'');$('upd').appendChild(s)})();
+    $('upd').textContent='atualizado '+new Date().toLocaleTimeString('pt-BR');(function(){if(!document.getElementById('cdmf2')){var y=document.createElement('style');y.id='cdmf2';y.textContent='#upd .cdm-fresh{display:none}';document.head.appendChild(y)}var mx='';(ATR||[]).forEach(function(p){if(p.dia_operacional>mx)mx=p.dia_operacional});if(!mx)return;var hj=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);var dd=Math.round((new Date(hj)-new Date(mx))/864e5);var s=document.createElement('span');s.style.cssText='display:inline-block;font-size:11px;line-height:1.5;padding:1px 8px;border-radius:999px;border:1px solid currentColor;margin-left:8px;white-space:nowrap;color:'+(dd<=1?'#38b26a':(dd<=2?'#e0a33a':'#e2574c'));s.textContent='pedidos até '+mx.slice(8,10)+'/'+mx.slice(5,7)+(window.CDM_FOODY===false?' · TrackEat':' · Foody + TrackEat')+(dd>1?' · '+dd+' dias atrás':'');$('upd').appendChild(s)})();
     render();
   }catch(e){$('conteudo').innerHTML='<div class="err">Erro ao carregar: '+e.message+'</div>'}
 }
@@ -581,7 +582,7 @@ function renderDiario(){
     kpi('% no prazo REAL',pct!=null?pct+'%':'—',cmp(pct,bPct),pct==null?'var(--muted)':pct>=85?'var(--good)':pct>=70?'var(--warn)':'var(--bad)','pct')+
     kpi('Atrasos reais',atr,atr?'acima do horário prometido':'nenhum 🎉',atr?'var(--bad)':'var(--good)','atr')+
     /* 30/09/2026, telas honestas: o Sem código vem do Foody. Sem dado do Foody no dia (medido pelo fechamento de turno, F), o cartão não pode dizer "tudo certo". */
-    (function(){var m='';(F||[]).forEach(function(z){if(z.dia_operacional&&z.dia_operacional>m)m=z.dia_operacional});return (!m||m<D)?kpi('Sem código','—',m?'Foody sem dado desde '+_dbr(m):'Foody sem dado no período','var(--muted)','sc'):kpi('Sem código',sem,sem?'sem Cód. de Coleta':'tudo certo 🎉',sem?'var(--warn)':'var(--good)','sc');})()+
+    (window.CDM_FOODY===false?'':(function(){var m='';(F||[]).forEach(function(z){if(z.dia_operacional&&z.dia_operacional>m)m=z.dia_operacional});return (!m||m<D)?kpi('Sem código','—',m?'Foody sem dado desde '+_dbr(m):'Foody sem dado no período','var(--muted)','sc'):kpi('Sem código',sem,sem?'sem Cód. de Coleta':'tudo certo 🎉',sem?'var(--warn)':'var(--good)','sc');})())+
     
     kpi('Itens pausados',_pauSem?'—':_pauL.length,_pauSem?(PAUMAX?'última varredura em '+_dbr(PAUMAX):'ainda não varreu'):(_pauL.length?(_pauVelho?_pauVelho+' parado'+(_pauVelho>1?'s':'')+' há 2 dias ou mais':'todos pausados hoje'):'tudo no ar 🎉'),_pauSem?'var(--muted)':(_pauVelho?'var(--bad)':(_pauL.length?'var(--warn)':'var(--good)')),'pau')+
     kpi('Reentregas #',REE===null?'…':(REE===false||_reeNunca?'—':_rd.length),REE===null?'buscando…':(REE===false?'não consegui buscar':(_reeNunca?'ninguém lançou no período':(_rf?_rf+' a classificar':(_rd.length?'todas classificadas':'nenhuma 🎉')))),REE===false?'var(--bad)':(_reeNunca?'var(--muted)':(_rd.length?'var(--warn)':'var(--good)')),'ree')+
@@ -667,9 +668,9 @@ function renderEquipe(){
     kpi('Entregas',ent,motos.length+' motoboys · '+dias.length+' dia(s)','var(--blue)')+
     kpi('No horário',ok,pct!=null?pct+'% do total':'',pct==null?'var(--muted)':pct>=90?'var(--good)':pct>=75?'var(--warn)':'var(--bad)')+
     kpi('Atrasadas',atr,pct!=null?(100-pct).toFixed(1)+'% do total':'','var(--bad)')+
-    kpi('Horas',Math.round(horas)+'h','trabalhadas','var(--blue)')+
+    (window.CDM_FOODY===false?'':kpi('Horas',Math.round(horas)+'h','trabalhadas','var(--blue)'))+
     
-    kpiCodigo(dias)+'</div>';
+    (window.CDM_FOODY===false?'':kpiCodigo(dias))+'</div>';
   const bs=ok+atr, pok=bs?100*ok/bs:0;
   html+='<div class="sec"><h2>Entregas: no horário × atrasadas</h2><div class="hs">no período/loja selecionado</div>'+
     '<div class="splitbar"><div class="seg" style="width:'+pok+'%;background:var(--good)">'+(pok>7?ok:'')+'</div><div class="seg" style="width:'+(100-pok)+'%;background:var(--bad)">'+((100-pok)>7?atr:'')+'</div></div>'+
@@ -682,7 +683,7 @@ function renderEquipe(){
       return '<div class="lcard"><div class="ln">'+x.l+'</div>'+
         '<div class="lm"><span>Entregas</span><b>'+x.e+'</b></div>'+
         '<div class="lm"><span>No prazo</span><span class="pill '+pc+'">'+(p==null?'—':p+'%')+'</span></div>'+
-        '<div class="lm"><span>Entregas/hora</span><b>'+eph+'</b></div>'+
+        (window.CDM_FOODY===false?'':'<div class="lm"><span>Entregas/hora</span><b>'+eph+'</b></div>')+
         '<div class="lm"><span>Custo/entrega</span><b>'+custo+'</b></div>'+
         '</div>'}).join('')+'</div></div>';
   const pts=NAV.map(d=>{const rr=F.filter(r=>r.dia_operacional===d&&fLoja(r));let e=0,o2=0,a2=0;rr.forEach(r=>{e+=r.entregas;o2+=r.no_prazo;a2+=r.atrasos});const b2=o2+a2;return {label:DOWN[dow(d)].slice(0,3)+' '+br(d),e,p:b2?100*o2/b2:0,has:rr.length>0}});
@@ -697,7 +698,7 @@ function renderEquipe(){
     if(p.has){const cy=padT+plotH-Math.round(plotH*p.p/100);const cx=x+bw/2;lp.push(cx+','+cy);
       dots+='<circle cx="'+cx+'" cy="'+cy+'" r="3.5" fill="#2fae6a"/><text x="'+cx+'" y="'+(cy-7)+'" fill="#2fae6a" font-size="9.5" font-weight="700" text-anchor="middle">'+Math.round(p.p)+'%</text>'}});
   if(lp.length>1)line='<polyline points="'+lp.join(' ')+'" fill="none" stroke="#2fae6a" stroke-width="2"/>';
-  html+='<div class="sec"><h2>📈 Evolução no tempo</h2><div class="hs">últimos 7 dias · entregas (barras) e % no prazo (linha verde)'+(LOJA!=='Todas'?' · '+LOJA:'')+'</div><div style="overflow-x:auto"><svg width="'+W+'" height="'+hh2+'" viewBox="0 0 '+W+' '+hh2+'" style="display:block">'+bars+line+dots+lbls+'</svg></div></div>';
+  if(window.CDM_FOODY!==false)html+='<div class="sec"><h2>📈 Evolução no tempo</h2><div class="hs">últimos 7 dias · entregas (barras) e % no prazo (linha verde)'+(LOJA!=='Todas'?' · '+LOJA:'')+'</div><div style="overflow-x:auto"><svg width="'+W+'" height="'+hh2+'" viewBox="0 0 '+W+' '+hh2+'" style="display:block">'+bars+line+dots+lbls+'</svg></div></div>';
   const elig=motos.filter(o=>o.e>=20);
   const best=[...elig].sort((a,b)=>(b.p||0)-(a.p||0)).slice(0,3);
   const worst=[...elig].sort((a,b)=>(a.p||0)-(b.p||0)).slice(0,3);
@@ -708,7 +709,7 @@ function renderEquipe(){
   html+='<div class="sec"><h2>⭐ Destaques</h2><div class="hs">no período/loja selecionado (mínimo 20 entregas para o ranking de %)</div><div class="rankgrid">'+
     col('🏆 Melhor % no prazo',best,o=>(o.p==null?'—':o.p+'%'))+
     col('⚠ Pior % no prazo',worst,o=>(o.p==null?'—':o.p+'%'))+
-    col('💰 Maior complemento (exige senha)',compTop,o=>rM(o.c),'comp')+
+    (window.CDM_FOODY===false?'':col('💰 Maior complemento (exige senha)',compTop,o=>rM(o.c),'comp'))+
     (scTop.length?col('🚩 Mais sem código',scTop,o=>o.sem+''):col('📦 Mais entregas',[...motos].sort((a,b)=>b.e-a.e).slice(0,3),o=>o.e+''))+'</div></div>';
   let wt='*Motoboys — '+dias.length+' dia(s)'+(LOJA!=='Todas'?' · '+LOJA:'')+'*\n';
   wt+='Entregas: '+ent+'  |  No prazo: '+(pct==null?'—':pct+'%')+'\n';
@@ -717,7 +718,7 @@ function renderEquipe(){
   wt+='\n_Gerado do painel ao vivo · confira contra o fechamento oficial._';
   window.__WPP=wt;
   html+='<button class="btnr" id="wppbtn" onclick="copiarWpp()" style="margin-bottom:14px">📱 Resumo p/ WhatsApp</button>';
-  html+='<div class="sec"><h2>🛵 Por motoboy</h2><div class="hs">Entregas e % no prazo são o dia inteiro, pelo prazo real do iFood. Horas vêm do fechamento de turno do Foody e aparecem como — enquanto o turno não fechou. ⚠ Os valores de pagamento (garantido, complemento e a receber) agora exigem a senha e não aparecem mais nesta tela.</div>';
+  html+='<div class="sec"><h2>🛵 Por motoboy</h2><div class="hs">Entregas e % no prazo são o dia inteiro, pelo prazo real do iFood. '+(window.CDM_FOODY===false?'':'Horas vêm do fechamento de turno do Foody e aparecem como — enquanto o turno não fechou. ')+'⚠ Os valores de pagamento (garantido, complemento e a receber) agora exigem a senha e não aparecem mais nesta tela.</div>';
   if(motos.length){
     
      /* 04/10/2026 (chat-cartoes-delivery-04-10): a tabela virou um cartao por motoboy, igual aos do Resolver hoje.
@@ -728,9 +729,9 @@ function renderEquipe(){
       const pz=function(s){return m.parcial?'<span style="color:var(--muted)" title="turno ainda nao fechou no Foody">—</span>':s};
       return '<div class="vv '+cor+'"><div><div class="hr">'+m.e+'</div><div class="ha">'+(m.e==1?'entrega':'entregas')+'</div></div><div style="min-width:0">'+
         '<div class="tt">'+kEsc(m.n)+' <span class="pill '+cls+'">'+(m.p==null?'—':m.p+'%')+' no prazo</span></div>'+
-        '<div class="lj">'+kEsc(m.l)+(m.d>0?' · '+m.d+(m.d==1?' dia':' dias'):'')+' · horas '+pz(m.h.toFixed(1)+'h')+'</div>'+
-        '<div class="rs">'+m.at+(m.at==1?' atraso':' atrasos')+' · '+pz(m.sem>0?'<span class="pill pw">'+m.sem+' sem código</span>':'0 sem código')+
-          (_ehDono()?' · fez '+pz(rM(m.v)):'')+'</div>'+
+        '<div class="lj">'+kEsc(m.l)+(m.d>0?' · '+m.d+(m.d==1?' dia':' dias'):'')+(window.CDM_FOODY===false?'':' · horas '+pz(m.h.toFixed(1)+'h'))+'</div>'+
+        '<div class="rs">'+m.at+(m.at==1?' atraso':' atrasos')+(window.CDM_FOODY===false?'':' · '+pz(m.sem>0?'<span class="pill pw">'+m.sem+' sem código</span>':'0 sem código'))+
+          (_ehDono()&&window.CDM_FOODY!==false?' · fez '+pz(rM(m.v)):'')+'</div>'+
       '</div></div>'}).join('')+'</div>'+_tabelaTurno(dias);
   }else html+='<div class="empty">Sem registros no período.</div>';
   html+='</div>';
