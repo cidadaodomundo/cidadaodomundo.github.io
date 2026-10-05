@@ -79,6 +79,7 @@ div.vv{background:var(--s1);border:1px solid var(--line);border-left:5px solid v
 div.vv.s-cozinha{border-left-color:var(--bad)}
 div.vv.s-expedição{border-left-color:var(--muted)}
 div.vv.grave{border-color:var(--bad);background:#2a1716}
+table.vv.pzv{border-left-color:var(--warn)}
 @media (max-width:640px){div.vv{grid-template-columns:56px minmax(0,1fr);gap:8px;padding:12px 10px}table.vv,table.vv tbody{display:block}table.vv tr{display:grid;grid-template-columns:64px minmax(0,1fr)}table.vv td{padding:12px 10px}table.vv td.hrc{padding-right:0}.vv .hr{font-size:21px}table.vv td.sit{grid-column:1/-1;width:auto;padding-top:0}table.vv td.hrc{width:auto}}
 </style>
 </head>
@@ -578,79 +579,112 @@ function tempoFora(m){
   var d=Math.floor(m/1440), h=Math.floor((m%1440)/60);
   return d+(d===1?' dia':' dias')+(h?' e '+h+'h':'');
 }
+/* 05/10/2026 (chat-pausados-limpeza-05-10), pedido do Fabio com print da tabela: "o que eles marcaram vc resolva, e o que tiver
+   que tirar da tela pode tirar, senao eles nunca irao saber se realmente as coisas estao pausadas... fica muito poluido, alem de
+   nao ter seguido o mesmo design das outras abas". Agora: um cartao por ITEM (as marcas da mesma loja juntas, porque a resposta
+   da loja ja vale para todas), so o que precisa de alguem na lista; o que a loja ja respondeu sai e fica num botao a parte. */
+var PZF='PRECISA', PZG=[];
+function pzGrupos(){
+  var ls=(PZD&&PZD.linhas)||[], m={}, out=[];
+  ls.forEach(function(x){
+    var k=(x.aberta?'A|':'V|')+x.unidade+'|'+String(x.item||'').trim().toLowerCase();
+    var g=m[k];
+    if(!g){ g=m[k]={unidade:x.unidade,item:x.item,aberta:x.aberta,chave:x.chave,resolvido:x.resolvido,contradito:x.contradito,
+                     quem:x.quem,o_que:x.o_que,em:x.em,prova:x.prova,marcas:[],compl:true,minutos:x.minutos,pausou:x.pausou,minimo:x.minimo,voltou:x.voltou};
+           out.push(g); }
+    if(g.marcas.indexOf(x.marca)<0) g.marcas.push(x.marca);
+    if(x.tipo!=='Complemento') g.compl=false;
+    if((x.minutos||0)>(g.minutos||0)){ g.minutos=x.minutos; g.pausou=x.pausou; g.minimo=x.minimo; }
+    if(x.contradito) g.contradito=true;
+    if(!x.resolvido) g.resolvido=false;
+    if(!g.prova && x.prova) g.prova=x.prova;
+  });
+  out.forEach(function(g){
+    g.sit = !g.aberta ? 'VOLTOU' : g.contradito ? 'CONTRA' : g.resolvido ? 'RESP' : (g.quem ? 'VENCIDA' : 'SEM');
+  });
+  return out;
+}
 function cardPz(){
-  if(PZD===null) return '<div class="card" style="opacity:.5"><div class="t">&#9208;&#65039; Cardapio pausado</div><div class="v">&#8230;</div></div>';
-  if(PZD.erro) return '<div class="card" style="opacity:.5"><div class="t">&#9208;&#65039; Cardapio pausado</div><div class="v">&#8212;</div></div>';
-  var ls=PZD.linhas||[], ab=ls.filter(function(x){return x.aberta}), vo=ls.length-ab.length;
-  var pr=ab.filter(function(x){return x.tipo==='Item principal'}).length;
-  return '<div class="card aviso'+(PZ?' on':'')+'" onclick="soUm(&quot;PZ&quot;)" title="Clique para abrir ou fechar">'+
-    '<div class="t">&#9208;&#65039; Cardapio pausado</div>'+
-    '<div class="v">'+ab.length+'</div>'+
-    '<div class="qs" style="color:var(--warn)">'+pr+' pratos e '+(ab.length-pr)+' complementos</div>'+
-    (function(){ var s=ab.filter(function(x){return x.chave && !x.resolvido}).length; return s?'<div class="qs" style="color:var(--bad)">'+s+' sem resposta da loja</div>':''; })()+
-    (vo?'<div class="qs" style="color:var(--ok)">'+vo+' voltaram ao ar no periodo</div>':'')+
-    ((PZD.lido_min!=null&&PZD.lido_min>20)?'<div class="qs" style="color:var(--bad)">leitura parada ha '+tempoFora(PZD.lido_min)+'</div>':'')+
+  if(PZD===null) return '<div class="card" style="opacity:.5"><div class="t">&#9208;&#65039; Cardápio pausado</div><div class="v">&#8230;</div></div>';
+  if(PZD.erro) return '<div class="card" style="opacity:.5"><div class="t">&#9208;&#65039; Cardápio pausado</div><div class="v">&#8212;</div></div>';
+  var gs=pzGrupos(), c={SEM:0,VENCIDA:0,CONTRA:0,RESP:0,VOLTOU:0};
+  gs.forEach(function(g){ c[g.sit]++; });
+  var n=c.SEM+c.VENCIDA+c.CONTRA;
+  return '<div class="card '+(n?'mal':'bem')+(PZ?' on':'')+'" onclick="soUm(&quot;PZ&quot;)" title="Clique para abrir ou fechar">'+
+    '<div class="t">&#9208;&#65039; Cardápio pausado</div>'+
+    '<div class="v">'+n+'</div>'+
+    (n?'<div class="qs" style="color:#ff9a9a">itens esperando a loja</div>':'<div class="qs" style="color:#7fe0aa">todos respondidos</div>')+
+    (c.RESP?'<div class="qs">'+c.RESP+' pausados de propósito (já respondidos)</div>':'')+
+    ((PZD.lido_min!=null&&PZD.lido_min>20)?'<div class="qs" style="color:var(--bad)">leitura do iFood parada há '+tempoFora(PZD.lido_min)+'</div>':'')+
     '</div>';
 }
 // 28/09/2026 (pedido do Fabio): a loja responde em cada item pausado se pode excluir ou se vai voltar a vender.
 // Grava pela mesma porta e na mesma chave do antigo "Fora do ar" (resolver_marcar tipo 'pausado'), entao as respostas antigas continuam valendo.
-// Validade (regra pausado_status no banco): "Despausei" vale ate a proxima leitura; "Acabou..." 2 dias; o resto 30 dias.
+// Validade (regra pausado_status no banco): "Despausei" vale ate a proxima leitura; "Acabou..." 2 dias; "Pode excluir"/"Tirar do cardapio" enquanto durar a mesma pausa.
 var MOT_PZ=['Despausei','Acabou, vai voltar a vender','Pode excluir do cardapio'];
 // 03/10/2026 (chat-pausados-whatsapp-03-10): resposta escrita pelo robo que le o WhatsApp e as anotacoes
 // mostra embaixo a mensagem que ele usou, para a equipe conferir e reabrir se estiver errado.
 function provaPz(x){
-  return x.prova?'<div class="m" style="font-size:10px;margin-top:3px">&#128233; '+esc(x.prova)+'</div>':'';
-}
-function respPz(x){
-  var ls=(PZD&&PZD.linhas)||[], i=ls.indexOf(x);
-  if(i<0 || !x.chave) return '';
-  if(x.resolvido){
-    return '<span class="feito">&#10004; '+esc(x.quem||'')+'</span> <span class="m">'+esc(x.em||'')+' &#183; '+esc(x.o_que||'')+'</span> '+
-      '<button class="mini" onclick="reabrePz('+i+')">reabrir</button>'+provaPz(x);
-  }
-  return (x.contradito?'<div style="color:var(--bad);font-size:11px;font-weight:700;margin-bottom:4px">&#9888;&#65039; '+esc(x.quem||'')+
-      (/^Despausar/i.test(x.o_que||'')?' pediu para despausar em ':' marcou "despausei" em ')+esc(x.em||'')+', mas o iFood ainda mostra pausado</div>'+provaPz(x):'')+
-    MOT_PZ.map(function(m,k){ return '<button class="mini" style="margin:0 4px 4px 0" onclick="marcaPz('+i+','+k+')">'+esc(m)+'</button>' }).join('');
+  return x.prova?'<div class="fn">&#128233; '+esc(x.prova)+'</div>':'';
 }
 async function marcaPz(i,k){
-  var x=((PZD&&PZD.linhas)||[])[i]; if(!x) return;
-  try{ await porta('resolver_marcar',{tipo:'pausado',chave:x.chave,unidade:x.unidade,o_que_foi_feito:MOT_PZ[k]}); }
+  var g=PZG[i]; if(!g||!g.chave) return;
+  try{ await porta('resolver_marcar',{tipo:'pausado',chave:g.chave,unidade:g.unidade,o_que_foi_feito:MOT_PZ[k]}); }
   catch(e){ alert('Nao consegui gravar: '+e.message); return; }
   boot();
 }
 async function reabrePz(i){
-  var x=((PZD&&PZD.linhas)||[])[i]; if(!x) return;
-  try{ await porta('resolver_marcar',{tipo:'pausado',chave:x.chave,desfazer:true}); }
+  var g=PZG[i]; if(!g||!g.chave) return;
+  try{ await porta('resolver_marcar',{tipo:'pausado',chave:g.chave,desfazer:true}); }
   catch(e){ alert('Nao consegui reabrir: '+e.message); return; }
   boot();
 }
-function linhaPz(x){
-  return '<tr><td>'+esc(x.unidade)+'</td><td>'+esc(x.marca)+'</td>'+
-    '<td><b>'+esc(x.item)+'</b>'+(x.tipo==='Complemento'?' <span style="color:var(--muted);font-size:10px">complemento</span>':'')+'</td>'+
-    '<td style="white-space:nowrap">'+(x.minimo?'antes de ':'')+esc(x.pausou||'?')+'</td>'+
-    '<td style="white-space:nowrap">'+(x.voltou?esc(x.voltou):'<span style="color:var(--warn)">ainda pausado</span>')+'</td>'+
-    '<td style="white-space:nowrap">'+(x.minimo?'pelo menos ':'')+tempoFora(x.minutos)+'</td>'+
-    (x.aberta?'<td style="min-width:220px">'+respPz(x)+'</td>':'')+'</tr>';
+function cartaoPz(g,i){
+  var pill={SEM:'<span class="pill p-bad">sem resposta da loja</span>',
+            VENCIDA:'<span class="pill p-warn">'+(/^Acabou/i.test(g.o_que||'')?'disseram que voltava · continua pausado':'avisaram que pausou, sem motivo')+'</span>',
+            CONTRA:'<span class="pill p-bad">disseram que despausou · iFood ainda pausado</span>',
+            RESP:'<span class="pill p-ok">respondido</span>',
+            VOLTOU:'<span class="pill p-ok">voltou ao ar</span>'}[g.sit];
+  var hora=String(g.pausou||'').slice(6)||'—', dia=String(g.pausou||'').slice(0,5);
+  var ok=(g.sit==='RESP'||g.sit==='VOLTOU');
+  var sit;
+  if(g.sit==='VOLTOU') sit='<span class="feito">&#10004; voltou '+esc(g.voltou||'')+'</span><div class="m">ficou fora '+tempoFora(g.minutos)+'</div>';
+  else if(g.sit==='RESP') sit='<span class="feito">&#10004; '+esc(g.quem||'')+'</span><div class="m">'+esc(g.em||'')+' &#183; '+esc(g.o_que||'')+'</div>'+
+      '<button class="mini" style="margin-top:6px" onclick="reabrePz('+i+')">reabrir</button>';
+  else sit=(g.sit==='VENCIDA'?'<div class="m" style="margin-bottom:6px">'+esc(g.quem||'')+' disse em '+esc(g.em||'')+': '+esc(g.o_que||'')+'</div>':'')+
+      (g.sit==='CONTRA'?'<div class="m" style="margin-bottom:6px">'+esc(g.quem||'')+' em '+esc(g.em||'')+': '+esc(g.o_que||'')+'</div>':'')+
+      MOT_PZ.map(function(m,k){ return '<button class="mini" style="margin:0 4px 4px 0" onclick="marcaPz('+i+','+k+')">'+esc(m)+'</button>' }).join('');
+  return '<table class="vv'+(ok?' ok':'')+(g.sit==='VENCIDA'?' pzv':'')+'" data-cdm-livre><tr data-cdm-chave="'+esc(g.unidade+' | '+g.item)+'">'+
+    '<td class="hrc"><div class="hr">'+esc(hora)+'</div><div class="ha">'+esc(dia)+'</div></td>'+
+    '<td><div class="tt">'+esc(g.item)+' '+pill+(g.compl?' <span class="pill p-off">complemento</span>':'')+'</div>'+
+      '<div class="lj"><b>'+esc(g.unidade||'')+'</b> &#183; '+esc(g.marcas.join(' · '))+'</div>'+
+      '<div class="rs">'+(g.sit==='VOLTOU'?'Pausou '+(g.minimo?'antes de ':'')+esc(g.pausou||'?'):'Pausado há '+(g.minimo?'pelo menos ':'')+tempoFora(g.minutos))+'</div>'+
+      provaPz(g)+
+    '</td><td class="sit">'+sit+'</td></tr></table>';
 }
 function pausasPz(){
   if(!PZ) return '';
   if(!PZD||PZD.erro) return '<div class="c" style="margin-top:10px"><div class="m">Nao deu para carregar as pausas'+(PZD&&PZD.erro?': '+esc(PZD.erro):'')+'.</div></div>';
-  var ls=PZD.linhas||[];
-  var grupo=function(tit,cor,arr,resp){
-    if(!arr.length) return '';
-    return '<div style="color:'+cor+';font-size:11px;font-weight:800;margin:10px 0 4px">'+tit+' ('+arr.length+')</div>'+
-      '<div style="overflow-x:auto"><table class="pz"><tr><th>Loja</th><th>Marca</th><th>Item</th><th>Pausou</th><th>Voltou</th><th>Tempo fora</th>'+(resp?'<th>A loja responde</th>':'')+'</tr>'+
-      arr.map(linhaPz).join('')+'</table></div>';
-  };
-  return '<div style="border:1px solid var(--line);border-left:4px solid var(--warn);background:var(--s1);border-radius:16px;padding:12px 14px;margin:0">'+
-    '<div style="color:var(--warn);font-size:11px;font-weight:800">CARDAPIO DO iFOOD &#8212; hora que pausou, hora que voltou e quanto tempo ficou fora</div>'+
-    '<div class="m" style="margin-top:4px">Lido direto do iFood a cada 5 minutos (ultima leitura '+esc(PZD.lido_em||'?')+'). A hora tem margem de ate 5 minutos. '+
-    '"Antes de" e "pelo menos" = ja estava pausado quando o robo comecou a olhar, em 28/09. Accon e tablet do salao nao entram. '+
-    'Em cada item pausado, a loja diz se pode excluir do cardapio ou se vai voltar a vender.</div>'+
-    (ls.length? grupo('&#128245; PAUSADO AGORA','var(--warn)',ls.filter(function(x){return x.aberta}),true)+
-               grupo('&#9989; VOLTOU AO AR NO PERIODO','var(--ok)',ls.filter(function(x){return !x.aberta}))
-             : '<div class="m" style="margin-top:6px">Nada pausado neste periodo.</div>')+
-    '</div>';
+  var gs=pzGrupos(), ord={CONTRA:0,SEM:1,VENCIDA:2,RESP:3,VOLTOU:4};
+  gs.sort(function(a,b){ return (ord[a.sit]-ord[b.sit]) || ((a.minutos||0)-(b.minutos||0)); });
+  PZG=gs;
+  var conta={PRECISA:0,RESP:0,VOLTOU:0};
+  gs.forEach(function(g){ if(g.sit==='RESP') conta.RESP++; else if(g.sit==='VOLTOU') conta.VOLTOU++; else conta.PRECISA++; });
+  var abas=[['PRECISA','🔴 Esperando a loja','var(--bad)'],['RESP','✔ Já respondidos','var(--ok)'],['VOLTOU','✅ Voltaram ao ar','var(--ok)']];
+  var ver=function(g){ return PZF==='PRECISA' ? (g.sit!=='RESP'&&g.sit!=='VOLTOU') : g.sit===PZF; };
+  var vazio={PRECISA:'Nenhum item pausado esperando a loja. Tudo que está pausado foi respondido.',RESP:'Nenhum item respondido neste período.',VOLTOU:'Nada voltou ao ar neste período.'}[PZF];
+  return '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px">'+
+      abas.map(function(f){
+        return '<button class="mini" onclick="PZF=&quot;'+f[0]+'&quot;;desenha()"'+
+          ' style="'+(PZF===f[0]?'background:#fff;color:#111;border-color:#fff;':'')+'">'+f[1]+' <b style="color:'+f[2]+'">'+conta[f[0]]+'</b></button>';
+      }).join('')+
+    '</div>'+
+    (conta[PZF]
+      ? '<div class="vv-lista">'+gs.map(function(g,i){ return ver(g)?cartaoPz(g,i):''; }).join('')+'</div>'
+      : '<div class="c"><div class="vazio">'+vazio+'</div></div>')+
+    '<div class="nota">Lido direto do iFood a cada 5 minutos (última leitura '+esc(PZD.lido_em||'?')+'). Cada item aparece uma vez por loja, com todas as marcas em que está pausado. '+
+    'Quando a loja responde "Pode excluir do cardápio", o item sai desta lista e só volta se ele voltar ao ar e pausar de novo. "Acabou, vai voltar a vender" volta a cobrar depois de 2 dias. '+
+    'O robô também lê o WhatsApp e a anotação do item. Accon e tablet do salão não entram.</div>';
 }
 
 function cardF(rot, val, tp, ver, cor, ic){
