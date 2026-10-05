@@ -86,6 +86,14 @@ summary{cursor:pointer;color:var(--text2);font-size:12.5px;font-weight:600;paddi
 .mini{color:var(--muted);font-size:11.5px;margin-top:2px}
 .sit{font-size:11px;color:var(--muted)}
 .ok2{color:var(--ok)}
+.bpz{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:6px 11px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;margin:0 4px 4px 0}
+.bpz:hover{border-color:var(--text2)}
+.bpz:disabled{opacity:.5;cursor:wait}
+.pzfeito{color:#7fe0aa;font-weight:700;font-size:12.5px}
+.pzi{padding:10px 0;border-top:1px solid var(--line)}
+.pzi.ok{opacity:.8}
+.pzi .pzn{font-size:14px;font-weight:700;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.pzi .pzb{margin-top:7px}
 .at{color:var(--warn)}
 #gate{position:fixed;inset:0;background:var(--s0);z-index:100;display:flex;align-items:center;justify-content:center}
 .gatebox{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:32px 28px;width:330px;text-align:center}
@@ -306,7 +314,107 @@ function blocoEquipe(d){
 }
 
 /* ================= 2. CARDÁPIO FORA DO AR NO TABLET ================= */
-function blocoGoomer(pausados){
+/* 05/10/2026, pedido do Fábio: "aqui colocar os botões também, assim como colocamos nos itens pausados em outras
+   partes do portal". Mesmas respostas e mesma porta da tela Produtos pausados (pausados_consulta para ler,
+   pausados_marcar para gravar): responder aqui vale lá, e o contrário também. Se a porta não responder
+   (ex.: quem não tem a tela Produtos pausados), a lista continua aparecendo como antes, sem os botões. */
+const MOT_PZ=['Despausei','Acabou, vai voltar a vender','Pausado de proposito','Item nao existe mais (pode excluir)'];
+const ROT_PZ=['Despausei','Acabou, volta a vender','Pausado de propósito','Item não existe mais'];
+function rotMot(t){t=String(t||'');if(/^Pausado de proposito/i.test(t))return 'Pausado de propósito'+t.slice(20);
+  if(/^(Item nao existe mais|Pode excluir)/i.test(t))return 'Item não existe mais';if(/^Acabou/i.test(t))return 'Acabou, volta a vender';return t}
+let PZT=null, PZG=[];
+async function lePz(){
+  try{
+    const r=await fetch(SB+'rpc/pausados_consulta',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),
+      body:JSON.stringify({p_token:cdmTok(),p_dados:{}})});
+    if(!r.ok)return null;
+    const j=await r.json();
+    return j&&Array.isArray(j.tablet)?j:null;
+  }catch(e){return null}
+}
+/* o mesmo item pode vir pausado E escondido (duas linhas): vira uma linha só, igual à tela Produtos pausados */
+function pzGrupos(lista){
+  const m={}, out=[];
+  lista.forEach(x=>{
+    const k=x.unidade+'|'+String(x.item||'').trim().toLowerCase();let g=m[k];
+    if(!g){g=m[k]={unidade:x.unidade,item:x.item,tipo:x.tipo,estados:[x.estado],dias:+x.dias||0,desde:x.desde,
+      chave:x.chave,resolvido:x.resolvido,contradito:x.contradito,quem:x.quem,o_que:x.o_que,em:x.em};out.push(g);return}
+    if(g.estados.indexOf(x.estado)<0)g.estados.push(x.estado);
+    if((+x.dias||0)>g.dias){g.dias=+x.dias||0;g.desde=x.desde}
+    if(x.contradito)g.contradito=true;
+    if(!x.resolvido)g.resolvido=false;
+  });
+  out.forEach(g=>{g.sit=g.contradito?'CONTRA':g.resolvido?'RESP':(g.quem?'VENCIDA':'SEM')});
+  const ord={CONTRA:0,SEM:1,VENCIDA:2,RESP:3};
+  out.sort((a,b)=>(ord[a.sit]-ord[b.sit])||((a.estados.indexOf('pausado')>=0?0:1)-(b.estados.indexOf('pausado')>=0?0:1))||(b.dias-a.dias));
+  return out;
+}
+async function marcaPz(i,k,bt){
+  const g=PZG[i];if(!g||!g.chave)return;
+  const bts=bt&&bt.parentNode?bt.parentNode.querySelectorAll('button'):[];
+  bts.forEach(b=>b.disabled=true);
+  try{
+    const r=await fetch(SB+'rpc/pausados_marcar',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),
+      body:JSON.stringify({p_token:cdmTok(),p_dados:k<0?{chave:g.chave,desfazer:true}:{chave:g.chave,unidade:g.unidade,o_que_foi_feito:MOT_PZ[k]}})});
+    if(!r.ok){let m='';try{const j=await r.json();m=(j&&(j.message||j.hint))||''}catch(e){}throw new Error(m||('erro '+r.status))}
+  }catch(e){alert('Não consegui gravar: '+e.message);bts.forEach(b=>b.disabled=false);return}
+  const y=window.scrollY, novo=await lePz();
+  if(novo){PZT=novo;if(DADOS)DADOS.pz=PZT}else alert('Gravei, mas não consegui reler a lista. Clique em Atualizar.');
+  rota(true);window.scrollTo(0,y);
+}
+function pzLinha(g,i){
+  const pz=g.estados.indexOf('pausado')>=0, ok=g.sit==='RESP';
+  const est=g.estados.map(e=>'<span class="pill '+(e==='pausado'?'p-warn':'p-off')+'">'+esc(e)+'</span>').join(' ');
+  const resp={SEM:'<span class="pill p-bad">sem resposta da loja</span>',
+    VENCIDA:'<span class="pill p-warn">'+(/^Acabou/i.test(g.o_que||'')?'disseram que voltava · continua fora':'resposta antiga')+'</span>',
+    CONTRA:'<span class="pill p-bad">disseram que despausou · continua fora</span>',
+    RESP:''}[g.sit];
+  let r;
+  if(ok)r='<span class="pzfeito">&#10004; '+esc(g.quem||'')+'</span> <span class="sit">'+esc(g.em||'')+' · '+esc(rotMot(g.o_que))+'</span> '+
+    '<button class="bpz" style="margin-left:6px" onclick="marcaPz('+i+',-1,this)">reabrir</button>';
+  else r=((g.sit==='VENCIDA'||g.sit==='CONTRA')?'<div class="sit" style="margin-bottom:5px">'+esc(g.quem||'')+' em '+esc(g.em||'')+': '+esc(rotMot(g.o_que))+'</div>':'')+
+    (g.chave?ROT_PZ.map((t,k)=>'<button class="bpz" onclick="marcaPz('+i+','+k+',this)">'+esc(t)+'</button>').join(''):'');
+  return '<div class="pzi'+(ok?' ok':'')+'"><div class="pzn">'+esc(g.item)+' '+est+(ok?'':' '+resp)+'</div>'+
+    '<div class="sit">'+(pz?'o cliente vê e não consegue pedir':'o cliente nem vê')+(g.tipo==='Complemento'?' · complemento':'')+' · há '+(g.dias?plural(g.dias,'dia','dias'):'menos de 1 dia')+'</div>'+
+    '<div class="pzb">'+r+'</div></div>';
+}
+function blocoGoomerPz(pz){
+  const lista=daLoja(pz.tablet||[]), lidos=daLoja(pz.tablet_lido||[]);
+  let h='<div class="ctx">tablets Goomer da mesa · varredura automática do cardápio, uma vez por dia · '+
+        'responder aqui vale também na tela Produtos pausados</div>';
+  const velho=lidos.filter(l=>(+l.dias||0)>=2);
+  if(velho.length)h+='<div class="aviso">Tablet sem leitura há '+velho.map(l=>esc(l.unidade)+' ('+l.dias+' dias)').join(', ')+'. A lista dessa loja pode estar velha.</div>';
+  PZG=pzGrupos(lista);
+  if(!PZG.length){
+    h+='<div class="store"><div class="vazio">'+(lidos.length?'nenhum item pausado ou escondido na última leitura do tablet':'a varredura dos tablets ainda não trouxe nada — não quer dizer que está tudo no ar')+'</div></div>';
+  } else {
+    const porLoja={};PZG.forEach((g,i)=>{(porLoja[g.unidade]=porLoja[g.unidade]||[]).push(i)});
+    h+='<div class="cards">';
+    Object.keys(porLoja).sort((a,b)=>a.localeCompare(b,'pt-BR')).forEach(u=>{
+      const idx=porLoja[u], l=idx.map(i=>PZG[i]);
+      const pau=l.filter(x=>x.estados.indexOf('pausado')>=0).length, esco=l.filter(x=>x.estados.indexOf('escondido')>=0).length;
+      const espera=l.filter(x=>x.sit!=='RESP').length, maior=Math.max.apply(null,l.map(x=>x.dias));
+      const ld=lidos.filter(x=>x.unidade===u)[0];
+      h+='<div class="c"><div class="nm">'+esc(u)+'<span class="pill '+(espera?'p-bad':'p-ok')+'">'+(espera?plural(espera,'esperando a loja','esperando a loja'):'tudo respondido')+'</span></div>';
+      h+='<div class="linha"><span>pausados no tablet</span><b>'+pau+'</b></div>';
+      h+='<div class="linha"><span>escondidos do cliente</span><b>'+esco+'</b></div>';
+      h+='<div class="linha"><span>o mais antigo está parado há</span><b>'+(maior>0?plural(maior,'dia','dias'):'menos de 1 dia')+'</b></div>';
+      h+='<div class="qtd">última varredura '+esc(ld?ld.lido:'?')+'</div>';
+      h+='<details'+(espera?' open':'')+'><summary>ver os itens</summary>'+idx.map(i=>pzLinha(PZG[i],i)).join('')+'</details>';
+      h+='</div>';
+    });
+    h+='</div>';
+  }
+  const sem=UNI.filter(u=>u!=='Ahú'&&!lidos.some(l=>l.unidade===u));
+  if(sem.length)h+='<div class="aviso">Sem varredura de tablet em: '+sem.join(', ')+'. Não é zero — é falta de dado.</div>';
+  if(UNI.indexOf('Ahú')>=0)h+='<div class="ctx" style="margin-top:10px">O Ahú não tem tablet de mesa.</div>';
+  h+='<div class="ctx" style="margin-top:6px;line-height:1.5"><b>Pausado</b>: o cliente vê o item e não consegue pedir. <b>Escondido</b>: o cliente nem vê. '+
+     '"Pausado de propósito" e "Item não existe mais" tiram o item da cobrança enquanto ele continuar assim. "Acabou, volta a vender" volta a cobrar em 2 dias. '+
+     '"Despausei" vale até a próxima leitura do tablet: se ele ainda estiver fora, volta em vermelho.</div>';
+  return h;
+}
+function blocoGoomer(pausados,pz){
+  if(pz)return blocoGoomerPz(pz);
   const hoje=hojeISO();
   let h='<div class="ctx">tablets Goomer da mesa · varredura automática do cardápio</div>';
   if(!pausados.length){
@@ -446,6 +554,12 @@ function resumoEquipe(d){
     atencao:semEscala.length>0};
 }
 function resumoGoomer(d){
+  if(d.pz){
+    const gs=pzGrupos(daLoja(d.pz.tablet||[])), lidos=daLoja(d.pz.tablet_lido||[]);
+    if(!gs.length)return {big:'—',sub:lidos.length?'nenhum item fora do ar na última leitura do tablet':'sem leitura do tablet para esta loja',atencao:false};
+    const espera=gs.filter(g=>g.sit!=='RESP').length, maior=Math.max.apply(null,gs.map(g=>g.dias));
+    return {big:plural(gs.length,'item','itens'),sub:'fora do ar no tablet · '+(espera?espera+' esperando resposta da loja':'todos respondidos')+' · o mais antigo há '+(maior>0?plural(maior,'dia','dias'):'menos de 1 dia'),atencao:espera>0};
+  }
   const pz=daLoja(d.pausados);
   if(!pz.length)return {big:'—',sub:'a varredura dos tablets ainda não trouxe nada',atencao:false};
   const chave={}, hoje=hojeISO();
@@ -473,7 +587,7 @@ function resumoGoogle(d){
 /* ================= CAPA E NAVEGAÇÃO ================= */
 const SECOES={
   equipe:{ic:'👥',tt:'Equipe do salão',resumo:resumoEquipe,corpo:d=>blocoEquipe(d)},
-  tablet:{ic:'📵',tt:'Cardápio no tablet',resumo:resumoGoomer,corpo:d=>blocoGoomer(daLoja(d.pausados))},
+  tablet:{ic:'📵',tt:'Cardápio no tablet',resumo:resumoGoomer,corpo:d=>blocoGoomer(daLoja(d.pausados),d.pz)},
   reservas:{ic:'🪑',tt:'Reservas do salão',resumo:resumoReservas,corpo:d=>blocoReservas(daLoja(d.reservas))},
   cliente:{ic:'💬',tt:'O que o cliente falou',resumo:resumoClientes,corpo:d=>blocoClientes(d.google)},
   google:{ic:'⭐',tt:'Nota no Google',resumo:resumoGoogle,corpo:d=>blocoGoogle(d.google)+blocoMarca()}
@@ -526,7 +640,7 @@ function capa(d){
 }
 
 function abre(k){location.hash=k}
-function rota(){
+function rota(fica){
   if(!DADOS)return;
   const k=(location.hash||'').replace('#','');
   if(SECOES[k]){
@@ -535,10 +649,10 @@ function rota(){
   } else {
     $('app').innerHTML=lojaChips()+capa(DADOS);
   }
-  window.scrollTo(0,0);
+  if(!fica)window.scrollTo(0,0);
 }
 function render(d){DADOS=d;rota()}
-window.addEventListener('hashchange',rota);
+window.addEventListener('hashchange',()=>rota());
 
 async function boot(){
   const [gRows,escala,ponto,pessoas,cobertura,pausados,balcao,reservas,eventos,evUlt]=await Promise.all([
@@ -556,6 +670,8 @@ async function boot(){
   const G={};gRows.forEach(x=>{if(!G[x.unidade])G[x.unidade]=x});
   render({google:G,escala:escala,ponto:ponto,pessoas:pessoas,cobertura:cobertura,pausados:pausados,balcao:balcao,reservas:reservas,eventos:eventos,
     evMeta:{conferida:evUlt[0]&&evUlt[0].atualizado_em,ultimo:evUlt[0]&&evUlt[0].data}});
+  PZT=await lePz();
+  if(PZT&&DADOS){DADOS.pz=PZT;const y=window.scrollY;rota(true);window.scrollTo(0,y)}
 }
 
 /* ===== porta unica do portal: sessao por usuario ===== */
