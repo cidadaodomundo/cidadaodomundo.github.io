@@ -204,7 +204,8 @@ function painelIfood(){
           ' style="'+(PZF===f[0]?'background:#fff;color:#111;border-color:#fff;':'')+'">'+f[1]+' <b style="color:'+f[2]+'">'+conta[f[0]]+'</b></button>';
       }).join('')+
     '</div>'+
-    ((PZD.lido_min!=null&&PZD.lido_min>20)?'<div class="parado" style="margin-bottom:10px"><b>A leitura do iFood está parada há '+tempoFora(PZD.lido_min)+'.</b> A lista pode estar velha.</div>':'')+
+    /* revisao do supervisor: sem leitura boa nos ultimos 2 dias a porta devolve lido_min nulo — isso tambem e parado */
+    ((PZD.lido_min==null||PZD.lido_min>20)?'<div class="parado" style="margin-bottom:10px"><b>'+(PZD.lido_min==null?'O iFood não é lido há mais de 2 dias.':'A leitura do iFood está parada há '+tempoFora(PZD.lido_min)+'.')+'</b> A lista pode estar velha.</div>':'')+
     (conta[PZF]
       ? '<div class="vv-lista">'+gs.map(function(g,i){ return ver(g)?cartaoPz(g,i):''; }).join('')+'</div>'
       : '<div class="c"><div class="vazio">'+vazio+'</div></div>')+
@@ -304,7 +305,7 @@ async function boot(){
   try{ PZD=await porta('pausados_consulta',{}); }
   catch(e){ PZD={erro:(e&&e.message)||'erro'}; placar('<span class="pl" style="border-color:rgba(230,103,103,.5);color:#ff9a9a">'+esc(PZD.erro)+'</span>'); desenha(); return }
   PZD=PZD||{};
-  placar('<span class="pl">iFood lido <b>'+esc(PZD.lido_em||'?')+'</b></span>'+
+  placar('<span class="pl"'+((PZD.lido_min==null||PZD.lido_min>20)?' style="border-color:rgba(230,103,103,.5)"':'')+'>iFood lido <b>'+esc(PZD.lido_em||'há mais de 2 dias')+'</b></span>'+
     ((PZD.tablet_lido||[]).length?'<span class="pl">tablet lido <b>'+(PZD.tablet_lido||[]).map(function(l){return esc(l.lido)}).filter(function(v,i,a){return a.indexOf(v)===i}).join(' / ')+'</b></span>':'')+
     '<span class="pl"'+(PZD.accon_lido?' style="border-color:rgba(230,103,103,.5)"':'')+'>Accon <b style="color:#ff9a9a">parado'+(PZD.accon_lido?' desde '+esc(PZD.accon_lido):'')+'</b></span>');
   desenha();
