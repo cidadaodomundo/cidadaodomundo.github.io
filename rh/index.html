@@ -104,6 +104,33 @@ table.pv-tb .pv-bat{display:inline-block;min-width:26px;padding:2px 8px;border-r
 .mkesc{white-space:pre;color:#7d8ea6;margin:0 0 4px;font-size:12.5px}
 .jr{font-size:11px;color:var(--muted)}
 .det{font-size:11.5px;color:#d3b544;margin-top:5px}
+/* 05/10/2026 (chat-rh-dia-visual-05-10), pedido do Fabio: "da pra manter como esta, mas melhorar o visual deixar mais
+   bonito". So aparencia do cartao do Dia e da caixa "o que aconteceu?": mesmos campos, mesmos botoes, mesmo funcionamento. */
+.grid{gap:14px}
+.card{border-radius:14px;padding:16px 16px 14px;border-left-width:5px;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,0) 110px),var(--surface)}
+.card:hover{border-color:rgba(255,255,255,.14);border-left-color:var(--cc,var(--line))}
+.chead{align-items:flex-start;margin-bottom:10px}
+.cname{font-size:15.5px;font-weight:800;line-height:1.2}
+.cunit{margin-top:3px}
+.badge{border-radius:999px;padding:4px 11px;letter-spacing:.3px}
+.card .mk{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 11px;margin:0 0 8px;color:#dbe4f0;font-size:13px}
+.card .mk:has(+ .mkesc){border-radius:9px 9px 0 0;margin-bottom:0;padding-bottom:3px}
+.card .mk.mkesc{border-top:0;border-radius:0 0 9px 9px;padding:2px 11px 8px;margin:0 0 8px;color:#7d8ea6;white-space:pre-wrap;overflow-wrap:anywhere}
+.card{min-width:0}
+.card .jr{font-size:12px;line-height:1.5}
+.card .jr b{color:var(--text)}
+.card .det{background:rgba(211,181,68,.07);border-left:3px solid #d3b544;border-radius:0 8px 8px 0;padding:6px 10px;font-size:12px;line-height:1.45;margin-top:8px}
+.resbox{margin-top:12px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:11px}
+.res-tit{font-size:11.5px;color:var(--muted);font-weight:700;margin-bottom:8px}
+.res-bts{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.resbt{font:inherit;font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface2);color:var(--text);cursor:pointer;transition:border-color .12s,color .12s}
+.resbt:hover{border-color:var(--brand);color:#fff}
+.res-ta{width:100%;padding:8px 10px;font:inherit;font-size:12.5px;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:8px;resize:vertical}
+.res-ta:focus{outline:none;border-color:var(--brand)}
+.res-linha{display:flex;gap:8px;align-items:center;margin-top:8px}
+.res-salvar{font:inherit;font-weight:800;font-size:12.5px;padding:6px 18px;border-radius:8px;border:0;background:var(--brand);color:var(--brand-ink);cursor:pointer}
+.res-salvar:hover{filter:brightness(1.08)}
+.resja{font-size:11.5px;margin-top:8px;line-height:1.45}
 .acao{font-size:11.5px;color:#7ec8a3;margin-top:5px;background:#12241933;border-left:2px solid var(--sem);padding:4px 8px;border-radius:0 6px 6px 0}
 .acaobox{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
 .acaoh{font-size:12px;font-weight:800;color:#7ec8a3;margin-bottom:8px}
@@ -992,10 +1019,10 @@ function resCaixa(r){
   var nm=resEsc(r.nome), dia=resEsc(r.data);
   var dow=r.data?new Date(r.data+'T12:00:00').getDay():-1;
   return '<div class="resbox" data-nome="'+nm+'" data-temmot="'+((r.motivo_doc||NV(r)==='JUST')?'1':'')+'" data-dia="'+dia+'" data-dec="outro" data-cat="'+resEsc(r.categoria||'')+'"'
-    +' style="margin-top:8px;padding:8px;border-top:1px dashed rgba(255,255,255,.18)">'
-    +'<div style="font-size:11px;opacity:.7;margin-bottom:6px">✍️ o que aconteceu? (fica registrado com o seu nome)</div>'
-    +'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">'
-    + RESBOT.map(function(x){return '<button type="button" class="resbt" onclick="resRapido(this,\''+x[0]+'\',\''+x[1].replace(/^\S+\s/,'')+'\')" style="font-size:11px;padding:3px 7px;cursor:pointer;border-radius:10px">'+x[1]+'</button>'}).join('')
+    +'>'
+    +'<div class="res-tit">✍️ o que aconteceu? (fica registrado com o seu nome)</div>'
+    +'<div class="res-bts">'
+    + RESBOT.map(function(x){return '<button type="button" class="resbt" onclick="resRapido(this,\''+x[0]+'\',\''+x[1].replace(/^\S+\s/,'')+'\')">'+x[1]+'</button>'}).join('')
     +'</div>'
     +'<div class="resloja" style="display:none;font-size:12px;margin-bottom:6px">Foi para qual loja? '
       +RESLOJAS.filter(function(u){return u!==r.unidade}).map(function(u){
@@ -1003,11 +1030,11 @@ function resCaixa(r){
     +'<div class="resdias" style="display:none;font-size:12px;margin-bottom:6px">Vale para sempre, nestes dias: '
       +RESDIAS.map(function(d,i){return '<label style="margin-right:6px"><input type="checkbox" value="'+i+'"'+(i===dow?' checked':'')+'> '+d+'</label>'}).join('')
       +'<div style="opacity:.7;font-size:11px">só para este tipo de apontamento: '+resEsc(r.tag||r.categoria||'—')+'. Nesses dias ele aparece como justificado e não pede mais explicação. Não vale para intervalo abaixo do legal.</div></div>'
-    +'<textarea rows="2" placeholder="'+(r.categoria==='HORA_EXTRA'?'quem autorizou a hora extra e por quê?':'escreva aqui...')+'" style="width:100%;padding:6px;font-size:12px"></textarea>'
-    +'<div style="display:flex;gap:6px;align-items:center;margin-top:4px">'
-    +'<button type="button" onclick="resSalvar(this)" style="padding:4px 10px;cursor:pointer">Salvar</button>'
+    +'<textarea rows="2" placeholder="'+(r.categoria==='HORA_EXTRA'?'quem autorizou a hora extra e por quê?':'escreva aqui...')+'" class="res-ta"></textarea>'
+    +'<div class="res-linha">'
+    +'<button type="button" class="res-salvar" onclick="resSalvar(this)">Salvar</button>'
     +'<span class="resmsg" style="font-size:11px"></span></div>'
-    +'<div class="resja" style="font-size:11px;opacity:.8;margin-top:4px"></div></div>';
+    +'<div class="resja"></div></div>';
 }
 function resRapido(btn,dec,txt){
   var box=btn.closest('.resbox'); if(!box)return;
