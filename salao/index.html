@@ -86,14 +86,42 @@ summary{cursor:pointer;color:var(--text2);font-size:12.5px;font-weight:600;paddi
 .mini{color:var(--muted);font-size:11.5px;margin-top:2px}
 .sit{font-size:11px;color:var(--muted)}
 .ok2{color:var(--ok)}
-.bpz{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:6px 11px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;margin:0 4px 4px 0}
-.bpz:hover{border-color:var(--text2)}
+.bpz{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.bpz:hover{border-color:var(--gold);color:var(--gold)}
 .bpz:disabled{opacity:.5;cursor:wait}
-.pzfeito{color:#7fe0aa;font-weight:700;font-size:12.5px}
-.pzi{padding:10px 0;border-top:1px solid var(--line)}
-.pzi.ok{opacity:.8}
-.pzi .pzn{font-size:14px;font-weight:700;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.pzi .pzb{margin-top:7px}
+.bpz.sec{background:none;color:var(--muted)}
+/* Cardapio no tablet 05-10-2026 */
+.tb-placar{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-bottom:16px}
+.tb-loja{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.tb-loja .hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.tb-loja .hd b{font-size:16px;font-weight:800}
+.tb-loja .hd span{color:var(--muted);font-size:11.5px}
+.tb-num{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tb-num>div{background:var(--s2);border-radius:10px;padding:9px 10px}
+.tb-num .v{font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:700;line-height:1}
+.tb-num .r{color:var(--muted);font-size:11px;margin-top:3px;line-height:1.3}
+.tb-num .bad .v{color:var(--bad)}.tb-num .gold .v{color:var(--gold)}.tb-num .ok .v{color:var(--ok)}
+.tb-loja .velho{color:var(--muted);font-size:12px;margin-top:9px}
+.tb-fil{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 12px}
+.tb-fil button{background:var(--s1);border:1px solid var(--line);color:var(--text2);border-radius:999px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.tb-fil button.on{background:#fff;border-color:#fff;color:#111110}
+.tb-tit{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.9px;color:var(--text2);margin:16px 0 8px}
+.tb-lista{display:grid;gap:10px}
+.tb-it{background:var(--s1);border:1px solid var(--line);border-left:5px solid var(--bad);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:70px minmax(0,1fr);gap:12px}
+.tb-it.esc{border-left-color:var(--muted)}
+.tb-it.venc{border-left-color:var(--warn)}
+.tb-it.ok{border-left-color:var(--ok);opacity:.85}
+.tb-it .d{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700;line-height:1;white-space:nowrap}
+.tb-it .ds{color:var(--muted);font-size:11.5px;margin-top:3px}
+.tb-it .nm{font-size:16px;font-weight:800;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.tb-it .ex{color:var(--text2);font-size:12.5px;margin-top:3px}
+.tb-it .ex b{color:#ff9a9a}
+.tb-it .rp{color:var(--muted);font-size:12px;margin-top:6px}
+.tb-it .bts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.tb-it .feito{color:#7fe0aa;font-weight:700}
+.tb-leg{color:var(--muted);font-size:12px;line-height:1.55;margin-top:14px}
+.tb-leg b{color:var(--text2)}
+@media (max-width:640px){.tb-it .bts{display:grid;grid-template-columns:1fr 1fr}.tb-it .bts .bpz{padding:8px 6px;font-size:12px}.tb-it .bts .bpz.sec{grid-column:1/-1}.tb-it{grid-template-columns:52px minmax(0,1fr);gap:10px;padding:12px 10px}.tb-it .d{font-size:22px}.tb-num .v{font-size:26px}.tb-placar{grid-template-columns:1fr}}
 .at{color:var(--warn)}
 #gate{position:fixed;inset:0;background:var(--s0);z-index:100;display:flex;align-items:center;justify-content:center}
 .gatebox{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:32px 28px;width:330px;text-align:center}
@@ -362,96 +390,80 @@ async function marcaPz(i,k,bt){
   if(novo){PZT=novo;if(DADOS)DADOS.pz=PZT}else alert('Gravei, mas não consegui reler a lista. Clique em Atualizar.');
   rota(true);window.scrollTo(0,y);
 }
-function pzLinha(g,i){
+let FTB='PRECISA';
+function tbCartao(g,i,comBotao){
   const pz=g.estados.indexOf('pausado')>=0, ok=g.sit==='RESP';
-  const est=g.estados.map(e=>'<span class="pill '+(e==='pausado'?'p-warn':'p-off')+'">'+esc(e)+'</span>').join(' ');
-  const resp={SEM:'<span class="pill p-bad">sem resposta da loja</span>',
+  const cl=ok?' ok':(g.sit==='VENCIDA'?' venc':(pz?'':' esc'));
+  const pill={SEM:'<span class="pill p-bad">sem resposta da loja</span>',
     VENCIDA:'<span class="pill p-warn">'+(/^Acabou/i.test(g.o_que||'')?'disseram que voltava · continua fora':'resposta antiga')+'</span>',
-    CONTRA:'<span class="pill p-bad">disseram que despausou · continua fora</span>',
-    RESP:''}[g.sit];
-  let r;
-  if(ok)r='<span class="pzfeito">&#10004; '+esc(g.quem||'')+'</span> <span class="sit">'+esc(g.em||'')+' · '+esc(rotMot(g.o_que))+'</span> '+
-    '<button class="bpz" style="margin-left:6px" onclick="marcaPz('+i+',-1,this)">reabrir</button>';
-  else r=((g.sit==='VENCIDA'||g.sit==='CONTRA')?'<div class="sit" style="margin-bottom:5px">'+esc(g.quem||'')+' em '+esc(g.em||'')+': '+esc(rotMot(g.o_que))+'</div>':'')+
-    (g.chave?ROT_PZ.map((t,k)=>'<button class="bpz" onclick="marcaPz('+i+','+k+',this)">'+esc(t)+'</button>').join(''):'');
-  return '<div class="pzi'+(ok?' ok':'')+'"><div class="pzn">'+esc(g.item)+' '+est+(ok?'':' '+resp)+'</div>'+
-    '<div class="sit">'+(pz?'o cliente vê e não consegue pedir':'o cliente nem vê')+(g.tipo==='Complemento'?' · complemento':'')+' · há '+(g.dias?plural(g.dias,'dia','dias'):'menos de 1 dia')+'</div>'+
-    '<div class="pzb">'+r+'</div></div>';
-}
-function blocoGoomerPz(pz){
-  const lista=daLoja(pz.tablet||[]), lidos=daLoja(pz.tablet_lido||[]);
-  let h='<div class="ctx">tablets Goomer da mesa · varredura automática do cardápio, uma vez por dia · '+
-        'responder aqui vale também na tela Produtos pausados</div>';
-  const velho=lidos.filter(l=>(+l.dias||0)>=2);
-  if(velho.length)h+='<div class="aviso">Tablet sem leitura há '+velho.map(l=>esc(l.unidade)+' ('+l.dias+' dias)').join(', ')+'. A lista dessa loja pode estar velha.</div>';
-  PZG=pzGrupos(lista);
-  if(!PZG.length){
-    h+='<div class="store"><div class="vazio">'+(lidos.length?'nenhum item pausado ou escondido na última leitura do tablet':'a varredura dos tablets ainda não trouxe nada — não quer dizer que está tudo no ar')+'</div></div>';
-  } else {
-    const porLoja={};PZG.forEach((g,i)=>{(porLoja[g.unidade]=porLoja[g.unidade]||[]).push(i)});
-    h+='<div class="cards">';
-    Object.keys(porLoja).sort((a,b)=>a.localeCompare(b,'pt-BR')).forEach(u=>{
-      const idx=porLoja[u], l=idx.map(i=>PZG[i]);
-      const pau=l.filter(x=>x.estados.indexOf('pausado')>=0).length, esco=l.filter(x=>x.estados.indexOf('escondido')>=0).length;
-      const espera=l.filter(x=>x.sit!=='RESP').length, maior=Math.max.apply(null,l.map(x=>x.dias));
-      const ld=lidos.filter(x=>x.unidade===u)[0];
-      h+='<div class="c"><div class="nm">'+esc(u)+'<span class="pill '+(espera?'p-bad':'p-ok')+'">'+(espera?plural(espera,'esperando a loja','esperando a loja'):'tudo respondido')+'</span></div>';
-      h+='<div class="linha"><span>pausados no tablet</span><b>'+pau+'</b></div>';
-      h+='<div class="linha"><span>escondidos do cliente</span><b>'+esco+'</b></div>';
-      h+='<div class="linha"><span>o mais antigo está parado há</span><b>'+(maior>0?plural(maior,'dia','dias'):'menos de 1 dia')+'</b></div>';
-      h+='<div class="qtd">última varredura '+esc(ld?ld.lido:'?')+'</div>';
-      h+='<details'+(espera?' open':'')+'><summary>ver os itens</summary>'+idx.map(i=>pzLinha(PZG[i],i)).join('')+'</details>';
-      h+='</div>';
-    });
-    h+='</div>';
+    CONTRA:'<span class="pill p-bad">disseram que despausou · continua fora</span>',RESP:''}[g.sit]||'';
+  let h='<div class="tb-it'+cl+'"><div><div class="d">'+(g.dias?g.dias+'d':'hoje')+'</div><div class="ds">desde '+esc(g.desde||'?')+'</div></div><div>'+
+    '<div class="nm">'+esc(g.item)+' <span class="pill '+(pz?'p-bad':'p-off')+'">'+(pz?'pausado':'escondido')+'</span>'+(comBotao?pill:'')+'</div>'+
+    '<div class="ex">'+(pz?'<b>O cliente vê e não consegue pedir</b>':'O cliente nem vê o item')+(pz&&g.estados.length>1?' · também está escondido':'')+
+      (g.tipo==='Complemento'?' · complemento':'')+'</div>';
+  if(comBotao){
+    if(ok)h+='<div class="rp"><span class="feito">&#10004; '+esc(rotMot(g.o_que))+'</span> · '+esc(g.quem||'')+' em '+esc(g.em||'')+'</div>'+
+      '<div class="bts"><button class="bpz sec" onclick="marcaPz('+i+',-1,this)">reabrir</button></div>';
+    else{
+      if(g.sit==='VENCIDA'||g.sit==='CONTRA')h+='<div class="rp">'+esc(g.quem||'')+' em '+esc(g.em||'')+': '+esc(rotMot(g.o_que))+'</div>';
+      if(g.chave)h+='<div class="bts">'+ROT_PZ.map((t,k)=>'<button class="bpz" onclick="marcaPz('+i+','+k+',this)">'+esc(t)+'</button>').join('')+'</div>';
+    }
   }
-  const sem=UNI.filter(u=>u!=='Ahú'&&!lidos.some(l=>l.unidade===u));
-  if(sem.length)h+='<div class="aviso">Sem varredura de tablet em: '+sem.join(', ')+'. Não é zero — é falta de dado.</div>';
-  if(UNI.indexOf('Ahú')>=0)h+='<div class="ctx" style="margin-top:10px">O Ahú não tem tablet de mesa.</div>';
-  h+='<div class="ctx" style="margin-top:6px;line-height:1.5"><b>Pausado</b>: o cliente vê o item e não consegue pedir. <b>Escondido</b>: o cliente nem vê. '+
-     '"Pausado de propósito" e "Item não existe mais" tiram o item da cobrança enquanto ele continuar assim. "Acabou, volta a vender" volta a cobrar em 2 dias. '+
-     '"Despausei" vale até a próxima leitura do tablet: se ele ainda estiver fora, volta em vermelho.</div>';
-  return h;
+  return h+'</div></div>';
 }
-function blocoGoomer(pausados,pz){
-  if(pz)return blocoGoomerPz(pz);
-  const hoje=hojeISO();
-  let h='<div class="ctx">tablets Goomer da mesa · varredura automática do cardápio</div>';
-  if(!pausados.length){
-    h+='<div class="store"><div class="vazio">a varredura dos tablets ainda não trouxe nada — não quer dizer que está tudo no ar</div></div>';
-    return h;
-  }
-  const porLoja={};
-  pausados.forEach(p=>{
-    const m=(porLoja[p.unidade]=porLoja[p.unidade]||{});
-    const k=p.item;
-    const it=m[k]||(m[k]={item:p.item,estados:[],desde:String(p.primeiro_visto).slice(0,10),visto:String(p.visto_em).slice(0,10)});
-    if(it.estados.indexOf(p.estado)<0)it.estados.push(p.estado);
-    const d=String(p.primeiro_visto).slice(0,10); if(d<it.desde)it.desde=d;
-    const v=String(p.visto_em).slice(0,10); if(v>it.visto)it.visto=v;
-  });
-  h+='<div class="cards">';
-  Object.keys(porLoja).sort().forEach(u=>{
-    const l=Object.keys(porLoja[u]).map(k=>porLoja[u][k]).sort((a,b)=>a.desde<b.desde?-1:1);
-    const pau=l.filter(x=>x.estados.indexOf('pausado')>=0).length;
-    const esco=l.filter(x=>x.estados.indexOf('escondido')>=0).length;
-    const ultima=l.map(x=>x.visto).sort().slice(-1)[0];
-    const maisVelho=l.map(x=>x.desde).sort()[0];
-    const dias=diasEntre(maisVelho,hoje);
-    h+='<div class="c"><div class="nm">'+u+'<span class="pill '+(l.length>20?'p-bad':(l.length>5?'p-warn':'p-ok'))+'">'+plural(l.length,'item','itens')+'</span></div>';
-    h+='<div class="linha"><span>pausados no tablet</span><b>'+pau+'</b></div>';
-    h+='<div class="linha"><span>escondidos do cliente</span><b>'+esco+'</b></div>';
-    h+='<div class="linha"><span>o mais antigo está parado há</span><b>'+(dias>0?dias+' dias':'menos de 1 dia')+'</b></div>';
-    h+='<div class="qtd">última varredura '+br(ultima)+'</div>';
-    h+='<details><summary>ver os itens</summary><table><tr><th>Item</th><th>Situação</th></tr>'+
-        l.slice(0,60).map(x=>'<tr><td style="color:var(--text2)">'+esc(x.item)+'</td><td>'+x.estados.map(e=>'<span class="pill '+(e==='pausado'?'p-warn':'p-off')+'">'+esc(e)+'</span>').join(' ')+'</td></tr>').join('')+
-       '</table>'+(l.length>60?'<div class="qtd">e mais '+(l.length-60)+'…</div>':'')+'</details>';
+/* um renderizador só: com a porta (botões) ou sem ela (lista da leitura, sem botões) */
+function blocoTablet(gs,lidos,comBotao){
+  const lojas=UNI.filter(u=>u!=='Ahú');
+  let h='<div class="ctx">tablets Goomer da mesa · o robô lê o cardápio uma vez por dia'+(comBotao?' · responder aqui vale também na tela Produtos pausados':'')+'</div>';
+  if(!lojas.length)return h+'<div class="store"><div class="vazio">O Ahú não tem tablet de mesa.</div></div>';
+  h+='<div class="tb-placar">';
+  lojas.forEach(u=>{
+    const l=gs.filter(g=>g.unidade===u), ld=lidos.filter(x=>x.unidade===u)[0];
+    h+='<div class="tb-loja"><div class="hd"><b>'+esc(u)+'</b><span>'+(ld?(ld.aprox?'último item visto ':'lido ')+(+ld.dias?'há '+plural(+ld.dias,'dia','dias')+' ('+esc(ld.lido)+')':'hoje'):'sem leitura do tablet')+'</span></div>';
+    if(!ld){h+='<div class="vazio">Sem leitura do tablet desta loja. Não é zero — é falta de dado.</div></div>';return}
+    const pau=l.filter(g=>g.estados.indexOf('pausado')>=0).length, esco=l.length-pau, esp=l.filter(g=>g.sit!=='RESP').length;
+    const maior=l.length?Math.max.apply(null,l.map(g=>g.dias)):0;
+    h+='<div class="tb-num"><div class="'+(pau?'bad':'ok')+'"><div class="v">'+pau+'</div><div class="r">pausados<br>vê e não pede</div></div>'+
+       '<div><div class="v">'+esco+'</div><div class="r">escondidos<br>nem vê</div></div>'+
+       (comBotao?'<div class="'+(esp?'gold':'ok')+'"><div class="v">'+esp+'</div><div class="r">esperando<br>a loja responder</div></div>'
+                :'<div><div class="v">'+(l.length?maior:'—')+'</div><div class="r">dias do<br>mais antigo</div></div>')+'</div>';
+    if(+ld.dias>=2&&!ld.aprox)h+='<div class="velho" style="color:#e6d9a8">⚠ leitura velha: a lista pode não ser a de hoje</div>';
+    else if(comBotao&&l.length)h+='<div class="velho">o mais antigo está fora há '+(maior?plural(maior,'dia','dias'):'menos de 1 dia')+'</div>';
     h+='</div>';
   });
   h+='</div>';
-  const semGoomer=UNI.filter(u=>!porLoja[u]);
-  if(semGoomer.length)h+='<div class="aviso">Sem varredura de tablet em: '+semGoomer.join(', ')+'. Não é zero — é falta de dado.</div>';
+  const doFiltro=g=>!comBotao||(FTB==='RESP'?g.sit==='RESP':g.sit!=='RESP');
+  if(comBotao){
+    const nE=gs.filter(g=>g.sit!=='RESP').length, nR=gs.length-nE;
+    h+='<div class="tb-fil"><button class="'+(FTB==='PRECISA'?'on':'')+'" onclick="FTB=\'PRECISA\';rota(true)">🔴 Esperando a loja '+nE+'</button>'+
+       '<button class="'+(FTB==='RESP'?'on':'')+'" onclick="FTB=\'RESP\';rota(true)">✔ Já respondidos '+nR+'</button></div>';
+  }
+  const vis=gs.map((g,i)=>[g,i]).filter(x=>doFiltro(x[0]));
+  if(!vis.length){
+    h+='<div class="store"><div class="vazio">'+(!gs.length?(lidos.length?'Nenhum item pausado ou escondido na última leitura do tablet.':'A leitura dos tablets ainda não trouxe nada — não quer dizer que está tudo no ar. É falta de dado.'):
+        FTB==='RESP'?'Nenhum item respondido ainda.':'Nada esperando a loja — tudo que está fora do ar já foi respondido.')+'</div></div>';
+  } else {
+    lojas.forEach(u=>{
+      const l=vis.filter(x=>x[0].unidade===u);if(!l.length)return;
+      if(lojas.length>1)h+='<div class="tb-tit">'+esc(u)+' · '+plural(l.length,'item','itens')+'</div>';
+      h+='<div class="tb-lista">'+l.map(x=>tbCartao(x[0],x[1],comBotao)).join('')+'</div>';
+    });
+  }
+  if(UNI.indexOf('Ahú')>=0)h+='<div class="tb-leg">O Ahú não tem tablet de mesa.</div>';
+  h+='<div class="tb-leg"><b>Pausado</b> é o pior caso: o cliente vê o item e não consegue pedir. <b>Escondido</b>: o cliente nem vê — costuma ser esquecimento de quem escondeu.'+
+     (comBotao?' "Pausado de propósito" e "Item não existe mais" tiram o item da lista enquanto ele continuar assim. "Acabou, volta a vender" volta a cobrar em 2 dias. '+
+      '"Despausei" vale até a próxima leitura do tablet: se ele ainda estiver fora, volta em vermelho.':'')+'</div>';
   return h;
+}
+function blocoGoomer(pausados,pz){
+  if(pz){PZG=pzGrupos(daLoja(pz.tablet||[]));return blocoTablet(PZG,daLoja(pz.tablet_lido||[]),true)}
+  /* sem a porta: monta o mesmo desenho com a leitura do tablet, sem botões */
+  const hoje=hojeISO(), ult={};
+  pausados.forEach(p=>{const v=String(p.visto_em).slice(0,10);if(!ult[p.unidade]||v>ult[p.unidade])ult[p.unidade]=v});
+  const lidos=Object.keys(ult).map(u=>({unidade:u,lido:br(ult[u]).slice(0,5),dias:diasEntre(ult[u],hoje),aprox:true}));
+  const linhas=pausados.filter(p=>String(p.visto_em).slice(0,10)===ult[p.unidade]).map(p=>({unidade:p.unidade,item:p.item,tipo:p.tipo,estado:p.estado,
+    desde:br(p.primeiro_visto).slice(0,5),dias:Math.max(0,diasEntre(String(p.primeiro_visto).slice(0,10),hoje)),chave:null,resolvido:false}));
+  return blocoTablet(pzGrupos(linhas),lidos,false);
 }
 
 /* ================= 3. NOTA NO GOOGLE ================= */
@@ -560,7 +572,8 @@ function resumoGoomer(d){
     const espera=gs.filter(g=>g.sit!=='RESP').length, maior=Math.max.apply(null,gs.map(g=>g.dias));
     return {big:plural(gs.length,'item','itens'),sub:'fora do ar no tablet · '+(espera?espera+' esperando resposta da loja':'todos respondidos')+' · o mais antigo há '+(maior>0?plural(maior,'dia','dias'):'menos de 1 dia'),atencao:espera>0};
   }
-  const pz=daLoja(d.pausados);
+  const ult0={};daLoja(d.pausados).forEach(p=>{const v=String(p.visto_em).slice(0,10);if(!ult0[p.unidade]||v>ult0[p.unidade])ult0[p.unidade]=v});
+  const pz=daLoja(d.pausados).filter(p=>String(p.visto_em).slice(0,10)===ult0[p.unidade]);
   if(!pz.length)return {big:'—',sub:'a varredura dos tablets ainda não trouxe nada',atencao:false};
   const chave={}, hoje=hojeISO();
   pz.forEach(p=>{chave[p.unidade+'|'+p.item]=String(p.primeiro_visto).slice(0,10)});
