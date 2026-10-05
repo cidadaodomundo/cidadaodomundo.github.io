@@ -14,7 +14,7 @@
 :root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#E0A81C;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
-body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',system-ui,sans-serif;font-size:clamp(14px,1.25vw,26px);overflow:hidden}
+body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',system-ui,sans-serif;font-size:clamp(14px,1.25vw,26px);overflow:hidden;display:flex;flex-direction:column}
 .topo{display:flex;align-items:center;gap:1.2em;padding:.6em 1.2em;border-bottom:2px solid var(--line);background:var(--s1)}
 .topo h1{font-family:'Anton',Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:2em;letter-spacing:.01em;line-height:1}
 .topo h1 b{color:var(--brand);font-weight:400}
@@ -25,7 +25,7 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .bt.on{background:var(--brand);color:#111;border-color:var(--brand)}
 .faixa{display:none;background:var(--bad);color:#fff;font-weight:800;padding:.45em 1.2em;font-size:1.05em}
 .faixa.on{display:block}
-.corpo{display:grid;grid-template-columns:62fr 38fr;gap:1.2em;padding:1em 1.2em;height:calc(100% - 5.2em)}
+.corpo{display:grid;grid-template-columns:62fr 38fr;gap:1.2em;padding:1em 1.2em;flex:1;min-height:0}
 .col{min-height:0;display:flex;flex-direction:column;overflow:hidden}
 .col h2{font-size:1.25em;font-weight:800;margin-bottom:.5em;display:flex;align-items:baseline;gap:.6em;flex-wrap:wrap}
 .col h2 small{color:var(--muted);font-weight:500;font-size:.7em}
@@ -60,7 +60,8 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .p .it small{display:block;color:var(--muted);font-weight:500;font-size:.72em}
 .p .tm{color:var(--text2);font-size:.85em;white-space:nowrap}
 .cinza{color:var(--muted);font-size:.85em;margin-top:.5em;line-height:1.35}
-.rodape{position:fixed;left:0;right:0;bottom:0;padding:.25em 1.2em;color:var(--muted);font-size:.7em;background:var(--s0)}
+.rodape{padding:.25em 1.2em;color:var(--muted);font-size:.7em;background:var(--s0)}
+.alerta{color:var(--bad);font-weight:800}
 /* tela do codigo */
 .cod{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:var(--s0);z-index:5}
 .cod.on{display:flex}
@@ -71,7 +72,7 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .cod input:focus{outline:none;border-color:var(--brand)}
 .cod .bt{margin-top:1em;font-size:1.3em;padding:.5em 1.6em;background:var(--brand);color:#111;border-color:var(--brand)}
 .cod .err{color:var(--bad);font-weight:700;margin-top:.8em;min-height:1.2em}
-@media (max-width:900px){body{overflow:auto}.corpo{grid-template-columns:1fr;height:auto}.topo{flex-wrap:wrap}}
+@media (max-width:900px){html,body{height:auto}body{overflow:auto}.corpo{grid-template-columns:1fr}.topo{flex-wrap:wrap}}
 </style>
 </head>
 <body>
@@ -107,7 +108,7 @@ const tempo=m=>m==null?'':m<60?m+' min':m<1440?Math.floor(m/60)+'h':Math.floor(m
 const limpa=c=>String(c||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 const NOVO_MIN=30; /* erro com menos de 30 min ganha NOVO e pisca */
 
-let COD='', DADO=null, VISTOS=null, TIMER=null, ULT_OK=0, SOM=false;
+let COD='', DADO=null, VISTOS=null, TIMER=null, ULT_OK=0, SOM=false, BUSCANDO=false;
 try{ SOM=localStorage.getItem('cdm_tv_som')==='1'; }catch(e){}
 
 function guarda(c){ try{ localStorage.setItem('cdm_tv_codigo',c); }catch(e){} try{ history.replaceState(null,'','#'+c); }catch(e){} }
@@ -120,9 +121,10 @@ function entra(){
 }
 
 async function busca(primeira){
+  if(BUSCANDO) return; BUSCANDO=true;   /* nunca duas leituras ao mesmo tempo (timer + volta da tela) */
   try{
     const r=await fetch(SB+'rpc/cozinha_tv',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_chave:COD})});
-    if(r.status===403||r.status===401){ desliga(); esquece(); COD=''; DADO=null; pedeCodigo('Código não aceito. Confira e digite de novo.'); return; }
+    if(r.status===403){ desliga(); esquece(); COD=''; DADO=null; pedeCodigo('Código não aceito. Confira e digite de novo.'); return; }
     if(!r.ok){ falha('Não consegui ler agora (código '+r.status+'). Tento de novo em 1 minuto.'); return; }
     const j=await r.json();
     $('cod').classList.remove('on'); guarda(COD);
@@ -134,11 +136,13 @@ async function busca(primeira){
     if(novos.length) apito();
     liga();
   }catch(e){ falha('SEM INTERNET — tentando de novo a cada 1 minuto.'); }
+  finally{ BUSCANDO=false; }
 }
 function falha(msg){
   liga();
   const f=$('faixa'); f.textContent='⚠️ '+msg+(ULT_OK?' Mostrando o que foi lido às '+hhmm(ULT_OK)+'.':''); f.classList.add('on');
   if($('cod').classList.contains('on')) $('cod-err').textContent=msg;
+  if(DADO) desenha([]);   /* a faixa vermelha ocupa espaco: refaz a lista para nenhum cartao ficar cortado */
   if(!DADO && !COD) pedeCodigo();
 }
 function liga(){ if(!TIMER) TIMER=setInterval(function(){ busca(false); },60000); }
@@ -186,7 +190,7 @@ function desenha(novos){
   const ab=Object.values(g).filter(x=>x.aberto).sort((a,b)=>a.min-b.min);
   const ok=Object.values(g).filter(x=>!x.aberto);
   const lm=j.pausados&&j.pausados.lido_min;
-  $('pz-st').textContent=(lm==null?'':'iFood lido há '+lm+' min');
+  $('pz-st').innerHTML=(lm==null||lm>30)? '<span class="alerta">⚠️ iFood sem leitura '+(lm==null?'há mais de 2 dias':'há '+tempo(lm))+' — lista pode estar velha</span>' : 'iFood lido há '+lm+' min';
   $('pz').innerHTML=ab.length? ab.slice(0,12).map(function(x){
       return '<div class="p aberto"><div class="it">'+esc(x.item)+'<small>'+(x.marcas>1?x.marcas+' marcas':'1 marca')+' · loja ainda não explicou</small></div><div class="tm">fora há '+tempo(x.min)+'</div></div>';
     }).join('')+(ab.length>12?'<div class="cinza">+ '+(ab.length-12)+' outros</div>':'')
@@ -221,8 +225,9 @@ document.addEventListener('visibilitychange',function(){ if(document.visibilityS
 (function(){
   botaoSom(); relogio(); setInterval(relogio,15000); acordada();
   setInterval(function(){ if(DADO) desenha([]); },60000);           /* "ha X min" e NOVO andam mesmo sem dado novo */
-  setTimeout(function(){ location.reload(); }, 6*3600*1000);        /* pega versao nova da tela a cada 6 h */
-  let c=limpa(decodeURIComponent((location.hash||'').replace(/^#(k=)?/,'')));
+  /* pega versao nova da tela a cada 6 h, so com internet e leitura boa (senao a TV ficaria presa na pagina de erro) */
+  setInterval(function(){ if(performance.now()>6*3600*1000 && navigator.onLine!==false && Date.now()-ULT_OK<5*60000) location.reload(); }, 10*60000);
+  let c=''; try{ c=limpa(decodeURIComponent((location.hash||'').replace(/^#(k=)?/i,''))); }catch(e){ c=''; }
   if(c.length!==8){ try{ c=limpa(localStorage.getItem('cdm_tv_codigo')); }catch(e){ c=''; } }
   if(c.length===8){ COD=c; busca(true); } else pedeCodigo();
 })();
