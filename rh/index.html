@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="pt-BR"><head>
+<script src="/assets/chaves.js?v=1"></script><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Relatório RH · Cidadão do Mundo</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="icon.svg">
@@ -55,6 +56,18 @@ h1{font-size:17px;font-weight:800}
 .refbox ul{list-style:none;margin:8px 0 0;padding:0;max-height:260px;overflow:auto}
 .refbox li{font-size:12px;padding:3px 0;border-bottom:1px solid var(--line)}
 .rfu{color:var(--muted);font-size:11px;font-weight:600}
+/* 04/10/2026 (chat-cartoes-gestao-04-10): cartoes iguais ao Resolver hoje (Ponto ao vivo) */
+.vv-lista{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.vv-lista>*{min-width:0}
+div.vv{background:var(--bg);border:1px solid var(--line);border-left:5px solid var(--muted);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px}
+div.vv.ok{border-left-color:var(--sem)}
+div.vv.warn{border-left-color:var(--infra)}
+.vv .hr{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;line-height:1;white-space:nowrap}
+.vv .ha{color:var(--muted);font-size:11.5px;margin-top:3px}
+.vv .tt{font-size:16px;font-weight:800}
+.vv .lj{font-size:13px;margin-top:4px}
+.vv .rs{margin-top:6px;font-size:12px;color:var(--muted)}
+@media (max-width:640px){.vv-lista{grid-template-columns:1fr}div.vv{grid-template-columns:54px minmax(0,1fr);gap:8px;padding:12px 10px}.vv .hr{font-size:20px}}
 .rfx{color:var(--infra);font-size:11px;font-weight:700}
 .units{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .tab{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:8px 17px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;display:flex;gap:8px;align-items:center}
@@ -502,7 +515,7 @@ async function funCarregar(){
   if(VIEW==='funcionarios')funPinta();
 }
 /* nao redesenha com caixa de ferias/observacao aberta: o recarregamento de 15 em 15 min apagaria o que esta sendo digitado */
-function funEditando(){return [].some.call(document.querySelectorAll('#content tr[id^="ff_"],#content tr[id^="fob_"]'),function(e){return e.style.display!=='none'})}
+function funEditando(){return [].some.call(document.querySelectorAll('#content [id^="ff_"],#content [id^="fob_"]'),function(e){return e.style.display!=='none'})}
 function renderFuncionarios(){limpaTopo();if(FUN.lista!==null&&funEditando())return;if(FUN.lista===null){$('content').innerHTML='<div class="loading">Carregando funcion&aacute;rios&hellip;</div>';funCarregar();return}funPinta()}
 function funDia(s){if(!s)return '';var p=String(s).slice(0,10).split('-');return p[2]+'/'+p[1]+'/'+p[0]}
 function funFerias(f){return !!f.afastado_desde&&(!f.afastado_ate||String(f.afastado_ate)>=HOJE())}
@@ -551,11 +564,15 @@ function funPinta(){
   h+='</div></div>';
   var av=[],_vis={};(FUN.avisos||[]).forEach(function(a){if(!_vis[a.id]){_vis[a.id]=1;av.push(a)}});
   if(av.length){
-    h+='<div class="rf-card" style="border-left:4px solid #dc2626;padding:8px 12px"><div style="font-weight:700;font-size:12.5px;margin-bottom:4px">&#9888; J&aacute; avisaram que saiu &mdash; ainda est&aacute; na lista</div><table class="rf-tb" data-cdm-sem-nota>';
+    h+='<div class="rf-card" style="border-left:4px solid #dc2626;padding:8px 12px"><div style="font-weight:700;font-size:12.5px;margin-bottom:8px">&#9888; J&aacute; avisaram que saiu &mdash; ainda est&aacute; na lista</div><div class="vv-lista">';
+    /* 04/10/2026 (chat-cartoes-gestao-04-10): um cartao por aviso, mesmo botao */
     av.forEach(function(a){
-      h+='<tr><td><b>'+xpEsc(a.nome)+'</b> <span class="rfu">'+xpEsc(a.unidade||'')+'</span></td><td class="rfu">'+xpEsc(a.fonte)+': &ldquo;'+xpEsc(a.texto)+'&rdquo;</td><td class="n">'+funBt('#e05252','Confirmar sa&iacute;da','funDesligar('+Number(a.id)+')')+' <span id="fm_'+Number(a.id)+'"></span></td></tr>';
+      h+='<div class="vv warn"><div><div class="hr" style="font-size:20px">&#9888;</div><div class="ha">avisaram</div></div><div style="min-width:0">'
+        +'<div class="tt">'+xpEsc(a.nome)+' <span class="rfu">'+xpEsc(a.unidade||'')+'</span></div>'
+        +'<div class="rs">'+xpEsc(a.fonte)+': &ldquo;'+xpEsc(a.texto)+'&rdquo;</div>'
+        +'<div style="margin-top:6px">'+funBt('#e05252','Confirmar sa&iacute;da','funDesligar('+Number(a.id)+')')+' <span id="fm_'+Number(a.id)+'"></span></div></div></div>';
     });
-    h+='</table></div>';
+    h+='</div></div>';
   }
   h+='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 4px">Loja: ';
   lojas.forEach(function(l){h+='<button class="view'+(FUN.loja===l?' active':'')+'" data-l="'+xpEsc(l)+'" onclick="funFiltro(\'loja\',this.dataset.l)">'+xpEsc(l)+'</button>'});
@@ -567,7 +584,10 @@ function funPinta(){
     var gs=vis.filter(doSetor(s));if(!gs.length)return;
     var nAt=gs.filter(function(f){return f.ativo}).length;
     h+='<div class="rf-h2">'+xpEsc(s)+' <span class="hint">'+nAt+(nAt===1?' ativo':' ativos')+(gs.length>nAt?' &middot; '+(gs.length-nAt)+' desligado(s)':'')+'</span></div>';
-    h+='<div class="rf-card" style="padding:4px 10px"><div class="rf-wrap"><table class="rf-tb" data-cdm-sem-nota><tr><th>Funcion&aacute;rio</th>'+(FUN.loja==='Todas'?'<th>Loja</th>':'')+'<th>Hor&aacute;rio</th><th>Folga</th><th>Situa&ccedil;&atilde;o</th><th>Observa&ccedil;&atilde;o</th><th class="n">A&ccedil;&otilde;es</th></tr>';
+    /* 04/10/2026 (chat-cartoes-gestao-04-10): um cartao por pessoa, igual ao Ponto ao vivo. Mesmos botoes, mesmos ids
+       (fm_, ff_, ffd_, ffa_, ffm_, fob_, fo_) e as mesmas caixas de ferias e observacao, agora dentro do cartao.
+       Faixa verde = ativo; amarela = ferias/afastado; cinza = desligado. */
+    h+='<div class="vv-lista">';
     gs.forEach(function(f){
       var id=Number(f.id),fe=funFerias(f);
       var sit=!f.ativo?'<span style="color:#f08a8a;font-weight:700">desligado</span>'
@@ -576,20 +596,21 @@ function funPinta(){
       var ob=String(f.obs||''),obc=xpEsc(ob.slice(0,70))+(ob.length>70?'&hellip;':'');
       var ac=f.ativo?(funBt('#E0A81C','F&eacute;rias','funAbreFerias('+id+')')+' '+(f.afastado_desde?funBt('#8b95a5','Tirar f&eacute;rias','funTiraFerias('+id+')')+' ':'')+funBt('#e05252','Desligar','funDesligar('+id+')'))
         :funBt('#37b46c','Reativar','funReativar('+id+')');
-      h+='<tr'+(f.ativo?'':' style="opacity:.6"')+'><td><b>'+xpEsc(f.nome)+'</b></td>'+(FUN.loja==='Todas'?'<td class="rfu">'+xpEsc(f.unidade||'')+'</td>':'')
-        +'<td class="n" style="text-align:left">'+((f.entrada&&f.saida)?(f.entrada+'&ndash;'+f.saida):'<span class="rfu">&mdash;</span>')+'</td>'
-        +'<td class="rfu">'+xpEsc(f.folgas||'')+'</td><td>'+sit+'</td>'
-        +'<td style="max-width:300px"><span class="rfu" title="'+xpEsc(ob)+'">'+obc+'</span> '+funBt('#8b95a5','&#9998;','funAbreObs('+id+')')+'</td>'
-        +'<td class="n">'+ac+'<div id="fm_'+id+'" style="font-size:11px"></div></td></tr>';
-      h+='<tr id="ff_'+id+'" style="display:none"><td colspan="7"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px">'
+      h+='<div class="vv '+(!f.ativo?'':(fe?'warn':'ok'))+'"'+(f.ativo?'':' style="opacity:.6"')+'><div><div class="hr">'+(f.entrada?xpEsc(f.entrada):'&mdash;')+'</div><div class="ha">'+(f.saida?'at&eacute; '+xpEsc(f.saida):'hor&aacute;rio')+'</div></div><div style="min-width:0">'
+        +'<div class="tt">'+xpEsc(f.nome)+'</div>'
+        +'<div class="lj">'+sit+(FUN.loja==='Todas'&&f.unidade?' &middot; <span class="rfu">'+xpEsc(f.unidade)+'</span>':'')+(f.folgas?' &middot; <span class="rfu">folga '+xpEsc(f.folgas)+'</span>':'')+'</div>'
+        +'<div class="rs"><span title="'+xpEsc(ob)+'">'+(ob?obc:'sem observa&ccedil;&atilde;o')+'</span> '+funBt('#8b95a5','&#9998;','funAbreObs('+id+')')+'</div>'
+        +'<div style="margin-top:8px">'+ac+'<div id="fm_'+id+'" style="font-size:11px"></div></div>';
+      h+='<div id="ff_'+id+'" style="display:none;margin-top:8px"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px">'
         +'de <input type="date" id="ffd_'+id+'" value="'+xpEsc(f.afastado_desde||'')+'" style="'+inp+'"> volta em <input type="date" id="ffa_'+id+'" value="'+xpEsc(f.afastado_ate||'')+'" style="'+inp+'"> <select id="ffm_'+id+'" style="'+inp+'">';
       ['Férias','Atestado','Afastamento INSS','Licença'].forEach(function(m){h+='<option'+((f.afastado_motivo||'Férias')===m?' selected':'')+'>'+m+'</option>'});
-      h+='</select>'+funBt('#E0A81C','Salvar','funSalvaFerias('+id+')')+'</div></td></tr>';
-      h+='<tr id="fob_'+id+'" style="display:none"><td colspan="7"><textarea id="fo_'+id+'" rows="3" placeholder="observa&ccedil;&otilde;es (hor&aacute;rio combinado, aviso pr&eacute;vio, o que precisar)" style="width:100%;'+inp+'">'+xpEsc(ob)+'</textarea>'
-        +'<div style="display:flex;gap:8px;align-items:center;margin-top:4px">'+funBt('#e8edf4','Salvar observa&ccedil;&atilde;o','funSalvaObs('+id+')')
-        +(f.ultima?'<span class="rfu">&uacute;ltima mudan&ccedil;a: '+xpEsc(f.ultima.acao)+' por '+xpEsc(f.ultima.quem)+' em '+xpEsc(f.ultima.quando)+'</span>':'')+'</div></td></tr>';
+      h+='</select>'+funBt('#E0A81C','Salvar','funSalvaFerias('+id+')')+'</div></div>';
+      h+='<div id="fob_'+id+'" style="display:none;margin-top:8px"><textarea id="fo_'+id+'" rows="3" placeholder="observa&ccedil;&otilde;es (hor&aacute;rio combinado, aviso pr&eacute;vio, o que precisar)" style="width:100%;'+inp+'">'+xpEsc(ob)+'</textarea>'
+        +'<div style="display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap">'+funBt('#e8edf4','Salvar observa&ccedil;&atilde;o','funSalvaObs('+id+')')
+        +(f.ultima?'<span class="rfu">&uacute;ltima mudan&ccedil;a: '+xpEsc(f.ultima.acao)+' por '+xpEsc(f.ultima.quem)+' em '+xpEsc(f.ultima.quando)+'</span>':'')+'</div></div>';
+      h+='</div></div>';
     });
-    h+='</table></div></div>';
+    h+='</div>';
   });
   c.innerHTML=h;
 }
@@ -944,7 +965,7 @@ var RESBOT=[['orientado','✅ Resolvido'],['cobriu_loja','🏪 Cobriu outra loja
   ['orientei','🗣 Orientei a pessoa'],['avisou_antes','📞 Avisou antes'],['erro_corrigido','🔧 Erro de batida, já corrigido'],
   ['relogio','🕐 Relogio com defeito'],['esqueceu_bater','🙋 Esqueceu de bater'],
   ['atestado','📄 Atestado'],['folga','🏖 Folga combinada'],['falta','❌ Nao veio']];
-var RESLOJAS=['Água Verde','São Braz','Ahú','Boqueirão'];
+var RESLOJAS=['Água Verde','São Braz','Ahú'];
 var RESDIAS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 function resCaixa(r){
   var nm=resEsc(r.nome), dia=resEsc(r.data);
@@ -1095,17 +1116,20 @@ async function vivoCarrega(){
         :'⚠️ Ainda nao houve leitura do relogio hoje nesta loja.')+'</div>';
   h+='<div class="rf-aviso"><b>'+dentro.length+'</b> na loja agora · <b>'+nointer.length+'</b> no intervalo · <b>'+jasaiu.length+'</b> ja sairam · <b>'+nadabateu.length+'</b> ainda nao bateram ponto</div>';
   if(!g.length){alvo.innerHTML=h+'<div class="rf-empty">Ninguem bateu ponto hoje nesta loja.</div>';return}
-  h+='<div class="rf-wrap"><table class="rf-tb"><tr><th>Funcionario</th><th>Situacao</th><th class="n">Entrada</th><th class="n">Intervalo</th><th class="n">Saida</th><th>Refeicao</th><th class="n">Batidas</th></tr>';
-  g.forEach(function(x){
-    h+='<tr><td><b>'+rfEsc(x.nome)+'</b></td>'
-      +'<td>'+vivoSit(x)+'</td>'
-      +'<td class="n">'+(x.entrou?rfEsc(String(x.entrou).slice(0,5)):'—')+'</td>'
-      +'<td class="n">'+vivoInt(x)+'</td>'
-      +'<td class="n">'+(x.saida?rfEsc(String(x.saida).slice(0,5)):'—')+'</td>'
-      +'<td>'+vivoRef(x,ref)+'</td>'
-      +'<td class="n">'+rfNum(x.batidas)+(Number(x.batidas)%2===1&&Number(x.batidas)>1?' <span class="rfu">impar</span>':'')+'</td></tr>';
-  });
-  alvo.innerHTML=h+'</table></div><div class="rf-nota">Refeição: o que foi lançado hoje no Saipos com o nome ou a comanda da pessoa. "não lançou" = bateu ponto e ainda não tem refeição no Saipos.</div>';
+  /* 04/10/2026 (chat-cartoes-gestao-04-10): um cartao por pessoa, igual aos do Resolver hoje - mesma ordem e mesmos
+     textos da tabela antiga. Faixa verde = na loja, amarela = no intervalo, cinza = o resto (nunca vermelho: quem nao
+     bateu ainda nao e falta). */
+  h+='<div class="vv-lista">'+g.map(function(x){
+    var cor=x.no_intervalo?'warn':(x.dentro?'ok':'');
+    return '<div class="vv '+cor+'"><div><div class="hr">'+(x.entrou?rfEsc(String(x.entrou).slice(0,5)):'—')+'</div><div class="ha">entrada</div></div><div style="min-width:0">'
+      +'<div class="tt">'+rfEsc(x.nome)+'</div>'
+      +'<div class="lj">'+vivoSit(x)+'</div>'
+      +'<div class="rs">intervalo '+vivoInt(x)+' · saída '+(x.saida?rfEsc(String(x.saida).slice(0,5)):'—')
+        +' · '+(lido?rfNum(x.batidas)+(Number(x.batidas)==1?' batida':' batidas')+(Number(x.batidas)%2===1&&Number(x.batidas)>1?' <span class="rfu">impar</span>':''):'batidas —')+'</div>'
+      +'<div class="rs">'+vivoRef(x,ref)+'</div>'
+    +'</div></div>';
+  }).join('')+'</div>';
+  alvo.innerHTML=h+'<div class="rf-nota">Refeição: o que foi lançado hoje no Saipos com o nome ou a comanda da pessoa. "não lançou" = bateu ponto e ainda não tem refeição no Saipos.</div>';
 }
 
 /* ===== 🍽 COMANDAS — a lista da Rita, com recado por comanda (11/09/2026) ===== */
@@ -1124,19 +1148,21 @@ async function renderComandas(){
     +RFUNI.map(function(u){return '<button class="view'+(CMD.loja===u?' active':'')+'" onclick="cmdSetLoja(\''+u+'\')">'+rfEsc(u)+'</button>'}).join(' ')
     +'</div>';
   if(!CMD.lista.length){$('content').innerHTML=h+'<div class="rf-empty">Nenhuma comanda cadastrada nesta loja.</div></div>';return}
-  h+='<div class="rf-wrap"><table class="rf-tb"><tr><th class="n">Comanda</th><th>Nome</th><th>De quem e</th><th>Recado para o escritorio</th><th></th></tr>';
-  CMD.lista.forEach(function(c,i){
+  /* 04/10/2026 (chat-cartoes-gestao-04-10): um cartao por comanda, igual aos do Resolver hoje. O campo de recado,
+     o botao Salvar e os ids (cmd_N) sao os mesmos; a caixa de recado ja e a anotacao desta lista. Faixa verde = o dono
+     esta na equipe ativa; amarela = sem dono, ou dono que nao esta na equipe (aparece "ficha N"); cinza = desativada. */
+  h+='<div class="vv-lista">'+CMD.lista.map(function(c,i){
     var dono=(CMD.equipe.filter(function(x){return String(x.id)===String(c.funcionario_id)})[0]||{}).nome;
-    h+='<tr'+(c.ativo?'':' style="opacity:.55"')+'>'
-      +'<td class="n"><b>'+rfEsc(c.codigo)+'</b></td>'
-      +'<td>'+rfEsc(c.nome||'—')+(c.ativo?'':' <span class="rfu">desativada</span>')+'</td>'
-      +'<td>'+rfEsc(dono||(c.funcionario_id?'ficha '+c.funcionario_id:'— sem dono —'))+'</td>'
-      +'<td><textarea id="cmd_'+i+'" rows="2" style="width:100%;min-width:220px;padding:6px" placeholder="ex.: esse cartao esta comigo, o nome esta errado, falta cadastrar...">'+rfEsc(c.recado||'')+'</textarea>'
+    var cor=!c.ativo?'':(dono?'ok':'warn');
+    return '<div class="vv '+cor+'"'+(c.ativo?'':' style="opacity:.55"')+'><div><div class="hr">'+rfEsc(c.codigo)+'</div><div class="ha">comanda</div></div><div style="min-width:0">'
+      +'<div class="tt">'+rfEsc(c.nome||'—')+(c.ativo?'':' <span class="rfu">desativada</span>')+'</div>'
+      +'<div class="lj">de quem é: '+rfEsc(dono||(c.funcionario_id?'ficha '+c.funcionario_id:'— sem dono —'))+'</div>'
+      +'<textarea id="cmd_'+i+'" rows="2" style="width:100%;margin-top:8px;padding:6px" placeholder="ex.: esse cartao esta comigo, o nome esta errado, falta cadastrar...">'+rfEsc(c.recado||'')+'</textarea>'
       +(c.recado_por?'<div class="rfu">ultimo: '+rfEsc(c.recado_por)+(c.recado_em?' · '+rfBr(String(c.recado_em).slice(0,10)):'')+'</div>':'')
-      +'</td>'
-      +'<td><button onclick="cmdSalvar('+i+')" style="padding:6px 10px;cursor:pointer">Salvar</button></td></tr>';
-  });
-  h+='</table></div><div id="cmd_msg" style="margin-top:8px"></div></div>';
+      +'<div style="margin-top:6px"><button onclick="cmdSalvar('+i+')" style="padding:6px 10px;cursor:pointer">Salvar</button></div>'
+    +'</div></div>';
+  }).join('')+'</div>';
+  h+='<div id="cmd_msg" style="margin-top:8px"></div></div>';
   $('content').innerHTML=h;
 }
 async function cmdSalvar(i){
@@ -1354,7 +1380,7 @@ async function rfCarregaMoto(){
       });
       h+='</table></div>';
     }
-    h+='<div class="rf-nota">Quem rodou vem do Foody, por turno. A refeição vem das vendas feitas no <b>cliente</b> dos motoboys no Saipos (Z Motoboys, z Jaison…). Se o nome do cliente mudar, marque o novo aqui embaixo.</div></div>';
+    h+='<div class="rf-nota">'+(window.CDM_FOODY===false?'':'Quem rodou vem do Foody, por turno. ')+'A refeição vem das vendas feitas no <b>cliente</b> dos motoboys no Saipos (Z Motoboys, z Jaison…). Se o nome do cliente mudar, marque o novo aqui embaixo.</div></div>';
     h+='<div id="rfcli"><div class="rf-load">Vendo os clientes…</div></div>';
     rfBox(h);
     rfCarregaClientes();
