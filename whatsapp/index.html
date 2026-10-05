@@ -35,6 +35,24 @@ button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);bor
 .bts button{margin:2px 6px 2px 0;padding:6px 12px;border-radius:8px;background:transparent;cursor:pointer;font-size:13px;font-weight:600}
 .ok{border:1px solid #8fbf6a;color:#8fbf6a}
 .nao{border:1px solid #9a9a9a;color:#b5b5b5}
+.resumo{display:flex;gap:14px;align-items:center;background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:12px 16px;margin:4px 0 12px}
+.resumo .big{font-family:'Anton',Impact,'Arial Black',sans-serif;font-size:38px;line-height:1;color:var(--brand)}
+.resumo span{color:var(--muted);font-size:12.5px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px}
+.tile{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:9px 12px;cursor:pointer}
+.tile .n{font-family:'Anton',Impact,'Arial Black',sans-serif;font-size:22px;line-height:1.1}
+.tile .t{font-size:12.5px;color:var(--text2);font-weight:600}
+.tile .m{font-size:11px;color:var(--muted)}
+.tile.on{border-color:var(--brand);background:#1f1c14}
+.tile.on .n{color:var(--brand)}
+button.mais{background:transparent;border:0;color:var(--brand);font-size:12.5px;font-weight:700;cursor:pointer;padding:2px 0;margin:2px 0 4px}
+.outras{border-left:2px solid var(--line);margin:4px 0 6px 2px;padding-left:10px}
+.outra{font-size:12.5px;color:var(--text2);margin:5px 0}
+.outra b{color:var(--muted);font-weight:600;margin-right:6px}
+.outra .pill{margin-right:4px}
+.card.saber{opacity:.85}
+.sec{font-family:'Barlow Condensed','Barlow',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-size:14px;margin:18px 0 8px}
+@media (max-width:640px){.tiles{grid-template-columns:repeat(auto-fill,minmax(128px,1fr))}.resumo .big{font-size:32px}}
 @media (max-width:640px){body{padding-left:12px;padding-right:12px}h1{font-size:clamp(18px,6.2vw,26px);word-break:break-word}}
 </style>
 </head>
@@ -60,7 +78,11 @@ const TELA={manutencao:'Manutenção',compras_ml:'Compras ML',encomenda:'Encomen
   regra_da_casa:'Regra da casa',sistema_com_defeito:'Sistema com defeito',vigilancia_sanitaria:'Vigilância / nutri'};
 const LOJA={agua_verde:'Água Verde',ahu:'Ahú',sao_braz:'São Braz'};
 const ACAO={fechar:'diz que já foi resolvido',atualizar:'traz novidade',abrir:'assunto novo',anotar:'para saber'};
-let DADOS=[],FILTRO='',TELAS=[],VERBAIXA=false;
+/* 03/10/2026 (obra 98, chat-simplificar-whatsapp-03-10): pedido do Fabio "temos que simplificar esse negocio aqui".
+   Cartoes juntados por conversa + assunto + dia (acao listar_grupos da porta); primeiro so o que pede acao;
+   os "para saber" e os de certeza baixa ficam atras de um botao; resumo no topo por assunto.
+   Aceitar / Nao e isso vale para o cartao inteiro (aceitar_grupo / recusar_grupo). Nada e apagado. */
+let G=[],SABER=null,CONTAS={},FILTRO='',TELAS=[],VERBAIXA=false,VERSABER=false,ABERTO={},CARREGANDO=false;
 async function porta(a,d){
   const r=await fetch(SB+'rpc/central_sugestao_porta',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
     body:JSON.stringify({p_token:cdmTok(),p_acao:a,p_dados:d||{}})});
@@ -78,45 +100,99 @@ function efeito(s){
   if((s.tela==='tarefa_fabio'&&s.acao==='abrir')||s.tela==='agenda_pessoal')return 'Aceitar põe na Minha Agenda'+(s.tela==='agenda_pessoal'?' (pessoal)':'')+'.';
   return 'Aceitar só marca como visto — esta tela do portal ainda não recebe sozinha.';
 }
-async function faz(a,id,btn){
-  try{btn.disabled=true;const j=await porta(a,{id:id});
-    DADOS=DADOS.filter(x=>x.id!==id);desenha();
+function efeitoGrupo(g){
+  const it=g.itens||[],vistos={},fr=[];
+  it.forEach(s=>{const f=efeito(s);if(f.indexOf('só marca como visto')>=0)return;if(!vistos[f]){vistos[f]=1;fr.push(f)}});
+  let t=fr.length?fr.join(' '):'Aceitar só marca como visto — esta tela do portal ainda não recebe sozinha.';
+  const ab=it.filter(s=>!((s.acao==='fechar'||s.acao==='atualizar')&&s.codigo)&&(s.acao==='abrir'||s.tela==='agenda_pessoal')&&efeito(s).indexOf('só marca')<0).length;
+  if(ab>1)t+=' Vira um item só, com os '+ab+' pedidos escritos dentro.';
+  if(it.length>1)t+=' As '+it.length+' mensagens do cartão saem da lista juntas.';
+  return t;
+}
+function chave(g){return Number((g&&g.itens&&g.itens[0]&&g.itens[0].id)||0)}
+function acha(k){return G.concat(SABER||[]).find(g=>chave(g)===k)}
+function tiraConta(g){
+  const C=CONTAS||{},n=g.n||(g.itens||[]).length;
+  if(!g.pede){C.saber_grupos=Math.max(0,(C.saber_grupos||0)-1);C.saber_msgs=Math.max(0,(C.saber_msgs||0)-n)}
+  else if(g.certeza==='baixa'){C.baixa_grupos=Math.max(0,(C.baixa_grupos||0)-1);C.baixa_msgs=Math.max(0,(C.baixa_msgs||0)-n)}
+  else{C.acao_grupos=Math.max(0,(C.acao_grupos||0)-1);C.acao_msgs=Math.max(0,(C.acao_msgs||0)-n)}
+}
+async function faz(a,k,btn){
+  const g=acha(k);if(!g)return;
+  try{btn.disabled=true;
+    const j=await porta(a==='aceitar'?'aceitar_grupo':'recusar_grupo',{ids:(g.itens||[]).map(s=>Number(s.id))});
+    G=G.filter(x=>chave(x)!==k);if(SABER)SABER=SABER.filter(x=>chave(x)!==k);
+    tiraConta(g);desenha();
     const d=$('erro');
-    if(a==='aceitar'&&j&&j.efeito&&d){d.style.color='#8fbf6a';d.textContent='Feito: '+j.efeito+'.';d.style.display='block'}}
+    if(d){d.style.color='#8fbf6a';d.textContent=(a==='aceitar'?'Feito: '+((j&&j.efeito)||'marcado como visto'):'Descartado')+' ('+((j&&j.n)||(g.itens||[]).length)+' mensagens).';d.style.display='block'}}
   catch(e){btn.disabled=false;const d=$('erro');if(d){d.style.color='#e0645c';d.textContent='Não consegui gravar: '+e.message;d.style.display='block'}}
 }
 function filtra(i){const t=(i<0?'':TELAS[i]);FILTRO=(FILTRO===t?'':t);desenha()}
 function trocaBaixa(){VERBAIXA=!VERBAIXA;FILTRO='';desenha()}
+async function trocaSaber(){
+  if(CARREGANDO)return;
+  VERSABER=!VERSABER;FILTRO='';
+  if(VERSABER&&SABER===null){
+    CARREGANDO=true;desenha();
+    try{const j=await porta('listar_grupos',{ver:'saber'});SABER=(j&&Array.isArray(j.grupos))?j.grupos:[]}
+    catch(e){VERSABER=false;CARREGANDO=false;desenha();const d=$('erro');if(d){d.style.color='#e0645c';d.textContent='Não consegui carregar os “para saber”: '+e.message;d.style.display='block'}return}
+    CARREGANDO=false;
+  }
+  desenha();
+}
+function abre(k){ABERTO[k]=!ABERTO[k];desenha()}
+function cartao(g){
+  const k=chave(g),it=g.itens||[],p=it[0]||{},mais=it.length-1;
+  let h='<div class="card'+(g.pede?'':' saber')+'"><div class="l1"><span>'+esc(g.quando||'')+'</span><span>·</span><span>'+esc(g.de||'')+'</span>'+
+    (g.loja?'<span>·</span><span>'+esc(LOJA[g.loja]||g.loja)+'</span>':'')+
+    '<span class="pill p-tela">'+esc(TELA[g.tela]||g.tela)+'</span>'+
+    '<span class="pill">'+esc(ACAO[p.acao]||p.acao||'')+'</span>'+
+    '<span class="pill p-'+esc(g.certeza||'baixa')+'">certeza '+esc(g.certeza||'baixa')+'</span></div>'+
+    '<div class="res">'+esc(p.resumo)+'</div>';
+  if(mais>0){
+    h+='<button class="mais" onclick="abre('+k+')">'+(ABERTO[k]?'▾ esconder as outras':'▸ +'+mais+(mais>1?' mensagens':' mensagem'))+'</button>';
+    if(ABERTO[k]){
+      h+='<div class="outras">';
+      it.slice(1).forEach(s=>{h+='<div class="outra"><b>'+esc(s.hora||'')+'</b><span class="pill">'+esc(ACAO[s.acao]||s.acao||'')+'</span> '+esc(s.resumo)+'</div>'});
+      h+='</div>';
+    }
+  }
+  h+='<div class="fx">'+esc(efeitoGrupo(g))+'</div>'+
+    '<div class="bts"><button class="ok" onclick="faz(\'aceitar\','+k+',this)">✓ Aceitar</button>'+
+    '<button class="nao" onclick="faz(\'recusar\','+k+',this)">✕ Não é isso</button></div></div>';
+  return h;
+}
 function desenha(){
-  const VIS=DADOS.filter(s=>VERBAIXA||s.certeza!=='baixa');const nBaixa=DADOS.filter(s=>s.certeza==='baixa').length;
-  const cont={};VIS.forEach(s=>{cont[s.tela]=(cont[s.tela]||0)+1});
+  const vAcao=G.filter(g=>VERBAIXA||g.certeza!=='baixa');
+  const vSaber=(VERSABER&&SABER)?SABER:[];
+  const todos=vAcao.concat(vSaber),C=CONTAS||{};
+  const cont={},msgs={};
+  todos.forEach(g=>{const n=g.n||(g.itens||[]).length;cont[g.tela]=(cont[g.tela]||0)+1;msgs[g.tela]=(msgs[g.tela]||0)+n});
+  const nMsg=vAcao.reduce((a,g)=>a+(g.n||(g.itens||[]).length),0);
   let h='<div id="erro" style="display:none;margin:8px 0"></div>';
-  h+='<div class="aviso">Período de teste: <b>Aceitar</b> faz a mudança no portal; <b>Não é isso</b> descarta. Cada clique ensina quanto o robô acerta.</div>';
-  if(nBaixa)h+='<div class="chips"><span class="chip'+(VERBAIXA?' on':'')+'" onclick="trocaBaixa()">'+(VERBAIXA?'Esconder as de certeza baixa':'Ver também as de certeza baixa')+' ('+nBaixa+')</span></div>';
-  if(!VIS.length){$('app').innerHTML=h+'<div class="vazio">Nenhuma sugestão esperando. O robô lê o WhatsApp sozinho; o que ele achar aparece aqui.</div>';return}
-  h+='<div class="chips"><span class="chip'+(FILTRO?'':' on')+'" onclick="filtra(-1)">Todas ('+VIS.length+')</span>';
+  h+='<div class="resumo"><div class="big">'+vAcao.length+'</div><div><b>'+(vAcao.length===1?'cartão pede você':'cartões pedem você')+'</b><br><span>'+nMsg+' mensage'+(nMsg===1?'m':'ns')+' do WhatsApp, juntadas por conversa, assunto e dia</span></div></div>';
   TELAS=Object.keys(cont).sort((a,b)=>cont[b]-cont[a]);
-  TELAS.forEach((t,i)=>{
-    h+='<span class="chip'+(FILTRO===t?' on':'')+'" onclick="filtra('+i+')">'+esc(TELA[t]||t)+' ('+cont[t]+')</span>';
-  });
+  if(TELAS.length){
+    h+='<div class="tiles"><div class="tile'+(FILTRO?'':' on')+'" onclick="filtra(-1)"><div class="n">'+todos.length+'</div><div class="t">Todos os assuntos</div></div>';
+    TELAS.forEach((t,i)=>{h+='<div class="tile'+(FILTRO===t?' on':'')+'" onclick="filtra('+i+')"><div class="n">'+cont[t]+'</div><div class="t">'+esc(TELA[t]||t)+'</div><div class="m">'+msgs[t]+(msgs[t]===1?' mensagem':' mensagens')+'</div></div>'});
+    h+='</div>';
+  }
+  h+='<div class="chips">';
+  if((C.saber_grupos||0)>0||VERSABER)h+='<span class="chip'+(VERSABER?' on':'')+'" onclick="trocaSaber()">'+(CARREGANDO?'Carregando…':(VERSABER?'Esconder os “para saber”':'Ver também os “para saber”'))+' ('+(C.saber_grupos||0)+((C.saber_grupos||0)===1?' cartão · ':' cartões · ')+(C.saber_msgs||0)+((C.saber_msgs||0)===1?' mensagem)':' mensagens)')+'</span>';
+  if((C.baixa_grupos||0)>0)h+='<span class="chip'+(VERBAIXA?' on':'')+'" onclick="trocaBaixa()">'+(VERBAIXA?'Esconder os de certeza baixa':'Ver também os de certeza baixa')+' ('+C.baixa_grupos+')</span>';
   h+='</div>';
-  VIS.filter(s=>!FILTRO||s.tela===FILTRO).forEach(s=>{
-    h+='<div class="card"><div class="l1"><span>'+esc(s.quando||'')+'</span><span>·</span><span>'+esc(s.de||'')+'</span>'+
-      (s.loja?'<span>·</span><span>'+esc(LOJA[s.loja]||s.loja)+'</span>':'')+
-      '<span class="pill p-tela">'+esc(TELA[s.tela]||s.tela)+'</span>'+
-      '<span class="pill">'+esc(ACAO[s.acao]||s.acao)+'</span>'+
-      '<span class="pill p-'+esc(s.certeza||'baixa')+'">certeza '+esc(s.certeza||'baixa')+'</span></div>'+
-      '<div class="res">'+esc(s.resumo)+'</div><div class="fx">'+esc(efeito(s))+'</div>'+
-      '<div class="bts"><button class="ok" onclick="faz(\'aceitar\','+Number(s.id)+',this)">✓ Aceitar</button>'+
-      '<button class="nao" onclick="faz(\'recusar\','+Number(s.id)+',this)">✕ Não é isso</button></div></div>';
-  });
+  h+='<div class="aviso">Cada cartão junta as mensagens da mesma conversa, do mesmo assunto e do mesmo dia. <b>Aceitar</b> ou <b>Não é isso</b> vale para o cartão inteiro.</div>';
+  const fil=g=>!FILTRO||g.tela===FILTRO;
+  const la=vAcao.filter(fil),ls=vSaber.filter(fil);
+  if(!la.length&&!ls.length)h+='<div class="vazio">'+(FILTRO?'Nada neste assunto.':'Nenhum cartão pedindo você agora. O robô lê o WhatsApp sozinho; o que ele achar aparece aqui.')+'</div>';
+  la.forEach(g=>{h+=cartao(g)});
+  if(ls.length){h+='<div class="sec">Só para saber</div>';ls.forEach(g=>{h+=cartao(g)})}
   $('app').innerHTML=h;
 }
 async function boot(){
-  try{const j=await porta('listar');DADOS=Array.isArray(j)?j:[];desenha()}
+  try{const j=await porta('listar_grupos',{ver:'acao'});G=(j&&Array.isArray(j.grupos))?j.grupos:[];CONTAS=(j&&j.contas)||{};desenha()}
   catch(e){$('app').innerHTML='<div class="vazio">Não consegui carregar: '+esc(e.message)+'</div>'}
 }
-
 /* ===== porta unica do portal ===== */
 const CDMMODS=['whatsapp'];
 function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
