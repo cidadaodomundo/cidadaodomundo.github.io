@@ -77,6 +77,7 @@ div.vv.off{border-left-color:var(--muted)}
 .vv .it{margin-top:6px;font-size:13.5px;color:var(--text)}
 .vv .rs{margin-top:4px;font-size:12px;color:var(--muted)}
 .vv .fn{margin-top:2px;font-size:11px;color:var(--muted)}
+.vv .it,.vv .rs{overflow-wrap:anywhere}
 
 /* tabela bonita: faixa de cabecalho, linhas zebradas, cor ao passar o mouse (igual ao Ponto ao vivo).
    No celular (ate 700px) o portal.js transforma cada tabela em cartoes; por isso o desenho de mesa so vale acima disso. */
@@ -210,13 +211,15 @@ function carimbo(){
 }
 function ligaTimer(){
   if(TIMER){clearInterval(TIMER);TIMER=null}
-  if(ABA!=='dia'&&ABA!=='resumo')return;
-  /* 3 minutos, e so enquanto a aba estiver na frente */
+  if(ABA!=='dia'&&ABA!=='resumo'&&ABA!=='cliente')return;
+  /* 3 minutos (5 na aba Avaliacoes, cujo robo le o iFood de 10 em 10), e so enquanto a aba estiver na frente.
+     Trocar de aba chama ligaTimer() de novo pelo vaiPara(), que desliga o relogio. */
   TIMER=setInterval(function(){
     if(document.visibilityState!=='visible')return;
+    if(ABA==='cliente'){avPuxa();return}
     if(ABA!=='dia'&&ABA!=='resumo'){clearInterval(TIMER);TIMER=null;return}
     puxaDia();
-  },180000);
+  },ABA==='cliente'?300000:180000);
 }
 
 async function porta(nome,dados){
@@ -302,8 +305,9 @@ function filtros(){
   /* 01/10/2026, pedido do Fabio: "reduzir o numero de telas para o pessoal" - sairam Resumo, Dia a dia,
      Por turno, Reentregas e Fora do ar (cardapios online). As contas continuam no arquivo, so sem botao.
      01/10/2026, mesmo pedido: saiu tambem o Painel do dia. */
-  const vivas=[['prazo','⏱ Prazo pelo iFood'],['pessoas','🛵 Motoboys'],['cancel','🚫 Cancelamentos'],['maq','🧾 Maquininha']];
-  const analise=[['cliente','⭐ Avaliações'],['super','🏆 Selo Super'],['neg','🤝 Negociações']];
+  /* 07/10/2026: Avaliacoes passou para AO VIVO (le a porta oficial do iFood, que o robo consulta varias vezes por hora) */
+  const vivas=[['prazo','⏱ Prazo pelo iFood'],['pessoas','🛵 Motoboys'],['cancel','🚫 Cancelamentos'],['cliente','⭐ Avaliações'],['maq','🧾 Maquininha']];
+  const analise=[['super','🏆 Selo Super'],['neg','🤝 Negociações']];
   const abaBtn=function(a){return '<button class="chip'+(ABA===a[0]?' on':'')+'" onclick="vaiPara(\''+a[0]+'\')">'+a[1]+'</button>'};
   h+='<div class="lojas"><span class="rot">AO VIVO</span>';
   vivas.forEach(function(a){h+=abaBtn(a)});
@@ -602,7 +606,7 @@ function vaiPara(a){
   if(a==='prazo'&&PZ===null){desenha();pzPuxa();return}
   if(a==='ree'&&REE===null){desenha();reePuxa();return}
   if(a==='cancel'&&(!CC||!CV)){desenha();puxaCanc();puxaCancVivo();return}
-  if(a==='cliente'&&!SU){desenha();puxaSuper();return}
+  if(a==='cliente'&&(!SU||avVelho())){desenha();if(!SU)puxaSuper();if(avVelho())avPuxa();return}
   desenha();
 }
 
@@ -818,15 +822,62 @@ function tabelaTurnos(){
   return h;
 }
 
-function falas(){
-  const F=D.cliente_falou||[];
-  if(!F.length)return '<div class="c"><div class="vazio">nenhum cliente reclamou por escrito neste período 🎉</div></div>';
-  let h='<div class="c">';
-  F.forEach(function(f){
-    h+='<div class="fala"><div class="q">"'+esc(f.comentario)+'"</div>'+
-       '<div class="w">★ '+f.nota+' · '+esc(f.marca||f.unidade)+' · '+String(f.data).slice(8,10)+'/'+String(f.data).slice(5,7)+'</div></div>';
-  });
-  h+='</div><div class="aviso">Isto é o que o cliente escreveu quando deu nota 3 ou menos. É a lista mais útil da tela: cada linha aqui é um problema real que aconteceu na cozinha ou na entrega.</div>';
+/* ===== ⭐ Avaliações, ao vivo =====
+   07/10/2026 (chat-qualidade-visual-07-10), pedido do Fabio: "agora fazer o mesmo com as avaliacoes — esse quadro
+   da pra ficar vivo". Le a porta qualidade_avaliacoes: avaliacoes que a porta oficial do iFood ja liberou (robo de
+   10 em 10 min). O iFood nao libera na hora, entao a tela diz qual e a mais nova que ja chegou e quando foi lida.
+   Mesmo desenho do Prazo: um quadro por loja e, embaixo, um cartao por avaliacao. Se atualiza sozinha (ligaTimer). */
+let AV=null, AVSEQ=0, BOOTFALHOU=false;
+async function avPuxa(){
+  /* revisao 07/10: cada busca leva um numero; resposta que chega depois de outra busca (ou de trocar de loja) e jogada fora */
+  const seq=++AVSEQ, u=UNI||null;
+  let j=null, erro=null;
+  try{ j=await porta('qualidade_avaliacoes',{unidade:u}); }catch(e){ erro=(e&&e.message)||'falhou' }
+  if(seq!==AVSEQ||u!==(UNI||null))return;
+  if(j){ AV=j; AV._t=Date.now(); }
+  else if(!AV||AV.erro)AV={erro:erro||'falhou'};
+  else AV._falhou=true;
+  /* revisao 07/10: se o carregamento principal falhou, nao desenha por cima da mensagem de erro */
+  if(ABA==='cliente'&&!BOOTFALHOU)desenha();
+}
+function avVelho(){return AV===null||!!AV.erro||!AV._t||(Date.now()-AV._t)>300000}
+/* voltou para a janela depois de um tempo com a aba Avaliacoes aberta: busca de novo na hora */
+document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible'&&ABA==='cliente'&&avVelho())avPuxa(); });
+function avNum(v){return v==null?'—':String(v).replace('.',',')}
+function avAba(){
+  if(AV===null)return '<div class="c"><div class="load">Buscando as avaliações do iFood…</div></div>';
+  if(AV.erro)return '<div class="c"><b>Não deu para buscar as avaliações.</b><div class="m">'+esc(AV.erro)+'</div></div>';
+  const parado=(AV.lido_min==null||AV.lido_min>30||AV.robo_status!=='OK'||!!AV._falhou);
+  let h='<h2>⭐ Avaliações do iFood <span class="pill '+(parado?'p-bad':'p-ok')+'">'+(parado?'leitura parada':'● ao vivo')+'</span></h2>';
+  h+='<div class="nota">Vem da porta oficial do iFood, lida sozinha várias vezes por hora'+(AV.lido_em?' (última leitura '+esc(AV.lido_em)+')':'')+
+     '. Esta aba se atualiza sozinha enquanto estiver aberta. O iFood não libera a avaliação na hora: ela chega um tempo depois do pedido'+
+     (AV.mais_nova?' — a mais nova que já chegou é de um pedido de <b>'+esc(AV.mais_nova)+'</b>':'')+'.</div>';
+  if(parado)h+='<div class="aviso"><b>'+(AV.lido_em?(AV.robo_status!=='OK'?'A última leitura do iFood ('+esc(AV.lido_em)+') deu erro.':'A leitura do iFood está parada desde '+esc(AV.lido_em)+'.'):'Não achei nenhuma leitura do iFood.')+
+     '</b> A lista pode estar velha.</div>';
+  if(AV._falhou)h+='<div class="aviso"><b>Não consegui atualizar agora.</b> Estou mostrando o que foi lido antes. Toque em Atualizar para tentar de novo.</div>';
+  const L=AV.por_loja||[];
+  if(L.length){
+    h+='<div class="cards">';
+    L.forEach(function(l){
+      h+='<div class="card"><div class="t">🏪 '+esc(l.unidade)+'</div><div class="v">★ '+avNum(l.nota_media)+'</div>'+
+         '<div class="qs">'+n(l.avaliacoes)+' avaliações · '+n(l.baixas)+' com nota 3 ou menos · '+n(l.com_comentario)+' com comentário</div></div>';
+    });
+    h+='</div>';
+    h+='<div class="nota">Quadros: nota média das avaliações dos últimos '+n(AV.dias)+' dias que o iFood já liberou.</div>';
+  } else h+='<div class="c"><div class="vazio">Nenhuma avaliação liberada pelo iFood nos últimos '+n(AV.dias)+' dias'+(UNI?' na '+esc(UNI):'')+'.</div></div>';
+  const X=AV.lista||[];
+  h+='<h2>💬 O que o cliente escreveu</h2>';
+  if(!X.length)return h+'<div class="c"><div class="vazio">Nenhum comentário nem nota baixa nos últimos '+n(AV.dias)+' dias.</div></div>';
+  h+='<div class="nota">Só aparecem as avaliações com comentário ou com nota 3 ou menos, do pedido mais novo para o mais velho ('+X.length+' na lista). Faixa vermelha: nota 1 ou 2; amarela: nota 3; verde: 4 ou 5.</div>';
+  h+='<div class="vv-lista">'+X.map(function(x){
+    const nt=Number(x.nota), cor=(nt<=2?'bad':(nt===3?'':'ok')), pl=(nt<=2?'p-bad':(nt===3?'p-warn':'p-ok'));
+    const tg=(x.tags||[]).length?'<div class="rs">Marcou: '+esc((x.tags||[]).join(' · '))+'</div>':'';
+    return vvCard(cor, String(x.pedido_em||'').slice(11,16), dData(x.pedido_em),
+      '<span class="pill '+pl+'">★ '+n(x.nota)+'</span> '+esc(x.marca||x.unidade||''),
+      '<div class="lj"><b>'+esc(x.unidade||'—')+'</b>'+(x.pedido?' · pedido '+esc(x.pedido):'')+'</div>'+
+      (x.comentario?'<div class="it" style="font-style:italic">“'+esc(x.comentario)+'”</div>':'<div class="rs">(sem comentário)</div>')+
+      tg+'<div class="fn">hora do pedido à esquerda · chegou do iFood '+esc(x.chegou||'—')+'</div>');
+  }).join('')+'</div>';
   return h;
 }
 
@@ -1136,15 +1187,17 @@ function parciais(){
 function desenha(){
   if(!D){$('app').innerHTML='<div class="load">Carregando…</div>';return}
   let h=filtros();
-  if((ABA==='super'||ABA==='cliente')&&PER!=='d7'&&PER!=='d30')
-    h+='<div class="aviso">Estas duas abas sempre olham os últimos '+DIAS+' dias, não o período escolhido acima.</div>';
+  if(ABA==='super'&&PER!=='d7'&&PER!=='d30')
+    h+='<div class="aviso">Esta aba sempre olha os últimos '+DIAS+' dias, não o período escolhido acima.</div>';
+  if(ABA==='cliente')
+    h+='<div class="aviso">Esta aba não segue o período escolhido acima: as avaliações são '+(AV&&AV.dias?'as dos últimos '+AV.dias+' dias':'as')+' que o iFood já liberou, e os motivos lá embaixo, dos últimos '+DIAS+' dias.</div>';
   if(ABA==='dia')h+=odia();
   else if(ABA==='super')h+=selo();
 
   else if(ABA==='resumo')h+=resumo()+'<h2>🏪 Por loja</h2>'+tabelaLojas();
   else if(ABA==='lojas')h+=tabelaLojas();
   else if(ABA==='turnos')h+=tabelaTurnos();
-  else if(ABA==='cliente')h+=falas()+motivos();
+  else if(ABA==='cliente')h+=avAba()+motivos();
   else if(ABA==='pausados')h+=pausados();
   else if(ABA==='dinheiro')h+=dinheiro();
   else if(ABA==='pessoas')h+=motoVivo()+(D.modo==='dono'?'<h2>🛵 Análise dos entregadores (só você)</h2>'+pessoas():'');
@@ -1161,9 +1214,9 @@ async function boot(){
   $('app').innerHTML='<div class="load">Carregando…</div>';
   const pl=$('placar'); if(pl)pl.innerHTML='<span class="pl">carregando…</span>';
   const pe=$('per'); if(pe)pe.innerHTML='<button class="b atu" onclick="boot()" title="Ler de novo">↻ Atualizar</button>';
-  DD=null;SU=null;CC=null;CV=null;NEG=null;PZ=null;
+  DD=null;SU=null;CC=null;CV=null;NEG=null;PZ=null;AV=null;AVSEQ++;BOOTFALHOU=false;
   try{ D=await puxa(); }
-  catch(e){ $('app').innerHTML='<div class="c">Não deu para carregar. '+esc(e.message||'')+'</div>'; if(pl)pl.innerHTML='<span class="pl">não carregou — toque em Atualizar</span>'; return }
+  catch(e){ BOOTFALHOU=true; $('app').innerHTML='<div class="c">Não deu para carregar. '+esc(e.message||'')+'</div>'; if(pl)pl.innerHTML='<span class="pl">não carregou — toque em Atualizar</span>'; return }
   try{ CC=await porta('qualidade_cancelamentos',{periodo:perNome(),dias:DIAS,unidade:UNI||null}); }catch(e){ CC=null }
   /* 07/10/2026: o subtitulo virou o placar de pilulas, desenhado em filtros() a cada desenho */
   desenha();
@@ -1174,6 +1227,7 @@ async function boot(){
   /* 07/10/2026 (chat-qualidade-visual-07-10), pedido do Fabio "conserta": Avaliacoes e Selo Super ficavam em
      "Buscando…" depois de trocar periodo, loja ou Atualizar, porque o boot zera o SU e ninguem buscava de novo */
   if((ABA==='super'||ABA==='cliente')&&!SU)puxaSuper();
+  if(ABA==='cliente')avPuxa();
 }
 
 /* ===== porta unica do portal ===== */
