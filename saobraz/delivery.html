@@ -275,10 +275,11 @@ function quadrosErro(){
   const ca=itensDe('cancelado');
   Q.push({id:'cancelado',em:'🚫',t:'Pedido cancelado',n:ca.length,s:ca.length?'iFood ou caixa do Saipos':'nenhum pedido cancelado',k:ca.length?'mal':'bem'});
   const v=(D&&D.aval)||{}, R=v.ruins||[];
+  /* 07/10: o iFood manda as avaliações com 1 a 2 dias de atraso — dia sem avaliação ainda é "não chegou", não zero */
+  const avNaoChegou=DIAS===1&&!v.n_periodo;
   Q.push(DERR?{id:'aval',em:'⭐',t:'Nota de 1 a 3',n:'—',s:'não carregou',k:'sd'}
+         :avNaoChegou?{id:'aval',em:'⭐',t:'Nota de 1 a 3',n:'—',s:'o iFood ainda não mandou as avaliações deste dia (chegam com 1 a 2 dias de atraso)',k:'sd'}
              :{id:'aval',em:'⭐',t:'Nota de 1 a 3',n:R.length,s:'média '+num(v.media_periodo)+' em '+(v.n_periodo||0)+' avaliações',k:R.length?'mal':'bem'});
-  Q.push(CERR?{id:'sac',em:'🎧',t:'SAC pediu ação',n:'—',s:'não carregou',k:'sd'}
-             :{id:'sac',em:'🎧',t:'SAC pediu ação',n:(C&&C.sac_total)||0,s:'motoboy ou loja precisando de alguém',k:(C&&C.sac_total)?'mal':'bem'});
   const mq=abertos(itensDe('maquininha')).length;
   Q.push({id:'maquininha',em:'🧾',t:'Maquininha',n:mq,s:mq?'cobrança na porta para conferir':'nenhuma cobrança pendente',k:mq?'mal':'bem'});
   const P=(D&&D.pausados)||[], pa=P.filter(function(x){return x.ordem==='1'||x.ordem==='2'}).length;
@@ -293,9 +294,8 @@ function quadrosRotina(){
   Q.push({id:'fechamento',em:'📋',t:'Fechamento do dia',n:ok+'/'+dev,s:'dias em que o fechamento chegou no grupo (terça não conta)',k:ok<dev?'mal':'bem'});
   const Es=(C&&C.escala)||[];
   Q.push({id:'escala',em:'📅',t:'Escala da semana',n:Es.length?'✓':'—',s:Es.length?'última: '+Es[0].quando:'não chegou nos últimos 30 dias',k:Es.length?'neutro':'mal'});
-  const G=(E&&E.grupos)||[], parados=G.filter(function(g){return g.dias==null||g.dias>1}).length;
-  Q.push({id:'whats',em:'📱',t:'WhatsApp do São Braz',n:((C&&C.falas)||[]).length,s:parados?parados+' de '+G.length+' grupos sem leitura recente':'mensagens no período',k:'neutro'});
   const B=((D&&D.aval)||{}).comentarios_bons||[];
+  if(DIAS===1&&!((D&&D.aval)||{}).n_periodo){Q.push({id:'elogios',em:'👏',t:'Elogios',n:'—',s:'as avaliações deste dia ainda não chegaram do iFood',k:'sd'});return Q}
   Q.push({id:'elogios',em:'👏',t:'Elogios',n:B.length,s:'comentários de nota 4 e 5',k:B.length?'bem':'neutro'});
   return Q;
 }
@@ -421,7 +421,7 @@ function fontes(){
     return rot+' <b'+(velho?' class="velho"':'')+'>'+esc(v)+'</b>';
   }
   return '<div class="fontes">🔄 <b>Lido por último</b> · '+[t('Gestor Web do iFood',f.gestor_web),t('chat do iFood',f.chat),t('Saipos',f.saipos),t('SAC',f.sac),
-    t('reclamações do iFood',f.negociacao,true),t('maquininha',f.maquininha,true),t('avaliações do iFood',a.avaliacao,true)+' <i class="hint">(o iFood manda com 1 a 2 dias de atraso)</i>'].join(' · ')+'</div>';
+    t('última reclamação do iFood',f.negociacao,true),t('maquininha',f.maquininha,true),t('avaliações do iFood',a.avaliacao,true)+' <i class="hint">(o iFood manda com 1 a 2 dias de atraso)</i>'].join(' · ')+'</div>';
 }
 
 /* ===== desenha ===== */
