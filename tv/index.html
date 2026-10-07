@@ -61,6 +61,7 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .p .it small{display:block;color:var(--muted);font-weight:500;font-size:.72em}
 .p .tm{color:var(--text2);font-size:.85em;white-space:nowrap}
 .cinza{color:var(--muted);font-size:.85em;margin-top:.5em;line-height:1.35}
+#pz-ok{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}   /* "de proposito" no maximo 2 linhas: o espaco e dos itens sem explicacao */
 /* META DO CHURRASCO 05-10-2026: dia verde = ate 3 erros (cozinha + montagem); 5 dias verdes sab-sex = churrasco no sabado */
 .meta{background:var(--s1);border:1px solid var(--line);border-radius:.6em;padding:.6em .8em;margin-bottom:1em}
 .meta h2{margin-bottom:.15em}
@@ -77,6 +78,22 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .meta .fr{margin-top:.5em;font-weight:800;font-size:1.05em}
 .meta .fr.ok{color:var(--ok)}.meta .fr.nao{color:var(--text2)}
 .meta .ant{color:var(--muted);font-size:.75em;margin-top:.2em}
+/* ONDE MELHORAR + O CLIENTE DISSE 07-10-2026 (Fabio: "o objetivo é mostrar os erros, e onde podemos melhorar").
+   Altura FIXA nas duas faixas: o rodizio das avaliacoes nao mexe no tamanho das listas (que sao ajustadas a tela). */
+.melhor{display:grid;grid-template-columns:auto 1fr 1fr;gap:1.2em;align-items:center;background:var(--s1);border-left:.5em solid var(--brand);border-bottom:2px solid var(--line);padding:.4em 1.2em;height:3.9em;overflow:hidden}
+.melhor.calmo{border-left-color:var(--ok)}
+.lbx{font-weight:800;font-size:.78em;text-transform:uppercase;letter-spacing:.04em;line-height:1.2}
+.melhor .lbx{color:var(--brand)}.melhor.calmo .lbx{color:var(--ok)}
+.lbx small{display:block;color:var(--muted);font-weight:500;text-transform:none;letter-spacing:0}
+.ins{min-width:0}
+.ins .ac{font-size:1.15em;font-weight:800;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ins .ev{color:var(--text2);font-size:.8em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cli{margin:0 1.2em .35em;background:var(--s1);border:1px solid var(--line);border-left:.4em solid var(--bad);border-radius:.6em;padding:.35em .9em;height:4.3em;overflow:hidden;display:grid;grid-template-columns:11em 1fr;gap:1em;align-items:center}
+.cli.bom{border-left-color:var(--ok)}.cli.nada{border-left-color:var(--muted)}
+.cli .lbx{color:var(--text2)}
+.cli .q1{font-size:.85em;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cli .q1 .st{color:var(--brand);letter-spacing:.05em}
+.cli .q2{font-style:italic;font-size:1.05em;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .rodape{padding:.25em 1.2em;color:var(--muted);font-size:.7em;background:var(--s0)}
 .alerta{color:var(--bad);font-weight:800}
 /* tela do codigo */
@@ -89,7 +106,8 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .cod input:focus{outline:none;border-color:var(--brand)}
 .cod .bt{margin-top:1em;font-size:1.3em;padding:.5em 1.6em;background:var(--brand);color:#111;border-color:var(--brand)}
 .cod .err{color:var(--bad);font-weight:700;margin-top:.8em;min-height:1.2em}
-@media (max-width:900px){html,body{height:auto}body{overflow:auto}.corpo{grid-template-columns:1fr}.topo{flex-wrap:wrap}}
+@media (max-width:900px){html,body{height:auto}body{overflow:auto}.corpo{grid-template-columns:1fr}.topo{flex-wrap:wrap}
+  .melhor,.cli{height:auto;grid-template-columns:1fr}.ins .ac,.ins .ev,.cli .q1{white-space:normal}}
 </style>
 </head>
 <body>
@@ -99,10 +117,12 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
   <div class="rt"><button class="bt" id="bt-som" onclick="som()">🔕 Ligar som</button><div class="relogio" id="relogio">--:--</div></div>
 </div>
 <div class="faixa" id="faixa"></div>
+<div class="melhor" id="melhor" style="display:none"></div>
 <div class="corpo">
   <div class="col"><h2>🔴 Erros de hoje <small id="dia"></small></h2><div class="num" id="num"></div><div class="lista" id="lista"></div><div class="mais" id="mais"></div></div>
   <div class="col"><div class="meta" id="meta"></div><h2>⏸ Fora do ar no iFood <small id="pz-st"></small></h2><div class="pz" id="pz"></div><div class="cinza" id="pz-ok"></div></div>
 </div>
+<div class="cli nada" id="cli" style="display:none"></div>
 <div class="rodape" id="rodape"></div>
 
 <div class="cod" id="cod"><div class="box">
@@ -171,6 +191,7 @@ function desenha(novos){
   $('loja').textContent=j.loja||'—';
   $('dia').textContent='dia '+(j.dia||'—')+' · das 6h às 6h';
   $('st').textContent='atualiza sozinho a cada 1 minuto · lido às '+hhmm(j.agora);
+  melhor(j.melhorar); cli(j.avaliacoes);   /* antes das listas: as faixas ocupam altura e as listas sao ajustadas depois */
   const L=j.erros||[];
   const n=s=>L.filter(e=>e.setor===s).length;
   $('num').innerHTML='<div><b>'+L.length+'</b><span>erros hoje</span></div>'
@@ -224,7 +245,8 @@ function desenha(novos){
   /* de quando e cada fonte */
   const f=j.frescor||{};
   const fx=[['Gestor Web',f.gestor_web],['Chat iFood',f.chat_ifood],['SAC',f.sac],['Grupos',f.grupos],['Negociação',f.negociacao]];
-  $('rodape').textContent='Última novidade de cada fonte: '+fx.map(x=>x[0]+' '+(x[1]?(ddmm(x[1])===ddmm(Date.now())?'':ddmm(x[1])+' ')+hhmm(x[1]):'—')).join(' · ')+' · '+(j.tv||'');
+  $('rodape').textContent='Última novidade de cada fonte: '+fx.map(x=>x[0]+' '+(x[1]?(ddmm(x[1])===ddmm(Date.now())?'':ddmm(x[1])+' ')+hhmm(x[1]):'—')).join(' · ')
+    +' · Avaliações iFood até '+((j.avaliacoes&&j.avaliacoes.ultima)||'—')+' · '+(j.tv||'');
 }
 
 /* META DO CHURRASCO (05/10/2026, Fabio escolheu "dias verdes"): o banco manda os 7 dias de sabado a sexta.
@@ -253,6 +275,58 @@ function meta(m){
     +(a?'<div class="ant">Semana passada ('+esc(a.de)+' a '+esc(a.ate)+'): '+esc(a.verdes)+' dia'+(a.verdes==1?'':'s')+' verde'+(a.verdes==1?'':'s')+(a.verdes>=alvo?' — 🎉 ganharam o churrasco!':'')+'</div>':'');
 }
 
+/* ONDE MELHORAR (07/10/2026): o banco manda os numeros crus dos 7 dias que ja fecharam; a regra de amostra minima fica
+   aqui, para a TV nunca afirmar nada com 1 ou 2 casos. Frases de acao sao fixas da tela (nunca texto do banco). */
+const FAM={sacola:['Esquecer item na sacola','Conferir item por item antes de fechar a sacola'],
+  errado:['Item trocado ou errado','Conferir a comanda antes de montar'],
+  ponto:['Ponto da carne (cru ou queimado)','Conferir o ponto da carne antes de tirar da chapa'],
+  frio:['Pedido chegou frio','Pedido pronto não espera: despachar na hora'],
+  embalagem:['Embalagem vazou ou abriu','Fechar bem a embalagem e lacrar a sacola'],
+  sabor:['Sabor ou porção','Seguir a ficha técnica: porção e tempero'],
+  grave:['Corpo estranho ou estragado','Touca, luva e bancada limpa sempre'],
+  acabou:['Item acabou sem pausar no iFood','Acabou? Avisar na hora para pausar no iFood']};
+const TEMA={frio:['comida fria','Pedido pronto não espera: despachar na hora'],
+  ponto:['ponto da carne','Conferir o ponto da carne antes de tirar da chapa'],
+  sabor:['sabor ou tempero','Seguir a ficha técnica: tempero e sal'],
+  faltou:['item faltando ou errado','Conferir item por item antes de fechar a sacola'],
+  porcao:['pouca comida','Porção certa em cada prato (ficha técnica)'],
+  embalagem:['embalagem','Fechar bem a embalagem e lacrar a sacola']};
+const MIN_FAM={n:5,dias:3,pct:35}, MIN_ITEM={n:3,dias:2}, MIN_TEMA={n:3,dias:2};
+function melhor(m){
+  const el=$('melhor'); if(!m){ el.style.display='none'; return; } el.style.display='';
+  const L=(m.familias||[])[0], it=m.item, tm=m.tema, per=esc(m.de)+' a '+esc(m.ate);
+  const okF=L&&FAM[L.fam]&&L.n>=MIN_FAM.n&&L.dias>=MIN_FAM.dias&&L.n*100>=MIN_FAM.pct*m.erros;
+  const okI=it&&it.n>=MIN_ITEM.n&&it.dias>=MIN_ITEM.dias;
+  const okT=tm&&TEMA[tm.tema]&&tm.n>=MIN_TEMA.n&&tm.dias>=MIN_TEMA.dias;
+  let a='', b='';
+  if(okF) a='<div class="ins"><div class="ac">'+esc(FAM[L.fam][1])+'</div><div class="ev">'+esc(FAM[L.fam][0])+': '+esc(L.n)+' de '+esc(m.erros)+' erros'
+    +(L.fam==='sacola'&&okI?' · o mais esquecido: '+esc(it.nome)+' ('+esc(it.n)+' vezes)':'')+'</div></div>';
+  if(okT) b='<div class="ins"><div class="ac">'+esc(TEMA[tm.tema][1])+'</div><div class="ev">Avaliações ruins do iFood: '+esc(tm.n)+' de '+esc(m.aval_ruins)+' falaram de '+esc(TEMA[tm.tema][0])+'</div></div>';
+  el.classList.toggle('calmo',!a&&!b);
+  if(!a&&!b) a='<div class="ins"><div class="ac">Nenhum erro se repetiu o bastante para virar alerta</div><div class="ev">'+esc(m.erros)+' erros na semana · continuem conferindo cada pedido</div></div>';
+  el.innerHTML='<div class="lbx">🎯 Onde melhorar<small>últimos 7 dias · '+per+'</small></div>'+a+(b||'<div></div>');
+}
+
+/* O CLIENTE DISSE (07/10/2026): o iFood libera a avaliacao ~1 dia depois, entao nada aqui e "de hoje":
+   cada avaliacao mostra a data dela e a do pedido. Uma por vez, troca a cada 15 s; ruins primeiro, depois 1 elogio. */
+let CLI=null, CLI_I=0;
+function cli(av){ CLI=av||null; cliMostra(); }
+function curta(m){ return String(m||'').replace(/\s*-?\s*[ÁA]GUA VERDE\s*$/i,'').replace(/\s+AV$/i,''); }
+function cliMostra(){
+  const el=$('cli'); const av=CLI; if(!av){ el.style.display='none'; return; } el.style.display='';
+  const h=av.hoje||{};
+  const lb='<div class="lbx">⭐ O cliente disse<small>'+(h.n?'chegaram hoje: '+esc(h.n)+' · média '+esc(String(h.media).replace('.',','))+(h.ruins?' · <b style="color:var(--bad)">'+esc(h.ruins)+(h.ruins>1?' ruins':' ruim')+'</b>':' · nenhuma ruim'):'nenhuma chegou hoje ainda')+'</small></div>';
+  const fila=(av.ruins||[]).slice(); if(av.elogio) fila.push(Object.assign({elogio:true,nota:5},av.elogio));
+  if(!fila.length){ el.className='cli nada'; el.innerHTML=lb+'<div><div class="q2" style="font-style:normal">Nenhuma avaliação ruim nos últimos 3 dias. 👏</div></div>'; return; }
+  const r=fila[CLI_I%fila.length];
+  const st='★'.repeat(r.nota)+'☆'.repeat(Math.max(0,5-r.nota));
+  const sobre=r.elogio?'👏 elogio':(r.titulo?esc(r.titulo):(r.tags&&r.tags.length?esc(r.tags.slice(0,3).join(', ')):''));
+  el.className='cli'+(r.elogio?' bom':'');
+  el.innerHTML=lb+'<div><div class="q1"><span class="st">'+st+'</span> · avaliou '+esc(r.dia)+(r.pedido?' · pedido '+esc(r.pedido)+(r.pedido_dia?' de '+esc(r.pedido_dia):''):'')+(r.marca?' · '+esc(curta(r.marca)):'')+(sobre?' · '+sobre:'')
+    +(fila.length>1?' · '+((CLI_I%fila.length)+1)+'/'+fila.length:'')+'</div>'
+    +'<div class="q2">'+(r.disse?'“'+esc(r.disse)+'”':'<span style="font-style:normal;color:var(--muted)">(sem comentário escrito)</span>')+'</div></div>';
+}
+
 /* som: o navegador so deixa tocar depois de um clique; o botao liga e guarda a escolha */
 let AC=null;
 function som(){
@@ -276,6 +350,7 @@ document.addEventListener('visibilitychange',function(){ if(document.visibilityS
 (function(){
   botaoSom(); relogio(); setInterval(relogio,15000); acordada();
   setInterval(function(){ if(DADO) desenha([]); },60000);           /* "ha X min" e NOVO andam mesmo sem dado novo */
+  setInterval(function(){ if(CLI){ CLI_I++; cliMostra(); } },15000);  /* troca a avaliacao; a faixa tem altura fixa */
   /* pega versao nova da tela a cada 6 h, so com internet e leitura boa (senao a TV ficaria presa na pagina de erro) */
   setInterval(function(){ if(performance.now()>6*3600*1000 && navigator.onLine!==false && Date.now()-ULT_OK<5*60000) location.reload(); }, 10*60000);
   let c=''; try{ c=limpa(decodeURIComponent((location.hash||'').replace(/^#(k=)?/i,''))); }catch(e){ c=''; }
