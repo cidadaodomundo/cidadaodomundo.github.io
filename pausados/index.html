@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="/assets/chaves.js?v=1"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Produtos pausados · Cidadão do Mundo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/cdm-ui.css?v=4">
+<style>
+/* 05/10/2026 (chat-pausados-limpeza-05-10), pedido do Fabio: "uma nova aba so de produtos pausados, e dentro dela
+   Salao tablets e Delivery iFood e Accon". Mesmo visual de cartoes do Resolver hoje. */
+.per{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:7px 11px;font-size:13px;font-weight:700}
+button.b:hover{border-color:var(--text2)}
+.c{display:block;background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:10px}
+.c:hover{border-color:var(--line)}
+.c .vazio{padding:16px 0;font-size:14px}
+.m{color:var(--muted);font-size:12px;margin-top:3px}
+.load{color:var(--muted);padding:40px 10px;text-align:center}
+.lojas{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
+.lojas .rot{color:var(--muted);font-size:12px;font-weight:800;margin-right:2px}
+.lojas .chip{padding:7px 13px}
+.chip.on{background:#fff;color:#111;border-color:#fff}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.cards>*{min-width:0}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:14px 15px;color:var(--text);display:flex;flex-direction:column;gap:3px;cursor:pointer;transition:border-color .15s,transform .08s}
+.card:hover{border-color:#5a5952}
+.card:active{transform:scale(.98)}
+.card .t{font-size:13px;font-weight:800;color:var(--text2);line-height:1.3}
+.card .v{font-family:'Anton',Impact,sans-serif;font-weight:400;font-size:42px;line-height:1.05;margin:0}
+.card .qs{color:var(--muted);font-size:12px;font-weight:700;line-height:1.35}
+.card.mal{border-left:4px solid var(--bad)}
+.card.mal .v{color:#ff8a8a}
+.card.bem .v{color:#7fe0aa}
+.card.sd{border-style:dashed}
+.card.sd .v{color:var(--muted)}
+.card.on{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand) inset}
+.painel{margin-top:14px}
+.painel .ph{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:10px}
+.painel .ph h3{font-family:'Anton',Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:19px;letter-spacing:.02em}
+.painel .ph .ct{color:var(--muted);font-size:13px;font-weight:600}
+.nota{color:var(--muted);font-size:12px;margin-top:12px;line-height:1.5}
+.filtros{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td{padding:9px 8px 9px 0;vertical-align:top}
+.mini{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:6px 11px;font-size:12.5px;font-weight:700}
+.mini:hover{border-color:var(--text2)}
+.feito{color:#7fe0aa;font-weight:700}
+.parado{border:1px solid rgba(230,103,103,.5);border-left:5px solid var(--bad);background:#2a1716;border-radius:12px;padding:14px 16px}
+.parado b{color:#ff9a9a}
+@media (max-width:640px){.cards{grid-template-columns:minmax(0,1fr)}.card .v{font-size:34px}}
+/* cartoes iguais aos do Resolver hoje */
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700}
+.p-ok{background:rgba(47,174,106,.15);color:var(--ok)}
+.p-bad{background:rgba(230,103,103,.15);color:var(--bad)}
+.vv-lista{display:grid;gap:10px}
+table.vv{background:var(--s1);border:1px solid var(--line);border-left:5px solid var(--bad);border-radius:12px;border-collapse:separate;border-spacing:0}
+table.vv.ok{border-left-color:var(--ok)}
+table.vv td{border-top:0;padding:12px 14px;vertical-align:top}
+table.vv td.hrc{width:72px;padding-right:0}
+table.vv td.sit{width:250px}
+.vv .hr{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;line-height:1;white-space:nowrap}
+.vv .ha{color:var(--muted);font-size:11.5px;margin-top:3px}
+.vv .tt{font-size:17px;font-weight:800;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vv .lj{color:var(--text2);font-size:13px;margin-top:2px}
+.vv .ds{margin-top:6px;font-size:14px;color:var(--text);font-style:italic}
+.vv .it{margin-top:3px;font-size:12.5px;color:var(--text2)}
+.vv .rs{margin-top:6px;font-size:12px;color:var(--muted)}
+.vv .fn{margin-top:2px;font-size:11px;color:var(--muted)}
+.vv .vbt{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+.p-warn{background:rgba(201,133,0,.15);color:var(--warn)}
+.p-off{background:rgba(138,137,126,.15);color:var(--muted)}
+div.vv{background:var(--s1);border:1px solid var(--line);border-left:5px solid var(--warn);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px}
+div.vv.s-cozinha{border-left-color:var(--bad)}
+div.vv.s-expedição{border-left-color:var(--muted)}
+div.vv.grave{border-color:var(--bad);background:#2a1716}
+table.vv.pzv{border-left-color:var(--warn)}
+@media (max-width:640px){div.vv{grid-template-columns:56px minmax(0,1fr);gap:8px;padding:12px 10px}table.vv,table.vv tbody{display:block}table.vv tr{display:grid;grid-template-columns:64px minmax(0,1fr)}table.vv td{padding:12px 10px}table.vv td.hrc{padding-right:0}.vv .hr{font-size:21px}table.vv td.sit{grid-column:1/-1;width:auto;padding-top:0}table.vv td.hrc{width:auto}}
+
+table.vv.pzv{border-left-color:var(--warn)}
+div.vv.esc{border-left-color:var(--muted)}
+table.vv.esc{border-left-color:var(--muted)}
+div.vv.tb{grid-template-columns:88px minmax(0,1fr)}
+div.vv.tb .hr{font-size:21px}
+@media (max-width:640px){div.vv.tb{grid-template-columns:70px minmax(0,1fr)}div.vv.tb .hr{font-size:18px}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<div class="top">
+  <div>
+    <h1>⏸️ Produtos pausados</h1>
+    <div class="placar" id="placar"><span class="pl">carregando…</span></div>
+  </div>
+  <div class="rt per"><button class="b" onclick="boot()" title="Ler de novo">↻ Atualizar</button></div>
+</div>
+
+<div id="app"><div class="load">Carregando…</div></div>
+</div>
+
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
+/* PZD = resposta da porta pausados_consulta (somente leitura) */
+let PZD=null, UNI='', ABA='ifood', PZF='PRECISA', TBF='TODOS', PZG=[];
+try{ var a0=new URLSearchParams(location.search).get('aba')||localStorage.getItem('cdm_pausados_aba'); if(['salao','ifood','accon'].indexOf(a0)>=0) ABA=a0; }catch(e){}
+/* 07/10/2026, pedido do Fábio: o Diego vê só o São Braz (menu São Braz > Pausados · São Braz abre esta tela com ?loja=sb).
+   Com ?loja= a loja fica fixa e os botões das outras lojas somem. É recorte de VISÃO, não cadeado. */
+let FIXA='';
+try{ FIXA=({sb:'São Braz',av:'Água Verde',ahu:'Ahú'})[new URLSearchParams(location.search).get('loja')]||''; if(FIXA) UNI=FIXA; }catch(e){}
+
+async function porta(nome,dados){
+  const r=await fetch(SB+'rpc/'+nome,{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:tok(),p_dados:dados||{}})});
+  if(!r.ok){let m='';try{const j=await r.json();m=(j&&(j.message||j.hint))||''}catch(e){}throw new Error(m||('porta '+r.status))}
+  return await r.json();
+}
+function tempoFora(m){
+  if(m==null) return '?';
+  if(m<60) return m+' min';
+  if(m<1440) return Math.floor(m/60)+'h'+(m%60<10?'0':'')+(m%60);
+  var d=Math.floor(m/1440), h=Math.floor((m%1440)/60);
+  return d+(d===1?' dia':' dias')+(h?' e '+h+'h':'');
+}
+function daLoja(x){ return !UNI || x.unidade===UNI; }
+function abre(a){ ABA=a; try{localStorage.setItem('cdm_pausados_aba',a)}catch(e){} desenha(); }
+
+/* ================= DELIVERY · iFOOD =================
+   Mesmo criterio do Resolver hoje > Cardapio pausado: um cartao por item e loja (marcas juntas, a resposta da loja
+   ja vale para todas), so o que espera a loja na lista; o resto atras dos botoes. Grava pela porta pausados_marcar,
+   na mesma chave do Resolver hoje (as respostas sao as mesmas nas duas telas). */
+/* 05/10/2026: opcoes iguais nas tres abas. MOT_PZ = o que grava (o banco reconhece pelo comeco do texto);
+   ROT_PZ = o que aparece no botao. "Pode excluir do cardapio" (resposta antiga) continua valendo e aparece como "Item não existe mais". */
+var MOT_PZ=['Despausei','Acabou, vai voltar a vender','Pausado de proposito','Item nao existe mais (pode excluir)'];
+var ROT_PZ=['Despausei','Acabou, volta a vender','Pausado de propósito','Item não existe mais'];
+function rotMot(t){ t=String(t||''); if(/^Pausado de proposito/i.test(t)) return 'Pausado de propósito'+t.slice(20);
+  if(/^(Item nao existe|Pode excluir)/i.test(t)) return 'Item não existe mais'; return t; }
+function pzGrupos(){
+  var ls=((PZD&&PZD.linhas)||[]).filter(daLoja), m={}, out=[];
+  ls.forEach(function(x){
+    var k=(x.aberta?'A|':'V|')+x.unidade+'|'+String(x.item||'').trim().toLowerCase();
+    var g=m[k];
+    if(!g){ g=m[k]={unidade:x.unidade,item:x.item,aberta:x.aberta,chave:x.chave,resolvido:x.resolvido,contradito:x.contradito,
+                     quem:x.quem,o_que:x.o_que,em:x.em,prova:x.prova,marcas:[],compl:true,minutos:x.minutos,pausou:x.pausou,minimo:x.minimo,voltou:x.voltou};
+           out.push(g); }
+    if(g.marcas.indexOf(x.marca)<0) g.marcas.push(x.marca);
+    if(x.tipo!=='Complemento') g.compl=false;
+    if((x.minutos||0)>(g.minutos||0)){ g.minutos=x.minutos; g.pausou=x.pausou; g.minimo=x.minimo; }
+    if(x.contradito) g.contradito=true;
+    if(!x.resolvido) g.resolvido=false;
+    if(!g.prova && x.prova) g.prova=x.prova;
+  });
+  out.forEach(function(g){
+    g.sit = !g.aberta ? 'VOLTOU' : g.contradito ? 'CONTRA' : g.resolvido ? 'RESP' : (g.quem ? 'VENCIDA' : 'SEM');
+  });
+  var ord={CONTRA:0,SEM:1,VENCIDA:2,RESP:3,VOLTOU:4};
+  out.sort(function(a,b){ return (ord[a.sit]-ord[b.sit]) || ((a.minutos||0)-(b.minutos||0)); });
+  return out;
+}
+async function marcaPz(i,k){
+  var g=PZG[i]; if(!g||!g.chave) return;
+  try{ await porta('pausados_marcar',{chave:g.chave,unidade:g.unidade,o_que_foi_feito:MOT_PZ[k]}); }
+  catch(e){ alert('Nao consegui gravar: '+e.message); return; }
+  boot();
+}
+async function reabrePz(i){
+  var g=PZG[i]; if(!g||!g.chave) return;
+  try{ await porta('pausados_marcar',{chave:g.chave,desfazer:true}); }
+  catch(e){ alert('Nao consegui reabrir: '+e.message); return; }
+  boot();
+}
+function cartaoPz(g,i){
+  var pill={SEM:'<span class="pill p-bad">sem resposta da loja</span>',
+            VENCIDA:'<span class="pill p-warn">'+(/^Acabou/i.test(g.o_que||'')?'disseram que voltava · continua pausado':/^Pausei/i.test(g.o_que||'')?'avisaram que pausou, sem motivo':/^Despausar/i.test(g.o_que||'')?'pediram para despausar':'resposta antiga · pausou de novo')+'</span>',
+            CONTRA:'<span class="pill p-bad">disseram que despausou · iFood ainda pausado</span>',
+            RESP:'<span class="pill p-ok">respondido</span>',
+            VOLTOU:'<span class="pill p-ok">voltou ao ar</span>'}[g.sit];
+  var hora=String(g.pausou||'').slice(6)||'—', dia=String(g.pausou||'').slice(0,5);
+  var ok=(g.sit==='RESP'||g.sit==='VOLTOU'), sit;
+  if(g.sit==='VOLTOU') sit='<span class="feito">&#10004; voltou '+esc(g.voltou||'')+'</span><div class="m">ficou fora '+tempoFora(g.minutos)+'</div>';
+  else if(g.sit==='RESP') sit='<span class="feito">&#10004; '+esc(g.quem||'')+'</span><div class="m">'+esc(g.em||'')+' &#183; '+esc(rotMot(g.o_que))+'</div>'+
+      '<button class="mini" style="margin-top:6px" onclick="reabrePz('+i+')">reabrir</button>';
+  else sit=((g.sit==='VENCIDA'||g.sit==='CONTRA')?'<div class="m" style="margin-bottom:6px">'+esc(g.quem||'')+' em '+esc(g.em||'')+': '+esc(rotMot(g.o_que))+'</div>':'')+
+      MOT_PZ.map(function(m,k){ return '<button class="mini" style="margin:0 4px 4px 0" onclick="marcaPz('+i+','+k+')">'+esc(ROT_PZ[k])+'</button>' }).join('');
+  return '<table class="vv'+(ok?' ok':'')+(g.sit==='VENCIDA'?' pzv':'')+'" data-cdm-livre><tr data-cdm-chave="'+esc(g.unidade+' | '+g.item)+'">'+
+    '<td class="hrc"><div class="hr">'+esc(hora)+'</div><div class="ha">'+esc(dia)+'</div></td>'+
+    '<td><div class="tt">'+esc(g.item)+' '+pill+(g.compl?' <span class="pill p-off">complemento</span>':'')+'</div>'+
+      '<div class="lj"><b>'+esc(g.unidade||'')+'</b> &#183; '+esc(g.marcas.join(' · '))+'</div>'+
+      '<div class="rs">'+(g.sit==='VOLTOU'?'Pausou '+(g.minimo?'antes de ':'')+esc(g.pausou||'?'):'Pausado há '+(g.minimo?'pelo menos ':'')+tempoFora(g.minutos))+'</div>'+
+      (g.prova?'<div class="fn">&#128233; '+esc(g.prova)+'</div>':'')+
+    '</td><td class="sit">'+sit+'</td></tr></table>';
+}
+function contaIfood(gs){
+  var c={PRECISA:0,RESP:0,VOLTOU:0};
+  gs.forEach(function(g){ if(g.sit==='RESP') c.RESP++; else if(g.sit==='VOLTOU') c.VOLTOU++; else c.PRECISA++; });
+  return c;
+}
+function painelIfood(){
+  var gs=pzGrupos(); PZG=gs;
+  var conta=contaIfood(gs);
+  var abas=[['PRECISA','🔴 Esperando a loja','var(--bad)'],['RESP','✔ Já respondidos','var(--ok)'],['VOLTOU','✅ Voltaram ao ar hoje','var(--ok)']];
+  var ver=function(g){ return PZF==='PRECISA' ? (g.sit!=='RESP'&&g.sit!=='VOLTOU') : g.sit===PZF; };
+  var vazio={PRECISA:'Nenhum item pausado esperando a loja. Tudo que está pausado foi respondido.',RESP:'Nenhum item respondido.',VOLTOU:'Nada voltou ao ar hoje.'}[PZF];
+  return '<div class="filtros">'+
+      abas.map(function(f){
+        return '<button class="mini" onclick="PZF=&quot;'+f[0]+'&quot;;desenha()"'+
+          ' style="'+(PZF===f[0]?'background:#fff;color:#111;border-color:#fff;':'')+'">'+f[1]+' <b style="color:'+f[2]+'">'+conta[f[0]]+'</b></button>';
+      }).join('')+
+    '</div>'+
+    /* revisao do supervisor: sem leitura boa nos ultimos 2 dias a porta devolve lido_min nulo — isso tambem e parado */
+    ((PZD.lido_min==null||PZD.lido_min>20)?'<div class="parado" style="margin-bottom:10px"><b>'+(PZD.lido_min==null?'O iFood não é lido há mais de 2 dias.':'A leitura do iFood está parada há '+tempoFora(PZD.lido_min)+'.')+'</b> A lista pode estar velha.</div>':'')+
+    (conta[PZF]
+      ? '<div class="vv-lista">'+gs.map(function(g,i){ return ver(g)?cartaoPz(g,i):''; }).join('')+'</div>'
+      : '<div class="c"><div class="vazio">'+vazio+'</div></div>')+
+    '<div class="nota">Lido direto do iFood a cada 5 minutos (última leitura '+esc(PZD.lido_em||'?')+'). Cada item aparece uma vez por loja, com todas as marcas em que está pausado. '+
+    '"Pausado de propósito" e "Item não existe mais" tiram o item da lista; ele só volta se voltar ao ar e pausar de novo. "Acabou, volta a vender" volta a cobrar depois de 2 dias. '+
+    'As respostas são as mesmas do Resolver hoje: marcar aqui vale lá, e o contrário também. O robô também lê o WhatsApp.</div>';
+}
+
+/* ================= SALAO (TABLETS) E ACCON =================
+   05/10/2026, pedido do Fabio: "colocar botoes, opcoes igual tem no quadro do Resolver" tambem no tablet e no Accon.
+   Tablet da mesa (Goomer), so Agua Verde e Sao Braz, lido 1 vez por dia pela varredura do cardapio (cardapio_pausado).
+   Pausado = o cliente ve e nao consegue pedir; escondido = o cliente nem ve. A resposta da loja grava pela mesma
+   porta do iFood (pausados_marcar), com chave propria do canal ('pausado:<loja>|Tablet|<item>' / '|Accon|'). */
+var CANAL={salao:{dado:'tablet',nome:'tablet da mesa'},accon:{dado:'accon',nome:'Accon'}};
+var GRC={salao:[],accon:[]}, FILC={salao:'PRECISA',accon:'PRECISA'};
+/* o mesmo item pode vir PAUSADO e ESCONDIDO ao mesmo tempo (duas linhas): vira um cartao so.
+   Se esta escondido o cliente nem ve, entao conta como escondido, com o aviso de que tambem esta pausado. */
+function canalGrupos(kind){
+  var m={}, out=[];
+  ((PZD&&PZD[CANAL[kind].dado])||[]).filter(daLoja).forEach(function(x){
+    var k=x.unidade+'|'+String(x.item||'').trim().toLowerCase(), g=m[k];
+    if(!g){ g=m[k]={unidade:x.unidade,marca:x.marca,item:x.item,tipo:x.tipo,estado:x.estado,desde:x.desde,dias:x.dias,ambos:false,
+                     chave:x.chave,resolvido:x.resolvido,contradito:x.contradito,quem:x.quem,o_que:x.o_que,em:x.em}; out.push(g); return; }
+    if(g.estado!==x.estado) g.ambos=true;
+    if(x.estado==='escondido') g.estado='escondido';
+    if((+x.dias||0)>(+g.dias||0)){ g.dias=x.dias; g.desde=x.desde; }
+    if(x.contradito) g.contradito=true;
+    if(!x.resolvido) g.resolvido=false;
+  });
+  out.forEach(function(g){ g.sit = g.contradito ? 'CONTRA' : g.resolvido ? 'RESP' : (g.quem ? 'VENCIDA' : 'SEM'); });
+  var ord={CONTRA:0,SEM:1,VENCIDA:2,RESP:3};
+  out.sort(function(a,b){ return (ord[a.sit]-ord[b.sit]) || (a.estado===b.estado?0:(a.estado==='pausado'?-1:1)) || ((+b.dias||0)-(+a.dias||0)); });
+  return out;
+}
+function tabLinhas(){ return canalGrupos('salao'); }
+async function marcaC(kind,i,k){
+  var g=GRC[kind][i]; if(!g||!g.chave) return;
+  try{ await porta('pausados_marcar',{chave:g.chave,unidade:g.unidade,o_que_foi_feito:MOT_PZ[k]}); }
+  catch(e){ alert('Nao consegui gravar: '+e.message); return; }
+  boot();
+}
+async function reabreC(kind,i){
+  var g=GRC[kind][i]; if(!g||!g.chave) return;
+  try{ await porta('pausados_marcar',{chave:g.chave,desfazer:true}); }
+  catch(e){ alert('Nao consegui reabrir: '+e.message); return; }
+  boot();
+}
+function cartaoC(kind,g,i){
+  var pz=(g.estado==='pausado'), d=+g.dias||0, ok=(g.sit==='RESP'), sit;
+  var resp={SEM:'<span class="pill p-bad">sem resposta da loja</span>',
+            VENCIDA:'<span class="pill p-warn">'+(/^Acabou/i.test(g.o_que||'')?'disseram que voltava · continua '+(pz?'pausado':'escondido'):'resposta antiga')+'</span>',
+            CONTRA:'<span class="pill p-bad">disseram que despausou · continua '+(pz?'pausado':'escondido')+'</span>',
+            RESP:'<span class="pill p-ok">respondido</span>'}[g.sit];
+  if(ok) sit='<span class="feito">&#10004; '+esc(g.quem||'')+'</span><div class="m">'+esc(g.em||'')+' &#183; '+esc(rotMot(g.o_que))+'</div>'+
+      '<button class="mini" style="margin-top:6px" onclick="reabreC(&quot;'+kind+'&quot;,'+i+')">reabrir</button>';
+  else sit=((g.sit==='VENCIDA'||g.sit==='CONTRA')?'<div class="m" style="margin-bottom:6px">'+esc(g.quem||'')+' em '+esc(g.em||'')+': '+esc(rotMot(g.o_que))+'</div>':'')+
+      MOT_PZ.map(function(m,k){ return '<button class="mini" style="margin:0 4px 4px 0" onclick="marcaC(&quot;'+kind+'&quot;,'+i+','+k+')">'+esc(ROT_PZ[k])+'</button>' }).join('');
+  return '<table class="vv'+(ok?' ok':(g.sit==='VENCIDA'?' pzv':(pz?'':' esc')))+'" data-cdm-livre><tr data-cdm-chave="'+esc(g.unidade+' | '+CANAL[kind].nome+' | '+g.item)+'">'+
+    '<td class="hrc"><div class="hr">'+(d?d+'d':'hoje')+'</div><div class="ha">desde '+esc(g.desde||'?')+'</div></td>'+
+    '<td><div class="tt">'+esc(g.item)+' '+resp+'</div>'+
+      '<div class="lj"><b>'+esc(g.unidade||'')+'</b>'+(g.marca?' &#183; '+esc(g.marca):'')+'</div>'+
+      '<div class="rs">'+(pz?'<b style="color:#ff9a9a">Pausado</b> — o cliente vê e não consegue pedir':'<b>Escondido</b> — o cliente nem vê')+
+        (g.ambos?' (também está pausado)':'')+(g.tipo==='Complemento'?' · complemento':'')+' · há '+(d?d+(d===1?' dia':' dias'):'menos de 1 dia')+'</div>'+
+    '</td><td class="sit">'+sit+'</td></tr></table>';
+}
+function contaC(gs){ var c={PRECISA:0,RESP:0}; gs.forEach(function(g){ if(g.sit==='RESP') c.RESP++; else c.PRECISA++; }); return c; }
+function listaC(kind){
+  var gs=canalGrupos(kind); GRC[kind]=gs;
+  var conta=contaC(gs), F=FILC[kind];
+  var ver=function(g){ return F==='RESP' ? g.sit==='RESP' : g.sit!=='RESP'; };
+  return '<div class="filtros">'+[['PRECISA','🔴 Esperando a loja','var(--bad)'],['RESP','✔ Já respondidos','var(--ok)']].map(function(f){
+      return '<button class="mini" onclick="FILC.'+kind+'=&quot;'+f[0]+'&quot;;desenha()" style="'+(F===f[0]?'background:#fff;color:#111;border-color:#fff;':'')+'">'+f[1]+' <b style="color:'+f[2]+'">'+conta[f[0]]+'</b></button>';
+    }).join('')+'</div>'+
+    (conta[F] ? '<div class="vv-lista">'+gs.map(function(g,i){ return ver(g)?cartaoC(kind,g,i):''; }).join('')+'</div>'
+              : '<div class="c"><div class="vazio">'+(F==='RESP'?'Nenhum item respondido.':'Nada esperando a loja. Tudo que está pausado ou escondido foi respondido.')+'</div></div>');
+}
+function painelSalao(){
+  var lidos=((PZD&&PZD.tablet_lido)||[]).filter(daLoja);
+  var velho=lidos.filter(function(l){ return (+l.dias||0)>=2; });
+  return (velho.length?'<div class="parado" style="margin-bottom:10px"><b>Tablet sem leitura há '+velho.map(function(l){return esc(l.unidade)+' ('+l.dias+' dias)'}).join(', ')+'.</b> A lista dessa loja pode estar velha.</div>':'')+
+    (UNI==='Ahú'?'<div class="c"><div class="vazio">O Ahú não tem tablet de mesa.</div></div>':listaC('salao'))+
+    '<div class="nota">Tablet da mesa (Goomer) da Água Verde e do São Braz, lido uma vez por dia pela varredura do cardápio'+
+    (lidos.length?' (última leitura: '+lidos.map(function(l){return esc(l.unidade)+' '+esc(l.lido)}).join(' · ')+')':'')+'. '+
+    '<b>Pausado</b> é o pior caso: o cliente vê o item e não consegue pedir. <b>Escondido</b> o cliente nem vê — costuma ser esquecimento de quem escondeu. '+
+    '"Pausado de propósito" e "Item não existe mais" tiram o item da lista enquanto ele continuar assim. "Acabou, volta a vender" volta a cobrar em 2 dias. '+
+    '"Despausei" vale até a próxima leitura: se o tablet ainda mostrar o item fora, ele volta em vermelho.</div>';
+}
+/* Accon: decisao do Fabio 05/10 - enquanto nao for lido (desde 26/08 o login pede captcha), mostra o aviso de parado
+   e NAO mostra a lista velha. A porta so manda a lista do Accon se ele foi lido nos ultimos 2 dias; ai entram os botoes. */
+function acconAtivo(){ return !!(PZD && PZD.accon_dias!=null && PZD.accon_dias<=2); }
+function painelAccon(){
+  if(acconAtivo()) return listaC('accon')+'<div class="nota">Site próprio (Accon), última leitura '+esc(PZD.accon_lido||'?')+'. Mesmas respostas do tablet e do iFood.</div>';
+  var dt=PZD&&PZD.accon_lido, d=PZD&&PZD.accon_dias;
+  return '<div class="parado"><b>O Accon não está sendo lido'+(dt?' desde '+esc(dt)+' ('+esc(d)+' dias)':'')+'.</b>'+
+    '<div class="m" style="color:var(--text2);font-size:13px;margin-top:6px">O login do Accon pede uma confirmação de "não sou um robô", e o robô não consegue passar sozinho. '+
+    'Por isso os itens pausados no site próprio (Accon) não aparecem aqui. A lista antiga não é mostrada para não parecer que é de hoje. '+
+    'Quando o robô voltar a ler, a lista aparece aqui com os mesmos botões.</div></div>';
+}
+
+/* ================= QUADROS E TELA ================= */
+function cardAba(id,ic,rot,n,sub,tipo){
+  return '<div class="card '+tipo+(ABA===id?' on':'')+'" onclick="abre(&quot;'+id+'&quot;)" title="Abrir">'+
+    '<div class="t">'+ic+' '+rot+'</div><div class="v">'+n+'</div>'+sub+'</div>';
+}
+function desenha(){
+  if(PZD===null){ $('app').innerHTML='<div class="load">Carregando…</div>'; return }
+  if(PZD.erro){ $('app').innerHTML='<div class="c"><b>Não deu para carregar.</b><div class="m">'+esc(PZD.erro)+' — entre no portal de novo e tente outra vez.</div></div>'; return }
+  var lj=function(n,r){ return '<button class="chip'+(UNI===n?' on':'')+'" onclick="UNI=&quot;'+n+'&quot;;desenha()">'+(r||n)+'</button>' };
+  var ci=contaIfood(pzGrupos());
+  var tb=tabLinhas(), tbc=contaC(tb), tbp=tb.filter(function(x){return x.estado==='pausado'&&x.sit!=='RESP'}).length;
+  var ac=acconAtivo()?contaC(canalGrupos('accon')):null;
+  var h='<div class="lojas"><span class="rot">LOJA</span>'+(FIXA?lj(FIXA):lj('','Todas')+lj('Água Verde')+lj('Ahú')+lj('São Braz'))+'</div>'+
+    '<div class="cards">'+
+      cardAba('salao','🍽','Salão · tablets', tbc.PRECISA,
+        '<div class="qs" style="color:'+(tbc.PRECISA?'#ff9a9a':'#7fe0aa')+'">'+(tbc.PRECISA?'itens esperando a loja':'todos respondidos')+'</div>'+
+        (tbp?'<div class="qs">'+tbp+' pausados (o cliente vê e não pede)</div>':'')+
+        (tbc.RESP?'<div class="qs">'+tbc.RESP+' já respondidos (fora da lista)</div>':''), tbc.PRECISA?'mal':'bem')+
+      cardAba('ifood','🛵','Delivery · iFood', ci.PRECISA,
+        '<div class="qs" style="color:'+(ci.PRECISA?'#ff9a9a':'#7fe0aa')+'">'+(ci.PRECISA?'itens esperando a loja':'todos respondidos')+'</div>'+
+        (ci.RESP?'<div class="qs">'+ci.RESP+' já respondidos (fora da lista)</div>':''), ci.PRECISA?'mal':'bem')+
+      (ac ? cardAba('accon','🌐','Accon · site próprio', ac.PRECISA,
+              '<div class="qs" style="color:'+(ac.PRECISA?'#ff9a9a':'#7fe0aa')+'">'+(ac.PRECISA?'itens esperando a loja':'todos respondidos')+'</div>', ac.PRECISA?'mal':'bem')
+          : cardAba('accon','🌐','Accon · site próprio', '—',
+              '<div class="qs" style="color:#ff9a9a">sem leitura'+(PZD.accon_lido?' desde '+esc(PZD.accon_lido):'')+'</div>', 'sd'))+
+    '</div>';
+  var tit={salao:'🍽 Salão · tablets da mesa',ifood:'🛵 Delivery · iFood',accon:'🌐 Accon · site próprio'}[ABA];
+  var corpo= ABA==='salao'?painelSalao() : ABA==='accon'?painelAccon() : painelIfood();
+  h+='<div class="painel"><div class="ph"><h3>'+tit+'</h3></div>'+corpo+'</div>';
+  $('app').innerHTML=h;
+}
+function placar(h){ var p=$('placar'); if(p) p.innerHTML=h; }
+async function boot(){
+  placar('<span class="pl">carregando…</span>');
+  PZD=null; desenha();
+  try{ PZD=await porta('pausados_consulta',{}); }
+  catch(e){ PZD={erro:(e&&e.message)||'erro'}; placar('<span class="pl" style="border-color:rgba(230,103,103,.5);color:#ff9a9a">'+esc(PZD.erro)+'</span>'); desenha(); return }
+  PZD=PZD||{};
+  placar('<span class="pl"'+((PZD.lido_min==null||PZD.lido_min>20)?' style="border-color:rgba(230,103,103,.5)"':'')+'>iFood lido <b>'+esc(PZD.lido_em||'há mais de 2 dias')+'</b></span>'+
+    ((PZD.tablet_lido||[]).filter(daLoja).length?'<span class="pl">tablet lido <b>'+(PZD.tablet_lido||[]).filter(daLoja).map(function(l){return esc(l.lido)}).filter(function(v,i,a){return a.indexOf(v)===i}).join(' / ')+'</b></span>':'')+
+    (acconAtivo()?'<span class="pl">Accon lido <b>'+esc(PZD.accon_lido)+'</b></span>'
+      :'<span class="pl" style="border-color:rgba(230,103,103,.5)">Accon <b style="color:#ff9a9a">parado'+(PZD.accon_lido?' desde '+esc(PZD.accon_lido):'')+'</b></span>'));
+  desenha();
+}
+/* ===== porta unica do portal ===== */
+const CDMMODS=['pausados','sbpausados'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'pausados'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(ok)boot()});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
