@@ -63,9 +63,9 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .cinza{color:var(--muted);font-size:.85em;margin-top:.5em;line-height:1.35}
 #pz-ok{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}   /* "de proposito" no maximo 2 linhas: o espaco e dos itens sem explicacao */
 /* META DO CHURRASCO 05-10-2026: dia verde = ate 3 erros (cozinha + montagem); 5 dias verdes sab-sex = churrasco no sabado */
-.meta{background:var(--s1);border:1px solid var(--line);border-radius:.6em;padding:.6em .8em;margin-bottom:1em}
+.meta{background:var(--s1);border:1px solid var(--line);border-radius:.6em;padding:.5em .8em;margin-bottom:.7em}
 .meta h2{margin-bottom:.15em}
-.meta .rg{color:var(--muted);font-size:.75em;margin-bottom:.5em}
+.meta .rg{color:var(--muted);font-size:.75em;margin-bottom:.4em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dias{display:grid;grid-template-columns:repeat(7,1fr);gap:.35em}
 .dd{border-radius:.45em;padding:.3em .1em;text-align:center;background:var(--s2);border:2px solid transparent}
 .dd .sm{font-size:.7em;font-weight:800;text-transform:uppercase;color:var(--text2)}
@@ -75,12 +75,12 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .dd.vermelho{background:rgba(230,103,103,.18);border-color:var(--bad)}.dd.vermelho .nn{color:var(--bad)}
 .dd.hoje{border-color:var(--brand)}.dd.hoje .sm{color:var(--brand)}
 .dd.falta .nn{color:var(--muted)}
-.meta .fr{margin-top:.5em;font-weight:800;font-size:1.05em}
+.meta .fr{margin-top:.4em;font-weight:800;font-size:.95em}
 .meta .fr.ok{color:var(--ok)}.meta .fr.nao{color:var(--text2)}
 .meta .ant{color:var(--muted);font-size:.75em;margin-top:.2em}
 /* ONDE MELHORAR + O CLIENTE DISSE 07-10-2026 (Fabio: "o objetivo é mostrar os erros, e onde podemos melhorar").
    Altura FIXA nas duas faixas: o rodizio das avaliacoes nao mexe no tamanho das listas (que sao ajustadas a tela). */
-.melhor{display:grid;grid-template-columns:auto 1fr 1fr;gap:1.2em;align-items:center;background:var(--s1);border-left:.5em solid var(--brand);border-bottom:2px solid var(--line);padding:.4em 1.2em;height:3.9em;overflow:hidden}
+.melhor{display:grid;grid-template-columns:auto 1.3fr 1fr;gap:1.2em;align-items:center;background:var(--s1);border-left:.5em solid var(--brand);border-bottom:2px solid var(--line);padding:.35em 1.2em;height:3.5em;overflow:hidden}
 .melhor.calmo{border-left-color:var(--ok)}
 .lbx{font-weight:800;font-size:.78em;text-transform:uppercase;letter-spacing:.04em;line-height:1.2}
 .melhor .lbx{color:var(--brand)}.melhor.calmo .lbx{color:var(--ok)}
@@ -93,7 +93,8 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .cli .lbx{color:var(--text2)}
 .cli .q1{font-size:.85em;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cli .q1 .st{color:var(--brand);letter-spacing:.05em}
-.cli .q2{font-style:italic;font-size:1.05em;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cli .q2{font-style:italic;font-size:1.05em;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.cli>div:last-child{min-width:0}
 .rodape{padding:.25em 1.2em;color:var(--muted);font-size:.7em;background:var(--s0)}
 .alerta{color:var(--bad);font-weight:800}
 /* tela do codigo */
@@ -191,7 +192,8 @@ function desenha(novos){
   $('loja').textContent=j.loja||'—';
   $('dia').textContent='dia '+(j.dia||'—')+' · das 6h às 6h';
   $('st').textContent='atualiza sozinho a cada 1 minuto · lido às '+hhmm(j.agora);
-  melhor(j.melhorar); cli(j.avaliacoes);   /* antes das listas: as faixas ocupam altura e as listas sao ajustadas depois */
+  try{ melhor(j.melhorar); }catch(e){ $('melhor').style.display='none'; }   /* antes das listas: as faixas ocupam altura */
+  try{ cli(j.avaliacoes); }catch(e){ CLI=null; $('cli').style.display='none'; }
   const L=j.erros||[];
   const n=s=>L.filter(e=>e.setor===s).length;
   $('num').innerHTML='<div><b>'+L.length+'</b><span>erros hoje</span></div>'
@@ -235,7 +237,7 @@ function desenha(novos){
       return '<div class="p'+(x.o_que?'':' aberto')+'"><div class="it">'+esc(x.item)+'<small>'+(x.marcas>1?x.marcas+' marcas':'1 marca')+' · '+(x.o_que?'loja disse: '+esc(x.o_que):'<b style="color:var(--bad)">loja ainda não explicou</b>')+'</small></div><div class="tm">fora há '+tempo(x.min)+'</div></div>';
     }).join('')
     : '<div class="vazio"><b>Nada fora do ar</b> além do que é de propósito.</div>';
-  $('pz-ok').innerHTML=ok.length? '<b>Fora do ar de propósito</b> (a loja já explicou): '+ok.slice(0,14).map(x=>esc(x.item)).join(' · ')+(ok.length>14?' · + '+(ok.length-14):'') : '';
+  $('pz-ok').innerHTML=ok.length? '<b>Fora do ar de propósito</b> ('+ok.length+(ok.length>1?' itens':' item')+', a loja já explicou): '+ok.slice(0,14).map(x=>esc(x.item)).join(' · ') : '';
   /* so os itens que cabem inteiros; o resto vira "+ N outros" (a lista do portal tem todos) */
   const pe=$('pz'); if(ab.length){
     while(pe.children.length>1 && pe.scrollHeight>pe.clientHeight+2) pe.removeChild(pe.lastElementChild);
@@ -246,7 +248,7 @@ function desenha(novos){
   const f=j.frescor||{};
   const fx=[['Gestor Web',f.gestor_web],['Chat iFood',f.chat_ifood],['SAC',f.sac],['Grupos',f.grupos],['Negociação',f.negociacao]];
   $('rodape').textContent='Última novidade de cada fonte: '+fx.map(x=>x[0]+' '+(x[1]?(ddmm(x[1])===ddmm(Date.now())?'':ddmm(x[1])+' ')+hhmm(x[1]):'—')).join(' · ')
-    +' · Avaliações iFood até '+((j.avaliacoes&&j.avaliacoes.ultima)||'—')+' · '+(j.tv||'');
+    +' · Avaliações iFood até '+((j.avaliacoes&&j.avaliacoes.ultima)||'—')+((j.avaliacoes&&j.avaliacoes.lido_em)?' (lido '+j.avaliacoes.lido_em+')':'')+' · '+(j.tv||'');
 }
 
 /* META DO CHURRASCO (05/10/2026, Fabio escolheu "dias verdes"): o banco manda os 7 dias de sabado a sexta.
@@ -270,40 +272,49 @@ function meta(m){
   else if(falta===aindaPode){ fr=(falta>1?'Faltam ':'Falta ')+falta+' dia'+(falta>1?'s':'')+' verde'+(falta>1?'s':'')+' — precisa de todos os que sobram!'; }
   else fr=verdes+' de '+alvo+' dias verdes · '+(falta>1?'faltam ':'falta ')+falta+' · ainda dá!';
   const a=m.anterior;
-  el.innerHTML='<h2>🍖 Meta do churrasco <small>cozinha + delivery juntos</small></h2><div class="rg">dia verde = até '+esc(lim)+' erros (comida, sacola e bebida) · '+esc(alvo)+' dias verdes de sábado a sexta = churrasco no sábado</div>'
+  el.innerHTML='<h2>🍖 Meta do churrasco <small>cozinha + delivery juntos</small></h2><div class="rg">dia verde = até '+esc(lim)+' erros · '+esc(alvo)+' verdes de sáb a sex = churrasco</div>'
     +'<div class="dias">'+cx+'</div><div class="fr '+cf+'">'+esc(fr)+'</div>'
     +(a?'<div class="ant">Semana passada ('+esc(a.de)+' a '+esc(a.ate)+'): '+esc(a.verdes)+' dia'+(a.verdes==1?'':'s')+' verde'+(a.verdes==1?'':'s')+(a.verdes>=alvo?' — 🎉 ganharam o churrasco!':'')+'</div>':'');
 }
 
 /* ONDE MELHORAR (07/10/2026): o banco manda os numeros crus dos 7 dias que ja fecharam; a regra de amostra minima fica
    aqui, para a TV nunca afirmar nada com 1 ou 2 casos. Frases de acao sao fixas da tela (nunca texto do banco). */
-const FAM={sacola:['Esquecer item na sacola','Conferir item por item antes de fechar a sacola'],
+const FAM={sacola:['Faltou item','Conferir a comanda item por item (e adicionais)'],
   errado:['Item trocado ou errado','Conferir a comanda antes de montar'],
-  ponto:['Ponto da carne (cru ou queimado)','Conferir o ponto da carne antes de tirar da chapa'],
-  frio:['Pedido chegou frio','Pedido pronto não espera: despachar na hora'],
-  embalagem:['Embalagem vazou ou abriu','Fechar bem a embalagem e lacrar a sacola'],
+  ponto:['Ponto da carne','Conferir o ponto antes de tirar da chapa'],
+  frio:['Pedido chegou frio','Pedido pronto: despachar na hora'],
+  embalagem:['Embalagem vazou ou abriu','Fechar bem e lacrar a sacola'],
   sabor:['Sabor ou porção','Seguir a ficha técnica: porção e tempero'],
   grave:['Corpo estranho ou estragado','Touca, luva e bancada limpa sempre'],
   acabou:['Item acabou sem pausar no iFood','Acabou? Avisar na hora para pausar no iFood']};
-const TEMA={frio:['comida fria','Pedido pronto não espera: despachar na hora'],
-  ponto:['ponto da carne','Conferir o ponto da carne antes de tirar da chapa'],
+const TEMA={frio:['comida fria/temperatura','Pedido pronto: despachar na hora'],
+  ponto:['ponto da carne','Conferir o ponto antes de tirar da chapa'],
   sabor:['sabor ou tempero','Seguir a ficha técnica: tempero e sal'],
-  faltou:['item faltando ou errado','Conferir item por item antes de fechar a sacola'],
-  porcao:['pouca comida','Porção certa em cada prato (ficha técnica)'],
-  embalagem:['embalagem','Fechar bem a embalagem e lacrar a sacola']};
+  faltou:['item faltando ou errado','Conferir a comanda item por item'],
+  porcao:['pouca comida','Porção certa: seguir a ficha técnica'],
+  embalagem:['embalagem','Fechar bem e lacrar a sacola']};
+const TEMA_FAM={frio:'frio',ponto:'ponto',faltou:'sacola',embalagem:'embalagem',sabor:'sabor',porcao:'sabor'};   /* tema do cliente que e a mesma coisa que a familia de erro: mostra uma frase so */
 const MIN_FAM={n:5,dias:3,pct:35}, MIN_ITEM={n:3,dias:2}, MIN_TEMA={n:3,dias:2};
 function melhor(m){
   const el=$('melhor'); if(!m){ el.style.display='none'; return; } el.style.display='';
-  const L=(m.familias||[])[0], it=m.item, tm=m.tema, per=esc(m.de)+' a '+esc(m.ate);
-  const okF=L&&FAM[L.fam]&&L.n>=MIN_FAM.n&&L.dias>=MIN_FAM.dias&&L.n*100>=MIN_FAM.pct*m.erros;
-  const okI=it&&it.n>=MIN_ITEM.n&&it.dias>=MIN_ITEM.dias;
+  const L=(m.familias||[])[0], tm=m.tema, per=(m.de&&m.ate)?esc(m.de)+' a '+esc(m.ate):'', ne=Number(m.erros)||0;
+  const okF=L&&FAM[L.fam]&&L.n>=MIN_FAM.n&&L.dias>=MIN_FAM.dias&&L.n*100>=MIN_FAM.pct*ne;
+  /* item mais esquecido: so os que passam na regra; empate no topo mostra todos os empatados (nunca escolhe um a dedo) */
+  const its=(Array.isArray(m.itens)?m.itens:(m.item?[m.item]:[])).filter(x=>x&&x.n>=MIN_ITEM.n&&x.dias>=MIN_ITEM.dias);
+  const top=its.length?its.filter(x=>x.n===its[0].n):[];
   const okT=tm&&TEMA[tm.tema]&&tm.n>=MIN_TEMA.n&&tm.dias>=MIN_TEMA.dias;
+  const evF=okF? esc(FAM[L.fam][0])+': '+esc(L.n)+' de '+esc(ne)+' erros'
+    +(L.fam==='sacola'&&top.length? (top.length>1?' · mais esquecidos: '+top.slice(0,2).map(x=>esc(x.nome)).join(' e ')+(top.length>2?' +'+(top.length-2):'')+' ('+esc(top[0].n)+'x cada)'
+                                                 :' · mais esquecido: '+esc(top[0].nome)+' ('+esc(top[0].n)+'x)') : '') : '';
+  const evT=okT? 'iFood: '+esc(tm.n)+' de '+esc(m.aval_ruins)+' avaliações ruins sobre '+esc(TEMA[tm.tema][0]) : '';
   let a='', b='';
-  if(okF) a='<div class="ins"><div class="ac">'+esc(FAM[L.fam][1])+'</div><div class="ev">'+esc(FAM[L.fam][0])+': '+esc(L.n)+' de '+esc(m.erros)+' erros'
-    +(L.fam==='sacola'&&okI?' · o mais esquecido: '+esc(it.nome)+' ('+esc(it.n)+' vezes)':'')+'</div></div>';
-  if(okT) b='<div class="ins"><div class="ac">'+esc(TEMA[tm.tema][1])+'</div><div class="ev">Avaliações ruins do iFood: '+esc(tm.n)+' de '+esc(m.aval_ruins)+' falaram de '+esc(TEMA[tm.tema][0])+'</div></div>';
+  if(okF) a='<div class="ins"><div class="ac">'+esc(FAM[L.fam][1])+'</div><div class="ev">'+evF+'</div></div>';
+  if(okT){
+    if(okF && TEMA_FAM[tm.tema]===L.fam) b='<div class="ins"><div class="ac" style="color:var(--text2)">O cliente confirma no iFood</div><div class="ev">'+evT+'</div></div>';   /* mesma acao: nao repete a frase */
+    else b='<div class="ins"><div class="ac">'+esc(TEMA[tm.tema][1])+'</div><div class="ev">'+evT+'</div></div>';
+  }
   el.classList.toggle('calmo',!a&&!b);
-  if(!a&&!b) a='<div class="ins"><div class="ac">Nenhum erro se repetiu o bastante para virar alerta</div><div class="ev">'+esc(m.erros)+' erros na semana · continuem conferindo cada pedido</div></div>';
+  if(!a&&!b) a='<div class="ins"><div class="ac">Nenhum erro se repetiu o bastante para virar alerta</div><div class="ev">'+esc(ne)+(ne===1?' erro':' erros')+' nos últimos 7 dias · continuem conferindo cada pedido</div></div>';
   el.innerHTML='<div class="lbx">🎯 Onde melhorar<small>últimos 7 dias · '+per+'</small></div>'+a+(b||'<div></div>');
 }
 
@@ -314,13 +325,16 @@ function cli(av){ CLI=av||null; cliMostra(); }
 function curta(m){ return String(m||'').replace(/\s*-?\s*[ÁA]GUA VERDE\s*$/i,'').replace(/\s+AV$/i,''); }
 function cliMostra(){
   const el=$('cli'); const av=CLI; if(!av){ el.style.display='none'; return; } el.style.display='';
-  const h=av.hoje||{};
-  const lb='<div class="lbx">⭐ O cliente disse<small>'+(h.n?'chegaram hoje: '+esc(h.n)+' · média '+esc(String(h.media).replace('.',','))+(h.ruins?' · <b style="color:var(--bad)">'+esc(h.ruins)+(h.ruins>1?' ruins':' ruim')+'</b>':' · nenhuma ruim'):'nenhuma chegou hoje ainda')+'</small></div>';
-  const fila=(av.ruins||[]).slice(); if(av.elogio) fila.push(Object.assign({elogio:true,nota:5},av.elogio));
+  const h=av.hoje||{}, hn=Number(h.n)||0;
+  /* dado parado se declara: a avaliacao do iFood chega ~1 dia depois; mais de 2 dias sem nenhuma = robo parado ou iFood atrasado */
+  const velho=av.atraso_dias==null||Number(av.atraso_dias)>2;
+  const lb='<div class="lbx">⭐ O cliente disse<small>iFood · '+(hn?(hn===1?'chegou hoje: 1':'chegaram hoje: '+esc(hn))+' · média '+esc(String(h.media).replace('.',','))+(h.ruins?' · <b style="color:var(--bad)">'+esc(h.ruins)+(h.ruins>1?' ruins':' ruim')+'</b>':' · nenhuma ruim'):'nenhuma chegou hoje ainda')+'</small></div>';
+  const fila=(Array.isArray(av.ruins)?av.ruins:[]).slice(); if(av.elogio) fila.push(Object.assign({elogio:true,nota:5},av.elogio));
+  if(velho){ el.className='cli nada'; el.innerHTML=lb+'<div><div class="q2 alerta" style="font-style:normal">⚠️ Nenhuma avaliação nova do iFood desde '+esc(av.ultima||'—')+' — o robô pode estar parado.</div></div>'; return; }
   if(!fila.length){ el.className='cli nada'; el.innerHTML=lb+'<div><div class="q2" style="font-style:normal">Nenhuma avaliação ruim nos últimos 3 dias. 👏</div></div>'; return; }
-  const r=fila[CLI_I%fila.length];
-  const st='★'.repeat(r.nota)+'☆'.repeat(Math.max(0,5-r.nota));
-  const sobre=r.elogio?'👏 elogio':(r.titulo?esc(r.titulo):(r.tags&&r.tags.length?esc(r.tags.slice(0,3).join(', ')):''));
+  const r=fila[CLI_I%fila.length], nt=Math.max(0,Math.min(5,Number(r.nota)|0));
+  const st='★'.repeat(nt)+'☆'.repeat(5-nt);
+  const sobre=r.elogio?'👏 elogio':(r.titulo?esc(r.titulo):(Array.isArray(r.tags)&&r.tags.length?esc(r.tags.slice(0,3).join(', ')):''));
   el.className='cli'+(r.elogio?' bom':'');
   el.innerHTML=lb+'<div><div class="q1"><span class="st">'+st+'</span> · avaliou '+esc(r.dia)+(r.pedido?' · pedido '+esc(r.pedido)+(r.pedido_dia?' de '+esc(r.pedido_dia):''):'')+(r.marca?' · '+esc(curta(r.marca)):'')+(sobre?' · '+sobre:'')
     +(fila.length>1?' · '+((CLI_I%fila.length)+1)+'/'+fila.length:'')+'</div>'
@@ -350,7 +364,7 @@ document.addEventListener('visibilitychange',function(){ if(document.visibilityS
 (function(){
   botaoSom(); relogio(); setInterval(relogio,15000); acordada();
   setInterval(function(){ if(DADO) desenha([]); },60000);           /* "ha X min" e NOVO andam mesmo sem dado novo */
-  setInterval(function(){ if(CLI){ CLI_I++; cliMostra(); } },15000);  /* troca a avaliacao; a faixa tem altura fixa */
+  setInterval(function(){ if(CLI){ CLI_I++; try{ cliMostra(); }catch(e){} } },15000);  /* troca a avaliacao; a faixa tem altura fixa */
   /* pega versao nova da tela a cada 6 h, so com internet e leitura boa (senao a TV ficaria presa na pagina de erro) */
   setInterval(function(){ if(performance.now()>6*3600*1000 && navigator.onLine!==false && Date.now()-ULT_OK<5*60000) location.reload(); }, 10*60000);
   let c=''; try{ c=limpa(decodeURIComponent((location.hash||'').replace(/^#(k=)?/i,''))); }catch(e){ c=''; }
