@@ -75,11 +75,11 @@ let GENTE=[],QUEM='',FILTRO='taxa',EDITA=null;
 const LOJAS=[['Água Verde','av'],['São Braz','sb'],['Ahú','ahu']];
 const LOJA=(function(){try{const c=new URLSearchParams(location.search).get('loja');const x=LOJAS.find(function(l){return l[1]===c});return x?x[0]:''}catch(e){return ''}})();
 let VERLOJA=!!LOJA;
-/* na loja aparece quem é dela e quem topa qualquer loja (sem loja marcada) */
-function daLoja(p){return !p.loja||p.loja===LOJA}
+/* na loja aparece só quem foi cadastrado para ela (o Diego abastece o São Braz) */
+function daLoja(p){return p.loja===LOJA}
 function base(){return VERLOJA?GENTE.filter(daLoja):GENTE}
 function pintaLojas(){
-  if(!LOJA)return;
+  return; /* 07/10: lista da loja começa zerada, sem o botão Todas as lojas */
   const n1=GENTE.filter(daLoja).length;
   $('lojas').style.display='';
   $('lojas').innerHTML=
@@ -166,6 +166,10 @@ function pinta(){
     return ordemSetor(a.setor)-ordemSetor(b.setor)||String(a.setor).localeCompare(String(b.setor),'pt-BR')||
       ((b.destaque?1:0)-(a.destaque?1:0))||String(b.desde||'').localeCompare(String(a.desde||''));
   });
+  if(!lista.length&&VERLOJA&&!base().length){
+    $('app').innerHTML='<div class="vazio"><span class="em">🤝</span>Ainda ninguém na lista do '+esc(LOJA)+'.<br>Quem se oferecer para taxa ou freela, cadastre no botão <b>➕ Nova pessoa</b>.</div>';
+    return;
+  }
   if(!lista.length){
     $('app').innerHTML='<div class="vazio"><span class="em">🤷</span>Ninguém nesse filtro. Toque em <b>Todos</b> ou limpe a busca.</div>';
     return;
@@ -189,7 +193,8 @@ function abre(id,foco){
   GENTE.forEach(function(x){if(x.setor&&ops.indexOf(x.setor)<0)ops.push(x.setor)});
   $('d_setor').innerHTML=ops.map(function(s){return '<option value="'+esc(s)+'">'+icone(s)+' '+esc(s)+'</option>'}).join('');
   $('d_loja').innerHTML='<option value="">🌎 Qualquer loja</option>'+LOJAS.map(function(l){return '<option value="'+esc(l[0])+'">🏪 '+esc(l[0])+'</option>'}).join('');
-  $('d_loja').value=p?(p.loja||''):LOJA;
+  $('d_loja').value=LOJA||(p?(p.loja||''):'');
+  $('d_loja').closest('.f').style.display=LOJA?'none':'';
   $('d_tipo').innerHTML=TIPOS.map(function(t){return '<option value="'+esc(t[0])+'">'+t[1]+' '+esc(t[0])+'</option>'}).join('');
   $('d_tit').textContent=p?'✏️ Editar pessoa':'➕ Nova pessoa';
   $('d_nome').value=p?p.nome:'';
