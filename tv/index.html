@@ -45,6 +45,7 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .e .tt{font-size:1.35em;font-weight:800;display:flex;gap:.5em;align-items:center;flex-wrap:wrap}
 .e .lj{color:var(--text2);font-size:.9em;margin-top:.1em}
 .e .ds{font-style:italic;margin-top:.3em;font-size:1.05em}
+.e .ds,.e .lj,.p .it{overflow-wrap:anywhere}
 .pl{display:inline-block;border-radius:999px;padding:.1em .6em;font-size:.6em;font-weight:800;text-transform:uppercase;letter-spacing:.03em}
 .p-novo{background:var(--bad);color:#fff}
 .p-coz{background:rgba(230,103,103,.18);color:var(--bad)}
@@ -194,6 +195,12 @@ function desenha(novos){
   $('st').textContent='atualiza sozinho a cada 1 minuto · lido às '+hhmm(j.agora);
   try{ melhor(j.melhorar); }catch(e){ $('melhor').style.display='none'; }   /* antes das listas: as faixas ocupam altura */
   try{ cli(j.avaliacoes); }catch(e){ CLI=null; $('cli').style.display='none'; }
+  /* de quando e cada fonte */
+  const f=j.frescor||{};
+  const fx=[['Gestor Web',f.gestor_web],['Chat iFood',f.chat_ifood],['SAC',f.sac],['Grupos',f.grupos],['Negociação',f.negociacao]];
+  $('rodape').textContent='Última novidade de cada fonte: '+fx.map(x=>x[0]+' '+(x[1]?(ddmm(x[1])===ddmm(Date.now())?'':ddmm(x[1])+' ')+hhmm(x[1]):'—')).join(' · ')
+    +' · Avaliações iFood até '+((j.avaliacoes&&j.avaliacoes.ultima)||'—')+((j.avaliacoes&&j.avaliacoes.lido_em)?' (lido '+j.avaliacoes.lido_em+')':'')
+    +((j.melhorar&&j.melhorar.calculado)?' · Onde melhorar calculado '+j.melhorar.calculado:'')+' · '+(j.tv||'');   /* antes das listas: o rodape tambem ocupa altura */
   const L=j.erros||[];
   const n=s=>L.filter(e=>e.setor===s).length;
   $('num').innerHTML='<div><b>'+L.length+'</b><span>erros hoje</span></div>'
@@ -214,7 +221,8 @@ function desenha(novos){
         +(e.disse?'<div class="ds">“'+esc(e.disse)+'”</div>':'')
         +'</div></div>';
     }).join('');
-    /* so os cartoes que cabem inteiros na tela; o resto vira "+ N mais cedo" */
+    /* so os cartoes que cabem inteiros na tela; o resto vira "+ N mais cedo" (a linha do "+ N" ja ocupa lugar antes de medir) */
+    $('mais').textContent='+';
     const el=$('lista'); while(el.children.length>1 && el.scrollHeight>el.clientHeight+2) el.removeChild(el.lastElementChild);
     const sobra=L.length-el.children.length;
     $('mais').textContent=sobra>0? '+ '+sobra+' erro'+(sobra>1?'s':'')+' mais cedo — lista completa no portal › Central Cozinha' : '';
@@ -244,11 +252,6 @@ function desenha(novos){
     const so=ab.length-pe.children.length;
     if(so>0){ pe.removeChild(pe.lastElementChild); pe.insertAdjacentHTML('beforeend','<div class="cinza">+ '+(so+1)+' outros fora do ar — lista completa no portal › Central Cozinha</div>'); }
   }
-  /* de quando e cada fonte */
-  const f=j.frescor||{};
-  const fx=[['Gestor Web',f.gestor_web],['Chat iFood',f.chat_ifood],['SAC',f.sac],['Grupos',f.grupos],['Negociação',f.negociacao]];
-  $('rodape').textContent='Última novidade de cada fonte: '+fx.map(x=>x[0]+' '+(x[1]?(ddmm(x[1])===ddmm(Date.now())?'':ddmm(x[1])+' ')+hhmm(x[1]):'—')).join(' · ')
-    +' · Avaliações iFood até '+((j.avaliacoes&&j.avaliacoes.ultima)||'—')+((j.avaliacoes&&j.avaliacoes.lido_em)?' (lido '+j.avaliacoes.lido_em+')':'')+' · '+(j.tv||'');
 }
 
 /* META DO CHURRASCO (05/10/2026, Fabio escolheu "dias verdes"): o banco manda os 7 dias de sabado a sexta.
@@ -293,15 +296,17 @@ const TEMA={frio:['comida fria/temperatura','Pedido pronto: despachar na hora'],
   faltou:['item faltando ou errado','Conferir a comanda item por item'],
   porcao:['pouca comida','Porção certa: seguir a ficha técnica'],
   embalagem:['embalagem','Fechar bem e lacrar a sacola']};
-const TEMA_FAM={frio:'frio',ponto:'ponto',faltou:'sacola',embalagem:'embalagem',sabor:'sabor',porcao:'sabor'};   /* tema do cliente que e a mesma coisa que a familia de erro: mostra uma frase so */
+const TEMA_FAM={frio:['frio'],ponto:['ponto'],faltou:['sacola','errado'],embalagem:['embalagem'],sabor:['sabor'],porcao:['sabor']};   /* tema do cliente que e a mesma coisa que a familia de erro: mostra uma frase so */
 const MIN_FAM={n:5,dias:3,pct:35}, MIN_ITEM={n:3,dias:2}, MIN_TEMA={n:3,dias:2};
 function melhor(m){
   const el=$('melhor'); if(!m){ el.style.display='none'; return; } el.style.display='';
-  const L=(m.familias||[])[0], tm=m.tema, per=(m.de&&m.ate)?esc(m.de)+' a '+esc(m.ate):'', ne=Number(m.erros)||0;
-  const okF=L&&FAM[L.fam]&&L.n>=MIN_FAM.n&&L.dias>=MIN_FAM.dias&&L.n*100>=MIN_FAM.pct*ne;
-  /* item mais esquecido: so os que passam na regra; empate no topo mostra todos os empatados (nunca escolhe um a dedo) */
-  const its=(Array.isArray(m.itens)?m.itens:(m.item?[m.item]:[])).filter(x=>x&&x.n>=MIN_ITEM.n&&x.dias>=MIN_ITEM.dias);
-  const top=its.length?its.filter(x=>x.n===its[0].n):[];
+  const fams=Array.isArray(m.familias)?m.familias:[], tm=m.tema, per=(m.de&&m.ate)?esc(m.de)+' a '+esc(m.ate):'', ne=Number(m.erros)||0;
+  const passa=x=>x&&FAM[x.fam]&&x.n>=MIN_FAM.n&&x.dias>=MIN_FAM.dias&&x.n*100>=MIN_FAM.pct*ne;
+  const L=fams.find(passa)||null, okF=!!L;   /* a primeira familia que passa na regra, nao so a primeira da lista */
+  /* item mais esquecido: o grupo do topo (empatados) so aparece se TODOS passam na regra; senao nao afirma nada */
+  const its=Array.isArray(m.itens)?m.itens.filter(Boolean):(m.item?[m.item]:[]);
+  const grp=its.length?its.filter(x=>x.n===its[0].n):[];
+  const top=grp.length&&grp.every(x=>x.n>=MIN_ITEM.n&&x.dias>=MIN_ITEM.dias)?grp:[];
   const okT=tm&&TEMA[tm.tema]&&tm.n>=MIN_TEMA.n&&tm.dias>=MIN_TEMA.dias;
   const evF=okF? esc(FAM[L.fam][0])+': '+esc(L.n)+' de '+esc(ne)+' erros'
     +(L.fam==='sacola'&&top.length? (top.length>1?' · mais esquecidos: '+top.slice(0,2).map(x=>esc(x.nome)).join(' e ')+(top.length>2?' +'+(top.length-2):'')+' ('+esc(top[0].n)+'x cada)'
@@ -310,11 +315,14 @@ function melhor(m){
   let a='', b='';
   if(okF) a='<div class="ins"><div class="ac">'+esc(FAM[L.fam][1])+'</div><div class="ev">'+evF+'</div></div>';
   if(okT){
-    if(okF && TEMA_FAM[tm.tema]===L.fam) b='<div class="ins"><div class="ac" style="color:var(--text2)">O cliente confirma no iFood</div><div class="ev">'+evT+'</div></div>';   /* mesma acao: nao repete a frase */
+    if(okF && (TEMA_FAM[tm.tema]||[]).indexOf(L.fam)>=0) b='<div class="ins"><div class="ac" style="color:var(--text2)">O cliente confirma no iFood</div><div class="ev">'+evT+'</div></div>';   /* mesma acao: nao repete a frase */
     else b='<div class="ins"><div class="ac">'+esc(TEMA[tm.tema][1])+'</div><div class="ev">'+evT+'</div></div>';
   }
-  el.classList.toggle('calmo',!a&&!b);
-  if(!a&&!b) a='<div class="ins"><div class="ac">Nenhum erro se repetiu o bastante para virar alerta</div><div class="ev">'+esc(ne)+(ne===1?' erro':' erros')+' nos últimos 7 dias · continuem conferindo cada pedido</div></div>';
+  const f0=fams[0];
+  const espalhado=!a&&!b&&ne>=2*MIN_FAM.n;   /* muitos erros sem nenhum tipo dominar: nao e semana calma */
+  el.classList.toggle('calmo',!a&&!b&&!espalhado);
+  if(espalhado) a='<div class="ins"><div class="ac">Erros espalhados: nenhum tipo chegou a 1/3</div><div class="ev">'+esc(ne)+' erros nos últimos 7 dias'+(f0&&FAM[f0.fam]?' · o mais comum: '+esc(FAM[f0.fam][0])+' ('+esc(f0.n)+')':'')+'</div></div>';
+  else if(!a&&!b) a='<div class="ins"><div class="ac">Nenhum erro se repetiu o bastante para virar alerta</div><div class="ev">'+esc(ne)+(ne===1?' erro':' erros')+' nos últimos 7 dias · continuem conferindo cada pedido</div></div>';
   el.innerHTML='<div class="lbx">🎯 Onde melhorar<small>últimos 7 dias · '+per+'</small></div>'+a+(b||'<div></div>');
 }
 
@@ -330,14 +338,14 @@ function cliMostra(){
   const velho=av.atraso_dias==null||Number(av.atraso_dias)>2;
   const lb='<div class="lbx">⭐ O cliente disse<small>iFood · '+(hn?(hn===1?'chegou hoje: 1':'chegaram hoje: '+esc(hn))+' · média '+esc(String(h.media).replace('.',','))+(h.ruins?' · <b style="color:var(--bad)">'+esc(h.ruins)+(h.ruins>1?' ruins':' ruim')+'</b>':' · nenhuma ruim'):'nenhuma chegou hoje ainda')+'</small></div>';
   const fila=(Array.isArray(av.ruins)?av.ruins:[]).slice(); if(av.elogio) fila.push(Object.assign({elogio:true,nota:5},av.elogio));
-  if(velho){ el.className='cli nada'; el.innerHTML=lb+'<div><div class="q2 alerta" style="font-style:normal">⚠️ Nenhuma avaliação nova do iFood desde '+esc(av.ultima||'—')+' — o robô pode estar parado.</div></div>'; return; }
+  if(velho){ el.className='cli nada'; el.innerHTML=lb+'<div><div class="q2 alerta" style="font-style:normal">⚠️ '+(av.ultima?'Nenhuma avaliação nova do iFood desde '+esc(av.ultima):'Nenhuma avaliação do iFood nos últimos 7 dias')+' — o robô pode estar parado.</div></div>'; return; }
   if(!fila.length){ el.className='cli nada'; el.innerHTML=lb+'<div><div class="q2" style="font-style:normal">Nenhuma avaliação ruim nos últimos 3 dias. 👏</div></div>'; return; }
   const r=fila[CLI_I%fila.length], nt=Math.max(0,Math.min(5,Number(r.nota)|0));
   const st='★'.repeat(nt)+'☆'.repeat(5-nt);
-  const sobre=r.elogio?'👏 elogio':(r.titulo?esc(r.titulo):(Array.isArray(r.tags)&&r.tags.length?esc(r.tags.slice(0,3).join(', ')):''));
+  /* so as etiquetas que o PROPRIO cliente marcou no iFood (o classificador de erro da cozinha dava nome errado a texto de avaliacao) */
+  const sobre=r.elogio?'nota máxima':(Array.isArray(r.tags)&&r.tags.length?esc(r.tags.slice(0,2).join(', '))+(r.tags.length>2?' +'+(r.tags.length-2):''):'');
   el.className='cli'+(r.elogio?' bom':'');
-  el.innerHTML=lb+'<div><div class="q1"><span class="st">'+st+'</span> · avaliou '+esc(r.dia)+(r.pedido?' · pedido '+esc(r.pedido)+(r.pedido_dia?' de '+esc(r.pedido_dia):''):'')+(r.marca?' · '+esc(curta(r.marca)):'')+(sobre?' · '+sobre:'')
-    +(fila.length>1?' · '+((CLI_I%fila.length)+1)+'/'+fila.length:'')+'</div>'
+  el.innerHTML=lb+'<div><div class="q1">'+(fila.length>1?((CLI_I%fila.length)+1)+'/'+fila.length+' · ':'')+'<span class="st">'+st+'</span> · avaliou '+esc(r.dia)+(r.pedido?' · pedido '+esc(r.pedido)+(r.pedido_dia?' de '+esc(r.pedido_dia):''):'')+(r.marca?' · '+esc(curta(r.marca)):'')+(sobre?' · '+sobre:'')+'</div>'
     +'<div class="q2">'+(r.disse?'“'+esc(r.disse)+'”':'<span style="font-style:normal;color:var(--muted)">(sem comentário escrito)</span>')+'</div></div>';
 }
 
