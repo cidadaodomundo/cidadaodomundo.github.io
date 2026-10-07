@@ -98,9 +98,7 @@ table.pz tr.off b{color:var(--text2);font-weight:600}
   .rolar{margin:8px -14px 0}
   .c>.rolar:first-child{margin-top:-12px}
   .c>.rolar:last-child{margin-bottom:-12px}
-  .rolar.alto{max-height:70vh;overflow:auto}
   .rolar th{background:var(--s2);box-shadow:inset 0 -1px 0 var(--line)}
-  .rolar.alto th{position:sticky;top:0;z-index:1}
   .rolar th:first-child,.rolar td:first-child{padding-left:14px}
   .rolar th:last-child,.rolar td:last-child{padding-right:14px}
   .rolar table:not(.mq) tr:nth-child(odd)>td{background:rgba(255,255,255,.018)}
@@ -121,8 +119,8 @@ table.pz tr.off b{color:var(--text2);font-weight:600}
   table.pz tr.dia{border-top:2px solid #4a4943}
   table.pz tr.off{box-shadow:inset 4px 0 0 #4a4943}
   table.pz td{display:block;border:0;padding:0;text-align:left}
-  table.pz td:nth-child(1){grid-area:1/1}
-  table.pz td:nth-child(2){grid-area:1/2/2/4;align-self:center}
+  table.pz td:nth-child(1){grid-area:1/1;align-self:baseline}
+  table.pz td:nth-child(2){grid-area:1/2/2/4;align-self:baseline}
   table.pz td:nth-child(5){grid-area:1/4;text-align:right}
   table.pz tr.off td:nth-child(5){grid-area:3/1/4/5;text-align:left}
   table.pz td:nth-child(5) .bar{margin-left:auto;min-width:0}
@@ -132,7 +130,6 @@ table.pz tr.off b{color:var(--text2);font-weight:600}
   table.pz td:nth-child(7){grid-area:2/4}
   table.pz td:nth-child(3),table.pz td:nth-child(4),table.pz td:nth-child(6),table.pz td:nth-child(7){align-self:end}
   table.pz td[data-l]::before{content:attr(data-l);display:block;font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;line-height:1.2;margin-bottom:2px}
-  .rolar.alto{max-height:none;overflow:visible}
 }
 /* maquininha: duas linhas por entrega (a de baixo explica a situacao) */
 .mq-top{font-size:12.5px;color:var(--text2);margin-bottom:8px;line-height:1.5}
@@ -155,11 +152,11 @@ table.mq tr.ex>td{border-top:0;padding-top:0;padding-bottom:9px;color:var(--mute
 
 @media (max-width:640px){
   .lojas .rot{min-width:0}
+  .placar .pc{display:none}
   .cards{grid-template-columns:repeat(2,minmax(0,1fr))}
   .card .v{font-size:34px}
   .card.longo .v{font-size:22px}
   h2{font-size:17px}
-  .rolar.alto{max-height:none}
   div.vv{grid-template-columns:58px minmax(0,1fr);gap:8px;padding:12px 10px}
   .vv .hr{font-size:19px}
   img,svg,canvas,iframe{max-width:100%}
@@ -175,7 +172,7 @@ table.mq tr.ex>td{border-top:0;padding-top:0;padding-bottom:9px;color:var(--mute
     <div class="placar" id="placar"><span class="pl">carregando…</span></div>
   </div>
 </div>
-<div class="lojas per" id="per"><button class="b" onclick="boot()" title="Ler de novo">↻ Atualizar</button></div>
+<div class="lojas per" id="per"><button class="b atu" onclick="boot()" title="Ler de novo">↻ Atualizar</button></div>
 
 <div class="fontes">Esta tela mostra <b>o período escolhido nos botões acima</b> — é para ver como a casa está indo. Para o que está acontecendo <b>agora</b>, abra <a href="/delivery/central.html">🎯 Central do Delivery →</a></div>
 <div id="app"><div class="load">Carregando…</div></div>
@@ -274,15 +271,15 @@ function barra(pct){
 /* 07/10/2026 (chat-qualidade-visual-07-10): mesmo desenho do Resolver hoje — o periodo vai para os botoes do topo
    (com o Atualizar), o subtitulo virou pilulas de placar, e lojas e abas viraram botoes redondos com rotulo.
    Os botoes chamam as mesmas funcoes de antes. */
-const PER_NOME={turno:'Turno de agora',hoje:'Hoje',ontem:'Ontem',semana:'Semana',mes:'Este mês',d7:'7 dias',d30:'30 dias'};
+const PER_NOME={turno:'Turno de agora',hoje:'Hoje',ontem:'Ontem',semana:'Semana',mes:'Este mês'};
 function placar(){
   const p=$('placar');
   if(!p||!D)return;
-  let h='<span class="pl">Período <b>'+esc(PER_NOME[PER]||PER)+'</b></span>';
+  let h='<span class="pl pc">Período <b>'+esc(PER_NOME[PER]||('últimos '+DIAS+' dias'))+'</b></span>';
   if(D.de&&D.ate)h+='<span class="pl"><b>'+dData(D.de)+'</b> a <b>'+dData(D.ate)+'</b></span>';
   if(D.de_antes)h+='<span class="pl">comparando com <b>'+dData(D.de_antes)+' a '+dData(D.ate_antes)+'</b></span>';
   if(D.turno_atual)h+='<span class="pl">Turno de agora: <b>'+esc(D.turno_atual)+'</b></span>';
-  h+='<span class="pl">Loja <b>'+esc(D.unidade||UNI||'Todas')+'</b></span>';
+  h+='<span class="pl pc">Loja <b>'+esc(D.unidade||UNI||'Todas')+'</b></span>';
   h+='<span class="pl"><b>'+(D.modo==='dono'?'visão completa':'visão da equipe')+'</b></span>';
   p.innerHTML=h;
 }
@@ -418,7 +415,7 @@ function maqHtml(j){
   h+='</div></div>';
   if(!L.length)return h+'<div class="c"><div class="vazio">Nenhuma entrega paga na porta neste dia (cartão, vale, Pix ou dinheiro). Tudo veio pago pelo app.</div></div>';
   const pri=L.slice().sort(function(a,b){return ordem.indexOf(a.situacao)-ordem.indexOf(b.situacao)});
-  h+='<div class="c"><div class="rolar alto"><table class="mq"><tr>'+
+  h+='<div class="c"><div class="rolar"><table class="mq"><tr>'+
     '<th>Loja</th><th>Pedido</th><th>Motoboy</th><th>Entregue</th><th>O Saipos diz</th>'+
     (dono?'<th class="n">Na porta</th>':'')+
     '<th>Rede</th><th>GPS</th><th>Situação</th></tr>';
@@ -433,7 +430,7 @@ function maqHtml(j){
     else gps='<span style="color:#8a897e">sem leitura</span>';
     const forma=esc(l.forma)+(l.promessa?' <span title="a forma foi anotada no mesmo minuto do pedido: é o que o cliente PROMETEU, não o que a maquininha confirmou" style="color:#8a897e;font-size:11px">(prometida)</span>':'');
     const z=(i%2?' z':'');
-    h+='<tr class="lin'+z+'">'+
+    h+='<tr'+(z?' class="z"':'')+'>'+
       '<td>'+esc(l.unidade==='Água Verde'?'AV':(l.unidade==='São Braz'?'SB':l.unidade))+'</td>'+
       '<td><b>#'+esc(l.pedido)+'</b>'+(l.curto?' <span class="u">('+esc(l.curto)+')</span>':'')+'<div class="m">'+esc(l.cliente||'')+(l.bairro?' · '+esc(l.bairro):'')+'</div></td>'+
       '<td>'+esc(l.motoboy||'—')+'</td>'+
@@ -443,7 +440,7 @@ function maqHtml(j){
       '<td>'+rede+'</td>'+
       '<td>'+gps+'</td>'+
       '<td>'+maqPill(l.situacao)+'</td></tr>';
-    h+='<tr class="ex'+z+'"><td colspan="'+(dono?9:8)+'">'+esc(x[2])+'</td></tr>';
+    h+='<tr class="ex'+z+'"><td colspan="'+(dono?9:8)+'" data-cdm-l="">'+esc(x[2])+'</td></tr>';
   });
   h+='</table></div></div>';
   h+='<div class="c" style="font-size:12px;color:var(--text2);line-height:1.55">Como eu confiro: pego cada entrega que o <b>Saipos</b> diz que foi paga na porta (cartão, vale, Pix, dinheiro), procuro o valor exato na <b>Rede</b> da mesma loja em até '+esc(j.janela_min||240)+' minutos da hora da entrega (cada cobrança da Rede só pode casar com <b>um</b> pedido — a mesa do salão paga na mesma hora não conta duas vezes), depois no <b>extrato</b> (Pix) e, por último, olho o <b>GPS</b> do motoboy: estar a menos de '+esc(j.raio_m||150)+' m da casa do cliente prova que ele entregou. Regra da casa: <b>o preço já inclui a taxa — nada é cobrado por fora</b>.</div>';
@@ -468,7 +465,7 @@ function extHtml(j){
       extPill('🏪 Balcão / salão',balN,balT,dono,'#3a3a34')+
     '</div></div>';
   if(!L.length)return h+'<div class="c"><div class="vazio">Nenhuma passada nas maquininhas da rota neste dia.</div></div>';
-  h+='<div class="c"><div class="rolar alto"><table style="min-width:620px;font-size:13px"><tr>'+
+  h+='<div class="c"><div class="rolar"><table style="min-width:620px;font-size:13px"><tr>'+
     ['Quando','Loja','Valor','Cartão','Maquininha','Situação'].map(function(t){return '<th'+(t==='Valor'?' class="n"':'')+'>'+t+'</th>'}).join('')+'</tr>';
   L.forEach(function(r){
     const sem=(r.pedido==null);
@@ -1032,15 +1029,15 @@ function pzAba(){
     h+='</div>';
   } else h+='<div class="c"><div class="vazio">Nenhum dia com medida suficiente no período.</div></div>';
   if(!L.length)return h+'<div class="c"><div class="vazio">Sem pedidos no período.</div></div>';
-  h+='<div class="c"><div class="rolar alto"><table class="pz" data-cdm-livre><tr><th>Dia</th><th>Loja</th><th class="n">Pedidos iFood</th><th class="n">Medidos</th><th>No prazo</th><th class="n">Pedido → entrega</th><th class="n">Na rua</th></tr>';
+  h+='<div class="c"><div class="rolar"><table class="pz" data-cdm-livre><tr><th>Dia</th><th>Loja</th><th class="n">Pedidos iFood</th><th class="n">Medidos</th><th>No prazo</th><th class="n">Pedido → entrega</th><th class="n">Na rua</th></tr>';
   var diaAnt=null;
   L.forEach(function(r){
     var ok=bom(r);
     var pct=(r.pct==null?'—':String(r.pct).replace('.',',')+'%');
     var novoDia=(diaAnt!==null&&r.dia!==diaAnt); diaAnt=r.dia;
-    h+='<tr class="'+(ok?'ok':'off')+(novoDia?' dia':'')+'"><td><span class="cd">'+dData(r.dia)+'</span></td><td><b>'+esc(r.unidade)+'</b></td><td class="n" data-l="Pedidos"><span class="cd">'+n(r.pedidos)+'</span></td>'+
+    h+='<tr class="'+(ok?'ok':'off')+(novoDia?' dia':'')+'"><td><span class="cd">'+dData(r.dia)+'</span></td><td><b>'+esc(r.unidade)+'</b></td><td class="n" data-l="Pedidos iFood"><span class="cd">'+n(r.pedidos)+'</span></td>'+
       '<td class="n" data-l="Medidos"><span class="cd">'+n(r.medidos)+'</span> <span class="m">('+(r.cobertura==null?'—':r.cobertura+'%')+')</span></td>'+
-      '<td>'+(ok?'<span class="cd big">'+pct+'</span>'+barra(r.pct):(r.medidos?'<span class="m">não vale — robô mediu só '+r.cobertura+'%</span>':'<span class="m">sem medida (robô parado)</span>'))+'</td>'+
+      '<td'+(ok?' data-l="No prazo"':'')+'>'+(ok?'<span class="cd big">'+pct+'</span>'+barra(r.pct):(r.medidos?'<span class="m">não vale — robô mediu só '+r.cobertura+'%</span>':'<span class="m">sem medida (robô parado)</span>'))+'</td>'+
       '<td class="n" data-l="Pedido → entrega">'+(!ok||r.med_total==null?'—':'<span class="cd">'+String(r.med_total).replace('.',',')+'</span> <span class="u">min</span>')+'</td>'+
       '<td class="n" data-l="Na rua">'+(!ok||r.med_rua==null?'—':'<span class="cd">'+String(r.med_rua).replace('.',',')+'</span> <span class="u">min</span>')+'</td></tr>';
   });
@@ -1163,9 +1160,10 @@ function desenha(){
 async function boot(){
   $('app').innerHTML='<div class="load">Carregando…</div>';
   const pl=$('placar'); if(pl)pl.innerHTML='<span class="pl">carregando…</span>';
+  const pe=$('per'); if(pe)pe.innerHTML='<button class="b atu" onclick="boot()" title="Ler de novo">↻ Atualizar</button>';
   DD=null;SU=null;CC=null;CV=null;NEG=null;PZ=null;
   try{ D=await puxa(); }
-  catch(e){ $('app').innerHTML='<div class="c">Não deu para carregar. '+esc(e.message||'')+'</div>'; return }
+  catch(e){ $('app').innerHTML='<div class="c">Não deu para carregar. '+esc(e.message||'')+'</div>'; if(pl)pl.innerHTML='<span class="pl">não carregou — toque em Atualizar</span>'; return }
   try{ CC=await porta('qualidade_cancelamentos',{periodo:perNome(),dias:DIAS,unidade:UNI||null}); }catch(e){ CC=null }
   /* 07/10/2026: o subtitulo virou o placar de pilulas, desenhado em filtros() a cada desenho */
   desenha();
