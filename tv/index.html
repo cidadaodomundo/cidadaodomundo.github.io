@@ -300,16 +300,19 @@ const TEMA_FAM={frio:['frio'],ponto:['ponto'],faltou:['sacola','errado'],embalag
 const MIN_FAM={n:5,dias:3,pct:35}, MIN_ITEM={n:3,dias:2}, MIN_TEMA={n:3,dias:2};
 function melhor(m){
   const el=$('melhor'); if(!m){ el.style.display='none'; return; } el.style.display='';
-  const fams=(Array.isArray(m.familias)?m.familias.filter(Boolean):[]).slice().sort((x,y)=>(y.n-x.n)||(y.dias-x.dias)), tm=m.tema, per=(m.de&&m.ate)?esc(m.de)+' a '+esc(m.ate):'', ne=Number(m.erros)||0;
+  const num=x=>({...x, n:Number(x.n)||0, dias:Number(x.dias)||0});   /* numero que chegar como texto vira numero */
+  const fams=(Array.isArray(m.familias)?m.familias.filter(x=>x&&typeof x==='object').map(num):[]).sort((x,y)=>(y.n-x.n)||(y.dias-x.dias)), tm=m.tema, per=(m.de&&m.ate)?esc(m.de)+' a '+esc(m.ate):'';
+  const ne=Math.max(Number(m.erros)||0, fams.reduce((t,x)=>t+x.n,0));   /* o total nunca fica menor que a soma dos tipos */
+  const junta=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' e '+a[a.length-1];
   const passa=x=>x&&FAM[x.fam]&&x.n>=MIN_FAM.n&&x.dias>=MIN_FAM.dias&&x.n*100>=MIN_FAM.pct*ne;
   const L=fams.find(passa)||null, okF=!!L;   /* a primeira familia que passa na regra, nao so a primeira da lista */
   /* item mais esquecido: o grupo do topo (empatados) so aparece se TODOS passam na regra; senao nao afirma nada */
-  const its=(Array.isArray(m.itens)?m.itens.filter(Boolean):(m.item?[m.item]:[])).slice().sort((x,y)=>(y.n-x.n)||(y.dias-x.dias));
+  const its=(Array.isArray(m.itens)?m.itens:(m.item?[m.item]:[])).filter(x=>x&&typeof x==='object').map(num).sort((x,y)=>(y.n-x.n)||(y.dias-x.dias));
   const grp=its.length?its.filter(x=>x.n===its[0].n):[];
   const top=grp.length&&grp.every(x=>x.n>=MIN_ITEM.n&&x.dias>=MIN_ITEM.dias)?grp:[];
   const okT=tm&&TEMA[tm.tema]&&tm.n>=MIN_TEMA.n&&tm.dias>=MIN_TEMA.dias;
   const evF=okF? esc(FAM[L.fam][0])+': '+esc(L.n)+' de '+esc(ne)+' erros'
-    +(L.fam==='sacola'&&top.length? (top.length>1?' · mais esquecidos: '+top.slice(0,2).map(x=>esc(x.nome)).join(' e ')+(top.length>2?' +'+(top.length-2):'')+' ('+esc(top[0].n)+'x cada)'
+    +(L.fam==='sacola'&&top.length? (top.length>1?' · mais esquecidos: '+junta(top.slice(0,2).map(x=>esc(x.nome)))+(top.length>2?' +'+(top.length-2):'')+' ('+esc(top[0].n)+'x cada)'
                                                  :' · mais esquecido: '+esc(top[0].nome)+' ('+esc(top[0].n)+'x)') : '') : '';
   const evT=okT? 'iFood: '+esc(tm.n)+' de '+esc(m.aval_ruins)+' avaliações ruins sobre '+esc(TEMA[tm.tema][0]) : '';
   let a='', b='';
@@ -319,12 +322,17 @@ function melhor(m){
     else b='<div class="ins"><div class="ac">'+esc(TEMA[tm.tema][1])+'</div><div class="ev">'+evT+'</div></div>';
   }
   /* nenhum tipo passou na regra: o texto sai dos numeros, nunca de um "nada aconteceu" generico */
-  const f0=fams.find(x=>FAM[x.fam]);
-  const concentrado=!a&&!b&&f0&&f0.n>=3&&f0.n*3>=ne;          /* um tipo com 1/3 ou mais, mas em poucos dias ou poucos casos */
-  const espalhado=!a&&!b&&!concentrado&&ne>=2*MIN_FAM.n;        /* todos os tipos abaixo de 1/3 e muitos erros */
-  el.classList.toggle('calmo',!a&&!b&&!concentrado&&!espalhado);
-  if(concentrado) a='<div class="ins"><div class="ac">Mais comum: '+esc(FAM[f0.fam][0])+'</div><div class="ev">'+esc(f0.n)+' de '+esc(ne)+' erros em '+esc(f0.dias)+(f0.dias==1?' dia':' dias')+' · '+esc(FAM[f0.fam][1])+'</div></div>';
-  else if(espalhado) a='<div class="ins"><div class="ac">Erros espalhados: nenhum tipo chegou a 1/3</div><div class="ev">'+esc(ne)+' erros nos últimos 7 dias'+(f0?' · o mais comum: '+esc(FAM[f0.fam][0])+' ('+esc(f0.n)+')':'')+'</div></div>';
+  const nome=x=>FAM[x.fam]?FAM[x.fam][0]:'outro tipo';
+  const topN=fams.length?Number(fams[0].n)||0:0, topG=fams.filter(x=>x.n===topN), f0=topG[0];
+  const nomes=junta(topG.slice(0,3).map(x=>esc(nome(x))))+(topG.length>3?' +'+(topG.length-3):'');
+  const forte=!a&&!b&&topN>=3&&topN*3>=ne;                      /* algum tipo com 1/3 ou mais (em poucos dias ou poucos casos) */
+  const concentrado=forte&&topG.length===1;                    /* um so no topo */
+  const empate=forte&&topG.length>1;                           /* empate no topo: nunca escolhe um */
+  const espalhado=!a&&!b&&!forte&&ne>=2*MIN_FAM.n;              /* todos abaixo de 1/3 (topN*3<ne) e muitos erros */
+  el.classList.toggle('calmo',!a&&!b&&!forte&&!espalhado);
+  if(concentrado) a='<div class="ins"><div class="ac">Mais comum: '+esc(nome(f0))+'</div><div class="ev">'+esc(topN)+' de '+esc(ne)+' erros em '+esc(f0.dias)+(f0.dias==1?' dia':' dias')+(FAM[f0.fam]?' · '+esc(FAM[f0.fam][1]):'')+'</div></div>';
+  else if(empate) a='<div class="ins"><div class="ac">Empate: '+nomes+'</div><div class="ev">'+esc(topN)+' erros cada, de '+esc(ne)+' nos últimos 7 dias</div></div>';
+  else if(espalhado) a='<div class="ins"><div class="ac">Erros espalhados: nenhum tipo chegou a 1/3</div><div class="ev">'+esc(ne)+' erros nos últimos 7 dias'+(f0?(topG.length>1?' · os mais comuns: '+nomes+' ('+esc(topN)+' cada)':' · o mais comum: '+esc(nome(f0))+' ('+esc(topN)+')'):'')+'</div></div>';
   else if(!a&&!b) a='<div class="ins"><div class="ac">Nenhum erro se repetiu o bastante para virar alerta</div><div class="ev">'+esc(ne)+(ne===1?' erro':' erros')+' nos últimos 7 dias · continuem conferindo cada pedido</div></div>';
   el.innerHTML='<div class="lbx">🎯 Onde melhorar<small>últimos 7 dias · '+per+'</small></div>'+a+(b||'<div></div>');
 }
