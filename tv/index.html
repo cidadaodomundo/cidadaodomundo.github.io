@@ -247,15 +247,17 @@ function desenha(novos){
   $('pz-st').innerHTML=(lm==null||lm>30)? '<span class="alerta">⚠️ iFood sem leitura '+(lm==null?'há mais de 2 dias':'há '+tempo(lm))+' — lista pode estar velha</span>' : 'iFood lido há '+lm+' min';
   $('pz').innerHTML=ab.length? ab.slice(0,12).map(function(x){
       return '<div class="p'+(x.o_que?'':' aberto')+'"><div class="it">'+esc(x.item)+'<small>'+(x.o_que?'loja disse: '+esc(x.o_que):'<b style="color:var(--bad)">loja ainda não explicou</b>')+'</small>'
-        +'<small class="mk">'+(x.marcas>1?x.marcas+' marcas':'1 marca')+(x.nomes.length?': '+esc(x.nomes.join(', ')):'')+'</small></div><div class="tm">fora há '+tempo(x.min)+'</div></div>';
+        +'<small class="mk">'+((x.nomes.length||x.marcas)>1?(x.nomes.length||x.marcas)+' marcas':'1 marca')+(x.nomes.length?': '+esc(x.nomes.join(', ')):'')+'</small></div><div class="tm">fora há '+tempo(x.min)+'</div></div>';
     }).join('')
     : '<div class="vazio"><b>Nada fora do ar</b> além do que é de propósito.</div>';
   $('pz-ok').innerHTML=ok.length? '<b>Fora do ar de propósito</b> ('+ok.length+(ok.length>1?' itens':' item')+', a loja já explicou): '+ok.slice(0,14).map(x=>esc(x.item)).join(' · ') : '';
   /* so os itens que cabem inteiros; o resto vira "+ N outros" (a lista do portal tem todos) */
   const pe=$('pz'); if(ab.length){
-    while(pe.children.length>1 && pe.scrollHeight>pe.clientHeight+2) pe.removeChild(pe.lastElementChild);
-    const so=ab.length-pe.children.length;
-    if(so>0){ pe.removeChild(pe.lastElementChild); pe.insertAdjacentHTML('beforeend','<div class="cinza">+ '+(so+1)+' outros fora do ar — lista completa no portal › Central Cozinha</div>'); }
+    /* a linha do "+ N" ja ocupa o lugar dela antes de medir; depois tira so os itens que nao cabem */
+    pe.insertAdjacentHTML('beforeend','<div class="cinza" id="pz-mais">+</div>');
+    while(pe.children.length>2 && pe.scrollHeight>pe.clientHeight+2) pe.removeChild(pe.children[pe.children.length-2]);
+    const so=ab.length-(pe.children.length-1), pm=$('pz-mais');
+    if(so>0) pm.textContent='+ '+so+' outros fora do ar — lista completa no portal › Central Cozinha'; else pm.remove();
   }
 }
 
