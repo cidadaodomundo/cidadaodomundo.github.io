@@ -25,6 +25,7 @@ button.b:hover{border-color:var(--text2)}
 .rot{color:var(--muted);font-size:12px;font-weight:800;letter-spacing:.3px}
 .lojas{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 10px}
 .lojas .rot{min-width:64px;margin-right:2px}
+.mgrp{margin:4px 0 8px}
 .lojas .chip{padding:7px 13px}
 .lojas.ult{margin-bottom:18px}
 .fil{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
@@ -831,10 +832,17 @@ let AV=null, AVSEQ=0, BOOTFALHOU=false;
 async function avPuxa(){
   /* revisao 07/10: cada busca leva um numero; resposta que chega depois de outra busca (ou de trocar de loja) e jogada fora */
   const seq=++AVSEQ, u=UNI||null;
-  let j=null, erro=null;
-  try{ j=await porta('qualidade_avaliacoes',{unidade:u}); }catch(e){ erro=(e&&e.message)||'falhou' }
+  let j=null, tod=null, erro=null;
+  /* 07/10/2026 (chat-avaliacoes-todas-lojas-07-10), pedido do Fabio: "o placar tem que colocar todas as lojas, um quadro
+     pra cada loja". Com uma loja escolhida, a lista de baixo continua so dela, mas os quadros vem de uma segunda busca
+     sem loja, para mostrar sempre todas. Se essa segunda busca falhar, fica o quadro da loja escolhida e a tela avisa. */
+  try{
+    const r=await Promise.all([porta('qualidade_avaliacoes',{unidade:u}),
+      u?porta('qualidade_avaliacoes',{unidade:null}).catch(function(){return null}):null]);
+    j=r[0]; tod=r[1];
+  }catch(e){ erro=(e&&e.message)||'falhou' }
   if(seq!==AVSEQ||u!==(UNI||null))return;
-  if(j){ AV=j; AV._t=Date.now(); }
+  if(j){ if(tod&&Array.isArray(tod.por_loja)){ j.por_loja=tod.por_loja; j.por_marca=tod.por_marca; } else if(u)j._so_uma=true; AV=j; AV._t=Date.now(); }
   else if(!AV||AV.erro)AV={erro:erro||'falhou'};
   else AV._falhou=true;
   /* revisao 07/10: se o carregamento principal falhou, nao desenha por cima da mensagem de erro */
@@ -843,7 +851,33 @@ async function avPuxa(){
 function avVelho(){return AV===null||!!AV.erro||!AV._t||(Date.now()-AV._t)>300000}
 /* voltou para a janela depois de um tempo com a aba Avaliacoes aberta: busca de novo na hora */
 document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible'&&ABA==='cliente'&&avVelho())avPuxa(); });
-function avNum(v){return v==null?'—':String(v).replace('.',',')}
+/* 07/10/2026: nota sempre com 2 casas (4,70 e 5,00, nao 4,7 e 5), para os quadros lado a lado ficarem iguais */
+function avNum(v){return (v==null||v===''||isNaN(Number(v)))?'—':Number(v).toFixed(2).replace('.',',')}
+/* 07/10/2026 (chat-avaliacoes-todas-lojas-07-10): nome curto da marca no quadro. Tira a loja do fim do nome do iFood
+   ("... - Água Verde", "... AV", "... - SB") e, quando o nome vem todo em maiúscula, deixa só a primeira letra grande
+   (siglas da lista AV_SIGLAS continuam em maiúscula, ex. UFO). */
+const AV_SIGLAS=['UFO','CDM','AV','SB'];
+function avMarcaNome(nome){
+  const s0=String(nome||'').replace(/\s+/g,' ').trim();
+  let s=s0.replace(/(?:\s*-\s*|\s+)(?:[áa]gua verde|ah[úu]|s[ãa]o braz|boqueir[ãa]o|av|sb)$/i,'').trim()||s0;
+  if(s===s.toUpperCase())s=s.toLowerCase().split(' ').map(function(w,i){
+    if(i>0&&/^(da|de|do|das|dos|e)$/.test(w))return w;
+    if(AV_SIGLAS.indexOf(w.toUpperCase())>=0)return w.toUpperCase();
+    return w.charAt(0).toUpperCase()+w.slice(1);
+  }).join(' ');
+  return s||'(sem nome)';
+}
+/* linha de baixo de um quadro (loja ou marca): contas sempre escapadas; sem avaliacao vira o aviso do periodo */
+function avQs(x){
+  const q=Number(x&&x.avaliacoes)||0;
+  if(!q)return 'nenhuma avaliação nos últimos '+esc(n(AV.dias))+' dias';
+  return esc(n(x.avaliacoes))+' avaliaç'+(q===1?'ão':'ões')+' · '+esc(n(x.baixas))+' com nota 3 ou menos · '+esc(n(x.com_comentario))+' com comentário';
+}
+function avCard(titulo,x,marcado){
+  const tem=(Number(x&&x.avaliacoes)||0)>0;
+  return '<div class="card'+(marcado?' vivon':'')+'"><div class="t">'+titulo+'</div><div class="v">'+(tem?'★ '+avNum(x.nota_media):'—')+'</div>'+
+         '<div class="qs">'+avQs(x)+'</div></div>';
+}
 function avAba(){
   if(AV===null)return '<div class="c"><div class="load">Buscando as avaliações do iFood…</div></div>';
   if(AV.erro)return '<div class="c"><b>Não deu para buscar as avaliações.</b><div class="m">'+esc(AV.erro)+'</div></div>';
@@ -855,20 +889,41 @@ function avAba(){
   if(parado)h+='<div class="aviso"><b>'+(AV.lido_em?(AV.robo_status!=='OK'?'A última leitura do iFood ('+esc(AV.lido_em)+') deu erro.':'A leitura do iFood está parada desde '+esc(AV.lido_em)+'.'):'Não achei nenhuma leitura do iFood.')+
      '</b> A lista pode estar velha.</div>';
   if(AV._falhou)h+='<div class="aviso"><b>Não consegui atualizar agora.</b> Estou mostrando o que foi lido antes. Toque em Atualizar para tentar de novo.</div>';
-  const L=AV.por_loja||[];
+  /* 07/10/2026 (revisao): loja que aparece nas marcas, ou a loja escolhida, mas nao tem avaliacao no periodo
+     ganha quadro com traco, em vez de sumir */
+  const L=(AV.por_loja||[]).slice(), M=AV.por_marca||[];
+  if(L.length||M.length){
+    const tem=function(u){return L.some(function(l){return l.unidade===u})};
+    M.forEach(function(m){ if(!tem(m.unidade))L.push({unidade:m.unidade,avaliacoes:0}); });
+    if(UNI&&!tem(UNI))L.push({unidade:UNI,avaliacoes:0});
+    L.sort(function(x,y){return String(x.unidade||'').localeCompare(String(y.unidade||''),'pt-BR')});
+  }
   if(L.length){
     h+='<div class="cards">';
-    L.forEach(function(l){
-      h+='<div class="card"><div class="t">🏪 '+esc(l.unidade)+'</div><div class="v">★ '+avNum(l.nota_media)+'</div>'+
-         '<div class="qs">'+n(l.avaliacoes)+' avaliações · '+n(l.baixas)+' com nota 3 ou menos · '+n(l.com_comentario)+' com comentário</div></div>';
-    });
+    L.forEach(function(l){ h+=avCard('🏪 '+esc(l.unidade||'—'),l,!!UNI&&l.unidade===UNI); });
     h+='</div>';
-    h+='<div class="nota">Quadros: nota média das avaliações dos últimos '+n(AV.dias)+' dias que o iFood já liberou.</div>';
-  } else h+='<div class="c"><div class="vazio">Nenhuma avaliação liberada pelo iFood nos últimos '+n(AV.dias)+' dias'+(UNI?' na '+esc(UNI):'')+'.</div></div>';
+    h+='<div class="nota">Quadros: nota média das avaliações dos últimos '+esc(n(AV.dias))+' dias que o iFood já liberou'+
+       (UNI?(AV._so_uma?'. Não consegui buscar as outras lojas agora — toque em Atualizar para tentar de novo'
+                       :'. Os quadros mostram sempre todas as lojas; a lista de baixo é só da '+esc(UNI)):'')+'.</div>';
+    /* 07/10/2026 (chat-avaliacoes-todas-lojas-07-10), pedido do Fabio: "tem como separar por quadros tb cada sub loja
+       tipo famosa marmita, marmita da jane". Um quadro por marca do iFood, agrupado pela loja, na mesma ordem dos quadros
+       de cima. Vem do por_marca da mesma porta (as mesmas contas do por_loja, marca por marca). */
+    if(M.length){
+      h+='<h2>🏷 Cada marca, dentro da loja</h2>';
+      L.forEach(function(l){
+        const G=M.filter(function(m){return m.unidade===l.unidade});
+        if(!G.length)return;
+        h+='<div class="rot mgrp">🏪 '+esc(l.unidade||'—')+' · '+G.length+' marca'+(G.length===1?'':'s')+'</div><div class="cards">';
+        G.forEach(function(m){ h+=avCard(esc(avMarcaNome(m.marca)),m,false); });
+        h+='</div>';
+      });
+      h+='<div class="nota">Mesmas contas dos quadros de cima, marca por marca. Marca com poucas avaliações muda muito de nota com uma avaliação só — olhe o número de avaliações junto com a nota.</div>';
+    }
+  } else h+='<div class="c"><div class="vazio">Nenhuma avaliação liberada pelo iFood nos últimos '+esc(n(AV.dias))+' dias'+(UNI?' na '+esc(UNI):'')+'.</div></div>';
   const X=AV.lista||[];
   h+='<h2>💬 O que o cliente escreveu</h2>';
-  if(!X.length)return h+'<div class="c"><div class="vazio">Nenhum comentário nem nota baixa nos últimos '+n(AV.dias)+' dias.</div></div>';
-  h+='<div class="nota">Só aparecem as avaliações com comentário ou com nota 3 ou menos, do pedido mais novo para o mais velho ('+X.length+' na lista). Faixa vermelha: nota 1 ou 2; amarela: nota 3; verde: 4 ou 5.</div>';
+  if(!X.length)return h+'<div class="c"><div class="vazio">Nenhum comentário nem nota baixa nos últimos '+esc(n(AV.dias))+' dias.</div></div>';
+  h+='<div class="nota">Só aparecem as avaliações com comentário ou com nota 3 ou menos, do pedido mais novo para o mais velho ('+esc(String(X.length))+' na lista). Faixa vermelha: nota 1 ou 2; amarela: nota 3; verde: 4 ou 5.</div>';
   h+='<div class="vv-lista">'+X.map(function(x){
     const nt=Number(x.nota), cor=(nt<=2?'bad':(nt===3?'':'ok')), pl=(nt<=2?'p-bad':(nt===3?'p-warn':'p-ok'));
     const tg=(x.tags||[]).length?'<div class="rs">Marcou: '+esc((x.tags||[]).join(' · '))+'</div>':'';
