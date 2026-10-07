@@ -303,7 +303,8 @@ async function boot(){
   if(DIA&&DIA!==hojeISO()){await bootDia();return}
   const [ult,pend,cham,pau,res,man,enc,com,dad]=await Promise.all([
     get('ifood_fato_avaliacao?select=data_avaliacao&order=data_avaliacao.desc&limit=1'),
-    get('ifood_fato_avaliacao?select=id_loja,data_avaliacao,nota,comentario&status_avaliacao=eq.PENDING_REPLY&data_avaliacao=gte.'+dMenos(30)+'&order=data_avaliacao.asc&limit=100'),
+    /* 07/10/2026: a API do iFood grava NOT_REPLIED (PENDING_REPLY era do robo de tela antigo); Boqueirao fora (1134806, 546359, 1803383) */
+    get('ifood_fato_avaliacao?select=id_loja,data_avaliacao,nota,comentario&status_avaliacao=in.(PENDING_REPLY,NOT_REPLIED)&id_loja=not.in.(1134806,546359,1803383)&data_avaliacao=gte.'+dMenos(30)+'&order=data_avaliacao.asc&limit=100'),
     get('ifood_fato_negociacao?select=id,id_loja,data,motivo,valor_pedido,resposta_loja&data=gte.'+dMenos(14)+'&order=data.asc&limit=100'),
     get('cardapio_pausado?select=unidade,canal,item,primeiro_visto&visto_em=gte.'+dMenos(2)+'&order=primeiro_visto.asc&limit=800'),
     get('salao_reserva?select=id,unidade,data,hora,pessoas,area,status,sinal_pago,observacao&data=gte.'+hojeISO()+'&data=lte.'+dMais(7)+'&order=data.asc,hora.asc&limit=100'),
