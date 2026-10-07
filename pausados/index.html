@@ -110,6 +110,10 @@ const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){retur
 /* PZD = resposta da porta pausados_consulta (somente leitura) */
 let PZD=null, UNI='', ABA='ifood', PZF='PRECISA', TBF='TODOS', PZG=[];
 try{ var a0=new URLSearchParams(location.search).get('aba')||localStorage.getItem('cdm_pausados_aba'); if(['salao','ifood','accon'].indexOf(a0)>=0) ABA=a0; }catch(e){}
+/* 07/10/2026, pedido do Fábio: o Diego vê só o São Braz (menu São Braz > Pausados · São Braz abre esta tela com ?loja=sb).
+   Com ?loja= a loja fica fixa e os botões das outras lojas somem. É recorte de VISÃO, não cadeado. */
+let FIXA='';
+try{ FIXA=({sb:'São Braz',av:'Água Verde',ahu:'Ahú'})[new URLSearchParams(location.search).get('loja')]||''; if(FIXA) UNI=FIXA; }catch(e){}
 
 async function porta(nome,dados){
   const r=await fetch(SB+'rpc/'+nome,{method:'POST',
@@ -323,7 +327,7 @@ function desenha(){
   var ci=contaIfood(pzGrupos());
   var tb=tabLinhas(), tbc=contaC(tb), tbp=tb.filter(function(x){return x.estado==='pausado'&&x.sit!=='RESP'}).length;
   var ac=acconAtivo()?contaC(canalGrupos('accon')):null;
-  var h='<div class="lojas"><span class="rot">LOJA</span>'+lj('','Todas')+lj('Água Verde')+lj('Ahú')+lj('São Braz')+'</div>'+
+  var h='<div class="lojas"><span class="rot">LOJA</span>'+(FIXA?lj(FIXA):lj('','Todas')+lj('Água Verde')+lj('Ahú')+lj('São Braz'))+'</div>'+
     '<div class="cards">'+
       cardAba('salao','🍽','Salão · tablets', tbc.PRECISA,
         '<div class="qs" style="color:'+(tbc.PRECISA?'#ff9a9a':'#7fe0aa')+'">'+(tbc.PRECISA?'itens esperando a loja':'todos respondidos')+'</div>'+
@@ -350,13 +354,13 @@ async function boot(){
   catch(e){ PZD={erro:(e&&e.message)||'erro'}; placar('<span class="pl" style="border-color:rgba(230,103,103,.5);color:#ff9a9a">'+esc(PZD.erro)+'</span>'); desenha(); return }
   PZD=PZD||{};
   placar('<span class="pl"'+((PZD.lido_min==null||PZD.lido_min>20)?' style="border-color:rgba(230,103,103,.5)"':'')+'>iFood lido <b>'+esc(PZD.lido_em||'há mais de 2 dias')+'</b></span>'+
-    ((PZD.tablet_lido||[]).length?'<span class="pl">tablet lido <b>'+(PZD.tablet_lido||[]).map(function(l){return esc(l.lido)}).filter(function(v,i,a){return a.indexOf(v)===i}).join(' / ')+'</b></span>':'')+
+    ((PZD.tablet_lido||[]).filter(daLoja).length?'<span class="pl">tablet lido <b>'+(PZD.tablet_lido||[]).filter(daLoja).map(function(l){return esc(l.lido)}).filter(function(v,i,a){return a.indexOf(v)===i}).join(' / ')+'</b></span>':'')+
     (acconAtivo()?'<span class="pl">Accon lido <b>'+esc(PZD.accon_lido)+'</b></span>'
       :'<span class="pl" style="border-color:rgba(230,103,103,.5)">Accon <b style="color:#ff9a9a">parado'+(PZD.accon_lido?' desde '+esc(PZD.accon_lido):'')+'</b></span>'));
   desenha();
 }
 /* ===== porta unica do portal ===== */
-const CDMMODS=['pausados'];
+const CDMMODS=['pausados','sbpausados'];
 function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
 function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
