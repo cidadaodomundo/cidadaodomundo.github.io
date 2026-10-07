@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#111111">
+<title>Conferência da Sacola · Cidadão do Mundo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* Conferencia da Sacola 07-10-2026. Pedido do Fabio (05/10): "quero acabar com os esquecimentos" — pedido de 2 cozinhas
+   (burger + prato) saia so com um pacote. Regra (07/10): a primeira parte pronta vai para a ESTUFA, prateleira "TEM PAR",
+   com o numero escrito; a outra poe do lado; na entrega vai tudo na mesma sacola; bebida e sobremesa saem do balcao.
+   Tela sem login (igual a TV da cozinha): codigo de 8 letras do aparelho, conferido no banco pela porta sacola_tela.
+   Visual so escuro, de proposito (cozinha, marca preta). Ouro SO na observacao do cliente. */
+:root{
+  --bg:#111111; --card:#1b1b1a; --card2:#252522; --line:#383631;
+  --fg:#f4f2ec; --mut:#a8a398; --gold:#E0A81C;
+  --ok:#2fae66; --okbg:#10301e; --bad:#e2483d; --badbg:#3a1412; --wait:#3a3524; --cinza:#3a3a38;
+  --display:"Anton","Oswald","Arial Black",sans-serif;
+  --body:"Barlow",Helvetica,Arial,sans-serif;
+  --cond:"Barlow Condensed","Barlow",Arial,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;margin:0;padding-inline:16px;padding-block:0 32px;overflow-x:hidden}
+.wrap{max-width:1280px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;padding-block:18px 14px;border-bottom:1px solid var(--line)}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,4.4vw,44px);line-height:1;margin:0;text-transform:uppercase}
+.sub{font-family:var(--cond);font-weight:600;font-size:15px;letter-spacing:.08em;color:var(--mut);text-transform:uppercase;margin-top:6px;overflow-wrap:anywhere}
+.dir{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px}
+.stats{display:flex;gap:10px;flex-wrap:wrap}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 14px;min-width:96px}
+.stat .n{font-family:var(--display);font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
+.stat .l{font-family:var(--cond);font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.stat.bad .n{color:var(--bad)} .stat.ok .n{color:var(--ok)}
+.ctl{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.relogio{font-family:var(--display);font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
+.bt{font:600 15px var(--body);background:var(--card2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;min-height:40px}
+.bt.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.nota{color:var(--mut);font-size:14px;margin-top:8px}
+.faixa{margin-top:14px;padding:12px 16px;border-radius:12px;background:var(--badbg);border:2px solid var(--bad);color:#ffd9d5;font-weight:700;line-height:1.35}
+.alert{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-top:16px;padding:14px 16px;background:var(--badbg);border:2px solid var(--bad);border-radius:12px}
+.alert .t{font-family:var(--display);font-size:22px;text-transform:uppercase;color:#ffd9d5;flex:1 1 100%;overflow-wrap:anywhere}
+.alert .d{color:#ffd9d5;font-size:15px;line-height:1.4;flex:1 1 260px;min-width:0}
+.alert button{font:600 15px var(--body);background:transparent;color:#fff;border:1px solid #ffb3ab;border-radius:8px;padding:8px 14px;cursor:pointer;min-height:48px}
+.alert button:disabled{opacity:.6}
+h2{font-family:var(--cond);font-weight:700;font-size:16px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:24px 0 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(310px,100%),1fr));gap:14px;align-items:start}
+.card{background:var(--card);border:2px solid var(--line);border-radius:14px;overflow:hidden;min-width:0}
+.card.duplo{grid-column:span 2;border-color:var(--fg)}
+@media (max-width:700px){.card.duplo{grid-column:auto}}
+.card.done{border-color:var(--ok);background:var(--okbg)}
+.card.cancel{filter:grayscale(1);opacity:.7;border-color:var(--line)}
+.card.cancel .name{text-decoration:line-through;text-decoration-thickness:2px;color:var(--mut)}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:14px 16px 10px}
+.num{font-family:var(--display);font-size:40px;line-height:.95;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.marca{font-family:var(--cond);font-weight:600;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin-top:4px}
+.selos{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.selo{font-family:var(--cond);font-weight:700;font-size:14px;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:6px;border:1px solid var(--fg);color:var(--fg)}
+.tempo{text-align:right;font-size:14px;color:var(--mut);white-space:nowrap}
+.tempo b{display:block;font-family:var(--display);font-weight:400;font-size:22px;color:var(--fg)}
+.tempo.late b{color:var(--bad)}
+.cancelado{margin:0 16px 10px;padding:12px 14px;border-radius:10px;background:var(--cinza);color:#fff;font-family:var(--display);font-size:22px;line-height:1.15;text-transform:uppercase}
+.vol{margin:0 16px 4px;padding:10px 14px;background:var(--fg);color:var(--bg);border-radius:10px;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px}
+.vol .big{font-family:var(--display);font-size:30px;line-height:1;text-transform:uppercase}
+.vol .what{font-family:var(--cond);font-weight:700;font-size:17px;letter-spacing:.05em;text-transform:uppercase}
+.obs{margin:12px 16px 0;padding:10px 12px;border:2px solid var(--gold);border-radius:10px;background:rgba(224,168,28,.08)}
+.obs + .obs{margin-top:8px}
+.obs .k{font-family:var(--cond);font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);overflow-wrap:anywhere}
+.obs .v{font-family:var(--display);font-size:22px;line-height:1.15;text-transform:uppercase;margin-top:2px;overflow-wrap:anywhere}
+.packs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:12px;padding:12px 16px 0}
+.pack{border:2px solid var(--line);border-radius:12px;background:var(--card2);overflow:hidden;min-width:0}
+.pack.ok{border-color:var(--ok)}
+.single .pack{border:0;background:none;border-radius:0}
+.single .packs{padding:0;display:block}
+.ph{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.ph .p{font-family:var(--display);font-size:20px;text-transform:uppercase;white-space:nowrap}
+.ph .c{font-family:var(--cond);font-weight:700;font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);text-align:right}
+.pack.ok .ph .c{color:var(--ok)}
+.single .ph{display:none}
+ul{list-style:none;margin:0;padding:0}
+li{border-top:1px solid var(--line)} li:first-child{border-top:0}
+.single li:first-child{border-top:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;background:none;border:0;color:inherit;font:inherit;text-align:left;cursor:pointer;min-height:56px;-webkit-tap-highlight-color:transparent}
+.row:disabled{cursor:default}
+.row:focus-visible,.go:focus-visible,.bt:focus-visible{outline:3px solid var(--fg);outline-offset:-3px}
+.box{flex:0 0 32px;height:32px;border:2px solid var(--mut);border-radius:8px;display:grid;place-items:center;font-size:20px;font-weight:700;color:transparent}
+.qty{flex:0 0 auto;font-family:var(--display);font-size:20px;min-width:34px;text-align:center;padding:2px 6px;border-radius:6px;background:var(--bg)}
+.qty.many{background:var(--fg);color:var(--bg)}
+.name{flex:1;min-width:0;font-weight:600;font-size:17px;line-height:1.25;overflow-wrap:anywhere}
+.name small{display:block;font-weight:500;font-size:14px;color:var(--mut);text-decoration:none;margin-top:2px}
+.name small.de{font-family:var(--cond);font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-size:13px}
+.row.on .box{background:var(--ok);border-color:var(--ok);color:#fff}
+.row.on .name{color:var(--mut);text-decoration:line-through;text-decoration-thickness:2px}
+.espera{margin:12px 16px 0;padding:10px 14px;border-radius:10px;background:var(--wait);font-weight:600;line-height:1.35}
+.espera b{font-family:var(--display);font-weight:400;font-size:19px;text-transform:uppercase;display:block}
+.foot{padding:12px 16px 16px}
+.go{width:100%;min-height:56px;border-radius:12px;border:2px solid var(--line);background:var(--card2);color:var(--mut);font-family:var(--display);font-size:20px;text-transform:uppercase;cursor:pointer;padding:8px 12px}
+.card.done .go{background:var(--ok);border-color:var(--ok);color:#fff}
+.go:disabled{opacity:.7;cursor:wait}
+.trava{margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--badbg);border:2px solid var(--bad);color:#ffd9d5;font-weight:600;line-height:1.35}
+.trava small{display:block;font-weight:500;margin-top:4px}
+.pronto{margin:12px 16px 16px;padding:12px 14px;border-radius:10px;background:var(--okbg);border:2px solid var(--ok);line-height:1.35;font-weight:600}
+.pronto b{display:block;font-family:var(--display);font-weight:400;font-size:22px;text-transform:uppercase;color:#fff}
+.pronto .par{display:block;font-family:var(--display);font-weight:400;font-size:20px;text-transform:uppercase;margin-top:6px}
+.pronto small{display:block;color:var(--fg);font-size:15px;margin-top:4px}
+.falta{margin:12px 16px 16px;padding:10px 14px;border-radius:10px;border:2px dashed var(--line);color:var(--mut);font-weight:600}
+.vazio{padding:24px 16px;border:2px dashed var(--line);border-radius:14px;color:var(--mut);font-size:17px;text-align:center}
+.regra{margin-top:28px;padding:16px;border:2px solid var(--fg);border-radius:14px}
+.regra h3{font-family:var(--display);font-weight:400;font-size:24px;text-transform:uppercase;margin:0 0 10px}
+.regra ol{margin:0;padding-left:22px;display:grid;gap:8px;line-height:1.45;max-width:75ch}
+.rodape{margin-top:18px;color:var(--mut);font-size:13px;line-height:1.4}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--bad);color:#fff;padding:12px 18px;border-radius:12px;font-weight:700;z-index:30;max-width:calc(100% - 32px);box-shadow:0 6px 24px rgba(0,0,0,.5)}
+/* tela do codigo do aparelho (igual a TV) */
+.cod{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:var(--bg);z-index:20;padding:16px}
+.cod.on{display:flex}
+.cod .cx{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px 22px;max-width:460px;width:100%;text-align:center}
+.cod h1{font-size:30px;margin-bottom:10px}
+.cod p{color:var(--mut);margin:0 0 16px;line-height:1.4}
+.cod input{width:100%;font-family:var(--display);font-size:32px;letter-spacing:.15em;text-align:center;text-transform:uppercase;background:var(--bg);color:var(--fg);border:2px solid var(--line);border-radius:10px;padding:8px}
+.cod input:focus{outline:none;border-color:var(--fg)}
+.cod .bt{margin-top:16px;font-size:18px;padding:10px 28px;min-height:52px;background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.cod .err{color:var(--bad);font-weight:700;margin-top:12px;min-height:1.3em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1 id="titulo">Conferência da sacola</h1>
+      <div class="sub" id="sub">carregando…</div>
+    </div>
+    <div class="dir">
+      <div class="stats" aria-live="polite">
+        <div class="stat"><div class="n" id="sA">—</div><div class="l">A conferir</div></div>
+        <div class="stat ok"><div class="n" id="sC">—</div><div class="l">Entregues hoje</div></div>
+        <div class="stat bad"><div class="n" id="sS">—</div><div class="l">Saiu faltando hoje</div></div>
+      </div>
+      <div class="ctl">
+        <div class="relogio" id="relogio">--:--</div>
+        <button type="button" class="bt" id="bt-som">🔕 Ligar som</button>
+      </div>
+    </div>
+  </header>
+  <div class="nota" id="semBotao" hidden></div>
+
+  <div class="faixa" id="faixaRede" role="status" hidden></div>
+  <div class="faixa" id="faixaRobo" role="status" hidden></div>
+
+  <div id="alertas"></div>
+
+  <h2 id="h2lista">A conferir — o mais antigo primeiro</h2>
+  <div class="grid" id="grid"></div>
+
+  <div class="regra">
+    <h3>Regra da sacola completa</h3>
+    <ol>
+      <li>Quando o pedido junta coisas de mais de um lugar (cozinha do burger, cozinha dos pratos, balcão do delivery), a tela mostra em branco, bem grande: <b>2 LUGARES</b> ou <b>3 LUGARES</b>, e separa o que é de cada um.</li>
+      <li>Cada cozinha marca a sua parte quando ela fica pronta. Quem termina primeiro põe <b>na estufa, na prateleira "TEM PAR"</b>, com o número do pedido escrito. A tela mostra o que ainda falta (ex.: "Esperando: prato").</li>
+      <li>Quando a outra cozinha termina, põe a sua parte <b>do lado, na mesma prateleira "TEM PAR"</b>. Na hora de entregar, tudo vai junto na mesma sacola. Bebida e sobremesa saem do balcão nessa hora, não vão para a estufa.</li>
+      <li>O botão <b>"Entregar ao motoboy"</b> só fica verde com tudo marcado. Se alguém tocar antes, a tela diz o que está faltando.</li>
+      <li>Se o iFood mostrar que o pedido saiu e alguma parte ficou sem marcar, a tela fica vermelha na hora para ligar para o motoboy.</li>
+    </ol>
+  </div>
+  <div class="rodape" id="rodape"></div>
+</div>
+
+<div class="toast" id="toast" role="alert" hidden></div>
+
+<div class="cod" id="cod"><div class="cx">
+  <h1>🛍 Conferência da sacola</h1>
+  <p>Digite o código deste aparelho (8 letras e números). Ele fica guardado: só precisa digitar uma vez.</p>
+  <input id="cod-in" maxlength="9" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX">
+  <div><button type="button" class="bt" id="cod-bt">Entrar</button></div>
+  <div class="err" id="cod-err"></div>
+</div></div>
+
+<script>
+/* Base tecnica copiada da TV da cozinha (tv/index.html): codigo do aparelho em localStorage + #hash, porta rpc com a
+   chave publishable, 403 = codigo recusado, wakeLock, recarga de 6 h so com internet.
+   So duas portas no banco: rpc/sacola_tela (ler) e rpc/sacola_acao (marcar / entregar / resolvi). Nenhuma tabela direto. */
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hhmm=s=>{try{const d=new Date(s);if(isNaN(d))return '—';return d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'});}catch(e){return '—';}};
+const limpa=c=>String(c||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const minDesde=s=>{const t=new Date(s).getTime();return isNaN(t)?null:Math.max(0,Math.floor((Date.now()-t)/60000));};
+const haMin=m=>m==null?'':(m<60?'há '+m+' min':'há '+Math.floor(m/60)+'h'+String(m%60).padStart(2,'0'));
+const ATRASO_MIN=25;   /* "ha X min" fica vermelho a partir de 25 min */
+
+const ORDEM=['burger','prato','balcao','conferir'];
+const CZ={burger:'🍔 Cozinha do burger',prato:'🍽 Cozinha dos pratos',balcao:'🥤 Balcão do delivery',conferir:'❓ Conferir (sem lugar)'};
+const ICO={burger:'🍔',prato:'🍽',balcao:'🥤',conferir:'❓'};
+const CURTO={burger:'burger',prato:'prato',balcao:'balcão',conferir:'conferir'};
+const DO={burger:'o do burger',prato:'o do prato',balcao:'o do balcão',conferir:'o que está em “Conferir”'};
+const ONDE={burger:'cozinha do burger',prato:'cozinha dos pratos',balcao:'balcão do delivery',conferir:'sem lugar definido'};
+const TITULO={tudo:'Conferência da sacola',burger:'Cozinha do burger',prato:'Cozinha dos pratos',balcao:'Balcão do delivery'};
+const ESTUFA={burger:true,prato:true};   /* so o que sai das cozinhas vai para a estufa; bebida e sobremesa saem do balcao na hora */
+const lugarDe=l=>ORDEM.indexOf(l&&l.lugar)>=0?l.lugar:'conferir';
+const junta=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' e '+a[a.length-1];
+
+let COD='', DADO=null, TIMER=null, BUSCANDO=false, DE_NOVO=false, ULT_OK=0, SOM=false;
+let VISTOS_P=null, VISTOS_A=null;
+const OVR=new Map();      /* toque ainda nao confirmado pelo banco: "pedido|chave" -> {on, v, fase:'fila'|'ok', ack} */
+const FILA=new Map();     /* toques esperando envio (junta varios toques rapidos num envio so) */
+let SEQ=0, VER=0, T_FLUSH=null, ENVIANDO=null;
+const TRAVA=new Map();    /* pedido -> {t, s} mensagem "Ainda nao..." */
+const SUMIU=new Set();    /* pedidos entregues aqui, escondidos ate o banco parar de manda-los */
+const RESOLVIDO=new Set();/* alertas resolvidos aqui, escondidos ate o banco parar de manda-los */
+const OCUPADO=new Set();  /* botao com envio em andamento */
+try{ SOM=localStorage.getItem('cdm_sacola_som')==='1'; }catch(e){}
+
+/* ---------- codigo do aparelho ---------- */
+function guarda(c){ try{ localStorage.setItem('cdm_sacola_codigo',c); }catch(e){} try{ history.replaceState(null,'','#'+c); }catch(e){} }
+function esquece(){ try{ localStorage.removeItem('cdm_sacola_codigo'); }catch(e){} try{ history.replaceState(null,'',location.pathname); }catch(e){} }
+function pedeCodigo(msg){ $('cod').classList.add('on'); $('cod-err').textContent=msg||''; setTimeout(function(){ try{$('cod-in').focus();}catch(e){} },50); }
+function entra(){
+  const c=limpa($('cod-in').value);
+  if(c.length!==8){ $('cod-err').textContent='O código tem 8 letras e números.'; return; }
+  COD=c; $('cod-err').textContent='conferindo…'; busca();
+}
+function recusado(){
+  desliga(); esquece(); COD=''; DADO=null; VISTOS_P=null; VISTOS_A=null;
+  OVR.clear(); FILA.clear(); TRAVA.clear(); SUMIU.clear(); RESOLVIDO.clear(); OCUPADO.clear();
+  if(T_FLUSH){ clearTimeout(T_FLUSH); T_FLUSH=null; }
+  $('grid').innerHTML=''; $('alertas').innerHTML='';
+  pedeCodigo('Código não aceito. Confira e digite de novo.');
+}
+
+/* ---------- rede: so as duas portas ---------- */
+async function rpc(fn,corpo){
+  const ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+  const corta=ctl?setTimeout(function(){ ctl.abort(); },25000):null;   /* nao e timer de leitura: so corta uma chamada travada */
+  let r;
+  try{
+    r=await fetch(SB+'rpc/'+fn,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify(corpo),signal:ctl?ctl.signal:undefined});
+  }catch(e){ throw {msg:''}; }
+  finally{ if(corta) clearTimeout(corta); }
+  if(r.status===403){ recusado(); throw {recusado:true}; }
+  if(!r.ok){ let m=''; try{ const j=await r.json(); m=(j&&j.message)||''; }catch(e){} throw {msg:String(m).slice(0,140), status:r.status}; }
+  return r.json();
+}
+function acao(nome,dados){ return rpc('sacola_acao',{p_chave:COD,p_acao:nome,p_dados:dados}); }
+
+async function busca(){
+  if(!COD) return;
+  if(BUSCANDO){ DE_NOVO=true; return; }   /* nunca duas leituras ao mesmo tempo; a pedida no meio roda logo depois */
+  BUSCANDO=true; const inicio=SEQ;
+  try{
+    const j=await rpc('sacola_tela',{p_chave:COD});
+    if(!j||typeof j!=='object') throw {msg:'resposta vazia'};
+    $('cod').classList.remove('on'); guarda(COD);
+    /* toque ja confirmado antes desta leitura comecar: o banco ja devolve marcado, a tela larga a copia dela */
+    OVR.forEach(function(o,k){ if(o.fase==='ok' && o.ack<=inicio) OVR.delete(k); });
+    const ps=Array.isArray(j.pedidos)?j.pedidos.filter(p=>p&&p.id!=null):[];
+    const as=Array.isArray(j.alertas)?j.alertas.filter(a=>a&&a.id!=null):[];
+    const novosP=VISTOS_P? ps.filter(p=>!p.cancelado && !VISTOS_P.has(p.id)).length : 0;
+    const novosA=VISTOS_A? as.filter(a=>!VISTOS_A.has(a.id)).length : 0;
+    VISTOS_P=new Set(ps.map(p=>p.id)); VISTOS_A=new Set(as.map(a=>a.id));
+    Array.from(SUMIU).forEach(function(id){ if(!VISTOS_P.has(id)) SUMIU.delete(id); });
+    Array.from(RESOLVIDO).forEach(function(id){ if(!VISTOS_A.has(id)) RESOLVIDO.delete(id); });
+    Array.from(TRAVA.keys()).forEach(function(id){ if(!VISTOS_P.has(id)) TRAVA.delete(id); });
+    DADO=j; ULT_OK=Date.now(); $('faixaRede').hidden=true;
+    desenha();
+    if(novosA) toca('alarme'); else if(novosP) toca('novo');
+  }catch(e){
+    if(!(e&&e.recusado)) falha(e&&e.status?'Não consegui ler agora (código '+e.status+'). Tento de novo em 1 minuto.':'SEM INTERNET — tentando de novo a cada 1 minuto.');
+  }finally{
+    BUSCANDO=false; liga();
+    if(DE_NOVO && COD){ DE_NOVO=false; busca(); } else DE_NOVO=false;
+  }
+}
+function falha(msg){
+  const f=$('faixaRede'); f.textContent='⚠️ '+msg+(ULT_OK?' Mostrando o que foi lido às '+hhmm(ULT_OK)+'.':''); f.hidden=false;
+  if($('cod').classList.contains('on')) $('cod-err').textContent=msg;
+  if(!DADO && !COD) pedeCodigo();
+}
+/* leitura de 1 em 1 minuto; desligada quando a tela some (aba escondida / tablet apagado) e religada ao voltar */
+function liga(){ if(!TIMER && COD && document.visibilityState!=='hidden') TIMER=setInterval(busca,60000); }
+function desliga(){ if(TIMER){ clearInterval(TIMER); TIMER=null; } }
+
+/* ---------- marcar (otimista, junta toques rapidos) ---------- */
+function marcado(p,l){ const o=OVR.get(p.id+'|'+l.chave); return o? !!o.on : !!l.marcado; }
+function acha(id){ const ps=(DADO&&Array.isArray(DADO.pedidos))?DADO.pedidos:[]; for(const p of ps) if(String(p.id)===String(id)) return p; return null; }
+function toque(id,chave){
+  const p=acha(id); if(!p||p.cancelado) return;
+  const l=(p.linhas||[]).find(x=>String(x.chave)===String(chave)); if(!l) return;
+  const k=p.id+'|'+l.chave, on=!marcado(p,l), v=++VER;
+  OVR.set(k,{on:on,v:v,fase:'fila',ack:0});
+  FILA.set(k,{k:k,id:p.id,chave:l.chave,on:on,v:v});
+  TRAVA.delete(p.id);
+  desenha();
+  if(T_FLUSH) clearTimeout(T_FLUSH);
+  T_FLUSH=setTimeout(function(){ T_FLUSH=null; envia(); },600);   /* um envio so para varios toques seguidos (nao e leitura) */
+}
+async function envia(){
+  if(T_FLUSH){ clearTimeout(T_FLUSH); T_FLUSH=null; }
+  while(ENVIANDO){ try{ await ENVIANDO; }catch(e){} }
+  if(!FILA.size) return true;
+  const lote=Array.from(FILA.values()); FILA.clear();
+  ENVIANDO=(async function(){
+    const grupos=new Map();
+    lote.forEach(function(x){ const g=x.id+'|'+(x.on?1:0); if(!grupos.has(g)) grupos.set(g,{id:x.id,on:x.on,itens:[]}); grupos.get(g).itens.push(x); });
+    let tudo=true, msg='';
+    for(const g of grupos.values()){
+      try{
+        const r=await acao('marcar',{pedido:g.id,chaves:g.itens.map(x=>x.chave),on:g.on});
+        if(r&&r.ok===false) throw {msg:''};
+        g.itens.forEach(function(x){ const o=OVR.get(x.k); if(o&&o.v===x.v){ o.fase='ok'; o.ack=++SEQ; } });
+      }catch(e){
+        if(e&&e.recusado) return false;
+        tudo=false; if(e&&e.msg) msg=e.msg;
+        g.itens.forEach(function(x){ const o=OVR.get(x.k); if(o&&o.v===x.v) OVR.delete(x.k); });   /* desfaz na tela */
+      }
+    }
+    if(!tudo) aviso(msg?'Não salvou: '+msg:'Não salvou — sem internet?');
+    desenha();
+    return tudo;
+  })();
+  let ok=false;
+  try{ ok=await ENVIANDO; }catch(e){ ok=false; } finally{ ENVIANDO=null; }
+  if(COD) busca();   /* le de novo logo depois da acao */
+  return ok;
+}
+
+/* ---------- entregar / resolvi ---------- */
+function frasesFalta(itens,nLugares){
+  /* itens: [{lugar,qtd,nome}] */
+  const zs=ORDEM.filter(z=>itens.some(x=>(ORDEM.indexOf(x.lugar)>=0?x.lugar:'conferir')===z));
+  const lista=itens.map(x=>(x.qtd!=null?esc(x.qtd)+'x ':'')+esc(x.nome)).join(' · ');
+  let t;
+  if(nLugares>1 && zs.length){
+    const est=zs.some(z=>z!=='balcao'), bal=zs.indexOf('balcao')>=0;
+    t='Ainda não. Falta '+junta(zs.map(z=>DO[z]))+'. '+(est?'Confere a prateleira TEM PAR da estufa'+(bal?' e o balcão.':'.'):'Pega no balcão.');
+  } else t='Ainda não. Marca todos os itens antes de entregar.';
+  return {t:t, s:lista?'Falta marcar: '+lista:''};
+}
+async function entregar(id){
+  const p=acha(id); if(!p||p.cancelado||OCUPADO.has(id)) return;
+  const linhas=Array.isArray(p.linhas)?p.linhas:[];
+  const nL=ORDEM.filter(z=>linhas.some(l=>lugarDe(l)===z)).length;
+  const falta=linhas.filter(l=>!marcado(p,l)).map(l=>({lugar:lugarDe(l),qtd:l.qtd,nome:l.nome}));
+  if(falta.length){ TRAVA.set(id,frasesFalta(falta,nL)); desenha(); return; }   /* nem chama o banco */
+  OCUPADO.add(id); TRAVA.delete(id); desenha();
+  try{
+    const salvou=await envia();   /* primeiro garante que os ultimos toques chegaram */
+    if(!salvou){ return; }
+    const r=await acao('entregar',{pedido:p.id});
+    if(r&&r.ok===true){ SUMIU.add(p.id); }
+    else if(r&&Array.isArray(r.faltando)&&r.faltando.length){ TRAVA.set(id,frasesFalta(r.faltando,nL)); }
+    else aviso('Não salvou — tenta de novo.');
+  }catch(e){
+    if(e&&e.recusado) return;
+    aviso(e&&e.msg?'Não salvou: '+e.msg:'Não salvou — sem internet?');
+  }finally{
+    OCUPADO.delete(id); if(COD){ desenha(); busca(); }
+  }
+}
+async function resolvi(id){
+  const k='a:'+id; if(OCUPADO.has(k)) return;
+  OCUPADO.add(k); desenha();
+  try{
+    const r=await acao('resolvi',{pedido:id});
+    if(r&&r.ok===true) RESOLVIDO.add(id); else aviso('Não salvou — tenta de novo.');
+  }catch(e){
+    if(e&&e.recusado) return;
+    aviso(e&&e.msg?'Não salvou: '+e.msg:'Não salvou — sem internet?');
+  }finally{
+    OCUPADO.delete(k); if(COD){ desenha(); busca(); }
+  }
+}
+
+/* ---------- aviso curto ---------- */
+let T_AVISO=null;
+function aviso(t){ const el=$('toast'); el.textContent=t; el.hidden=false; if(T_AVISO) clearTimeout(T_AVISO); T_AVISO=setTimeout(function(){ el.hidden=true; },5000); }
+
+/* ---------- desenho ---------- */
+function lugarAparelho(){ const L=DADO&&DADO.lugar; return ['tudo','burger','prato','balcao'].indexOf(L)>=0?L:'tudo'; }
+function visiveis(L){
+  const ps=(DADO&&Array.isArray(DADO.pedidos))?DADO.pedidos.filter(p=>p&&p.id!=null&&!SUMIU.has(p.id)):[];
+  const t=s=>{const x=new Date(s).getTime();return isNaN(x)?0:x;};
+  const peso=function(p){
+    if(p.agendado_para) return 2;
+    if(L!=='tudo' && !p.cancelado){ const ls=(p.linhas||[]).filter(l=>lugarDe(l)===L); if(ls.length && ls.every(l=>marcado(p,l))) return 1; }   /* na cozinha, o que ela ja fez desce */
+    return 0;
+  };
+  return ps.map((p,i)=>({p:p,i:i,w:peso(p)})).sort(function(a,b){
+    if(a.w!==b.w) return a.w-b.w;
+    if(a.w===2){ const d=t(a.p.agendado_para)-t(b.p.agendado_para); if(d) return d; }
+    return a.i-b.i;   /* o banco ja manda o mais antigo primeiro */
+  }).map(x=>x.p);
+}
+function linhaHTML(p,l,trava){
+  const on=marcado(p,l), q=Number(l.qtd);
+  const det=Array.isArray(l.detalhe)?l.detalhe.filter(x=>x!=null&&String(x).trim()):[];
+  return '<li><button type="button" class="row'+(on?' on':'')+'" aria-pressed="'+on+'" data-p="'+esc(p.id)+'" data-k="'+esc(l.chave)+'"'+(trava?' disabled':'')+'>'
+    +'<span class="box">✓</span><span class="qty'+(q>1?' many':'')+'">'+esc(l.qtd==null?'?':l.qtd)+'x</span>'
+    +'<span class="name">'+esc(l.nome)
+    +(det.length?'<small>'+det.map(esc).join(' · ')+'</small>':'')
+    +(l.veio_de?'<small class="de">do '+esc(l.veio_de)+'</small>':'')
+    +'</span></button></li>';
+}
+function cartao(p,L){
+  const linhas=Array.isArray(p.linhas)?p.linhas:[];
+  const zs=ORDEM.filter(z=>linhas.some(l=>lugarDe(l)===z));
+  const n=zs.length, multi=n>1, cz=L!=='tudo', canc=!!p.cancelado;
+  const grupos=zs.map(function(z,ix){ const ls=linhas.filter(l=>lugarDe(l)===z); const ok=ls.length>0&&ls.every(l=>marcado(p,l));
+    let ult=null; if(ok) ls.forEach(function(l){ if(l.marcado_em && !OVR.has(p.id+'|'+l.chave) && (!ult||l.marcado_em>ult)) ult=l.marcado_em; });
+    return {z:z,ix:ix,ls:ls,ok:ok,ult:ult}; });
+  const mostra=cz?grupos.filter(g=>g.z===L):grupos;
+  const prontos=grupos.filter(g=>g.ok);
+  const done=!canc && (cz? (mostra.length>0&&mostra.every(g=>g.ok)) : (grupos.length>0&&prontos.length===grupos.length));
+  const num=esc(p.numero!=null&&p.numero!==''?p.numero:'—');
+  const agend=!!p.agendado_para, mins=minDesde(p.criado);
+  const verbo=p.tipo==='TAKEOUT'?'Entregar ao cliente':'Entregar ao motoboy';
+
+  let h='<article class="card '+(multi&&!cz?'duplo':'single')+(done?' done':'')+(canc?' cancel':'')+'" data-id="'+esc(p.id)+'">';
+  h+='<div class="top"><div><div class="num">#'+num+'</div><div class="marca">'+esc(p.marca)+'</div>';
+  const selos=[];
+  if(agend) selos.push('Agendado '+esc(hhmm(p.agendado_para)));
+  if(p.tipo==='TAKEOUT') selos.push('Retirada');
+  if(selos.length) h+='<div class="selos">'+selos.map(s=>'<span class="selo">'+s+'</span>').join('')+'</div>';
+  h+='</div>';
+  if(agend) h+='<div class="tempo">agendado para<b>'+esc(hhmm(p.agendado_para))+'</b></div>';
+  else h+='<div class="tempo'+(mins!=null&&mins>=ATRASO_MIN&&!canc?' late':'')+'" data-ts="'+esc(p.criado||'')+'">entrou '+esc(hhmm(p.criado))+'<b>'+esc(haMin(mins))+'</b></div>';
+  h+='</div>';
+  if(canc) h+='<div class="cancelado">Cancelado — não montar / não mandar</div>';
+  if(multi && !canc) h+='<div class="vol"><span class="big">'+n+' lugares</span><span class="what">'+zs.map(z=>ICO[z]+' '+CURTO[z]).join(' + ')+' — juntar tudo na mesma sacola</span></div>';
+  /* observacao do cliente: unico lugar com ouro */
+  const comObs=(cz?linhas.filter(l=>lugarDe(l)===L):linhas).filter(l=>l.obs!=null&&String(l.obs).trim());
+  comObs.forEach(function(l){ h+='<div class="obs"><div class="k">Cliente pediu'+(linhas.length>1?' · '+esc(l.nome):'')+'</div><div class="v">'+esc(l.obs)+'</div></div>'; });
+  h+='<div class="packs">'+mostra.map(function(g){
+    return '<section class="pack'+(g.ok?' ok':'')+'"><div class="ph"><span class="p">'+(g.ix+1)+' de '+n+'</span><span class="c">'+(g.ok?'✓ pronto'+(g.ult?' '+esc(hhmm(g.ult)):'')+' · ':'')+CZ[g.z]+'</span></div>'
+      +'<ul>'+g.ls.map(l=>linhaHTML(p,l,canc)).join('')+'</ul></section>';
+  }).join('')+'</div>';
+  if(cz && !mostra.length && !canc) h+='<div class="falta">Nada deste pedido é '+(L==='balcao'?'do balcão':'desta cozinha')+'.</div>';
+
+  if(!canc && !cz){
+    /* expedicao: espera + botao que trava */
+    if(multi && prontos.length && !done){
+      const falta=grupos.filter(g=>!g.ok).map(g=>CURTO[g.z]);
+      const naEstufa=prontos.filter(g=>ESTUFA[g.z]).map(g=>CURTO[g.z]);
+      const balcaoFalta=grupos.some(g=>g.z==='balcao'&&!g.ok);
+      h+='<div class="espera"><b>Esperando: '+esc(junta(falta))+'</b>'
+        +(naEstufa.length?'O que é do '+esc(naEstufa.join(' e do '))+' já está pronto: vai para a estufa na prateleira <u>TEM PAR</u>, com o número #'+num+' escrito.':'')
+        +(balcaoFalta?' Bebida e sobremesa saem do balcão na hora de entregar.':'')+'</div>';
+    }
+    const oc=OCUPADO.has(p.id), tr=TRAVA.get(p.id);
+    const txt=oc?'Salvando…':done?(n>1?'✓ '+verbo+' — '+n+' lugares juntos':'✓ '+verbo):(n>1?verbo+' ('+prontos.length+' de '+n+' prontos)':verbo);
+    h+='<div class="foot"><button type="button" class="go" data-go="'+esc(p.id)+'"'+(oc?' disabled':'')+'>'+txt+'</button>'
+      +(tr?'<div class="trava" role="alert">'+tr.t+(tr.s?'<small>'+tr.s+'</small>':'')+'</div>':'')+'</div>';
+  } else if(!canc && cz && mostra.length){
+    /* tablet de uma cozinha (ou do balcao): sem botao de entregar */
+    const outros=grupos.filter(g=>g.z!==L), outrosFalta=outros.filter(g=>!g.ok);
+    if(done){
+      h+='<div class="pronto">'+(L==='balcao'?'<b>✓ Separado — sai do balcão na hora de entregar</b>Bebida e sobremesa não vão para a estufa.':'<b>✓ Pronto — vai para a estufa</b>');
+      if(outros.length){
+        if(L!=='balcao') h+='<span class="par">Prateleira TEM PAR · #'+num+'</span>';
+        h+='<small>'+(outrosFalta.length?'Ainda falta das outras partes: '+esc(junta(outrosFalta.map(g=>CURTO[g.z])))+'.':'As outras partes também já estão prontas — tudo junto na mesma sacola.')+'</small>';
+      }
+      h+='</div>';
+    } else {
+      const outrosEstufa=outros.filter(g=>g.ok&&ESTUFA[g.z]);
+      if(outrosEstufa.length && L!=='balcao') h+='<div class="espera"><b>O do '+esc(outrosEstufa.map(g=>CURTO[g.z]).join(' e do '))+' já está na estufa</b>Prateleira <u>TEM PAR</u>, #'+num+'. Quando o seu ficar pronto, põe do lado.</div>';
+      else if(outros.length) h+='<div class="falta">Este pedido também tem: '+esc(junta(outros.map(g=>CURTO[g.z]+(g.ok?' (pronto)':''))))+'.</div>';
+    }
+  }
+  return h+'</article>';
+}
+function desenhaAlertas(){
+  const as=(DADO&&Array.isArray(DADO.alertas))?DADO.alertas.filter(a=>a&&a.id!=null&&!RESOLVIDO.has(a.id)):[];
+  $('alertas').innerHTML=as.map(function(a){
+    const f=Array.isArray(a.faltando)?a.faltando:[];
+    const zs=ORDEM.filter(z=>f.some(x=>(ORDEM.indexOf(x.lugar)>=0?x.lugar:'conferir')===z));
+    const itens=f.map(x=>'<b>'+(x.qtd!=null?esc(x.qtd)+'x ':'')+esc(x.nome)+'</b> ('+esc(ONDE[ORDEM.indexOf(x.lugar)>=0?x.lugar:'conferir'])+')').join(', ');
+    const est=zs.some(z=>z!=='balcao'), bal=zs.indexOf('balcao')>=0;
+    const oc=OCUPADO.has('a:'+a.id);
+    return '<div class="alert" role="alert"><div class="t">⚠ #'+esc(a.numero!=null?a.numero:'—')+' saiu faltando'+(zs.length?' '+esc(junta(zs.map(z=>DO[z]))):'')+'</div>'
+      +'<div class="d">'+(a.marca?esc(a.marca)+'. ':'')+'O iFood avisou que o pedido saiu às '+esc(hhmm(a.saiu))+(itens?', mas não foi marcado: '+itens+'.':', mas faltou marcar item.')
+      +(est?' Deve estar na prateleira "TEM PAR" da estufa.':'')+(bal?' Confere o balcão.':'')+' Liga para o motoboy agora.</div>'
+      +'<button type="button" data-ok="'+esc(a.id)+'"'+(oc?' disabled':'')+'>'+(oc?'Salvando…':'Já resolvi')+'</button></div>';
+  }).join('');
+}
+function desenha(){
+  const j=DADO; if(!j) return;
+  const L=lugarAparelho();
+  $('titulo').textContent=TITULO[L];
+  document.title=(L==='tudo'?'Conferência da Sacola':TITULO[L])+' · Cidadão do Mundo';
+  $('sub').textContent=[L==='tudo'?null:'Conferência da sacola', j.loja, j.aparelho].filter(x=>x!=null&&String(x).trim()).join(' · ')+' · iFood';
+  const rb=j.robo||{};
+  if(rb.atrasado===true){ $('faixaRobo').textContent='⚠️ Os pedidos do iFood estão chegando atrasados (último às '+hhmm(rb.ultimo_ciclo)+'). Confira o iFood.'; $('faixaRobo').hidden=false; }
+  else $('faixaRobo').hidden=true;
+  const h=j.hoje||{}, sh=x=>x==null?'—':String(x);
+  const ps=visiveis(L);
+  $('sA').textContent=String(ps.filter(p=>!p.cancelado).length);
+  $('sC').textContent=sh(h.entregues);
+  $('sS').textContent=sh(h.saiu_faltando);
+  if(Number(h.saiu_completo_sem_botao)>0){ $('semBotao').textContent='Hoje saíram completos sem apertar o botão: '+h.saiu_completo_sem_botao+'.'; $('semBotao').hidden=false; } else $('semBotao').hidden=true;
+  desenhaAlertas();
+  $('h2lista').textContent=L==='tudo'?'A conferir — o mais antigo primeiro':'A fazer — o mais antigo primeiro (o que já está pronto desce)';
+  $('grid').innerHTML=ps.length? ps.map(p=>cartao(p,L)).join('') : '<div class="vazio">Nenhum pedido para conferir agora.</div>';
+  $('rodape').textContent='Atualiza sozinho a cada 1 minuto · lido às '+hhmm(j.agora)+(rb.ultimo_ciclo?' · iFood lido às '+hhmm(rb.ultimo_ciclo):'')+' · sem preço e sem dado do cliente.';
+}
+/* relogio e "ha X min" andam sem rede (so mexe no texto, nao redesenha os cartoes) */
+function relogio(){
+  $('relogio').textContent=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'});
+  document.querySelectorAll('.tempo[data-ts]').forEach(function(el){
+    const m=minDesde(el.getAttribute('data-ts')); const b=el.querySelector('b'); if(b) b.textContent=haMin(m);
+    if(!el.closest('.cancel')) el.classList.toggle('late',m!=null&&m>=ATRASO_MIN);
+  });
+}
+
+/* ---------- som (o navegador so deixa tocar depois de um toque; o botao liga e guarda a escolha) ---------- */
+let AC=null;
+function botaoSom(){ const b=$('bt-som'); b.textContent=SOM?'🔔 Som ligado':'🔕 Ligar som'; b.classList.toggle('on',SOM); }
+function toca(tipo){
+  if(!SOM) return;
+  try{ const C=window.AudioContext||window.webkitAudioContext; if(!C) return; if(!AC) AC=new C(); if(AC.state==='suspended') AC.resume();
+    const notas=tipo==='alarme'? [[0,988],[0.28,740],[0.56,988],[0.84,740],[1.12,988],[1.4,740]] : [[0,880]];
+    notas.forEach(function(x){ const o=AC.createOscillator(), g=AC.createGain(); o.type='square'; o.frequency.value=x[1];
+      g.gain.value=0.18; o.connect(g); g.connect(AC.destination); o.start(AC.currentTime+x[0]); o.stop(AC.currentTime+x[0]+(tipo==='alarme'?0.24:0.18)); });
+  }catch(e){}
+}
+
+/* ---------- toques ---------- */
+document.addEventListener('click',function(e){
+  const r=e.target.closest('.row'); if(r&&!r.disabled){ toque(r.getAttribute('data-p'),r.getAttribute('data-k')); return; }
+  const g=e.target.closest('[data-go]'); if(g&&!g.disabled){ entregar(g.getAttribute('data-go')); return; }
+  const a=e.target.closest('[data-ok]'); if(a&&!a.disabled){ resolvi(a.getAttribute('data-ok')); return; }
+});
+$('cod-bt').addEventListener('click',entra);
+$('cod-in').addEventListener('keydown',function(e){ if(e.key==='Enter') entra(); });
+$('bt-som').addEventListener('click',function(){ SOM=!SOM; try{ localStorage.setItem('cdm_sacola_som',SOM?'1':'0'); }catch(e){} botaoSom(); if(SOM) toca('novo'); });
+
+/* tela nao apaga (quando o navegador deixa) */
+async function acordada(){ try{ if(navigator.wakeLock && document.visibilityState==='visible') await navigator.wakeLock.request('screen'); }catch(e){} }
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='hidden'){ desliga(); return; }   /* tela escondida: para de ler */
+  acordada(); if(COD) busca();                                      /* voltou: le na hora e religa o minuto */
+});
+window.addEventListener('online',function(){ if(COD) busca(); });
+
+(function(){
+  botaoSom(); relogio(); acordada();
+  setInterval(relogio,30000);   /* sem rede */
+  /* pega versao nova da tela a cada 6 h, so com internet e leitura boa (senao ficaria presa na pagina de erro) */
+  setInterval(function(){ if(performance.now()>6*3600*1000 && navigator.onLine!==false && Date.now()-ULT_OK<5*60000 && !FILA.size && !ENVIANDO) location.reload(); }, 10*60000);
+  let c=''; try{ c=limpa(decodeURIComponent((location.hash||'').replace(/^#(k=)?/i,''))); }catch(e){ c=''; }
+  if(c.length!==8){ try{ c=limpa(localStorage.getItem('cdm_sacola_codigo')); }catch(e){ c=''; } }
+  if(c.length===8){ COD=c; busca(); } else pedeCodigo();
+})();
+</script>
+</body>
+</html>
