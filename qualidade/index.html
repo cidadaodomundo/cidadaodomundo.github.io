@@ -831,10 +831,17 @@ let AV=null, AVSEQ=0, BOOTFALHOU=false;
 async function avPuxa(){
   /* revisao 07/10: cada busca leva um numero; resposta que chega depois de outra busca (ou de trocar de loja) e jogada fora */
   const seq=++AVSEQ, u=UNI||null;
-  let j=null, erro=null;
-  try{ j=await porta('qualidade_avaliacoes',{unidade:u}); }catch(e){ erro=(e&&e.message)||'falhou' }
+  let j=null, tod=null, erro=null;
+  /* 07/10/2026 (chat-avaliacoes-todas-lojas-07-10), pedido do Fabio: "o placar tem que colocar todas as lojas, um quadro
+     pra cada loja". Com uma loja escolhida, a lista de baixo continua so dela, mas os quadros vem de uma segunda busca
+     sem loja, para mostrar sempre todas. Se essa segunda busca falhar, fica o quadro da loja escolhida e a tela avisa. */
+  try{
+    const r=await Promise.all([porta('qualidade_avaliacoes',{unidade:u}),
+      u?porta('qualidade_avaliacoes',{unidade:null}).catch(function(){return null}):null]);
+    j=r[0]; tod=r[1];
+  }catch(e){ erro=(e&&e.message)||'falhou' }
   if(seq!==AVSEQ||u!==(UNI||null))return;
-  if(j){ AV=j; AV._t=Date.now(); }
+  if(j){ if(tod&&Array.isArray(tod.por_loja))j.por_loja=tod.por_loja; else if(u)j._so_uma=true; AV=j; AV._t=Date.now(); }
   else if(!AV||AV.erro)AV={erro:erro||'falhou'};
   else AV._falhou=true;
   /* revisao 07/10: se o carregamento principal falhou, nao desenha por cima da mensagem de erro */
@@ -859,11 +866,13 @@ function avAba(){
   if(L.length){
     h+='<div class="cards">';
     L.forEach(function(l){
-      h+='<div class="card"><div class="t">🏪 '+esc(l.unidade)+'</div><div class="v">★ '+avNum(l.nota_media)+'</div>'+
+      h+='<div class="card'+(UNI&&l.unidade===UNI?' vivon':'')+'"><div class="t">🏪 '+esc(l.unidade)+'</div><div class="v">★ '+avNum(l.nota_media)+'</div>'+
          '<div class="qs">'+n(l.avaliacoes)+' avaliações · '+n(l.baixas)+' com nota 3 ou menos · '+n(l.com_comentario)+' com comentário</div></div>';
     });
     h+='</div>';
-    h+='<div class="nota">Quadros: nota média das avaliações dos últimos '+n(AV.dias)+' dias que o iFood já liberou.</div>';
+    h+='<div class="nota">Quadros: nota média das avaliações dos últimos '+n(AV.dias)+' dias que o iFood já liberou'+
+       (UNI?(AV._so_uma?'. Não consegui buscar as outras lojas agora — toque em Atualizar para tentar de novo'
+                       :'. Os quadros mostram sempre todas as lojas; a lista de baixo é só da '+esc(UNI)):'')+'.</div>';
   } else h+='<div class="c"><div class="vazio">Nenhuma avaliação liberada pelo iFood nos últimos '+n(AV.dias)+' dias'+(UNI?' na '+esc(UNI):'')+'.</div></div>';
   const X=AV.lista||[];
   h+='<h2>💬 O que o cliente escreveu</h2>';
