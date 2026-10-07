@@ -300,11 +300,11 @@ const TEMA_FAM={frio:['frio'],ponto:['ponto'],faltou:['sacola','errado'],embalag
 const MIN_FAM={n:5,dias:3,pct:35}, MIN_ITEM={n:3,dias:2}, MIN_TEMA={n:3,dias:2};
 function melhor(m){
   const el=$('melhor'); if(!m){ el.style.display='none'; return; } el.style.display='';
-  const fams=Array.isArray(m.familias)?m.familias:[], tm=m.tema, per=(m.de&&m.ate)?esc(m.de)+' a '+esc(m.ate):'', ne=Number(m.erros)||0;
+  const fams=(Array.isArray(m.familias)?m.familias.filter(Boolean):[]).slice().sort((x,y)=>(y.n-x.n)||(y.dias-x.dias)), tm=m.tema, per=(m.de&&m.ate)?esc(m.de)+' a '+esc(m.ate):'', ne=Number(m.erros)||0;
   const passa=x=>x&&FAM[x.fam]&&x.n>=MIN_FAM.n&&x.dias>=MIN_FAM.dias&&x.n*100>=MIN_FAM.pct*ne;
   const L=fams.find(passa)||null, okF=!!L;   /* a primeira familia que passa na regra, nao so a primeira da lista */
   /* item mais esquecido: o grupo do topo (empatados) so aparece se TODOS passam na regra; senao nao afirma nada */
-  const its=Array.isArray(m.itens)?m.itens.filter(Boolean):(m.item?[m.item]:[]);
+  const its=(Array.isArray(m.itens)?m.itens.filter(Boolean):(m.item?[m.item]:[])).slice().sort((x,y)=>(y.n-x.n)||(y.dias-x.dias));
   const grp=its.length?its.filter(x=>x.n===its[0].n):[];
   const top=grp.length&&grp.every(x=>x.n>=MIN_ITEM.n&&x.dias>=MIN_ITEM.dias)?grp:[];
   const okT=tm&&TEMA[tm.tema]&&tm.n>=MIN_TEMA.n&&tm.dias>=MIN_TEMA.dias;
@@ -318,10 +318,13 @@ function melhor(m){
     if(okF && (TEMA_FAM[tm.tema]||[]).indexOf(L.fam)>=0) b='<div class="ins"><div class="ac" style="color:var(--text2)">O cliente confirma no iFood</div><div class="ev">'+evT+'</div></div>';   /* mesma acao: nao repete a frase */
     else b='<div class="ins"><div class="ac">'+esc(TEMA[tm.tema][1])+'</div><div class="ev">'+evT+'</div></div>';
   }
-  const f0=fams[0];
-  const espalhado=!a&&!b&&ne>=2*MIN_FAM.n;   /* muitos erros sem nenhum tipo dominar: nao e semana calma */
-  el.classList.toggle('calmo',!a&&!b&&!espalhado);
-  if(espalhado) a='<div class="ins"><div class="ac">Erros espalhados: nenhum tipo chegou a 1/3</div><div class="ev">'+esc(ne)+' erros nos últimos 7 dias'+(f0&&FAM[f0.fam]?' · o mais comum: '+esc(FAM[f0.fam][0])+' ('+esc(f0.n)+')':'')+'</div></div>';
+  /* nenhum tipo passou na regra: o texto sai dos numeros, nunca de um "nada aconteceu" generico */
+  const f0=fams.find(x=>FAM[x.fam]);
+  const concentrado=!a&&!b&&f0&&f0.n>=3&&f0.n*3>=ne;          /* um tipo com 1/3 ou mais, mas em poucos dias ou poucos casos */
+  const espalhado=!a&&!b&&!concentrado&&ne>=2*MIN_FAM.n;        /* todos os tipos abaixo de 1/3 e muitos erros */
+  el.classList.toggle('calmo',!a&&!b&&!concentrado&&!espalhado);
+  if(concentrado) a='<div class="ins"><div class="ac">Mais comum: '+esc(FAM[f0.fam][0])+'</div><div class="ev">'+esc(f0.n)+' de '+esc(ne)+' erros em '+esc(f0.dias)+(f0.dias==1?' dia':' dias')+' · '+esc(FAM[f0.fam][1])+'</div></div>';
+  else if(espalhado) a='<div class="ins"><div class="ac">Erros espalhados: nenhum tipo chegou a 1/3</div><div class="ev">'+esc(ne)+' erros nos últimos 7 dias'+(f0?' · o mais comum: '+esc(FAM[f0.fam][0])+' ('+esc(f0.n)+')':'')+'</div></div>';
   else if(!a&&!b) a='<div class="ins"><div class="ac">Nenhum erro se repetiu o bastante para virar alerta</div><div class="ev">'+esc(ne)+(ne===1?' erro':' erros')+' nos últimos 7 dias · continuem conferindo cada pedido</div></div>';
   el.innerHTML='<div class="lbx">🎯 Onde melhorar<small>últimos 7 dias · '+per+'</small></div>'+a+(b||'<div></div>');
 }
@@ -336,7 +339,7 @@ function cliMostra(){
   const h=av.hoje||{}, hn=Number(h.n)||0;
   /* dado parado se declara: a avaliacao do iFood chega ~1 dia depois; mais de 2 dias sem nenhuma = robo parado ou iFood atrasado */
   const velho=av.atraso_dias==null||Number(av.atraso_dias)>2;
-  const lb='<div class="lbx">⭐ O cliente disse<small>iFood · '+(hn?(hn===1?'chegou hoje: 1':'chegaram hoje: '+esc(hn))+' · média '+esc(String(h.media).replace('.',','))+(h.ruins?' · <b style="color:var(--bad)">'+esc(h.ruins)+(h.ruins>1?' ruins':' ruim')+'</b>':' · nenhuma ruim'):'nenhuma chegou hoje ainda')+'</small></div>';
+  const lb='<div class="lbx">⭐ O cliente disse<small>iFood · '+(hn?(hn===1?'chegou hoje: 1':'chegaram hoje: '+esc(hn))+(h.media!=null?' · média '+esc(String(h.media).replace('.',',')):'')+(h.ruins?' · <b style="color:var(--bad)">'+esc(h.ruins)+(h.ruins>1?' ruins':' ruim')+'</b>':' · nenhuma ruim'):'nenhuma chegou hoje ainda')+'</small></div>';
   const fila=(Array.isArray(av.ruins)?av.ruins:[]).slice(); if(av.elogio) fila.push(Object.assign({elogio:true,nota:5},av.elogio));
   if(velho){ el.className='cli nada'; el.innerHTML=lb+'<div><div class="q2 alerta" style="font-style:normal">⚠️ '+(av.ultima?'Nenhuma avaliação nova do iFood desde '+esc(av.ultima):'Nenhuma avaliação do iFood nos últimos 7 dias')+' — o robô pode estar parado.</div></div>'; return; }
   if(!fila.length){ el.className='cli nada'; el.innerHTML=lb+'<div><div class="q2" style="font-style:normal">Nenhuma avaliação ruim nos últimos 3 dias. 👏</div></div>'; return; }
@@ -346,7 +349,7 @@ function cliMostra(){
   const sobre=r.elogio?'nota máxima':(Array.isArray(r.tags)&&r.tags.length?esc(r.tags.slice(0,2).join(', '))+(r.tags.length>2?' +'+(r.tags.length-2):''):'');
   el.className='cli'+(r.elogio?' bom':'');
   el.innerHTML=lb+'<div><div class="q1">'+(fila.length>1?((CLI_I%fila.length)+1)+'/'+fila.length+' · ':'')+'<span class="st">'+st+'</span> · avaliou '+esc(r.dia)+(r.pedido?' · pedido '+esc(r.pedido)+(r.pedido_dia?' de '+esc(r.pedido_dia):''):'')+(r.marca?' · '+esc(curta(r.marca)):'')+(sobre?' · '+sobre:'')+'</div>'
-    +'<div class="q2">'+(r.disse?'“'+esc(r.disse)+'”':'<span style="font-style:normal;color:var(--muted)">(sem comentário escrito)</span>')+'</div></div>';
+    +'<div class="q2">'+(r.disse&&String(r.disse).trim()?'“'+esc(r.disse)+'”':'<span style="font-style:normal;color:var(--muted)">(sem comentário escrito)</span>')+'</div></div>';
 }
 
 /* som: o navegador so deixa tocar depois de um clique; o botao liga e guarda a escolha */
