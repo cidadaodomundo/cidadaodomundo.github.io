@@ -12,7 +12,7 @@
 <div class="wrap">
   <div class="top">
     <div>
-      <h1>🤝 Banco de Taxas e Freelas</h1>
+      <h1 id="tit">🤝 Banco de Taxas e Freelas</h1>
       <div class="placar" id="placar"><span class="pl">Carregando…</span></div>
     </div>
     <div class="rt">
@@ -21,6 +21,7 @@
     </div>
   </div>
 
+  <div class="chips" id="lojas" style="display:none"></div>
   <div class="chips" id="chips"></div>
   <div class="busca"><span class="lupa">🔎</span><input id="q" placeholder="Procurar: chapeiro, garçonete, bairro, nome…" oninput="pinta()"></div>
   <div id="app"><div class="vazio"><span class="em">🤝</span>Carregando…</div></div>
@@ -39,6 +40,7 @@
       <div class="f"><label for="d_setor">🏷️ Área</label><select id="d_setor"></select></div>
       <div class="f"><label for="d_tipo">📋 Quer taxa ou vaga fixa?</label><select id="d_tipo"></select></div>
     </div>
+    <div class="f"><label for="d_loja">🏪 Para qual loja</label><select id="d_loja"></select></div>
     <div class="f"><label for="d_quer">🎯 O que quer fazer</label><input id="d_quer" placeholder="Ex.: chapeiro, garçonete, auxiliar" maxlength="200"></div>
     <div class="f"><label for="d_obs">📝 Observação</label><textarea id="d_obs" placeholder="Onde mora, disponibilidade, quem indicou, experiência…" maxlength="800"></textarea></div>
     <div class="f chk"><label><input type="checkbox" id="d_dest"> ⭐ Ligar primeiro (aparece em destaque)</label></div>
@@ -69,6 +71,22 @@ function ordemSetor(s){const i=NOMES.indexOf(s);return i<0?99:i}
 
 let GENTE=[],QUEM='',FILTRO='taxa',EDITA=null;
 
+/* ---- loja: ?loja=sb abre o banco no jeito do São Braz ---- */
+const LOJAS=[['Água Verde','av'],['São Braz','sb'],['Ahú','ahu']];
+const LOJA=(function(){try{const c=new URLSearchParams(location.search).get('loja');const x=LOJAS.find(function(l){return l[1]===c});return x?x[0]:''}catch(e){return ''}})();
+let VERLOJA=!!LOJA;
+/* na loja aparece quem é dela e quem topa qualquer loja (sem loja marcada) */
+function daLoja(p){return !p.loja||p.loja===LOJA}
+function base(){return VERLOJA?GENTE.filter(daLoja):GENTE}
+function pintaLojas(){
+  if(!LOJA)return;
+  const n1=GENTE.filter(daLoja).length;
+  $('lojas').style.display='';
+  $('lojas').innerHTML=
+    '<button class="chip'+(VERLOJA?' on':'')+'" data-lj="1"><span class="em">🏪</span>'+esc(LOJA)+'<span class="ct">'+n1+'</span></button>'+
+    '<button class="chip'+(!VERLOJA?' on':'')+'" data-lj="0"><span class="em">🌎</span>Todas as lojas<span class="ct">'+GENTE.length+'</span></button>';
+}
+
 async function porta(acao,dados){
   const r=await fetch(SB+'rpc/freela_consulta',{method:'POST',
     headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
@@ -90,11 +108,12 @@ let tt=null;
 function aviso(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on')},2400)}
 
 function pintaChips(){
-  const usados=NOMES.filter(function(s){return GENTE.some(function(p){return p.setor===s})});
-  GENTE.forEach(function(p){if(usados.indexOf(p.setor)<0)usados.push(p.setor)});
-  const conta=function(f){return GENTE.filter(f).length};
+  const G=base();
+  const usados=NOMES.filter(function(s){return G.some(function(p){return p.setor===s})});
+  G.forEach(function(p){if(usados.indexOf(p.setor)<0)usados.push(p.setor)});
+  const conta=function(f){return G.filter(f).length};
   const fs=[{k:'taxa',e:'🤝',r:'Só quem quer taxa',n:conta(function(p){return p.tipo==='Taxa'})},
-            {k:'todos',e:'👥',r:'Todos',n:GENTE.length}]
+            {k:'todos',e:'👥',r:'Todos',n:G.length}]
     .concat(usados.map(function(s){return {k:s,e:icone(s),r:s,n:conta(function(p){return p.setor===s})}}))
     .concat([{k:'semtel',e:'📵',r:'Sem telefone',n:conta(function(p){return !p.telefone})}]);
   $('chips').innerHTML=fs.map(function(f){
@@ -103,6 +122,7 @@ function pintaChips(){
 }
 
 function passa(p){
+  if(VERLOJA&&!daLoja(p))return false;
   if(FILTRO==='taxa')return p.tipo==='Taxa';
   if(FILTRO==='todos')return true;
   if(FILTRO==='semtel')return !p.telefone;
@@ -115,7 +135,8 @@ function cartao(p){
     '<div class="ch"><div class="av">'+icone(p.setor)+'</div>'+
       '<div><div class="nm">'+esc(p.nome)+'</div><div class="st">'+esc(p.quer||'não disse o que quer')+'</div></div>'+
       '<button class="ed" data-ed="'+p.id+'" title="Mudar esta pessoa">✏️ Editar</button></div>';
-  h+='<div class="tags">'+(p.destaque?'<span class="tg ambar">⭐ Ligar primeiro</span>':'')+tipoTag(p.tipo)+'</div>';
+  h+='<div class="tags">'+(p.destaque?'<span class="tg ambar">⭐ Ligar primeiro</span>':'')+tipoTag(p.tipo)+
+    (p.loja?'<span class="tg cinza">🏪 '+esc(p.loja)+'</span>':'')+'</div>';
   if(p.telefone)h+='<button class="tel" data-cp="'+esc(p.telefone)+'" title="Copiar o número">'+esc(p.telefone)+'<span class="cp">📋 copiar</span></button>';
   if(p.telefone2){
     const w2=zap(p.telefone2);
@@ -140,7 +161,7 @@ function pinta(){
   const lista=GENTE.filter(function(p){
     if(!passa(p))return false;
     if(!q)return true;
-    return [p.nome,p.quer,p.obs,p.setor,p.origem,p.telefone,p.telefone2,p.tipo].join(' ').toLowerCase().indexOf(q)>=0;
+    return [p.nome,p.quer,p.obs,p.setor,p.origem,p.telefone,p.telefone2,p.tipo,p.loja].join(' ').toLowerCase().indexOf(q)>=0;
   }).sort(function(a,b){
     return ordemSetor(a.setor)-ordemSetor(b.setor)||String(a.setor).localeCompare(String(b.setor),'pt-BR')||
       ((b.destaque?1:0)-(a.destaque?1:0))||String(b.desde||'').localeCompare(String(a.desde||''));
@@ -167,6 +188,8 @@ function abre(id,foco){
   const ops=NOMES.slice();
   GENTE.forEach(function(x){if(x.setor&&ops.indexOf(x.setor)<0)ops.push(x.setor)});
   $('d_setor').innerHTML=ops.map(function(s){return '<option value="'+esc(s)+'">'+icone(s)+' '+esc(s)+'</option>'}).join('');
+  $('d_loja').innerHTML='<option value="">🌎 Qualquer loja</option>'+LOJAS.map(function(l){return '<option value="'+esc(l[0])+'">🏪 '+esc(l[0])+'</option>'}).join('');
+  $('d_loja').value=p?(p.loja||''):LOJA;
   $('d_tipo').innerHTML=TIPOS.map(function(t){return '<option value="'+esc(t[0])+'">'+t[1]+' '+esc(t[0])+'</option>'}).join('');
   $('d_tit').textContent=p?'✏️ Editar pessoa':'➕ Nova pessoa';
   $('d_nome').value=p?p.nome:'';
@@ -193,7 +216,7 @@ async function salva(){
   if(tel&&digitos(tel).length<10){aviso('✋ Telefone curto: ponha o DDD, ex.: 41 99999-9999');$('d_tel').focus();return}
   if(tel2&&digitos(tel2).length<10){aviso('✋ O outro telefone ficou curto: ponha o DDD');$('d_tel2').focus();return}
   const dados={nome:nome,telefone:tel,telefone2:tel2,setor:$('d_setor').value,tipo:$('d_tipo').value,
-    quer:$('d_quer').value.trim(),obs:$('d_obs').value.trim(),destaque:$('d_dest').checked};
+    quer:$('d_quer').value.trim(),obs:$('d_obs').value.trim(),destaque:$('d_dest').checked,loja:$('d_loja').value};
   $('d_sal').disabled=true;
   try{
     if(EDITA!=null){dados.id=EDITA;await porta('editar',dados)}
@@ -221,6 +244,8 @@ async function tira(){
 document.addEventListener('click',function(ev){
   const f=ev.target.closest('[data-f]');
   if(f){FILTRO=f.getAttribute('data-f');pintaChips();pinta();return}
+  const lj=ev.target.closest('[data-lj]');
+  if(lj){VERLOJA=lj.getAttribute('data-lj')==='1';pintaLojas();pintaChips();pinta();pintaPlacar();return}
   const e=ev.target.closest('[data-ed]');
   if(e){abre(Number(e.getAttribute('data-ed')),e.getAttribute('data-foco'));return}
   const c=ev.target.closest('[data-cp]');
@@ -240,19 +265,25 @@ async function boot(){
     $('app').innerHTML='<div class="vazio"><span class="em">🔌</span>Não deu para carregar a lista. Entre no portal de novo.</div>';
     return;
   }
-  const t=GENTE.filter(function(p){return p.tipo==='Taxa'}).length;
-  const st=GENTE.filter(function(p){return !p.telefone}).length;
-  $('placar').innerHTML='<span class="pl">👥 <b>'+GENTE.length+'</b> pessoas</span><span class="pl">🤝 <b>'+t+'</b> querem taxa</span>'+
-    '<span class="pl">📵 <b>'+st+'</b> sem telefone</span>';
+  pintaPlacar();
   $('rod').innerHTML='Quem se oferecer no WhatsApp, no balcão ou por indicação entra aqui pelo botão <b>➕ Nova pessoa</b> — assim a lista nunca mais envelhece. '+
     'Mudou alguma coisa? Toque em <b>✏️ Editar</b> no cartão.'+
     (QUEM?'<br>Você está como <b>'+esc(QUEM)+'</b>.':'');
+  pintaLojas();
   pintaChips();
   pinta();
 }
+function pintaPlacar(){
+  const G=base();
+  const t=G.filter(function(p){return p.tipo==='Taxa'}).length;
+  const st=G.filter(function(p){return !p.telefone}).length;
+  $('placar').innerHTML='<span class="pl">👥 <b>'+G.length+'</b> pessoas</span><span class="pl">🤝 <b>'+t+'</b> querem taxa</span>'+
+    '<span class="pl">📵 <b>'+st+'</b> sem telefone</span>';
+}
+if(LOJA){$('tit').textContent='🤝 Taxas e Freelas · '+LOJA;document.title='Taxas e Freelas · '+LOJA+' · Cidadão do Mundo'}
 
 /* ===== porta unica do portal ===== */
-const CDMMODS=['freelas'];
+const CDMMODS=['freelas','sbfreelas'];
 function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
 function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
@@ -261,7 +292,7 @@ async function cdmGuarda(){
   if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
   let j=null;
   try{
-    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'freelas'})});
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:LOJA==='São Braz'?'sbfreelas':'freelas'})});
     if(r.ok)j=await r.json();
   }catch(e){j=null}
   if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
