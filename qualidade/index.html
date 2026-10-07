@@ -827,7 +827,7 @@ function tabelaTurnos(){
    da pra ficar vivo". Le a porta qualidade_avaliacoes: avaliacoes que a porta oficial do iFood ja liberou (robo de
    10 em 10 min). O iFood nao libera na hora, entao a tela diz qual e a mais nova que ja chegou e quando foi lida.
    Mesmo desenho do Prazo: um quadro por loja e, embaixo, um cartao por avaliacao. Se atualiza sozinha (ligaTimer). */
-let AV=null, AVSEQ=0;
+let AV=null, AVSEQ=0, BOOTFALHOU=false;
 async function avPuxa(){
   /* revisao 07/10: cada busca leva um numero; resposta que chega depois de outra busca (ou de trocar de loja) e jogada fora */
   const seq=++AVSEQ, u=UNI||null;
@@ -837,7 +837,8 @@ async function avPuxa(){
   if(j){ AV=j; AV._t=Date.now(); }
   else if(!AV||AV.erro)AV={erro:erro||'falhou'};
   else AV._falhou=true;
-  if(ABA==='cliente')desenha();
+  /* revisao 07/10: se o carregamento principal falhou, nao desenha por cima da mensagem de erro */
+  if(ABA==='cliente'&&!BOOTFALHOU)desenha();
 }
 function avVelho(){return AV===null||!!AV.erro||!AV._t||(Date.now()-AV._t)>300000}
 /* voltou para a janela depois de um tempo com a aba Avaliacoes aberta: busca de novo na hora */
@@ -846,7 +847,7 @@ function avNum(v){return v==null?'—':String(v).replace('.',',')}
 function avAba(){
   if(AV===null)return '<div class="c"><div class="load">Buscando as avaliações do iFood…</div></div>';
   if(AV.erro)return '<div class="c"><b>Não deu para buscar as avaliações.</b><div class="m">'+esc(AV.erro)+'</div></div>';
-  const parado=(AV.lido_min==null||AV.lido_min>30||AV.robo_status!=='OK');
+  const parado=(AV.lido_min==null||AV.lido_min>30||AV.robo_status!=='OK'||!!AV._falhou);
   let h='<h2>⭐ Avaliações do iFood <span class="pill '+(parado?'p-bad':'p-ok')+'">'+(parado?'leitura parada':'● ao vivo')+'</span></h2>';
   h+='<div class="nota">Vem da porta oficial do iFood, lida sozinha várias vezes por hora'+(AV.lido_em?' (última leitura '+esc(AV.lido_em)+')':'')+
      '. Esta aba se atualiza sozinha enquanto estiver aberta. O iFood não libera a avaliação na hora: ela chega um tempo depois do pedido'+
@@ -1213,9 +1214,9 @@ async function boot(){
   $('app').innerHTML='<div class="load">Carregando…</div>';
   const pl=$('placar'); if(pl)pl.innerHTML='<span class="pl">carregando…</span>';
   const pe=$('per'); if(pe)pe.innerHTML='<button class="b atu" onclick="boot()" title="Ler de novo">↻ Atualizar</button>';
-  DD=null;SU=null;CC=null;CV=null;NEG=null;PZ=null;AV=null;AVSEQ++;
+  DD=null;SU=null;CC=null;CV=null;NEG=null;PZ=null;AV=null;AVSEQ++;BOOTFALHOU=false;
   try{ D=await puxa(); }
-  catch(e){ $('app').innerHTML='<div class="c">Não deu para carregar. '+esc(e.message||'')+'</div>'; if(pl)pl.innerHTML='<span class="pl">não carregou — toque em Atualizar</span>'; return }
+  catch(e){ BOOTFALHOU=true; $('app').innerHTML='<div class="c">Não deu para carregar. '+esc(e.message||'')+'</div>'; if(pl)pl.innerHTML='<span class="pl">não carregou — toque em Atualizar</span>'; return }
   try{ CC=await porta('qualidade_cancelamentos',{periodo:perNome(),dias:DIAS,unidade:UNI||null}); }catch(e){ CC=null }
   /* 07/10/2026: o subtitulo virou o placar de pilulas, desenhado em filtros() a cada desenho */
   desenha();
