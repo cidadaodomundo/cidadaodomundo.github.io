@@ -150,6 +150,8 @@ function cartao(r){
       '<button class="bt mini" data-cf="'+r.id+'">🛠️ Ainda aberto</button></div></div>';
   }
   h+=historico(r.obs);
+  /* 07/10: na tela da loja, qualquer chamado pode sair com "Não é conserto" (o robô do WhatsApp às vezes abre chamado do que não é conserto) */
+  if(SOLOJA&&!r.robo_aviso)h+='<div class="bts" style="margin:6px 0"><button class="bt mini" data-nc="'+r.id+'">🙅 Não é manutenção</button></div>';
   h+='<div class="anota"><input data-nota="'+r.id+'" placeholder="📝 Observação (Enter grava)" maxlength="400">'+
      '<button class="bt mini" data-grava="'+r.id+'">Gravar</button></div>';
   h+='<div class="acs"><button class="bt res" data-res="'+r.id+'"><span class="ic">✅</span>Resolvido</button>'+
@@ -161,15 +163,17 @@ function cartaoFeito(r){
   return '<div class="c feito"><div class="ch"><div class="av">'+tp[1]+'</div>'+
     '<div><div class="nm">'+esc(r.item)+'</div><div class="st">'+esc(r.unidade)+'</div></div>'+
     '<button class="ed" data-reabre="'+r.id+'" title="Reabrir este chamado">↩️ Reabrir</button></div>'+
-    '<div class="tags"><span class="tg verde">✅ Resolvido em '+br(r.resolvido_em)+'</span></div>'+
+    '<div class="tags">'+(SOLOJA&&/n[aã]o era conserto/i.test(r.obs||'')?'<span class="tg cinza">🙅 Não era manutenção · '+br(r.resolvido_em)+'</span>':'<span class="tg verde">✅ Resolvido em '+br(r.resolvido_em)+'</span>')+'</div>'+
     historico(r.obs)+'</div>';
 }
 
 function pinta(){
   const q=($('q').value||'').trim().toLowerCase();
   const abertos=ROWS.filter(function(r){return r.status!=='resolvido'&&passa(r)&&bate(r,q)})
-    .sort(function(a,b){return (ORD[a.prioridade]??1)-(ORD[b.prioridade]??1)||String(a.aberto_em).localeCompare(String(b.aberto_em))});
-  const feitos=ROWS.filter(function(r){return r.status==='resolvido'&&passa(r)&&bate(r,q)})
+    .sort(function(a,b){return (ORD[a.prioridade]??1)-(ORD[b.prioridade]??1)||String(a.aberto_em).localeCompare(String(b.aberto_em))||(a.id-b.id)});
+  /* 07/10: na tela da loja, só o que foi resolvido nos últimos 7 dias (só coisa atual) */
+  const corte=SOLOJA?(function(){const d=new Date(Date.now()-3*3600e3-7*86400e3);return d.toISOString().slice(0,10)})():'';
+  const feitos=ROWS.filter(function(r){return r.status==='resolvido'&&passa(r)&&bate(r,q)&&(!corte||String(r.resolvido_em||'')>=corte)})
     .sort(function(a,b){return String(b.resolvido_em).localeCompare(String(a.resolvido_em))}).slice(0,30);
   let h='';
   if(!abertos.length){
@@ -249,7 +253,11 @@ document.addEventListener('click',function(ev){
   else if(t.hasAttribute('data-ed'))abre(n('data-ed'));
   else if(t.hasAttribute('data-res'))resolver(n('data-res'),true);
   else if(t.hasAttribute('data-reabre'))resolver(n('data-reabre'),false);
-  else if(t.hasAttribute('data-nc'))faz('nao_conserto',{id:n('data-nc')},'🙅 Saiu da lista: não era conserto');
+  else if(t.hasAttribute('data-nc')){
+    /* 07/10: na tela da loja o botão fica em todo cartão, então pergunta antes; na tela geral continua um clique só */
+    if(SOLOJA){const it=(ROWS.find(function(x){return x.id===n('data-nc')})||{}).item||'este chamado';
+      if(!confirm('Tirar "'+it+'" da lista?\n\nUse só quando NÃO é coisa de manutenção (recado, pergunta, aberto por engano).\nSe errar: abra "Resolvidos recentes" e toque em Reabrir (fica lá por 7 dias).'))return}
+    faz('nao_conserto',{id:n('data-nc')},'🙅 Saiu da lista: não era conserto')}
   else if(t.hasAttribute('data-cf'))faz('confirmar',{id:n('data-cf')},'🛠️ Ok, continua aberto');
   else if(t.hasAttribute('data-grava'))anotar(n('data-grava'));
 });
@@ -261,12 +269,14 @@ $('dlg').addEventListener('keydown',function(ev){if(ev.key==='Enter'&&ev.target.
 
 async function boot(manual){
   try{
-    ROWS=await get('manutencao_chamado?select=id,unidade,item,descricao,prioridade,status,origem,aberto_em,resolvido_em,obs,robo_aviso&order=aberto_em.asc&limit=300');
+    ROWS=await get('manutencao_chamado?select=id,unidade,item,descricao,prioridade,status,origem,aberto_em,resolvido_em,obs,robo_aviso&or=(status.neq.resolvido,resolvido_em.gte.'+(function(){const d=new Date(Date.now()-3*3600e3-90*86400e3);return d.toISOString().slice(0,10)})()+')'+
+      (SOLOJA?'&unidade=eq.'+encodeURIComponent(SOLOJA):'')+'&order=aberto_em.desc,id.desc&limit=300');
   }catch(e){
     $('app').innerHTML='<div class="vazio"><span class="em">🔌</span>Não deu para carregar os chamados. Entre no portal de novo.</div>';
     return;
   }
-  if(SOLOJA)ROWS=ROWS.filter(function(r){return r.unidade===SOLOJA||r.unidade==='Todas'});
+  /* 07/10 (pedido do Fábio): a tela da loja mostra só o que é da loja, sem os chamados de "Todas" */
+  if(SOLOJA)ROWS=ROWS.filter(function(r){return r.unidade===SOLOJA});
   const ab=ROWS.filter(function(r){return r.status!=='resolvido'});
   const urg=ab.filter(function(r){return r.prioridade==='urgente'}).length;
   const ag=ab.filter(function(r){return r.status==='agendado'}).length;
