@@ -25,6 +25,7 @@ button.b:hover{border-color:var(--text2)}
 .rot{color:var(--muted);font-size:12px;font-weight:800;letter-spacing:.3px}
 .lojas{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 10px}
 .lojas .rot{min-width:64px;margin-right:2px}
+.mgrp{margin:4px 0 8px}
 .lojas .chip{padding:7px 13px}
 .lojas.ult{margin-bottom:18px}
 .fil{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
@@ -841,7 +842,7 @@ async function avPuxa(){
     j=r[0]; tod=r[1];
   }catch(e){ erro=(e&&e.message)||'falhou' }
   if(seq!==AVSEQ||u!==(UNI||null))return;
-  if(j){ if(tod&&Array.isArray(tod.por_loja))j.por_loja=tod.por_loja; else if(u)j._so_uma=true; AV=j; AV._t=Date.now(); }
+  if(j){ if(tod&&Array.isArray(tod.por_loja)){ j.por_loja=tod.por_loja; j.por_marca=tod.por_marca; } else if(u)j._so_uma=true; AV=j; AV._t=Date.now(); }
   else if(!AV||AV.erro)AV={erro:erro||'falhou'};
   else AV._falhou=true;
   /* revisao 07/10: se o carregamento principal falhou, nao desenha por cima da mensagem de erro */
@@ -850,7 +851,20 @@ async function avPuxa(){
 function avVelho(){return AV===null||!!AV.erro||!AV._t||(Date.now()-AV._t)>300000}
 /* voltou para a janela depois de um tempo com a aba Avaliacoes aberta: busca de novo na hora */
 document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible'&&ABA==='cliente'&&avVelho())avPuxa(); });
-function avNum(v){return v==null?'—':String(v).replace('.',',')}
+/* 07/10/2026: nota sempre com 2 casas (4,70 e 5,00, nao 4,7 e 5), para os quadros lado a lado ficarem iguais */
+function avNum(v){return (v==null||v===''||isNaN(Number(v)))?'—':Number(v).toFixed(2).replace('.',',')}
+/* 07/10/2026 (chat-avaliacoes-todas-lojas-07-10): nome curto da marca no quadro. Tira a loja do fim do nome do iFood
+   ("... - Água Verde", "... AV", "... - SB") e, quando o nome vem todo em maiúscula, deixa só a primeira letra grande. */
+function avMarcaNome(nome){
+  const s0=String(nome||'').replace(/\s+/g,' ').trim();
+  let s=s0.replace(/(?:\s*-\s*|\s+)(?:[áa]gua verde|ah[úu]|s[ãa]o braz|boqueir[ãa]o|av|sb)$/i,'').trim()||s0;
+  if(s===s.toUpperCase())s=s.toLowerCase().split(' ').map(function(w,i){
+    if(i>0&&/^(da|de|do|das|dos|e)$/.test(w))return w;
+    if(w.length<=3)return w.toUpperCase();
+    return w.charAt(0).toUpperCase()+w.slice(1);
+  }).join(' ');
+  return s;
+}
 function avAba(){
   if(AV===null)return '<div class="c"><div class="load">Buscando as avaliações do iFood…</div></div>';
   if(AV.erro)return '<div class="c"><b>Não deu para buscar as avaliações.</b><div class="m">'+esc(AV.erro)+'</div></div>';
@@ -873,6 +887,28 @@ function avAba(){
     h+='<div class="nota">Quadros: nota média das avaliações dos últimos '+n(AV.dias)+' dias que o iFood já liberou'+
        (UNI?(AV._so_uma?'. Não consegui buscar as outras lojas agora — toque em Atualizar para tentar de novo'
                        :'. Os quadros mostram sempre todas as lojas; a lista de baixo é só da '+esc(UNI)):'')+'.</div>';
+    /* 07/10/2026 (chat-avaliacoes-todas-lojas-07-10), pedido do Fabio: "tem como separar por quadros tb cada sub loja
+       tipo famosa marmita, marmita da jane". Um quadro por marca do iFood, agrupado pela loja, na mesma ordem dos quadros
+       de cima. Vem do por_marca da mesma porta (as mesmas contas do por_loja, marca por marca). */
+    const M=AV.por_marca||[];
+    if(M.length){
+      h+='<h2>🏷 Cada marca, dentro da loja</h2>';
+      const ord=L.map(function(l){return l.unidade});
+      M.forEach(function(m){ if(ord.indexOf(m.unidade)<0)ord.push(m.unidade); });
+      ord.forEach(function(u){
+        const G=M.filter(function(m){return m.unidade===u});
+        if(!G.length)return;
+        h+='<div class="rot mgrp">🏪 '+esc(u)+' · '+G.length+' marca'+(G.length===1?'':'s')+'</div><div class="cards">';
+        G.forEach(function(m){
+          const tem=Number(m.avaliacoes)>0;
+          h+='<div class="card"><div class="t">'+esc(avMarcaNome(m.marca))+'</div><div class="v">'+(tem?'★ '+avNum(m.nota_media):'—')+'</div>'+
+             '<div class="qs">'+(tem?n(m.avaliacoes)+' avaliaç'+(Number(m.avaliacoes)===1?'ão':'ões')+' · '+n(m.baixas)+' com nota 3 ou menos · '+n(m.com_comentario)+' com comentário'
+                                   :'nenhuma avaliação nos últimos '+n(AV.dias)+' dias')+'</div></div>';
+        });
+        h+='</div>';
+      });
+      h+='<div class="nota">Mesmas contas dos quadros de cima, marca por marca. Marca com poucas avaliações muda muito de nota com uma avaliação só — olhe o número de avaliações junto com a nota.</div>';
+    }
   } else h+='<div class="c"><div class="vazio">Nenhuma avaliação liberada pelo iFood nos últimos '+n(AV.dias)+' dias'+(UNI?' na '+esc(UNI):'')+'.</div></div>';
   const X=AV.lista||[];
   h+='<h2>💬 O que o cliente escreveu</h2>';
