@@ -77,6 +77,7 @@ div.vv.off{border-left-color:var(--muted)}
 .vv .it{margin-top:6px;font-size:13.5px;color:var(--text)}
 .vv .rs{margin-top:4px;font-size:12px;color:var(--muted)}
 .vv .fn{margin-top:2px;font-size:11px;color:var(--muted)}
+.vv .it,.vv .rs{overflow-wrap:anywhere}
 
 /* tabela bonita: faixa de cabecalho, linhas zebradas, cor ao passar o mouse (igual ao Ponto ao vivo).
    No celular (ate 700px) o portal.js transforma cada tabela em cartoes; por isso o desenho de mesa so vale acima disso. */
@@ -605,7 +606,7 @@ function vaiPara(a){
   if(a==='prazo'&&PZ===null){desenha();pzPuxa();return}
   if(a==='ree'&&REE===null){desenha();reePuxa();return}
   if(a==='cancel'&&(!CC||!CV)){desenha();puxaCanc();puxaCancVivo();return}
-  if(a==='cliente'&&(!SU||AV===null)){desenha();if(!SU)puxaSuper();if(AV===null)avPuxa();return}
+  if(a==='cliente'&&(!SU||avVelho())){desenha();if(!SU)puxaSuper();if(avVelho())avPuxa();return}
   desenha();
 }
 
@@ -826,12 +827,21 @@ function tabelaTurnos(){
    da pra ficar vivo". Le a porta qualidade_avaliacoes: avaliacoes que a porta oficial do iFood ja liberou (robo de
    10 em 10 min). O iFood nao libera na hora, entao a tela diz qual e a mais nova que ja chegou e quando foi lida.
    Mesmo desenho do Prazo: um quadro por loja e, embaixo, um cartao por avaliacao. Se atualiza sozinha (ligaTimer). */
-let AV=null;
+let AV=null, AVSEQ=0;
 async function avPuxa(){
-  try{ AV=await porta('qualidade_avaliacoes',{unidade:UNI||null}); }
-  catch(e){ if(!AV||AV.erro)AV={erro:(e&&e.message)||'falhou'}; else AV._falhou=true; }
+  /* revisao 07/10: cada busca leva um numero; resposta que chega depois de outra busca (ou de trocar de loja) e jogada fora */
+  const seq=++AVSEQ, u=UNI||null;
+  let j=null, erro=null;
+  try{ j=await porta('qualidade_avaliacoes',{unidade:u}); }catch(e){ erro=(e&&e.message)||'falhou' }
+  if(seq!==AVSEQ||u!==(UNI||null))return;
+  if(j){ AV=j; AV._t=Date.now(); }
+  else if(!AV||AV.erro)AV={erro:erro||'falhou'};
+  else AV._falhou=true;
   if(ABA==='cliente')desenha();
 }
+function avVelho(){return AV===null||!!AV.erro||!AV._t||(Date.now()-AV._t)>300000}
+/* voltou para a janela depois de um tempo com a aba Avaliacoes aberta: busca de novo na hora */
+document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible'&&ABA==='cliente'&&avVelho())avPuxa(); });
 function avNum(v){return v==null?'—':String(v).replace('.',',')}
 function avAba(){
   if(AV===null)return '<div class="c"><div class="load">Buscando as avaliações do iFood…</div></div>';
@@ -1179,7 +1189,7 @@ function desenha(){
   if(ABA==='super'&&PER!=='d7'&&PER!=='d30')
     h+='<div class="aviso">Esta aba sempre olha os últimos '+DIAS+' dias, não o período escolhido acima.</div>';
   if(ABA==='cliente')
-    h+='<div class="aviso">Esta aba não segue o período escolhido acima: as avaliações são as dos últimos '+(AV&&AV.dias?AV.dias:'')+' dias que o iFood já liberou, e os motivos lá embaixo, dos últimos '+DIAS+' dias.</div>';
+    h+='<div class="aviso">Esta aba não segue o período escolhido acima: as avaliações são '+(AV&&AV.dias?'as dos últimos '+AV.dias+' dias':'as')+' que o iFood já liberou, e os motivos lá embaixo, dos últimos '+DIAS+' dias.</div>';
   if(ABA==='dia')h+=odia();
   else if(ABA==='super')h+=selo();
 
@@ -1203,7 +1213,7 @@ async function boot(){
   $('app').innerHTML='<div class="load">Carregando…</div>';
   const pl=$('placar'); if(pl)pl.innerHTML='<span class="pl">carregando…</span>';
   const pe=$('per'); if(pe)pe.innerHTML='<button class="b atu" onclick="boot()" title="Ler de novo">↻ Atualizar</button>';
-  DD=null;SU=null;CC=null;CV=null;NEG=null;PZ=null;AV=null;
+  DD=null;SU=null;CC=null;CV=null;NEG=null;PZ=null;AV=null;AVSEQ++;
   try{ D=await puxa(); }
   catch(e){ $('app').innerHTML='<div class="c">Não deu para carregar. '+esc(e.message||'')+'</div>'; if(pl)pl.innerHTML='<span class="pl">não carregou — toque em Atualizar</span>'; return }
   try{ CC=await porta('qualidade_cancelamentos',{periodo:perNome(),dias:DIAS,unidade:UNI||null}); }catch(e){ CC=null }
@@ -1216,7 +1226,7 @@ async function boot(){
   /* 07/10/2026 (chat-qualidade-visual-07-10), pedido do Fabio "conserta": Avaliacoes e Selo Super ficavam em
      "Buscando…" depois de trocar periodo, loja ou Atualizar, porque o boot zera o SU e ninguem buscava de novo */
   if((ABA==='super'||ABA==='cliente')&&!SU)puxaSuper();
-  if(ABA==='cliente'&&AV===null)avPuxa();
+  if(ABA==='cliente')avPuxa();
 }
 
 /* ===== porta unica do portal ===== */
