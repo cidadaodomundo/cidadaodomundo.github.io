@@ -27,15 +27,30 @@ html{-webkit-text-size-adjust:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;margin:0;padding-inline:16px;padding-block:0 32px;overflow-x:hidden}
 .wrap{max-width:1280px;margin:0 auto}
 header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;padding-block:18px 14px;border-bottom:1px solid var(--line)}
+header .tit{flex:1 1 auto;min-width:0}
 h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,4.4vw,44px);line-height:1;margin:0;text-transform:uppercase}
 .sub{font-family:var(--cond);font-weight:600;font-size:15px;letter-spacing:.08em;color:var(--mut);text-transform:uppercase;margin-top:6px;overflow-wrap:anywhere}
-.dir{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px}
 .stats{display:flex;gap:10px;flex-wrap:wrap}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 14px;min-width:96px}
 .stat .n{font-family:var(--display);font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
 .stat .l{font-family:var(--cond);font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
 .stat.bad .n{color:var(--bad)} .stat.ok .n{color:var(--ok)}
 .ctl{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+/* celular: titulo + relogio/som na mesma linha; os 3 contadores numa linha so, rotulo curto */
+@media (max-width:560px){
+  header{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"tit ctl" "stats stats";gap:10px 12px;padding-block:14px 12px}
+  header .tit{grid-area:tit} header .ctl{grid-area:ctl;gap:4px} header .stats{grid-area:stats}
+  h1{font-size:26px}
+  .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .stat{min-width:0;padding:6px 10px}
+  .stat .n{font-size:26px}
+  .stat .l{font-size:12px;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .stat .l .lg,#bt-som .lg{display:none}
+  .relogio{font-size:24px}
+  .alert{padding:12px 14px;gap:8px 12px;margin-top:12px} .alert .t{font-size:20px} .alert .d{font-size:14px}
+  .semmarca .t{font-size:18px}
+  #bt-som{min-height:40px;padding:6px 10px}
+}
 .relogio{font-family:var(--display);font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
 .bt{font:600 15px var(--body);background:var(--card2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;min-height:40px}
 .bt.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
@@ -45,7 +60,16 @@ h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,4.4vw,44px);l
 .alert .t{font-family:var(--display);font-size:22px;text-transform:uppercase;color:#ffd9d5;flex:1 1 100%;overflow-wrap:anywhere}
 .alert .d{color:#ffd9d5;font-size:15px;line-height:1.4;flex:1 1 260px;min-width:0}
 .alert button{font:600 15px var(--body);background:transparent;color:#fff;border:1px solid #ffb3ab;border-radius:8px;padding:8px 14px;cursor:pointer;min-height:48px}
-.alert button:disabled{opacity:.6}
+.alert button:disabled,.chip:disabled{opacity:.6}
+.alert .so{color:#ffd9d5;font-size:14px;font-weight:600;opacity:.85}
+.mais{display:block;width:100%;margin-top:10px;font:700 16px var(--body);background:var(--badbg);color:#ffd9d5;border:2px dashed var(--bad);border-radius:12px;padding:10px 14px;min-height:48px;cursor:pointer;text-align:left}
+.semmarca{margin-top:12px;padding:12px 16px;border-radius:12px;background:var(--wait);border:2px solid var(--mut)}
+.semmarca .t{font-family:var(--display);font-size:20px;text-transform:uppercase;line-height:1.15}
+.semmarca .d{font-size:15px;line-height:1.4;margin-top:4px;color:#e6e1d6}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.chip{font:700 16px var(--body);background:var(--bg);color:var(--fg);border:1px solid var(--mut);border-radius:10px;padding:8px 12px;min-height:44px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.chip small{font-weight:500;color:var(--mut);font-size:14px}
+.chip b{font-family:var(--cond);font-size:13px;letter-spacing:.06em;text-transform:uppercase;background:var(--fg);color:var(--bg);border-radius:5px;padding:1px 6px}
 h2{font-family:var(--cond);font-weight:700;font-size:16px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:24px 0 10px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(310px,100%),1fr));gap:14px;align-items:start}
 .card{background:var(--card);border:2px solid var(--line);border-radius:14px;overflow:hidden;min-width:0}
@@ -91,7 +115,9 @@ li{border-top:1px solid var(--line)} li:first-child{border-top:0}
 .qty.many{background:var(--fg);color:var(--bg)}
 .name{flex:1;min-width:0;font-weight:600;font-size:17px;line-height:1.25;overflow-wrap:anywhere}
 .name small{display:block;font-weight:500;font-size:14px;color:var(--mut);text-decoration:none;margin-top:2px}
-.name small.de{font-family:var(--cond);font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-size:13px}
+.name .det{display:block;font-weight:600;font-size:15px;color:#d9d4c8;margin-top:3px;padding-left:2px}
+.name small.de{font-style:italic;font-size:14px;margin-top:4px}
+.row.on .name .det{color:var(--mut)}
 .row.on .box{background:var(--ok);border-color:var(--ok);color:#fff}
 .row.on .name{color:var(--mut);text-decoration:line-through;text-decoration-thickness:2px}
 .espera{margin:12px 16px 0;padding:10px 14px;border-radius:10px;background:var(--wait);font-weight:600;line-height:1.35}
@@ -128,20 +154,18 @@ li{border-top:1px solid var(--line)} li:first-child{border-top:0}
 <body>
 <div class="wrap">
   <header>
-    <div>
+    <div class="tit">
       <h1 id="titulo">Conferência da sacola</h1>
       <div class="sub" id="sub">carregando…</div>
     </div>
-    <div class="dir">
-      <div class="stats" aria-live="polite">
-        <div class="stat"><div class="n" id="sA">—</div><div class="l">A conferir</div></div>
-        <div class="stat ok"><div class="n" id="sC">—</div><div class="l">Entregues hoje</div></div>
-        <div class="stat bad"><div class="n" id="sS">—</div><div class="l">Saiu faltando hoje</div></div>
-      </div>
-      <div class="ctl">
-        <div class="relogio" id="relogio">--:--</div>
-        <button type="button" class="bt" id="bt-som">🔕 Ligar som</button>
-      </div>
+    <div class="stats" aria-live="polite">
+      <div class="stat"><div class="n" id="sA">—</div><div class="l">A conferir</div></div>
+      <div class="stat ok"><div class="n" id="sC">—</div><div class="l">Entregues<span class="lg"> hoje</span></div></div>
+      <div class="stat bad"><div class="n" id="sS">—</div><div class="l">Saiu faltando<span class="lg"> hoje</span></div></div>
+    </div>
+    <div class="ctl">
+      <div class="relogio" id="relogio">--:--</div>
+      <button type="button" class="bt" id="bt-som" aria-label="Ligar som">🔕<span class="lg"> Ligar som</span></button>
     </div>
   </header>
   <div class="nota" id="semBotao" hidden></div>
@@ -158,10 +182,11 @@ li{border-top:1px solid var(--line)} li:first-child{border-top:0}
     <h3>Regra da sacola completa</h3>
     <ol>
       <li>Quando o pedido junta coisas de mais de um lugar (cozinha do burger, cozinha dos pratos, balcão do delivery), a tela mostra em branco, bem grande: <b>2 LUGARES</b> ou <b>3 LUGARES</b>, e separa o que é de cada um.</li>
-      <li>Cada cozinha marca a sua parte quando ela fica pronta. Quem termina primeiro põe <b>na estufa, na prateleira "TEM PAR"</b>, com o número do pedido escrito. A tela mostra o que ainda falta (ex.: "Esperando: prato").</li>
-      <li>Quando a outra cozinha termina, põe a sua parte <b>do lado, na mesma prateleira "TEM PAR"</b>. Na hora de entregar, tudo vai junto na mesma sacola. Bebida e sobremesa saem do balcão nessa hora, não vão para a estufa.</li>
+      <li>Cada lugar marca a sua parte quando ela fica pronta. A tela mostra o que ainda falta (ex.: "Esperando: prato").</li>
+      <li>Só quando o pedido junta <b>burger e prato</b> (as duas cozinhas): quem termina primeiro põe <b>na estufa, na prateleira "TEM PAR"</b>, com o número do pedido escrito, e a outra cozinha põe a sua parte <b>do lado</b>. Na hora de entregar, tudo vai junto na mesma sacola.</li>
+      <li>Bebida e sobremesa saem do balcão na hora de entregar: não vão para a estufa nem para a "TEM PAR". Pedido de uma cozinha só (com ou sem bebida) vai para a estufa de sempre.</li>
       <li>O botão <b>"Entregar ao motoboy"</b> só fica verde com tudo marcado. Se alguém tocar antes, a tela diz o que está faltando.</li>
-      <li>Se o iFood mostrar que o pedido saiu e alguma parte ficou sem marcar, a tela fica vermelha na hora para ligar para o motoboy.</li>
+      <li>Se o iFood mostrar que o pedido saiu com uma parte marcada e outra não, a tela fica vermelha na hora para ligar para o motoboy. Pedido que saiu sem nenhuma marca aparece numa faixa à parte, para conferir com a equipe.</li>
     </ol>
   </div>
   <div class="rodape" id="rodape"></div>
@@ -200,10 +225,18 @@ const ONDE={burger:'cozinha do burger',prato:'cozinha dos pratos',balcao:'balcã
 const TITULO={tudo:'Conferência da sacola',burger:'Cozinha do burger',prato:'Cozinha dos pratos',balcao:'Balcão do delivery'};
 const ESTUFA={burger:true,prato:true};   /* so o que sai das cozinhas vai para a estufa; bebida e sobremesa saem do balcao na hora */
 const lugarDe=l=>ORDEM.indexOf(l&&l.lugar)>=0?l.lugar:'conferir';
+const zona=x=>ORDEM.indexOf(x)>=0?x:'conferir';
+/* prateleira TEM PAR so quando o pedido junta as DUAS cozinhas (burger + prato); bebida/sobremesa sai do balcao na hora */
+const temPar=lugs=>Array.isArray(lugs)&&lugs.indexOf('burger')>=0&&lugs.indexOf('prato')>=0;
+const lugaresDe=p=>ORDEM.filter(z=>(Array.isArray(p.linhas)?p.linhas:[]).some(l=>lugarDe(l)===z));
+/* alerta: 'parcial' = uma parte marcada e outra nao (esquecimento de verdade); 'sem_marca' = ninguem tocou em nada */
+const parcial=a=>a&&a.tipo!=='sem_marca';
 const junta=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' e '+a[a.length-1];
 
 let COD='', DADO=null, TIMER=null, BUSCANDO=false, DE_NOVO=false, ULT_OK=0, SOM=false;
-let VISTOS_P=null, VISTOS_A=null;
+let VISTOS_P=null, VISTOS_A=null, ALERTAS_TODOS=false, SEM_ABERTO=false;
+/* no maximo 3 alertas vermelhos abertos (2 no celular); o resto vira "+N". Os "sem marca" ficam numa faixa fechada. */
+const maxAlertas=()=>{ try{ return matchMedia('(max-width:560px)').matches?2:3; }catch(e){ return 3; } };
 const OVR=new Map();      /* toque ainda nao confirmado pelo banco: "pedido|chave" -> {on, v, fase:'fila'|'ok', ack} */
 const FILA=new Map();     /* toques esperando envio (junta varios toques rapidos num envio so) */
 let SEQ=0, VER=0, T_FLUSH=null, ENVIANDO=null;
@@ -258,7 +291,7 @@ async function busca(){
     const ps=Array.isArray(j.pedidos)?j.pedidos.filter(p=>p&&p.id!=null):[];
     const as=Array.isArray(j.alertas)?j.alertas.filter(a=>a&&a.id!=null):[];
     const novosP=VISTOS_P? ps.filter(p=>!p.cancelado && !VISTOS_P.has(p.id)).length : 0;
-    const novosA=VISTOS_A? as.filter(a=>!VISTOS_A.has(a.id)).length : 0;
+    const novosA=VISTOS_A? as.filter(a=>parcial(a) && !VISTOS_A.has(a.id)).length : 0;
     VISTOS_P=new Set(ps.map(p=>p.id)); VISTOS_A=new Set(as.map(a=>a.id));
     Array.from(SUMIU).forEach(function(id){ if(!VISTOS_P.has(id)) SUMIU.delete(id); });
     Array.from(RESOLVIDO).forEach(function(id){ if(!VISTOS_A.has(id)) RESOLVIDO.delete(id); });
@@ -327,30 +360,30 @@ async function envia(){
 }
 
 /* ---------- entregar / resolvi ---------- */
-function frasesFalta(itens,nLugares){
-  /* itens: [{lugar,qtd,nome}] */
-  const zs=ORDEM.filter(z=>itens.some(x=>(ORDEM.indexOf(x.lugar)>=0?x.lugar:'conferir')===z));
+function frasesFalta(itens,nLugares,par){
+  /* itens: [{lugar,qtd,nome}]; par: o pedido junta burger + prato (prateleira TEM PAR) */
+  const zs=ORDEM.filter(z=>itens.some(x=>zona(x.lugar)===z));
   const lista=itens.map(x=>(x.qtd!=null?esc(x.qtd)+'x ':'')+esc(x.nome)).join(' · ');
   let t;
   if(nLugares>1 && zs.length){
-    const est=zs.some(z=>z!=='balcao'), bal=zs.indexOf('balcao')>=0;
-    t='Ainda não. Falta '+junta(zs.map(z=>DO[z]))+'. '+(est?'Confere a prateleira TEM PAR da estufa'+(bal?' e o balcão.':'.'):'Pega no balcão.');
+    const est=zs.some(z=>ESTUFA[z]), bal=zs.indexOf('balcao')>=0;
+    t='Ainda não. Falta '+junta(zs.map(z=>DO[z]))+'. '+(est?(par?'Confere a prateleira TEM PAR da estufa':'Confere a estufa')+(bal?' e o balcão.':'.'):(bal?'Pega no balcão.':'Confere com a equipe.'));
   } else t='Ainda não. Marca todos os itens antes de entregar.';
   return {t:t, s:lista?'Falta marcar: '+lista:''};
 }
 async function entregar(id){
   const p=acha(id); if(!p||p.cancelado||OCUPADO.has(id)) return;
   const linhas=Array.isArray(p.linhas)?p.linhas:[];
-  const nL=ORDEM.filter(z=>linhas.some(l=>lugarDe(l)===z)).length;
+  const lugs=lugaresDe(p), nL=lugs.length, par=temPar(lugs);
   const falta=linhas.filter(l=>!marcado(p,l)).map(l=>({lugar:lugarDe(l),qtd:l.qtd,nome:l.nome}));
-  if(falta.length){ TRAVA.set(id,frasesFalta(falta,nL)); desenha(); return; }   /* nem chama o banco */
+  if(falta.length){ TRAVA.set(id,frasesFalta(falta,nL,par)); desenha(); return; }   /* nem chama o banco */
   OCUPADO.add(id); TRAVA.delete(id); desenha();
   try{
     const salvou=await envia();   /* primeiro garante que os ultimos toques chegaram */
     if(!salvou){ return; }
     const r=await acao('entregar',{pedido:p.id});
     if(r&&r.ok===true){ SUMIU.add(p.id); }
-    else if(r&&Array.isArray(r.faltando)&&r.faltando.length){ TRAVA.set(id,frasesFalta(r.faltando,nL)); }
+    else if(r&&Array.isArray(r.faltando)&&r.faltando.length){ TRAVA.set(id,frasesFalta(r.faltando,nL,par)); }
     else aviso('Não salvou — tenta de novo.');
   }catch(e){
     if(e&&e.recusado) return;
@@ -360,6 +393,7 @@ async function entregar(id){
   }
 }
 async function resolvi(id){
+  if(lugarAparelho()!=='tudo') return;   /* so a expedicao apaga alerta (o banco tambem recusa) */
   const k='a:'+id; if(OCUPADO.has(k)) return;
   OCUPADO.add(k); desenha();
   try{
@@ -399,14 +433,14 @@ function linhaHTML(p,l,trava){
   return '<li><button type="button" class="row'+(on?' on':'')+'" aria-pressed="'+on+'" data-p="'+esc(p.id)+'" data-k="'+esc(l.chave)+'"'+(trava?' disabled':'')+'>'
     +'<span class="box">✓</span><span class="qty'+(q>1?' many':'')+'">'+esc(l.qtd==null?'?':l.qtd)+'x</span>'
     +'<span class="name">'+esc(l.nome)
-    +(det.length?'<small>'+det.map(esc).join(' · ')+'</small>':'')
-    +(l.veio_de?'<small class="de">do '+esc(l.veio_de)+'</small>':'')
+    +det.map(x=>'<span class="det">+ '+esc(x)+'</span>').join('')
+    +(l.veio_de?'<small class="de">veio junto do '+esc(l.veio_de)+'</small>':'')
     +'</span></button></li>';
 }
 function cartao(p,L){
   const linhas=Array.isArray(p.linhas)?p.linhas:[];
   const zs=ORDEM.filter(z=>linhas.some(l=>lugarDe(l)===z));
-  const n=zs.length, multi=n>1, cz=L!=='tudo', canc=!!p.cancelado;
+  const n=zs.length, multi=n>1, cz=L!=='tudo', canc=!!p.cancelado, par=temPar(zs);
   const grupos=zs.map(function(z,ix){ const ls=linhas.filter(l=>lugarDe(l)===z); const ok=ls.length>0&&ls.every(l=>marcado(p,l));
     let ult=null; if(ok) ls.forEach(function(l){ if(l.marcado_em && !OVR.has(p.id+'|'+l.chave) && (!ult||l.marcado_em>ult)) ult=l.marcado_em; });
     return {z:z,ix:ix,ls:ls,ok:ok,ult:ult}; });
@@ -417,7 +451,7 @@ function cartao(p,L){
   const agend=!!p.agendado_para, mins=minDesde(p.criado);
   const verbo=p.tipo==='TAKEOUT'?'Entregar ao cliente':'Entregar ao motoboy';
 
-  let h='<article class="card '+(multi&&!cz?'duplo':'single')+(done?' done':'')+(canc?' cancel':'')+'" data-id="'+esc(p.id)+'">';
+  let h='<article class="card '+(multi&&!cz&&!canc?'duplo':'single')+(done?' done':'')+(canc?' cancel':'')+'" data-id="'+esc(p.id)+'">';
   h+='<div class="top"><div><div class="num">#'+num+'</div><div class="marca">'+esc(p.marca)+'</div>';
   const selos=[];
   if(agend) selos.push('Agendado '+esc(hhmm(p.agendado_para)));
@@ -443,9 +477,11 @@ function cartao(p,L){
     if(multi && prontos.length && !done){
       const falta=grupos.filter(g=>!g.ok).map(g=>CURTO[g.z]);
       const naEstufa=prontos.filter(g=>ESTUFA[g.z]).map(g=>CURTO[g.z]);
-      const balcaoFalta=grupos.some(g=>g.z==='balcao'&&!g.ok);
+      const balcaoFalta=grupos.some(g=>g.z==='balcao'&&!g.ok), balcaoOk=prontos.some(g=>g.z==='balcao');
       h+='<div class="espera"><b>Esperando: '+esc(junta(falta))+'</b>'
-        +(naEstufa.length?'O que é do '+esc(naEstufa.join(' e do '))+' já está pronto: vai para a estufa na prateleira <u>TEM PAR</u>, com o número #'+num+' escrito.':'')
+        +(naEstufa.length?(par?'O que é do '+esc(naEstufa.join(' e do '))+' já está pronto: vai para a estufa na prateleira <u>TEM PAR</u>, com o número #'+num+' escrito.'
+                              :'O do '+esc(naEstufa.join(' e do '))+' já está pronto: fica na estufa até a hora de entregar.'):'')
+        +(balcaoOk?' O do balcão já está separado.':'')
         +(balcaoFalta?' Bebida e sobremesa saem do balcão na hora de entregar.':'')+'</div>';
     }
     const oc=OCUPADO.has(p.id), tr=TRAVA.get(p.id);
@@ -458,8 +494,11 @@ function cartao(p,L){
     if(done){
       h+='<div class="pronto">'+(L==='balcao'?'<b>✓ Separado — sai do balcão na hora de entregar</b>Bebida e sobremesa não vão para a estufa.':'<b>✓ Pronto — vai para a estufa</b>');
       if(outros.length){
-        if(L!=='balcao') h+='<span class="par">Prateleira TEM PAR · #'+num+'</span>';
-        h+='<small>'+(outrosFalta.length?'Ainda falta das outras partes: '+esc(junta(outrosFalta.map(g=>CURTO[g.z])))+'.':'As outras partes também já estão prontas — tudo junto na mesma sacola.')+'</small>';
+        if(L!=='balcao' && par) h+='<span class="par">Prateleira TEM PAR · #'+num+'</span>';
+        const faltaCoz=outrosFalta.filter(g=>g.z!=='balcao');
+        h+='<small>'+(faltaCoz.length?'Ainda falta das outras partes: '+esc(junta(faltaCoz.map(g=>CURTO[g.z])))+'.'
+                     :outrosFalta.length?'O do balcão sai na hora de entregar, junto na mesma sacola.'
+                     :'As outras partes também já estão prontas — tudo junto na mesma sacola.')+'</small>';
       }
       h+='</div>';
     } else {
@@ -470,19 +509,41 @@ function cartao(p,L){
   }
   return h+'</article>';
 }
+function alertaHTML(a,exp){
+  const f=Array.isArray(a.faltando)?a.faltando:[];
+  const zs=ORDEM.filter(z=>f.some(x=>zona(x.lugar)===z));
+  const itens=f.map(x=>'<b>'+(x.qtd!=null?esc(x.qtd)+'x ':'')+esc(x.nome)+'</b> ('+esc(ONDE[zona(x.lugar)])+')').join(', ');
+  const est=zs.some(z=>ESTUFA[z]), bal=zs.indexOf('balcao')>=0, par=temPar(a.lugares);
+  const oc=OCUPADO.has('a:'+a.id);
+  return '<div class="alert" role="alert"><div class="t">⚠ #'+esc(a.numero!=null?a.numero:'—')+' saiu faltando'+(zs.length?' '+esc(junta(zs.map(z=>DO[z]))):'')+'</div>'
+    +'<div class="d">'+(a.marca?esc(a.marca)+'. ':'')+'O iFood avisou que o pedido saiu às '+esc(hhmm(a.saiu))+', com uma parte marcada e outra não'+(itens?'. Ficou sem marcar: '+itens+'.':'.')
+    +(est?(par?' Deve estar na prateleira "TEM PAR" da estufa.':' Confere a estufa.'):'')+(bal?' Confere o balcão.':'')+' Liga para o motoboy agora.</div>'
+    +(exp?'<button type="button" data-ok="'+esc(a.id)+'"'+(oc?' disabled':'')+'>'+(oc?'Salvando…':'Já resolvi')+'</button>'
+         :'<div class="so">A expedição marca como resolvido.</div>')+'</div>';
+}
 function desenhaAlertas(){
+  const L=lugarAparelho(), exp=L==='tudo';
   const as=(DADO&&Array.isArray(DADO.alertas))?DADO.alertas.filter(a=>a&&a.id!=null&&!RESOLVIDO.has(a.id)):[];
-  $('alertas').innerHTML=as.map(function(a){
-    const f=Array.isArray(a.faltando)?a.faltando:[];
-    const zs=ORDEM.filter(z=>f.some(x=>(ORDEM.indexOf(x.lugar)>=0?x.lugar:'conferir')===z));
-    const itens=f.map(x=>'<b>'+(x.qtd!=null?esc(x.qtd)+'x ':'')+esc(x.nome)+'</b> ('+esc(ONDE[ORDEM.indexOf(x.lugar)>=0?x.lugar:'conferir'])+')').join(', ');
-    const est=zs.some(z=>z!=='balcao'), bal=zs.indexOf('balcao')>=0;
-    const oc=OCUPADO.has('a:'+a.id);
-    return '<div class="alert" role="alert"><div class="t">⚠ #'+esc(a.numero!=null?a.numero:'—')+' saiu faltando'+(zs.length?' '+esc(junta(zs.map(z=>DO[z]))):'')+'</div>'
-      +'<div class="d">'+(a.marca?esc(a.marca)+'. ':'')+'O iFood avisou que o pedido saiu às '+esc(hhmm(a.saiu))+(itens?', mas não foi marcado: '+itens+'.':', mas faltou marcar item.')
-      +(est?' Deve estar na prateleira "TEM PAR" da estufa.':'')+(bal?' Confere o balcão.':'')+' Liga para o motoboy agora.</div>'
-      +'<button type="button" data-ok="'+esc(a.id)+'"'+(oc?' disabled':'')+'>'+(oc?'Salvando…':'Já resolvi')+'</button></div>';
-  }).join('');
+  /* cozinha/balcao: so alerta parcial que falta o lugar dela (o banco ja filtra; aqui garante) */
+  const parc=as.filter(a=>parcial(a)&&(exp||(Array.isArray(a.faltando)&&a.faltando.some(x=>zona(x.lugar)===L))));
+  const sem=exp?as.filter(a=>!parcial(a)):[];
+  const MAX=maxAlertas();
+  let h=(ALERTAS_TODOS?parc:parc.slice(0,MAX)).map(a=>alertaHTML(a,exp)).join('');
+  if(parc.length>MAX) h+='<button type="button" class="mais" data-mais="a">'+(ALERTAS_TODOS?'Mostrar só os '+MAX+' mais recentes'
+    :'+ '+(parc.length-MAX)+(parc.length-MAX>1?' outros pedidos saíram faltando':' outro pedido saiu faltando')+' — ver todos')+'</button>';
+  if(sem.length){
+    /* pedido de 2+ lugares primeiro (e o risco maior), depois o mais recente */
+    const ord=sem.map((a,i)=>({a:a,i:i,m:Array.isArray(a.lugares)&&a.lugares.length>1?0:1})).sort((x,y)=>x.m-y.m||x.i-y.i).map(x=>x.a);
+    const multi=ord.filter(a=>Array.isArray(a.lugares)&&a.lugares.length>1).length;
+    h+='<div class="semmarca"><div class="t">'+sem.length+(sem.length>1?' pedidos saíram':' pedido saiu')+' sem nenhuma marca'+(multi?' ('+multi+' de 2+ lugares)':'')+'</div>'
+      +'<div class="d">Ninguém tocou nos itens: a tela não sabe se foi tudo. Confere com a equipe e marca os itens antes de entregar.</div>'
+      +'<div class="chips">'+(SEM_ABERTO?ord.map(function(a){ const oc=OCUPADO.has('a:'+a.id), nl=Array.isArray(a.lugares)?a.lugares.length:0;
+          return '<button type="button" class="chip" data-ok="'+esc(a.id)+'"'+(oc?' disabled':'')+' aria-label="Pedido '+esc(a.numero)+' conferido">#'+esc(a.numero!=null?a.numero:'—')
+            +' <small>'+esc(hhmm(a.saiu))+'</small>'+(nl>1?'<b>'+nl+' lugares</b>':'')+(oc?' …':' ✓')+'</button>'; }).join(''):'')
+      +'<button type="button" class="chip" data-mais="s">'+(SEM_ABERTO?'fechar':'Ver os números para conferir')+'</button>'
+      +'</div>'+(SEM_ABERTO?'<div class="d">Toca no número depois de conferir: ele sai da lista.</div>':'')+'</div>';
+  }
+  $('alertas').innerHTML=h;
 }
 function desenha(){
   const j=DADO; if(!j) return;
@@ -498,7 +559,10 @@ function desenha(){
   $('sA').textContent=String(ps.filter(p=>!p.cancelado).length);
   $('sC').textContent=sh(h.entregues);
   $('sS').textContent=sh(h.saiu_faltando);
-  if(Number(h.saiu_completo_sem_botao)>0){ $('semBotao').textContent='Hoje saíram completos sem apertar o botão: '+h.saiu_completo_sem_botao+'.'; $('semBotao').hidden=false; } else $('semBotao').hidden=true;
+  const notas=[];
+  if(Number(h.saiu_sem_marca)>0) notas.push(h.saiu_sem_marca+' saíram sem nenhuma marca');
+  if(Number(h.saiu_completo_sem_botao)>0) notas.push(h.saiu_completo_sem_botao+' completos sem apertar o botão');
+  if(notas.length && L==='tudo'){ $('semBotao').textContent='Hoje: '+notas.join(' · ')+'.'; $('semBotao').hidden=false; } else $('semBotao').hidden=true;
   desenhaAlertas();
   $('h2lista').textContent=L==='tudo'?'A conferir — o mais antigo primeiro':'A fazer — o mais antigo primeiro (o que já está pronto desce)';
   $('grid').innerHTML=ps.length? ps.map(p=>cartao(p,L)).join('') : '<div class="vazio">Nenhum pedido para conferir agora.</div>';
@@ -515,7 +579,7 @@ function relogio(){
 
 /* ---------- som (o navegador so deixa tocar depois de um toque; o botao liga e guarda a escolha) ---------- */
 let AC=null;
-function botaoSom(){ const b=$('bt-som'); b.textContent=SOM?'🔔 Som ligado':'🔕 Ligar som'; b.classList.toggle('on',SOM); }
+function botaoSom(){ const b=$('bt-som'); b.innerHTML=SOM?'🔔<span class="lg"> Som ligado</span>':'🔕<span class="lg"> Ligar som</span>'; b.setAttribute('aria-label',SOM?'Som ligado':'Ligar som'); b.classList.toggle('on',SOM); }
 function toca(tipo){
   if(!SOM) return;
   try{ const C=window.AudioContext||window.webkitAudioContext; if(!C) return; if(!AC) AC=new C(); if(AC.state==='suspended') AC.resume();
@@ -530,6 +594,7 @@ document.addEventListener('click',function(e){
   const r=e.target.closest('.row'); if(r&&!r.disabled){ toque(r.getAttribute('data-p'),r.getAttribute('data-k')); return; }
   const g=e.target.closest('[data-go]'); if(g&&!g.disabled){ entregar(g.getAttribute('data-go')); return; }
   const a=e.target.closest('[data-ok]'); if(a&&!a.disabled){ resolvi(a.getAttribute('data-ok')); return; }
+  const m=e.target.closest('[data-mais]'); if(m){ if(m.getAttribute('data-mais')==='s') SEM_ABERTO=!SEM_ABERTO; else ALERTAS_TODOS=!ALERTAS_TODOS; desenhaAlertas(); return; }
 });
 $('cod-bt').addEventListener('click',entra);
 $('cod-in').addEventListener('keydown',function(e){ if(e.key==='Enter') entra(); });
