@@ -64,6 +64,35 @@ table.vv td.sit input{width:100%;margin-bottom:6px}
 .vv .rs{margin-top:6px;font-size:12px;color:var(--muted)}
 .vv .fn{margin-top:2px;font-size:11px;color:var(--muted)}
 .vv .feito{color:#7fe0aa;font-weight:700}
+/* 08/10/2026 (chat-dashboard-cancelamentos-08-10): quadros dos cancelamentos em cima dos cartoes.
+   Cores validadas (dataviz, fundo #1a1a19): dia #B8891A, noite #6E8FF0. */
+.qd-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.qd-per{display:flex;gap:6px}
+.qd-per span{background:var(--s2);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:700;cursor:pointer}
+.qd-per span.on{color:var(--text);border-color:var(--brand)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin:10px 0}
+.kp{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:12px 14px}
+.kp .kl{font-size:12px;color:var(--text2);font-weight:700}
+.kp .kv{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:700;line-height:1.1;margin-top:4px}
+.kp .ks{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.35}
+.kp.ruim{border-color:rgba(230,103,103,.55)}
+.qd-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:10px}
+.qd-grid .c{margin-bottom:0}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin:6px 0 4px}
+.leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.br{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) 34px;gap:8px;align-items:center;padding:5px 0;font-size:12.5px;color:var(--text2)}
+.br .bt{display:flex;gap:2px;height:12px}
+.br .bt i{display:block;height:100%;min-width:3px}
+.br .bt i:first-child{border-radius:4px 0 0 4px}
+.br .bt i:last-child{border-radius:0 4px 4px 0}
+.br .bt i:only-child{border-radius:4px}
+.br .bn{text-align:right;font-weight:700;color:var(--text)}
+.c-dia{background:#B8891A}.c-noite{background:#6E8FF0}.c-fora{background:#77766e}
+.qd-t td,.qd-t th{padding:6px 6px}
+.qd-t td.n,.qd-t th.n{text-align:right}
+.qd-t td.n{white-space:nowrap}
+.qd-grid .c.larga{grid-column:1/-1}
+@media (max-width:640px){.qd-grid{grid-template-columns:minmax(0,1fr)}.br{grid-template-columns:minmax(0,1fr) 34px}.br .bl{grid-column:1/-1}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.qd-t td:first-child{min-width:160px}}
 
 /* cara da casa 04-09-2026 */
 h1,.gatebox h1{font-weight:400}
@@ -293,8 +322,118 @@ function cartaoCancel(o,e,dono){
   }
   return h+'</td></tr></table>';
 }
+/* 08/10/2026 (chat-dashboard-cancelamentos-08-10), pedido do Fabio 07/10: quadros em cima dos cartoes -
+   motivos (inteiro e parcial) por turno, quem cancelou e quanto voltou, prejuizo, reembolso no chat,
+   contestacao, dia da semana e marca. Porta propria (turno_cancel_painel), so leitura; R$ so vem para o dono.
+   Turno aqui e a regra do Fabio de 07/10: dia 10h-18h, noite 18h-2h20 (nao o seletor Manha/Noite de cima). */
+let PNL=null, PNL_CH='', PNL_ERRO='', PNL_BUSCANDO=false, PNL_DIAS=30;
+try{ const d=Number(localStorage.getItem('cdm_turno_qd_dias')); if([7,30,90].indexOf(d)>=0) PNL_DIAS=d; }catch(e){}
+function pnlChave(){ return $('uni').value+'|'+PNL_DIAS+'|'+$('dia').value; }
+async function carregaPainel(){
+  if(PNL_BUSCANDO)return; PNL_BUSCANDO=true;
+  const ch=pnlChave();
+  try{
+    const r=await fetch(SB+'rpc/turno_cancel_painel',{method:'POST',
+      headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({p_token:cdmTok(),p_dados:{unidade:$('uni').value,dias:PNL_DIAS,ate:$('dia').value||null}})});
+    if(!r.ok)throw new Error('porta '+r.status);
+    PNL=await r.json(); PNL_ERRO='';
+  }catch(e){ PNL=null; PNL_ERRO='Não deu para carregar os quadros agora.'; }
+  PNL_CH=ch; PNL_BUSCANDO=false;
+  if(ABA==='cancel')desenha();
+}
+function frase(t){ t=String(t||'').toLowerCase(); return t.charAt(0).toUpperCase()+t.slice(1); }
+function rsQ(v){ return v==null?'':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+const TURNO_ROT={dia:'☀ Dia (10h–18h)',noite:'🌙 Noite (18h–2h20)',fora:'Fora dos turnos (2h21–10h)'};
+function barras(l,max){
+  /* uma linha por item: rotulo | barra dia+noite (+fora) | total. Passar o mouse mostra os numeros. */
+  return l.map(function(o){
+    const seg=['dia','noite','fora'].filter(function(t){return (o[t]||0)>0}).map(function(t){
+      return '<i class="c-'+t+'" style="flex:0 0 '+(100*o[t]/max).toFixed(1)+'%" title="'+esc(TURNO_ROT[t]+': '+o[t])+'"></i>';
+    }).join('');
+    return '<div class="br" title="'+esc(o.rot+' — dia '+(o.dia||0)+' · noite '+(o.noite||0)+(o.fora?' · fora '+o.fora:''))+'">'+
+      '<div class="bl">'+esc(o.rot)+(o.extra?' <span class="assin">'+esc(o.extra)+'</span>':'')+'</div>'+
+      '<div class="bt">'+seg+'</div><div class="bn">'+o.total+'</div></div>';
+  }).join('');
+}
+function legenda(temFora){
+  return '<div class="leg"><span><i class="c-dia"></i>'+TURNO_ROT.dia+'</span><span><i class="c-noite"></i>'+TURNO_ROT.noite+'</span>'+
+    (temFora?'<span><i class="c-fora"></i>'+TURNO_ROT.fora+'</span>':'')+'</div>';
+}
+function topMotivos(l,n){
+  const a=(l||[]).slice(0,n).map(function(m){return {rot:frase(m.motivo),total:m.total,dia:m.dia,noite:m.noite,fora:m.fora,valor:m.valor}});
+  const resto=(l||[]).slice(n);
+  if(resto.length){
+    const o={rot:'Outros ('+resto.length+' motivos)',total:0,dia:0,noite:0,fora:0};
+    resto.forEach(function(m){o.total+=m.total;o.dia+=m.dia;o.noite+=m.noite;o.fora+=m.fora;});
+    a.push(o);
+  }
+  return a;
+}
+const QUEM_ROT={CLIENTE:'O cliente cancelou',MERCHANT:'A loja cancelou pelo iFood',LOJA:'A loja cancelou (no sistema)',SEM_RELATORIO:'Ainda sem o relatório do iFood'};
+function painelHtml(){
+  const per='<div class="qd-per">'+[7,30,90].map(function(d){return '<span data-per="'+d+'" class="'+(d===PNL_DIAS?'on':'')+'">'+d+' dias</span>'}).join('')+'</div>';
+  let h='<div class="c"><div class="qd-top"><b>📊 Quadros dos cancelamentos — '+esc($('uni').selectedOptions[0].text)+', todas as marcas da loja</b>'+per+'</div>';
+  if(PNL_CH!==pnlChave()||(!PNL&&!PNL_ERRO)){ carregaPainel(); return h+'<div class="vazio">Carregando os quadros…</div></div>'; }
+  if(!PNL) return h+'<div class="vazio">'+esc(PNL_ERRO)+'</div></div>';
+  const P=PNL, R=P.resumo||{}, dono=!!P.dono, f=P.fontes||{};
+  h+='<div class="assin">De '+esc(P.periodo.ini)+' a '+esc(P.periodo.fim)+'. Cancelado inteiro vem do financeiro e da API do iFood (chega no mesmo dia). '+
+     'Parcial, quem cancelou e contestação vêm do relatório do iFood, que chegou até <b>'+esc(f.relatorio_ate||'—')+'</b>. Conversas do chat do iFood até <b>'+esc(f.chat_ate||'—')+'</b>.</div></div>';
+  /* faixa de cima */
+  const kp=function(rot,v,sub,ruim){return '<div class="kp'+(ruim?' ruim':'')+'"><div class="kl">'+rot+'</div><div class="kv">'+v+'</div><div class="ks">'+sub+'</div></div>'};
+  h+='<div class="kpis">'+
+    kp('🚫 Cancelados inteiros',R.inteiros||0,(dono?esc(rsQ(R.inteiros_valor))+' em pedidos · ':'')+(R.explicados||0)+' explicados pela equipe')+
+    kp('✂ Cancelamentos parciais',R.parciais||0,'parte do pedido devolvida ao cliente'+(dono?' · '+esc(rsQ(R.parciais_valor)):''))+
+    kp('💬 Reembolso no chat',R.chat_n||0,(R.chat_e_parcial||0)+' deles são o mesmo pedido do parcial'+(dono?' · '+esc(rsQ(R.chat_valor)):''))+
+    kp('💸 Prejuízo certo',R.prejuizo_n||0,'saiu para entrega e não voltou nada'+(dono?' · '+esc(rsQ(R.prejuizo_valor)):''),(R.prejuizo_n||0)>0)+
+    kp('↩ Voltou dinheiro',(R.volta_n||0)+' de '+(R.inteiros||0),'cancelados inteiros em que o iFood pagou a loja'+(dono?' · '+esc(rsQ(R.volta_valor)):''))+
+    '</div>';
+  h+='<div class="qd-grid">';
+  /* motivos do cancelado inteiro e do parcial, dia x noite */
+  const tf=(P.turnos||[]).some(function(t){return t.turno==='fora'&&(t.inteiros||t.parciais)});
+  const mi=topMotivos(P.motivos_inteiro,6), mp=topMotivos(P.motivos_parcial,5);
+  const mx=Math.max(1,Math.max.apply(null,mi.concat(mp).map(function(o){return o.total})));
+  const tl=function(k){ const t=(P.turnos||[]).filter(function(x){return x.turno===k})[0]||{}; return t; };
+  h+='<div class="c"><b>Por que cancelaram — pedido inteiro</b>'+legenda(tf)+
+     '<div class="assin">Dia '+(tl('dia').inteiros||0)+' · noite '+(tl('noite').inteiros||0)+(tf?' · fora '+(tl('fora').inteiros||0):'')+'</div>'+
+     (mi.length?barras(mi,mx):'<div class="vazio">Nenhum cancelado inteiro no período.</div>')+'</div>';
+  h+='<div class="c"><b>Por que cancelaram — parte do pedido (parcial)</b>'+legenda(tf)+
+     '<div class="assin">Dia '+(tl('dia').parciais||0)+' · noite '+(tl('noite').parciais||0)+(tf?' · fora '+(tl('fora').parciais||0):'')+'</div>'+
+     (mp.length?barras(mp.map(function(o){ if(dono&&o.valor!=null)o.extra=rsQ(o.valor); return o; }),mx):'<div class="vazio">Nenhum cancelamento parcial no período.</div>')+'</div>';
+  /* quem cancelou e quanto voltou */
+  h+='<div class="c larga"><b>Quem cancelou e quanto voltou para a loja</b><table class="qd-t"><tr><th>Quem</th><th class="n">Pedidos</th><th class="n">Voltou dinheiro</th><th class="n">Nada voltou</th>'+(dono?'<th class="n">R$ que voltou</th>':'')+'</tr>'+
+     (P.quem||[]).map(function(q){
+       return '<tr><td>'+esc(QUEM_ROT[q.origem]||q.origem)+'<div class="assin">mais comum: '+esc(frase(q.motivo_top))+'</div></td><td class="n">'+q.n+'</td><td class="n">'+(q.volta_n||0)+'</td><td class="n">'+(q.sem_volta_n||0)+
+         (q.aguardando_fin?'<div class="assin">+'+q.aguardando_fin+' esperando</div>':'')+'</td>'+(dono?'<td class="n">'+esc(rsQ(q.volta_valor))+'</td>':'')+'</tr>';
+     }).join('')+'</table></div>';
+  /* prejuizo */
+  const lp=function(rot,n,v,sub){return '<tr><td>'+rot+(sub?'<div class="assin">'+sub+'</div>':'')+'</td><td class="n">'+n+'</td>'+(dono?'<td class="n">'+esc(rsQ(v))+'</td>':'')+'</tr>'};
+  h+='<div class="c"><b>Onde ficamos no prejuízo</b><table class="qd-t"><tr><th></th><th class="n">Pedidos</th>'+(dono?'<th class="n">Valor</th>':'')+'</tr>'+
+     lp('💸 Saiu para entrega e não voltou nada',R.prejuizo_n||0,R.prejuizo_valor,'a comida foi feita e saiu; o iFood não pagou a loja')+
+     lp('🚫 Cancelado inteiro sem nada de volta',R.sem_volta_n||0,R.sem_volta_valor,'inclui a linha de cima; o resto pode ter sido cancelado antes de ir para a cozinha')+
+     lp('✂ Devolvido ao cliente no parcial',R.parciais||0,R.parciais_valor,'item que faltou ou veio errado')+
+     lp('💬 Reembolso no chat que não virou parcial',R.chat_so_n||0,R.chat_so_valor,'os outros '+(R.chat_e_parcial||0)+' já estão na linha de cima')+
+     ((R.aguardando_fin||0)?lp('⏳ Esperando o financeiro do iFood',R.aguardando_fin,null,'ainda não dá para saber se voltou dinheiro'):'')+
+     '</table></div>';
+  /* contestacao */
+  h+='<div class="c"><b>Contestação</b><table class="qd-t"><tr><th></th><th class="n">Dava para contestar</th><th class="n">Contestamos</th><th class="n">iFood aceitou</th><th class="n">Recusou</th></tr>'+
+     (P.contestacao||[]).map(function(c){
+       return '<tr><td>'+(c.tipo==='inteiro'?'Cancelado inteiro':'Parcial')+'</td><td class="n">'+c.contestavel+'</td><td class="n">'+c.contestou+'</td><td class="n">'+c.acatada+'</td><td class="n">'+c.recusada+'</td></tr>';
+     }).join('')+'</table><div class="assin">Contestação aceita faz o iFood pagar a loja. Pedido que dava para contestar e não foi contestado é dinheiro deixado na mesa.</div></div>';
+  /* dia da semana x turno */
+  const DS=['','Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
+  const sem=(P.semana||[]).map(function(s){ const d=s.i_dia+s.p_dia, n=s.i_noite+s.p_noite;
+    return {rot:DS[s.dow],dia:d,noite:n,fora:0,total:d+n,extra:s.i_dia+s.i_noite+' inteiros · '+(s.p_dia+s.p_noite)+' parciais'}; });
+  const ms=Math.max(1,Math.max.apply(null,sem.map(function(o){return o.total})));
+  h+='<div class="c"><b>Dia da semana e turno</b>'+legenda(false)+'<div class="assin">Inteiros e parciais juntos. O que passa da meia-noite até 2h20 conta na noite anterior.</div>'+barras(sem,ms)+'</div>';
+  /* marcas */
+  h+='<div class="c"><b>Por marca</b><table class="qd-t"><tr><th>Marca</th><th class="n">Inteiros</th><th class="n">Parciais</th></tr>'+
+     (P.marcas||[]).map(function(m){return '<tr><td>'+esc(m.marca)+'</td><td class="n">'+m.inteiros+'</td><td class="n">'+m.parciais+'</td></tr>'}).join('')+
+     ((P.marcas||[]).length?'':'<tr><td colspan="3" class="vazio">Nada no período.</td></tr>')+'</table></div>';
+  return h+'</div><h2>Cada pedido cancelado</h2>';
+}
 function desenhaCancel(){
-  return blocoIfood(!!D.dono);
+  return painelHtml()+blocoIfood(!!D.dono);
 }
 const RESULTADOS=[
   ['canhoto','✅ Achei o canhoto — ele cobrou'],
@@ -370,9 +509,11 @@ document.addEventListener('click',async function(ev){
     catch(e){ alert('Não deu para marcar.') }
     return;
   }
+  const pr=ev.target.closest('[data-per]');
+  if(pr){ PNL_DIAS=Number(pr.dataset.per)||30; try{localStorage.setItem('cdm_turno_qd_dias',String(PNL_DIAS))}catch(e){} desenha(); return; }
   const aba=ev.target.closest('.aba');
   if(aba&&aba.dataset.aba){ABA=aba.dataset.aba;if(ABA==='cob'&&!COB){carregaCob();return}desenha();return}
-  if(ev.target.id==='btAtualiza'){PAS=null;PAS_ERRO='';boot();return}
+  if(ev.target.id==='btAtualiza'){PAS=null;PAS_ERRO='';PNL_CH='';boot();return}
   const rc=ev.target.closest('[data-rec]');
   if(rc){
     const nome=($('pRecNome')&&$('pRecNome').value||'').trim(), obs=($('pRecObs')&&$('pRecObs').value||'').trim(), ok=rc.dataset.rec==='1';
