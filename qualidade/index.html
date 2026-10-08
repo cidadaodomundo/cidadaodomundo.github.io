@@ -853,7 +853,11 @@ async function avPuxa(){
     j=r[0]; tod=r[1];
   }catch(e){ erro=(e&&e.message)||'falhou' }
   if(seq!==AVSEQ||u!==(UNI||null))return;
-  if(j){ if(tod&&Array.isArray(tod.por_loja)){ j.por_loja=tod.por_loja; j.por_marca=tod.por_marca; } else if(u)j._so_uma=true; AV=j; AV._t=Date.now(); if(AVSEL)avBuscaPainel(); }
+  if(j){ if(tod&&Array.isArray(tod.por_loja)){ j.por_loja=tod.por_loja; j.por_marca=tod.por_marca; } else if(u)j._so_uma=true; AV=j; AV._t=Date.now();
+    if(AVSEL){
+      const k=AVSEL.k, existe=(j.por_loja||[]).some(function(l){return 'l:'+l.unidade===k})||(j.por_marca||[]).some(function(m){return 'm:'+m.id_loja===k});
+      if(existe)avBuscaPainel(true); else {AVSEL=null;AVDET=null;AVDSEQ++;}
+    } }
   else if(!AV||AV.erro)AV={erro:erro||'falhou'};
   else AV._falhou=true;
   /* revisao 07/10: se o carregamento principal falhou, nao desenha por cima da mensagem de erro */
@@ -889,7 +893,7 @@ function avQs(x){
 function avCard(titulo,x,marcado,k){
   /* so fica clicavel quando a porta ja manda a legenda (chave notas): as duas coisas sobem juntas no banco */
   const tem=(Number(x&&x.avaliacoes)||0)>0, clica=!!(k&&tem&&Array.isArray(x&&x.notas));
-  return '<div class="card'+(marcado?' vivon':'')+(clica?' viv':'')+'"'+(clica?' data-avk="'+esc(k)+'" data-nota="0" role="button" tabindex="0" title="Ver os comentários e as notas baixas"':'')+'>'+
+  return '<div class="card'+(marcado?' vivon':'')+(clica?' viv':'')+'"'+(clica?' data-avk="'+esc(k)+'" data-nota="0" title="Ver os comentários e as notas baixas"':'')+'>'+
          '<div class="t">'+titulo+'</div><div class="v">'+(tem?'★ '+avNum(x.nota_media):'—')+'</div>'+
          '<div class="qs">'+avQs(x)+'</div>'+avNotas(x,k)+'</div>';
 }
@@ -942,15 +946,21 @@ function avAbre(k,nota){
   avBuscaPainel();
 }
 /* busca a lista do painel aberto; tambem chamada quando os quadros se atualizam sozinhos (5 em 5 min) */
-function avBuscaPainel(){
+function avBuscaPainel(deFundo){
   if(!AVSEL)return;
   const s=AVSEL, seq=++AVDSEQ, d={dias:(AV&&AV.dias)||7};
   if(s.k.indexOf('l:')===0)d.unidade=s.k.slice(2); else d.id_loja=Number(s.k.slice(2));
   if(s.nota)d.nota=s.nota;
+  function pinta(){ if(ABA==='cliente'&&!BOOTFALHOU){ desenha(); if(AVSEL===s)avFoco(s.k,s.nota); } }
   porta('qualidade_avaliacoes_lista',d).then(function(j){
-    if(seq!==AVDSEQ)return; AVDET=j||{erro:'resposta vazia'}; if(ABA==='cliente'&&!BOOTFALHOU)desenha();
+    if(seq!==AVDSEQ)return;
+    if(!j&&deFundo&&AVDET&&!AVDET.erro){ AVDET._falhou=true; pinta(); return; }
+    AVDET=j||{erro:'resposta vazia'}; pinta();
   },function(e){
-    if(seq!==AVDSEQ)return; AVDET={erro:(e&&e.message)||'falhou'}; if(ABA==='cliente'&&!BOOTFALHOU)desenha();
+    if(seq!==AVDSEQ)return;
+    /* na atualizacao automatica, uma falha nao apaga a lista que ja estava na tela */
+    if(deFundo&&AVDET&&!AVDET.erro){ AVDET._falhou=true; pinta(); return; }
+    AVDET={erro:(e&&e.message)||'falhou'}; pinta();
   });
 }
 /* o redesenho troca a tela inteira: devolve o foco ao botao/quadro tocado (teclado) */
@@ -965,7 +975,7 @@ function avFoco(k,nota){
 function avPainel(titulo){
   const s=AVSEL, d=AVDET;
   let h='<div class="c avdet"><div class="avdh"><b>💬 '+titulo+' · '+(s.nota?'nota '+s.nota:'comentários e notas baixas')+'</b>'+
-        '<button type="button" class="b" data-avk="'+esc(s.k)+'" data-nota="'+s.nota+'">✕ Fechar</button></div>';
+        '<button type="button" class="b" data-avfecha="1">✕ Fechar</button></div>';
   if(!d)return h+'<div class="load">Buscando as avaliações…</div></div>';
   if(d.erro)return h+'<div class="m">Não deu para buscar: '+esc(d.erro)+'. Toque de novo '+(s.nota?'na nota':'no quadro')+' para tentar.</div></div>';
   const I=Array.isArray(d.itens)?d.itens:[], t=d.por_turno||{}, tot=Number(d.total)||0;
@@ -977,20 +987,15 @@ function avPainel(titulo){
   const st=Number(d.sem_texto)||0, mo=Number(d.mostradas)||0;
   if(I.length&&st)h+='<div class="m">E mais '+esc(String(st))+' com nota '+(s.nota?esc(String(s.nota)):'4 ou 5')+' sem comentário.</div>';
   if(mo>I.length)h+='<div class="m">Mostrando as '+I.length+' mais novas de '+esc(String(mo))+'.</div>';
+  if(d._falhou)h+='<div class="m">Não consegui atualizar esta lista agora; é a que foi lida antes.</div>';
   return h+'</div>';
 }
 document.addEventListener('click',function(e){
   if(ABA!=='cliente'||!e.target||!e.target.closest)return;
   if(e.target.closest('[data-avnada]'))return;
+  if(e.target.closest('[data-avfecha]')){ const s=AVSEL; AVSEL=null;AVDET=null;AVDSEQ++;desenha(); if(s)avFoco(s.k,s.nota); return; }
   const t=e.target.closest('[data-avk]');
   if(!t)return;
-  avAbre(t.getAttribute('data-avk'),Number(t.getAttribute('data-nota'))||0);
-});
-document.addEventListener('keydown',function(e){
-  if(ABA!=='cliente'||(e.key!=='Enter'&&e.key!==' '))return;
-  const t=e.target;
-  if(!t||!t.classList||!t.classList.contains('card')||!t.hasAttribute('data-avk'))return;
-  e.preventDefault();
   avAbre(t.getAttribute('data-avk'),Number(t.getAttribute('data-nota'))||0);
 });
 function avAba(){
