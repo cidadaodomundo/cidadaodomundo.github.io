@@ -83,6 +83,18 @@ const ACAO={fechar:'diz que já foi resolvido',atualizar:'traz novidade',abrir:'
    os "para saber" e os de certeza baixa ficam atras de um botao; resumo no topo por assunto.
    Aceitar / Nao e isso vale para o cartao inteiro (aceitar_grupo / recusar_grupo). Nada e apagado. */
 let G=[],SABER=null,CONTAS={},FILTRO='',TELAS=[],VERBAIXA=false,VERSABER=false,ABERTO={},CARREGANDO=false;
+/* 08/10/2026 (decisao do Fabio, "faca tudo"): a tela abre em modo "so excecoes". Ficam ESCONDIDOS (nao recusados,
+   nada muda no banco) os cartoes do chat do iFood (a conversa vai junto do pedido no Turno e no Resolver hoje) e os
+   assuntos que ja tem tela propria: problema de entrega, sistema com defeito, cardapio pausado, encomenda, compras ML,
+   fornecedor, fechamento e escala de motoboy, e manutencao / agenda pessoal vindos de grupo. "Ver tudo" mostra de novo.
+   A porta nao manda a fonte: vem do nome da conversa (iFood = "Chat iFood ...", SAC = "SAC ...", wpp = "LOJA ...",
+   conversa do Fabio = pessoal, o resto = grupo; conferido 100% em central_sugestao desde 25/09). */
+let VERTUDO=false;
+const ESCONDE_TELA=['entrega_problema','sistema_com_defeito','cardapio_pausado','encomenda','encomendas','compras_ml','fornecedor_insumo','fechamento_motoboy','escala_motoboy'];
+function fonteDe(g){if(g.fonte)return g.fonte;const d=String(g.de||'');
+  return d==='conversa do Fábio'?'pessoal':/^Chat iFood/.test(d)?'ifood':/^SAC /.test(d)?'sac':/^LOJA /.test(d)?'wpp':'grupo'}
+function escondido(g){const f=fonteDe(g);return f==='ifood'||ESCONDE_TELA.indexOf(g.tela)>=0||(f==='grupo'&&(g.tela==='manutencao'||g.tela==='agenda_pessoal'))}
+function trocaTudo(){VERTUDO=!VERTUDO;FILTRO='';desenha()}
 async function porta(a,d){
   const r=await fetch(SB+'rpc/central_sugestao_porta',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
     body:JSON.stringify({p_token:cdmTok(),p_acao:a,p_dados:d||{}})});
@@ -98,15 +110,17 @@ function efeito(s){
   if(s.acao==='abrir'&&s.tela==='manutencao')return 'Aceitar abre um chamado em Manutenção.';
   if(s.acao==='abrir'&&['precisa_resposta','cliente_reclamacao','entrega_problema','sistema_com_defeito'].indexOf(s.tela)>=0)return 'Aceitar abre em Precisa de Resposta.';
   if((s.tela==='tarefa_fabio'&&s.acao==='abrir')||s.tela==='agenda_pessoal')return 'Aceitar põe na Minha Agenda'+(s.tela==='agenda_pessoal'?' (pessoal)':'')+'.';
+  if(s.tela==='rh')return 'Aceitar manda para a Caixa do RH.'; /* 08/10/2026: Aceitar de RH cria item na Caixa do RH (central_sugestao_porta) */
   return 'Aceitar só marca como visto — esta tela do portal ainda não recebe sozinha.';
 }
 function efeitoGrupo(g){
   const it=g.itens||[],vistos={},fr=[];
   it.forEach(s=>{const f=efeito(s);if(f.indexOf('só marca como visto')>=0)return;if(!vistos[f]){vistos[f]=1;fr.push(f)}});
   let t=fr.length?fr.join(' '):'Aceitar só marca como visto — esta tela do portal ainda não recebe sozinha.';
-  const ab=it.filter(s=>!((s.acao==='fechar'||s.acao==='atualizar')&&s.codigo)&&(s.acao==='abrir'||s.tela==='agenda_pessoal')&&efeito(s).indexOf('só marca')<0).length;
+  const ab=it.filter(s=>!((s.acao==='fechar'||s.acao==='atualizar')&&s.codigo)&&(s.acao==='abrir'||s.tela==='agenda_pessoal'||s.tela==='rh')&&efeito(s).indexOf('só marca')<0).length;
   if(ab>1)t+=' Vira um item só, com os '+ab+' pedidos escritos dentro.';
   if(it.length>1)t+=' As '+it.length+' mensagens do cartão saem da lista juntas.';
+  if(g.tela==='rh'&&fonteDe(g)==='pessoal'&&t.indexOf('Caixa do RH')>=0)t+=' Atenção: o RH vai ler o resumo desta conversa sua.';
   return t;
 }
 function chave(g){return Number((g&&g.itens&&g.itens[0]&&g.itens[0].id)||0)}
@@ -163,8 +177,12 @@ function cartao(g){
   return h;
 }
 function desenha(){
-  const vAcao=G.filter(g=>VERBAIXA||g.certeza!=='baixa');
-  const vSaber=(VERSABER&&SABER)?SABER:[];
+  /* 08/10/2026: modo "so excecoes" (ver VERTUDO); nEsc = quantos cartoes desta vista estao escondidos */
+  const okX=g=>VERTUDO||!escondido(g);
+  const bAcao=G.filter(g=>VERBAIXA||g.certeza!=='baixa');
+  const bSaber=(VERSABER&&SABER)?SABER:[];
+  const vAcao=bAcao.filter(okX),vSaber=bSaber.filter(okX);
+  const nEsc=bAcao.concat(bSaber).filter(escondido).length;
   const todos=vAcao.concat(vSaber),C=CONTAS||{};
   const cont={},msgs={};
   todos.forEach(g=>{const n=g.n||(g.itens||[]).length;cont[g.tela]=(cont[g.tela]||0)+1;msgs[g.tela]=(msgs[g.tela]||0)+n});
@@ -178,13 +196,20 @@ function desenha(){
     h+='</div>';
   }
   h+='<div class="chips">';
-  if((C.saber_grupos||0)>0||VERSABER)h+='<span class="chip'+(VERSABER?' on':'')+'" onclick="trocaSaber()">'+(CARREGANDO?'Carregando…':(VERSABER?'Esconder os “para saber”':'Ver também os “para saber”'))+' ('+(C.saber_grupos||0)+((C.saber_grupos||0)===1?' cartão · ':' cartões · ')+(C.saber_msgs||0)+((C.saber_msgs||0)===1?' mensagem)':' mensagens)')+'</span>';
-  if((C.baixa_grupos||0)>0)h+='<span class="chip'+(VERBAIXA?' on':'')+'" onclick="trocaBaixa()">'+(VERBAIXA?'Esconder os de certeza baixa':'Ver também os de certeza baixa')+' ('+C.baixa_grupos+')</span>';
+  if(nEsc>0)h+='<span class="chip'+(VERTUDO?' on':'')+'" onclick="trocaTudo()">'+(VERTUDO?'Só as exceções (esconder '+nEsc+')':'Ver tudo ('+nEsc+(nEsc===1?' escondido)':' escondidos)'))+'</span>';
+  /* 08/10/2026: contagens sem os escondidos; os "para saber" ainda nao carregados mostram o total da porta ("até") */
+  const sV=SABER?SABER.filter(okX):null,sAte=(!sV&&!VERTUDO)?'até ':'';
+  const sG=sV?sV.length:(C.saber_grupos||0),sM=sV?sV.reduce((a,g)=>a+(g.n||(g.itens||[]).length),0):(C.saber_msgs||0);
+  const bx=G.filter(g=>g.certeza==='baixa'&&okX(g)).length;
+  /* os botoes aparecem pelo total (com os escondidos), para nenhum escondido ficar sem caminho ate o "Ver tudo" */
+  const sT=SABER?SABER.length:(C.saber_grupos||0),bxT=G.filter(g=>g.certeza==='baixa').length;
+  if(sT>0||VERSABER)h+='<span class="chip'+(VERSABER?' on':'')+'" onclick="trocaSaber()">'+(CARREGANDO?'Carregando…':(VERSABER?'Esconder os “para saber”':'Ver também os “para saber”'))+' ('+sAte+sG+(sG===1?' cartão · ':' cartões · ')+sM+(sM===1?' mensagem)':' mensagens)')+'</span>';
+  if(bxT>0)h+='<span class="chip'+(VERBAIXA?' on':'')+'" onclick="trocaBaixa()">'+(VERBAIXA?'Esconder os de certeza baixa':'Ver também os de certeza baixa')+' ('+bx+')</span>';
   h+='</div>';
-  h+='<div class="aviso">Cada cartão junta as mensagens da mesma conversa, do mesmo assunto e do mesmo dia. <b>Aceitar</b> ou <b>Não é isso</b> vale para o cartão inteiro.</div>';
+  h+='<div class="aviso">Cada cartão junta as mensagens da mesma conversa, do mesmo assunto e do mesmo dia. <b>Aceitar</b> ou <b>Não é isso</b> vale para o cartão inteiro.'+(VERTUDO?'':' Mostrando <b>só as exceções</b>: chat do iFood e assuntos que já têm tela própria ficam escondidos (não foram recusados).')+'</div>';
   const fil=g=>!FILTRO||g.tela===FILTRO;
   const la=vAcao.filter(fil),ls=vSaber.filter(fil);
-  if(!la.length&&!ls.length)h+='<div class="vazio">'+(FILTRO?'Nada neste assunto.':'Nenhum cartão pedindo você agora. O robô lê o WhatsApp sozinho; o que ele achar aparece aqui.')+'</div>';
+  if(!la.length&&!ls.length)h+='<div class="vazio">'+(FILTRO?'Nada neste assunto.':(!VERTUDO&&nEsc?'Nenhuma exceção pedindo você agora. Os outros '+nEsc+' estão em “Ver tudo”.':'Nenhum cartão pedindo você agora. O robô lê o WhatsApp sozinho; o que ele achar aparece aqui.'))+'</div>';
   la.forEach(g=>{h+=cartao(g)});
   if(ls.length){h+='<div class="sec">Só para saber</div>';ls.forEach(g=>{h+=cartao(g)})}
   $('app').innerHTML=h;
