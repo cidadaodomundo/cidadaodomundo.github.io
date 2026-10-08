@@ -26,6 +26,16 @@ button.b:hover{border-color:var(--text2)}
 .lojas{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 10px}
 .lojas .rot{min-width:64px;margin-right:2px}
 .mgrp{margin:4px 0 8px}
+/* 07/10/2026: legenda de notas 1..5 no rodape dos quadros de Avaliacoes, e o painel que abre ao clicar */
+.notas{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+.nt{font-family:inherit;font-size:11px;font-weight:800;line-height:1;border-radius:999px;padding:4px 7px;border:1px solid var(--line);background:var(--s2);color:var(--text2);cursor:pointer}
+.nt b{color:var(--text)}
+.nt.nr{color:#ff9a9a}.nt.nm{color:var(--warn)}.nt.ng{color:#7fe0aa}
+.nt:hover{border-color:var(--text2)}
+.nt.z{opacity:.45;cursor:default}
+.nt.on{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand) inset}
+.c.avdet{border-color:var(--brand)}
+.avdh{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
 .lojas .chip{padding:7px 13px}
 .lojas.ult{margin-bottom:18px}
 .fil{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
@@ -828,7 +838,7 @@ function tabelaTurnos(){
    da pra ficar vivo". Le a porta qualidade_avaliacoes: avaliacoes que a porta oficial do iFood ja liberou (robo de
    10 em 10 min). O iFood nao libera na hora, entao a tela diz qual e a mais nova que ja chegou e quando foi lida.
    Mesmo desenho do Prazo: um quadro por loja e, embaixo, um cartao por avaliacao. Se atualiza sozinha (ligaTimer). */
-let AV=null, AVSEQ=0, BOOTFALHOU=false;
+let AV=null, AVSEQ=0, BOOTFALHOU=false, AVSEL=null, AVDET=null, AVDSEQ=0;
 async function avPuxa(){
   /* revisao 07/10: cada busca leva um numero; resposta que chega depois de outra busca (ou de trocar de loja) e jogada fora */
   const seq=++AVSEQ, u=UNI||null;
@@ -873,11 +883,90 @@ function avQs(x){
   if(!q)return 'nenhuma avaliação nos últimos '+esc(n(AV.dias))+' dias';
   return esc(n(x.avaliacoes))+' avaliaç'+(q===1?'ão':'ões')+' · '+esc(n(x.baixas))+' com nota 3 ou menos · '+esc(n(x.com_comentario))+' com comentário';
 }
-function avCard(titulo,x,marcado){
-  const tem=(Number(x&&x.avaliacoes)||0)>0;
-  return '<div class="card'+(marcado?' vivon':'')+'"><div class="t">'+titulo+'</div><div class="v">'+(tem?'★ '+avNum(x.nota_media):'—')+'</div>'+
-         '<div class="qs">'+avQs(x)+'</div></div>';
+/* k = chave do quadro para o clique ('l:<loja>' ou 'm:<id da marca>'). Clicar no quadro abre os comentarios e as notas
+   baixas dele; clicar numa nota da legenda abre so aquela nota. */
+function avCard(titulo,x,marcado,k){
+  const tem=(Number(x&&x.avaliacoes)||0)>0, clica=!!(k&&tem);
+  return '<div class="card'+(marcado?' vivon':'')+(clica?' viv':'')+'"'+(clica?' data-avk="'+esc(k)+'" data-nota="0" title="Ver os comentários e as notas baixas"':'')+'>'+
+         '<div class="t">'+titulo+'</div><div class="v">'+(tem?'★ '+avNum(x.nota_media):'—')+'</div>'+
+         '<div class="qs">'+avQs(x)+'</div>'+avNotas(x,k)+'</div>';
 }
+/* 07/10/2026 (chat-avaliacoes-todas-lojas-07-10), pedido do Fabio: "aqui eu quero no rodape a legenda com todas as notas
+   1, 2, 3, 4, 5 e qdo clica em cima abre os comentarios". Quantas avaliacoes de cada nota (chave 'notas' da porta). */
+function avNotas(x,k){
+  const ns=Array.isArray(x&&x.notas)?x.notas:null;
+  if(!ns)return '';
+  let h='<div class="notas">';
+  for(let i=1;i<=5;i++){
+    const q=Number(ns[i-1])||0, cl=(i<=2?'nr':(i===3?'nm':'ng'));
+    if(q&&k)h+='<button type="button" class="nt '+cl+(AVSEL&&AVSEL.k===k&&AVSEL.nota===i?' on':'')+'" data-avk="'+esc(k)+'" data-nota="'+i+'" title="Ver as avaliações com nota '+i+'">'+i+'★ <b>'+esc(String(q))+'</b></button>';
+    else h+='<span class="nt '+cl+' z" data-avnada="1">'+i+'★ <b>'+esc(String(q))+'</b></span>';
+  }
+  return h+'</div>';
+}
+/* 07/10/2026, pedido do Fabio: "queremos saber em qual horario foi pedida a refeição se foi no turno do dia ou da noite
+   10:00 as 18:00 ou 18:00 as 02:20". O turno vem pronto da porta (funcao cdm_turno_delivery, hora de Curitiba).
+   Pedido da madrugada e da noite do dia anterior: a etiqueta diz de qual noite. */
+function avTurno(x){
+  const t=x&&x.turno;
+  if(t==='dia')return '☀️ Turno do dia';
+  if(t==='fora')return '🕑 Fora dos turnos';
+  if(t!=='noite')return '';
+  const m=/^(\d{4})-(\d{2})-(\d{2}) (\d{2})/.exec(String(x.pedido_em||''));
+  if(m&&Number(m[4])<10){
+    const d=new Date(Date.UTC(+m[1],+m[2]-1,+m[3]-1));
+    return '🌙 Turno da noite de '+String(d.getUTCDate()).padStart(2,'0')+'/'+String(d.getUTCMonth()+1).padStart(2,'0');
+  }
+  return '🌙 Turno da noite';
+}
+/* um cartao de avaliacao (lista de baixo e painel que abre ao clicar) */
+function avItem(x){
+  const nt=Number(x.nota), cor=(nt<=2?'bad':(nt===3?'':'ok')), pl=(nt<=2?'p-bad':(nt===3?'p-warn':'p-ok'));
+  const tg=(x.tags||[]).length?'<div class="rs">Marcou: '+esc((x.tags||[]).join(' · '))+'</div>':'';
+  const tu=avTurno(x);
+  return vvCard(cor, String(x.pedido_em||'').slice(11,16), dData(x.pedido_em),
+    '<span class="pill '+pl+'">★ '+esc(n(x.nota))+'</span> '+(tu?'<span class="pill p-off">'+tu+'</span> ':'')+esc(x.marca||x.unidade||''),
+    '<div class="lj"><b>'+esc(x.unidade||'—')+'</b>'+(x.pedido?' · pedido '+esc(x.pedido):'')+'</div>'+
+    (x.comentario?'<div class="it" style="font-style:italic">“'+esc(x.comentario)+'”</div>':'<div class="rs">(sem comentário)</div>')+
+    tg+'<div class="fn">hora do pedido à esquerda · chegou do iFood '+esc(x.chegou||'—')+'</div>');
+}
+/* abre (ou fecha, se ja estava aberto) o painel de um quadro; nota 0 = comentarios e notas baixas */
+function avAbre(k,nota){
+  if(AVSEL&&AVSEL.k===k&&AVSEL.nota===nota){AVSEL=null;AVDET=null;AVDSEQ++;desenha();return}
+  const seq=++AVDSEQ, d={dias:(AV&&AV.dias)||7};
+  if(k.indexOf('l:')===0)d.unidade=k.slice(2); else d.id_loja=Number(k.slice(2));
+  if(nota)d.nota=nota;
+  AVSEL={k:k,nota:nota}; AVDET=null; desenha();
+  porta('qualidade_avaliacoes_lista',d).then(function(j){
+    if(seq!==AVDSEQ)return; AVDET=j||{erro:'resposta vazia'}; if(ABA==='cliente'&&!BOOTFALHOU)desenha();
+  },function(e){
+    if(seq!==AVDSEQ)return; AVDET={erro:(e&&e.message)||'falhou'}; if(ABA==='cliente'&&!BOOTFALHOU)desenha();
+  });
+}
+function avPainel(titulo){
+  const s=AVSEL, d=AVDET;
+  let h='<div class="c avdet"><div class="avdh"><b>💬 '+titulo+' · '+(s.nota?'nota '+s.nota:'comentários e notas baixas')+'</b>'+
+        '<button type="button" class="b" data-avk="'+esc(s.k)+'" data-nota="'+s.nota+'">✕ Fechar</button></div>';
+  if(!d)return h+'<div class="load">Buscando as avaliações…</div></div>';
+  if(d.erro)return h+'<div class="m">Não deu para buscar: '+esc(d.erro)+'. Toque de novo na nota para tentar.</div></div>';
+  const I=Array.isArray(d.itens)?d.itens:[], t=d.por_turno||{}, tot=Number(d.total)||0;
+  h+='<div class="nota">'+esc(String(tot))+' avaliaç'+(tot===1?'ão':'ões')+' nos últimos '+esc(n(d.dias))+' dias'+
+     (tot?': ☀️ '+esc(String(t.dia||0))+' no turno do dia (10h–18h) · 🌙 '+esc(String(t.noite||0))+' no turno da noite (18h–2h20)'+
+          (Number(t.fora)?' · '+esc(String(t.fora))+' fora dos turnos':''):'')+'.</div>';
+  if(I.length)h+='<div class="vv-lista">'+I.map(avItem).join('')+'</div>';
+  else if(tot)h+='<div class="m">Nenhuma dessas avaliações tem comentário.</div>';
+  const st=Number(d.sem_texto)||0, mo=Number(d.mostradas)||0;
+  if(I.length&&st)h+='<div class="m">E mais '+esc(String(st))+' com nota '+(s.nota?esc(String(s.nota)):'4 ou 5')+' sem comentário.</div>';
+  if(mo>I.length)h+='<div class="m">Mostrando as '+I.length+' mais novas de '+esc(String(mo))+'.</div>';
+  return h+'</div>';
+}
+document.addEventListener('click',function(e){
+  if(ABA!=='cliente'||!e.target||!e.target.closest)return;
+  if(e.target.closest('[data-avnada]'))return;
+  const t=e.target.closest('[data-avk]');
+  if(!t)return;
+  avAbre(t.getAttribute('data-avk'),Number(t.getAttribute('data-nota'))||0);
+});
 function avAba(){
   if(AV===null)return '<div class="c"><div class="load">Buscando as avaliações do iFood…</div></div>';
   if(AV.erro)return '<div class="c"><b>Não deu para buscar as avaliações.</b><div class="m">'+esc(AV.erro)+'</div></div>';
@@ -900,9 +989,10 @@ function avAba(){
   }
   if(L.length){
     h+='<div class="cards">';
-    L.forEach(function(l){ h+=avCard('🏪 '+esc(l.unidade||'—'),l,!!UNI&&l.unidade===UNI); });
+    L.forEach(function(l){ h+=avCard('🏪 '+esc(l.unidade||'—'),l,!!UNI&&l.unidade===UNI,'l:'+(l.unidade||'')); });
     h+='</div>';
-    h+='<div class="nota">Quadros: nota média das avaliações dos últimos '+esc(n(AV.dias))+' dias que o iFood já liberou'+
+    if(AVSEL&&AVSEL.k.indexOf('l:')===0)h+=avPainel('🏪 '+esc(AVSEL.k.slice(2)));
+    h+='<div class="nota">Quadros: nota média das avaliações dos últimos '+esc(n(AV.dias))+' dias que o iFood já liberou. Toque num quadro (ou numa nota da legenda) para ver as avaliações ali embaixo'+
        (UNI?(AV._so_uma?'. Não consegui buscar as outras lojas agora — toque em Atualizar para tentar de novo'
                        :'. Os quadros mostram sempre todas as lojas; a lista de baixo é só da '+esc(UNI)):'')+'.</div>';
     /* 07/10/2026 (chat-avaliacoes-todas-lojas-07-10), pedido do Fabio: "tem como separar por quadros tb cada sub loja
@@ -914,8 +1004,10 @@ function avAba(){
         const G=M.filter(function(m){return m.unidade===l.unidade});
         if(!G.length)return;
         h+='<div class="rot mgrp">🏪 '+esc(l.unidade||'—')+' · '+G.length+' marca'+(G.length===1?'':'s')+'</div><div class="cards">';
-        G.forEach(function(m){ h+=avCard(esc(avMarcaNome(m.marca)),m,false); });
+        G.forEach(function(m){ h+=avCard(esc(avMarcaNome(m.marca)),m,false,'m:'+m.id_loja); });
         h+='</div>';
+        const sel=AVSEL&&G.filter(function(m){return 'm:'+m.id_loja===AVSEL.k})[0];
+        if(sel)h+=avPainel(esc(avMarcaNome(sel.marca))+' · '+esc(sel.unidade||'—'));
       });
       h+='<div class="nota">Mesmas contas dos quadros de cima, marca por marca. Marca com poucas avaliações muda muito de nota com uma avaliação só — olhe o número de avaliações junto com a nota.</div>';
     }
@@ -923,16 +1015,12 @@ function avAba(){
   const X=AV.lista||[];
   h+='<h2>💬 O que o cliente escreveu</h2>';
   if(!X.length)return h+'<div class="c"><div class="vazio">Nenhum comentário nem nota baixa nos últimos '+esc(n(AV.dias))+' dias.</div></div>';
-  h+='<div class="nota">Só aparecem as avaliações com comentário ou com nota 3 ou menos, do pedido mais novo para o mais velho ('+esc(String(X.length))+' na lista). Faixa vermelha: nota 1 ou 2; amarela: nota 3; verde: 4 ou 5.</div>';
-  h+='<div class="vv-lista">'+X.map(function(x){
-    const nt=Number(x.nota), cor=(nt<=2?'bad':(nt===3?'':'ok')), pl=(nt<=2?'p-bad':(nt===3?'p-warn':'p-ok'));
-    const tg=(x.tags||[]).length?'<div class="rs">Marcou: '+esc((x.tags||[]).join(' · '))+'</div>':'';
-    return vvCard(cor, String(x.pedido_em||'').slice(11,16), dData(x.pedido_em),
-      '<span class="pill '+pl+'">★ '+n(x.nota)+'</span> '+esc(x.marca||x.unidade||''),
-      '<div class="lj"><b>'+esc(x.unidade||'—')+'</b>'+(x.pedido?' · pedido '+esc(x.pedido):'')+'</div>'+
-      (x.comentario?'<div class="it" style="font-style:italic">“'+esc(x.comentario)+'”</div>':'<div class="rs">(sem comentário)</div>')+
-      tg+'<div class="fn">hora do pedido à esquerda · chegou do iFood '+esc(x.chegou||'—')+'</div>');
-  }).join('')+'</div>';
+  const tc={dia:0,noite:0,fora:0}; let temTurno=false;
+  X.forEach(function(x){ if(tc[x.turno]!=null){tc[x.turno]++;temTurno=true;} });
+  h+='<div class="nota">Só aparecem as avaliações com comentário ou com nota 3 ou menos, do pedido mais novo para o mais velho ('+esc(String(X.length))+' na lista'+
+     (temTurno?': ☀️ '+tc.dia+' do turno do dia, 10h–18h · 🌙 '+tc.noite+' do turno da noite, 18h–2h20'+(tc.fora?' · '+tc.fora+' fora dos turnos':''):'')+
+     '). Faixa vermelha: nota 1 ou 2; amarela: nota 3; verde: 4 ou 5.</div>';
+  h+='<div class="vv-lista">'+X.map(avItem).join('')+'</div>';
   return h;
 }
 
@@ -1269,7 +1357,7 @@ async function boot(){
   $('app').innerHTML='<div class="load">Carregando…</div>';
   const pl=$('placar'); if(pl)pl.innerHTML='<span class="pl">carregando…</span>';
   const pe=$('per'); if(pe)pe.innerHTML='<button class="b atu" onclick="boot()" title="Ler de novo">↻ Atualizar</button>';
-  DD=null;SU=null;CC=null;CV=null;NEG=null;PZ=null;AV=null;AVSEQ++;BOOTFALHOU=false;
+  DD=null;SU=null;CC=null;CV=null;NEG=null;PZ=null;AV=null;AVSEQ++;AVSEL=null;AVDET=null;AVDSEQ++;BOOTFALHOU=false;
   try{ D=await puxa(); }
   catch(e){ BOOTFALHOU=true; $('app').innerHTML='<div class="c">Não deu para carregar. '+esc(e.message||'')+'</div>'; if(pl)pl.innerHTML='<span class="pl">não carregou — toque em Atualizar</span>'; return }
   try{ CC=await porta('qualidade_cancelamentos',{periodo:perNome(),dias:DIAS,unidade:UNI||null}); }catch(e){ CC=null }
