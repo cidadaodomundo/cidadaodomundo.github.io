@@ -34,7 +34,8 @@ button.b:hover{border-color:var(--text2)}
 .nt:hover{border-color:var(--text2)}
 .nt.z{opacity:.45;cursor:default}
 .nt.on{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand) inset}
-.c.avdet{border-color:var(--brand)}
+.c.avdet,.c.avdet:hover{border-color:var(--brand)}
+.avdh .b{white-space:nowrap;flex:0 0 auto}
 .avdh{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
 .lojas .chip{padding:7px 13px}
 .lojas.ult{margin-bottom:18px}
@@ -852,7 +853,7 @@ async function avPuxa(){
     j=r[0]; tod=r[1];
   }catch(e){ erro=(e&&e.message)||'falhou' }
   if(seq!==AVSEQ||u!==(UNI||null))return;
-  if(j){ if(tod&&Array.isArray(tod.por_loja)){ j.por_loja=tod.por_loja; j.por_marca=tod.por_marca; } else if(u)j._so_uma=true; AV=j; AV._t=Date.now(); }
+  if(j){ if(tod&&Array.isArray(tod.por_loja)){ j.por_loja=tod.por_loja; j.por_marca=tod.por_marca; } else if(u)j._so_uma=true; AV=j; AV._t=Date.now(); if(AVSEL)avBuscaPainel(); }
   else if(!AV||AV.erro)AV={erro:erro||'falhou'};
   else AV._falhou=true;
   /* revisao 07/10: se o carregamento principal falhou, nao desenha por cima da mensagem de erro */
@@ -886,8 +887,9 @@ function avQs(x){
 /* k = chave do quadro para o clique ('l:<loja>' ou 'm:<id da marca>'). Clicar no quadro abre os comentarios e as notas
    baixas dele; clicar numa nota da legenda abre so aquela nota. */
 function avCard(titulo,x,marcado,k){
-  const tem=(Number(x&&x.avaliacoes)||0)>0, clica=!!(k&&tem);
-  return '<div class="card'+(marcado?' vivon':'')+(clica?' viv':'')+'"'+(clica?' data-avk="'+esc(k)+'" data-nota="0" title="Ver os comentários e as notas baixas"':'')+'>'+
+  /* so fica clicavel quando a porta ja manda a legenda (chave notas): as duas coisas sobem juntas no banco */
+  const tem=(Number(x&&x.avaliacoes)||0)>0, clica=!!(k&&tem&&Array.isArray(x&&x.notas));
+  return '<div class="card'+(marcado?' vivon':'')+(clica?' viv':'')+'"'+(clica?' data-avk="'+esc(k)+'" data-nota="0" role="button" tabindex="0" title="Ver os comentários e as notas baixas"':'')+'>'+
          '<div class="t">'+titulo+'</div><div class="v">'+(tem?'★ '+avNum(x.nota_media):'—')+'</div>'+
          '<div class="qs">'+avQs(x)+'</div>'+avNotas(x,k)+'</div>';
 }
@@ -930,27 +932,44 @@ function avItem(x){
     (x.comentario?'<div class="it" style="font-style:italic">“'+esc(x.comentario)+'”</div>':'<div class="rs">(sem comentário)</div>')+
     tg+'<div class="fn">hora do pedido à esquerda · chegou do iFood '+esc(x.chegou||'—')+'</div>');
 }
-/* abre (ou fecha, se ja estava aberto) o painel de um quadro; nota 0 = comentarios e notas baixas */
+/* abre (ou fecha, se ja estava aberto) o painel de um quadro; nota 0 = comentarios e notas baixas.
+   Depois de um erro, tocar de novo na mesma nota busca de novo (nao fecha). */
 function avAbre(k,nota){
-  if(AVSEL&&AVSEL.k===k&&AVSEL.nota===nota){AVSEL=null;AVDET=null;AVDSEQ++;desenha();return}
-  const seq=++AVDSEQ, d={dias:(AV&&AV.dias)||7};
-  if(k.indexOf('l:')===0)d.unidade=k.slice(2); else d.id_loja=Number(k.slice(2));
-  if(nota)d.nota=nota;
-  AVSEL={k:k,nota:nota}; AVDET=null; desenha();
+  if(AVSEL&&AVSEL.k===k&&AVSEL.nota===nota&&!(AVDET&&AVDET.erro)){AVSEL=null;AVDET=null;AVDSEQ++;desenha();avFoco(k,nota);return}
+  AVSEL={k:k,nota:nota}; AVDET=null; desenha(); avFoco(k,nota);
+  const p=document.querySelector('.avdet');
+  if(p&&p.getBoundingClientRect().top>window.innerHeight-80)p.scrollIntoView({behavior:'smooth',block:'start'});
+  avBuscaPainel();
+}
+/* busca a lista do painel aberto; tambem chamada quando os quadros se atualizam sozinhos (5 em 5 min) */
+function avBuscaPainel(){
+  if(!AVSEL)return;
+  const s=AVSEL, seq=++AVDSEQ, d={dias:(AV&&AV.dias)||7};
+  if(s.k.indexOf('l:')===0)d.unidade=s.k.slice(2); else d.id_loja=Number(s.k.slice(2));
+  if(s.nota)d.nota=s.nota;
   porta('qualidade_avaliacoes_lista',d).then(function(j){
     if(seq!==AVDSEQ)return; AVDET=j||{erro:'resposta vazia'}; if(ABA==='cliente'&&!BOOTFALHOU)desenha();
   },function(e){
     if(seq!==AVDSEQ)return; AVDET={erro:(e&&e.message)||'falhou'}; if(ABA==='cliente'&&!BOOTFALHOU)desenha();
   });
 }
+/* o redesenho troca a tela inteira: devolve o foco ao botao/quadro tocado (teclado) */
+function avFoco(k,nota){
+  try{
+    const a=document.activeElement;
+    if(a&&a!==document.body&&document.contains(a))return;
+    const el=[].slice.call(document.querySelectorAll('[data-avk]')).filter(function(e){return e.getAttribute('data-avk')===k&&Number(e.getAttribute('data-nota'))===nota})[0];
+    if(el&&el.focus)el.focus({preventScroll:true});
+  }catch(e){}
+}
 function avPainel(titulo){
   const s=AVSEL, d=AVDET;
   let h='<div class="c avdet"><div class="avdh"><b>💬 '+titulo+' · '+(s.nota?'nota '+s.nota:'comentários e notas baixas')+'</b>'+
         '<button type="button" class="b" data-avk="'+esc(s.k)+'" data-nota="'+s.nota+'">✕ Fechar</button></div>';
   if(!d)return h+'<div class="load">Buscando as avaliações…</div></div>';
-  if(d.erro)return h+'<div class="m">Não deu para buscar: '+esc(d.erro)+'. Toque de novo na nota para tentar.</div></div>';
+  if(d.erro)return h+'<div class="m">Não deu para buscar: '+esc(d.erro)+'. Toque de novo '+(s.nota?'na nota':'no quadro')+' para tentar.</div></div>';
   const I=Array.isArray(d.itens)?d.itens:[], t=d.por_turno||{}, tot=Number(d.total)||0;
-  h+='<div class="nota">'+esc(String(tot))+' avaliaç'+(tot===1?'ão':'ões')+' nos últimos '+esc(n(d.dias))+' dias'+
+  h+='<div class="nota">'+esc(String(tot))+' avaliaç'+(tot===1?'ão':'ões')+' nos últimos '+esc(n(d.dias||(AV&&AV.dias)))+' dias'+
      (tot?': ☀️ '+esc(String(t.dia||0))+' no turno do dia (10h–18h) · 🌙 '+esc(String(t.noite||0))+' no turno da noite (18h–2h20)'+
           (Number(t.fora)?' · '+esc(String(t.fora))+' fora dos turnos':''):'')+'.</div>';
   if(I.length)h+='<div class="vv-lista">'+I.map(avItem).join('')+'</div>';
@@ -965,6 +984,13 @@ document.addEventListener('click',function(e){
   if(e.target.closest('[data-avnada]'))return;
   const t=e.target.closest('[data-avk]');
   if(!t)return;
+  avAbre(t.getAttribute('data-avk'),Number(t.getAttribute('data-nota'))||0);
+});
+document.addEventListener('keydown',function(e){
+  if(ABA!=='cliente'||(e.key!=='Enter'&&e.key!==' '))return;
+  const t=e.target;
+  if(!t||!t.classList||!t.classList.contains('card')||!t.hasAttribute('data-avk'))return;
+  e.preventDefault();
   avAbre(t.getAttribute('data-avk'),Number(t.getAttribute('data-nota'))||0);
 });
 function avAba(){
@@ -992,7 +1018,8 @@ function avAba(){
     L.forEach(function(l){ h+=avCard('🏪 '+esc(l.unidade||'—'),l,!!UNI&&l.unidade===UNI,'l:'+(l.unidade||'')); });
     h+='</div>';
     if(AVSEL&&AVSEL.k.indexOf('l:')===0)h+=avPainel('🏪 '+esc(AVSEL.k.slice(2)));
-    h+='<div class="nota">Quadros: nota média das avaliações dos últimos '+esc(n(AV.dias))+' dias que o iFood já liberou. Toque num quadro (ou numa nota da legenda) para ver as avaliações ali embaixo'+
+    h+='<div class="nota">Quadros: nota média das avaliações dos últimos '+esc(n(AV.dias))+' dias que o iFood já liberou'+
+       (L.concat(M).some(function(x){return Array.isArray(x&&x.notas)})?'. Toque num quadro (ou numa nota da legenda) para ver as avaliações ali embaixo':'')+
        (UNI?(AV._so_uma?'. Não consegui buscar as outras lojas agora — toque em Atualizar para tentar de novo'
                        :'. Os quadros mostram sempre todas as lojas; a lista de baixo é só da '+esc(UNI)):'')+'.</div>';
     /* 07/10/2026 (chat-avaliacoes-todas-lojas-07-10), pedido do Fabio: "tem como separar por quadros tb cada sub loja
