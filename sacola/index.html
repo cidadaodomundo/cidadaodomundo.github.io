@@ -12,7 +12,9 @@
    (burger + prato) saia so com um pacote. Regra (07/10): a primeira parte pronta vai para a ESTUFA, prateleira "TEM PAR",
    com o numero escrito; a outra poe do lado; na entrega vai tudo na mesma sacola; bebida e sobremesa saem do balcao.
    Tela sem login (igual a TV da cozinha): codigo de 8 letras do aparelho, conferido no banco pela porta sacola_tela.
-   Visual so escuro, de proposito (cozinha, marca preta). Ouro SO na observacao do cliente. */
+   Visual so escuro, de proposito (cozinha, marca preta). Ouro SO na observacao do cliente.
+   v3 (07/10): alerta vermelho de uma faixa so (como na previa); faixa "sem marca" fechada numa linha; tablet de cozinha
+   conta "A fazer" e "Saiu sem o <lugar>" so do lugar dele; subtitulo sem repetir a loja. */
 :root{
   --bg:#111111; --card:#1b1b1a; --card2:#252522; --line:#383631;
   --fg:#f4f2ec; --mut:#a8a398; --gold:#E0A81C;
@@ -47,8 +49,6 @@ h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,4.4vw,44px);l
   .stat .l{font-size:12px;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .stat .l .lg,#bt-som .lg{display:none}
   .relogio{font-size:24px}
-  .alert{padding:12px 14px;gap:8px 12px;margin-top:12px} .alert .t{font-size:20px} .alert .d{font-size:14px}
-  .semmarca .t{font-size:18px}
   #bt-som{min-height:40px;padding:6px 10px}
 }
 .relogio{font-family:var(--display);font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
@@ -56,16 +56,40 @@ h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,4.4vw,44px);l
 .bt.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
 .nota{color:var(--mut);font-size:14px;margin-top:8px}
 .faixa{margin-top:14px;padding:12px 16px;border-radius:12px;background:var(--badbg);border:2px solid var(--bad);color:#ffd9d5;font-weight:700;line-height:1.35}
-.alert{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-top:16px;padding:14px 16px;background:var(--badbg);border:2px solid var(--bad);border-radius:12px}
-.alert .t{font-family:var(--display);font-size:22px;text-transform:uppercase;color:#ffd9d5;flex:1 1 100%;overflow-wrap:anywhere}
-.alert .d{color:#ffd9d5;font-size:15px;line-height:1.4;flex:1 1 260px;min-width:0}
-.alert button{font:600 15px var(--body);background:transparent;color:#fff;border:1px solid #ffb3ab;border-radius:8px;padding:8px 14px;cursor:pointer;min-height:48px}
+.alert{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;margin-top:12px;padding:10px 16px;background:var(--badbg);border:2px solid var(--bad);border-radius:12px}
+/* alerta de UMA faixa (previa aprovada): titulo e texto lado a lado, ~65px no tablet deitado */
+.alert .t{font-family:var(--display);font-size:22px;line-height:1.1;text-transform:uppercase;color:#ffd9d5;flex:0 1 auto;max-width:42%;overflow-wrap:anywhere}
+.alert .d{color:#ffd9d5;font-size:15px;line-height:1.35;flex:1 1 320px;min-width:0}
+.alert button{font:600 15px var(--body);background:transparent;color:#fff;border:1px solid #ffb3ab;border-radius:8px;padding:8px 14px;cursor:pointer;min-height:44px;flex:0 0 auto}
 .alert button:disabled,.chip:disabled{opacity:.6}
-.alert .so{color:#ffd9d5;font-size:14px;font-weight:600;opacity:.85}
+.alert .so{color:#ffd9d5;font-size:14px;font-weight:600;opacity:.85;flex:0 0 auto}
 .mais{display:block;width:100%;margin-top:10px;font:700 16px var(--body);background:var(--badbg);color:#ffd9d5;border:2px dashed var(--bad);border-radius:12px;padding:10px 14px;min-height:48px;cursor:pointer;text-align:left}
-.semmarca{margin-top:12px;padding:12px 16px;border-radius:12px;background:var(--wait);border:2px solid var(--mut)}
-.semmarca .t{font-family:var(--display);font-size:20px;text-transform:uppercase;line-height:1.15}
-.semmarca .d{font-size:15px;line-height:1.4;margin-top:4px;color:#e6e1d6}
+.semmarca{margin-top:12px;padding:8px 14px;border-radius:12px;background:var(--wait);border:2px solid var(--mut)}
+/* fechada = uma linha so (titulo + botao); aberta = explicacao + numeros */
+.semmarca .sm{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.semmarca .t{font-family:var(--display);font-size:19px;text-transform:uppercase;line-height:1.15;flex:1 1 auto;min-width:0}
+.semmarca .sm .chip{flex:0 0 auto}
+.semmarca .curto{display:none}
+.semmarca .d{font-size:15px;line-height:1.4;margin-top:6px;color:#e6e1d6}
+/* tablet em pe e celular: alerta em grade (titulo + botao na 1a linha, texto embaixo). Fica DEPOIS das regras base de
+   proposito (senao a regra base ganha). */
+@media (max-width:900px){
+  .alert{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 12px}
+  .alert .t{grid-column:1;grid-row:1;max-width:none}
+  .alert button,.alert .so{grid-column:2;grid-row:1}
+  .alert .d{grid-column:1/-1}
+}
+/* celular: texto do alerta so com o essencial (hora, o que falta, ligar pro motoboy); faixa "sem marca" curta */
+@media (max-width:560px){
+  .alert{padding:8px 12px;gap:4px 10px;margin-top:10px}
+  .alert .t{font-size:19px}
+  .alert button{min-height:40px;padding:6px 10px;font-size:14px}
+  .alert .d{font-size:14px;line-height:1.3}
+  .alert .d .q,.alert .so{display:none}
+  .semmarca{padding:6px 10px;margin-top:10px} .semmarca .t{font-size:16px}
+  .semmarca .longo{display:none} .semmarca .curto{display:inline}
+  .semmarca .sm .chip{min-height:40px;padding:6px 10px;font-size:14px}
+}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .chip{font:700 16px var(--body);background:var(--bg);color:var(--fg);border:1px solid var(--mut);border-radius:10px;padding:8px 12px;min-height:44px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
 .chip small{font-weight:500;color:var(--mut);font-size:14px}
@@ -159,9 +183,9 @@ li{border-top:1px solid var(--line)} li:first-child{border-top:0}
       <div class="sub" id="sub">carregando…</div>
     </div>
     <div class="stats" aria-live="polite">
-      <div class="stat"><div class="n" id="sA">—</div><div class="l">A conferir</div></div>
+      <div class="stat"><div class="n" id="sA">—</div><div class="l" id="lA">A conferir</div></div>
       <div class="stat ok"><div class="n" id="sC">—</div><div class="l">Entregues<span class="lg"> hoje</span></div></div>
-      <div class="stat bad"><div class="n" id="sS">—</div><div class="l">Saiu faltando<span class="lg"> hoje</span></div></div>
+      <div class="stat bad"><div class="n" id="sS">—</div><div class="l" id="lS">Saiu faltando<span class="lg"> hoje</span></div></div>
     </div>
     <div class="ctl">
       <div class="relogio" id="relogio">--:--</div>
@@ -185,6 +209,7 @@ li{border-top:1px solid var(--line)} li:first-child{border-top:0}
       <li>Cada lugar marca a sua parte quando ela fica pronta. A tela mostra o que ainda falta (ex.: "Esperando: prato").</li>
       <li>Só quando o pedido junta <b>burger e prato</b> (as duas cozinhas): quem termina primeiro põe <b>na estufa, na prateleira "TEM PAR"</b>, com o número do pedido escrito, e a outra cozinha põe a sua parte <b>do lado</b>. Na hora de entregar, tudo vai junto na mesma sacola.</li>
       <li>Bebida e sobremesa saem do balcão na hora de entregar: não vão para a estufa nem para a "TEM PAR". Pedido de uma cozinha só (com ou sem bebida) vai para a estufa de sempre.</li>
+      <li>Batata (ou outra porção) pedida como adicional de um prato sai da <b>cozinha do burger</b>: aparece como item separado, com "veio junto do" nome do prato.</li>
       <li>O botão <b>"Entregar ao motoboy"</b> só fica verde com tudo marcado. Se alguém tocar antes, a tela diz o que está faltando.</li>
       <li>Se o iFood mostrar que o pedido saiu com uma parte marcada e outra não, a tela fica vermelha na hora para ligar para o motoboy. Pedido que saiu sem nenhuma marca aparece numa faixa à parte, para conferir com a equipe.</li>
     </ol>
@@ -221,7 +246,6 @@ const CZ={burger:'🍔 Cozinha do burger',prato:'🍽 Cozinha dos pratos',balcao
 const ICO={burger:'🍔',prato:'🍽',balcao:'🥤',conferir:'❓'};
 const CURTO={burger:'burger',prato:'prato',balcao:'balcão',conferir:'conferir'};
 const DO={burger:'o do burger',prato:'o do prato',balcao:'o do balcão',conferir:'o que está em “Conferir”'};
-const ONDE={burger:'cozinha do burger',prato:'cozinha dos pratos',balcao:'balcão do delivery',conferir:'sem lugar definido'};
 const TITULO={tudo:'Conferência da sacola',burger:'Cozinha do burger',prato:'Cozinha dos pratos',balcao:'Balcão do delivery'};
 const ESTUFA={burger:true,prato:true};   /* so o que sai das cozinhas vai para a estufa; bebida e sobremesa saem do balcao na hora */
 const lugarDe=l=>ORDEM.indexOf(l&&l.lugar)>=0?l.lugar:'conferir';
@@ -512,12 +536,13 @@ function cartao(p,L){
 function alertaHTML(a,exp){
   const f=Array.isArray(a.faltando)?a.faltando:[];
   const zs=ORDEM.filter(z=>f.some(x=>zona(x.lugar)===z));
-  const itens=f.map(x=>'<b>'+(x.qtd!=null?esc(x.qtd)+'x ':'')+esc(x.nome)+'</b> ('+esc(ONDE[zona(x.lugar)])+')').join(', ');
+  /* o lugar de cada item so aparece quando falta mais de um lugar (o titulo ja diz qual e) */
+  const itens=f.map(x=>'<b>'+(x.qtd!=null?esc(x.qtd)+'x ':'')+esc(x.nome)+'</b>'+(zs.length>1?' ('+esc(CURTO[zona(x.lugar)])+')':'')).join(', ');
   const est=zs.some(z=>ESTUFA[z]), bal=zs.indexOf('balcao')>=0, par=temPar(a.lugares);
   const oc=OCUPADO.has('a:'+a.id);
   return '<div class="alert" role="alert"><div class="t">⚠ #'+esc(a.numero!=null?a.numero:'—')+' saiu faltando'+(zs.length?' '+esc(junta(zs.map(z=>DO[z]))):'')+'</div>'
-    +'<div class="d">'+(a.marca?esc(a.marca)+'. ':'')+'O iFood avisou que o pedido saiu às '+esc(hhmm(a.saiu))+', com uma parte marcada e outra não'+(itens?'. Ficou sem marcar: '+itens+'.':'.')
-    +(est?(par?' Deve estar na prateleira "TEM PAR" da estufa.':' Confere a estufa.'):'')+(bal?' Confere o balcão.':'')+' Liga para o motoboy agora.</div>'
+    +'<div class="d">Saiu às '+esc(hhmm(a.saiu))+'<span class="q"> com uma parte marcada e outra não</span>.'+(itens?' Sem marcar: '+itens+'.':'')
+    +'<span class="q">'+(est?(par?' Deve estar na prateleira "TEM PAR" da estufa.':' Confere a estufa.'):'')+(bal?' Confere o balcão.':'')+'</span> Liga para o motoboy.</div>'
     +(exp?'<button type="button" data-ok="'+esc(a.id)+'"'+(oc?' disabled':'')+'>'+(oc?'Salvando…':'Já resolvi')+'</button>'
          :'<div class="so">A expedição marca como resolvido.</div>')+'</div>';
 }
@@ -535,28 +560,46 @@ function desenhaAlertas(){
     /* pedido de 2+ lugares primeiro (e o risco maior), depois o mais recente */
     const ord=sem.map((a,i)=>({a:a,i:i,m:Array.isArray(a.lugares)&&a.lugares.length>1?0:1})).sort((x,y)=>x.m-y.m||x.i-y.i).map(x=>x.a);
     const multi=ord.filter(a=>Array.isArray(a.lugares)&&a.lugares.length>1).length;
-    h+='<div class="semmarca"><div class="t">'+sem.length+(sem.length>1?' pedidos saíram':' pedido saiu')+' sem nenhuma marca'+(multi?' ('+multi+' de 2+ lugares)':'')+'</div>'
-      +'<div class="d">Ninguém tocou nos itens: a tela não sabe se foi tudo. Confere com a equipe e marca os itens antes de entregar.</div>'
-      +'<div class="chips">'+(SEM_ABERTO?ord.map(function(a){ const oc=OCUPADO.has('a:'+a.id), nl=Array.isArray(a.lugares)?a.lugares.length:0;
+    h+='<div class="semmarca"><div class="sm"><div class="t"><span class="longo">'+sem.length+(sem.length>1?' pedidos saíram':' pedido saiu')+' sem nenhuma marca'+(multi?' ('+multi+' de 2+ lugares)':'')+'</span>'
+      +'<span class="curto">'+sem.length+' sem marca'+(multi?' ('+multi+' de 2+ lugares)':'')+'</span></div>'
+      +'<button type="button" class="chip" data-mais="s" aria-expanded="'+SEM_ABERTO+'">'+(SEM_ABERTO?'fechar':'Ver os números')+'</button></div>'
+      +(SEM_ABERTO?'<div class="d">Ninguém tocou nos itens: a tela não sabe se foi tudo. Confere com a equipe e marca os itens antes de entregar. Toca no número depois de conferir: ele sai da lista.</div>'
+        +'<div class="chips">'+ord.map(function(a){ const oc=OCUPADO.has('a:'+a.id), nl=Array.isArray(a.lugares)?a.lugares.length:0;
           return '<button type="button" class="chip" data-ok="'+esc(a.id)+'"'+(oc?' disabled':'')+' aria-label="Pedido '+esc(a.numero)+' conferido">#'+esc(a.numero!=null?a.numero:'—')
-            +' <small>'+esc(hhmm(a.saiu))+'</small>'+(nl>1?'<b>'+nl+' lugares</b>':'')+(oc?' …':' ✓')+'</button>'; }).join(''):'')
-      +'<button type="button" class="chip" data-mais="s">'+(SEM_ABERTO?'fechar':'Ver os números para conferir')+'</button>'
-      +'</div>'+(SEM_ABERTO?'<div class="d">Toca no número depois de conferir: ele sai da lista.</div>':'')+'</div>';
+            +' <small>'+esc(hhmm(a.saiu))+'</small>'+(nl>1?'<b>'+nl+' lugares</b>':'')+(oc?' …':' ✓')+'</button>'; }).join('')+'</div>':'')
+      +'</div>';
   }
   $('alertas').innerHTML=h;
+}
+/* "Expedição Água Verde" ja traz a loja; "Cozinha dos pratos Água Verde" ja esta no titulo: nao repete */
+const semAcento=s=>String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+function subtitulo(L,loja,ap){
+  const lj=semAcento(loja), a=semAcento(ap), partes=[];
+  if(L!=='tudo') partes.push('Conferência da sacola');
+  if(!a) partes.push(loja);
+  else if(L!=='tudo' && a.indexOf(semAcento(TITULO[L]))===0) partes.push(loja);   /* nome do aparelho = titulo + loja */
+  else if(lj && a.indexOf(lj)>=0) partes.push(ap);                                 /* nome do aparelho ja tem a loja */
+  else partes.push(loja, ap);
+  return partes.filter(x=>x!=null&&String(x).trim()).join(' · ')+' · iFood';
 }
 function desenha(){
   const j=DADO; if(!j) return;
   const L=lugarAparelho();
   $('titulo').textContent=TITULO[L];
   document.title=(L==='tudo'?'Conferência da Sacola':TITULO[L])+' · Cidadão do Mundo';
-  $('sub').textContent=[L==='tudo'?null:'Conferência da sacola', j.loja, j.aparelho].filter(x=>x!=null&&String(x).trim()).join(' · ')+' · iFood';
+  $('sub').textContent=subtitulo(L,j.loja,j.aparelho);
   const rb=j.robo||{};
   if(rb.atrasado===true){ $('faixaRobo').textContent='⚠️ Os pedidos do iFood estão chegando atrasados (último às '+hhmm(rb.ultimo_ciclo)+'). Confira o iFood.'; $('faixaRobo').hidden=false; }
   else $('faixaRobo').hidden=true;
   const h=j.hoje||{}, sh=x=>x==null?'—':String(x);
   const ps=visiveis(L);
-  $('sA').textContent=String(ps.filter(p=>!p.cancelado).length);
+  /* cozinha/balcao: "A fazer" = pedidos em que a parte DELA ainda nao esta toda marcada; "Saiu sem o <lugar>" vem do
+     banco ja contando so o que faltou o lugar deste aparelho */
+  const aFazer=L==='tudo'? ps.filter(p=>!p.cancelado)
+    : ps.filter(p=>{ if(p.cancelado) return false; const ls=(p.linhas||[]).filter(l=>lugarDe(l)===L); return ls.length>0 && !ls.every(l=>marcado(p,l)); });
+  $('lA').textContent=L==='tudo'?'A conferir':'A fazer';
+  $('lS').innerHTML=(L==='tudo'?'Saiu faltando':'Saiu sem o '+esc(CURTO[L]))+'<span class="lg"> hoje</span>';
+  $('sA').textContent=String(aFazer.length);
   $('sC').textContent=sh(h.entregues);
   $('sS').textContent=sh(h.saiu_faltando);
   const notas=[];
