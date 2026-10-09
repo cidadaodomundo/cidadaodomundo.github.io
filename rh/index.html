@@ -482,7 +482,7 @@ function render(){
 }
 function limpaTopo(){$('kpis').innerHTML='';$('units').innerHTML=''}
 /* AVISO DE FIM DE EXPERIENCIA - 16/09/2026; 19/09/2026 pedido do Fabio: so aparece 7 dias antes e some quando a decisao e marcada; dono e gestoras (Hellen, Lanna, Rita, Arissa) marcam */
-var EXPLISTA=null, EXPT=null, EXPTENT=0;
+var EXPLISTA=null, EXPT=null, EXPTENT=0, EXPUNIT=null;
 function expData(s){if(!s)return '';var p=String(s).split('-');return p[2]+'/'+p[1];}
 function xpKey(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim()}
 function expPara(){if(EXPT){clearInterval(EXPT);EXPT=null}}
@@ -511,7 +511,8 @@ async function xpDecidir(bt,nome,marco,dec,k){
 }
 function expPinta(){
   var box=$('expav'); if(!box) return;
-  var l=(EXPLISTA||[]).filter(function(r){return !r.decisao && r.dias_para_marco!=null && r.dias_para_marco<=7});
+  EXPUNIT=UNIT;
+  var l=(EXPLISTA||[]).filter(function(r){return (UNIT==='Todas'||r.unidade===UNIT) && !r.decisao && r.dias_para_marco!=null && r.dias_para_marco<=7});
   if(!l.length){box.innerHTML='';return}
   function cor(r){ if(r.situacao==='PASSOU DO PRAZO')return '#b91c1c'; if(r.situacao==='AVISO')return '#dc2626'; if(r.alerta_etapa_1)return '#e8833a'; return 'var(--text)'; }
   var urg=l.filter(function(r){return r.situacao!=='EM EXPERIENCIA'||r.alerta_etapa_1});
@@ -781,6 +782,7 @@ function eqRender(){
   el.innerHTML=html;
 }
 function renderDay(){
+  if(EXPLISTA&&EXPUNIT!==UNIT){try{expPinta()}catch(e){}}
   const rows=dayRows();
   $('curday').textContent=br(DAYS[DI])+' ('+(rows[0]?.dia_semana||'').replace('-feira','')+')';
   const rowsU=rows.filter(function(r){return UNIT==='Todas'||r.unidade===UNIT});
