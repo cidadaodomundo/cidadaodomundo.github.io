@@ -22,6 +22,8 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .topo .rt{margin-left:auto;display:flex;align-items:center;gap:1em}
 .relogio{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:2.6em;line-height:1}
 .bt{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:.5em;padding:.4em .8em;font:inherit;font-size:.85em;font-weight:700;cursor:pointer}
+.lojas-tv{display:flex;gap:.4em;flex-wrap:wrap}
+.cod-tv{color:var(--brand);font-weight:800;font-size:.85em;align-self:center;white-space:nowrap}
 .bt.on{background:var(--brand);color:#111;border-color:var(--brand)}
 .faixa{display:none;background:var(--bad);color:#fff;font-weight:800;padding:.45em 1.2em;font-size:1.05em}
 .faixa.on{display:block}
@@ -67,7 +69,7 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .p .tm{color:var(--text2);font-size:.85em;white-space:nowrap}
 .cinza{color:var(--muted);font-size:.85em;margin-top:.5em;line-height:1.35}
 #pz-ok{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}   /* "de proposito" no maximo 2 linhas: o espaco e dos itens sem explicacao */
-/* META DO CHURRASCO 05-10-2026: dia verde = ate 3 erros (cozinha + montagem); 5 dias verdes sab-sex = churrasco no sabado */
+/* META DO CHURRASCO 05-10-2026: dia verde = ate N erros (cozinha + montagem; N vem do banco: 3 ate a semana de 03/10, 2 a partir de 10/10); 5 dias verdes sab-sex = churrasco no sabado */
 .meta{background:var(--s1);border:1px solid var(--line);border-radius:.6em;padding:.5em .8em;margin-bottom:.7em}
 .meta h2{margin-bottom:.15em}
 .meta .rg{color:var(--muted);font-size:.75em;margin-bottom:.4em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -112,6 +114,17 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .cod input:focus{outline:none;border-color:var(--brand)}
 .cod .bt{margin-top:1em;font-size:1.3em;padding:.5em 1.6em;background:var(--brand);color:#111;border-color:var(--brand)}
 .cod .err{color:var(--bad);font-weight:700;margin-top:.8em;min-height:1.2em}
+/* janelas de ajuda da aba do portal: regras, codigos das TVs, como ligar (09/10) */
+.info{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.75);z-index:6;padding:1em}
+.info.on{display:flex}
+.info .box{background:var(--s1);border:1px solid var(--line);border-radius:1em;padding:1.4em 1.8em;max-width:40em;width:100%;max-height:90vh;overflow:auto;font-size:.9em}
+.info h1{font-family:'Anton',Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:1.7em;margin-bottom:.5em}
+.info p,.info li{color:var(--text2);margin-bottom:.5em;line-height:1.35}
+.info ol{padding-left:1.3em}
+.info b{color:var(--text)}
+.info .fecha{float:right;margin-left:1em}
+.info .codl{display:flex;justify-content:space-between;align-items:center;gap:1em;padding:.5em 0;border-bottom:1px solid var(--line)}
+.info .codl .c{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.6em;letter-spacing:.08em;color:var(--brand)}
 @media (max-width:900px){html,body{height:auto}body{overflow:auto}.corpo{grid-template-columns:1fr}.topo{flex-wrap:wrap}
   .melhor,.cli{height:auto;grid-template-columns:1fr}.ins .ac,.ins .ev,.cli .q1{white-space:normal}}
 </style>
@@ -130,6 +143,8 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 </div>
 <div class="cli nada" id="cli" style="display:none"></div>
 <div class="rodape" id="rodape"></div>
+
+<div class="info" id="info" onclick="if(event.target===this)fechaInfo()"><div class="box" id="info-box"></div></div>
 
 <div class="cod" id="cod"><div class="box">
   <h1>📺 TV da cozinha</h1>
@@ -152,6 +167,14 @@ const limpa=c=>String(c||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 const NOVO_MIN=30; /* erro com menos de 30 min ganha NOVO e pisca */
 
 let COD='', DADO=null, VISTOS=null, TIMER=null, ULT_OK=0, SOM=false, BUSCANDO=false;
+/* 09/10/2026 (obra 124, chat-tv-dos-erros-09-10) Fabio: "deixa uma aba no portal com a televisao, todos podem ter acesso a essa aba".
+   Aberta pelo menu do portal (tv/?portal=1) a tela entra com o login do portal (porta cozinha_tv_portal) e a pessoa escolhe a loja.
+   Sem ?portal=1 (TV fisica) continua o codigo proprio da TV, como antes. No modo portal vale a mesma trava das outras telas (cdmGuarda + portal.js). */
+const PTOK=(function(){ try{ return sessionStorage.getItem('cdm_token')||''; }catch(e){ return ''; } })();
+const PORTAL=/[?&]portal=1/.test(location.search);
+const LOJAS=['Água Verde','São Braz','Ahú'];
+let LOJA='', DE_NOVO=false; try{ LOJA=localStorage.getItem('cdm_tv_loja')||''; }catch(e){}
+if(LOJAS.indexOf(LOJA)<0) LOJA=LOJAS[0];
 try{ SOM=localStorage.getItem('cdm_tv_som')==='1'; }catch(e){}
 
 function guarda(c){ try{ localStorage.setItem('cdm_tv_codigo',c); }catch(e){} try{ history.replaceState(null,'','#'+c); }catch(e){} }
@@ -166,11 +189,17 @@ function entra(){
 async function busca(primeira){
   if(BUSCANDO) return; BUSCANDO=true;   /* nunca duas leituras ao mesmo tempo (timer + volta da tela) */
   try{
-    const r=await fetch(SB+'rpc/cozinha_tv',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_chave:COD})});
+    const r=PORTAL
+      ? await fetch(SB+'rpc/cozinha_tv_portal',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:PTOK,p_loja:LOJA})})
+      : await fetch(SB+'rpc/cozinha_tv',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_chave:COD})});
+    if(PORTAL && (r.status===401||r.status===403)){ desliga(); const f=$('faixa'); f.textContent='⚠️ Seu login do portal venceu ou você não tem esta aba. Saia e entre de novo no portal.'; f.classList.add('on'); return; }
     if(r.status===403){ desliga(); esquece(); COD=''; DADO=null; pedeCodigo('Código não aceito. Confira e digite de novo.'); return; }
     if(!r.ok){ falha('Não consegui ler agora (código '+r.status+'). Tento de novo em 1 minuto.'); return; }
     const j=await r.json();
-    $('cod').classList.remove('on'); guarda(COD);
+    if(PORTAL && j.loja!==LOJA) return;   /* trocou de loja no meio da leitura: descarta */
+    /* 09/10 Fabio: "ja deixa isso salvo dentro da aba da tv": o codigo da TV da loja escolhida (so a porta do portal manda) */
+    if(PORTAL){ const ct=$('cod-tv'); if(ct) ct.textContent=j.codigo_tv?('📺 código da TV desta loja: '+j.codigo_tv):''; }
+    $('cod').classList.remove('on'); if(!PORTAL) guarda(COD);
     const lista=j.erros||[];
     const novos=VISTOS? lista.filter(e=>!VISTOS.has(e.k)) : [];
     VISTOS=new Set(lista.map(e=>e.k));
@@ -179,7 +208,7 @@ async function busca(primeira){
     if(novos.length) apito();
     liga();
   }catch(e){ falha('SEM INTERNET — tentando de novo a cada 1 minuto.'); }
-  finally{ BUSCANDO=false; }
+  finally{ BUSCANDO=false; if(DE_NOVO){ DE_NOVO=false; busca(true); } }
 }
 function falha(msg){
   liga();
@@ -399,7 +428,83 @@ function apito(){
 function relogio(){ $('relogio').textContent=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'}); }
 /* tela nao apaga (quando o navegador da TV deixa) */
 async function acordada(){ try{ if(navigator.wakeLock && document.visibilityState==='visible') await navigator.wakeLock.request('screen'); }catch(e){} }
-document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible'){ acordada(); if(COD) busca(false); } });
+document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible'){ acordada(); if(COD||PORTAL) busca(false); } });
+/* so no modo portal: botoes de loja e tela cheia no topo */
+function montaLojas(){
+  const rt=document.querySelector('.topo .rt'); if(!rt) return;
+  const d=document.createElement('div'); d.className='lojas-tv';
+  d.innerHTML=LOJAS.map(function(l){ return '<button class="bt'+(l===LOJA?' on':'')+'" data-l="'+esc(l)+'">'+esc(l)+'</button>'; }).join('')
+    +'<button class="bt" data-cheia="1">⛶ Tela cheia</button>'
+    +'<button class="bt" data-info="regras">📖 Regras</button><button class="bt" data-info="codigos">🔑 Códigos das TVs</button><button class="bt" data-info="ligar">📲 Como ligar a TV</button>'
+    +'<span class="cod-tv" id="cod-tv"></span>';
+  rt.insertBefore(d, rt.firstChild);
+  d.addEventListener('click',function(ev){
+    const b=ev.target.closest('button'); if(!b) return;
+    if(b.getAttribute('data-cheia')){ telaCheia(); return; }
+    if(b.getAttribute('data-info')){ abreInfo(b.getAttribute('data-info')); return; }
+    const l=b.getAttribute('data-l'); if(!l||l===LOJA) return;
+    LOJA=l; try{ localStorage.setItem('cdm_tv_loja',l); }catch(e){}
+    [].forEach.call(d.querySelectorAll('button[data-l]'),function(x){ x.classList.toggle('on', x.getAttribute('data-l')===l); });
+    DADO=null; VISTOS=null; $('loja').textContent=l; $('st').textContent='carregando…';
+    if(BUSCANDO) DE_NOVO=true; else busca(true);
+  });
+}
+/* trava de entrada do modo portal: a mesma das outras telas (copia da Central Cozinha) */
+const CDMMODS=['tv'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch('https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'tv'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+/* 09/10 Fabio: "colocar mais alguns botoes... um botao explicando as regras, outro botao com as senhas das tvs etc" (so no modo portal).
+   Os numeros da regra vem do banco (semana.verde_ate, semana.meta_dias, regra_proxima) e os codigos da porta (codigos_tv). */
+function abreInfo(q){
+  const j=DADO||{}, m=j.semana||{};
+  let h='';
+  if(q==='regras'){
+    const px=j.regra_proxima;
+    h='<h1>📖 Regras da TV</h1>'
+     +'<p><b>O que aparece:</b> os erros do dia que o cliente reclamou, de cozinha e de montagem da sacola, com a marca do pedido; os itens fora do ar no iFood; e as avaliações dos clientes. A tela se atualiza sozinha. Erro novo aparece com NOVO.</p>'
+     +'<p><b>De onde vem o erro:</b> chat do iFood, WhatsApp do SAC, grupos do WhatsApp, reembolso do iFood e cancelamento no Gestor Web.</p>'
+     +'<p><b>O dia</b> vai das 6h às 6h, como no topo da lista de erros.</p>'
+     +'<p><b>🍖 Meta do churrasco:</b> dia verde = até '+esc(m.verde_ate==null?'—':m.verde_ate)+' erros. '+esc(m.meta_dias==null?'—':m.meta_dias)+' dias verdes de sábado a sexta = churrasco no sábado. Para a meta contam os erros de cozinha e de montagem; as avaliações não contam.</p>'
+     +(px?'<p><b>Regra nova:</b> a partir de '+esc(px.a_partir)+', dia verde = até '+esc(px.verde_ate)+' erros.</p>':'')
+     +'<p><b>Sem valor em R$ e sem nome de cliente</b> na TV.</p>';
+  } else if(q==='codigos'){
+    const cs=Array.isArray(j.codigos_tv)?j.codigos_tv:[];
+    h='<h1>🔑 Códigos das TVs</h1><p>Cada loja tem o seu. Digite na TV uma vez só: ela guarda.</p>'
+     +(cs.length? cs.map(function(c){ return '<div class="codl"><span>'+esc(c.loja)+'</span><span class="c">'+esc(c.codigo)+'</span></div>'; }).join('')
+                : '<p>Ainda não carregou. Feche e abra de novo daqui a pouco.</p>')
+     +'<p style="margin-top:1em">Quem tem o código vê só a TV da cozinha daquela loja. Perdeu ou vazou? Peça para criar outro e desligar o antigo.</p>';
+  } else {
+    h='<h1>📲 Como ligar a TV</h1><ol>'
+     +'<li>Na TV, abra o navegador e entre em <b>cidadaodomundo.github.io/tv/</b></li>'
+     +'<li>Aparece uma tela preta escrita <b>📺 TV da cozinha</b>, com uma caixa no meio.</li>'
+     +'<li>Digite o código da loja (botão <b>🔑 Códigos das TVs</b>) e aperte <b>Entrar</b>.</li>'
+     +'<li>Pronto: o código fica guardado. Se a TV desligar, é só abrir o mesmo endereço de novo.</li>'
+     +'<li>Para ouvir o aviso de erro novo, aperte <b>🔕 Ligar som</b> no canto de cima.</li>'
+     +'<li>Se aparecer a faixa vermelha <b>SEM INTERNET</b>, confira o Wi-Fi da TV.</li></ol>'
+     +'<p>Na TV da parede use o código, não o login do portal: o login vence e a TV para de atualizar.</p>';
+  }
+  $('info-box').innerHTML='<button class="bt fecha" onclick="fechaInfo()">✕ Fechar</button>'+h;
+  $('info').classList.add('on');
+}
+function fechaInfo(){ $('info').classList.remove('on'); }
+document.addEventListener('keydown',function(ev){ if(ev.key==='Escape') fechaInfo(); });
+function telaCheia(){ try{ if(document.fullscreenElement) document.exitFullscreen(); else if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); }catch(e){} }
+
 
 (function(){
   botaoSom(); relogio(); setInterval(relogio,15000); acordada();
@@ -407,6 +512,12 @@ document.addEventListener('visibilitychange',function(){ if(document.visibilityS
   setInterval(function(){ if(CLI){ CLI_I++; try{ cliMostra(); }catch(e){} } },15000);  /* troca a avaliacao; a faixa tem altura fixa */
   /* pega versao nova da tela a cada 6 h, so com internet e leitura boa (senao a TV ficaria presa na pagina de erro) */
   setInterval(function(){ if(performance.now()>6*3600*1000 && navigator.onLine!==false && Date.now()-ULT_OK<5*60000) location.reload(); }, 10*60000);
+  if(PORTAL){
+    $('loja').textContent=LOJA; $('st').textContent='conferindo o login…';
+    try{ const ps=document.createElement('script'); ps.src='/assets/portal.js?v=3'; document.body.appendChild(ps); }catch(e){}
+    cdmGuarda().then(function(ok){ if(ok){ montaLojas(); busca(true); } });
+    return;
+  }
   let c=''; try{ c=limpa(decodeURIComponent((location.hash||'').replace(/^#(k=)?/i,''))); }catch(e){ c=''; }
   if(c.length!==8){ try{ c=limpa(localStorage.getItem('cdm_tv_codigo')); }catch(e){ c=''; } }
   if(c.length===8){ COD=c; busca(true); } else pedeCodigo();

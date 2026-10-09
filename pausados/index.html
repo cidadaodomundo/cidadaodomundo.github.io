@@ -114,6 +114,8 @@ try{ var a0=new URLSearchParams(location.search).get('aba')||localStorage.getIte
    Com ?loja= a loja fica fixa e os botões das outras lojas somem. É recorte de VISÃO, não cadeado. */
 let FIXA='';
 try{ FIXA=({sb:'São Braz',av:'Água Verde',ahu:'Ahú'})[new URLSearchParams(location.search).get('loja')]||''; if(FIXA) UNI=FIXA; }catch(e){}
+/* 09/10/2026, pedido do Fábio (aba exclusiva do Ahú): o Ahú só atende online, é dark kitchen. Com ?loja=ahu o cartão do Salão some e a tela abre no iFood. */
+if(FIXA==='Ahú'&&ABA==='salao') ABA='ifood';
 
 async function porta(nome,dados){
   const r=await fetch(SB+'rpc/'+nome,{method:'POST',
@@ -328,11 +330,11 @@ function desenha(){
   var tb=tabLinhas(), tbc=contaC(tb), tbp=tb.filter(function(x){return x.estado==='pausado'&&x.sit!=='RESP'}).length;
   var ac=acconAtivo()?contaC(canalGrupos('accon')):null;
   var h='<div class="lojas"><span class="rot">LOJA</span>'+(FIXA?lj(FIXA):lj('','Todas')+lj('Água Verde')+lj('Ahú')+lj('São Braz'))+'</div>'+
-    '<div class="cards">'+
+    '<div class="cards">'+(FIXA==='Ahú'?'':
       cardAba('salao','🍽','Salão · tablets', tbc.PRECISA,
         '<div class="qs" style="color:'+(tbc.PRECISA?'#ff9a9a':'#7fe0aa')+'">'+(tbc.PRECISA?'itens esperando a loja':'todos respondidos')+'</div>'+
         (tbp?'<div class="qs">'+tbp+' pausados (o cliente vê e não pede)</div>':'')+
-        (tbc.RESP?'<div class="qs">'+tbc.RESP+' já respondidos (fora da lista)</div>':''), tbc.PRECISA?'mal':'bem')+
+        (tbc.RESP?'<div class="qs">'+tbc.RESP+' já respondidos (fora da lista)</div>':''), tbc.PRECISA?'mal':'bem'))+
       cardAba('ifood','🛵','Delivery · iFood', ci.PRECISA,
         '<div class="qs" style="color:'+(ci.PRECISA?'#ff9a9a':'#7fe0aa')+'">'+(ci.PRECISA?'itens esperando a loja':'todos respondidos')+'</div>'+
         (ci.RESP?'<div class="qs">'+ci.RESP+' já respondidos (fora da lista)</div>':''), ci.PRECISA?'mal':'bem')+
@@ -360,7 +362,7 @@ async function boot(){
   desenha();
 }
 /* ===== porta unica do portal ===== */
-const CDMMODS=['pausados','sbpausados'];
+const CDMMODS=['pausados','sbpausados','ahupausados'];
 function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
 function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
