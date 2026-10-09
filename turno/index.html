@@ -97,6 +97,10 @@ const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const $=i=>document.getElementById(i);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 let D=null, ABA='check';
+/* 09/10/2026, pedido do Fábio (aba exclusiva do Ahú): menu Ahú > Cancelados · Ahú abre esta tela com ?loja=ahu&aba=cancel.
+   Com ?loja= a loja fica fixa e o seletor some; com ?aba=cancel junto, só a aba Cancelamentos aparece. É recorte de VISÃO, não cadeado. */
+let FIXA='', SOCANCEL=false;
+try{ const q=new URLSearchParams(location.search); FIXA=({ahu:'Ahu',sb:'Sao Braz',av:'Agua Verde'})[q.get('loja')]||''; if(q.get('aba')==='cancel'){ABA='cancel';SOCANCEL=!!FIXA;} }catch(e){}
 function ctx(){return {dia:$('dia').value,turno:$('turno').value,unidade:$('uni').value}}
 async function porta(acao,dados){
   const c=ctx(); const d=Object.assign({},c,dados||{});
@@ -459,7 +463,7 @@ document.addEventListener('change',async function(ev){
   if(ev.target.id==='dia'||ev.target.id==='turno'||ev.target.id==='uni'){PAS=null;PAS_ERRO='';boot()}
 });
 /* ===== porta unica do portal ===== */
-const CDMMODS=['turno'];
+const CDMMODS=['turno','ahucancel'];
 function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
 function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
@@ -479,6 +483,11 @@ async function cdmGuarda(){
 (function(){
   var hoje=new Date(Date.now()-3*3600*1000).toISOString().slice(0,10);
   $('dia').value=hoje;
+  if(FIXA){ $('uni').value=FIXA; $('uni').style.display='none'; }
+  if(SOCANCEL){
+    document.querySelectorAll('.aba').forEach(function(a){ if(a.dataset.aba!=='cancel') a.style.display='none'; });
+    var t1=document.querySelector('h1'); if(t1) t1.textContent='🚫 Cancelados · '+({'Ahu':'Ahú','Sao Braz':'São Braz','Agua Verde':'Água Verde'})[FIXA];
+  }
   var h=new Date().getHours();
   $('turno').value=(h>=9&&h<18)?'manha':'noite';
 })();
