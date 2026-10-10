@@ -235,7 +235,8 @@ function cartao(r){
   }
   h+=historico(r.obs);
   /* 07/10: na tela da loja, qualquer chamado pode sair com "Não é conserto" (o robô do WhatsApp às vezes abre chamado do que não é conserto) */
-  if(SOLOJA&&!r.robo_aviso)h+='<div class="bts" style="margin:6px 0"><button class="bt mini" data-nc="'+r.id+'">🙅 Não é manutenção</button></div>';
+  /* 10/10/2026 (pedido do Fábio: "tem que ter uma opção de excluir o quadro... não queremos coisas antigas aqui"): 🗑 Excluir em todo cartão da loja */
+  if(SOLOJA)h+='<div class="bts" style="margin:6px 0">'+(r.robo_aviso?'':'<button class="bt mini" data-nc="'+r.id+'">🙅 Não é manutenção</button>')+'<button class="bt mini" data-ex="'+r.id+'">🗑 Excluir</button></div>';
   h+='<div class="anota"><input data-nota="'+r.id+'" placeholder="📝 Observação (Enter grava)" maxlength="400">'+
      '<button class="bt mini" data-grava="'+r.id+'">Gravar</button></div>';
   h+='<div class="acs"><button class="bt res" data-res="'+r.id+'"><span class="ic">✅</span>Resolvido</button>'+
@@ -247,7 +248,7 @@ function cartaoFeito(r){
   return '<div class="c feito"><div class="ch"><div class="av">'+tp[1]+'</div>'+
     '<div><div class="nm">'+esc(r.item)+'</div><div class="st">'+esc(r.unidade)+'</div></div>'+
     '<button class="ed" data-reabre="'+r.id+'" title="Reabrir este chamado">↩️ Reabrir</button></div>'+
-    '<div class="tags">'+(SOLOJA&&/n[aã]o era conserto/i.test(r.obs||'')?'<span class="tg cinza">🙅 Não era manutenção · '+br(r.resolvido_em)+'</span>':'<span class="tg verde">✅ Resolvido em '+br(r.resolvido_em)+'</span>')+'</div>'+
+    '<div class="tags">'+(SOLOJA&&/excluiu da tela/i.test(String(r.obs||'').split(' | ').pop())?'<span class="tg cinza">🗑 Excluído · '+br(r.resolvido_em)+'</span>':SOLOJA&&/n[aã]o era conserto/i.test(r.obs||'')?'<span class="tg cinza">🙅 Não era manutenção · '+br(r.resolvido_em)+'</span>':'<span class="tg verde">✅ Resolvido em '+br(r.resolvido_em)+'</span>')+'</div>'+
     historico(r.obs)+'</div>';
 }
 
@@ -330,7 +331,7 @@ async function salva(){
 
 /* ---- cliques ---- */
 document.addEventListener('click',function(ev){
-  const t=ev.target.closest('[data-f],[data-ed],[data-res],[data-nc],[data-cf],[data-grava],[data-reabre]');
+  const t=ev.target.closest('[data-f],[data-ed],[data-res],[data-nc],[data-ex],[data-cf],[data-grava],[data-reabre]');
   if(!t)return;
   const n=function(k){return Number(t.getAttribute(k))};
   if(t.hasAttribute('data-f')){FILTRO=t.getAttribute('data-f');pintaChips();pinta()}
@@ -342,6 +343,10 @@ document.addEventListener('click',function(ev){
     if(SOLOJA){const it=(ROWS.find(function(x){return x.id===n('data-nc')})||{}).item||'este chamado';
       if(!confirm('Tirar "'+it+'" da lista?\n\nUse só quando NÃO é coisa de manutenção (recado, pergunta, aberto por engano).\nSe errar: abra "Resolvidos recentes" e toque em Reabrir (fica lá por 7 dias).'))return}
     faz('nao_conserto',{id:n('data-nc')},'🙅 Saiu da lista: não era conserto')}
+  else if(t.hasAttribute('data-ex')){
+    const it=(ROWS.find(function(x){return x.id===n('data-ex')})||{}).item||'este chamado';
+    if(!confirm('Excluir "'+it+'" da tela?\n\nO quadro sai daqui e fica guardado com o seu nome.\nSe errar: abra "Resolvidos recentes" e toque em Reabrir (fica lá por 7 dias).'))return;
+    faz('excluir',{id:n('data-ex')},'🗑 Excluído da tela')}
   else if(t.hasAttribute('data-cf'))faz('confirmar',{id:n('data-cf')},'🛠️ Ok, continua aberto');
   else if(t.hasAttribute('data-grava'))anotar(n('data-grava'));
 });
