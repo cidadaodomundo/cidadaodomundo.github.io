@@ -128,6 +128,11 @@ summary{cursor:pointer;color:var(--text2);font-size:12.5px;font-weight:600;paddi
 .tb-num .v{font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:700;line-height:1}
 .tb-num .r{color:var(--muted);font-size:11px;margin-top:3px;line-height:1.3}
 .tb-num .bad .v{color:var(--bad)}.tb-num .gold .v{color:var(--gold)}.tb-num .ok .v{color:var(--ok)}
+/* 10/10: os quadros do placar abrem a lista dos itens daquele número */
+.tb-num>button{background:var(--s2);border:1px solid transparent;border-radius:10px;padding:9px 10px;text-align:left;color:var(--text);font-family:inherit;cursor:pointer;transition:border-color .15s}
+.tb-num>button:hover{border-color:#56554e}
+.tb-num>button.on{border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold)}
+.tb-num>button .r b{color:var(--text2);font-weight:700}
 .tb-loja .velho{color:var(--muted);font-size:12px;margin-top:9px}
 .tb-fil{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 12px}
 .tb-fil button{background:var(--s1);border:1px solid var(--line);color:var(--text2);border-radius:999px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
@@ -418,6 +423,13 @@ async function marcaPz(i,k,bt){
   rota(true);window.scrollTo(0,y);
 }
 let FTB='PRECISA';
+/* 10/10: clicar num quadro do placar (pausados / escondidos / esperando) abre a lista daquele número, só daquela loja */
+let FTBU='';
+const ehPz=g=>g.estados.indexOf('pausado')>=0;
+function tbAbre(f,u){
+  FTB=f;FTBU=u||'';rota(true);
+  const a=document.getElementById('tbLista');if(a)a.scrollIntoView({behavior:'smooth',block:'start'});
+}
 function tbCartao(g,i,comBotao){
   const pz=g.estados.indexOf('pausado')>=0, ok=g.sit==='RESP';
   const cl=ok?' ok':(g.sit==='VENCIDA'?' venc':(pz?'':' esc'));
@@ -441,6 +453,8 @@ function tbCartao(g,i,comBotao){
 /* um renderizador só: com a porta (botões) ou sem ela (lista da leitura, sem botões) */
 function blocoTablet(gs,lidos,comBotao){
   const lojas=UNI.filter(u=>u!=='Ahú');
+  if(FTBU&&lojas.indexOf(FTBU)<0){FTBU='';FTB='PRECISA'}   /* trocou de loja nos botões de cima: volta ao começo */
+  const ftb=(!comBotao&&(FTB==='PRECISA'||FTB==='RESP'))?'TUDO':FTB;   /* sem a porta não há "esperando"/"respondido" (não mexe no FTB) */
   let h='<div class="ctx">tablets Goomer da mesa · o robô lê o cardápio uma vez por dia'+(comBotao?' · responder aqui vale também na tela Produtos pausados':'')+'</div>';
   if(!lojas.length)return h+'<div class="store"><div class="vazio">O Ahú não tem tablet de mesa.</div></div>';
   h+='<div class="tb-placar">';
@@ -450,25 +464,41 @@ function blocoTablet(gs,lidos,comBotao){
     if(!ld){h+='<div class="vazio">Sem leitura do tablet desta loja. Não é zero — é falta de dado.</div></div>';return}
     const pau=l.filter(g=>g.estados.indexOf('pausado')>=0).length, esco=l.length-pau, esp=l.filter(g=>g.sit!=='RESP').length;
     const maior=l.length?Math.max.apply(null,l.map(g=>g.dias)):0;
-    h+='<div class="tb-num"><div class="'+(pau?'bad':'ok')+'"><div class="v">'+pau+'</div><div class="r">pausados<br>vê e não pede</div></div>'+
-       '<div><div class="v">'+esco+'</div><div class="r">escondidos<br>nem vê</div></div>'+
-       (comBotao?'<div class="'+(esp?'gold':'ok')+'"><div class="v">'+esp+'</div><div class="r">esperando<br>a loja responder</div></div>'
-                :'<div><div class="v">'+(l.length?maior:'—')+'</div><div class="r">dias do<br>mais antigo</div></div>')+'</div>';
+    const qd=(f,cl,v,r)=>'<button type="button" class="'+cl+(ftb===f&&FTBU===u?' on':'')+'" onclick="tbAbre(\''+f+'\',\''+u+'\')" title="Ver os itens">'+
+       '<div class="v">'+v+'</div><div class="r">'+r+'<br><b>ver ›</b></div></button>';
+    h+='<div class="tb-num">'+qd('PAUS',pau?'bad':'ok',pau,'pausados · vê e não pede')+
+       qd('ESC','',esco,'escondidos · nem vê')+
+       (comBotao?qd('PRECISA',esp?'gold':'ok',esp,'esperando a loja responder')
+                :qd('TUDO','',(l.length?maior:'—'),'dias do mais antigo'))+'</div>';
     if(+ld.dias>=2&&!ld.aprox)h+='<div class="velho" style="color:#e6d9a8">⚠ leitura velha: a lista pode não ser a de hoje</div>';
     else if(comBotao&&l.length)h+='<div class="velho">o mais antigo está fora há '+(maior?plural(maior,'dia','dias'):'menos de 1 dia')+'</div>';
     h+='</div>';
   });
   h+='</div>';
-  const doFiltro=g=>!comBotao||(FTB==='RESP'?g.sit==='RESP':g.sit!=='RESP');
+  const doFiltro=g=>{
+    if(FTBU&&g.unidade!==FTBU)return false;
+    if(ftb==='PAUS')return ehPz(g);
+    if(ftb==='ESC')return !ehPz(g);
+    if(ftb==='TUDO')return true;
+    return ftb==='RESP'?g.sit==='RESP':g.sit!=='RESP';
+  };
+  const nomeF={PAUS:'📵 Pausados',ESC:'🙈 Escondidos',TUDO:'📋 Todos os itens'}[ftb];
+  h+='<div id="tbLista" style="scroll-margin-top:10px"></div>';
   if(comBotao){
     const nE=gs.filter(g=>g.sit!=='RESP').length, nR=gs.length-nE;
-    h+='<div class="tb-fil"><button class="'+(FTB==='PRECISA'?'on':'')+'" onclick="FTB=\'PRECISA\';rota(true)">🔴 Esperando a loja '+nE+'</button>'+
-       '<button class="'+(FTB==='RESP'?'on':'')+'" onclick="FTB=\'RESP\';rota(true)">✔ Já respondidos '+nR+'</button></div>';
+    h+='<div class="tb-fil"><button class="'+(FTB==='PRECISA'&&!FTBU?'on':'')+'" onclick="tbAbre(\'PRECISA\',\'\')">🔴 Esperando a loja '+nE+'</button>'+
+       '<button class="'+(FTB==='RESP'&&!FTBU?'on':'')+'" onclick="tbAbre(\'RESP\',\'\')">✔ Já respondidos '+nR+'</button>'+
+       ((nomeF||FTBU)?'<button class="on" onclick="tbAbre(\'PRECISA\',\'\')" title="Tirar o filtro">'+(nomeF||(ftb==='RESP'?'✔ Já respondidos':'🔴 Esperando a loja'))+(FTBU?' · '+esc(FTBU):'')+' ✕</button>':'')+'</div>';
+  } else if(FTBU||ftb!=='TUDO'){
+    h+='<div class="tb-fil"><button class="on" onclick="tbAbre(\'TUDO\',\'\')" title="Tirar o filtro">'+(nomeF||'📋 Todos os itens')+(FTBU?' · '+esc(FTBU):'')+' ✕</button></div>';
   }
   const vis=gs.map((g,i)=>[g,i]).filter(x=>doFiltro(x[0]));
   if(!vis.length){
     h+='<div class="store"><div class="vazio">'+(!gs.length?(lidos.length?'Nenhum item pausado ou escondido na última leitura do tablet.':'A leitura dos tablets ainda não trouxe nada — não quer dizer que está tudo no ar. É falta de dado.'):
-        FTB==='RESP'?'Nenhum item respondido ainda.':'Nada esperando a loja — tudo que está fora do ar já foi respondido.')+'</div></div>';
+        ftb==='PAUS'?'Nenhum item pausado'+(FTBU?' em '+esc(FTBU):'')+' na última leitura do tablet.':
+        ftb==='ESC'?'Nenhum item escondido'+(FTBU?' em '+esc(FTBU):'')+' na última leitura do tablet.':
+        ftb==='TUDO'?'Nenhum item fora do ar'+(FTBU?' em '+esc(FTBU):'')+' na última leitura do tablet.':
+        ftb==='RESP'?'Nenhum item respondido'+(FTBU?' em '+esc(FTBU):'')+' ainda.':'Nada esperando'+(FTBU?' em '+esc(FTBU):' a loja')+' — tudo que está fora do ar já foi respondido.')+'</div></div>';
   } else {
     lojas.forEach(u=>{
       const l=vis.filter(x=>x[0].unidade===u);if(!l.length)return;
