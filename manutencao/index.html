@@ -7,6 +7,18 @@
 <title>Manutenção · Cidadão do Mundo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/cdm-ui.css?v=4">
+<style>
+/* 10/10/2026: sugestão de prestador no cartão e lista de prestadores */
+.sug{background:#14201a;border:1px solid #2f5a40;color:#cfe9d8;border-radius:13px;padding:10px 12px;font-size:13.5px;line-height:1.45;display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.pc-bts{display:flex;gap:6px;flex-wrap:wrap}
+.pc-bts a,.pc-bts button{text-decoration:none}
+.pc-sem{color:#9a9a92;font-size:12.5px}
+.pc-av{color:#e6d9a8;font-size:12.5px}
+.pr-set{font-weight:800;margin:12px 0 6px;font-size:15px}
+.pr{border:1px solid #3a3a34;border-radius:12px;padding:10px 12px;margin-bottom:8px;display:flex;flex-direction:column;gap:5px}
+.pr .nm{font-weight:700}
+.pr.ruim{opacity:.6}
+</style>
 </head>
 <body>
 <div class="wrap">
@@ -18,6 +30,7 @@
     <div class="rt">
       <a class="volta" href="/index.html">← Portal</a>
       <button class="bx" onclick="boot(true)" title="Buscar de novo">🔄 Atualizar</button>
+      <button class="bx" onclick="abrePrest('')" title="Telefones de quem conserta">📞 Prestadores</button>
       <button class="novo" onclick="abre(null)">➕ Novo chamado</button>
     </div>
   </div>
@@ -42,6 +55,11 @@
     <button class="bx" onclick="fecha()">Cancelar</button>
     <button class="sal" id="d_sal" onclick="salva()">💾 Salvar</button>
   </div>
+</dialog>
+<dialog id="dlgP">
+  <div class="dh"><h3 id="p_tit">📞 Prestadores de serviço</h3><button class="x" onclick="fechaPrest()" aria-label="Fechar">✕</button></div>
+  <div class="db" id="p_corpo"></div>
+  <div class="df"><span id="p_link"></span><button class="bx" onclick="fechaPrest()">Fechar</button></div>
 </dialog>
 <div class="toast" id="toast"></div>
 
@@ -83,6 +101,56 @@ function tipo(r){
 function assunto(r){const t=tipo(r);return t[2]||(t[1]==='📺'?'Aparelhos, TV e internet':'Outros')}
 
 let ROWS=[],EDITA=null,MODS=[];
+
+/* 10/10/2026, pedido do Fábio: "colocar um botao com os prestadores de serviço... e no proprio cartao ja uma sugestao chamar fulano?"
+   A lista vem da porta prestador_consulta (só leitura para quem vê a manutenção). A sugestão é o prestador do mesmo setor do ícone do
+   cartão, pulando quem está marcado "não recomendado", e primeiro quem a casa chamou por último (coluna última vez). */
+let PREST=null;
+async function carregaPrest(){
+  try{
+    const r=await fetch(SB+'rpc/prestador_consulta',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({p_token:tok(),p_acao:'listar',p_dados:{}})});
+    PREST=r.ok?((await r.json()).gente||[]):[];
+  }catch(e){PREST=[]}
+}
+function naoRecom(p){return /n[aã]o recomend/i.test(p.aviso||'')}
+function semTeste(p){return /(n[aã]o|nunca) foi testad|sem servi[cç]o confirmad/i.test(p.aviso||'')}
+function doSetor(s){return (PREST||[]).filter(function(p){return p.setor===s}).sort(function(a,b){return naoRecom(a)-naoRecom(b)||semTeste(a)-semTeste(b)||String(b.ultima||'').localeCompare(String(a.ultima||''))||a.id-b.id})}
+function contato(p){
+  if(!p.telefone)return '<span class="pc-sem">📇 '+(p.numero_com?'número com '+esc(p.numero_com):'sem telefone cadastrado')+'</span>';
+  const d=String(p.telefone).replace(/\D/g,'');
+  return '<a class="bt mini" href="tel:+55'+d+'">📞 '+esc(p.telefone)+'</a><a class="bt mini" href="https://wa.me/55'+d+'" target="_blank" rel="noopener">💬 WhatsApp</a>';
+}
+function sugestao(r){
+  const s=tipo(r)[2];if(!s||!PREST)return '';
+  const l=doSetor(s).filter(function(p){return !naoRecom(p)});if(!l.length)return '';
+  const p=l[0],nOut=doSetor(s).length-1;
+  return '<div class="sug"><div>💡 Sugestão: chamar <b>'+esc(p.nome)+'</b> <span class="pc-sem">· '+esc(s)+'</span></div>'+
+    (p.aviso?'<div class="pc-av">⚠️ '+esc(p.aviso)+'</div>':'')+
+    '<div class="pc-bts">'+contato(p)+(nOut>0?'<button class="bt mini" data-prest="'+esc(s)+'">Ver outros ('+nOut+')</button>':'')+'</div></div>';
+}
+function abrePrest(s){
+  const l=(PREST||[]).filter(function(p){return !s||p.setor===s});
+  const g={};l.forEach(function(p){(g[p.setor]=g[p.setor]||[]).push(p)});
+  let h='';
+  if(!PREST||!PREST.length)h='<div class="pc-sem">Não deu para carregar a lista de prestadores.</div>';
+  else if(!l.length)h='<div class="pc-sem">Nenhum prestador cadastrado para '+esc(s)+'.</div>';
+  Object.keys(g).sort(function(a,b){return a.localeCompare(b,'pt-BR')}).forEach(function(k){
+    h+='<div class="pr-set">'+(TIPOS.filter(function(x){return x[2]===k}).map(function(x){return x[1]})[0]||'🔧')+' '+esc(k)+'</div>'+
+      doSetor(k).map(function(p){
+        return '<div class="pr'+(naoRecom(p)?' ruim':'')+'"><div class="nm">'+esc(p.nome)+'</div>'+
+          (p.faz?'<div class="pc-sem">'+esc(p.faz)+'</div>':'')+
+          (p.aviso?'<div class="pc-av">⚠️ '+esc(p.aviso)+'</div>':'')+
+          '<div class="pc-bts">'+contato(p)+'</div></div>';
+      }).join('');
+  });
+  $('p_tit').textContent='📞 '+(s?'Quem conserta · '+s:'Prestadores de serviço');
+  $('p_corpo').innerHTML=h+(s?'<div style="margin-top:10px"><button class="bt mini" data-prest="">Ver todos os prestadores</button></div>':'');
+  $('p_link').innerHTML=MODS.indexOf('prestadores')>=0?'<a class="volta" href="/prestadores/">✏️ Editar a lista</a>':'';
+  const d=$('dlgP');if(d.showModal&&!d.open)d.showModal();else d.setAttribute('open','');
+}
+function fechaPrest(){const d=$('dlgP');if(d.close)d.close();else d.removeAttribute('open')}
+document.addEventListener('click',function(ev){const b=ev.target.closest('[data-prest]');if(b)abrePrest(b.getAttribute('data-prest'))});
 
 async function get(q){const r=await fetch(SB+q,{headers:H});if(!r.ok)throw new Error('leitura '+r.status);return await r.json()}
 async function acao(a,dados){
@@ -158,6 +226,7 @@ function cartao(r){
       (r.status==='agendado'?'<span class="tg verde">📅 Agendado</span>':'')+
       (r.unidade==='Todas'?'<span class="tg cinza">📍 Todas as lojas</span>':'')+'</div>';
   if(r.descricao)h+='<div class="faz">'+esc(r.descricao)+'</div>';
+  h+=sugestao(r);
   if(r.robo_aviso){
     h+='<div class="robo"><div>🤖 '+esc(r.robo_aviso)+'</div><div class="bts">'+
       '<button class="bt mini" data-res="'+r.id+'">✅ Já resolvido</button>'+
@@ -170,7 +239,7 @@ function cartao(r){
   h+='<div class="anota"><input data-nota="'+r.id+'" placeholder="📝 Observação (Enter grava)" maxlength="400">'+
      '<button class="bt mini" data-grava="'+r.id+'">Gravar</button></div>';
   h+='<div class="acs"><button class="bt res" data-res="'+r.id+'"><span class="ic">✅</span>Resolvido</button>'+
-     (MODS.indexOf('prestadores')>=0?'<a class="bt lig" href="/prestadores/'+(tp[2]?'?setor='+encodeURIComponent(tp[2]):'')+'"><span class="ic">📞</span>Quem conserta</a>':'')+'</div>';
+     '<button class="bt lig" data-prest="'+esc(tp[2]||'')+'"><span class="ic">📞</span>Quem conserta</button></div>';
   return h+'</div>';
 }
 function cartaoFeito(r){
@@ -283,6 +352,7 @@ document.addEventListener('keydown',function(ev){
 $('dlg').addEventListener('keydown',function(ev){if(ev.key==='Enter'&&ev.target.tagName==='INPUT'){ev.preventDefault();salva()}});
 
 async function boot(manual){
+  const pp=(PREST&&PREST.length)?null:carregaPrest();
   try{
     ROWS=await get('manutencao_chamado?select=id,unidade,item,descricao,prioridade,status,origem,aberto_em,resolvido_em,obs,robo_aviso&or=(status.neq.resolvido,resolvido_em.gte.'+(function(){const d=new Date(Date.now()-3*3600e3-90*86400e3);return d.toISOString().slice(0,10)})()+')'+
       (SOLOJA?'&unidade=eq.'+encodeURIComponent(SOLOJA):'')+'&order=aberto_em.desc,id.desc&limit=300');
@@ -290,6 +360,7 @@ async function boot(manual){
     $('app').innerHTML='<div class="vazio"><span class="em">🔌</span>Não deu para carregar os chamados. Entre no portal de novo.</div>';
     return;
   }
+  if(pp)await pp;
   /* 07/10 (pedido do Fábio): a tela da loja mostra só o que é da loja, sem os chamados de "Todas" */
   if(SOLOJA)ROWS=ROWS.filter(function(r){return r.unidade===SOLOJA});
   const ab=ROWS.filter(function(r){return r.status!=='resolvido'});
