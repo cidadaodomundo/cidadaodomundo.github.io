@@ -86,6 +86,33 @@ summary{cursor:pointer;color:var(--text2);font-size:12.5px;font-weight:600;paddi
 .mini{color:var(--muted);font-size:11.5px;margin-top:2px}
 .sit{font-size:11px;color:var(--muted)}
 .ok2{color:var(--ok)}
+/* Reservas em cartões (10/10/2026) — mesmo desenho do kit do portal: grupo por loja + grade + um cartão por reserva */
+.rv-grp{display:flex;align-items:center;gap:9px;margin:22px 0 11px}
+.rv-grp.pri{margin-top:4px}
+.rv-grp .em{font-size:20px}
+.rv-grp h3{font-family:'Anton',Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:19px;letter-spacing:.02em}
+.rv-grp .ct{color:var(--muted);font-size:13px;font-weight:600}
+.rv-grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:11px}
+.rv-grade>*{min-width:0}
+.rv{background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:15px;display:flex;flex-direction:column;gap:9px}
+.rv:hover{border-color:#4a4943}
+.rv.hoje{border-left:4px solid var(--gold)}
+.rv.canc{opacity:.55}
+.rv .ch{display:flex;align-items:flex-start;gap:11px}
+.rv .av{flex:0 0 46px;height:46px;border-radius:14px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:23px}
+.rv .qd{color:var(--muted);font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.rv.hoje .qd{color:var(--gold)}
+.rv .hr{font-family:'Barlow Condensed',sans-serif;font-size:27px;font-weight:700;line-height:1.05}
+.rv .ps{margin-left:auto;text-align:right;font-family:'Barlow Condensed',sans-serif;font-size:27px;font-weight:700;line-height:1.05}
+.rv .ps small{display:block;font-family:'Barlow',sans-serif;font-size:11.5px;font-weight:700;color:var(--muted)}
+.rv .tags{display:flex;gap:6px;flex-wrap:wrap}
+.rv .tg{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;border-radius:10px;padding:5px 9px;line-height:1.3;background:var(--s2);color:var(--text2)}
+.rv .tg.ok{background:rgba(47,174,106,.15);color:var(--ok)}
+.rv .tg.warn{background:rgba(201,133,0,.15);color:var(--warn)}
+.rv .tg.bad{background:rgba(230,103,103,.15);color:var(--bad)}
+.rv .faz{color:var(--text2);font-size:14px;line-height:1.45}
+.rv .rodc{color:var(--muted);font-size:11.5px;border-top:1px solid var(--line);padding-top:8px;margin-top:auto}
+@media (max-width:640px){.rv-grade{grid-template-columns:1fr}}
 .bpz{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
 .bpz:hover{border-color:var(--gold);color:var(--gold)}
 .bpz:disabled{opacity:.5;cursor:wait}
@@ -500,40 +527,62 @@ function blocoClientes(G){
 }
 
 /* ================= 5. RESERVAS =================
-   Vêm do recado no grupo de WhatsApp do salão e, quando a senha chegar, do Getin. */
+   Vêm do GetIn (robô) e do recado no grupo de WhatsApp do salão.
+   10/10/2026: pedido do Fábio — "preciso que seja feito em cartões, assim como estamos
+   fazendo no portal inteiro". Agora é um grupo por loja e um cartão por reserva. */
+const SEMANA=['dom','seg','ter','qua','qui','sex','sáb'];
+const ehCancelada=r=>/cancel/i.test(String(r.status||''));   /* o GetIn manda "canceled-agent", "canceled-user"... */
+function cartaoReserva(r,hoje){
+  const st=String(r.status||'');
+  const conf=st.indexOf('confirmada')===0, canc=ehCancelada(r);
+  const dia=String(r.data).slice(0,10), dias=diasEntre(hoje,dia);
+  const quando=(dias===0?'hoje':(dias===1?'amanhã':(dias>1?'em '+dias+' dias':'')));
+  const sem=SEMANA[new Date(dia+'T00:00:00').getDay()]||'';
+  /* a observação do GetIn vem como "Comemorar aniversário | ... | veio por: site do GetIn" */
+  const partes=String(r.observacao||'').split('|').map(s=>s.trim()).filter(Boolean);
+  const veio=partes.filter(s=>/^veio por:/i.test(s)).map(s=>s.replace(/^veio por:\s*/i,''));
+  const obs=partes.filter(s=>!/^veio por:/i.test(s));
+  const ic=/anivers|parab[eé]ns|bolo/i.test(r.observacao||'')?'🎂':'🪑';
+  const n=Number(r.pessoas)||0;
+  let h='<div class="rv'+(dias===0?' hoje':'')+(canc?' canc':'')+'">'+
+    '<div class="ch"><div class="av">'+ic+'</div>'+
+      '<div><div class="qd">'+(quando?quando+' · ':'')+sem+' '+br(dia).slice(0,5)+'</div>'+
+      '<div class="hr">'+(r.hora?String(r.hora).slice(0,5):'sem hora')+'</div></div>'+
+      '<div class="ps">'+n+'<small>'+(n===1?'pessoa':'pessoas')+'</small></div></div>';
+  if(r.nome_cliente)h+='<div class="faz"><b>'+esc(r.nome_cliente)+'</b></div>';
+  h+='<div class="tags">'+
+    '<span class="tg '+(canc?'bad':(conf?'ok':'warn'))+'"'+(canc?' title="'+esc(st).replace(/"/g,'&quot;')+'"':'')+'>'+(canc?'✖ cancelada':(conf?'✅ ':'⏳ ')+esc(st||'sem situação'))+'</span>'+
+    (r.area?'<span class="tg">📍 '+esc(r.area)+'</span>':'')+
+    (r.sinal_pago===true?'<span class="tg ok">💰 sinal pago</span>':
+     (r.sinal_pago===false?'<span class="tg warn">💰 sinal não pago</span>':'<span class="tg">💰 sinal —</span>'))+
+    '</div>';
+  if(obs.length)h+='<div class="faz">'+esc(obs.join(' · '))+'</div>';
+  h+='<div class="rodc">veio do '+esc(r.origem||'—')+(veio.length?' · '+esc(veio.join(' · ')):'')+'</div>';
+  return h+'</div>';
+}
 function blocoReservas(res){
   const hoje=hojeISO();
-  let h='<div class="ctx">recado do grupo do salão · o Getin ainda não está ligado</div>';
+  let h='<div class="ctx">vêm do GetIn e do recado no grupo do salão · de hoje em diante</div>';
   if(!res||!res.length){
     h+='<div class="store"><div class="vazio">nenhuma reserva anotada de hoje em diante — pode ser que ninguém tenha lançado ainda</div></div>';
     return h;
   }
-  h+='<div class="cards">';
+  let pri=true;
   UNI.forEach(u=>{
     const l=res.filter(r=>r.unidade===u).sort((a,b)=>(a.data+(a.hora||''))<(b.data+(b.hora||''))?-1:1);
     if(!l.length)return;
-    h+='<div class="c"><div class="nm">'+u+'<span class="pill p-off">'+plural(l.length,'reserva','reservas')+'</span></div>';
-    l.forEach(r=>{
-      const conf=String(r.status||'').indexOf('confirmada')===0;
-      const dias=diasEntre(hoje,String(r.data).slice(0,10));
-      h+='<div class="turno">'+br(r.data)+(r.hora?' · '+String(r.hora).slice(0,5):'')+
-         (dias===0?' · hoje':(dias===1?' · amanhã':(dias>1?' · em '+dias+' dias':'')))+'</div>'+
-         '<div class="linha"><b>'+plural(Number(r.pessoas)||0,'pessoa','pessoas')+'</b>'+
-         '<span class="pill '+(conf?'p-ok':'p-warn')+'">'+esc(r.status||'sem situação')+'</span></div>';
-      if(r.nome_cliente)h+='<div class="linha"><span>quem reservou</span><b>'+esc(r.nome_cliente)+'</b></div>';
-      if(r.area)h+='<div class="linha"><span>onde</span><b>'+esc(r.area)+'</b></div>';
-      h+='<div class="linha"><span>sinal</span><b>'+(r.sinal_pago===true?'pago':(r.sinal_pago===false?'ainda não':'—'))+'</b></div>';
-      if(r.observacao)h+='<div class="mini">'+esc(r.observacao)+'</div>';
-      h+='<div class="mini">veio do '+esc(r.origem||'—')+'</div>';
-    });
-    h+='</div>';
+    const vale=l.filter(r=>!ehCancelada(r)), canc=l.length-vale.length;
+    const pes=vale.reduce((s,r)=>s+(Number(r.pessoas)||0),0);
+    h+='<div class="rv-grp'+(pri?' pri':'')+'"><span class="em">🏪</span><h3>'+esc(u)+'</h3>'+
+       '<span class="ct">'+plural(vale.length,'reserva','reservas')+' · '+plural(pes,'pessoa','pessoas')+(canc?' · '+plural(canc,'cancelada','canceladas'):'')+'</span></div>'+
+       '<div class="rv-grade">'+l.map(r=>cartaoReserva(r,hoje)).join('')+'</div>';
+    pri=false;
   });
-  h+='</div>';
   return h;
 }
 function resumoReservas(d){
-  const l=daLoja(d.reservas);
-  if(!l.length)return {big:'—',sub:'nenhuma reserva anotada de hoje em diante',atencao:false};
+  const tudo=daLoja(d.reservas), l=tudo.filter(r=>!ehCancelada(r));   /* 10/10: cancelada não conta */
+  if(!l.length)return {big:'—',sub:tudo.length?'só '+plural(tudo.length,'reserva cancelada','reservas canceladas')+' de hoje em diante':'nenhuma reserva anotada de hoje em diante',atencao:false};
   const pessoas=l.reduce((s,r)=>s+(Number(r.pessoas)||0),0);
   const prox=l.map(r=>String(r.data).slice(0,10)).sort()[0];
   const semSinal=l.filter(r=>r.sinal_pago!==true).length;
