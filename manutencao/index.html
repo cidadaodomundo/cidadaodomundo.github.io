@@ -64,7 +64,7 @@ const ORD={urgente:0,normal:1,quando_der:2};
 const TIPOS=[
   [/freez|geladeir|refriger|c[aâ]mara|chopp|gelo|resfri/i,'❄️','Refrigeração e câmara fria'],
   [/\bled\b|luz|l[aâ]mpada|tomada|disjunt|el[eé]tric|fia[cç]|quadro|energia|curto/i,'⚡','Elétrica'],
-  [/telhad|goteir|chuva|infiltr|parede|porta|janela|piso|forro|pintur/i,'🏠','Telhado e obra'],
+  [/telhad|toldo|goteir|chuva|infiltr|parede|porta|janela|piso|forro|pintur/i,'🏠','Telhado e obra'],
   [/\bpia\b|torneira|vaz|\bcano|[aá]gua|esgoto|ralo|descarga|\bvaso|banheir|tanque|entup/i,'🚿','Hidráulica e faz-tudo'],
   [/coifa|exaust/i,'💨','Coifa e exaustão'],
   [/forno|micro/i,'♨️','Forno e micro-ondas'],
@@ -72,12 +72,15 @@ const TIPOS=[
   [/fritadeir|banho.?maria|seladora|liquidific|moedor|m[aá]quina/i,'🍳','Equipamentos de cozinha'],
   [/ar.?condic|split/i,'🌬️','Ar-condicionado'],
   [/gordura|fossa|limpez/i,'🧽','Limpeza pesada'],
-  [/internet|wi.?fi|\btv\b|televis|\bsom\b|caixa de som|computador|impressora|tablet/i,'📺',null]];
+  [/internet|wi.?fi|\btv\b|televis|\bsom\b|caixa de som|computador|impressora|tablet|celular|interfone|\bapp\b/i,'📺',null]];
 function tipo(r){
   const limpa=function(t){return String(t||'').replace(/[ÁA]gua Verde|S[ãa]o Braz|Ah[úu]|Boqueir[ãa]o/gi,' ')};
   for(const t of [limpa(r.item),limpa(r.descricao)]){for(const x of TIPOS){if(x[0].test(t))return x}}
   return [null,'🔧',null];
 }
+/* 10/10/2026, pedido do Fábio na tela Manutenção · Ahú ("os quadros ficaram confusos, precisa de botões em cima para separar os assuntos"):
+   na tela da loja (?u=) os botões de cima separam por assunto e os cartões ficam em blocos por assunto. O assunto é o mesmo setor do ícone do cartão. */
+function assunto(r){const t=tipo(r);return t[2]||(t[1]==='📺'?'Aparelhos, TV e internet':'Outros')}
 
 let ROWS=[],EDITA=null,MODS=[];
 
@@ -117,7 +120,18 @@ function historico(obs){
 }
 
 function pintaChips(){
-  if(SOLOJA){$('chips').innerHTML='';return}
+  if(SOLOJA){
+    const ab0=ROWS.filter(function(r){return r.status!=='resolvido'}),cnt={},ic={};
+    ab0.forEach(function(r){const a=assunto(r);cnt[a]=(cnt[a]||0)+1;ic[a]=tipo(r)[1]});
+    if(FILTRO.indexOf('__a:')===0&&!cnt[FILTRO.slice(4)])FILTRO=SOLOJA; /* o assunto zerou: volta para Todos */
+    const ks=Object.keys(cnt).sort(function(a,b){return (a==='Outros')-(b==='Outros')||cnt[b]-cnt[a]||a.localeCompare(b,'pt-BR')});
+    const fs0=[{k:SOLOJA,e:'📋',r:'Todos',n:ab0.length}].concat(ks.map(function(a){return {k:'__a:'+a,e:ic[a],r:a,n:cnt[a]}}))
+      .concat([{k:'__urg',e:'🔴',r:'Só urgentes',n:ab0.filter(function(r){return r.prioridade==='urgente'}).length}]);
+    $('chips').innerHTML=fs0.map(function(f){
+      return '<button class="chip'+(FILTRO===f.k?' on':'')+'" data-f="'+esc(f.k)+'"><span class="em">'+f.e+'</span>'+esc(f.r)+'<span class="ct">'+f.n+'</span></button>';
+    }).join('');
+    return;
+  }
   const ab=ROWS.filter(function(r){return r.status!=='resolvido'});
   const fs=[{k:'',e:'📍',r:'Todas as lojas',n:ab.length}]
     .concat(LOJAS.slice(0,3).map(function(u){return {k:u,e:'🏪',r:u,n:ab.filter(function(r){return r.unidade===u||r.unidade==='Todas'}).length}}))
@@ -129,6 +143,7 @@ function pintaChips(){
 function passa(r){
   if(!FILTRO)return true;
   if(FILTRO==='__urg')return r.prioridade==='urgente';
+  if(FILTRO.indexOf('__a:')===0)return assunto(r)===FILTRO.slice(4);
   return r.unidade===FILTRO||r.unidade==='Todas';
 }
 function bate(r,q){return !q||[r.item,r.descricao,r.unidade,r.obs,r.origem].join(' ').toLowerCase().indexOf(q)>=0}
@@ -180,10 +195,10 @@ function pinta(){
     h+='<div class="vazio"><span class="em">🎉</span>Nenhum chamado aberto aqui.</div>';
   }else{
     const grupos={};
-    abertos.forEach(function(r){(grupos[r.unidade]=grupos[r.unidade]||[]).push(r)});
-    Object.keys(grupos).sort(function(a,b){return a.localeCompare(b,'pt-BR')}).forEach(function(u){
+    abertos.forEach(function(r){const g=SOLOJA?assunto(r):r.unidade;(grupos[g]=grupos[g]||[]).push(r)});
+    Object.keys(grupos).sort(function(a,b){return SOLOJA?((a==='Outros')-(b==='Outros')||grupos[b].length-grupos[a].length||a.localeCompare(b,'pt-BR')):a.localeCompare(b,'pt-BR')}).forEach(function(u){
       const l=grupos[u];
-      h+='<div class="grp"><span class="em">'+(u==='Todas'?'📍':'🏪')+'</span><h2>'+esc(u==='Todas'?'Todas as lojas':u)+'</h2><span class="ct">'+l.length+' aberto'+(l.length>1?'s':'')+'</span></div>'+
+      h+='<div class="grp"><span class="em">'+(SOLOJA?tipo(l[0])[1]:(u==='Todas'?'📍':'🏪'))+'</span><h2>'+esc(u==='Todas'&&!SOLOJA?'Todas as lojas':u)+'</h2><span class="ct">'+l.length+' aberto'+(l.length>1?'s':'')+'</span></div>'+
         '<div class="grade">'+l.map(cartao).join('')+'</div>';
     });
   }
