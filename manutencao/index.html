@@ -114,7 +114,7 @@ async function carregaPrest(){
   }catch(e){PREST=[]}
 }
 function naoRecom(p){return /n[aã]o recomend/i.test(p.aviso||'')}
-function semTeste(p){return /(n[aã]o|nunca) foi testad/i.test(p.aviso||'')}
+function semTeste(p){return /(n[aã]o|nunca) foi testad|sem servi[cç]o confirmad/i.test(p.aviso||'')}
 function doSetor(s){return (PREST||[]).filter(function(p){return p.setor===s}).sort(function(a,b){return naoRecom(a)-naoRecom(b)||semTeste(a)-semTeste(b)||String(b.ultima||'').localeCompare(String(a.ultima||''))||a.id-b.id})}
 function contato(p){
   if(!p.telefone)return '<span class="pc-sem">📇 '+(p.numero_com?'número com '+esc(p.numero_com):'sem telefone cadastrado')+'</span>';
@@ -124,10 +124,10 @@ function contato(p){
 function sugestao(r){
   const s=tipo(r)[2];if(!s||!PREST)return '';
   const l=doSetor(s).filter(function(p){return !naoRecom(p)});if(!l.length)return '';
-  const p=l[0];
+  const p=l[0],nOut=doSetor(s).length-1;
   return '<div class="sug"><div>💡 Sugestão: chamar <b>'+esc(p.nome)+'</b> <span class="pc-sem">· '+esc(s)+'</span></div>'+
     (p.aviso?'<div class="pc-av">⚠️ '+esc(p.aviso)+'</div>':'')+
-    '<div class="pc-bts">'+contato(p)+(l.length>1?'<button class="bt mini" data-prest="'+esc(s)+'">Ver outros ('+(l.length-1)+')</button>':'')+'</div></div>';
+    '<div class="pc-bts">'+contato(p)+(nOut>0?'<button class="bt mini" data-prest="'+esc(s)+'">Ver outros ('+nOut+')</button>':'')+'</div></div>';
 }
 function abrePrest(s){
   const l=(PREST||[]).filter(function(p){return !s||p.setor===s});
@@ -352,6 +352,7 @@ document.addEventListener('keydown',function(ev){
 $('dlg').addEventListener('keydown',function(ev){if(ev.key==='Enter'&&ev.target.tagName==='INPUT'){ev.preventDefault();salva()}});
 
 async function boot(manual){
+  const pp=(PREST&&PREST.length)?null:carregaPrest();
   try{
     ROWS=await get('manutencao_chamado?select=id,unidade,item,descricao,prioridade,status,origem,aberto_em,resolvido_em,obs,robo_aviso&or=(status.neq.resolvido,resolvido_em.gte.'+(function(){const d=new Date(Date.now()-3*3600e3-90*86400e3);return d.toISOString().slice(0,10)})()+')'+
       (SOLOJA?'&unidade=eq.'+encodeURIComponent(SOLOJA):'')+'&order=aberto_em.desc,id.desc&limit=300');
@@ -359,7 +360,7 @@ async function boot(manual){
     $('app').innerHTML='<div class="vazio"><span class="em">🔌</span>Não deu para carregar os chamados. Entre no portal de novo.</div>';
     return;
   }
-  if(PREST===null)await carregaPrest();
+  if(pp)await pp;
   /* 07/10 (pedido do Fábio): a tela da loja mostra só o que é da loja, sem os chamados de "Todas" */
   if(SOLOJA)ROWS=ROWS.filter(function(r){return r.unidade===SOLOJA});
   const ab=ROWS.filter(function(r){return r.status!=='resolvido'});
