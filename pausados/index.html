@@ -116,6 +116,12 @@ let FIXA='';
 try{ FIXA=({sb:'São Braz',av:'Água Verde',ahu:'Ahú'})[new URLSearchParams(location.search).get('loja')]||''; if(FIXA) UNI=FIXA; }catch(e){}
 /* 09/10/2026, pedido do Fábio (aba exclusiva do Ahú): o Ahú só atende online, é dark kitchen. Com ?loja=ahu o cartão do Salão some e a tela abre no iFood. */
 if(FIXA==='Ahú'&&ABA==='salao') ABA='ifood';
+/* 11/10/2026, pedido do Fábio: "retirar o que não é Accon e iFood, essa tela vai ficar só pro pessoal do delivery".
+   O Salão (tablets) só aparece quando a tela é aberta com ?aba=salao — o atalho Pausados · São Braz do Diego.
+   Para o resto, o tablet da mesa fica na Central Salão > Cardápio. */
+let SALAO=false;
+try{ SALAO=new URLSearchParams(location.search).get('aba')==='salao'; }catch(e){}
+if(!SALAO&&ABA==='salao') ABA='ifood';
 
 async function porta(nome,dados){
   const r=await fetch(SB+'rpc/'+nome,{method:'POST',
@@ -330,7 +336,7 @@ function desenha(){
   var tb=tabLinhas(), tbc=contaC(tb), tbp=tb.filter(function(x){return x.estado==='pausado'&&x.sit!=='RESP'}).length;
   var ac=acconAtivo()?contaC(canalGrupos('accon')):null;
   var h='<div class="lojas"><span class="rot">LOJA</span>'+(FIXA?lj(FIXA):lj('','Todas')+lj('Água Verde')+lj('Ahú')+lj('São Braz'))+'</div>'+
-    '<div class="cards">'+(FIXA==='Ahú'?'':
+    '<div class="cards">'+((FIXA==='Ahú'||!SALAO)?'':
       cardAba('salao','🍽','Salão · tablets', tbc.PRECISA,
         '<div class="qs" style="color:'+(tbc.PRECISA?'#ff9a9a':'#7fe0aa')+'">'+(tbc.PRECISA?'itens esperando a loja':'todos respondidos')+'</div>'+
         (tbp?'<div class="qs">'+tbp+' pausados (o cliente vê e não pede)</div>':'')+
@@ -356,7 +362,7 @@ async function boot(){
   catch(e){ PZD={erro:(e&&e.message)||'erro'}; placar('<span class="pl" style="border-color:rgba(230,103,103,.5);color:#ff9a9a">'+esc(PZD.erro)+'</span>'); desenha(); return }
   PZD=PZD||{};
   placar('<span class="pl"'+((PZD.lido_min==null||PZD.lido_min>20)?' style="border-color:rgba(230,103,103,.5)"':'')+'>iFood lido <b>'+esc(PZD.lido_em||'há mais de 2 dias')+'</b></span>'+
-    ((PZD.tablet_lido||[]).filter(daLoja).length?'<span class="pl">tablet lido <b>'+(PZD.tablet_lido||[]).filter(daLoja).map(function(l){return esc(l.lido)}).filter(function(v,i,a){return a.indexOf(v)===i}).join(' / ')+'</b></span>':'')+
+    (SALAO&&(PZD.tablet_lido||[]).filter(daLoja).length?'<span class="pl">tablet lido <b>'+(PZD.tablet_lido||[]).filter(daLoja).map(function(l){return esc(l.lido)}).filter(function(v,i,a){return a.indexOf(v)===i}).join(' / ')+'</b></span>':'')+
     (acconAtivo()?'<span class="pl">Accon lido <b>'+esc(PZD.accon_lido)+'</b></span>'
       :'<span class="pl" style="border-color:rgba(230,103,103,.5)">Accon <b style="color:#ff9a9a">parado'+(PZD.accon_lido?' desde '+esc(PZD.accon_lido):'')+'</b></span>'));
   desenha();
