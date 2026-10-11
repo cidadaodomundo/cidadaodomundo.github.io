@@ -71,6 +71,11 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
 <div id="app">Carregando…</div>
 <div class="aviso">Cada marcação guarda o seu nome e a hora. O que você marcar fica valendo para o dia, o turno e a loja escolhidos lá em cima. Tela em construção — fale o que falta que a gente arruma.</div>
 <script>
+/* link antigo (favorito ou menu ainda nao trocado) da aba Cancelamentos: vai direto para a tela nova, sem passar
+   pela guarda daqui (quem so tem o atalho Cancelados · Ahu nao tem a tela Turno) */
+let CDMVAI=false;
+try{ const q0=new URLSearchParams(location.search);
+     if(q0.get('aba')==='cancel'){ const l0=q0.get('loja'); CDMVAI=true; location.replace('/cancelados/'+(/^(ahu|sb|av)$/.test(l0||'')?'?loja='+l0:'')); } }catch(e){}
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const $=i=>document.getElementById(i);
@@ -378,7 +383,7 @@ async function cdmGuarda(){
   var h=new Date().getHours();
   $('turno').value=(h>=9&&h<18)?'manha':'noite';
 })();
-cdmGuarda().then(function(ok){if(!ok)return;boot();});
+if(!CDMVAI) cdmGuarda().then(function(ok){if(!ok)return;boot();});
 </script>
 <script src="/assets/portal.js?v=3"></script>
 </body>

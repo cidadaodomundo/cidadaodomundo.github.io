@@ -159,6 +159,7 @@ try{ if(!FIXA){ var u0=localStorage.getItem('cdm_cancel_uni'); if(u0==='Todas'||
 const PERIODOS=[['hoje','Hoje'],['ontem','Ontem'],['7','7 dias'],['30','30 dias'],['90','90 dias']];
 
 let P=null, PERR='', SEL=null, L=null, LERR='', SO='', ABRE=[];
+let BSEQ=0, LSEQ=0, SALVANDO=false;   // so a resposta do pedido mais novo vale; um salvar por vez
 
 async function porta(acao,dados){
   const r=await fetch(SB+'rpc/cancelados_porta',{method:'POST',
@@ -316,10 +317,10 @@ function fecha(){ SEL=null; L=null; desenha(); }
 function filtroSo(s){ SO=s; L=null; desenha(); carregaLista(); }
 async function carregaLista(){
   if(!SEL) return;
-  var alvo=SEL, f=Object.assign({unidade:UNI,periodo:PER},SEL.filtro);
+  var alvo=SEL, sq=++LSEQ, f=Object.assign({unidade:UNI,periodo:PER},SEL.filtro);
   if(SO&&!SEL.filtro.so) f.so=SO;
-  try{ var r=await porta('lista',f); if(alvo!==SEL) return; L=r; LERR=''; }
-  catch(e){ if(alvo!==SEL) return; L=null; LERR=e.message||'erro'; }
+  try{ var r=await porta('lista',f); if(alvo!==SEL||sq!==LSEQ) return; L=r; LERR=''; }
+  catch(e){ if(alvo!==SEL||sq!==LSEQ) return; L=null; LERR=e.message||'erro'; }
   desenha();
 }
 function painelSe(g){
@@ -363,7 +364,7 @@ function cartao(o,i){
       (o.disse&&o.disse!==o.motivo?'<div class="ds">cliente: “'+esc(String(o.disse).slice(0,220))+'”</div>':'')+
       (o.loja_fez?'<div class="rs">o que a loja fez: <b>'+esc(o.loja_fez)+'</b></div>':'')+
       (din?'<div class="rs">'+din+'</div>':'')+
-      '<div class="fn">'+(o.motivo_fonte?'motivo pelo '+esc(o.motivo_fonte)+' · ':'')+'visto em: '+esc((o.fontes||[]).join(', '))+'</div>'+
+      '<div class="fn">'+(o.motivo_fonte?'motivo veio de: '+esc(o.motivo_fonte)+' · ':'')+'visto em: '+esc((o.fontes||[]).join(', '))+'</div>'+
       '<div class="vbt"><button class="mini" onclick="verConversa('+i+')">💬 conversas'+(o.tem_chat?' do pedido':'')+'</button>'+
         (o.fotos?'<span class="pill p-off">📷 '+o.fotos+(o.fotos===1?' foto':' fotos')+' no chat do iFood</span>':'')+'</div>'+
     '</td><td class="sit">';
@@ -379,10 +380,13 @@ function cartao(o,i){
   return h+'</td></tr></table>';
 }
 async function salva(i){
+  if(SALVANDO) return;
   var o=L&&L.itens[i], e=$('ex_'+i); if(!o||!e) return;
   var t=(e.value||'').trim(); if(t.length<3){ alert('Escreva o que aconteceu (pelo menos 3 letras).'); e.focus(); return }
+  SALVANDO=true; e.disabled=true;
   try{ await porta('explicar',{loja:o.loja,dia:o.dia_iso,hora:o.hora,n_pedido:o.n_pedido,tipo:o.tipo,motivo:o.tipo==='parcial'?('parcial: '+(o.item||o.familia||'')):(o.motivo||''),texto:t}); }
-  catch(err){ alert('Não consegui gravar: '+err.message); return }
+  catch(err){ SALVANDO=false; e.disabled=false; alert('Não consegui gravar: '+err.message); return }
+  SALVANDO=false;
   recarrega();
 }
 async function apaga(id){
@@ -391,7 +395,8 @@ async function apaga(id){
   recarrega();
 }
 async function recarrega(){
-  try{ P=await porta('painel',{unidade:UNI,periodo:PER}); PERR=''; }catch(e){}
+  var sq=++BSEQ;
+  try{ var r=await porta('painel',{unidade:UNI,periodo:PER}); if(sq!==BSEQ) return; P=r; PERR=''; }catch(e){ if(sq!==BSEQ) return; }
   placar(); L=null; desenha(); carregaLista();
 }
 async function verConversa(i){
@@ -400,16 +405,19 @@ async function verConversa(i){
   if(!cx){ cx=document.createElement('div'); cx.id='__conversa'; document.body.appendChild(cx); }
   cx.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;overflow:auto;padding:16px';
   cx.innerHTML='<div style="color:#fff;text-align:center">Buscando as conversas do pedido '+esc(o.n_pedido||'')+'…</div>';
-  cx.onclick=function(ev){ if(ev.target===cx) cx.remove(); };
+  var fechaCx=function(){ cx.remove(); document.removeEventListener('keydown',escCx); };
+  var escCx=function(ev){ if(ev.key==='Escape') fechaCx(); };
+  document.addEventListener('keydown',escCx);
+  cx.onclick=function(ev){ if(ev.target===cx||(ev.target.closest&&ev.target.closest('.fechacx'))) fechaCx(); };
+  var btFecha='<button class="mini fechacx" style="float:right">fechar ✕</button>';
   var caixa=function(cor,quem,quando,texto){ return '<div style="background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:6px">'+
       '<div style="color:'+cor+';font-size:11px;font-weight:800">'+esc(quem)+' · '+esc(quando||'')+'</div>'+
       (texto?'<div style="color:var(--text);font-size:14px;margin-top:2px">'+esc(texto)+'</div>':'')+'</div>'; };
   try{
     var j=await porta('conversa',{unidade:UNI,periodo:PER,uuid:o.uuid,dia:o.dia_iso});
     var ch=(j&&j.chat)||[], fa=(j&&j.falas)||[];
-    var h='<div style="max-width:680px;margin:0 auto">'+
-      '<div style="color:#fff;margin-bottom:10px">💬 Pedido '+esc(o.n_pedido||'')+' · '+esc(o.marca||'')+
-      '<span style="color:#bbb;font-size:12px"> — toque fora para fechar</span></div>';
+    var h='<div style="max-width:680px;margin:0 auto">'+btFecha+
+      '<div style="color:#fff;margin-bottom:10px">💬 Pedido '+esc(o.n_pedido||'')+' · '+esc(o.marca||'')+'</div>';
     h+='<div style="color:var(--text2);font-weight:800;margin:6px 0">Chat do iFood (Gestor Web)</div>';
     if(!j.pode_chat) h+='<div style="color:#bbb;font-size:13px;margin-bottom:10px">O texto do chat aparece só para quem vê o Resolver hoje.</div>';
     else if(!ch.length) h+='<div style="color:#bbb;font-size:13px;margin-bottom:10px">Não achei conversa do chat gravada para este pedido.</div>';
@@ -419,7 +427,7 @@ async function verConversa(i){
     if(!fa.length) h+='<div style="color:#bbb;font-size:13px">Nada nos grupos da equipe com o número deste pedido.</div>';
     else h+=fa.map(function(c){ return caixa('var(--muted)',(c.onde||'')+(c.quem?' · '+c.quem:''),c.quando,c.texto); }).join('');
     cx.innerHTML=h+'</div>';
-  }catch(e){ cx.innerHTML='<div style="color:#fff;text-align:center">Não deu para buscar as conversas. Toque fora para fechar.</div>'; }
+  }catch(e){ cx.innerHTML='<div style="max-width:680px;margin:0 auto">'+btFecha+'<div style="color:#fff;text-align:center;padding-top:6px">Não deu para buscar as conversas.</div></div>'; }
 }
 
 /* ================= tela ================= */
@@ -446,17 +454,20 @@ function desenha(){
   ABRE=[];
   var f=P.fontes||{};
   var h=filtros()+avisoFontes()+blocoResumo()+blocoMotivos()+blocoCulpa()+blocoQuando()+
-    '<div class="nota"><b>De onde vem:</b> cancelado inteiro pela <b>API de pedidos do iFood</b> (chega em menos de 1 minuto; lida às '+esc(f.api||'—')+') '+
-    'e pelo <b>financeiro do iFood</b> (diz se voltou dinheiro para a loja; chega de 1 a 3 dias depois, hoje até '+esc(f.financeiro_ate||'—')+'). '+
+    '<div class="nota"><b>De onde vem:</b> cancelado inteiro pela <b>API de pedidos do iFood</b> (lida às '+esc(f.api||'—')+') '+
+    'e pelo <b>financeiro do iFood</b> (diz se voltou dinheiro para a loja; chega com atraso, hoje até '+esc(f.financeiro_ate||'—')+'). '+
     'Parte devolvida pela reclamação aceita na API, pelo <b>Gestor Web</b> (lido às '+esc(f.gestor||'—')+') e pelo relatório do iFood (até '+esc(f.relatorio_ate||'—')+'). '+
     'Conversas do chat do iFood lidas às '+esc(f.chat||'—')+'. Turno do dia: 10h às 18h; da noite: 18h às 2h20.'+
     (P.dono?'':' Valores em R$ só aparecem para o dono.')+'</div>';
   $('app').innerHTML=h;
 }
 async function boot(){
+  var sq=++BSEQ, r=null, er='';
   P=null; PERR=''; placar(); desenha();
-  try{ P=await porta('painel',{unidade:UNI,periodo:PER}); if(P&&P.so_ahu&&!FIXA){ FIXA='Ahu'; UNI='Ahu'; } }
-  catch(e){ P=null; PERR=(e&&e.message)||'erro'; }
+  try{ r=await porta('painel',{unidade:UNI,periodo:PER}); }catch(e){ er=(e&&e.message)||'erro'; }
+  if(sq!==BSEQ) return;   // trocou loja/periodo no meio: esta resposta ja nao vale
+  P=r; PERR=er;
+  if(P&&P.so_ahu&&FIXA!=='Ahu'){ FIXA='Ahu'; UNI='Ahu'; }   // quem so tem o atalho do Ahu ve so o Ahu, qualquer que seja o link
   placar(); desenha();
   if(SEL) carregaLista();
 }
