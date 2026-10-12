@@ -603,7 +603,15 @@ const SECOES={
   tablet:{ic:'📵',tt:'Cardápio no tablet',resumo:resumoGoomer,corpo:d=>blocoGoomer(daLoja(d.pausados),d.pz)},
   reservas:{ic:'🪑',tt:'Reservas do salão',resumo:resumoReservas,corpo:d=>blocoReservas(daLoja(d.reservas))},
   cliente:{ic:'💬',tt:'O que o cliente falou',resumo:resumoClientes,corpo:d=>blocoClientes(d.google)},
-  google:{ic:'⭐',tt:'Nota no Google',resumo:resumoGoogle,corpo:d=>blocoGoogle(d.google)+blocoMarca()}
+  google:{ic:'⭐',tt:'Nota no Google',resumo:resumoGoogle,corpo:d=>blocoGoogle(d.google)+blocoMarca()},
+  /* 12/10/2026 (chat-avaliacoes-do-dia-inicio-12-10), pedido do Fabio: as avaliacoes do dia tambem no Salao, com o
+     Google em destaque mas sem perder o iFood. E o mesmo quadro da tela Inicio (/avaliacoes/?foco=google), dentro de
+     uma moldura que cresce com o conteudo. */
+  avdia:{ic:'🗞',tt:'Avaliações do dia',resumo:function(){return {big:'Hoje',sub:'Google em destaque + iFood do dia',atencao:false}},corpo:function(){
+    const cod={'Água Verde':'av','Ahú':'ahu','São Braz':'sb'};
+    const lj=UNI.length===1&&cod[UNI[0]]?'&loja='+cod[UNI[0]]:'';
+    return '<iframe id="avdfr" src="/avaliacoes/?foco=google&embed=1'+lj+'" style="width:100%;min-height:600px;border:0;display:block;background:transparent" title="Avaliações do dia"></iframe>';
+  }}
 };
 let DADOS=null;
 
@@ -666,6 +674,11 @@ function rota(fica){
 }
 function render(d){DADOS=d;rota()}
 window.addEventListener('hashchange',()=>rota());
+/* 12/10/2026: a moldura do quadro Avaliacoes do dia avisa a propria altura (so do mesmo endereco) */
+window.addEventListener('message',function(e){
+  if(e.origin!==location.origin||!e.data||typeof e.data.avdAltura!=='number')return;
+  const f=document.getElementById('avdfr');if(f&&e.source===f.contentWindow)f.style.height=Math.max(300,Math.min(20000,e.data.avdAltura+8))+'px';
+});
 
 async function boot(){
   const [gRows,escala,ponto,pessoas,cobertura,pausados,balcao,reservas,eventos,evUlt]=await Promise.all([
