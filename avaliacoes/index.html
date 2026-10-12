@@ -29,15 +29,21 @@ const FOCO=PRM.get('foco')==='google'?'google':'ifood';
 const EMBED=PRM.get('embed')==='1';
 if(EMBED)document.body.classList.add('avd-embed');
 
+/* mede o CONTEUDO (#app), nunca a janela: a janela e a propria moldura e cresceria sem parar (supervisor, 12/10) */
+let ALT=0;
 function altura(){
   if(!EMBED)return;
-  try{if(window.parent&&window.parent!==window)window.parent.postMessage({avdAltura:document.documentElement.scrollHeight},location.origin)}catch(e){}
+  const h=Math.ceil(document.getElementById('app').getBoundingClientRect().height)+24;
+  if(Math.abs(h-ALT)<4)return;
+  ALT=h;
+  try{if(window.parent&&window.parent!==window)window.parent.postMessage({avdAltura:h},location.origin)}catch(e){}
 }
 function boot(){
   const app=document.getElementById('app');
   app.innerHTML='<div id="avd" class="avd"></div>';
   AVD.montar(document.getElementById('avd'),{loja:LOJA,foco:FOCO,aoDesenhar:function(){setTimeout(altura,30)},aoVencer:function(){cdmSaia('Sua sessão expirou. Entre de novo.')}});
-  window.addEventListener('resize',altura);
+  /* largura mudou (girar o celular) muda a altura do conteudo; a altura da moldura nao entra na conta */
+  let LARG=window.innerWidth;window.addEventListener('resize',function(){if(window.innerWidth!==LARG){LARG=window.innerWidth;altura()}});
 }
 
 /* ===== porta unica do portal ===== */
