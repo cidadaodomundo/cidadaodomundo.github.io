@@ -366,7 +366,8 @@ function cartao(o,i){
       (din?'<div class="rs">'+din+'</div>':'')+
       '<div class="fn">'+(o.motivo_fonte?'motivo veio de: '+esc(o.motivo_fonte)+' · ':'')+'visto em: '+esc((o.fontes||[]).join(', '))+'</div>'+
       '<div class="vbt"><button class="mini" onclick="verConversa('+i+')">💬 conversas'+(o.tem_chat?' do pedido':'')+'</button>'+
-        (o.fotos?'<span class="pill p-off">📷 '+o.fotos+(o.fotos===1?' foto':' fotos')+' no chat do iFood</span>':'')+'</div>'+
+        (o.fotos?(L.pode_chat?'<button class="mini" onclick="verFotos('+i+')">📷 ver '+(o.fotos===1?'a foto':'as '+o.fotos+' fotos')+' do cliente</button>'
+                       :'<span class="pill p-off">📷 '+o.fotos+(o.fotos===1?' foto':' fotos')+' do cliente</span>'):'')+'</div>'+
     '</td><td class="sit">';
   if(o.expl){
     h+='<span class="feito">✔ '+esc(o.expl.texto||'explicado')+'</span><div class="m">'+esc(o.expl.quem||'')+' · '+esc(o.expl.quando||'')+'</div>'+
@@ -431,6 +432,36 @@ async function verConversa(i){
     else h+=fa.map(function(c){ return caixa('var(--muted)',(c.onde||'')+(c.quem?' · '+c.quem:''),c.quando,c.texto); }).join('');
     cx.innerHTML=h+'</div>';
   }catch(e){ cx.innerHTML='<div style="max-width:680px;margin:0 auto">'+btFecha+'<div style="color:#fff;text-align:center;padding-top:6px">Não deu para buscar as conversas.</div></div>'; }
+}
+
+/* 12/10/2026, pedido do Fabio: o botao das fotos abre as fotos que o cliente mandou na reclamacao.
+   Mesmo guardador da tela Resolver (guardar-foto-chat, acao ver): busca pelo codigo do pedido e devolve
+   links que valem 10 minutos. As fotos ficam guardadas em lugar fechado (podem ter nome e endereco).
+   Mesma regra do chat do iFood: so quem ve o Resolver hoje (L.pode_chat) ganha o botao; os outros veem so a etiqueta. */
+async function verFotos(i){
+  var o=L&&L.itens[i]; if(!o) return;
+  var velho=document.getElementById('__fotos'); if(velho&&velho.__fecha) velho.__fecha(); else if(velho) velho.remove();
+  var cx=document.createElement('div'); cx.id='__fotos'; document.body.appendChild(cx);
+  cx.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;overflow:auto;padding:16px;text-align:center';
+  var fechaCx=function(){ cx.remove(); document.removeEventListener('keydown',escCx); };
+  var escCx=function(ev){ if(ev.key==='Escape') fechaCx(); };
+  cx.__fecha=fechaCx;
+  document.addEventListener('keydown',escCx);
+  cx.onclick=function(ev){ if(ev.target.tagName!=='IMG') fechaCx(); };
+  var topo='<div style="color:#fff;margin-bottom:10px;overflow-wrap:anywhere">📷 O que o cliente mandou · pedido '+esc(o.n_pedido||'')+' · '+esc(o.marca||'')+
+    ' <button class="mini" style="margin-left:8px">fechar ✕</button></div>';
+  cx.innerHTML=topo+'<div style="color:#fff">Buscando as fotos…</div>';
+  try{
+    var r=await fetch('https://kqvoatdprjwxyadhvtdd.supabase.co/functions/v1/guardar-foto-chat',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({acao:'ver',token_portal:tok(),uuid_pedido:o.uuid||'',pedido_curto:o.n_pedido||'',dia:o.dia_iso||''})});
+    var j=await r.json();
+    if(!document.body.contains(cx)) return;
+    if(r.status===401){ cx.innerHTML=topo+'<div style="color:#fff">'+esc(j&&j.erro&&/sess/.test(j.erro)?'Seu login venceu. Saia e entre de novo no portal.':'Você não tem acesso às fotos deste pedido.')+'</div>'; return; }
+    if(!r.ok){ cx.innerHTML=topo+'<div style="color:#fff">Não deu para buscar as fotos agora. Tente de novo em instantes.</div>'; return; }
+    if(!j||!j.ok||!j.fotos||!j.fotos.length){ cx.innerHTML=topo+'<div style="color:#fff">Não achei foto guardada deste pedido.</div>'; return; }
+    cx.innerHTML=topo+j.fotos.map(function(f){ return '<img src="'+esc(f.link)+'" alt="foto do cliente" style="max-width:96%;max-height:80vh;margin:8px auto;display:block;border-radius:8px">'; }).join('')+
+      '<div style="color:#bbb;font-size:12px;margin-top:6px">Toque fora da foto ou aperte Esc para fechar.</div>';
+  }catch(e){ if(document.body.contains(cx)) cx.innerHTML=topo+'<div style="color:#fff">Não deu para buscar as fotos. Tente de novo.</div>'; }
 }
 
 /* ================= tela ================= */
