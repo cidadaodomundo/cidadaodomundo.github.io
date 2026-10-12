@@ -380,11 +380,12 @@ function cartao(o,i){
   return h+'</td></tr></table>';
 }
 async function salva(i){
+  /* parcial grava so a familia (o item pode trazer o preco, e o Turno devolve esse motivo para a equipe) */
   if(SALVANDO) return;
   var o=L&&L.itens[i], e=$('ex_'+i); if(!o||!e) return;
   var t=(e.value||'').trim(); if(t.length<3){ alert('Escreva o que aconteceu (pelo menos 3 letras).'); e.focus(); return }
   SALVANDO=true; e.disabled=true;
-  try{ await porta('explicar',{loja:o.loja,dia:o.dia_iso,hora:o.hora,n_pedido:o.n_pedido,tipo:o.tipo,motivo:o.tipo==='parcial'?('parcial: '+(o.item||o.familia||'')):(o.motivo||''),texto:t}); }
+  try{ await porta('explicar',{loja:o.loja,dia:o.dia_iso,hora:o.hora,n_pedido:o.n_pedido,tipo:o.tipo,motivo:o.tipo==='parcial'?('parcial: '+(o.familia||'')):(o.motivo||''),texto:t}); }
   catch(err){ SALVANDO=false; e.disabled=false; alert('Não consegui gravar: '+err.message); return }
   SALVANDO=false;
   recarrega();
