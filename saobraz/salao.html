@@ -456,25 +456,27 @@ function resumoCliente(d){
    Pedido do Fábio (02/10/2026): saber com 7 dias de antecedência quando tem
    jogo, show ou evento grande em Curitiba, para se precaver. A lista mora em
    evento_cidade (agenda pública, cada linha com o link da fonte). */
-const EV_DIAS=7;
-const EV_IC={jogo_casa:'⚽',jogo_fora:'📺',selecao:'🇧🇷',show:'🎤',outro:'📌'};
-const EV_TP={jogo_casa:'jogo em Curitiba',jogo_fora:'jogo fora (TV)',selecao:'Seleção (TV)',show:'show',outro:'evento'};
+const EV_DIAS=7, EV_FER_DIAS=21; /* 12/10/2026 (pedido do Fabio): feriado aparece 3 semanas antes, para dar tempo de reforcar a escala */
+const EV_IC={jogo_casa:'⚽',jogo_fora:'📺',selecao:'🇧🇷',show:'🎤',outro:'📌',feriado:'🗓️'};
+const EV_TP={jogo_casa:'jogo em Curitiba',jogo_fora:'jogo fora (TV)',selecao:'Seleção (TV)',show:'show',outro:'evento',feriado:'feriado'};
 function blocoEventos(lista,meta){
   const hoje=hojeISO(), ate=brd(dMais(EV_DIAS)).slice(0,5);
   const quando=meta&&meta.conferida?brd(new Date(meta.conferida).toLocaleDateString('sv-SE')):'';
   const vaiAte=meta&&meta.ultimo?brd(meta.ultimo):'';
-  let h='<div class="evq"><div class="tt">📅 Próximos dias na cidade · até '+ate+'</div>';
-  h+='<div class="ctx">jogos, shows e eventos grandes de Curitiba'+(quando?' · lista conferida em '+quando:'')+(vaiAte?' · a lista vai até '+vaiAte:'')+'</div>';
+  let h='<div class="evq"><div class="tt">📅 Próximos dias na cidade · até '+ate+' · feriados até '+brd(dMais(EV_FER_DIAS)).slice(0,5)+'</div>';
+  h+='<div class="ctx">jogos, shows e eventos grandes de Curitiba · feriados aparecem '+EV_FER_DIAS+' dias antes'+(quando?' · lista conferida em '+quando:'')+(vaiAte?' · a lista vai até '+vaiAte:'')+'</div>';
   if(!lista.length){
     h+='<div class="vazio">'+(vaiAte?'Nenhum jogo, show ou evento grande na lista até '+ate+'.':'A lista não tem nenhum evento daqui para a frente — ela precisa ser atualizada.')+'</div></div>';
     return h;
   }
+  if(!vaiAte)h+='<div class="vazio">A lista de jogos e shows não tem nada daqui para a frente — ela precisa ser atualizada.</div>';
   lista.forEach(e=>{
     const dt=new Date(e.data+'T12:00:00'), falta=diasEntre(hoje,e.data);
-    const hora=e.hora?String(e.hora).slice(0,5):'hora ?';
+    const hora=e.tipo==='feriado'?'dia todo':e.hora?String(e.hora).slice(0,5):'hora ?';
     h+='<div class="evl"><span class="qd">'+SB_DIAS[dt.getDay()].slice(0,3)+' '+brd(e.data).slice(0,5)+' · '+esc(hora)+'</span>'+
        '<span>'+(EV_IC[e.tipo]||'📌')+' <span class="oq">'+esc(e.titulo)+'</span>'+(e.local?' · '+esc(e.local):'')+'</span>'+
        (e.a_confirmar?'<span class="pill p-off">a confirmar</span>':'')+
+       (e.tipo==='feriado'?'<span class="pill p-warn">feriado · precisa reforçar a escala?</span>':'')+
        '<span class="fa">'+esc(EV_TP[e.tipo]||'evento')+' · '+(falta<=0?'hoje':falta===1?'amanhã':'faltam '+falta+' dias')+
        (e.fonte_url?' · <a class="src" href="'+esc(e.fonte_url).replace(/"/g,'&quot;')+'" target="_blank" rel="noopener">fonte ↗</a>':'')+'</span></div>';
   });
@@ -524,10 +526,10 @@ async function carregar(){
       rest('dim_funcionario?select=nome,unidade,setor,entrada,ativo&ativo=is.true'+U+'&limit=100'),
       rest('escala_cobertura_min?select=unidade,setor,turno,dia_semana,funcao,minimo&setor=ilike.*Sal*'+U+'&limit=50'),
       rest('saipos_venda_status?select=unidade,dia_operacional,n_pedido,cancelado&canal=is.null&dia_operacional=gte.'+dMenos(3)+U+'&limit=150'),
-      rest('evento_cidade?select=data,hora,tipo,titulo,local,fonte_url,a_confirmar&data=gte.'+hojeISO()+'&data=lte.'+dMais(EV_DIAS)+'&order=data.asc,hora.asc.nullslast&limit=40'),
-      rest('evento_cidade?select=data,atualizado_em&data=gte.'+hojeISO()+'&order=data.desc&limit=1')
+      rest('evento_cidade?select=data,hora,tipo,titulo,local,fonte_url,a_confirmar&data=gte.'+hojeISO()+'&data=lte.'+dMais(EV_FER_DIAS)+'&order=data.asc,hora.asc.nullslast&limit=60'),
+      rest('evento_cidade?select=data,atualizado_em&tipo=neq.feriado&data=gte.'+hojeISO()+'&order=data.desc&limit=1')
     ]);
-    D=Object.assign({},base,{escala:escala,ponto:ponto,pessoas:pessoas,cobertura:cobertura,balcao:balcao,eventos:eventos,
+    D=Object.assign({},base,{escala:escala,ponto:ponto,pessoas:pessoas,cobertura:cobertura,balcao:balcao,eventos:eventos.filter(e=>e.tipo==='feriado'||e.data<=dMais(EV_DIAS)),
       evMeta:{conferida:evUlt[0]&&evUlt[0].atualizado_em,ultimo:evUlt[0]&&evUlt[0].data}});
     render();
   }
