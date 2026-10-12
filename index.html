@@ -81,7 +81,7 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
 .avd-foto img.logo{object-fit:contain;padding:28px;opacity:.55}
 .avd-foto .nm{position:absolute;left:0;right:0;bottom:0;padding:26px 12px 10px;background:linear-gradient(transparent,rgba(0,0,0,.85));font-family:'Anton',Impact,sans-serif;text-transform:uppercase;font-size:21px;line-height:1.05;letter-spacing:.02em}
 .avd-foto .nm small{display:block;font-family:'Barlow',sans-serif;text-transform:none;font-size:11.5px;color:var(--text2);font-weight:600;letter-spacing:0;margin-top:3px}
-.avd-c{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:13px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.avd-c{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:13px;display:flex;flex-direction:column;gap:8px;min-width:0;overflow-wrap:anywhere}
 .avd-c.sem{border:1.5px dashed #4a4943;background:transparent}
 .avd-ch{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px}
 .avd-ch .fonte{color:var(--muted);font-size:11.5px;font-weight:600;margin-left:auto;text-align:right}
@@ -100,7 +100,7 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
 .avd-it .h{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted);font-weight:600;margin-bottom:2px}
 .avd-it .h .es{font-size:13px;letter-spacing:-1px}
 .avd-it .h .es.r{color:#ff7a7a}.avd-it .h .es.m{color:#e5be6d}.avd-it .h .es.b{color:var(--brand)}
-.avd-it .tx{color:var(--text)}
+.avd-it .tx{color:var(--text);overflow-wrap:anywhere}
 .avd-it .tx.vazio{color:var(--muted);font-style:italic}
 .avd-it .tgs{color:var(--muted);font-size:11.5px;margin-top:2px}
 .avd-it img{max-width:100%;max-height:160px;border-radius:10px;margin-top:6px;display:block}
@@ -267,10 +267,17 @@ async function avdBuscar(quieto){
   try{
     const j=await rpc('inicio_avaliacoes',{p_token:tok(),p_dados:{quando:AVD_QUANDO}});
     if(!$('avd'))return;
-    AVD=j||{};avdDesenha();
+    /* 12/10 supervisor: resposta velha (ex.: clicou Ontem e logo Hoje) nao sobrescreve a nova */
+    if(!j||j.quando!==AVD_QUANDO)return;
+    AVD=j;avdDesenha();
   }catch(e){
     if(!$('avd'))return;
-    if(e.code==='28000'){el.innerHTML='';return}
+    if(e.code==='28000'){
+      /* sessao vencida: para o relogio e volta para a entrada, como faz a abertura do portal */
+      if(AVD_T){clearInterval(AVD_T);AVD_T=null}
+      ['cdm_token','cdm_nome','cdm_admin','cdm_modulos'].forEach(function(k){try{sessionStorage.removeItem(k)}catch(x){}});
+      try{sessionStorage.setItem('cdm_aviso','Sua sessão expirou. Entre de novo.')}catch(x){}
+      location.replace('/index.html');return}
     if(quieto&&AVD)return;
     el.innerHTML='<div class="avd-top"><h2>⭐ Avaliações do dia</h2></div><div class="avd-aviso">Não deu para buscar as avaliações agora. <button class="avd-bt" onclick="avdBuscar(false)">Tentar de novo</button></div>';
   }
@@ -308,7 +315,7 @@ function avdLinha(l,i,hoje,sozinha){
     const aberto=sozinha||AVD_ABRE[i]||fil;
     const mostra=aberto?lista:lista.slice(0,3);
     mostra.forEach(function(x){
-      h+='<div class="avd-it"><div class="h">'+avdEst(x.nota)+'<span>'+esc(x.marca||'')+' · pedido '+esc(x.pedido_em||'')+'</span>'+(x.sem_resposta?'<span style="color:#e5be6d">· sem resposta</span>':'')+(x.uuid?' <button class="avd-fb" onclick="avdFotos(\''+esc(x.uuid)+'\')">📷 fotos</button>':'')+'</div>'+
+      h+='<div class="avd-it"><div class="h">'+avdEst(x.nota)+'<span>'+esc(x.marca||'')+' · pedido '+esc(x.pedido_em||'')+'</span>'+(x.sem_resposta?'<span style="color:#e5be6d">· sem resposta</span>':'')+(/^[0-9a-f-]{36}$/i.test(x.uuid||'')?' <button class="avd-fb" onclick="avdFotos(\''+esc(x.uuid)+'\')">📷 fotos</button>':'')+'</div>'+
         (x.texto?'<div class="tx">'+esc(x.texto)+'</div>':'<div class="tx vazio">sem comentário</div>')+
         (arrOk(x.tags).length?'<div class="tgs">'+arrOk(x.tags).map(esc).join(' · ')+'</div>':'')+'</div>';
     });
@@ -321,7 +328,7 @@ function avdLinha(l,i,hoje,sozinha){
   if(!g){h+='<div class="avd-vz">Sem leitura do Google para esta loja.</div>'}
   else{
     h+='<div class="avd-big"><b>'+avdNum(g.nota,1)+'</b><span class="st">★</span><span class="lb">'+avdNum(g.total)+' avaliações no total</span></div>';
-    if(g.lido_hoje&&g.novas!=null)h+='<span class="avd-tg'+(g.novas>0?' ok':'')+'">'+(g.novas>0?'+'+avdNum(g.novas)+' nova'+(g.novas===1?'':'s')+' desde a leitura anterior':'nenhuma nova desde a leitura anterior')+'</span>';
+    if(g.lido_hoje&&g.novas!=null)h+='<span class="avd-tg'+(g.novas>0?' ok':'')+'">'+(g.novas>0?'+'+avdNum(g.novas)+' nova'+(g.novas===1?'':'s')+' desde a leitura anterior':g.novas<0?'o total caiu '+avdNum(-g.novas)+' desde a leitura anterior (o Google tirou avaliações)':'nenhuma nova desde a leitura anterior')+'</span>';
     else h+='<span class="avd-tg">a leitura deste dia ainda não chegou</span>';
     arrOk(g.destaques).slice(0,sozinha?6:2).forEach(function(d){
       h+='<div class="avd-it"><div class="h">'+esc(d.autor||'')+(d.quando?' · '+esc(d.quando):'')+'</div><div class="tx">'+esc(d.texto||'')+'</div>'+(avdUrlOk(d.foto)?'<img src="'+esc(d.foto)+'" alt="" loading="lazy">':'')+'</div>';
