@@ -326,7 +326,7 @@ async function carregaLista(){
 function painelSe(g){
   if(!SEL||SEL.grupo!==g) return '';
   var h='<div class="painel"><div class="ph"><h3>'+esc(SEL.titulo)+'</h3>'+
-    '<span class="ct">'+(L?L.total+(L.total===1?' pedido':' pedidos')+(L.total>300?' (mostrando 300)':''):'')+'</span>'+
+    '<span class="ct">'+(L?L.total+(L.total===1?' pedido':' pedidos')+(L.total>L.itens.length?' (mostrando '+L.itens.length+')':''):'')+'</span>'+
     '<button class="mini fecha" onclick="fecha()">fechar ✕</button></div>';
   if(!SEL.filtro.so&&SEL.filtro.tipo!=='chat')
     h+='<div class="vbt" style="margin:-2px 0 10px;display:flex;gap:6px;flex-wrap:wrap">'+
@@ -381,12 +381,13 @@ function cartao(o,i){
 }
 async function salva(i){
   /* parcial grava so a familia (o item pode trazer o preco, e o Turno devolve esse motivo para a equipe) */
-  if(SALVANDO) return;
   var o=L&&L.itens[i], e=$('ex_'+i); if(!o||!e) return;
+  if(SALVANDO){ alert('Espere a outra explicação terminar de gravar e salve de novo.'); return }
   var t=(e.value||'').trim(); if(t.length<3){ alert('Escreva o que aconteceu (pelo menos 3 letras).'); e.focus(); return }
   SALVANDO=true; e.disabled=true;
   try{ await porta('explicar',{loja:o.loja,dia:o.dia_iso,hora:o.hora,n_pedido:o.n_pedido,tipo:o.tipo,motivo:o.tipo==='parcial'?('parcial: '+(o.familia||'')):(o.motivo||''),texto:t}); }
   catch(err){ SALVANDO=false; e.disabled=false; alert('Não consegui gravar: '+err.message); return }
+  L=null; desenha();   // o cartao velho (com o botao salvar) sai da tela antes de soltar a trava
   SALVANDO=false;
   recarrega();
 }
@@ -397,28 +398,29 @@ async function apaga(id){
 }
 async function recarrega(){
   var sq=++BSEQ;
-  try{ var r=await porta('painel',{unidade:UNI,periodo:PER}); if(sq!==BSEQ) return; P=r; PERR=''; }catch(e){ if(sq!==BSEQ) return; }
+  try{ var r=await porta('painel',{unidade:UNI,periodo:PER}); if(sq!==BSEQ) return; P=r; PERR=''; }catch(e){ if(sq!==BSEQ) return; if(!P) PERR=(e&&e.message)||'erro'; }
   placar(); L=null; desenha(); carregaLista();
 }
 async function verConversa(i){
   var o=L&&L.itens[i]; if(!o) return;
-  var cx=document.getElementById('__conversa');
-  if(!cx){ cx=document.createElement('div'); cx.id='__conversa'; document.body.appendChild(cx); }
+  var velho=document.getElementById('__conversa'); if(velho&&velho.__fecha) velho.__fecha(); else if(velho) velho.remove();
+  var cx=document.createElement('div'); cx.id='__conversa'; document.body.appendChild(cx);
   cx.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;overflow:auto;padding:16px';
-  cx.innerHTML='<div style="color:#fff;text-align:center">Buscando as conversas do pedido '+esc(o.n_pedido||'')+'…</div>';
   var fechaCx=function(){ cx.remove(); document.removeEventListener('keydown',escCx); };
   var escCx=function(ev){ if(ev.key==='Escape') fechaCx(); };
+  cx.__fecha=fechaCx;
   document.addEventListener('keydown',escCx);
   cx.onclick=function(ev){ if(ev.target===cx||(ev.target.closest&&ev.target.closest('.fechacx'))) fechaCx(); };
   var btFecha='<button class="mini fechacx" style="float:right">fechar ✕</button>';
+  cx.innerHTML='<div style="max-width:680px;margin:0 auto">'+btFecha+'<div style="color:#fff;text-align:center;padding-top:6px">Buscando as conversas do pedido '+esc(o.n_pedido||'')+'…</div></div>';
   var caixa=function(cor,quem,quando,texto){ return '<div style="background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:6px">'+
       '<div style="color:'+cor+';font-size:11px;font-weight:800">'+esc(quem)+' · '+esc(quando||'')+'</div>'+
-      (texto?'<div style="color:var(--text);font-size:14px;margin-top:2px">'+esc(texto)+'</div>':'')+'</div>'; };
+      (texto?'<div style="color:var(--text);font-size:14px;margin-top:2px;overflow-wrap:anywhere">'+esc(texto)+'</div>':'')+'</div>'; };
   try{
     var j=await porta('conversa',{unidade:UNI,periodo:PER,uuid:o.uuid,dia:o.dia_iso});
     var ch=(j&&j.chat)||[], fa=(j&&j.falas)||[];
     var h='<div style="max-width:680px;margin:0 auto">'+btFecha+
-      '<div style="color:#fff;margin-bottom:10px">💬 Pedido '+esc(o.n_pedido||'')+' · '+esc(o.marca||'')+'</div>';
+      '<div style="color:#fff;margin-bottom:10px;overflow-wrap:anywhere">💬 Pedido '+esc(o.n_pedido||'')+' · '+esc(o.marca||'')+'</div>';
     h+='<div style="color:var(--text2);font-weight:800;margin:6px 0">Chat do iFood (Gestor Web)</div>';
     if(!j.pode_chat) h+='<div style="color:#bbb;font-size:13px;margin-bottom:10px">O texto do chat aparece só para quem vê o Resolver hoje.</div>';
     else if(!ch.length) h+='<div style="color:#bbb;font-size:13px;margin-bottom:10px">Não achei conversa do chat gravada para este pedido.</div>';
