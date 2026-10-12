@@ -620,26 +620,27 @@ let DADOS=null;
    jogo, show ou evento grande em Curitiba, para se precaver. A lista mora em
    evento_cidade (agenda pública, cada linha com o link da fonte). "Perto da
    Água Verde" = Arena da Baixada. */
-const EV_DIAS=7;
-const EV_IC={jogo_casa:'⚽',jogo_fora:'📺',selecao:'🇧🇷',show:'🎤',outro:'📌'};
-const EV_TP={jogo_casa:'jogo em Curitiba',jogo_fora:'jogo fora (TV)',selecao:'Seleção (TV)',show:'show',outro:'evento'};
+const EV_DIAS=7, EV_FER_DIAS=21; /* 12/10/2026 (pedido do Fabio): feriado aparece 3 semanas antes, para dar tempo de reforcar a escala */
+const EV_IC={jogo_casa:'⚽',jogo_fora:'📺',selecao:'🇧🇷',show:'🎤',outro:'📌',feriado:'🗓️'};
+const EV_TP={jogo_casa:'jogo em Curitiba',jogo_fora:'jogo fora (TV)',selecao:'Seleção (TV)',show:'show',outro:'evento',feriado:'feriado'};
 function blocoEventos(lista,meta){
   const hoje=hojeISO(), ate=br(dMais(EV_DIAS)).slice(0,5);
   const quando=meta&&meta.conferida?br(new Date(meta.conferida).toLocaleDateString('sv-SE')):'';
   const vaiAte=meta&&meta.ultimo?br(meta.ultimo):'';
   let h='<div class="evq"><div class="tt">📅 Próximos dias na cidade · até '+ate+'</div>';
-  h+='<div class="ctx">jogos, shows e eventos grandes de Curitiba'+(quando?' · lista conferida em '+quando:'')+(vaiAte?' · a lista vai até '+vaiAte:'')+'</div>';
+  h+='<div class="ctx">jogos, shows e eventos grandes de Curitiba · feriados aparecem 3 semanas antes'+(quando?' · lista conferida em '+quando:'')+(vaiAte?' · a lista vai até '+vaiAte:'')+'</div>';
   if(!lista.length){
     h+='<div class="vazio">'+(vaiAte?'Nenhum jogo, show ou evento grande na lista até '+ate+'.':'A lista não tem nenhum evento daqui para a frente — ela precisa ser atualizada.')+'</div></div>';
     return h;
   }
   lista.forEach(e=>{
     const dt=new Date(e.data+'T12:00:00'), falta=diasEntre(hoje,e.data);
-    const hora=e.hora?String(e.hora).slice(0,5):'hora ?';
+    const hora=e.tipo==='feriado'?'dia todo':e.hora?String(e.hora).slice(0,5):'hora ?';
     h+='<div class="evl"><span class="qd">'+DIAS[dt.getDay()].slice(0,3)+' '+br(e.data).slice(0,5)+' · '+esc(hora)+'</span>'+
        '<span>'+(EV_IC[e.tipo]||'📌')+' <span class="oq">'+esc(e.titulo)+'</span>'+(e.local?' · '+esc(e.local):'')+'</span>'+
        (e.perto_av?'<span class="pill p-warn">perto da Água Verde</span>':'')+
        (e.a_confirmar?'<span class="pill p-off">a confirmar</span>':'')+
+       (e.tipo==='feriado'?'<span class="pill p-warn">feriado · precisa reforçar a escala?</span>':'')+
        '<span class="fa">'+esc(EV_TP[e.tipo]||'evento')+' · '+(falta<=0?'hoje':falta===1?'amanhã':'faltam '+falta+' dias')+
        (e.fonte_url?' · <a class="src" href="'+esc(e.fonte_url).replace(/"/g,'&quot;')+'" target="_blank" rel="noopener">fonte ↗</a>':'')+'</span></div>';
   });
@@ -690,11 +691,11 @@ async function boot(){
     get('cardapio_pausado?select=unidade,marca,item,tipo,estado,primeiro_visto,visto_em&canal=ilike.*Goomer*&order=primeiro_visto.asc&limit=400'),
     get('saipos_venda_status?select=unidade,dia_operacional,n_pedido,cancelado&canal=is.null&dia_operacional=gte.'+dMenos(3)+'&limit=300'),
     get('salao_reserva?select=unidade,data,hora,pessoas,area,sinal_pago,status,observacao,origem&data=gte.'+hojeISO()+'&order=data.asc&limit=100'),
-    get('evento_cidade?select=data,hora,tipo,titulo,local,perto_av,fonte_url,a_confirmar&data=gte.'+hojeISO()+'&data=lte.'+dMais(EV_DIAS)+'&order=data.asc,hora.asc.nullslast&limit=40'),
-    get('evento_cidade?select=data,atualizado_em&data=gte.'+hojeISO()+'&order=data.desc&limit=1')
+    get('evento_cidade?select=data,hora,tipo,titulo,local,perto_av,fonte_url,a_confirmar&data=gte.'+hojeISO()+'&data=lte.'+dMais(EV_FER_DIAS)+'&order=data.asc,hora.asc.nullslast&limit=60'),
+    get('evento_cidade?select=data,atualizado_em&tipo=neq.feriado&data=gte.'+hojeISO()+'&order=data.desc&limit=1')
   ]);
   const G={};gRows.forEach(x=>{if(!G[x.unidade])G[x.unidade]=x});
-  render({google:G,escala:escala,ponto:ponto,pessoas:pessoas,cobertura:cobertura,pausados:pausados,balcao:balcao,reservas:reservas,eventos:eventos,
+  render({google:G,escala:escala,ponto:ponto,pessoas:pessoas,cobertura:cobertura,pausados:pausados,balcao:balcao,reservas:reservas,eventos:eventos.filter(e=>e.tipo==='feriado'||e.data<=dMais(EV_DIAS)),
     evMeta:{conferida:evUlt[0]&&evUlt[0].atualizado_em,ultimo:evUlt[0]&&evUlt[0].data}});
   PZT=await lePz();
   if(PZT&&DADOS){DADOS.pz=PZT;const y=window.scrollY;rota(true);window.scrollTo(0,y)}
