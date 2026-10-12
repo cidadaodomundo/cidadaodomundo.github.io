@@ -500,12 +500,20 @@ function falaComigo(){
       'style="width:100%;background:var(--s2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-family:inherit;font-size:14px;resize:vertical"></textarea>'+
     '<div style="margin-top:8px"><button class="mini" onclick="mandaPedido()">Enviar para o Claude</button>'+
       '<span id="pedOk" style="color:var(--ok);font-size:13px;margin-left:10px"></span></div>'+
-    '<div style="color:var(--muted);font-size:12px;margin-top:6px">Nao e conversa na hora: entra numa fila e o Claude pega na proxima rodada.</div>'+
+    '<div style="color:var(--muted);font-size:12px;margin-top:6px">O Fabio recebe o pedido no WhatsApp na hora. Nao e conversa: ele responde quando puder.</div>'+
     (ps.length? '<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">'+
        '<div style="color:var(--muted);font-size:11px;font-weight:800;margin-bottom:6px">O QUE JA FOI PEDIDO</div>'+
-       ps.map(function(p){ return '<div style="font-size:13px;margin-bottom:5px"><span style="color:var(--muted)">'+esc(p.quando||'')+' · '+esc(p.quem||'')+'</span><br>'+esc(p.o_que||'')+'</div>' }).join('')+
+       /* 12/10/2026: o dono marca "ciente" e o pedido sai da lista; o aviso no WhatsApp sai na hora em que o pedido e enviado */
+       ps.map(function(p){ return '<div style="font-size:13px;margin-bottom:5px"><span style="color:var(--muted)">'+esc(p.quando||'')+' · '+esc(p.quem||'')+'</span>'+(p.id?' <button class="mini" style="font-size:11px;padding:2px 8px" onclick="pedidoCiente('+Number(p.id)+',this)">✓ ciente</button>':'')+'<br>'+esc(p.o_que||'')+'</div>' }).join('')+
      '</div>' : '')+
   '</div>';
+}
+
+async function pedidoCiente(id,btn){
+  try{ var r=await porta('resolver_marcar',{acao:'pedido_ciente',id:id}); }
+  catch(e){ alert('Nao deu: '+(e&&e.message?e.message:'tente de novo')); return }
+  if(btn){ btn.disabled=true; btn.textContent=(r&&r.resposta)||'fechado'; }
+  setTimeout(boot, 800);
 }
 
 async function mandaPedido(){
