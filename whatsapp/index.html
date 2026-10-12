@@ -123,7 +123,9 @@ function efeitoGrupo(g){
   const it=g.itens||[],vistos={},fr=[];
   it.forEach(s=>{const f=efeito(s);if(f.indexOf('só marca como visto')>=0)return;if(!vistos[f]){vistos[f]=1;fr.push(f)}});
   let t=fr.length?fr.join(' '):'Aceitar abre em Precisa de Resposta, marcado com a tela de origem.';
-  const ab=it.filter(s=>!((s.acao==='fechar'||s.acao==='atualizar')&&s.codigo)&&(s.acao==='abrir'||s.tela==='agenda_pessoal'||s.tela==='rh')&&efeito(s).indexOf('só marca')<0).length;
+  /* 12/10/2026: so estas telas viram UM item com os pedidos dentro (mesma lista da porta); o resto e aceito um a um */
+  const GRUPO=['manutencao','precisa_resposta','cliente_reclamacao','entrega_problema','sistema_com_defeito','tarefa_fabio','agenda_pessoal','rh'];
+  const ab=it.filter(s=>!((s.acao==='fechar'||s.acao==='atualizar'||s.acao==='anotar')&&s.codigo)&&(s.acao==='abrir'||s.tela==='agenda_pessoal'||s.tela==='rh')&&GRUPO.indexOf(s.tela)>=0).length;
   if(ab>1)t+=' Vira um item só, com os '+ab+' pedidos escritos dentro.';
   if(it.length>1)t+=' As '+it.length+' mensagens do cartão saem da lista juntas.';
   if(g.tela==='rh'&&fonteDe(g)==='pessoal'&&t.indexOf('Caixa do RH')>=0)t+=' Atenção: o RH vai ler o resumo desta conversa sua.';
