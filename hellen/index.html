@@ -121,7 +121,7 @@ table.pv-tb .pv-h{font-size:16px}
 </div>
 <div id="content"><div class="rf-load">Carregando os registros…</div></div>
 <footer>
-  Fonte: o ponto por QR code dos freelas (sistema da Hellen) — o freela lê o QR da loja e bate pelo celular; a batida entra na hora.
+  Fonte: o ponto por QR code das taxas (sistema da Hellen) — a taxa lê o QR da loja e bate pelo celular; a batida entra na hora.
   A tela se atualiza sozinha a cada 1 minuto.
 </footer>
 
@@ -592,14 +592,14 @@ function renderVivo(){
   let h = '<div class="rf-h2">🔴 Ponto ao vivo <span class="hint">quem bateu o ponto pelo QR hoje e quem ainda está na loja</span></div>';
   h += '<div class="rf-card">' + barraLojas();
   h += '<div class="rf-aviso">' + (ult
-      ? 'Última batida: <b>' + hhmm(ult.ms) + '</b>' + (diaBrasilia(ult.ms) !== hoje ? ' de ' + formatDiaMes(ult.ms) : '') + ' — ' + escapeHtml(nomeDe(ult.chave)) + ' (' + escapeHtml(NOME_EXIBICAO[ult.loja] || ult.loja) + ', ' + escapeHtml(ult.tipo) + '). A batida entra na hora em que o freela lê o QR; a tela se atualiza sozinha a cada 1 minuto.'
+      ? 'Última batida: <b>' + hhmm(ult.ms) + '</b>' + (diaBrasilia(ult.ms) !== hoje ? ' de ' + formatDiaMes(ult.ms) : '') + ' — ' + escapeHtml(nomeDe(ult.chave)) + ' (' + escapeHtml(NOME_EXIBICAO[ult.loja] || ult.loja) + ', ' + escapeHtml(ult.tipo) + '). A batida entra na hora em que a taxa lê o QR; a tela se atualiza sozinha a cada 1 minuto.'
       : '⚠️ Nenhuma batida pelo QR ainda nesta loja.') + '</div>';
   h += '<div class="rf-aviso"><b>' + naLoja + '</b> na loja agora · <b>' + noInt + '</b> no intervalo · <b>' + saiu + '</b> já saíram</div>';
   if (!g.length){
-    elContent.innerHTML = h + '<div class="rf-empty">Nenhum freela bateu ponto hoje' + (lojaAtiva ? ' nesta loja' : '') + '.</div></div>';
+    elContent.innerHTML = h + '<div class="rf-empty">Nenhuma taxa bateu ponto hoje' + (lojaAtiva ? ' nesta loja' : '') + '.</div></div>';
     return;
   }
-  h += '<div class="pv-wrap"><table class="pv-tb"><thead><tr><th>Freela</th><th>Situação</th><th class="n">Entrada</th><th class="n">Intervalo</th><th class="n">Saída</th><th class="n">Horas</th><th class="n">Batidas</th></tr></thead><tbody>';
+  h += '<div class="pv-wrap"><table class="pv-tb"><thead><tr><th>Taxa</th><th>Situação</th><th class="n">Entrada</th><th class="n">Intervalo</th><th class="n">Saída</th><th class="n">Horas</th><th class="n">Batidas</th></tr></thead><tbody>';
   g.forEach(t => {
     h += '<tr class="' + classeLinha(t) + '">' + celNome(t, !lojaAtiva)
       + '<td class="pv-sit">' + situacao(t) + '</td>'
@@ -608,7 +608,7 @@ function renderVivo(){
   });
   h += '</tbody></table></div>';
   h += '<div class="rf-nota">Hoje = turnos que terminaram hoje (quem sai de madrugada fica no dia da saída, igual à conta do pagamento) e todo mundo que ainda está na loja. '
-     + 'O nome é digitado pelo freela a cada batida: grafias diferentes da mesma pessoa (com ou sem acento, espaço, sobrenome) são juntadas numa linha só e aparecem em "digitou também".</div>';
+     + 'O nome é digitado pela taxa a cada batida: grafias diferentes da mesma pessoa (com ou sem acento, espaço, sobrenome) são juntadas numa linha só e aparecem em "digitou também".</div>';
   elContent.innerHTML = h + '</div>';
 }
 
@@ -637,8 +637,8 @@ function renderSemana(){
     const lista = porDia.get(dia).sort((a,b) => (a.entrada || a.inicioMs) - (b.entrada || b.inicioMs));
     let totDia = 0; lista.forEach(t => { totDia += msTrabalhado(t) || 0; });
     const nPes = new Set(lista.map(t => t.chave)).size;
-    h += '<div class="rf-h3">' + rotuloDia(dia) + ' <span class="hint">' + nPes + (nPes === 1 ? ' freela' : ' freelas') + ' · ' + formatHoras(totDia) + '</span></div>';
-    h += '<div class="pv-wrap"><table class="pv-tb"><thead><tr><th>Freela</th><th>Situação</th><th class="n">Entrada</th><th class="n">Intervalo</th><th class="n">Saída</th><th class="n">Horas</th><th class="n">Batidas</th></tr></thead><tbody>';
+    h += '<div class="rf-h3">' + rotuloDia(dia) + ' <span class="hint">' + nPes + (nPes === 1 ? ' taxa' : ' taxas') + ' · ' + formatHoras(totDia) + '</span></div>';
+    h += '<div class="pv-wrap"><table class="pv-tb"><thead><tr><th>Taxa</th><th>Situação</th><th class="n">Entrada</th><th class="n">Intervalo</th><th class="n">Saída</th><th class="n">Horas</th><th class="n">Batidas</th></tr></thead><tbody>';
     lista.forEach(t => {
       h += '<tr class="' + classeLinha(t) + '">' + celNome(t, !lojaAtiva)
         + '<td class="pv-sit">' + situacao(t) + '</td>'
@@ -685,7 +685,7 @@ function renderPagamento(){
     elContent.innerHTML = h + '<div class="rf-empty">Sem registros nessa semana ainda.</div></div>';
     return;
   }
-  h += '<div class="pv-wrap"><table class="pv-tb"><thead><tr><th>Freela</th>' + (lojaAtiva ? '' : '<th>Loja</th>') + '<th class="n">Horas</th><th class="n">Valor</th><th class="n">Pago?</th></tr></thead><tbody>';
+  h += '<div class="pv-wrap"><table class="pv-tb"><thead><tr><th>Taxa</th>' + (lojaAtiva ? '' : '<th>Loja</th>') + '<th class="n">Horas</th><th class="n">Valor</th><th class="n">Pago?</th></tr></thead><tbody>';
   linhas.forEach((p, i) => {
     const pago = estaPago(p, semanaInicioStr);
     const og = outrasGrafias(p.chave, p.nomes);
