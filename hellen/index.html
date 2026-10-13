@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hellen · Ponto e Pagamento das Taxas · Cidadão do Mundo</title>
+<meta name="theme-color" content="#E0A81C">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* 13/10/2026 (chat-ponto-freelas-hellen-13-10), pedido do Fabio: "faça um painel desse dentro do nosso portal
+   para controle e pagamento de taxas... crie uma aba escrita Hellen". Mesmo visual do "Ponto ao vivo" da Central do RH.
+   O dado vem do sistema de ponto por QR que a Hellen montou (banco Supabase proprio dela, dzgvawxdnjxemifeactr):
+   o freela le o QR da loja, digita o nome e bate Chegada / Inicio do intervalo / Fim do intervalo / Saida.
+   O banco do portal (kqvoatdprjwxyadhvtdd) e usado para o login (portal_eu) e para o valor por hora (hellen_valor_hora). */
+:root{--brand:#E0A81C;--brand-ink:#111110;--bg:#0b0e14;--surface:#141922;--surface2:#1b2230;--line:#242d3d;--text:#e8edf4;--muted:#8b95a5;
+--sem:#37b46c;--infra:#d4b43a;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Barlow',-apple-system,'Segoe UI',Roboto,sans-serif;padding:18px;max-width:1240px;margin:0 auto;font-size:14px}
+header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding-bottom:14px;border-bottom:2px solid var(--brand);margin-bottom:14px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,var(--brand),#a87b0f);display:grid;place-items:center;font-weight:800;font-size:15px;color:#fff}
+h1{font-size:17px;font-weight:800}
+.sub{color:var(--muted);font-size:12px;margin-top:2px}
+.hright{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.live{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sem);font-weight:700}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--sem);animation:pl 1.8s infinite}
+@keyframes pl{50%{opacity:.25}}
+@media (prefers-reduced-motion: reduce){.pulse{animation:none}}
+.atualizado{color:var(--muted);font-size:11.5px}
+.btn{background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;cursor:pointer;font-weight:600;transition:.15s}
+.btn:hover{border-color:var(--brand)}
+.btn:focus-visible,.view:focus-visible,.loja:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.views{display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:4px;width:max-content;max-width:100%;margin-bottom:14px;flex-wrap:wrap}
+.view{border:none;background:none;color:var(--muted);font:inherit;font-weight:700;font-size:13px;padding:8px 16px;border-radius:8px;cursor:pointer}
+.view.active{background:var(--brand);color:var(--brand-ink)}
+.rf-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+.rf-h2{font-size:14.5px;font-weight:800;margin:6px 0 9px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rf-h2 .hint{font-weight:500;font-size:11.5px;color:var(--muted)}
+.rf-h3{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.rf-h3 .hint{font-weight:600;text-transform:none;letter-spacing:0}
+.barra{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px;color:var(--muted)}
+.loja{background:var(--surface2);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.loja.active{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+select.loja{color:var(--text);max-width:220px}
+.periodo{color:var(--muted);font-size:12px;margin-left:4px}
+.rf-aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:10px 13px;font-size:12px;margin:10px 0}
+.rf-nota{color:var(--muted);font-size:11.5px;margin-top:8px;line-height:1.5}
+.rf-load,.rf-empty{color:var(--muted);padding:22px;text-align:center;font-size:13px}
+.err{color:#f85149;padding:14px;border:1px solid #f85149;border-radius:10px;margin:12px 0}
+.err button{margin-top:8px}
+.rfu{color:var(--muted);font-size:11px;font-weight:600}
+.rfx{color:var(--infra);font-size:11px;font-weight:700}
+.apelido{color:var(--muted);font-size:11px;font-weight:500;margin-top:2px;white-space:normal}
+/* tabela igual a do Ponto ao vivo do portal */
+.pv-wrap{border:1px solid var(--line);border-radius:12px;max-height:72vh;overflow:auto}
+table.pv-tb{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px}
+table.pv-tb thead th{position:sticky;top:0;z-index:1;background:var(--surface2);color:var(--muted);font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:10px 12px;text-align:left;border-bottom:1px solid var(--line)}
+table.pv-tb thead th.n{text-align:center}
+table.pv-tb tbody td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.pv-tb tbody td.n{text-align:center}
+table.pv-tb tbody tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+table.pv-tb tbody tr:hover td{background:rgba(224,168,28,.06)}
+table.pv-tb tbody tr:last-child td{border-bottom:0}
+table.pv-tb tbody td:first-child{box-shadow:inset 4px 0 0 var(--muted)}
+table.pv-tb tr.pv-ok td:first-child{box-shadow:inset 4px 0 0 var(--sem)}
+table.pv-tb tr.pv-int td:first-child{box-shadow:inset 4px 0 0 var(--infra)}
+table.pv-tb tr.pv-off td{color:var(--muted)}
+table.pv-tb tr.pv-tot td{background:var(--surface2);font-weight:800;color:var(--text)}
+table.pv-tb .pv-nome{font-weight:800;font-size:14.5px;color:var(--text);white-space:nowrap}
+table.pv-tb tr.pv-off .pv-nome{color:#c3cad5}
+table.pv-tb .pv-h{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.pv-tb .pv-nada{color:var(--muted);font-weight:400}
+table.pv-tb .pv-int-c{font-size:12.5px;white-space:nowrap}
+table.pv-tb .pv-bat{display:inline-block;min-width:26px;padding:2px 8px;border-radius:999px;background:var(--surface2);border:1px solid var(--line);font-weight:700;font-size:12px}
+table.pv-tb .pv-valor{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--text)}
+/* pagamento */
+.pay-total{display:flex;justify-content:space-between;align-items:baseline;gap:10px;background:var(--surface2);border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:10px;padding:10px 14px;margin:10px 0}
+.pay-total .l{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.pay-total .n{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700;color:var(--brand);font-variant-numeric:tabular-nums}
+.pay-marcar,.pay-pago{font:inherit;font-size:12px;font-weight:700;padding:5px 12px;border-radius:8px;cursor:pointer;white-space:nowrap}
+.pay-marcar{background:var(--surface2);border:1px solid var(--line);color:var(--text)}
+.pay-marcar:hover{border-color:var(--brand)}
+.pay-pago{background:#12301f;border:1px solid var(--sem);color:#7fe3a0}
+.pay-pago .desfazer{color:var(--muted);font-weight:600;font-size:11px}
+.pay-marcar:disabled,.pay-pago:disabled{opacity:.6;cursor:wait}
+/* QR */
+.qr-grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.qr-loja{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.qr-loja .qr-nome{font-weight:800;font-size:15px}
+.qr-loja img{width:180px;height:180px;background:#fff;border-radius:8px;padding:8px}
+.qr-link{font-size:10.5px;color:var(--muted);overflow-wrap:anywhere}
+footer{color:var(--muted);font-size:11.5px;margin-top:18px;padding-top:12px;border-top:1px solid var(--line)}
+footer a{color:var(--muted)}
+@media (max-width:640px){
+body{padding:12px}
+.pv-wrap{max-height:none}
+table.pv-tb{font-size:12.5px}
+table.pv-tb thead th,table.pv-tb tbody td{padding:8px 8px}
+table.pv-tb .pv-nome{font-size:13.5px;white-space:normal}
+table.pv-tb .pv-h{font-size:16px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><div class="logo">CM</div>
+    <div><h1>Hellen — Ponto e Pagamento das Taxas</h1><div class="sub" id="dataHoje">carregando…</div></div>
+  </div>
+  <div class="hright">
+    <div class="live"><span class="pulse"></span>ao vivo</div>
+    <span class="atualizado" id="atualizadoEm">—</span>
+    <button class="btn" id="btnRefresh" type="button">↻ Atualizar</button>
+  </div>
+</header>
+<div class="views" role="tablist" aria-label="Escolher tela">
+  <button class="view active" data-view="vivo" type="button">🔴 Ponto ao vivo</button>
+  <button class="view" data-view="semana" type="button">📅 Batidas da semana</button>
+  <button class="view" data-view="pagamento" type="button">💰 Pagamento</button>
+  <button class="view" data-view="qr" type="button">🔳 QR da semana</button>
+</div>
+<div id="content"><div class="rf-load">Carregando os registros…</div></div>
+<footer>
+  Fonte: o ponto por QR code das taxas (sistema da Hellen) — a taxa lê o QR da loja e bate pelo celular; a batida entra na hora.
+  A tela se atualiza sozinha a cada 1 minuto.
+</footer>
+
+<script>
+(function(){
+// Banco do ponto por QR da Hellen (separado do banco do portal). A chave e a publica, a mesma que o QR usa para gravar.
+const HSB = "https://dzgvawxdnjxemifeactr.supabase.co/rest/v1/";
+const HKEY = "sb_publishable_to-gABecxZny25QLi0OTcQ_HK8nePyG";
+// Banco do portal: login (portal_eu) e valor por hora de cada loja (hellen_valor_hora)
+const SB = "https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/";
+const KEY = "sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV";
+async function hsb(caminho, opcoes){
+  const o = opcoes || {};
+  const r = await fetch(HSB + caminho, {
+    method: o.method || "GET",
+    headers: Object.assign({ apikey: HKEY, Authorization: "Bearer " + HKEY, "Content-Type": "application/json" }, o.headers || {}),
+    body: o.body ? JSON.stringify(o.body) : undefined
+  });
+  if (!r.ok){
+    let m = "HTTP " + r.status;
+    try{ const j = await r.json(); if (j && j.message) m = j.message; }catch(e){}
+    throw new Error(m);
+  }
+  const t = await r.text();
+  return t ? JSON.parse(t) : null;
+}
+// lista para o filtro in.(...) do banco, com aspas (o nome tem espaco)
+function pgIn(lista){ return "in.(" + lista.map(v => '"' + String(v).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"').join(",") + ")"; }
+
+const LOJAS_ORDEM = ["Agua Verde", "Ahu", "Sao Braz"];
+const NOME_EXIBICAO = { "Agua Verde": "Água Verde", "Ahu": "Ahú", "Sao Braz": "São Braz" };
+// Valor por hora de cada loja: vem do banco do portal (tabela freela_valor_hora, pela porta hellen_valor_hora).
+// Loja sem valor cadastrado nao e calculada — a tela avisa.
+let VALOR_HORA = null, ERRO_VALOR = "";
+async function carregarValores(){
+  try{
+    const r = await fetch(SB + "rpc/hellen_valor_hora", { method: "POST",
+      headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_token: cdmTok() }) });
+    let j = null; try{ j = await r.json(); }catch(e){}
+    if (!r.ok || !j || j.ok === false) throw new Error((j && (j.erro || j.message)) || ("HTTP " + r.status));
+    VALOR_HORA = {};
+    (j.lojas || []).forEach(x => { const v = Number(x.valor_hora); if (isFinite(v) && v > 0) VALOR_HORA[x.loja] = v; });
+    ERRO_VALOR = "";
+  } catch(e){ VALOR_HORA = null; ERRO_VALOR = (e && e.message) ? e.message : "erro"; }
+}
+function valorHoraDaLoja(loja){
+  return (VALOR_HORA && VALOR_HORA[loja] !== undefined) ? VALOR_HORA[loja] : null;
+}
+function textoValores(){
+  if (!VALOR_HORA) return "⚠️ não consegui ler o valor por hora (" + escapeHtml(ERRO_VALOR) + ") — os valores em R$ não foram calculados";
+  return LOJAS_ORDEM.map(l => { const v = valorHoraDaLoja(l); return NOME_EXIBICAO[l] + " " + (v !== null ? formatBRL(v) + "/h" : "sem valor por hora cadastrado"); }).join(" · ");
+}
+// A partir daqui o painel "esquece" tudo que foi batido antes desse momento
+// (testes de quando o sistema estava sendo montado). Nada é apagado do banco,
+// só escondido — se um dia precisar ver os testes antigos, é só tirar esse filtro.
+const INICIO_USO_REAL = "2026-09-10T22:20:00.000Z";
+// Turno sem Saida ha mais que isso deixa de aparecer como "na loja": provavelmente esqueceu de bater a saida.
+const MAX_TURNO_MS = 16 * 60 * 60 * 1000;
+
+let registros = [];
+let turnos = [];
+let marcadosPagos = new Set();
+let carregouUmaVez = false;
+let erroCarga = "";
+let AVISO_LIMITE = false;
+let ultimaLeitura = null;
+
+let VIEW = (location.hash || "").replace("#", "") || "vivo";
+if (["vivo","semana","pagamento","qr"].indexOf(VIEW) < 0) VIEW = "vivo";
+let lojaAtiva = "";
+let nomeAtivo = "";
+let semanaLista = "atual";
+let semanaPay = "atual";
+
+const elContent = document.getElementById("content");
+const btnRefresh = document.getElementById("btnRefresh");
+
+/* ---------- horas e dias (horario de Brasilia, -3h) ---------- */
+function diaBrasilia(isoOuMs){
+  const ms = typeof isoOuMs === "string" ? new Date(isoOuMs).getTime() : isoOuMs;
+  const d = new Date(ms - 3 * 3600 * 1000);
+  return d.getUTCFullYear() + "-" + String(d.getUTCMonth()+1).padStart(2,"0") + "-" + String(d.getUTCDate()).padStart(2,"0");
+}
+function inicioDiaBrasiliaMs(diaStr){ const p = diaStr.split("-"); return Date.UTC(+p[0], +p[1] - 1, +p[2]) + 3 * 3600 * 1000; }
+function hhmm(ms){
+  const d = new Date(ms - 3 * 3600 * 1000);
+  return String(d.getUTCHours()).padStart(2,"0") + ":" + String(d.getUTCMinutes()).padStart(2,"0");
+}
+const DIAS_SEMANA = ["domingo","segunda","terça","quarta","quinta","sexta","sábado"];
+function rotuloDia(diaStr){
+  const hoje = diaBrasilia(Date.now()), ontem = diaBrasilia(Date.now() - 24*3600*1000);
+  const p = diaStr.split("-");
+  const dow = DIAS_SEMANA[new Date(Date.UTC(+p[0], +p[1]-1, +p[2], 12)).getUTCDay()];
+  const dm = p[2] + "/" + p[1];
+  if (diaStr === hoje) return "Hoje · " + dow + " " + dm;
+  if (diaStr === ontem) return "Ontem · " + dow + " " + dm;
+  return dow + " " + dm;
+}
+function formatHoras(ms){
+  const totalMin = Math.max(0, Math.round(ms / 60000));
+  return Math.floor(totalMin / 60) + "h" + String(totalMin % 60).padStart(2,"0");
+}
+function formatBRL(v){ return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
+function escapeHtml(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+function atualizarRelogioTopo(){
+  document.getElementById("dataHoje").textContent = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", timeZone: "America/Sao_Paulo" });
+}
+
+/* ---------- semana de pagamento: quarta a terca (igual ao codigo do QR) ---------- */
+const CICLO_REF_Y = 2026, CICLO_REF_M = 8, CICLO_REF_D = 9; // Wed 2026-09-09, ciclo 0
+function diaEpochBrasilia(ms){
+  const d = new Date(ms - 3 * 3600 * 1000);
+  return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86400000);
+}
+function diaEpochCalendario(y, m, d){ return Math.floor(Date.UTC(y, m, d) / 86400000); }
+function cicloAtual(){
+  return Math.floor((diaEpochBrasilia(Date.now()) - diaEpochCalendario(CICLO_REF_Y, CICLO_REF_M, CICLO_REF_D)) / 7);
+}
+function inicioCicloMs(ciclo){
+  return (diaEpochCalendario(CICLO_REF_Y, CICLO_REF_M, CICLO_REF_D) + ciclo * 7) * 86400000 + 3 * 3600 * 1000;
+}
+function formatDiaMes(ms){
+  const d = new Date(ms - 3 * 3600 * 1000);
+  return String(d.getUTCDate()).padStart(2,"0") + "/" + String(d.getUTCMonth()+1).padStart(2,"0");
+}
+
+/* ---------- nomes: o freela digita o nome a cada batida ---------- */
+function normalizarNome(n){
+  return String(n || "").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ");
+}
+function chaveBase(n){ return normalizarNome(n).replace(/[^a-z0-9]/g, ""); }
+// Diferenca de ate 2 letras entre dois nomes compridos (ex.: "Arquizes" e "Arquizea") = mesma pessoa.
+function quaseIgual(a, b){
+  if (Math.abs(a.length - b.length) > 2) return false;
+  const prev = new Array(b.length + 1);
+  for (let j = 0; j <= b.length; j++) prev[j] = j;
+  for (let i = 1; i <= a.length; i++){
+    let diag = prev[0]; prev[0] = i; let menor = prev[0];
+    for (let j = 1; j <= b.length; j++){
+      const tmp = prev[j];
+      prev[j] = Math.min(prev[j] + 1, prev[j-1] + 1, diag + (a[i-1] === b[j-1] ? 0 : 1));
+      diag = tmp; if (prev[j] < menor) menor = prev[j];
+    }
+    if (menor > 2) return false;
+  }
+  return prev[b.length] <= 2;
+}
+// Junta as grafias da mesma pessoa na mesma loja: com/sem espaco, acento ou maiuscula ("OsbelAngelGómezReyes"),
+// so o comeco do nome ("Osbel", "Julia") quando ele so cabe em UMA pessoa daquela loja, e erro de ate 2 letras em nome comprido.
+// Duas pessoas diferentes que comecam igual (ex.: "Julia" e duas Julias com sobrenome) NAO sao juntadas.
+// Trava: duas grafias que estavam DENTRO da loja ao mesmo tempo (uma bateu a chegada no mesmo dia, com a outra ja dentro e sem saida no meio)
+// sao duas pessoas — nao junta, mesmo que o nome comece igual.
+function aoMesmoTempo(grupoA, grupoB, regsPorChave){
+  const evs = [];
+  grupoA.forEach(k => regsPorChave.get(k).forEach(r => evs.push({ ms: r.ms, tipo: tipoDe(r.tipo), lado: "A" })));
+  grupoB.forEach(k => regsPorChave.get(k).forEach(r => evs.push({ ms: r.ms, tipo: tipoDe(r.tipo), lado: "B" })));
+  evs.sort((x, y) => x.ms - y.ms);
+  const dentro = { A: null, B: null };
+  for (const e of evs){
+    const outro = e.lado === "A" ? "B" : "A";
+    if (dentro[outro] !== null && e.ms - dentro[outro] > MAX_TURNO_MS) dentro[outro] = null; // esqueceu a saida
+    if (e.tipo === "chegada"){
+      if (dentro[outro] !== null && diaBrasilia(e.ms) === diaBrasilia(dentro[outro])) return true;
+      dentro[e.lado] = e.ms;
+    } else if (e.tipo === "saida"){
+      dentro.A = null; dentro.B = null; // a saida fecha o turno, venha de qual grafia vier
+    }
+  }
+  return false;
+}
+function montarApelidos(lista){
+  const porLoja = new Map();
+  lista.forEach(r => {
+    const k = chaveBase(r.nome); if (!k) return;
+    if (!porLoja.has(r.loja)) porLoja.set(r.loja, new Map());
+    const m = porLoja.get(r.loja); if (!m.has(k)) m.set(k, []); m.get(k).push(r);
+  });
+  const mapa = new Map();
+  porLoja.forEach((regsPorChave, loja) => {
+    const freq = k => regsPorChave.get(k).length;
+    const ks = Array.from(regsPorChave.keys()).sort((a,b) => (b.length - a.length) || (freq(a) - freq(b)) || a.localeCompare(b));
+    const pai = new Map(ks.map(k => [k, k]));
+    const raiz = k => { while (pai.get(k) !== k) k = pai.get(k); return k; };
+    const membros = r => ks.filter(k => raiz(k) === r);
+    ks.forEach(a => {
+      const alvos = ks.filter(b => b !== a && b.length >= a.length && (b.startsWith(a) || (a.length >= 10 && quaseIgual(a, b))));
+      if (!alvos.length) return;
+      const raizes = new Set(alvos.map(raiz));
+      if (raizes.size !== 1) return;
+      const r = Array.from(raizes)[0], ra = raiz(a);
+      if (r === ra || aoMesmoTempo(membros(ra), membros(r), regsPorChave)) return;
+      pai.set(ra, r);
+    });
+    ks.forEach(k => mapa.set(loja + "|" + k, loja + "|" + raiz(k)));
+  });
+  return mapa;
+}
+const PALAVRAS_PEQUENAS = new Set(["de","da","do","das","dos","e"]);
+function arrumarNome(n){
+  return String(n || "").trim().replace(/\s+/g, " ").split(" ").map((w, i) => {
+    const lw = w.toLowerCase();
+    if (i > 0 && PALAVRAS_PEQUENAS.has(lw)) return lw;
+    if (w === lw || w === w.toUpperCase()) return lw.charAt(0).toUpperCase() + lw.slice(1);
+    return w; // nome com maiuscula no meio: deixa como a pessoa escreveu
+  }).join(" ");
+}
+// Nome que aparece na tela: a grafia mais completa, a que mais se repetiu.
+function montarNomesExibicao(lista){
+  const cont = new Map();
+  lista.forEach(r => {
+    const raizK = r.chave.split("|")[1];
+    if (chaveBase(r.nome) !== raizK) return;
+    if (!cont.has(r.chave)) cont.set(r.chave, new Map());
+    const m = cont.get(r.chave), n = (r.nome || "").trim();
+    m.set(n, (m.get(n) || 0) + 1);
+  });
+  const nomes = new Map();
+  cont.forEach((m, chave) => {
+    let melhor = "", max = -1;
+    m.forEach((c, n) => {
+      const titulo = /^[A-ZÀ-Ý][a-zà-ÿ']*(\s[A-ZÀ-Ý]?[a-zà-ÿ']*)*$/.test(n) ? 1 : 0;
+      const nota = c * 10 + titulo * 5 + (n.indexOf(" ") > 0 ? 1 : 0);
+      if (nota > max){ max = nota; melhor = n; }
+    });
+    nomes.set(chave, arrumarNome(melhor));
+  });
+  return nomes;
+}
+let NOMES = new Map();
+function nomeDe(chave){ return NOMES.get(chave) || chave.split("|")[1]; }
+// Outras grafias que a pessoa usou (so as que mudam de verdade, nao maiuscula/acento)
+function outrasGrafias(chave, nomesUsados){
+  const base = normalizarNome(nomeDe(chave)), vistos = new Set([base]), out = [];
+  nomesUsados.forEach(n => { const k = normalizarNome(n); if (k && !vistos.has(k)){ vistos.add(k); out.push(n.trim()); } });
+  return out;
+}
+
+/* ---------- turnos: Chegada, intervalo e Saida de cada pessoa ---------- */
+function tipoDe(t){
+  if (t === "Chegada") return "chegada";
+  if (t === "Inicio do intervalo") return "ini";
+  if (t === "Fim do intervalo") return "fim";
+  if (t === "Saida" || t === "Saída") return "saida";
+  return "";
+}
+// Monta um turno por pessoa e por vez que ela veio. Tolerante a batida repetida (tocou duas vezes):
+// 2a Chegada no mesmo dia com o turno aberto, 2o inicio de intervalo, Saida repetida em ate 10 min — tudo ignorado.
+// Cada batida ganha o "dia efetivo" do turno: o dia em que o turno TERMINOU (quem sai de madrugada fica no dia da saida),
+// que e o mesmo dia usado na conta do pagamento.
+function montarTurnos(lista){
+  const ord = lista.slice().sort((a,b) => a.ms - b.ms);
+  const abertos = new Map(), ultimoFechado = new Map(), out = [];
+  function novo(r){
+    const t = { chave: r.chave, loja: r.loja, regs: [], nomes: [], entrada: null, saida: null, ints: [], intAberto: null,
+                semChegada: false, semSaida: false, inicioMs: r.ms };
+    out.push(t); return t;
+  }
+  ord.forEach(r => {
+    const tipo = tipoDe(r.tipo);
+    let t = abertos.get(r.chave);
+    if (tipo === "chegada"){
+      if (t && diaBrasilia(r.ms) === diaBrasilia(t.inicioMs)){ /* chegada repetida */ }
+      else { if (t) t.semSaida = true; t = novo(r); t.entrada = r.ms; abertos.set(r.chave, t); }
+    } else {
+      if (!t && tipo === "saida"){
+        const uf = ultimoFechado.get(r.chave);
+        if (uf && r.ms - uf.saida <= 10 * 60000){ uf.regs.push(r); uf.nomes.push(r.nome || ""); return; }
+      }
+      if (!t){ t = novo(r); t.semChegada = true; abertos.set(r.chave, t); }
+      if (tipo === "ini"){ if (t.intAberto === null) t.intAberto = r.ms; }
+      else if (tipo === "fim"){ if (t.intAberto !== null){ t.ints.push([t.intAberto, r.ms]); t.intAberto = null; } }
+      else if (tipo === "saida"){
+        // saiu sem bater a volta do intervalo: o intervalo fica sem fim e nao e descontado (igual a conta do pagamento)
+        t.saida = r.ms; abertos.delete(r.chave); ultimoFechado.set(r.chave, t);
+      }
+    }
+    t.regs.push(r); t.nomes.push(r.nome || "");
+  });
+  const agora = Date.now();
+  out.forEach(t => {
+    t.fimMs = t.regs[t.regs.length - 1].ms;
+    t.diaEfetivo = diaBrasilia(t.fimMs);
+    t.regs.forEach(r => { r.diaEfetivo = t.diaEfetivo; });
+    if (t.saida === null && !t.semSaida && agora - t.fimMs > MAX_TURNO_MS) t.semSaida = true;
+    t.aberto = t.saida === null && !t.semSaida;
+  });
+  return out;
+}
+function msTrabalhado(t){
+  if (t.entrada === null) return null;
+  const agora = Date.now();
+  const fim = t.saida !== null ? t.saida : (t.aberto ? agora : null);
+  if (fim === null) return null;
+  let pausa = 0;
+  t.ints.forEach(p => { pausa += p[1] - p[0]; });
+  if (t.intAberto !== null && t.aberto) pausa += agora - t.intAberto;
+  return Math.max(0, fim - t.entrada - pausa);
+}
+
+/* ---------- conta do pagamento (a mesma da Hellen: batida fora de ordem e ignorada) ---------- */
+function calcularPagamentos(lista){
+  const porPessoa = new Map();
+  const estados = new Map();
+  const ordenados = lista.slice().sort((a,b) => a.ms - b.ms);
+  ordenados.forEach(r => {
+    const chave = r.chave;
+    if (!porPessoa.has(chave)) porPessoa.set(chave, { chave: chave, nome: nomeDe(chave), loja: r.loja, ms: 0, incompletos: 0, nomes: [] });
+    if (!estados.has(chave)) estados.set(chave, { status: "fechado" });
+    const p = porPessoa.get(chave);
+    const st = estados.get(chave);
+    const t = r.ms;
+    p.nomes.push(r.nome || "");
+    if (r.tipo === "Chegada"){
+      if (st.status === "fechado"){ st.status = "aberto"; st.inicioTurno = t; st.pausaMs = 0; }
+      else if (diaBrasilia(t) !== diaBrasilia(st.inicioTurno)){ p.incompletos++; st.status = "aberto"; st.inicioTurno = t; st.pausaMs = 0; }
+      // turno aberto no mesmo dia: batida repetida, ignora. Turno aberto em outro dia: esqueceram a saida, descarta e comeca turno novo.
+    } else if (r.tipo === "Inicio do intervalo"){
+      if (st.status === "aberto"){ st.status = "intervalo"; st.inicioIntervalo = t; }
+    } else if (r.tipo === "Fim do intervalo"){
+      if (st.status === "intervalo"){ st.pausaMs += (t - st.inicioIntervalo); st.status = "aberto"; }
+    } else if (r.tipo === "Saida" || r.tipo === "Saída"){
+      if (st.status === "aberto" || st.status === "intervalo"){
+        const liquido = Math.max(0, (t - st.inicioTurno) - (st.pausaMs || 0));
+        if (liquido > MAX_TURNO_MS){ p.incompletos++; }
+        else { p.ms += liquido; }
+        st.status = "fechado";
+      }
+    }
+  });
+  estados.forEach((st, chave) => {
+    if (st.status !== "fechado"){ const p = porPessoa.get(chave); if (p) p.incompletos++; }
+  });
+  return porPessoa;
+}
+
+/* ---------- quem ja foi marcado como pago (tabela pagamentos_marcados) ---------- */
+async function carregarMarcados(){
+  try{
+    const data = await hsb("pagamentos_marcados?select=nome_normalizado,loja,semana_inicio&semana_inicio=gte." + diaBrasilia(inicioCicloMs(cicloAtual() - 1)) + "&limit=1000");
+    marcadosPagos = new Set((data || []).map(m => m.nome_normalizado + "|" + m.loja + "|" + m.semana_inicio));
+  } catch(e){
+    marcadosPagos = new Set(); // sem a lista, o painel continua funcionando, so nao mostra quem ja foi pago
+  }
+}
+// Vale como pago se QUALQUER grafia da pessoa foi marcada (antes cada grafia era marcada separada).
+function chavesPago(p){
+  const ks = new Set([normalizarNome(p.nome)]);
+  p.nomes.forEach(n => { const k = normalizarNome(n); if (k) ks.add(k); });
+  return Array.from(ks);
+}
+function estaPago(p, semanaInicioStr){
+  return chavesPago(p).some(k => marcadosPagos.has(k + "|" + p.loja + "|" + semanaInicioStr));
+}
+async function marcarComoPago(p, semanaInicioStr){
+  try{
+    await hsb("pagamentos_marcados?on_conflict=nome_normalizado,loja,semana_inicio", {
+      method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: { nome_normalizado: normalizarNome(p.nome), nome_exibicao: p.nome, loja: p.loja, semana_inicio: semanaInicioStr }
+    });
+  } catch(e){ alert("Não consegui marcar como pago: " + e.message); }
+  await carregarMarcados(); render();
+}
+async function desmarcarPago(p, semanaInicioStr){
+  try{
+    await hsb("pagamentos_marcados?nome_normalizado=" + encodeURIComponent(pgIn(chavesPago(p)))
+      + "&loja=eq." + encodeURIComponent(p.loja) + "&semana_inicio=eq." + semanaInicioStr,
+      { method: "DELETE", headers: { Prefer: "return=minimal" } });
+  } catch(e){ alert("Não consegui desfazer: " + e.message); }
+  await carregarMarcados(); render();
+}
+
+/* ---------- carga ---------- */
+async function carregar(silencioso){
+  if (!silencioso || !carregouUmaVez) elContent.innerHTML = '<div class="rf-load">Carregando os registros…</div>';
+  btnRefresh.disabled = true;
+  try{
+    // desde a semana passada (e 1 dia antes, para pegar a Chegada de quem virou a noite na troca de semana)
+    const desde = Math.max(inicioCicloMs(cicloAtual() - 1) - 24 * 3600 * 1000, new Date(INICIO_USO_REAL).getTime());
+    const data = await hsb("registros_ponto?select=nome,tipo,loja,criado_em&criado_em=gte." + encodeURIComponent(new Date(desde).toISOString())
+      + "&order=criado_em.asc&limit=1000");
+    AVISO_LIMITE = (data || []).length >= 1000;
+    await carregarMarcados();
+    if (!silencioso || VALOR_HORA === null) await carregarValores();
+    const lista = (data || []).map(r => Object.assign({}, r, { ms: new Date(r.criado_em).getTime() }));
+    const apelidos = montarApelidos(lista);
+    lista.forEach(r => { r.chave = apelidos.get(r.loja + "|" + chaveBase(r.nome)) || (r.loja + "|" + chaveBase(r.nome)); });
+    NOMES = montarNomesExibicao(lista);
+    registros = lista;
+    turnos = montarTurnos(lista);
+    carregouUmaVez = true; erroCarga = ""; ultimaLeitura = Date.now();
+    document.getElementById("atualizadoEm").textContent = "atualizado às " + hhmm(Date.now());
+  } catch(e){
+    erroCarga = (e && e.message) ? e.message : "Erro desconhecido.";
+  } finally {
+    btnRefresh.disabled = false;
+  }
+  render();
+}
+
+/* ---------- pedacinhos da tela ---------- */
+function barraLojas(){
+  let h = '<div class="barra">Loja: ';
+  h += '<button class="loja' + (lojaAtiva === "" ? " active" : "") + '" data-loja="" type="button">Todas</button>';
+  LOJAS_ORDEM.forEach(l => { h += '<button class="loja' + (lojaAtiva === l ? " active" : "") + '" data-loja="' + l + '" type="button">' + NOME_EXIBICAO[l] + '</button>'; });
+  return h + '</div>';
+}
+function barraSemana(qual, attr){
+  const ciclo = qual === "atual" ? cicloAtual() : cicloAtual() - 1;
+  return '<button class="loja' + (qual === "atual" ? " active" : "") + '" ' + attr + '="atual" type="button">Semana atual</button>'
+    + '<button class="loja' + (qual === "passada" ? " active" : "") + '" ' + attr + '="passada" type="button">Semana passada</button>'
+    + '<span class="periodo">' + formatDiaMes(inicioCicloMs(ciclo)) + ' a ' + formatDiaMes(inicioCicloMs(ciclo + 1) - 1) + ' (quarta a terça)</span>';
+}
+function celNome(t, mostrarLoja){
+  let h = '<td class="pv-nome">' + escapeHtml(nomeDe(t.chave));
+  if (mostrarLoja) h += ' <span class="rfu">' + escapeHtml(NOME_EXIBICAO[t.loja] || t.loja) + '</span>';
+  const og = outrasGrafias(t.chave, t.nomes);
+  if (og.length) h += '<div class="apelido">digitou também: ' + og.map(escapeHtml).join(", ") + '</div>';
+  return h + '</td>';
+}
+function celHora(ms, t){
+  if (ms === null) return '<td class="n pv-h"><span class="pv-nada">—</span></td>';
+  const outroDia = diaBrasilia(ms) !== t.diaEfetivo;
+  return '<td class="n pv-h">' + hhmm(ms) + (outroDia ? ' <span class="rfu">' + formatDiaMes(ms) + '</span>' : '') + '</td>';
+}
+function celIntervalo(t){
+  let partes = t.ints.map(p => hhmm(p[0]) + ' → ' + hhmm(p[1]) + ' <span class="rfu">' + Math.round((p[1]-p[0])/60000) + ' min</span>');
+  if (t.intAberto !== null){
+    partes.push(t.aberto ? '<b>saiu ' + hhmm(t.intAberto) + '</b>' : hhmm(t.intAberto) + ' → <span class="rfx">não bateu a volta</span>');
+  }
+  return '<td class="n pv-int-c">' + (partes.length ? partes.join('<br>') : '—') + '</td>';
+}
+function celHoras(t){
+  const ms = msTrabalhado(t);
+  if (ms === null) return '<td class="n pv-h"><span class="pv-nada">—</span></td>';
+  return '<td class="n pv-h">' + formatHoras(ms) + (t.aberto ? ' <span class="rfu">até agora</span>' : '') + '</td>';
+}
+function avisos(t){
+  const a = [];
+  if (t.semChegada) a.push('não bateu a chegada');
+  if (t.semSaida) a.push('não bateu a saída');
+  return a.length ? ' <span class="rfx">⚠️ ' + a.join(' · ') + '</span>' : '';
+}
+function situacao(t){
+  if (t.aberto && t.intAberto !== null) return '🟡 <b>no intervalo</b>' + avisos(t);
+  if (t.aberto) return '🟢 <b>na loja</b>' + avisos(t);
+  return '⚪ saiu' + avisos(t);
+}
+function classeLinha(t){ return t.aberto ? (t.intAberto !== null ? "pv-int" : "pv-ok") : "pv-off"; }
+
+/* ---------- 🔴 Ponto ao vivo ---------- */
+function renderVivo(){
+  const hoje = diaBrasilia(Date.now());
+  const g = turnos.filter(t => (!lojaAtiva || t.loja === lojaAtiva) && (t.aberto || t.diaEfetivo === hoje));
+  g.sort((a,b) => {
+    if (a.aberto !== b.aberto) return a.aberto ? -1 : 1;
+    if (a.aberto) return (a.entrada || a.inicioMs) - (b.entrada || b.inicioMs);
+    return b.fimMs - a.fimMs;
+  });
+  const naLoja = g.filter(t => t.aberto && t.intAberto === null).length;
+  const noInt = g.filter(t => t.aberto && t.intAberto !== null).length;
+  const saiu = g.filter(t => !t.aberto).length;
+  const daLoja = registros.filter(r => !lojaAtiva || r.loja === lojaAtiva);
+  const ult = daLoja.length ? daLoja[daLoja.length - 1] : null;
+
+  let h = '<div class="rf-h2">🔴 Ponto ao vivo <span class="hint">quem bateu o ponto pelo QR hoje e quem ainda está na loja</span></div>';
+  h += '<div class="rf-card">' + barraLojas();
+  h += '<div class="rf-aviso">' + (ult
+      ? 'Última batida: <b>' + hhmm(ult.ms) + '</b>' + (diaBrasilia(ult.ms) !== hoje ? ' de ' + formatDiaMes(ult.ms) : '') + ' — ' + escapeHtml(nomeDe(ult.chave)) + ' (' + escapeHtml(NOME_EXIBICAO[ult.loja] || ult.loja) + ', ' + escapeHtml(ult.tipo) + '). A batida entra na hora em que a taxa lê o QR; a tela se atualiza sozinha a cada 1 minuto.'
+      : '⚠️ Nenhuma batida pelo QR ainda nesta loja.') + '</div>';
+  h += '<div class="rf-aviso"><b>' + naLoja + '</b> na loja agora · <b>' + noInt + '</b> no intervalo · <b>' + saiu + '</b> já saíram</div>';
+  if (!g.length){
+    elContent.innerHTML = h + '<div class="rf-empty">Nenhuma taxa bateu ponto hoje' + (lojaAtiva ? ' nesta loja' : '') + '.</div></div>';
+    return;
+  }
+  h += '<div class="pv-wrap"><table class="pv-tb"><thead><tr><th>Taxa</th><th>Situação</th><th class="n">Entrada</th><th class="n">Intervalo</th><th class="n">Saída</th><th class="n">Horas</th><th class="n">Batidas</th></tr></thead><tbody>';
+  g.forEach(t => {
+    h += '<tr class="' + classeLinha(t) + '">' + celNome(t, !lojaAtiva)
+      + '<td class="pv-sit">' + situacao(t) + '</td>'
+      + celHora(t.entrada, t) + celIntervalo(t) + celHora(t.saida, t) + celHoras(t)
+      + '<td class="n"><span class="pv-bat">' + t.regs.length + '</span></td></tr>';
+  });
+  h += '</tbody></table></div>';
+  h += '<div class="rf-nota">Hoje = turnos que terminaram hoje (quem sai de madrugada fica no dia da saída, igual à conta do pagamento) e todo mundo que ainda está na loja. '
+     + 'O nome é digitado pela taxa a cada batida: grafias diferentes da mesma pessoa (com ou sem acento, espaço, sobrenome) são juntadas numa linha só e aparecem em "digitou também".</div>';
+  elContent.innerHTML = h + '</div>';
+}
+
+/* ---------- 📅 Batidas da semana ---------- */
+function renderSemana(){
+  const ciclo = semanaLista === "atual" ? cicloAtual() : cicloAtual() - 1;
+  const ini = inicioCicloMs(ciclo), fim = inicioCicloMs(ciclo + 1);
+  const daSemana = turnos.filter(t => { const d = inicioDiaBrasiliaMs(t.diaEfetivo); return d >= ini && d < fim && (!lojaAtiva || t.loja === lojaAtiva); });
+  const pessoas = Array.from(new Set(daSemana.map(t => t.chave))).sort((a,b) => nomeDe(a).localeCompare(nomeDe(b), "pt-BR"));
+  if (nomeAtivo && pessoas.indexOf(nomeAtivo) < 0) nomeAtivo = "";
+  const g = daSemana.filter(t => !nomeAtivo || t.chave === nomeAtivo);
+
+  let h = '<div class="rf-h2">📅 Batidas da semana <span class="hint">um turno por linha: chegada, intervalo e saída</span></div>';
+  h += '<div class="rf-card">' + barraLojas();
+  h += '<div class="barra">' + barraSemana(semanaLista, "data-semana-lista") + '</div>';
+  h += '<div class="barra">Pessoa: <select class="loja" id="filtroNome" aria-label="Filtrar por pessoa"><option value="">Todas as pessoas</option>'
+     + pessoas.map(k => '<option value="' + escapeHtml(k) + '"' + (k === nomeAtivo ? ' selected' : '') + '>' + escapeHtml(nomeDe(k)) + (lojaAtiva ? '' : ' · ' + escapeHtml(NOME_EXIBICAO[k.split("|")[0]] || "")) + '</option>').join("")
+     + '</select></div>';
+  if (!g.length){
+    elContent.innerHTML = h + '<div class="rf-empty">Nenhuma batida nessa semana' + (lojaAtiva ? ' nesta loja' : '') + '.</div></div>';
+    bindSelect(); return;
+  }
+  const porDia = new Map();
+  g.forEach(t => { if (!porDia.has(t.diaEfetivo)) porDia.set(t.diaEfetivo, []); porDia.get(t.diaEfetivo).push(t); });
+  Array.from(porDia.keys()).sort().reverse().forEach(dia => {
+    const lista = porDia.get(dia).sort((a,b) => (a.entrada || a.inicioMs) - (b.entrada || b.inicioMs));
+    let totDia = 0; lista.forEach(t => { totDia += msTrabalhado(t) || 0; });
+    const nPes = new Set(lista.map(t => t.chave)).size;
+    h += '<div class="rf-h3">' + rotuloDia(dia) + ' <span class="hint">' + nPes + (nPes === 1 ? ' taxa' : ' taxas') + ' · ' + formatHoras(totDia) + '</span></div>';
+    h += '<div class="pv-wrap"><table class="pv-tb"><thead><tr><th>Taxa</th><th>Situação</th><th class="n">Entrada</th><th class="n">Intervalo</th><th class="n">Saída</th><th class="n">Horas</th><th class="n">Batidas</th></tr></thead><tbody>';
+    lista.forEach(t => {
+      h += '<tr class="' + classeLinha(t) + '">' + celNome(t, !lojaAtiva)
+        + '<td class="pv-sit">' + situacao(t) + '</td>'
+        + celHora(t.entrada, t) + celIntervalo(t) + celHora(t.saida, t) + celHoras(t)
+        + '<td class="n"><span class="pv-bat">' + t.regs.length + '</span></td></tr>';
+    });
+    h += '</tbody></table></div>';
+  });
+  h += '<div class="rf-nota">O dia de cada turno é o dia em que ele terminou — quem entra às 18h e sai à 00h30 aparece no dia da saída, igual à conta do pagamento. '
+     + 'Horas = da chegada à saída, menos o intervalo. Turno sem chegada ou sem saída fica com ⚠️ e não entra no pagamento.</div>';
+  elContent.innerHTML = h + '</div>';
+  bindSelect();
+}
+function bindSelect(){
+  const s = document.getElementById("filtroNome");
+  if (s) s.addEventListener("change", () => { nomeAtivo = s.value; render(); });
+}
+
+/* ---------- 💰 Pagamento ---------- */
+let PAY_LINHAS = [];
+function renderPagamento(){
+  const ciclo = semanaPay === "atual" ? cicloAtual() : cicloAtual() - 1;
+  const ini = inicioCicloMs(ciclo), fim = inicioCicloMs(ciclo + 1);
+  const semanaInicioStr = diaBrasilia(ini);
+  const doPeriodo = registros.filter(r => { const d = r.diaEfetivo ? inicioDiaBrasiliaMs(r.diaEfetivo) : r.ms; return d >= ini && d < fim && (!lojaAtiva || r.loja === lojaAtiva); });
+  const linhas = Array.from(calcularPagamentos(doPeriodo).values()).sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  PAY_LINHAS = linhas;
+
+  let h = '<div class="rf-h2">💰 Pagamento da semana <span class="hint">' + textoValores() + '</span></div>';
+  h += '<div class="rf-card">' + barraLojas();
+  h += '<div class="barra">' + barraSemana(semanaPay, "data-semana-pay") + '</div>';
+  let totalMs = 0, totalValor = 0, totalInc = 0, semValor = 0;
+  linhas.forEach(p => {
+    const vh = valorHoraDaLoja(p.loja);
+    p.valor = vh === null ? null : (p.ms / 3600000) * vh;
+    // quem esta na loja agora tem o turno aberto: nao e batida incompleta, so ainda nao bateu a saida
+    p.naLoja = semanaPay === "atual" && turnos.some(t => t.chave === p.chave && t.aberto);
+    if (p.naLoja && p.incompletos > 0) p.incompletos--;
+    totalMs += p.ms; totalInc += p.incompletos;
+    if (p.valor === null) semValor++; else totalValor += p.valor;
+  });
+  h += '<div class="pay-total"><span class="l">Total da semana' + (lojaAtiva ? ' · ' + NOME_EXIBICAO[lojaAtiva] : '') + '</span><span class="n">' + (linhas.length && semValor === linhas.length ? '—' : formatBRL(totalValor)) + '</span></div>';
+  if (!linhas.length){
+    elContent.innerHTML = h + '<div class="rf-empty">Sem registros nessa semana ainda.</div></div>';
+    return;
+  }
+  h += '<div class="pv-wrap"><table class="pv-tb"><thead><tr><th>Taxa</th>' + (lojaAtiva ? '' : '<th>Loja</th>') + '<th class="n">Horas</th><th class="n">Valor</th><th class="n">Pago?</th></tr></thead><tbody>';
+  linhas.forEach((p, i) => {
+    const pago = estaPago(p, semanaInicioStr);
+    const og = outrasGrafias(p.chave, p.nomes);
+    h += '<tr class="' + (pago ? 'pv-ok' : '') + '" data-cdm-chave="' + escapeHtml('pagamento | ' + p.chave + ' | ' + semanaInicioStr) + '"><td class="pv-nome">' + escapeHtml(p.nome) + (p.incompletos ? ' <span class="rfx">⚠️ batida incompleta</span>' : '')
+      + (p.naLoja ? ' <span class="rfu">🟢 na loja agora — o turno de hoje entra quando bater a saída</span>' : '')
+      + (og.length ? '<div class="apelido">digitou também: ' + og.map(escapeHtml).join(", ") + '</div>' : '') + '</td>'
+      + (lojaAtiva ? '' : '<td>' + escapeHtml(NOME_EXIBICAO[p.loja] || p.loja) + '</td>')
+      + '<td class="n pv-h">' + formatHoras(p.ms) + '</td>'
+      + '<td class="n pv-valor">' + (p.valor === null ? '<span class="rfx">sem valor por hora</span>' : formatBRL(p.valor)) + '</td>'
+      + '<td class="n">' + (pago
+          ? '<button type="button" class="pay-pago" data-i="' + i + '">✓ Pago <span class="desfazer">(desfazer)</span></button>'
+          : '<button type="button" class="pay-marcar" data-i="' + i + '">Marcar como pago</button>') + '</td></tr>';
+  });
+  h += '<tr class="pv-tot"><td>Total</td>' + (lojaAtiva ? '' : '<td></td>') + '<td class="n pv-h">' + formatHoras(totalMs) + '</td><td class="n pv-valor">' + (semValor === linhas.length ? '—' : formatBRL(totalValor)) + '</td><td></td></tr>';
+  h += '</tbody></table></div>';
+  if (semValor > 0) h += '<div class="rf-nota">⚠️ ' + semValor + (semValor === 1 ? ' pessoa ficou' : ' pessoas ficaram') + ' sem valor em R$ porque a loja não tem valor por hora cadastrado — não entrou no total.</div>';
+  if (totalInc > 0) h += '<div class="rf-nota">⚠️ batida incompleta = não bateu a entrada ou a saída nessa semana — essas horas não entraram na conta. Confira em 📅 Batidas da semana.</div>';
+  h += '<div class="rf-nota">A mesma pessoa digitada de jeitos diferentes conta numa linha só. Se uma grafia antiga já tinha sido marcada como paga, a pessoa aparece como paga.</div>';
+  elContent.innerHTML = h + '</div>';
+  elContent.querySelectorAll(".pay-marcar").forEach(b => b.addEventListener("click", () => { b.disabled = true; marcarComoPago(PAY_LINHAS[+b.dataset.i], semanaInicioStr); }));
+  elContent.querySelectorAll(".pay-pago").forEach(b => b.addEventListener("click", () => { b.disabled = true; desmarcarPago(PAY_LINHAS[+b.dataset.i], semanaInicioStr); }));
+}
+
+/* ---------- 🔳 QR da semana (mesma formula do index.html: muda toda quarta sozinho) ---------- */
+const CODIGO_SECRET = "CDMBurgersArts-ponto-2026";
+const CHAVE_LOJA = { "Agua Verde": "aguaverde", "Ahu": "ahu", "Sao Braz": "saobraz" };
+function fnv1a(str){
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
+function codigoDoCiclo(ciclo){ return fnv1a(CODIGO_SECRET + ":" + ciclo).slice(0, 8); }
+// o QR aponta para a pagina de bater ponto do site da Hellen (o freela nao entra no portal)
+const PAGINA_QR = "https://hellenfelizardo3123.github.io/controle-ponto-freelas/index.html";
+function linkDaLoja(loja, codigo){ return PAGINA_QR + "?loja=" + CHAVE_LOJA[loja] + "&codigo=" + codigo; }
+function renderQR(){
+  const ciclo = cicloAtual(), codigo = codigoDoCiclo(ciclo);
+  const periodo = "Vale de " + formatDiaMes(inicioCicloMs(ciclo)) + " a " + formatDiaMes(inicioCicloMs(ciclo + 1) - 1);
+  let h = '<div class="rf-h2">🔳 QR code da semana <span class="hint">' + periodo + ' · muda sozinho toda quarta-feira</span></div>';
+  h += '<div class="rf-card"><div class="barra"><button id="btnImprimirQR" class="btn" type="button">🖨 Imprimir os 3 QR codes</button></div><div class="qr-grade">';
+  LOJAS_ORDEM.forEach(loja => {
+    const link = linkDaLoja(loja, codigo), nomeLoja = NOME_EXIBICAO[loja] || loja;
+    h += '<div class="qr-loja"><span class="qr-nome">' + nomeLoja + '</span>'
+      + '<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(link) + '" alt="QR code ' + nomeLoja + '" loading="lazy">'
+      + '<span class="qr-link">' + escapeHtml(link) + '</span>'
+      + '<button class="btn qr-copiar" type="button" data-link="' + escapeHtml(link) + '">Copiar link</button></div>';
+  });
+  elContent.innerHTML = h + '</div></div>';
+  elContent.querySelectorAll(".qr-copiar").forEach(btn => btn.addEventListener("click", async () => {
+    const original = btn.textContent;
+    try{ await navigator.clipboard.writeText(btn.dataset.link); btn.textContent = "Copiado!"; }
+    catch(e){ btn.textContent = "Não copiou, copie na mão"; }
+    setTimeout(() => { btn.textContent = original; }, 2000);
+  }));
+  document.getElementById("btnImprimirQR").addEventListener("click", imprimirTodos);
+}
+// Abre uma janela so com os 3 QR codes, grandes, um por pagina, e chama a impressao sozinha.
+function imprimirTodos(){
+  const ciclo = cicloAtual(), codigo = codigoDoCiclo(ciclo);
+  const periodo = "Vale de " + formatDiaMes(inicioCicloMs(ciclo)) + " a " + formatDiaMes(inicioCicloMs(ciclo + 1) - 1);
+  let paginas = "";
+  LOJAS_ORDEM.forEach(loja => {
+    const link = linkDaLoja(loja, codigo), nomeLoja = NOME_EXIBICAO[loja] || loja;
+    paginas += '<div class="pagina"><h1>' + escapeHtml(nomeLoja) + '</h1>'
+      + '<p>' + escapeHtml(periodo) + ' — aponte a câmera do celular para bater o ponto</p>'
+      + '<img src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=' + encodeURIComponent(link) + '" alt="QR code ' + escapeHtml(nomeLoja) + '"></div>';
+  });
+  const conteudo = '<!doc' + 'type html><html lang="pt-br"><head><meta charset="UTF-8"><title>QR codes - Cidadão do Mundo</title><style>'
+    + 'body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;color:#152622;}'
+    + '.pagina{page-break-after:always;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px;box-sizing:border-box;}'
+    + '.pagina:last-child{page-break-after:auto;}h1{font-size:32px;margin:0 0 8px;}p{color:#555;margin:0 0 24px;font-size:16px;}img{width:320px;height:320px;}'
+    + '</style></head><body>' + paginas
+    + '<script>window.addEventListener("load", function(){ setTimeout(function(){ window.print(); }, 300); });<\/script></body></' + 'html>';
+  const janela = window.open("", "_blank");
+  if (!janela){ alert("O navegador bloqueou a janela de impressão. Permita pop-ups para este site e tente de novo."); return; }
+  janela.document.write(conteudo);
+  janela.document.close();
+}
+
+/* ---------- troca de tela ---------- */
+let LIBERADO = false;
+function render(){
+  if (!LIBERADO) return;
+  document.querySelectorAll(".view").forEach(b => b.classList.toggle("active", b.dataset.view === VIEW));
+  if (VIEW === "qr"){ renderQR(); return; }
+  if (!carregouUmaVez && erroCarga){
+    elContent.innerHTML = '<div class="err">Não consegui carregar os registros agora.<br>' + escapeHtml(erroCarga) + '<br><button class="btn" id="btnTentarDeNovo" type="button">Tentar de novo</button></div>';
+    document.getElementById("btnTentarDeNovo").addEventListener("click", () => carregar(false));
+    return;
+  }
+  if (!carregouUmaVez) return;
+  if (VIEW === "semana") renderSemana();
+  else if (VIEW === "pagamento") renderPagamento();
+  else renderVivo();
+  if (AVISO_LIMITE) elContent.insertAdjacentHTML("afterbegin", '<div class="err">⚠️ Vieram 1000 batidas, o máximo que o banco entrega de uma vez: esta tela pode estar incompleta.</div>');
+  if (erroCarga) elContent.insertAdjacentHTML("afterbegin", '<div class="err">⚠️ A última atualização falhou (' + escapeHtml(erroCarga) + '). Mostrando a leitura das ' + hhmm(ultimaLeitura) + '.</div>');
+}
+document.querySelectorAll(".view").forEach(b => b.addEventListener("click", () => {
+  VIEW = b.dataset.view;
+  try{ history.replaceState(null, "", "#" + VIEW); } catch(e){}
+  render();
+}));
+elContent.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.hasAttribute("data-loja")){ lojaAtiva = b.getAttribute("data-loja"); nomeAtivo = ""; render(); }
+  else if (b.hasAttribute("data-semana-lista")){ semanaLista = b.getAttribute("data-semana-lista"); render(); }
+  else if (b.hasAttribute("data-semana-pay")){ semanaPay = b.getAttribute("data-semana-pay"); render(); }
+});
+btnRefresh.addEventListener("click", () => carregar(false));
+
+/* ---------- porta unica do portal ---------- */
+const CDMMODS = ["hellen"];
+function cdmTok(){ try{ return sessionStorage.getItem("cdm_token") || ""; }catch(e){ return ""; } }
+function cdmSaia(m){
+  try{ sessionStorage.setItem("cdm_aviso", m || ""); }catch(e){}
+  try{ var w = (window.top && window.top !== window) ? window.top : window; w.location.replace("/index.html"); }catch(e){ location.replace("/index.html"); }
+}
+async function cdmGuarda(){
+  const t = cdmTok();
+  if (!t){ cdmSaia("Entre no portal para acessar esta tela"); return false; }
+  let j = null;
+  try{
+    const r = await fetch(SB + "rpc/portal_eu", { method: "POST", headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_token: t, p_tela: "hellen" }) });
+    if (r.ok) j = await r.json();
+  }catch(e){ j = null; }
+  if (!j || !j.usuario){ cdmSaia("Entre no portal para acessar esta tela"); return false; }
+  try{ sessionStorage.setItem("cdm_admin", j.admin ? "1" : "0"); }catch(e){}
+  const ms = Array.isArray(j.modulos) ? j.modulos : [];
+  if (!ms.some(m => m && CDMMODS.indexOf(m.id) >= 0)){ cdmSaia("Você não tem acesso a este módulo"); return false; }
+  return true;
+}
+
+atualizarRelogioTopo();
+elContent.innerHTML = '<div class="rf-load">Conferindo o acesso…</div>';
+let TIMER = null, TIMER_REL = null;
+cdmGuarda().then(ok => {
+  if (!ok) return;
+  LIBERADO = true;
+  render();
+  carregar(false);
+  // le de novo a cada 60 s, so com a tela aberta e visivel; os dois timers sao desligados ao sair da tela (pagehide)
+  TIMER = setInterval(() => { if (!document.hidden && VIEW !== "qr") carregar(true); }, 60000);
+  TIMER_REL = setInterval(atualizarRelogioTopo, 60000);
+});
+window.addEventListener("pagehide", () => { if (TIMER) clearInterval(TIMER); if (TIMER_REL) clearInterval(TIMER_REL); });
+})();
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
