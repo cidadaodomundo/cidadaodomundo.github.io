@@ -153,9 +153,27 @@ function pgIn(lista){ return "in.(" + lista.map(v => '"' + String(v).replace(/\\
 
 const LOJAS_ORDEM = ["Agua Verde", "Ahu", "Sao Braz"];
 const NOME_EXIBICAO = { "Agua Verde": "Água Verde", "Ahu": "Ahú", "Sao Braz": "São Braz" };
-const VALOR_HORA_POR_LOJA = { "Agua Verde": 16.66, "Ahu": 16.66, "Sao Braz": 14.66 };
+// Valor por hora de cada loja: vem do banco do portal (tabela freela_valor_hora, pela porta hellen_valor_hora).
+// Loja sem valor cadastrado nao e calculada — a tela avisa.
+let VALOR_HORA = null, ERRO_VALOR = "";
+async function carregarValores(){
+  try{
+    const r = await fetch(SB + "rpc/hellen_valor_hora", { method: "POST",
+      headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_token: cdmTok() }) });
+    let j = null; try{ j = await r.json(); }catch(e){}
+    if (!r.ok || !j || j.ok === false) throw new Error((j && (j.erro || j.message)) || ("HTTP " + r.status));
+    VALOR_HORA = {};
+    (j.lojas || []).forEach(x => { const v = Number(x.valor_hora); if (isFinite(v) && v > 0) VALOR_HORA[x.loja] = v; });
+    ERRO_VALOR = "";
+  } catch(e){ VALOR_HORA = null; ERRO_VALOR = (e && e.message) ? e.message : "erro"; }
+}
 function valorHoraDaLoja(loja){
-  return VALOR_HORA_POR_LOJA[loja] !== undefined ? VALOR_HORA_POR_LOJA[loja] : 16.66;
+  return (VALOR_HORA && VALOR_HORA[loja] !== undefined) ? VALOR_HORA[loja] : null;
+}
+function textoValores(){
+  if (!VALOR_HORA) return "⚠️ não consegui ler o valor por hora (" + escapeHtml(ERRO_VALOR) + ") — os valores em R$ não foram calculados";
+  return LOJAS_ORDEM.map(l => { const v = valorHoraDaLoja(l); return NOME_EXIBICAO[l] + " " + (v !== null ? formatBRL(v) + "/h" : "sem valor por hora cadastrado"); }).join(" · ");
 }
 // A partir daqui o painel "esquece" tudo que foi batido antes desse momento
 // (testes de quando o sistema estava sendo montado). Nada é apagado do banco,
@@ -169,6 +187,7 @@ let turnos = [];
 let marcadosPagos = new Set();
 let carregouUmaVez = false;
 let erroCarga = "";
+let AVISO_LIMITE = false;
 let ultimaLeitura = null;
 
 let VIEW = (location.hash || "").replace("#", "") || "vivo";
@@ -256,23 +275,48 @@ function quaseIgual(a, b){
 // Junta as grafias da mesma pessoa na mesma loja: com/sem espaco, acento ou maiuscula ("OsbelAngelGómezReyes"),
 // so o comeco do nome ("Osbel", "Julia") quando ele so cabe em UMA pessoa daquela loja, e erro de ate 2 letras em nome comprido.
 // Duas pessoas diferentes que comecam igual (ex.: "Julia" e duas Julias com sobrenome) NAO sao juntadas.
+// Trava: duas grafias que estavam DENTRO da loja ao mesmo tempo (uma bateu a chegada no mesmo dia, com a outra ja dentro e sem saida no meio)
+// sao duas pessoas — nao junta, mesmo que o nome comece igual.
+function aoMesmoTempo(grupoA, grupoB, regsPorChave){
+  const evs = [];
+  grupoA.forEach(k => regsPorChave.get(k).forEach(r => evs.push({ ms: r.ms, tipo: tipoDe(r.tipo), lado: "A" })));
+  grupoB.forEach(k => regsPorChave.get(k).forEach(r => evs.push({ ms: r.ms, tipo: tipoDe(r.tipo), lado: "B" })));
+  evs.sort((x, y) => x.ms - y.ms);
+  const dentro = { A: null, B: null };
+  for (const e of evs){
+    const outro = e.lado === "A" ? "B" : "A";
+    if (dentro[outro] !== null && e.ms - dentro[outro] > MAX_TURNO_MS) dentro[outro] = null; // esqueceu a saida
+    if (e.tipo === "chegada"){
+      if (dentro[outro] !== null && diaBrasilia(e.ms) === diaBrasilia(dentro[outro])) return true;
+      dentro[e.lado] = e.ms;
+    } else if (e.tipo === "saida"){
+      dentro.A = null; dentro.B = null; // a saida fecha o turno, venha de qual grafia vier
+    }
+  }
+  return false;
+}
 function montarApelidos(lista){
   const porLoja = new Map();
   lista.forEach(r => {
     const k = chaveBase(r.nome); if (!k) return;
     if (!porLoja.has(r.loja)) porLoja.set(r.loja, new Map());
-    const m = porLoja.get(r.loja); m.set(k, (m.get(k) || 0) + 1);
+    const m = porLoja.get(r.loja); if (!m.has(k)) m.set(k, []); m.get(k).push(r);
   });
   const mapa = new Map();
-  porLoja.forEach((freq, loja) => {
-    const ks = Array.from(freq.keys()).sort((a,b) => (b.length - a.length) || (freq.get(a) - freq.get(b)) || a.localeCompare(b));
+  porLoja.forEach((regsPorChave, loja) => {
+    const freq = k => regsPorChave.get(k).length;
+    const ks = Array.from(regsPorChave.keys()).sort((a,b) => (b.length - a.length) || (freq(a) - freq(b)) || a.localeCompare(b));
     const pai = new Map(ks.map(k => [k, k]));
     const raiz = k => { while (pai.get(k) !== k) k = pai.get(k); return k; };
+    const membros = r => ks.filter(k => raiz(k) === r);
     ks.forEach(a => {
       const alvos = ks.filter(b => b !== a && b.length >= a.length && (b.startsWith(a) || (a.length >= 10 && quaseIgual(a, b))));
       if (!alvos.length) return;
       const raizes = new Set(alvos.map(raiz));
-      if (raizes.size === 1){ const r = Array.from(raizes)[0]; if (r !== raiz(a)) pai.set(raiz(a), r); }
+      if (raizes.size !== 1) return;
+      const r = Array.from(raizes)[0], ra = raiz(a);
+      if (r === ra || aoMesmoTempo(membros(ra), membros(r), regsPorChave)) return;
+      pai.set(ra, r);
     });
     ks.forEach(k => mapa.set(loja + "|" + k, loja + "|" + raiz(k)));
   });
@@ -419,7 +463,7 @@ function calcularPagamentos(lista){
 /* ---------- quem ja foi marcado como pago (tabela pagamentos_marcados) ---------- */
 async function carregarMarcados(){
   try{
-    const data = await hsb("pagamentos_marcados?select=nome_normalizado,loja,semana_inicio&limit=1000");
+    const data = await hsb("pagamentos_marcados?select=nome_normalizado,loja,semana_inicio&semana_inicio=gte." + diaBrasilia(inicioCicloMs(cicloAtual() - 1)) + "&limit=1000");
     marcadosPagos = new Set((data || []).map(m => m.nome_normalizado + "|" + m.loja + "|" + m.semana_inicio));
   } catch(e){
     marcadosPagos = new Set(); // sem a lista, o painel continua funcionando, so nao mostra quem ja foi pago
@@ -460,8 +504,10 @@ async function carregar(silencioso){
     // desde a semana passada (e 1 dia antes, para pegar a Chegada de quem virou a noite na troca de semana)
     const desde = Math.max(inicioCicloMs(cicloAtual() - 1) - 24 * 3600 * 1000, new Date(INICIO_USO_REAL).getTime());
     const data = await hsb("registros_ponto?select=nome,tipo,loja,criado_em&criado_em=gte." + encodeURIComponent(new Date(desde).toISOString())
-      + "&order=criado_em.asc&limit=5000");
+      + "&order=criado_em.asc&limit=1000");
+    AVISO_LIMITE = (data || []).length >= 1000;
     await carregarMarcados();
+    if (!silencioso || VALOR_HORA === null) await carregarValores();
     const lista = (data || []).map(r => Object.assign({}, r, { ms: new Date(r.criado_em).getTime() }));
     const apelidos = montarApelidos(lista);
     lista.forEach(r => { r.chave = apelidos.get(r.loja + "|" + chaveBase(r.nome)) || (r.loja + "|" + chaveBase(r.nome)); });
@@ -621,18 +667,20 @@ function renderPagamento(){
   const linhas = Array.from(calcularPagamentos(doPeriodo).values()).sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
   PAY_LINHAS = linhas;
 
-  let h = '<div class="rf-h2">💰 Pagamento da semana <span class="hint">Água Verde e Ahú R$ 16,66/h · São Braz R$ 14,66/h</span></div>';
+  let h = '<div class="rf-h2">💰 Pagamento da semana <span class="hint">' + textoValores() + '</span></div>';
   h += '<div class="rf-card">' + barraLojas();
   h += '<div class="barra">' + barraSemana(semanaPay, "data-semana-pay") + '</div>';
-  let totalMs = 0, totalValor = 0, totalInc = 0;
+  let totalMs = 0, totalValor = 0, totalInc = 0, semValor = 0;
   linhas.forEach(p => {
-    p.valor = (p.ms / 3600000) * valorHoraDaLoja(p.loja);
+    const vh = valorHoraDaLoja(p.loja);
+    p.valor = vh === null ? null : (p.ms / 3600000) * vh;
     // quem esta na loja agora tem o turno aberto: nao e batida incompleta, so ainda nao bateu a saida
     p.naLoja = semanaPay === "atual" && turnos.some(t => t.chave === p.chave && t.aberto);
     if (p.naLoja && p.incompletos > 0) p.incompletos--;
-    totalMs += p.ms; totalValor += p.valor; totalInc += p.incompletos;
+    totalMs += p.ms; totalInc += p.incompletos;
+    if (p.valor === null) semValor++; else totalValor += p.valor;
   });
-  h += '<div class="pay-total"><span class="l">Total da semana' + (lojaAtiva ? ' · ' + NOME_EXIBICAO[lojaAtiva] : '') + '</span><span class="n">' + formatBRL(totalValor) + '</span></div>';
+  h += '<div class="pay-total"><span class="l">Total da semana' + (lojaAtiva ? ' · ' + NOME_EXIBICAO[lojaAtiva] : '') + '</span><span class="n">' + (linhas.length && semValor === linhas.length ? '—' : formatBRL(totalValor)) + '</span></div>';
   if (!linhas.length){
     elContent.innerHTML = h + '<div class="rf-empty">Sem registros nessa semana ainda.</div></div>';
     return;
@@ -646,14 +694,15 @@ function renderPagamento(){
       + (og.length ? '<div class="apelido">digitou também: ' + og.map(escapeHtml).join(", ") + '</div>' : '') + '</td>'
       + (lojaAtiva ? '' : '<td>' + escapeHtml(NOME_EXIBICAO[p.loja] || p.loja) + '</td>')
       + '<td class="n pv-h">' + formatHoras(p.ms) + '</td>'
-      + '<td class="n pv-valor">' + formatBRL(p.valor) + '</td>'
+      + '<td class="n pv-valor">' + (p.valor === null ? '<span class="rfx">sem valor por hora</span>' : formatBRL(p.valor)) + '</td>'
       + '<td class="n">' + (pago
           ? '<button type="button" class="pay-pago" data-i="' + i + '">✓ Pago <span class="desfazer">(desfazer)</span></button>'
           : '<button type="button" class="pay-marcar" data-i="' + i + '">Marcar como pago</button>') + '</td></tr>';
   });
-  h += '<tr class="pv-tot"><td>Total</td>' + (lojaAtiva ? '' : '<td></td>') + '<td class="n pv-h">' + formatHoras(totalMs) + '</td><td class="n pv-valor">' + formatBRL(totalValor) + '</td><td></td></tr>';
+  h += '<tr class="pv-tot"><td>Total</td>' + (lojaAtiva ? '' : '<td></td>') + '<td class="n pv-h">' + formatHoras(totalMs) + '</td><td class="n pv-valor">' + (semValor === linhas.length ? '—' : formatBRL(totalValor)) + '</td><td></td></tr>';
   h += '</tbody></table></div>';
-  if (totalInc > 0) h += '<div class="rf-nota">⚠️ batida incompleta = faltou marcar entrada ou saída nessa semana — essas horas não entraram na conta. Confira em 📅 Batidas da semana.</div>';
+  if (semValor > 0) h += '<div class="rf-nota">⚠️ ' + semValor + (semValor === 1 ? ' pessoa ficou' : ' pessoas ficaram') + ' sem valor em R$ porque a loja não tem valor por hora cadastrado — não entrou no total.</div>';
+  if (totalInc > 0) h += '<div class="rf-nota">⚠️ batida incompleta = não bateu a entrada ou a saída nessa semana — essas horas não entraram na conta. Confira em 📅 Batidas da semana.</div>';
   h += '<div class="rf-nota">A mesma pessoa digitada de jeitos diferentes conta numa linha só. Se uma grafia antiga já tinha sido marcada como paga, a pessoa aparece como paga.</div>';
   elContent.innerHTML = h + '</div>';
   elContent.querySelectorAll(".pay-marcar").forEach(b => b.addEventListener("click", () => { b.disabled = true; marcarComoPago(PAY_LINHAS[+b.dataset.i], semanaInicioStr); }));
@@ -731,6 +780,7 @@ function render(){
   if (VIEW === "semana") renderSemana();
   else if (VIEW === "pagamento") renderPagamento();
   else renderVivo();
+  if (AVISO_LIMITE) elContent.insertAdjacentHTML("afterbegin", '<div class="err">⚠️ Vieram 1000 batidas, o máximo que o banco entrega de uma vez: pode faltar batida nesta tela.</div>');
   if (erroCarga) elContent.insertAdjacentHTML("afterbegin", '<div class="err">⚠️ A última atualização falhou (' + escapeHtml(erroCarga) + '). Mostrando a leitura das ' + hhmm(ultimaLeitura) + '.</div>');
 }
 document.querySelectorAll(".view").forEach(b => b.addEventListener("click", () => {
