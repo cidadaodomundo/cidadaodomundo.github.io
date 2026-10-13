@@ -241,12 +241,14 @@ function abertos(L){return L.filter(function(x){return !x.resolvido})}
 /* cada quadro: id, emoji, titulo, numero, frase de baixo, classe (mal | bem | sd | neutro) */
 /* 03/10/2026 pedido do Fabio: erros de comida e de bebida separados por tipo, para achar o erro e ajustar rapido */
 const CATS=[['BEB','🥤','Bebida esquecida','bebida que não foi na sacola'],
-            ['COM','🍔','Comida esquecida','item de comida que faltou'],
+            ['COM','🍔','Comida esquecida','item de comida (ou sem tipo claro) que faltou'],
             ['RUIM','🍳','Comida ruim','crua, fria, queimada, pouca, sem sabor'],
             ['VAZ','💧','Vazou ou embalagem','vazou, derramou, revirado, amassado'],
             ['ERR','🔄','Veio errado','item trocado ou errado'],
             ['OUT','❓','Outra reclamação','reclamação sem tipo claro']];
-function probDe(c){return ((E&&E.problemas)||[]).filter(function(x){return (x.cats||[]).indexOf(c)>=0})}
+/* 13/10/2026 (chat-errado-pedido-alejo-13-10): cada caso conta em UM quadro só (o principal, que o sb_erros manda em cats[0]);
+   as outras marcas vêm em x.etiquetas e aparecem só como etiqueta cinza na lista */
+function probDe(c){return ((E&&E.problemas)||[]).filter(function(x){return (x.cats||[])[0]===c})}
 function quadrosPedido(){
   if(EERR)return [{id:'_e',em:'⚠️',t:'Erros no pedido',n:'—',s:'não carregou: '+EERR,k:'sd'}];
   return CATS.map(function(c){
@@ -322,7 +324,7 @@ function listaProb(c){
   if(!S.length)return '<div class="lista"><div class="vz">Nenhum caso deste tipo no período. 👏</div></div>';
   const nome={};CATS.forEach(function(k){nome[k[0]]=k[1]+' '+k[2]});
   return '<div class="lista">'+S.map(function(x){
-    const tp=(x.cats||[]).map(function(t){return '<span class="pill '+(t===c?'p-bad':'p-off')+'">'+esc(nome[t]||t)+'</span>'}).join(' ');
+    const tp=(x.cats||[]).slice(0,1).concat(x.etiquetas||[]).map(function(t){return '<span class="pill '+(t===c?'p-bad':'p-off')+'">'+esc(nome[t]||t)+'</span>'}).join(' ');
     const st=x.pendente?'<span class="pill p-bad">⏳ sem solução registrada</span>':(!x.resolveu?'':/^Pedido cancelado/.test(x.resolveu)?'<span class="pill p-off">'+esc(x.resolveu)+'</span>':'<span class="pill p-ok">✅ '+esc(x.resolveu)+'</span>');
     return '<div class="it'+(x.pendente?' pend':'')+'"><div class="l1">'+tp+'<b>Pedido '+esc(x.pedido)+'</b><span class="m">'+esc(x.quando)+(x.marca?' · '+esc(marcaCurta(x.marca)):'')+'</span></div>'+
       '<div class="l2">'+(x.item?'<b style="color:var(--text)">'+esc(x.item)+'</b><br>':'')+(x.disse?'"'+esc(x.disse)+'"':'')+
