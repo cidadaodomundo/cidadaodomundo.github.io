@@ -105,7 +105,7 @@ a.src{color:var(--text);text-decoration:none;font-weight:600}
 </head>
 <body>
 <div class="top">
-  <div><h1>🍽 Salão · São Braz</h1><div class="sub">Reservas, avaliações do Google e o que está fora do tablet de mesa</div></div>
+  <div><h1>🍽 Salão · São Braz</h1><div class="sub">Eventos da cidade, equipe, reservas, o que o cliente falou e a nota no Google</div></div>
   <div class="rt"><button class="b" id="recarga">↻ Atualizar</button></div>
 </div>
 <div id="app" class="load">Carregando…</div>
@@ -240,7 +240,15 @@ const hojeISO=()=>new Date().toLocaleDateString('sv-SE');
 function dMais(n){const d=new Date();d.setDate(d.getDate()+n);return d.toLocaleDateString('sv-SE')}
 function dMenos(n){const d=new Date();d.setDate(d.getDate()-n);return d.toLocaleDateString('sv-SE')}
 function diasEntre(a,b){return Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/86400000)}
-async function rest(q){try{const r=await fetch(SBR+q,{headers:{apikey:KEY,Authorization:'Bearer '+KEY}});return r.ok?await r.json():[]}catch(e){return []}}
+/* 13/10/2026: leitura que falha nao vira mais "ainda nao chegou" calado — fica anotada e a tela avisa em vermelho (Fabio: "conserta") */
+let REST_FALHA=[];
+const REST_ROT={fato_escala_posicao:'escala',fato_espelho_dia:'ponto',dim_funcionario:'equipe',escala_cobertura_min:'mínimo de gente',saipos_venda_status:'vendas de balcão',evento_cidade:'eventos da cidade'};
+function restFalhou(q){const t=String(q).split('?')[0];const r=REST_ROT[t]||t;if(REST_FALHA.indexOf(r)<0)REST_FALHA.push(r)}
+async function rest(q){try{const r=await fetch(SBR+q,{headers:{apikey:KEY,Authorization:'Bearer '+KEY}});if(r.ok)return await r.json();restFalhou(q);return []}catch(e){restFalhou(q);return []}}
+function avisoFalha(){let f=document.getElementById('falhaLeitura');const a=document.getElementById('app');
+  if(!f){f=document.createElement('div');f.id='falhaLeitura';f.style.cssText='display:none;margin:0 0 12px;padding:10px 12px;border:1px solid #e05252;border-left:4px solid #e05252;border-radius:9px;background:rgba(224,82,82,.10);color:var(--text);font-size:13px;line-height:1.45';a.parentNode.insertBefore(f,a)}
+  if(!REST_FALHA.length){f.style.display='none';f.textContent='';return}
+  f.innerHTML='⚠️ <b>Não consegui ler agora:</b> '+esc(REST_FALHA.join(', '))+'. O que aparece vazio nessas partes pode ser falha de leitura, e não falta de dado. Aperte <b>↻ Atualizar</b>; se continuar, avise o escritório.';f.style.display='block'}
 
 /* ----- Equipe do salão (copiado da Central Salão, só São Braz) ----- */
 let TURNO='auto';
@@ -518,6 +526,7 @@ window.addEventListener('hashchange',rota);
 async function carregar(){
   const a=document.getElementById('app');a.className='load';a.textContent='Carregando…';
   const U='&unidade=eq.'+encodeURIComponent(LOJA);
+  REST_FALHA=[];
   try{
     const [base,escala,ponto,pessoas,cobertura,balcao,eventos,evUlt]=await Promise.all([
       porta('salao',{}),
@@ -532,8 +541,9 @@ async function carregar(){
     D=Object.assign({},base,{escala:escala,ponto:ponto,pessoas:pessoas,cobertura:cobertura,balcao:balcao,eventos:eventos.filter(e=>e.tipo==='feriado'||e.data<=dMais(EV_DIAS)),
       evMeta:{conferida:evUlt[0]&&evUlt[0].atualizado_em,ultimo:evUlt[0]&&evUlt[0].data}});
     render();
+    avisoFalha();
   }
-  catch(e){a.className='erro';a.textContent='Não consegui carregar: '+e.message}
+  catch(e){a.className='erro';a.textContent='Não consegui carregar: '+e.message;REST_FALHA=[];avisoFalha()}
 }
 function boot(){document.getElementById('recarga').onclick=carregar;carregar()}
 /* ===== porta unica do portal: sessao por usuario ===== */

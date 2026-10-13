@@ -979,7 +979,19 @@ function checkAcoes(){
   }
   if(!acoes.length)document.title='Relatório RH · Cidadão do Mundo';
 }
-setInterval(loadAll, 15*60*1000);
+/* 13/10/2026: a recarga de 15 em 15 min apagava o que estava sendo digitado e voltava para o ultimo dia (queixa do Diego, Fabio: "conserta").
+   Agora a rodada automatica e pulada se ha campo em foco ou texto digitado e nao salvo, so roda com a aba visivel, e devolve a pessoa ao dia que ela olhava. O botao Atualizar continua igual. */
+function rhDigitando(){var a=document.activeElement;if(a&&(a.tagName==='TEXTAREA'||a.tagName==='SELECT'||a.isContentEditable||(a.tagName==='INPUT'&&['button','submit','checkbox','radio'].indexOf(a.type)<0)))return true;
+  return [].some.call(document.querySelectorAll('#content textarea,#content input'),function(e){return ['button','submit','checkbox','radio','hidden'].indexOf(e.type)<0&&e.value!==e.defaultValue})}
+async function rhAutoRecarga(){if(document.hidden||rhDigitando()||VIEW==='escala'||VIEW==='guia'||VIEW==='manual'||VIEW==='vivo')return;
+  var _dia=DAYS[DI];await loadAll();var _i=_dia?DAYS.indexOf(_dia):-1;if(_i>=0&&_i!==DI){DI=_i;if(VIEW==='day')render()}}
+/* o relogio de 15 min desliga ao sair da aba (clearInterval) e religa ao voltar */
+var RHAUTO=null;
+function rhAutoLiga(){if(!RHAUTO)RHAUTO=setInterval(rhAutoRecarga, 15*60*1000)}
+function rhAutoDesliga(){if(RHAUTO){clearInterval(RHAUTO);RHAUTO=null}}
+document.addEventListener('visibilitychange',function(){if(document.hidden)rhAutoDesliga();else rhAutoLiga()});
+window.addEventListener('pagehide',rhAutoDesliga);
+rhAutoLiga();
 cdmGuarda().then(function(ok){if(ok)loadAll()});
 </script>
 <script>
