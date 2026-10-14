@@ -416,9 +416,29 @@ function cliMostra(){
   const velho=av.atraso_dias==null||Number(av.atraso_dias)>2;
   const lb='<div class="lbx">⭐ O cliente disse<small>iFood · '+(hn?(hn===1?'chegou hoje: 1':'chegaram hoje: '+esc(hn))+(h.media!=null?' · média '+esc(String(h.media).replace('.',',')):'')+(h.ruins?' · <b style="color:var(--bad)">'+esc(h.ruins)+(h.ruins>1?' ruins':' ruim')+'</b>':' · nenhuma ruim'):'nenhuma chegou hoje ainda')+'</small></div>';
   const fila=(Array.isArray(av.ruins)?av.ruins:[]).slice(); if(av.elogio) fila.push(Object.assign({elogio:true,nota:5},av.elogio));
+  /* 14/10/2026 (chat-tv-qualidade-fotos-14-10) Fabio: "avaliacoes nao somente do ifood, tambem do google qdo tiver". O robo do
+     Google traz a nota, o total e so as avaliacoes que o Google mostra em destaque (sem data exata). Entra na roda: a nota e
+     quantas chegaram em 7 dias e, quando houver, a avaliacao recente ("dias atras"). Sem ruim no iFood, a roda alterna com o aviso. */
+  const go=av.google||null, gfila=[];
+  if(go&&go.total!=null){
+    (Array.isArray(go.recentes)?go.recentes:[]).forEach(function(g){ gfila.push({google:true,disse:g.disse,quando:g.quando,autor:g.autor}); });
+    gfila.push({google:true,resumo:true});
+  }
+  if(!velho && !fila.length && gfila.length) fila.push({nada:true});
+  if(!velho) gfila.forEach(function(g){ fila.push(g); });
   if(velho){ el.className='cli nada'; el.innerHTML=lb+'<div><div class="q2 alerta" style="font-style:normal">⚠️ '+(av.ultima?'Nenhuma avaliação nova do iFood desde '+esc(av.ultima):'Nenhuma avaliação do iFood nos últimos 7 dias')+' — o robô pode estar parado.</div></div>'; return; }
   if(!fila.length){ el.className='cli nada'; el.innerHTML=lb+'<div><div class="q2" style="font-style:normal">Nenhuma avaliação ruim nos últimos 3 dias. 👏</div></div>'; return; }
-  const r=fila[CLI_I%fila.length], nt=Math.max(0,Math.min(5,Number(r.nota)|0));
+  const r=fila[CLI_I%fila.length], nt=Math.max(0,Math.min(5,Number(r.nota)|0)), pos=(fila.length>1?((CLI_I%fila.length)+1)+'/'+fila.length+' · ':'');
+  if(r.nada){ el.className='cli nada'; el.innerHTML=lb+'<div><div class="q1">'+pos+'iFood</div><div class="q2" style="font-style:normal">Nenhuma avaliação ruim nos últimos 3 dias. 👏</div></div>'; return; }
+  if(r.google){
+    const gn=go.novas7==null?null:Number(go.novas7), gnota=String(go.nota).replace('.',',');
+    const gq1=pos+'<span class="st">Google</span> · nota '+esc(gnota)+' · '+esc(Number(go.total).toLocaleString('pt-BR'))+' avaliações'
+      +(gn==null?'':' · '+(gn>0?gn+(gn>1?' novas':' nova')+' em 7 dias':'nenhuma nova em 7 dias'))+' · leitura de '+esc(go.coleta||'');
+    el.className='cli bom';
+    el.innerHTML=lb+'<div><div class="q1">'+gq1+'</div><div class="q2">'+(r.resumo?'<span style="font-style:normal">Nota da loja no Google: <b>'+esc(gnota)+' ★</b>. O Google não mostra o texto de cada avaliação nova — quando mostrar, ela aparece aqui.</span>'
+      :'“'+esc(r.disse||'')+'” <small style="font-style:normal;color:var(--muted)">— '+esc(r.autor||'')+', '+esc(r.quando||'')+'</small>')+'</div></div>';
+    return;
+  }
   const st='★'.repeat(nt)+'☆'.repeat(5-nt);
   /* so as etiquetas que o PROPRIO cliente marcou no iFood (o classificador de erro da cozinha dava nome errado a texto de avaliacao) */
   const sobre=r.elogio?'nota máxima':(Array.isArray(r.tags)&&r.tags.length?esc(r.tags.slice(0,2).join(', '))+(r.tags.length>2?' +'+(r.tags.length-2):''):'');
@@ -498,6 +518,7 @@ function abreInfo(q){
      +'<p><b>O dia</b> vai das 6h às 6h, como no topo da lista de erros.</p>'
      +'<p><b>🍖 Meta do churrasco:</b> dia verde = até '+esc(m.verde_ate==null?'—':m.verde_ate)+' erros. '+esc(m.meta_dias==null?'—':m.meta_dias)+' dias verdes de sábado a sexta = churrasco no sábado. Para a meta contam os erros de cozinha e de montagem; as avaliações não contam.</p>'
      +'<p><b>Só conta o que é erro mesmo.</b> Não contam: a mesma reclamação repetida; a equipe repetindo no grupo ou no SAC um erro que já está na lista; relatório de fechamento da equipe; pedido ou observação do cliente ("não esquece de…"); assunto só de entrega ou endereço; pedido que não chegou; erro do próprio cliente ("pedi da unidade errada"); e o mesmo pedido que caiu em outra loja. Toque no dia da meta para ver a lista: o que não contou aparece embaixo, com o motivo.</p>'
+     +'<p><b>🍳 Problema de qualidade:</b> na lista do dia (toque no dia da meta) há um quadro só para cru, queimado, estragado, frio e sem sabor, junto com as avaliações do iFood que reclamam da comida. Cru, queimado e estragado continuam contando na meta; frio e avaliação não. Quando o cliente mandou foto, aparece 📷 (a foto abre no portal).</p>'
      +(px?'<p><b>Regra nova:</b> a partir de '+esc(px.a_partir)+', dia verde = até '+esc(px.verde_ate)+' erros.</p>':'')
      +'<p><b>Sem valor em R$ e sem nome de cliente</b> na TV.</p>';
   } else if(q==='codigos'){
@@ -546,26 +567,58 @@ async function abreDia(dm){
   if(eu!==DIA_PEDIDO || !$('info').classList.contains('on')) return;   /* fechou ou clicou em outro dia no meio */
   if(!j){ bx.innerHTML='<button class="bt fecha" onclick="fechaInfo()">✕ Fechar</button><h1>Erros de '+esc(dm)+'</h1><p class="alerta">⚠️ '+esc(msg)+'</p>'; return; }
   const C=Array.isArray(j.conta)?j.conta:[], F=Array.isArray(j.fora)?j.fora:[], lim=Number(j.verde_ate);
+  /* 14/10/2026 (chat-tv-qualidade-fotos-14-10) Fabio: "mais um quadro que e qdo tem problema de qualidade", "queremos fotos" e
+     "avaliacoes nao somente do ifood, tambem do google qdo tiver". O quadro de qualidade junta o que veio cru/queimado/estragado/
+     frio/ruim e as avaliacoes do iFood (nota ate 3) que reclamam da comida. A META NAO MUDOU: conta o mesmo de antes. */
+  const X=Array.isArray(j.expedicao)?j.expedicao:[], AV=j.avaliacoes||{}, IF=AV.ifood||{}, GO=AV.google||null;
+  const RU=Array.isArray(IF.ruins)?IF.ruins:[], AQ=RU.filter(r=>r.qual), AO=RU.filter(r=>!r.qual);
+  const M=C.filter(e=>!e.qual), Q=C.filter(e=>e.qual).concat(X).sort((a,b)=>String(a.hora).localeCompare(String(b.hora)));
+  DIA_ISO=iso;
   const cor=j.hoje?(C.length>lim?'var(--bad)':'var(--brand)'):(C.length<=lim?'var(--ok)':'var(--bad)');
   const situ=j.hoje?(C.length>lim?'já passou do limite de '+lim:'até agora (limite '+lim+')'):(C.length<=lim?'dia verde (limite '+lim+')':'dia vermelho (limite '+lim+')');
   const n=s=>C.filter(e=>e.setor===s).length;
   const resolveu=t=>{ t=String(t||''); return /^SEM REGISTRO/i.test(t)?'<span style="color:var(--muted)">sem registro</span>':esc(t); };
+  const foto=e=>{ const k=Number(e.fotos)||0; if(!k||!e.pedido) return '';
+    return PORTAL?'<br><button class="bt" style="margin-top:.3em" onclick="verFotoTV(\''+esc(String(e.pedido).replace(/[^0-9A-Za-z-]/g,''))+'\')">📷 ver '+(k===1?'a foto':'as '+k+' fotos')+' do cliente</button>'
+                 :'<br><span class="pl p-exp" style="font-size:.75em">📷 '+k+(k===1?' foto':' fotos')+' do cliente · veja no portal</span>'; };
+  const mp=e=>{ const mc=marcaCurta(e.marca);
+    return (mc?'<span class="mc" style="font-size:1em">'+esc(mc)+'</span>':'<span style="color:var(--muted)">marca não informada</span>')+'<br>'+(e.pedido?'pedido <b>'+esc(e.pedido)+'</b>':'sem nº de pedido')+foto(e); };
+  const linha=e=>'<tr><td class="hr">'+esc(e.hora)+'</td><td><span class="pl '+(e.setor==='cozinha'?'p-coz':e.setor==='montagem'?'p-mon':'p-exp')+'">'+esc(e.setor)+'</span>'
+          +(e.qual?'<br><small style="color:'+(e.na_meta?'var(--bad)':'var(--muted)')+'">'+(e.na_meta?'conta na meta':'não conta na meta')+'</small>':'')+'</td>'
+          +'<td><b>'+esc(e.titulo)+'</b>'+(e.item?'<br><small style="color:var(--text2)">'+esc(e.item)+'</small>':'')+'</td>'
+          +'<td>'+mp(e)+'</td>'
+          +'<td class="ds">'+(e.disse?'“'+esc(e.disse)+'”':'—')+(e.fontes?'<br><small style="font-style:normal;color:var(--muted)">'+esc(e.fontes)+'</small>':'')+'</td>'
+          +'<td>'+resolveu(e.resolveu)+'</td></tr>';
+  const est=v=>{ const k=Math.max(0,Math.min(5,Number(v)|0)); return '★'.repeat(k)+'☆'.repeat(5-k); };
+  const linhaAv=r=>'<tr><td class="hr">'+esc(r.hora||'')+'</td><td><span class="pl p-coz">avaliação</span><br><small style="color:var(--muted)">não conta na meta</small></td>'
+          +'<td><b style="color:var(--brand)">'+est(r.nota)+'</b> nota '+esc(r.nota)+(Array.isArray(r.tags)&&r.tags.length?'<br><small style="color:var(--text2)">o cliente marcou: '+esc(r.tags.join(', '))+'</small>':'')+'</td>'
+          +'<td>'+mp(r)+'</td><td class="ds">'+(r.disse?'“'+esc(r.disse)+'”':'<span style="font-style:normal;color:var(--muted)">não escreveu nada</span>')+'<br><small style="font-style:normal;color:var(--muted)">iFood · avaliou '+esc(r.avaliou||'')+'</small></td><td>—</td></tr>';
+  const cab='<tr><th>Hora</th><th>Setor</th><th>O que foi</th><th>Marca · pedido</th><th>O que chegou</th><th>O que a loja fez</th></tr>';
   let h='<button class="bt fecha" onclick="fechaInfo()">✕ Fechar</button>'
     +'<h1>'+esc(j.sem||'')+' '+esc(j.dia||dm)+' · '+esc(j.loja||'')+'</h1>'
     +'<p><b style="color:'+cor+';font-size:1.3em">'+C.length+' erro'+(C.length===1?'':'s')+'</b> · '+esc(situ)
-    +' · cozinha '+n('cozinha')+' · montagem '+n('montagem')+' · dia das 6h às 6h'+(j.hoje?' · <b>hoje, ainda contando</b>':'')+'</p>'
+    +' · cozinha '+n('cozinha')+' · montagem '+n('montagem')+' · qualidade '+(Q.length+AQ.length)+' · dia das 6h às 6h'+(j.hoje?' · <b>hoje, ainda contando</b>':'')+'</p>'
     +'<p style="font-size:.85em">'+(j.lido_em?'Lido em '+esc(j.lido_em)+'.':'')+(j.ontem?' Reclamação do iFood às vezes chega com 1 dia de atraso: este número ainda pode subir.':'')+'</p>';
-  if(C.length){
-    h+='<table class="tb"><tr><th>Hora</th><th>Setor</th><th>O que foi</th><th>Marca · pedido</th><th>O que chegou</th><th>O que a loja fez</th></tr>'
-      +C.map(function(e){
-        const mc=marcaCurta(e.marca);
-        return '<tr><td class="hr">'+esc(e.hora)+'</td><td><span class="pl '+(e.setor==='cozinha'?'p-coz':'p-mon')+'">'+esc(e.setor)+'</span></td>'
-          +'<td><b>'+esc(e.titulo)+'</b>'+(e.item?'<br><small style="color:var(--text2)">'+esc(e.item)+'</small>':'')+'</td>'
-          +'<td>'+(mc?'<span class="mc" style="font-size:1em">'+esc(mc)+'</span>':'<span style="color:var(--muted)">marca não informada</span>')+'<br>'+(e.pedido?'pedido <b>'+esc(e.pedido)+'</b>':'sem nº de pedido')+'</td>'
-          +'<td class="ds">'+(e.disse?'“'+esc(e.disse)+'”':'—')+(e.fontes?'<br><small style="font-style:normal;color:var(--muted)">'+esc(e.fontes)+'</small>':'')+'</td>'
-          +'<td>'+resolveu(e.resolveu)+'</td></tr>';
-      }).join('')+'</table>';
-  } else h+='<div class="vazio"><b>Nenhum erro neste dia.</b></div>';
+  h+='<h3>🛍 Erros de cozinha e montagem ('+M.length+')</h3>';
+  if(M.length) h+='<table class="tb" data-cdm-sem-nota>'+cab+M.map(linha).join('')+'</table>';
+  else h+='<div class="vazio"><b>Nenhum erro de cozinha ou montagem neste dia.</b></div>';
+  h+='<h3>🍳 Problema de qualidade ('+(Q.length+AQ.length)+')</h3><p style="font-size:.85em">Cru, queimado, estragado, frio, sem sabor — e as avaliações do iFood que reclamam da comida. Cru, queimado e estragado continuam contando na meta; frio e avaliação não contam.</p>';
+  if(Q.length||AQ.length) h+='<table class="tb" data-cdm-sem-nota>'+cab+Q.map(linha).join('')+AQ.map(linhaAv).join('')+'</table>';
+  else h+='<div class="vazio"><b>Nenhum problema de qualidade neste dia'+(IF.n?'':' (as avaliações do iFood ainda não chegaram)')+'.</b></div>';
+  /* avaliacoes: iFood (dos pedidos deste dia) e Google (o robo so traz nota e total; avaliacao com data so quando o Google mostra "dias atras") */
+  let av='<h3>⭐ Avaliações dos clientes</h3>';
+  if(IF.n) av+='<p><b>iFood:</b> '+esc(IF.n)+' avaliaç'+(IF.n==1?'ão':'ões')+' dos pedidos deste dia'+(IF.media!=null?' · média '+esc(String(IF.media).replace('.',',')):'')+' · '+(RU.length?'<b style="color:var(--bad)">'+RU.length+(RU.length>1?' ruins':' ruim')+'</b> (nota até 3)':'nenhuma ruim')+'.</p>';
+  else av+='<p><b>iFood:</b> nenhuma avaliação dos pedidos deste dia ainda — o iFood libera cerca de 1 dia depois.</p>';
+  if(AO.length) av+='<table class="tb" data-cdm-sem-nota>'+cab+AO.map(linhaAv).join('')+'</table>';
+  if(GO&&GO.total!=null){
+    const nv=GO.novas==null?null:Number(GO.novas);
+    av+='<p><b>Google:</b> nota '+esc(String(GO.nota).replace('.',','))+' · '+esc(Number(GO.total).toLocaleString('pt-BR'))+' avaliações'
+      +(nv==null?'':nv>0?' · <b>'+nv+(nv>1?' novas':' nova')+'</b> na leitura de '+esc(GO.coleta):nv<0?' · o total caiu '+(-nv)+' na leitura de '+esc(GO.coleta):' · nenhuma nova na leitura de '+esc(GO.coleta))
+      +'. <small>O Google não diz quem escreveu nem o texto de cada avaliação nova; aparece abaixo só a que ele mostra com data de dias atrás.</small></p>';
+    const gr=Array.isArray(GO.recentes)?GO.recentes:[];
+    if(gr.length) av+=gr.map(g=>'<p class="ds" style="font-style:italic">“'+esc(g.disse||'')+'” <small style="font-style:normal;color:var(--muted)">— '+esc(g.autor||'')+' · Google · '+esc(g.quando||'')+'</small></p>').join('');
+  } else av+='<p><b>Google:</b> sem leitura do Google para este dia.</p>';
+  h+=av;
   if(F.length){
     h+='<h3>🚫 Chegou como erro, mas não conta ('+F.length+')</h3><p style="font-size:.85em">Não entra na conta da meta. Se algum destes foi erro de verdade, avise.</p>'
       +'<table class="tb fora"><tr><th>Hora</th><th>Por que não conta</th><th>O que chegou</th><th>Pedido</th></tr>'
@@ -574,6 +627,32 @@ async function abreDia(dm){
       }).join('')+'</table>';
   }
   bx.innerHTML=h;
+}
+/* 14/10/2026: a foto que o cliente mandou na reclamacao. Mesmo guardador das telas Resolver e Cancelados (guardar-foto-chat,
+   acao ver): links que valem 10 minutos, so para quem tem a tela Resolver. So no portal: a foto pode ter nome e endereco
+   do cliente, entao a TV da parede so avisa que tem foto. */
+let DIA_ISO='';
+async function verFotoTV(ped){
+  let cx=document.getElementById('__fotos'); if(cx) cx.remove();
+  cx=document.createElement('div'); cx.id='__fotos';
+  cx.style.cssText='position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.92);overflow:auto;padding:16px;text-align:center';
+  const fecha=function(){ cx.remove(); document.removeEventListener('keydown',tecla,true); };
+  const tecla=function(ev){ if(ev.key==='Escape'){ ev.stopPropagation(); fecha(); } };
+  document.addEventListener('keydown',tecla,true);
+  cx.onclick=function(ev){ if(ev.target.tagName!=='IMG') fecha(); };
+  document.body.appendChild(cx);
+  cx.innerHTML='<div style="color:#fff">Buscando as fotos do pedido '+esc(ped)+'…</div>';
+  try{
+    const r=await fetch('https://kqvoatdprjwxyadhvtdd.supabase.co/functions/v1/guardar-foto-chat',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({acao:'ver',token_portal:PTOK,pedido_curto:ped,unidade:LOJA,dia:DIA_ISO})});
+    let j=null; try{ j=await r.json(); }catch(e){}
+    if(!document.body.contains(cx)) return;
+    if(r.status===401){ cx.innerHTML='<div style="color:#fff">'+(j&&/sess/.test(j.erro||'')?'Seu login venceu. Saia e entre de novo no portal.':'Você não tem acesso às fotos (só quem vê a tela Resolver).')+'<div style="color:#bbb;font-size:12px;margin-top:6px">Toque para fechar.</div></div>'; return; }
+    if(!r.ok||!j||!j.ok||!j.fotos||!j.fotos.length){ cx.innerHTML='<div style="color:#fff">Não achei foto guardada deste pedido.<div style="color:#bbb;font-size:12px;margin-top:6px">Toque para fechar.</div></div>'; return; }
+    cx.innerHTML='<div style="color:#fff;margin-bottom:8px">Pedido '+esc(ped)+' · foto que o cliente mandou</div>'
+      +j.fotos.map(function(f){ return '<img src="'+esc(f.link)+'" alt="foto do cliente" style="max-width:96%;max-height:80vh;margin:8px auto;display:block;border-radius:8px">'; }).join('')
+      +'<div style="color:#bbb;font-size:12px;margin-top:6px">Toque fora da foto ou aperte Esc para fechar.</div>';
+  }catch(e){ if(document.body.contains(cx)) cx.innerHTML='<div style="color:#fff">Não deu para buscar as fotos. Toque para fechar.</div>'; }
 }
 function fechaInfo(){ DIA_PEDIDO++; $('info').classList.remove('on'); $('info-box').classList.remove('larga'); }
 document.addEventListener('keydown',function(ev){ if(ev.key==='Escape') fechaInfo(); });
