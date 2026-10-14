@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="/assets/chaves.js?v=1"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Caixa · dia a dia · Cidadão do Mundo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/cdm-ui.css?v=4">
+<style>
+/* Cancelamentos no Caixa · dia a dia (14/10/2026) — mesmo kit da tela Cancelamentos no Caixa */
+.lojas{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 10px}
+.lojas .rot{min-width:64px;margin-right:2px}
+.rot{color:var(--muted);font-size:12px;font-weight:800;letter-spacing:.3px}
+.per .atu{margin-left:auto}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:7px 11px;font-size:13px;font-weight:700}
+.cx{display:block;background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:12px 15px 14px;margin-bottom:12px;overflow:hidden}
+.cx h2{font-family:'Anton',Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:18px;letter-spacing:.02em;margin-bottom:2px}
+.m{color:var(--muted);font-size:12px;margin-top:3px;line-height:1.5}
+.load{color:var(--muted);padding:40px 10px;text-align:center}
+.aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:13px;padding:11px 14px;font-size:13px;line-height:1.5;margin:0 0 12px}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800;white-space:nowrap}
+.p-bad{background:rgba(230,103,103,.15);color:#ff9a9a}
+.p-warn{background:rgba(201,133,0,.16);color:var(--warn)}
+.p-ok{background:rgba(37,163,95,.15);color:#7fe0aa}
+.p-off{background:var(--s3);color:var(--text2)}
+table.tb{width:100%;border-collapse:collapse;font-size:13.5px}
+table.tb th{text-align:left;color:var(--muted);font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:10px 10px 9px 0;white-space:nowrap;background:var(--s2)}
+table.tb td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
+table.tb th:first-child,table.tb td:first-child{padding-left:15px}
+table.tb th:last-child,table.tb td:last-child{padding-right:15px}
+table.tb tr:nth-child(odd)>td{background:rgba(255,255,255,.018)}
+table.tb th.n,table.tb td.n{text-align:right;white-space:nowrap}
+.cd{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+.u{color:var(--muted);font-size:12px}
+.nm2{white-space:nowrap}
+.pistas{display:flex;gap:4px;flex-wrap:wrap}
+/* resumo do período */
+.res{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-bottom:12px}
+.rc{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.rc.alerta{border-color:rgba(230,103,103,.6)}
+.rc .t{font-size:13px;font-weight:800;color:var(--text2)}
+.rc .v{font-family:'Anton',Impact,sans-serif;font-weight:400;font-size:34px;line-height:1.05}
+.rc .v small{font-family:'Barlow',sans-serif;font-size:13px;color:var(--muted);font-weight:600;margin-left:6px}
+.rc .ln{font-size:12.5px;color:var(--text2);line-height:1.45}
+/* um bloco por dia */
+details.dia{background:var(--s1);border:1px solid var(--line);border-radius:16px;margin-bottom:10px;overflow:hidden}
+details.dia>summary{list-style:none;cursor:pointer;padding:11px 15px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+details.dia>summary::-webkit-details-marker{display:none}
+details.dia>summary .dd{font-family:'Anton',Impact,sans-serif;font-size:19px;text-transform:uppercase;letter-spacing:.02em;min-width:118px}
+details.dia>summary .dd small{font-family:'Barlow',sans-serif;font-size:12px;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px}
+details.dia>summary .seta{margin-left:auto;color:var(--muted);font-size:13px;transition:transform .15s}
+details.dia[open]>summary .seta{transform:rotate(90deg)}
+details.dia.zero>summary{cursor:default}
+details.dia.zero>summary .seta{visibility:hidden}
+.lj{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--text2)}
+.lj b{color:var(--text)}
+.corpo{padding:0 15px 12px;border-top:1px solid var(--line)}
+.corpo h3{font-size:13px;font-weight:800;color:var(--text2);margin:12px 0 4px}
+.corpo .m{margin-bottom:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="top">
+  <div>
+    <h1>📅 Caixa · dia a dia</h1>
+    <div class="placar" id="placar"><span class="pl">carregando…</span></div>
+  </div>
+</div>
+<div id="filtros"></div>
+<div id="app"><div class="load">Carregando…</div></div>
+<div class="rod" id="rod"></div>
+</div>
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
+let DONO=false;
+function br(v){return (v==null||!DONO)?'—':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function lembra(k,v){try{localStorage.setItem('cdm_ccd_'+k,v)}catch(e){}}
+function lido(k,p){try{const v=localStorage.getItem('cdm_ccd_'+k);return v==null?p:v}catch(e){return p}}
+
+const LOJAS=['Água Verde','São Braz','Ahú'];
+const PERIODOS=[['7','7 dias'],['15','15 dias'],['30','30 dias'],['mes','Este mês'],['mespassado','Mês passado']];
+const SEMANA=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+let D=null, PER=lido('per','7'), UNI=lido('uni',''), BSEQ=0;
+if(!PERIODOS.some(function(p){return p[0]===PER}))PER='7';
+if(UNI&&LOJAS.indexOf(UNI)<0)UNI='';
+
+async function porta(nome,dados){
+  const r=await fetch(SB+'rpc/'+nome,{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:tok(),p_dados:dados})});
+  if(!r.ok){let m='';try{const j=await r.json();m=(j&&(j.message||j.hint))||''}catch(e){}throw new Error(m||('porta '+r.status))}
+  return await r.json();
+}
+
+/* ===== desenho ===== */
+function dm(s){if(!s)return '';const p=String(s).slice(0,10).split('-');return p.length===3?p[2]+'/'+p[1]:esc(s)}
+function semana(s){const p=String(s).slice(0,10).split('-').map(Number);if(p.length!==3)return '';return SEMANA[new Date(Date.UTC(p[0],p[1]-1,p[2])).getUTCDay()]}
+function hora(s){const t=String(s||'');return esc(t.length>6?t.slice(6):t)}
+function tempo(m){m=Number(m)||0;if(m<120)return m+' min';const h=Math.floor(m/60);return h+' h'+(m%60?' '+(m%60)+' min':'')}
+function nome(id,n){if(id==null)return '<span class="u">—</span>';return '<span class="nm2">'+(n?esc(n):'<span class="u">nº '+esc(id)+'</span>')+'</span>'}
+function senhaTxt(it){
+  if(it.senha==='outro')return nome(it.autorizou,it.autorizou_nome);
+  if(it.senha==='propria')return '<span class="pill p-warn">senha do próprio login</span>';
+  return '<span class="pill p-bad">sem senha</span>';
+}
+function plural(n,um,varios){return n+' '+(n===1?um:varios)}
+function conta(its){
+  const c={itens:its.length,valor:0,sem:0,propria:0,outro:0};
+  its.forEach(function(it){c.valor+=Number(it.valor)||0;if(it.senha==='sem')c.sem++;else if(it.senha==='propria')c.propria++;else c.outro++});
+  return c;
+}
+function pilsSenha(c){
+  return (c.outro>0?'<span class="pill p-ok">'+c.outro+' com senha</span> ':'')+
+    (c.propria>0?'<span class="pill p-warn">'+c.propria+' com a própria senha</span> ':'')+
+    (c.sem>0?'<span class="pill p-bad">'+c.sem+' sem senha</span>':'');
+}
+function placar(){
+  let h='<span class="pl">Salão do Saipos · itens tirados da comanda, separados por dia</span>';
+  if(D){
+    h+='<span class="pl">de '+dm(D.de)+' a '+dm(D.ate)+'</span>';
+    h+='<span class="pl"><b>'+(D.modo==='dono'?'visão completa':'visão da equipe')+'</b></span>';
+  }
+  return h;
+}
+function filtros(){
+  let h='<div class="lojas per"><span class="rot">PERÍODO</span>';
+  PERIODOS.forEach(function(p){h+='<button class="chip'+(PER===p[0]?' on':'')+'" onclick="vaiPer(\''+p[0]+'\')">'+p[1]+'</button>'});
+  h+='<button class="b atu" onclick="boot()" title="Ler de novo">↻ Atualizar</button></div>';
+  if(D&&D.loja_fixa){
+    h+='<div class="lojas"><span class="rot">LOJA</span><span class="chip on">'+esc(D.loja_fixa)+'</span></div>';
+  }else{
+    h+='<div class="lojas"><span class="rot">LOJA</span><button class="chip'+(UNI===''?' on':'')+'" onclick="vaiUni(-1)">🏠 Todas as lojas</button>';
+    LOJAS.forEach(function(l,i){h+='<button class="chip'+(UNI===l?' on':'')+'" onclick="vaiUni('+i+')">'+esc(l)+'</button>'});
+    h+='</div>';
+  }
+  return h;
+}
+function lojasDaTela(){return (D.dias||[]).reduce(function(a,d){if(a.indexOf(d.unidade)<0)a.push(d.unidade);return a},[])
+  .sort(function(a,b){return LOJAS.indexOf(a)-LOJAS.indexOf(b)})}
+function resumo(){
+  const its=D.itens||[]; const dono=D.modo==='dono';
+  let h='<div class="res">';
+  lojasDaTela().forEach(function(l){
+    const c=conta(its.filter(function(it){return it.unidade===l}));
+    const ds=(D.dias||[]).filter(function(d){return d.unidade===l});
+    const comCanc={};its.forEach(function(it){if(it.unidade===l)comCanc[it.dia]=1});
+    const nDias=Object.keys(comCanc).length;
+    const semVenda=ds.filter(function(d){return d.vendas===0&&d.dia!==D.hoje}).length;
+    const alerta=c.itens>0&&c.outro===0;
+    h+='<div class="rc'+(alerta?' alerta':'')+'"><div class="t">'+esc(l)+'</div>'+
+      '<div class="v">'+c.itens+'<small>'+(c.itens===1?'item cancelado':'itens cancelados')+'</small></div>';
+    if(dono&&c.itens>0)h+='<div class="ln"><b>'+br(c.valor)+'</b> no período</div>';
+    if(c.itens>0)h+='<div class="ln">'+pilsSenha(c)+'</div>';
+    h+='<div class="ln">'+(c.itens>0?'em '+plural(nDias,'dia','dias')+' de '+ds.length:'nenhum dia com cancelamento')+
+      (semVenda>0?' · '+plural(semVenda,'dia sem venda','dias sem venda')+' no Saipos':'')+'</div></div>';
+  });
+  return h+'</div>';
+}
+function linhaLoja(l,dia,its){
+  const d=(D.dias||[]).find(function(x){return x.dia===dia&&x.unidade===l})||{vendas:0,salao:0};
+  const c=conta(its);
+  let h='<span class="lj"><b>'+esc(l)+':</b> ';
+  if(c.itens>0){
+    h+=plural(c.itens,'item','itens')+(DONO?' · '+br(c.valor):'')+' '+pilsSenha(c);
+  }else if(d.vendas===0){
+    h+='<span class="pill p-off">'+(dia===D.hoje?'dia ainda sem venda':'sem venda no Saipos')+'</span>';
+  }else if(d.salao===0){
+    h+='<span class="u">nenhuma venda de salão no Saipos</span>';
+  }else{
+    h+='<span class="u">nenhum cancelamento · '+plural(d.salao,'comanda','comandas')+' no salão</span>';
+  }
+  return h+'</span>';
+}
+function tabela(its){
+  const todas=!D.unidade; const dono=D.modo==='dono';
+  const cab='<th>Hora</th>'+(todas?'<th>Loja</th>':'')+'<th>Mesa</th><th>Item</th><th class="n">Qtd</th>'+(dono?'<th class="n">R$</th>':'')+
+    '<th>Cancelou</th><th>Senha de</th><th>Motivo</th><th>Pistas</th>';
+  let lin='';
+  its.forEach(function(it){
+    let p='';
+    if(it.comanda_inteira)p+='<span class="pill p-off">comanda inteira</span>';
+    if(it.relancado)p+='<span class="pill p-warn">'+(it.relancado_mesma?'relançado na mesma comanda':'relançado em outra comanda')+'</span>';
+    p+='<span class="pill p-off">'+tempo(it.minutos)+' após lançar</span>';
+    lin+='<tr><td class="cd">'+hora(it.hora)+'</td>'+(todas?'<td>'+esc(it.unidade)+'</td>':'')+'<td>'+esc(it.mesa)+'</td>'+
+      '<td><b>'+esc(it.produto)+'</b>'+(it.complementos?'<div class="u">'+esc(it.complementos)+'</div>':'')+
+      (it.obs?'<div class="u">obs: '+esc(it.obs)+'</div>':'')+
+      '<div class="u">lançado às '+esc(it.lancado)+' por '+nome(it.lancou,it.lancou_nome)+'</div></td>'+
+      '<td class="n cd">'+esc(String(it.qtd).replace('.',','))+'</td>'+(dono?'<td class="n cd">'+br(it.valor)+'</td>':'')+
+      '<td>'+nome(it.cancelou,it.cancelou_nome)+'</td>'+
+      '<td>'+senhaTxt(it)+'</td>'+
+      '<td>'+(it.motivo==null?'<span class="pill p-off">sem motivo</span>':nome(it.motivo,it.motivo_nome))+'</td>'+
+      '<td><div class="pistas">'+p+'</div></td></tr>';
+  });
+  return '<div class="rolar"><table class="tb" data-cdm-sem-nota><tr>'+cab+'</tr>'+lin+'</table></div>';
+}
+function quemDoDia(its){
+  const q={};
+  its.forEach(function(it){
+    const k=it.unidade+'|'+(it.cancelou==null?'':it.cancelou);
+    if(!q[k])q[k]={unidade:it.unidade,id:it.cancelou,nome:it.cancelou_nome,itens:0,sem:0,valor:0};
+    q[k].itens++;q[k].valor+=Number(it.valor)||0;if(it.senha==='sem')q[k].sem++;
+  });
+  const arr=Object.keys(q).map(function(k){return q[k]}).sort(function(a,b){return b.itens-a.itens});
+  return arr.map(function(p){
+    return (D.unidade?'':esc(p.unidade)+' · ')+nome(p.id,p.nome)+': '+plural(p.itens,'item','itens')+
+      (DONO?' ('+br(p.valor)+')':'')+(p.sem>0?' <span class="pill p-bad">'+p.sem+' sem senha</span>':'');
+  }).join('<br>');
+}
+function dias(){
+  const its=D.itens||[]; const lojas=lojasDaTela();
+  const porDia={};
+  its.forEach(function(it){(porDia[it.dia]=porDia[it.dia]||[]).push(it)});
+  const lista=(D.dias||[]).reduce(function(a,d){if(a.indexOf(d.dia)<0)a.push(d.dia);return a},[]);
+  let h='', abriu=false;
+  lista.forEach(function(dia){
+    const doDia=porDia[dia]||[];
+    const zero=!doDia.length;
+    const abre=!zero&&!abriu; if(abre)abriu=true;   // só o dia mais recente com cancelamento vem aberto
+    h+='<details class="dia'+(zero?' zero':'')+'"'+(abre?' open':'')+'><summary'+(zero?' onclick="return false"':'')+'>'+
+      '<span class="dd">'+semana(dia)+' '+dm(dia)+(dia===D.hoje?'<small>hoje, ainda aberto</small>':'')+'</span>';
+    lojas.forEach(function(l){h+=linhaLoja(l,dia,doDia.filter(function(it){return it.unidade===l}))});
+    h+='<span class="seta">▶</span></summary>';
+    if(!zero){
+      h+='<div class="corpo"><h3>Quem cancelou neste dia</h3><div class="m">'+quemDoDia(doDia)+'</div>'+
+        '<h3>Itens tirados da comanda</h3>'+tabela(doDia)+'</div>';
+    }
+    h+='</details>';
+  });
+  return h;
+}
+function avisos(){
+  let h='';
+  if(D.cortado)h+='<div class="aviso">⚠️ Este período tem '+D.total_itens+' itens cancelados e a tela mostra só os '+(D.regras?D.regras.limite_itens:'')+
+    ' mais recentes — os dias mais antigos podem aparecer incompletos. Escolha um período menor.</div>';
+  return h;
+}
+function rodape(){
+  const jan=D&&D.regras?D.regras.janela_relancado_min:null;
+  return 'De onde vem: Saipos, itens das comandas do salão (os mesmos da tela Cancelamentos no Caixa, aqui separados por dia). '+
+    'O dia é o dia do turno no Saipos: cancelamento depois da meia-noite conta no dia anterior. '+
+    '“Sem venda no Saipos” quer dizer que nenhuma venda daquela loja chegou do Saipos naquele dia — loja fechada ou o robô não trouxe. '+
+    'Troca de mesa não conta como cancelamento. “Relançado” = o mesmo produto lançado de novo numa comanda do salão até '+jan+' min depois. '+
+    'Os nomes são os logins do Saipos, não pessoas. Para dar nome a um número, use a tela Cancelamentos no Caixa (só o dono).'+
+    (D&&D.modo==='dono'?'':' Valores em R$ e a observação do item só aparecem para o dono.');
+}
+function desenha(){
+  $('placar').innerHTML=placar();
+  $('filtros').innerHTML=filtros();
+  if(!D)return;
+  DONO=D.modo==='dono';
+  $('app').innerHTML=avisos()+resumo()+dias();
+  $('rod').innerHTML=rodape();
+}
+async function boot(){
+  const sq=++BSEQ;
+  $('placar').innerHTML=placar(); $('filtros').innerHTML=filtros();
+  $('app').innerHTML='<div class="load">Carregando…</div>';
+  let j=null;
+  try{ j=await porta('caixa_cancel_dia',{periodo:PER,unidade:UNI||null}); }
+  catch(e){
+    if(sq!==BSEQ)return;
+    D=null;
+    $('app').innerHTML='<div class="cx"><b>Não deu para buscar os cancelamentos.</b><div class="m">'+esc(e.message||'')+
+      '<br>Toque em Atualizar. Se continuar, avise que a porta do banco falhou — a tela não está vazia, ela não conseguiu perguntar.</div></div>';
+    return;
+  }
+  if(sq!==BSEQ)return;
+  D=j; desenha();
+}
+function vaiPer(p){PER=p;lembra('per',p);boot()}
+function vaiUni(i){UNI=i<0?'':LOJAS[i];lembra('uni',UNI);boot()}
+
+/* ===== porta unica do portal ===== */
+const CDMMODS=['caixadia'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'caixadia'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(ok)boot()});
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
