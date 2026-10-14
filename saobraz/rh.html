@@ -103,12 +103,14 @@ const ROT={COMBINADO:'🤝 COMBINADO FIXO',COBERTURA:'🏪 COBRIU OUTRA LOJA',OR
 const COR={novo:'var(--brand)',aprovado:'var(--ok)',recusado:'var(--muted)'};
 const AVCOR={SEM_CADASTRO:'var(--bad)',COMANDA_DESLIGADO:'var(--bad)',REFEICAO_NAO_LANCOU:'var(--warn)',REFEICAO_ACIMA_DO_DIREITO:'var(--warn)',REFEICAO_SEM_CARTAO:'var(--warn)'};
 const CDMMODS=['sbrhcaixa'];
-let D=null, ABA='novo';
+let D=null;
 function notasDe(fn){return (D.notas||[]).filter(fn)}
 function htmlNotas(L){return L.map(function(n){return '<div class="nota">✍️ <b>'+esc(n.quem||'—')+'</b> <span class="m">'+esc(n.quando)+'</span><br><span class="pre">'+esc(n.texto)+'</span></div>'}).join('')}
-function htmlEscreve(tipo,valor,ph){
+function htmlEscreve(tipo,valor,ph,fixo){
   return '<div class="escreve"><textarea rows="2" maxlength="600" placeholder="'+esc(ph)+'"></textarea>'+
-    '<div class="lin"><button class="b on" data-grava="'+tipo+'" data-v="'+esc(valor)+'">Enviar explicação</button><span class="m msg"></span></div></div>';
+    '<div class="lin"><button class="b on" data-grava="'+tipo+'" data-v="'+esc(valor)+'">Enviar explicação</button>'+
+    (fixo?'<button class="b" data-fixo="'+esc(valor)+'" data-t="'+esc(fixo)+'" title="Quando é sempre assim (ex.: a pessoa não come na loja). Escreva o motivo; o aviso para de aparecer.">📌 Isso é fixo — não avisar mais</button>':'')+
+    '<span class="m msg"></span></div></div>';
 }
 function detalhe(t){
   if(!t)return '';
@@ -133,24 +135,25 @@ function cartao(x){
 function aviso(a){
   let h='<div class="card" style="--cc:'+(a.resolvido?'var(--ok)':(AVCOR[a.tipo]||'var(--warn)'))+'"><div class="nm2">'+(a.resolvido?'✅ ':'')+esc(a.titulo)+'</div><div class="m" style="margin-top:4px">'+esc(a.texto)+'</div>';
   h+=htmlNotas(notasDe(function(n){return n.chave===a.chave}));
-  if(!a.resolvido)h+=htmlEscreve('chave',a.chave,'O que aconteceu? (fica gravado com o seu nome e o escritório vê)');
+  if(!a.resolvido)h+=htmlEscreve('chave',a.chave,'O que aconteceu? (fica gravado com o seu nome e o escritório vê)',a.pode_fixo?a.titulo:'');
   return h+'</div>';
 }
 function render(){
   const a=document.getElementById('app'), l=D.lido||{};
   a.className='';
-  let h='<div class="fresco">Ponto do relógio lido até '+esc(l.ponto||'—')+' · refeições do Saipos até '+esc(l.refeicao||'—')+' · avisos dos últimos 7 dias</div>';
-  const AV=(D.avisos||[]).filter(function(x){return !x.resolvido}), AR=(D.avisos||[]).filter(function(x){return x.resolvido});
-  h+='<h2>⚠️ Para você resolver <span class="hint">'+AV.length+' aviso(s) do São Braz · escreveu a explicação, o aviso sai daqui; se acontecer de novo em outro dia, ele volta</span></h2>';
+  let h='<div class="fresco">Ponto do relógio lido até '+esc(l.ponto||'—')+' · refeições do Saipos até '+esc(l.refeicao||'—')+' · só o que é novo: avisos de '+esc(D.desde||'—')+' em diante</div>';
+  const AV=(D.avisos||[]).filter(function(x){return !x.resolvido}), AR=(D.avisos||[]).filter(function(x){return x.resolvido}), FX=D.fixos||[];
+  h+='<h2>⚠️ Para você resolver <span class="hint">'+AV.length+' aviso(s) do São Braz, um por pessoa · escreveu a explicação, o aviso sai daqui; se acontecer de novo em outro dia, ele volta · se é sempre assim, use 📌 Isso é fixo</span></h2>';
   h+=AV.length?AV.map(aviso).join(''):'<div class="lista"><div class="vazio">Nada para resolver. 👏</div></div>';
-  if(AR.length)h+='<details style="margin-top:10px"><summary class="hint" style="cursor:pointer;padding:6px 0">✅ Já explicados nos últimos 7 dias ('+AR.length+')</summary>'+AR.map(aviso).join('')+'</details>';
-  const IT=D.itens||[], nNovo=IT.filter(function(x){return x.situacao==='novo'}).length;
-  h+='<h2>📥 Na Caixa do RH <span class="hint">o que você escreveu nos cartões do ponto e o que os robôs acharam · quem aprova é o escritório</span></h2>';
-  h+='<div class="abas"><button class="b'+(ABA==='novo'?' on':'')+'" data-aba="novo">⏳ Esperando o escritório · '+nNovo+'</button><button class="b'+(ABA==='feito'?' on':'')+'" data-aba="feito">✅ Já decididos (30 dias) · '+(IT.length-nNovo)+'</button></div>';
-  const L=IT.filter(function(x){return ABA==='novo'?x.situacao==='novo':x.situacao!=='novo'});
-  h+=L.length?L.map(cartao).join(''):'<div class="lista"><div class="vazio">'+(ABA==='novo'?'Nada esperando o escritório.':'Nada decidido nos últimos 30 dias.')+'</div></div>';
+  if(AR.length)h+='<details style="margin-top:10px"><summary class="hint" style="cursor:pointer;padding:6px 0">✅ Já explicados ('+AR.length+')</summary>'+AR.map(aviso).join('')+'</details>';
+  if(FX.length)h+='<details style="margin-top:10px"><summary class="hint" style="cursor:pointer;padding:6px 0">📌 Marcados como fixos — não avisam mais ('+FX.length+')</summary>'+FX.map(function(f){
+    return '<div class="card" style="--cc:var(--muted)"><div class="nm2">📌 '+esc(f.titulo||f.chave)+'</div><div class="m pre" style="margin-top:4px">'+esc(f.texto)+'</div><div class="m" style="margin-top:4px">marcado por '+esc(f.quem||'—')+' em '+esc(f.quando||'—')+'</div>'+
+      '<div class="lin" style="margin-top:6px"><button class="b" data-desfixo="'+esc(f.chave)+'">Voltar a avisar</button><span class="m msg"></span></div></div>'}).join('')+'</details>';
+  const IT=D.itens||[], NV=IT.filter(function(x){return x.situacao==='novo'}), FT=IT.filter(function(x){return x.situacao!=='novo'});
+  h+='<h2>📥 Esperando o escritório <span class="hint">'+NV.length+' · o que você escreveu nos cartões do ponto e o que os robôs acharam · quem aprova é o escritório</span></h2>';
+  h+=NV.length?NV.map(cartao).join(''):'<div class="lista"><div class="vazio">Nada esperando o escritório.</div></div>';
+  if(FT.length)h+='<details style="margin-top:10px"><summary class="hint" style="cursor:pointer;padding:6px 0">✅ Já decididos nos últimos 30 dias ('+FT.length+')</summary>'+FT.map(cartao).join('')+'</details>';
   a.innerHTML=h;
-  a.querySelectorAll('[data-aba]').forEach(function(b){b.onclick=function(){ABA=b.dataset.aba;render()}});
   a.querySelectorAll('[data-grava]').forEach(function(b){b.onclick=async function(){
     const box=b.closest('.escreve'), ta=box.querySelector('textarea'), msg=box.querySelector('.msg'), t=(ta.value||'').trim();
     if(!t){msg.innerHTML='<span style="color:var(--bad)">Escreva alguma coisa antes.</span>';return}
@@ -159,6 +162,22 @@ function render(){
     try{const r=await porta('nota',dados);
       if(r&&r.ok===false){b.disabled=false;msg.innerHTML='<span style="color:var(--bad)">'+esc(r.erro||'não gravou')+'</span>';return}
       msg.innerHTML='<span style="color:var(--ok)">Gravado.</span>';setTimeout(carregar,600);
+    }catch(er){b.disabled=false;msg.innerHTML='<span style="color:var(--bad)">Não gravou: '+esc(er.message)+'</span>'}
+  }});
+  a.querySelectorAll('[data-fixo]').forEach(function(b){b.onclick=async function(){
+    const box=b.closest('.escreve'), ta=box.querySelector('textarea'), msg=box.querySelector('.msg'), t=(ta.value||'').trim();
+    if(!t){msg.innerHTML='<span style="color:var(--bad)">Escreva por que é sempre assim (ex.: traz marmita, não come na loja).</span>';ta.focus();return}
+    b.disabled=true;msg.textContent='Enviando…';
+    try{const r=await porta('fixo',{chave:b.dataset.fixo,titulo:b.dataset.t,texto:t});
+      if(r&&r.ok===false){b.disabled=false;msg.innerHTML='<span style="color:var(--bad)">'+esc(r.erro||'não gravou')+'</span>';return}
+      msg.innerHTML='<span style="color:var(--ok)">Gravado. Não avisa mais.</span>';setTimeout(carregar,600);
+    }catch(er){b.disabled=false;msg.innerHTML='<span style="color:var(--bad)">Não gravou: '+esc(er.message)+'</span>'}
+  }});
+  a.querySelectorAll('[data-desfixo]').forEach(function(b){b.onclick=async function(){
+    const msg=b.parentNode.querySelector('.msg');b.disabled=true;msg.textContent='Enviando…';
+    try{const r=await porta('fixo_tirar',{chave:b.dataset.desfixo});
+      if(r&&r.ok===false){b.disabled=false;msg.innerHTML='<span style="color:var(--bad)">'+esc(r.erro||'não gravou')+'</span>';return}
+      msg.innerHTML='<span style="color:var(--ok)">Pronto, volta a avisar.</span>';setTimeout(carregar,600);
     }catch(er){b.disabled=false;msg.innerHTML='<span style="color:var(--bad)">Não gravou: '+esc(er.message)+'</span>'}
   }});
 }
