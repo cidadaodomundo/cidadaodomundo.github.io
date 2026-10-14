@@ -212,7 +212,7 @@ function diaBrasilia(isoOuMs){
   const d = new Date(ms - 3 * 3600 * 1000);
   return d.getUTCFullYear() + "-" + String(d.getUTCMonth()+1).padStart(2,"0") + "-" + String(d.getUTCDate()).padStart(2,"0");
 }
-// Dia de trabalho (Fabio, 14/10/2026): "os turno de um dia completo é das 08:00 as 02:20 começa num dia e termina no outro".
+// Dia de trabalho (Fabio, 14/10/2026): "os turno de um dia completo é das 08:00 as 03:00 começa num dia e termina no outro".
 // Batida antes das 05:00 conta no dia anterior; o turno fica no dia em que COMECOU.
 const CORTE_DIA_H = 5;
 function diaOperacional(isoOuMs){
@@ -387,7 +387,7 @@ function tipoDe(t){
 }
 // Monta um turno por pessoa e por vez que ela veio. Tolerante a batida repetida (tocou duas vezes):
 // 2a Chegada no mesmo dia com o turno aberto, 2o inicio de intervalo, Saida repetida em ate 10 min — tudo ignorado.
-// Cada batida ganha o "dia efetivo" do turno: o dia de trabalho em que o turno COMECOU (08:00 ate 02:20 do dia seguinte;
+// Cada batida ganha o "dia efetivo" do turno: o dia de trabalho em que o turno COMECOU (08:00 ate 03:00 do dia seguinte;
 // quem entra de tarde e sai de madrugada fica no dia em que entrou). E o mesmo dia usado na conta do pagamento.
 function montarTurnos(lista){
   const ord = lista.slice().sort((a,b) => a.ms - b.ms);
@@ -428,7 +428,37 @@ function montarTurnos(lista){
   });
   return out;
 }
+// 14/10/2026 (Fabio): "o turno começa as 08:00 e vai ate 03:00 do outro dia ... contar a virada da meia noite como se fosse
+// no mesmo dia". Quem sai e volta no mesmo dia de trabalho (ex.: Flavia 10:58-18:26 e 18:58-23:46) vira UMA linha:
+// entrada da 1a parte, saida da ultima, e o tempo fora entre uma parte e outra aparece como intervalo.
+// As horas sao a soma das partes, igual a conta do pagamento (que nao mudou).
+function juntarDia(lista){
+  const grupos = new Map(), out = [];
+  lista.slice().sort((a,b) => a.inicioMs - b.inicioMs).forEach(t => {
+    const k = t.chave + "|" + t.diaEfetivo;
+    if (!grupos.has(k)){ grupos.set(k, [t]); out.push(k); } else grupos.get(k).push(t);
+  });
+  return out.map(k => {
+    const ps = grupos.get(k);
+    if (ps.length === 1) return ps[0];
+    const a = ps[0], z = ps[ps.length - 1], ints = [];
+    ps.forEach((t, i) => {
+      t.ints.forEach(x => ints.push(x));
+      const prox = ps[i + 1];
+      if (prox && t.saida !== null && prox.entrada !== null) ints.push([t.saida, prox.entrada]);
+    });
+    return { chave: a.chave, loja: a.loja, partes: ps, diaEfetivo: a.diaEfetivo, inicioMs: a.inicioMs, fimMs: z.fimMs,
+             regs: [].concat.apply([], ps.map(t => t.regs)), nomes: [].concat.apply([], ps.map(t => t.nomes)),
+             entrada: a.entrada, saida: z.saida, ints: ints, intAberto: z.intAberto,
+             semChegada: ps.some(t => t.semChegada), semSaida: ps.some(t => t.semSaida), aberto: z.aberto };
+  });
+}
 function msTrabalhado(t){
+  if (t.partes){
+    let soma = 0, algum = false;
+    t.partes.forEach(p => { const m = msTrabalhado(p); if (m !== null){ soma += m; algum = true; } });
+    return algum ? soma : null;
+  }
   if (t.entrada === null) return null;
   const agora = Date.now();
   const fim = t.saida !== null ? t.saida : (t.aberto ? agora : null);
@@ -597,7 +627,7 @@ function barraDias(dia, hoje){
     + '<input class="loja" type="date" id="diaSel" value="' + dia + '" min="' + min + '" max="' + hoje + '" aria-label="escolher o dia">'
     + '<button class="loja" data-dia-nav="1" type="button" aria-label="dia seguinte"' + (dia >= hoje ? ' disabled' : '') + '>›</button>'
     + '<button class="loja' + (dia === hoje ? ' active' : '') + '" data-dia-hoje="1" type="button">Hoje</button>'
-    + '<span class="periodo">' + rotuloDia(dia) + ' · o dia vai das 08:00 às 02:20 do dia seguinte (batida antes das 05:00 conta no dia anterior)</span></div>';
+    + '<span class="periodo">' + rotuloDia(dia) + ' · o dia vai das 08:00 às 03:00 do dia seguinte (batida antes das 05:00 conta no dia anterior)</span></div>';
 }
 function irParaDia(d){
   const hoje = diaOperacional(Date.now()), min = diaBrasilia(new Date(INICIO_USO_REAL).getTime());
@@ -633,7 +663,7 @@ function renderVivo(){
   const hoje = diaOperacional(Date.now());
   if (DIA && DIA >= hoje) DIA = null;
   if (DIA){ renderDia(DIA, hoje); return; }
-  const g = turnos.filter(t => (!lojaAtiva || t.loja === lojaAtiva) && (t.aberto || t.diaEfetivo === hoje));
+  const g = juntarDia(turnos.filter(t => (!lojaAtiva || t.loja === lojaAtiva) && (t.aberto || t.diaEfetivo === hoje)));
   g.sort((a,b) => {
     if (a.aberto !== b.aberto) return a.aberto ? -1 : 1;
     if (a.aberto) return (a.entrada || a.inicioMs) - (b.entrada || b.inicioMs);
@@ -663,7 +693,7 @@ function renderVivo(){
       + '<td class="n"><span class="pv-bat">' + t.regs.length + '</span></td></tr>';
   });
   h += '</tbody></table></div>';
-  h += '<div class="rf-nota">Hoje = o dia de trabalho de hoje, das 08:00 às 02:20 do dia seguinte (quem entra de tarde e sai de madrugada fica no dia em que entrou), e todo mundo que ainda está na loja. '
+  h += '<div class="rf-nota">Hoje = o dia de trabalho de hoje, das 08:00 às 03:00 do dia seguinte (quem entra de tarde e sai de madrugada fica no dia em que entrou), e todo mundo que ainda está na loja. '
      + 'O nome é digitado pela taxa a cada batida: grafias diferentes da mesma pessoa (com ou sem acento, espaço, sobrenome) são juntadas numa linha só e aparecem em "digitou também".</div>';
   elContent.innerHTML = h + '</div>';
 }
@@ -680,7 +710,7 @@ function renderDia(dia, hoje){
   // dia que saiu da janela normal (ex.: virada da semana) e ainda nao foi lido a parte: le agora
   if (!deFora && CARREGADO_DESDE !== null && inicioDiaBrasiliaMs(dia) - 24 * 3600 * 1000 < CARREGADO_DESDE){ carregarDia(dia); return; }
   const base = deFora ? DIA_DADOS.turnos : turnos;
-  const g = base.filter(t => (!lojaAtiva || t.loja === lojaAtiva) && t.diaEfetivo === dia)
+  const g = juntarDia(base.filter(t => (!lojaAtiva || t.loja === lojaAtiva) && t.diaEfetivo === dia))
     .sort((a,b) => (a.entrada || a.inicioMs) - (b.entrada || b.inicioMs));
   let tot = 0; g.forEach(t => { tot += msTrabalhado(t) || 0; });
   const nPes = new Set(g.map(t => t.chave)).size;
@@ -699,7 +729,7 @@ function renderDia(dia, hoje){
       + '<td class="n"><span class="pv-bat">' + t.regs.length + '</span></td></tr>';
   });
   h += '</tbody></table></div>';
-  h += '<div class="rf-nota">O dia vai das 08:00 às 02:20 do dia seguinte: quem entra de tarde e sai de madrugada fica no dia em que entrou (a saída aparece com a data dela). Batida antes das 05:00 conta no dia anterior.</div>';
+  h += '<div class="rf-nota">O dia vai das 08:00 às 03:00 do dia seguinte: quem entra de tarde e sai de madrugada fica no dia em que entrou (a saída aparece com a data dela). Batida antes das 05:00 conta no dia anterior.</div>';
   elContent.innerHTML = h + '</div>';
 }
 
@@ -710,9 +740,9 @@ function renderSemana(){
   const daSemana = turnos.filter(t => { const d = inicioDiaBrasiliaMs(t.diaEfetivo); return d >= ini && d < fim && (!lojaAtiva || t.loja === lojaAtiva); });
   const pessoas = Array.from(new Set(daSemana.map(t => t.chave))).sort((a,b) => nomeDe(a).localeCompare(nomeDe(b), "pt-BR"));
   if (nomeAtivo && pessoas.indexOf(nomeAtivo) < 0) nomeAtivo = "";
-  const g = daSemana.filter(t => !nomeAtivo || t.chave === nomeAtivo);
+  const g = juntarDia(daSemana.filter(t => !nomeAtivo || t.chave === nomeAtivo));
 
-  let h = '<div class="rf-h2">📅 Batidas da semana <span class="hint">um turno por linha: chegada, intervalo e saída</span></div>';
+  let h = '<div class="rf-h2">📅 Batidas da semana <span class="hint">uma linha por pessoa por dia: chegada, intervalo e saída</span></div>';
   h += '<div class="rf-card">' + barraLojas();
   h += '<div class="barra">' + barraSemana(semanaLista, "data-semana-lista") + '</div>';
   h += '<div class="barra">Pessoa: <select class="loja" id="filtroNome" aria-label="Filtrar por pessoa"><option value="">Todas as pessoas</option>'
@@ -738,7 +768,7 @@ function renderSemana(){
     });
     h += '</tbody></table></div>';
   });
-  h += '<div class="rf-nota">O dia vai das 08:00 às 02:20 do dia seguinte: quem entra às 18h e sai à 00h30 fica no dia em que entrou, igual à conta do pagamento. '
+  h += '<div class="rf-nota">O dia vai das 08:00 às 03:00 do dia seguinte: quem entra às 18h e sai à 00h30 fica no dia em que entrou, igual à conta do pagamento. '
      + 'Horas = da chegada à saída, menos o intervalo. Turno sem chegada ou sem saída fica com ⚠️ e não entra no pagamento.</div>';
   elContent.innerHTML = h + '</div>';
   bindSelect();
@@ -794,7 +824,7 @@ function renderPagamento(){
   h += '</tbody></table></div>';
   if (semValor > 0) h += '<div class="rf-nota">⚠️ ' + semValor + (semValor === 1 ? ' pessoa ficou' : ' pessoas ficaram') + ' sem valor em R$ porque a loja não tem valor por hora cadastrado — não entrou no total.</div>';
   if (totalInc > 0) h += '<div class="rf-nota">⚠️ batida incompleta = não bateu a entrada ou a saída nessa semana — essas horas não entraram na conta. Confira em 📅 Batidas da semana.</div>';
-  h += '<div class="rf-nota">O turno conta no dia em que começou (o dia vai das 08:00 às 02:20): quem entra na terça e sai na quarta de madrugada conta na semana da terça.</div>';
+  h += '<div class="rf-nota">O turno conta no dia em que começou (o dia vai das 08:00 às 03:00): quem entra na terça e sai na quarta de madrugada conta na semana da terça.</div>';
   h += '<div class="rf-nota">A mesma pessoa digitada de jeitos diferentes conta numa linha só. Se uma grafia antiga já tinha sido marcada como paga, a pessoa aparece como paga.</div>';
   elContent.innerHTML = h + '</div>';
   elContent.querySelectorAll(".pay-marcar").forEach(b => b.addEventListener("click", () => { b.disabled = true; marcarComoPago(PAY_LINHAS[+b.dataset.i], semanaInicioStr); }));
