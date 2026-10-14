@@ -145,6 +145,10 @@ tr.aviso td{color:#e8bb62}
 .pg-tag.ruim{border-color:#A8321F;color:#A8321F}
 .pg-tag.aviso{border-color:#B47A12;color:#7A5208}
 .pg-plan{margin-top:8px;font-size:11.5px;color:var(--apagado)}
+.pg-det{margin-top:8px;font-size:11.5px;color:var(--apagado)}
+.pg-det summary{cursor:pointer;font-weight:700;color:var(--tinta)}
+.pg-det div{margin-top:4px;line-height:1.4}
+button.b[disabled]{opacity:.4;cursor:not-allowed}
 @media (max-width:640px){.pg-fita .tot{font-size:36px}.pg-grid{grid-template-columns:minmax(0,1fr)}}
 </style>
 </head>
@@ -748,10 +752,14 @@ async function puxaPagar(dia){
     $('conteudo').innerHTML='<div class="c">Não deu para carregar o pagamento do dia. Entre no portal de novo e tente outra vez.</div>';
   }
 }
+const PG_EMBED=new URLSearchParams(location.search).get('embed')==='1';
+// dia operacional de hoje em Curitiba (vira às 5h)
+function pgHojeOp(){return new Date(Date.now()-8*3600e3).toISOString().slice(0,10)}
 function pgV(n){return Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function pgLn(rot,val,cls){return '<div class="pg-ln '+(cls||'')+'"><span class="r">'+rot+'</span><span class="v">'+val+'</span></div>'}
 function pgCopiar(btn,k){
-  function ok(){var t=btn.textContent;btn.textContent='Pix copiado ✓';setTimeout(function(){btn.textContent=t},1800)}
+  if(!btn.dataset.rot)btn.dataset.rot=btn.textContent;
+  function ok(){btn.textContent='Pix copiado ✓';clearTimeout(btn._t);btn._t=setTimeout(function(){btn.textContent=btn.dataset.rot},1800)}
   try{navigator.clipboard.writeText(k).then(ok,function(){alert('Copie na mão:\n\n'+k)})}catch(e){alert('Copie na mão:\n\n'+k)}
 }
 function pgComanda(m,i){
@@ -763,7 +771,8 @@ function pgComanda(m,i){
     '<hr class="pg-corte">';
   h+=pgLn(num(m.entregas)+' entregas',pgV(taxas),vale_gar?'fraco':'');
   if(vale_gar){
-    h+=pgLn('garantido'+(Number(m.horas_escala)>0?' '+num(m.horas_escala)+'h × '+num(m.valor_hora):''),pgV(base),'forte');
+    const hx=Number(m.horas_escala)*Number(m.valor_hora), confere=Number(m.horas_escala)>0&&Math.abs(hx-base)<0.01;
+    h+=pgLn('garantido'+(confere?' '+num(m.horas_escala)+'h × '+num(m.valor_hora):' do turno'),pgV(base),'forte');
     h+='<div class="pg-obs">as entregas deram menos que o garantido: vale o garantido</div>';
   }
   if(m.garantido===false) h+=pgLn('garantido perdido','—','menos')+'<div class="pg-obs">chegou '+num(m.atraso_min)+' min depois do combinado (GPS)</div>';
@@ -776,6 +785,7 @@ function pgComanda(m,i){
       h+='<div class="pg-pix"><button onclick="pgCopiar(this,\''+esc(k).replace(/'/g,'\\\'')+'\')">Copiar a chave Pix</button><div class="ch">'+esc(k)+'</div></div>';
     } else h+='<div class="pg-sempix">Sem chave Pix — peça antes de pagar</div>';
   }
+  if(m.aviso) h+='<details class="pg-det"><summary>ver detalhe</summary><div>'+esc(m.aviso)+'</div></details>';
   const tg=[];
   if(!m.tem_gps) tg.push('<span class="pg-tag" title="Sem carimbo de GPS no pátio: a chegada foi estimada pela primeira entrega, por isso nada foi cortado.">chegada sem GPS · nada cortado</span>');
   if(Number(m.lanche_sem_preco)>0) tg.push('<span class="pg-tag aviso">falta o preço de '+num(m.lanche_sem_preco)+' lanche</span>');
@@ -794,7 +804,9 @@ function viewPagar(){
   let h='<div class="c"><div class="hs" style="margin:0 0 8px"><b>💵 Quanto pagar a cada motoboy</b> · '+esc(PD.dia_semana)+', '+esc(PD.dia_texto)+' · '+(PD.fim_de_semana?'R$ 25 a hora':'R$ 20 a hora')+'</div>'+
     '<button class="b" onclick="pagDiaPula(-1)">◀ dia anterior</button> '+
     '<input type="date" value="'+esc(PD.dia)+'" onchange="pagDiaMuda(this.value)" aria-label="Escolher o dia"> '+
-    '<button class="b" onclick="pagDiaPula(1)">dia seguinte ▶</button></div>'+maqLojas();
+    '<button class="b" onclick="pagDiaPula(1)"'+(PD.dia>=pgHojeOp()?' disabled title="Este é o dia em andamento"':'')+'>dia seguinte ▶</button></div>'+maqLojas();
+  if(PD.dia>=pgHojeOp()) h+='<div class="c" style="border-left:4px solid var(--warn)"><b>⏳ Este dia ainda está em andamento.</b> Os valores abaixo são parciais: pague pelo dia que já fechou.</div>';
+  if(PG_EMBED)try{sessionStorage.setItem('pg_embed',JSON.stringify({dia:PD.dia,loja:LOJA,em:Date.now()}))}catch(e){}
   if(!l.length){$('conteudo').innerHTML=h+'<div class="c empty">Ninguém rodou neste dia'+(LOJA?' nesta loja':'')+'. Escolha outro dia nas setas acima.</div>';return}
   let tot=0; l.forEach(function(m){tot+=Number(m.pagar||0)}); tot=Math.round(tot*100)/100;
   const semPix=l.filter(function(m){return !m.chave_pix}).length;
@@ -810,8 +822,9 @@ function viewPagar(){
     lu.forEach(function(m){h+=pgComanda(m,i++)});
     h+='</div>';
   });
-  h+='<div style="margin-top:22px">'+semDono(PD,false)+'</div>';
-  h+='<div class="hs">A conta inteira está explicada na aba <a href="#" onclick="setView(\'reg\');return false" style="color:var(--brand)">📜 As regras</a>. Pare o mouse em cima da comanda para ver o detalhe. Quem decide é você.</div>';
+  if(PD.pode_apontar) h+='<div style="margin-top:22px">'+semDono(PD,false)+'</div>';
+  h+=PG_EMBED?'<details class="c" style="margin-top:14px"><summary style="cursor:pointer"><b>📜 Como a conta é feita</b></summary>'+REGRAS_HTML+'</details>'
+    :'<div class="hs">A conta inteira está explicada na aba <a href="#" onclick="setView(\'reg\');return false" style="color:var(--brand)">📜 As regras</a>. Em cada comanda, “ver detalhe” mostra a conta por extenso. Quem decide é você.</div>';
   $('conteudo').innerHTML=h;
 }
 
@@ -1157,7 +1170,7 @@ async function cdmGuarda(){
   if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){if(!ok)return;try{$('p_sem').parentElement.style.display='none'}catch(e){}var qs=new URLSearchParams(location.search);if(qs.get('aba')==='dup'){try{$('de').value=new Date(Date.now()-21*864e5).toISOString().slice(0,10)}catch(e){}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}}setView('dup');return}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}}setView('pagar');});
+cdmGuarda().then(function(ok){if(!ok)return;try{$('p_sem').parentElement.style.display='none'}catch(e){}var qs=new URLSearchParams(location.search);if(qs.get('aba')==='dup'){try{$('de').value=new Date(Date.now()-21*864e5).toISOString().slice(0,10)}catch(e){}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}}setView('dup');return}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}try{var st=JSON.parse(sessionStorage.getItem('pg_embed')||'null');if(st&&Date.now()-st.em<30*60e3){PDDIA=st.dia||null;LOJA=st.loja||''}}catch(e){}}setView('pagar');});
 </script>
 <script src="/assets/portal.js?v=3"></script>
 </body>
