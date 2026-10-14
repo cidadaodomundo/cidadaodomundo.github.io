@@ -97,6 +97,10 @@ table.pv-tb .pv-valor{font-family:'Barlow Condensed',sans-serif;font-size:18px;f
 .qr-loja .qr-nome{font-weight:800;font-size:15px}
 .qr-loja img{width:180px;height:180px;background:#fff;border-radius:8px;padding:8px}
 .qr-link{font-size:10.5px;color:var(--muted);overflow-wrap:anywhere}
+.qr-botoes{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+a.btn{text-decoration:none;display:inline-block}
+.btn-zap{background:#128c4a;border-color:#128c4a;color:#fff}
+.btn-zap:hover{border-color:#fff}
 footer{color:var(--muted);font-size:11.5px;margin-top:18px;padding-top:12px;border-top:1px solid var(--line)}
 footer a{color:var(--muted)}
 @media (max-width:640px){
@@ -180,8 +184,25 @@ function valorHoraDaLoja(loja){
 }
 function textoValores(){
   if (!VALOR_HORA) return "⚠️ não consegui ler o valor por hora (" + escapeHtml(ERRO_VALOR) + ") — os valores em R$ não foram calculados";
-  return LOJAS_ORDEM.map(l => { const v = valorHoraDaLoja(l); return NOME_EXIBICAO[l] + " " + (v !== null ? formatBRL(v) + "/h" : "sem valor por hora cadastrado"); }).join(" · ");
+  const lojas = LOJAS_ORDEM.map(l => { const v = valorHoraDaLoja(l); return NOME_EXIBICAO[l] + " " + (v !== null ? formatBRL(v) + "/h" : "sem valor por hora cadastrado"); });
+  // quem tem valor proprio (ex.: Yago R$ 15,50/h + R$ 12 de VT por dia, Fabio 14/10)
+  const proprios = new Map();
+  PESSOAS.forEach((x, k) => {
+    if (x.valor_hora == null && !Number(x.vt_dia)) return;
+    const nome = nomeDe(k);
+    proprios.set(nome, nome + " " + (x.valor_hora != null ? formatBRL(Number(x.valor_hora)) + "/h" : "valor da loja") + (Number(x.vt_dia) ? " + " + formatBRL(Number(x.vt_dia)) + " VT/dia" : ""));
+  });
+  return lojas.concat(Array.from(proprios.values())).join(" · ");
 }
+// Valor por hora da pessoa: o proprio (taxa_pessoa.valor_hora), senao o da loja. VT = por dia trabalhado.
+function valorHoraDe(chave, loja){
+  const p = pessoaDe(chave);
+  if (p && p.valor_hora != null && Number(p.valor_hora) > 0) return Number(p.valor_hora);
+  return valorHoraDaLoja(loja);
+}
+function vtDe(chave){ const p = pessoaDe(chave); return p && Number(p.vt_dia) > 0 ? Number(p.vt_dia) : 0; }
+// quantos dias de trabalho a pessoa teve nessas batidas (para somar o VT)
+function diasDe(regs, chave){ return new Set(regs.filter(r => r.chave === chave && r.diaEfetivo).map(r => r.diaEfetivo)).size; }
 // A partir daqui o painel "esquece" tudo que foi batido antes desse momento
 // (testes de quando o sistema estava sendo montado). Nada é apagado do banco,
 // só escondido — se um dia precisar ver os testes antigos, é só tirar esse filtro.
@@ -687,13 +708,14 @@ async function gravarPessoa(chave, campo, valor){
   await carregarPessoas(); render();
 }
 function valorDe(t){
-  const ms = msTrabalhado(t), vh = valorHoraDaLoja(t.loja);
-  return (ms === null || vh === null) ? null : (ms / 3600000) * vh;
+  const ms = msTrabalhado(t), vh = valorHoraDe(t.chave, t.loja);
+  return (ms === null || vh === null) ? null : (ms / 3600000) * vh + (ms > 0 ? vtDe(t.chave) : 0);
 }
 function celReceber(t){
   const v = valorDe(t);
   if (v === null) return '<td class="n pv-valor"><span class="pv-nada">—</span></td>';
   return '<td class="n pv-valor">' + formatBRL(v) + (t.aberto ? ' <span class="rfu">até agora</span>' : '')
+    + (vtDe(t.chave) && msTrabalhado(t) ? '<div class="rfu">com ' + formatBRL(vtDe(t.chave)) + ' de VT</div>' : '')
     + (pagamentoDe(t.chave) === "semanal" ? '<div class="rfu">recebe na quarta</div>' : '') + '</td>';
 }
 function caixaSetor(chave){
@@ -726,7 +748,7 @@ function resumoSemana(ciclo){
   const o = { ms: 0, valor: 0, pessoas: 0, setor: { "Cozinha": { ms: 0, valor: 0 }, "Salão": { ms: 0, valor: 0 }, "": { ms: 0, valor: 0 } } };
   calcularPagamentos(regs).forEach(p => {
     if (!p.ms) return;
-    const vh = valorHoraDaLoja(p.loja), v = vh === null ? 0 : (p.ms / 3600000) * vh;
+    const vh = valorHoraDe(p.chave, p.loja), v = vh === null ? 0 : (p.ms / 3600000) * vh + vtDe(p.chave) * diasDe(regs, p.chave);
     o.pessoas++; o.ms += p.ms; o.valor += v;
     const st = o.setor[setorDe(p.chave) || ""]; st.ms += p.ms; st.valor += v;
   });
@@ -914,8 +936,9 @@ let PAY_LINHAS = { dia: [], sem: [] }, PAY_MARCA = { dia: "", sem: "" };
 function linhasPagamento(regs, ehAgora){
   const linhas = Array.from(calcularPagamentos(regs).values()).sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
   linhas.forEach(p => {
-    const vh = valorHoraDaLoja(p.loja);
-    p.valor = vh === null ? null : (p.ms / 3600000) * vh;
+    const vh = valorHoraDe(p.chave, p.loja);
+    p.vt = p.ms > 0 ? vtDe(p.chave) * diasDe(regs, p.chave) : 0;
+    p.valor = vh === null ? null : (p.ms / 3600000) * vh + p.vt;
     // quem esta na loja agora tem o turno aberto: nao e batida incompleta, so ainda nao bateu a saida
     p.naLoja = ehAgora && turnos.some(t => t.chave === p.chave && t.aberto);
     if (p.naLoja && p.incompletos > 0) p.incompletos--;
@@ -940,7 +963,7 @@ function tabelaPagamento(linhas, grupo, marca){
       + (lojaAtiva ? '' : '<td>' + escapeHtml(NOME_EXIBICAO[p.loja] || p.loja) + '</td>')
       + '<td>' + (st ? escapeHtml(st) : caixaSetor(p.chave)) + '</td>'
       + '<td class="n pv-h">' + formatHoras(p.ms) + '</td>'
-      + '<td class="n pv-valor">' + (p.valor === null ? '<span class="rfx">sem valor por hora</span>' : formatBRL(p.valor)) + '</td>'
+      + '<td class="n pv-valor">' + (p.valor === null ? '<span class="rfx">sem valor por hora</span>' : formatBRL(p.valor) + (p.vt ? '<div class="rfu">com ' + formatBRL(p.vt) + ' de VT</div>' : '')) + '</td>'
       + '<td class="n">' + (pago
           ? '<button type="button" class="pay-pago" data-g="' + grupo + '" data-i="' + i + '">✓ Pago <span class="desfazer">(desfazer)</span></button>'
           : '<button type="button" class="pay-marcar" data-g="' + grupo + '" data-i="' + i + '">Marcar como pago</button>') + '</td></tr>';
@@ -1017,33 +1040,53 @@ function codigoDoCiclo(ciclo){ return fnv1a(CODIGO_SECRET + ":" + ciclo).slice(0
 // o QR aponta para a pagina de bater ponto do site da Hellen (o freela nao entra no portal)
 const PAGINA_QR = "https://hellenfelizardo3123.github.io/controle-ponto-freelas/index.html";
 function linkDaLoja(loja, codigo){ return PAGINA_QR + "?loja=" + CHAVE_LOJA[loja] + "&codigo=" + codigo; }
+// 14/10/2026 (Fabio): "os qr codes tem que ter links faceis de enviar e um botao imprimir agora".
+// Cada loja: Enviar no WhatsApp (mensagem pronta), Copiar link, Imprimir agora. No topo: os 3 de uma vez.
+// O link continua sendo o da semana (muda toda quarta): link fixo deixaria bater ponto de casa.
+function periodoQR(){ const c = cicloAtual(); return formatDiaMes(inicioCicloMs(c)) + " a " + formatDiaMes(inicioCicloMs(c + 1) - 1); }
+function mensagemQR(lojas){
+  const codigo = codigoDoCiclo(cicloAtual());
+  let m = "Ponto das taxas · Cidadão do Mundo\nSemana de " + periodoQR() + " (o link muda toda quarta)\n";
+  lojas.forEach(loja => { m += "\n" + (NOME_EXIBICAO[loja] || loja) + ": " + linkDaLoja(loja, codigo); });
+  return m + "\n\nAbra o link da sua loja na chegada, no intervalo e na saída.";
+}
+function linkZap(texto){ return "https://wa.me/?text=" + encodeURIComponent(texto); }
+async function copiarTexto(btn, texto){
+  const original = btn.textContent;
+  try{ await navigator.clipboard.writeText(texto); btn.textContent = "✓ Copiado!"; }
+  catch(e){ window.prompt("Copie o texto abaixo:", texto); }
+  setTimeout(() => { btn.textContent = original; }, 2000);
+}
 function renderQR(){
   const ciclo = cicloAtual(), codigo = codigoDoCiclo(ciclo);
-  const periodo = "Vale de " + formatDiaMes(inicioCicloMs(ciclo)) + " a " + formatDiaMes(inicioCicloMs(ciclo + 1) - 1);
-  let h = '<div class="rf-h2">🔳 QR code da semana <span class="hint">' + periodo + ' · muda sozinho toda quarta-feira</span></div>';
-  h += '<div class="rf-card"><div class="barra"><button id="btnImprimirQR" class="btn" type="button">🖨 Imprimir os 3 QR codes</button></div><div class="qr-grade">';
+  let h = '<div class="rf-h2">🔳 QR code da semana <span class="hint">vale de ' + periodoQR() + ' · muda sozinho toda quarta-feira</span></div>';
+  h += '<div class="rf-card"><div class="barra">'
+    + '<button id="btnImprimirQR" class="btn" type="button">🖨 Imprimir os 3 agora</button>'
+    + '<a class="btn btn-zap" href="' + escapeHtml(linkZap(mensagemQR(LOJAS_ORDEM))) + '" target="_blank" rel="noopener">📲 Enviar os 3 no WhatsApp</a>'
+    + '<button class="btn qr-copiar-msg" type="button" data-lojas="' + LOJAS_ORDEM.join(",") + '">📋 Copiar mensagem dos 3</button>'
+    + '</div><div class="qr-grade">';
   LOJAS_ORDEM.forEach(loja => {
     const link = linkDaLoja(loja, codigo), nomeLoja = NOME_EXIBICAO[loja] || loja;
     h += '<div class="qr-loja"><span class="qr-nome">' + nomeLoja + '</span>'
       + '<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(link) + '" alt="QR code ' + nomeLoja + '" loading="lazy">'
-      + '<span class="qr-link">' + escapeHtml(link) + '</span>'
-      + '<button class="btn qr-copiar" type="button" data-link="' + escapeHtml(link) + '">Copiar link</button></div>';
+      + '<div class="qr-botoes">'
+      + '<a class="btn btn-zap" href="' + escapeHtml(linkZap(mensagemQR([loja]))) + '" target="_blank" rel="noopener">📲 Enviar no WhatsApp</a>'
+      + '<button class="btn qr-imprimir" type="button" data-loja="' + loja + '">🖨 Imprimir agora</button>'
+      + '<button class="btn qr-copiar" type="button" data-link="' + escapeHtml(link) + '">Copiar link</button>'
+      + '</div><span class="qr-link">' + escapeHtml(link) + '</span></div>';
   });
   elContent.innerHTML = h + '</div></div>';
-  elContent.querySelectorAll(".qr-copiar").forEach(btn => btn.addEventListener("click", async () => {
-    const original = btn.textContent;
-    try{ await navigator.clipboard.writeText(btn.dataset.link); btn.textContent = "Copiado!"; }
-    catch(e){ btn.textContent = "Não copiou, copie na mão"; }
-    setTimeout(() => { btn.textContent = original; }, 2000);
-  }));
-  document.getElementById("btnImprimirQR").addEventListener("click", imprimirTodos);
+  elContent.querySelectorAll(".qr-copiar").forEach(btn => btn.addEventListener("click", () => copiarTexto(btn, btn.dataset.link)));
+  elContent.querySelectorAll(".qr-copiar-msg").forEach(btn => btn.addEventListener("click", () => copiarTexto(btn, mensagemQR(btn.dataset.lojas.split(",")))));
+  elContent.querySelectorAll(".qr-imprimir").forEach(btn => btn.addEventListener("click", () => imprimirTodos([btn.dataset.loja])));
+  document.getElementById("btnImprimirQR").addEventListener("click", () => imprimirTodos(LOJAS_ORDEM));
 }
-// Abre uma janela so com os 3 QR codes, grandes, um por pagina, e chama a impressao sozinha.
-function imprimirTodos(){
+// Abre uma janela so com os QR codes pedidos, grandes, um por pagina, e chama a impressao sozinha.
+function imprimirTodos(lojas){
   const ciclo = cicloAtual(), codigo = codigoDoCiclo(ciclo);
-  const periodo = "Vale de " + formatDiaMes(inicioCicloMs(ciclo)) + " a " + formatDiaMes(inicioCicloMs(ciclo + 1) - 1);
+  const periodo = "Vale de " + periodoQR();
   let paginas = "";
-  LOJAS_ORDEM.forEach(loja => {
+  (lojas || LOJAS_ORDEM).forEach(loja => {
     const link = linkDaLoja(loja, codigo), nomeLoja = NOME_EXIBICAO[loja] || loja;
     paginas += '<div class="pagina"><h1>' + escapeHtml(nomeLoja) + '</h1>'
       + '<p>' + escapeHtml(periodo) + ' — aponte a câmera do celular para bater o ponto</p>'
