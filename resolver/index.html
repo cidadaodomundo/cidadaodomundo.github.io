@@ -20,7 +20,7 @@ button.b:hover{border-color:var(--text2)}
 .c .vazio{padding:16px 0;font-size:14px}
 .m{color:var(--muted);font-size:12px;margin-top:3px}
 .load{color:var(--muted);padding:40px 10px;text-align:center}
-.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.cards{display:grid;grid-auto-flow:row dense;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
 .cards>*{min-width:0}
 .card{background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:14px 15px;color:var(--text);display:flex;flex-direction:column;gap:3px;transition:border-color .15s,transform .08s}
 .card[onclick]{cursor:pointer}
@@ -96,6 +96,7 @@ table.vv.pzv{border-left-color:var(--warn)}
 </div>
 
 <div id="app"><div class="load">Carregando…</div></div>
+<div id="pagBox" class="painel" style="display:none"><div class="ph"><h3>💵 Quanto pagar a cada motoboy</h3><button class="b fecha" onclick="fechaTudo()">fechar ✕</button></div><div id="pagIfr"></div></div>
 </div>
 
 <script>
@@ -435,9 +436,17 @@ function cardPag(){
   return '<div class="card'+(PAG?' on':'')+'" onclick="soUm(&quot;PAG&quot;)" title="Quanto pagar a cada motoboy: clique para abrir ou fechar">'+
     '<div class="t">💵 Quanto pagar</div><div class="v" style="color:var(--brand)">ontem</div><div class="qs">a cada motoboy</div></div>';
 }
-function pagPainel(){
-  if(!PAG) return '';
-  return '<iframe src="/pagamento/?aba=pagar&embed=1&cb='+Date.now()+'" style="width:100%;height:82vh;min-height:620px;border:0;border-radius:9px;background:var(--s0)" title="Quanto pagar a cada motoboy"></iframe>';
+/* a aba fica fora do #app: o desenha() refaz o #app inteiro e, se o iframe estivesse la dentro, recarregaria a cada vez */
+var PAG_UNI=null;
+function pagSync(){
+  var bx=document.getElementById('pagBox'), fr=document.getElementById('pagIfr'); if(!bx||!fr) return;
+  if(!PAG){ if(bx.style.display!=='none'){ bx.style.display='none'; fr.innerHTML=''; PAG_UNI=null; } return; }
+  bx.style.display='';
+  if(PAG_UNI!==UNI || !fr.firstChild){
+    PAG_UNI=UNI;
+    fr.innerHTML='<iframe src="/pagamento/?aba=pagar&embed=1&loja='+encodeURIComponent(UNI||'')+'&cb='+Date.now()+'" style="width:100%;height:82vh;min-height:620px;border:0;border-radius:9px;background:var(--s0)" title="Quanto pagar a cada motoboy"></iframe>';
+    if(bx.scrollIntoView) bx.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
 }
 
 function cardEsq(){
@@ -889,8 +898,6 @@ function desenha(){
 
   h+=painelQ('DUPO',duplaPainel());
 
-  h+=painelQ('PAG',pagPainel());
-
   if(TIPO){
     const porTipo = itens.filter(function(x){return x.tipo===TIPO});
     const lista = (VER==='abertas') ? porTipo.filter(function(x){return !x.resolvido}) : porTipo;
@@ -913,6 +920,7 @@ function desenha(){
 
   h+=falaComigo();
   $('app').innerHTML=h;
+  pagSync();
 }
 
 function placar(h){ var p=$('placar'); if(p) p.innerHTML=h; }

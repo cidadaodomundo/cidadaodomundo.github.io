@@ -803,10 +803,10 @@ function viewPagar(){
   const l=soDaLoja(PD.linhas);
   let h='<div class="c"><div class="hs" style="margin:0 0 8px"><b>💵 Quanto pagar a cada motoboy</b> · '+esc(PD.dia_semana)+', '+esc(PD.dia_texto)+' · '+(PD.fim_de_semana?'R$ 25 a hora':'R$ 20 a hora')+'</div>'+
     '<button class="b" onclick="pagDiaPula(-1)">◀ dia anterior</button> '+
-    '<input type="date" value="'+esc(PD.dia)+'" onchange="pagDiaMuda(this.value)" aria-label="Escolher o dia"> '+
+    '<input type="date" value="'+esc(PD.dia)+'" max="'+pgHojeOp()+'" onchange="pagDiaMuda(this.value)" aria-label="Escolher o dia"> '+
     '<button class="b" onclick="pagDiaPula(1)"'+(PD.dia>=pgHojeOp()?' disabled title="Este é o dia em andamento"':'')+'>dia seguinte ▶</button></div>'+maqLojas();
-  if(PD.dia>=pgHojeOp()) h+='<div class="c" style="border-left:4px solid var(--warn)"><b>⏳ Este dia ainda está em andamento.</b> Os valores abaixo são parciais: pague pelo dia que já fechou.</div>';
-  if(PG_EMBED)try{sessionStorage.setItem('pg_embed',JSON.stringify({dia:PD.dia,loja:LOJA,em:Date.now()}))}catch(e){}
+  if(PD.dia>pgHojeOp()){$('conteudo').innerHTML=h+'<div class="c empty">Esse dia ainda não chegou. Volte com ◀ dia anterior.</div>';return}
+  if(PD.dia===pgHojeOp()) h+='<div class="c" style="border-left:4px solid var(--warn)"><b>⏳ Este dia ainda está em andamento.</b> Os valores abaixo são parciais: pague pelo dia que já fechou.</div>';
   if(!l.length){$('conteudo').innerHTML=h+'<div class="c empty">Ninguém rodou neste dia'+(LOJA?' nesta loja':'')+'. Escolha outro dia nas setas acima.</div>';return}
   let tot=0; l.forEach(function(m){tot+=Number(m.pagar||0)}); tot=Math.round(tot*100)/100;
   const semPix=l.filter(function(m){return !m.chave_pix}).length;
@@ -824,7 +824,7 @@ function viewPagar(){
   });
   if(PD.pode_apontar) h+='<div style="margin-top:22px">'+semDono(PD,false)+'</div>';
   h+=PG_EMBED?'<details class="c" style="margin-top:14px"><summary style="cursor:pointer"><b>📜 Como a conta é feita</b></summary>'+REGRAS_HTML+'</details>'
-    :'<div class="hs">A conta inteira está explicada na aba <a href="#" onclick="setView(\'reg\');return false" style="color:var(--brand)">📜 As regras</a>. Em cada comanda, “ver detalhe” mostra a conta por extenso. Quem decide é você.</div>';
+    :'<div class="hs">A conta inteira está explicada na aba <a href="#" onclick="setView(\'reg\');return false" style="color:var(--brand)">📜 As regras</a>. Quando houver, “ver detalhe” explica o caso daquele motoboy. Quem decide é você.</div>';
   $('conteudo').innerHTML=h;
 }
 
@@ -1170,7 +1170,7 @@ async function cdmGuarda(){
   if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){if(!ok)return;try{$('p_sem').parentElement.style.display='none'}catch(e){}var qs=new URLSearchParams(location.search);if(qs.get('aba')==='dup'){try{$('de').value=new Date(Date.now()-21*864e5).toISOString().slice(0,10)}catch(e){}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}}setView('dup');return}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}try{var st=JSON.parse(sessionStorage.getItem('pg_embed')||'null');if(st&&Date.now()-st.em<30*60e3){PDDIA=st.dia||null;LOJA=st.loja||''}}catch(e){}}setView('pagar');});
+cdmGuarda().then(function(ok){if(!ok)return;try{$('p_sem').parentElement.style.display='none'}catch(e){}var qs=new URLSearchParams(location.search);if(qs.get('aba')==='dup'){try{$('de').value=new Date(Date.now()-21*864e5).toISOString().slice(0,10)}catch(e){}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}}setView('dup');return}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}if(qs.get('loja')!==null)LOJA=qs.get('loja');}setView('pagar');});
 </script>
 <script src="/assets/portal.js?v=3"></script>
 </body>
