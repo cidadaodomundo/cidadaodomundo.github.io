@@ -115,6 +115,7 @@ select.loja{padding:4px 8px;font-size:12px}
 .pill.ok{background:#12301f;color:#7fe3a0}.pill.ab{background:#3a2e0e;color:#f2c94c}.pill.an{background:#123047;color:#7cc4ff}
 .gv-pagar{margin-top:6px}
 body.gv-aberta{overflow:hidden}
+table.pv-tb .pv-ref{font-size:12.5px;white-space:nowrap;cursor:help}
 .pill.x{background:var(--surface2);color:var(--muted)}
 .pd-novo textarea{width:100%;background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:12px 14px;font:inherit;font-size:14.5px;resize:vertical;min-height:80px}
 .pd-novo textarea:focus,.pd-resp input:focus{outline:2px solid var(--brand);outline-offset:1px}
@@ -807,18 +808,18 @@ function caixaSetor(chave){
 }
 const SETORES = [["Cozinha", "🍳 Cozinha"], ["Salão", "🍽 Salão"], [null, "❓ Sem setor — escolha na caixinha ao lado do nome"]];
 function tabelaTurnos(g){
-  let h = '<div class="pv-wrap"><table class="pv-tb" data-cdm-sem-nota><thead><tr><th>Taxa</th><th>Situação</th><th class="n">Entrada</th><th class="n">Intervalo</th><th class="n">Saída</th><th class="n">Horas</th><th class="n">A receber</th><th class="n">Batidas</th></tr></thead><tbody>';
+  let h = '<div class="pv-wrap"><table class="pv-tb" data-cdm-sem-nota><thead><tr><th>Taxa</th><th>Situação</th><th class="n">Entrada</th><th class="n">Intervalo</th><th class="n">Saída</th><th class="n">Horas</th><th class="n">A receber</th><th class="n">Refeição</th><th class="n">Batidas</th></tr></thead><tbody>';
   SETORES.forEach(([s, rot]) => {
     const l = g.filter(t => setorDe(t.chave) === s);
     if (!l.length) return;
     let ms = 0, v = 0, temV = false;
     l.forEach(t => { ms += msTrabalhado(t) || 0; const x = valorDe(t); if (x !== null){ v += x; temV = true; } });
     const n = new Set(l.map(t => t.chave)).size;
-    h += '<tr class="pv-setor"><td colspan="8">' + rot + ' <span class="rfu">· ' + n + (n === 1 ? ' taxa' : ' taxas') + ' · ' + formatHoras(ms) + (temV ? ' · ' + formatBRL(v) : '') + '</span></td></tr>';
+    h += '<tr class="pv-setor"><td colspan="9">' + rot + ' <span class="rfu">· ' + n + (n === 1 ? ' taxa' : ' taxas') + ' · ' + formatHoras(ms) + (temV ? ' · ' + formatBRL(v) : '') + '</span></td></tr>';
     l.forEach(t => {
       h += '<tr class="' + classeLinha(t) + '">' + celNome(t, !lojaAtiva)
         + '<td class="pv-sit">' + situacao(t) + '</td>'
-        + celHora(t.entrada, t) + celIntervalo(t) + celHora(t.saida, t) + celHoras(t) + celReceber(t)
+        + celHora(t.entrada, t) + celIntervalo(t) + celHora(t.saida, t) + celHoras(t) + celReceber(t) + celRefeicao(t)
         + '<td class="n"><span class="pv-bat">' + t.regs.length + '</span></td></tr>';
     });
   });
@@ -986,12 +987,13 @@ function desenharGaveta(){
       meio = '<div class="gv-meio"><b>' + (t && t.entrada !== null ? hhmm(t.entrada) : '—') + ' → ' + (t && t.saida !== null ? hhmm(t.saida) : (i.andamento ? 'agora' : '—')) + '</b> · ' + formatHoras(i.p.ms)
         + (t && t.ints.length ? ' <span class="rfu">· ' + t.ints.length + (t.ints.length === 1 ? ' intervalo' : ' intervalos') + '</span>' : '')
         + (i.p.vt ? '<br><span class="rfu">com ' + formatBRL(i.p.vt) + ' de VT</span>' : '')
-        + (i.p.incompletos ? '<br><span class="rfx">⚠️ batida incompleta — parte das horas não entrou</span>' : '') + '</div>';
+        + (i.p.incompletos ? '<br><span class="rfx">⚠️ batida incompleta — parte das horas não entrou</span>' : '') + refeicaoNaFicha(chave, [i.dia]) + '</div>';
     } else {
       esq = '<div class="gv-d"><small>semana</small><b>' + formatDiaMes(inicioCicloMs(i.ciclo)) + '</b></div>';
       meio = '<div class="gv-meio"><b>' + formatDiaMes(inicioCicloMs(i.ciclo)) + ' a ' + formatDiaMes(inicioCicloMs(i.ciclo + 1) - 1) + '</b> · ' + i.dias + (i.dias === 1 ? ' dia' : ' dias') + ' · ' + formatHoras(i.p.ms)
         + (i.p.vt ? '<br><span class="rfu">com ' + formatBRL(i.p.vt) + ' de VT</span>' : '')
-        + (i.p.incompletos ? '<br><span class="rfx">⚠️ batida incompleta — parte das horas não entrou</span>' : '') + '</div>';
+        + (i.p.incompletos ? '<br><span class="rfx">⚠️ batida incompleta — parte das horas não entrou</span>' : '')
+        + refeicaoNaFicha(chave, Array.from({ length: 7 }, (_, d) => somaDia(diaBrasilia(inicioCicloMs(i.ciclo) + 12 * 3600 * 1000), d))) + '</div>';
     }
     const status = i.andamento ? '<span class="pill an">em andamento</span>'
       : i.pago ? '<span class="pill ok">✓ pago' + (i.soSemana ? ' na semana' : '') + '</span>'
@@ -1003,6 +1005,7 @@ function desenharGaveta(){
 }
 function abrirPessoa(chave){
   PESSOA_ABERTA = chave;
+  carregarRefeicoesPessoa(chave);
   desenharGaveta();
   gaveta.hidden = false;
   document.body.classList.add("gv-aberta");
@@ -1023,6 +1026,83 @@ gaveta.addEventListener("click", e => {
   if (pg){ const i = GV_ITENS[+pg.getAttribute("data-gv-i")]; if (i){ pg.disabled = true; marcarComoPago(i.p, i.marca); } }
 });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && PESSOA_ABERTA) fecharPessoa(); });
+
+/* ---------- 🍽 Refeições da taxa no dia (14/10/2026) ----------
+   Fabio: "nas taxas tambem apareca as refeicoes do taxa no dia". Vem das comandas do Saipos (cartao TAXAS / TAXAS DO SALAO /
+   FREELA com o nome digitado, ou o cartao/apelido de funcionario), pela porta hellen_refeicoes. Casa pelo primeiro nome da taxa,
+   em qualquer loja. Um dia custa ~0,1 s; a ficha da pessoa le as ultimas 3 semanas (~2,5 s). Sem valor em R$. */
+const REFEICOES = new Map();          // dia -> { status: 'carregando' | 'ok' | 'erro', lista, quando }
+let REF_PESSOA = null;                 // { chave, status, lista, de }
+async function portaRefeicoes(dados){
+  const r = await fetch(SB + "rpc/hellen_refeicoes", { method: "POST",
+    headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ p_token: cdmTok(), p_dados: dados || {} }) });
+  let j = null; try{ j = await r.json(); }catch(e){}
+  if (!r.ok || !j || j.ok === false) throw new Error((j && (j.erro || j.message)) || ("HTTP " + r.status));
+  return j;
+}
+function semAcento(s){ return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""); }
+function primeiroNome(chave){ return semAcento(nomeDe(chave)).split(/[^a-z]+/).filter(Boolean)[0] || ""; }
+function refeicoesDoDia(dia){
+  const hoje = diaOperacional(Date.now());
+  const c = REFEICOES.get(dia);
+  const velho = c && c.status === "ok" && dia === hoje && Date.now() - c.quando > 5 * 60000;
+  if (c && !velho) return c;
+  if (velho){ if (c.recarregando) return c; c.recarregando = true; }
+  if (!c) REFEICOES.set(dia, { status: "carregando" });
+  portaRefeicoes({ de: dia, ate: dia })
+    .then(j => { REFEICOES.set(dia, { status: "ok", lista: j.refeicoes || [], quando: Date.now() }); render(); })
+    .catch(e => { if (!velho) { REFEICOES.set(dia, { status: "erro", erro: (e && e.message) || "erro" }); render(); } });
+  return REFEICOES.get(dia);
+}
+function refeicoesDe(lista, chave){
+  const n = primeiroNome(chave); if (!n) return [];
+  const re = new RegExp("(^|[^a-z])" + n + "([^a-z]|$)");
+  return (lista || []).filter(x => re.test(semAcento(x.quem)));
+}
+function resumoRefeicoes(itens, lojaTaxa){
+  const por = {};
+  itens.forEach(x => { const t = x.tipo === "ALMOCO" ? "Almoço" : x.tipo === "LANCHE" ? "Lanche" : (x.tipo ? x.tipo.charAt(0) + x.tipo.slice(1).toLowerCase() : "Refeição"); por[t] = (por[t] || 0) + Number(x.qtd || 1); });
+  const outraLoja = Array.from(new Set(itens.map(x => x.unidade).filter(u => semAcento(u) !== semAcento(lojaTaxa))));
+  return Object.keys(por).map(t => (por[t] > 1 ? por[t] + "× " : "") + t).join(" + ") + (outraLoja.length ? " (" + outraLoja.join(", ") + ")" : "");
+}
+function celRefeicao(t){
+  const c = refeicoesDoDia(t.diaEfetivo);
+  if (c.status === "carregando") return '<td class="n"><span class="pv-nada">…</span></td>';
+  if (c.status === "erro") return '<td class="n"><span class="pv-nada" title="' + escapeHtml(c.erro) + '">—</span></td>';
+  const itens = refeicoesDe(c.lista, t.chave);
+  if (!itens.length) return '<td class="n"><span class="pv-nada">nenhuma</span></td>';
+  const dica = itens.map(x => x.produto + " · " + x.unidade + " · comanda: " + x.quem).join("\n");
+  return '<td class="n pv-ref" title="' + escapeHtml(dica) + '">🍽 ' + escapeHtml(resumoRefeicoes(itens, NOME_EXIBICAO[t.loja] || t.loja)) + '</td>';
+}
+// refeicoes no cartao TAXAS / FREELA sem nome escrito: ninguem sabe de quem e
+function avisoRefeicaoSemNome(dia){
+  const c = REFEICOES.get(dia); if (!c || c.status !== "ok") return "";
+  const sem = c.lista.filter(x => /^\s*taxas\b/i.test(x.cartao || "") && semAcento(x.quem) === semAcento(x.cartao)
+    && (!lojaAtiva || semAcento(x.unidade) === semAcento(NOME_EXIBICAO[lojaAtiva] || lojaAtiva)));
+  if (!sem.length) return "";
+  const n = sem.reduce((a, x) => a + Number(x.qtd || 1), 0);
+  return '<div class="rf-nota">🍽 ' + n + (n === 1 ? ' refeição lançada' : ' refeições lançadas') + ' no cartão das taxas <b>sem o nome escrito</b> (' + escapeHtml(Array.from(new Set(sem.map(x => x.unidade))).join(", ")) + ') — não dá para saber de quem é. Peça para digitarem o nome na comanda.</div>';
+}
+function carregarRefeicoesPessoa(chave){
+  const n = primeiroNome(chave);
+  const de = somaDia(diaOperacional(Date.now()), -20);
+  REF_PESSOA = { chave: chave, status: "carregando", de: de };
+  if (!n || n.length < 2){ REF_PESSOA.status = "erro"; return; }
+  portaRefeicoes({ de: de, ate: diaOperacional(Date.now()), nome: n })
+    .then(j => { if (REF_PESSOA && REF_PESSOA.chave === chave){ REF_PESSOA = { chave: chave, status: "ok", de: de, lista: j.refeicoes || [] }; desenharGaveta(); } })
+    .catch(e => { if (REF_PESSOA && REF_PESSOA.chave === chave){ REF_PESSOA = { chave: chave, status: "erro", de: de, erro: (e && e.message) || "erro" }; desenharGaveta(); } });
+}
+// texto das refeicoes de um item da ficha (um dia ou uma semana)
+function refeicaoNaFicha(chave, dias){
+  if (!REF_PESSOA || REF_PESSOA.chave !== chave) return "";
+  if (dias.every(d => d < REF_PESSOA.de)) return "";
+  if (REF_PESSOA.status === "carregando") return '<br><span class="rfu">🍽 procurando as refeições…</span>';
+  if (REF_PESSOA.status !== "ok") return "";
+  const itens = refeicoesDe(REF_PESSOA.lista.filter(x => dias.indexOf(String(x.dia).slice(0, 10)) >= 0), chave);
+  const loja = NOME_EXIBICAO[chave.split("|")[0]] || chave.split("|")[0];
+  return '<br><span class="rfu">🍽 ' + (itens.length ? escapeHtml(resumoRefeicoes(itens, loja)) : 'nenhuma refeição lançada') + '</span>';
+}
 
 /* ---------- 🔴 Ponto ao vivo ---------- */
 function barraDias(dia, hoje){
@@ -1091,7 +1171,7 @@ function renderVivo(){
     elContent.innerHTML = h + '<div class="rf-empty">Nenhuma taxa bateu ponto hoje' + (lojaAtiva ? ' nesta loja' : '') + '.</div></div>';
     return;
   }
-  h += tabelaTurnos(g);
+  h += tabelaTurnos(g) + avisoRefeicaoSemNome(hoje);
   h += '<div class="rf-nota">Hoje = o dia de trabalho de hoje, das 08:00 às 03:00 do dia seguinte (quem entra de tarde e sai de madrugada fica no dia em que entrou), e todo mundo que ainda está na loja. '
      + 'O nome é digitado pela taxa a cada batida: grafias diferentes da mesma pessoa (com ou sem acento, espaço, sobrenome) são juntadas numa linha só e aparecem em "digitou também".</div>';
   elContent.innerHTML = h + '</div>';
@@ -1120,7 +1200,7 @@ function renderDia(dia, hoje){
     elContent.innerHTML = h + '<div class="rf-empty">Nenhuma taxa bateu ponto neste dia' + (lojaAtiva ? ' nesta loja' : '') + '.</div></div>';
     return;
   }
-  h += tabelaTurnos(g);
+  h += tabelaTurnos(g) + avisoRefeicaoSemNome(dia);
   h += '<div class="rf-nota">O dia vai das 08:00 às 03:00 do dia seguinte: quem entra de tarde e sai de madrugada fica no dia em que entrou (a saída aparece com a data dela). Batida antes das 05:00 conta no dia anterior.</div>';
   elContent.innerHTML = h + '</div>';
 }
