@@ -106,8 +106,8 @@ tr.aviso td{color:#e8bb62}
 </head>
 <body>
 <div class="top">
-  <div><h1>Pagar Motoboys</h1><div class="sub">quanto pagar a cada um, com a chave PIX do lado — esta tela é só sua e da Hellen</div></div>
-  <div class="rt"><span class="rel" id="rel"></span><button class="b" onclick="carrega()">🔄 Atualizar</button></div>
+  <div><h1>Pagar Motoboys</h1><div class="sub">maquininha, corrida em dobro e as regras — esta tela é só sua e da Hellen</div></div>
+  <div class="rt"><span class="rel" id="rel"></span><button class="b" onclick="MQ=null;setView(VIEW)">🔄 Atualizar</button></div>
 </div>
 
 <div class="per">
@@ -122,8 +122,7 @@ tr.aviso td{color:#e8bb62}
 <div id="kpis"></div>
 
 <div class="tabs">
-  <span class="tab on" id="t_pag" onclick="setView('pag')">💵 Pagamento do dia anterior</span>
-  <span class="tab" id="t_maq" onclick="setView('maq')">🧾 Maquininha do dia</span>
+  <span class="tab on" id="t_maq" onclick="setView('maq')">🧾 Maquininha do dia</span>
   <span class="tab" id="t_dup" onclick="setView('dup')">🔎 Corrida em dobro</span>
   <span class="tab" id="t_reg" onclick="setView('reg')">📜 As regras</span>
 </div>
@@ -156,7 +155,7 @@ const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 const iso=d=>d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
 function rs(n){return 'R$ '+Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function num(n){return Number(n||0).toLocaleString('pt-BR',{maximumFractionDigits:1})}
-let VIEW='pag', D=null, PD=null, PDDIA=null, AG=null, AGT=null, LOJA='';
+let VIEW='maq', D=null, PD=null, PDDIA=null, AG=null, AGT=null, LOJA='';
 
 
 async function porta(de,ate){
@@ -212,8 +211,7 @@ function kpis(){
 }
 function kpi(k,c,v,d){return '<div class="kpi '+(c||'')+'"><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="d">'+d+'</div></div>'}
 
-function setView(v){if(v==='cmp')v='pag'; VIEW=v;
-  $('t_pag').className='tab'+(v==='pag'?' on':'');
+function setView(v){if(v==='cmp'||v==='pag')v='maq'; VIEW=v;
   $('t_maq').className='tab'+(v==='maq'?' on':'');
   try{$('t_dup').className='tab'+(v==='dup'?' on':'')}catch(e){}
   $('t_reg').className='tab'+(v==='reg'?' on':'');
@@ -320,7 +318,7 @@ async function viewDup(){
   el.innerHTML=h;
 }
 function viewRegras(){$('kpis').innerHTML='';$('faixa').innerHTML='';$('conteudo').innerHTML=REGRAS_HTML}
-function render(){if(VIEW==='dup'){viewDup();return}if(VIEW==='cob'){viewCob();return}if(VIEW==='ag'){viewAgora();return}if(VIEW==='maq'){viewMaq();return}if(VIEW==='reg'){viewRegras();return}viewPag()}
+function render(){if(VIEW==='dup'){viewDup();return}if(VIEW==='cob'){viewCob();return}if(VIEW==='ag'){viewAgora();return}if(VIEW==='maq'){viewMaq();return}if(VIEW==='reg'){viewRegras();return}viewMaq()}
 async function viewComparar(){
   $('faixa').innerHTML='';
   if(!PD){ $('conteudo').innerHTML='<div class="empty">Carregando…</div>'; await puxaPagDia(); }
@@ -1032,7 +1030,7 @@ async function cdmGuarda(){
   if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){if(!ok)return;try{$('p_sem').parentElement.style.display='none'}catch(e){}var qs=new URLSearchParams(location.search);if(qs.get('aba')==='dup'){try{$('de').value=new Date(Date.now()-21*864e5).toISOString().slice(0,10)}catch(e){}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}}setView('dup');return}puxaPagDia();});
+cdmGuarda().then(function(ok){if(!ok)return;try{$('p_sem').parentElement.style.display='none'}catch(e){}var qs=new URLSearchParams(location.search);if(qs.get('aba')==='dup'){try{$('de').value=new Date(Date.now()-21*864e5).toISOString().slice(0,10)}catch(e){}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}}setView('dup');return}setView('maq');});
 </script>
 <script src="/assets/portal.js?v=3"></script>
 </body>
