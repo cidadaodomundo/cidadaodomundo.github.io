@@ -163,16 +163,16 @@ var MOT_REE=['Faltou item na sacola','Endereco errado','Cliente pediu de novo','
 var MOT_GER=['Resolvido com o cliente','Ja estava certo','Nao era problema nosso','Combinado com a equipe'];
 
 var FAM='TODOS';
-var ESQ=false;
+var ESQ=false, PAG=false;
 function soUm(q){
-  var era={ESQ:ESQ,PAU:PAU,CHG:CHG,DUPO:DUPO,FDA:FDA,PZ:PZ}[q];
-  ESQ=false;PAU=false;CHG=false;DUPO=false;FDA=false;PZ=false;TIPO='';
-  if(q==='ESQ')ESQ=!era; if(q==='PAU')PAU=!era; if(q==='CHG')CHG=!era; if(q==='DUPO')DUPO=!era; if(q==='FDA')FDA=!era; if(q==='PZ')PZ=!era;
+  var era={ESQ:ESQ,PAU:PAU,CHG:CHG,DUPO:DUPO,FDA:FDA,PZ:PZ,PAG:PAG}[q];
+  ESQ=false;PAU=false;CHG=false;DUPO=false;FDA=false;PZ=false;PAG=false;TIPO='';
+  if(q==='ESQ')ESQ=!era; if(q==='PAU')PAU=!era; if(q==='CHG')CHG=!era; if(q==='DUPO')DUPO=!era; if(q==='FDA')FDA=!era; if(q==='PZ')PZ=!era; if(q==='PAG')PAG=!era;
   desenha(); rolaPainel();
 }
 function rolaPainel(){ var p=document.getElementById('painel'); if(p&&p.scrollIntoView) p.scrollIntoView({behavior:'smooth',block:'nearest'}); }
-function fechaTudo(){ ESQ=false;PAU=false;CHG=false;DUPO=false;FDA=false;PZ=false;TIPO=''; desenha(); }
-var TIT_Q={ESQ:'🛍️ Errado no pedido',PAU:'⏸️ Parou de vender',FDA:'📵 Fora do ar no delivery',CHG:'🛵 Chegada não sinalizada',DUPO:'🚘 Corrida em dobro',PZ:'⏸️ Cardápio pausado'};
+function fechaTudo(){ ESQ=false;PAU=false;CHG=false;DUPO=false;FDA=false;PZ=false;PAG=false;TIPO=''; desenha(); }
+var TIT_Q={PAG:'💵 Quanto pagar a cada motoboy',ESQ:'🛍️ Errado no pedido',PAU:'⏸️ Parou de vender',FDA:'📵 Fora do ar no delivery',CHG:'🛵 Chegada não sinalizada',DUPO:'🚘 Corrida em dobro',PZ:'⏸️ Cardápio pausado'};
 function painelQ(q,corpo){
   if(!corpo) return '';
   return '<div class="painel" id="painel"><div class="ph"><h3>'+TIT_Q[q]+'</h3><button class="b fecha" onclick="fechaTudo()">fechar ✕</button></div>'+corpo+'</div>';
@@ -181,7 +181,7 @@ function painelQ(q,corpo){
 var PRIMEIRA=true;
 function abrePrimeiro(){
   if(!PRIMEIRA||!D) return; PRIMEIRA=false;
-  if(TIPO||ESQ||PAU||CHG||DUPO||FDA||PZ) return;
+  if(TIPO||ESQ||PAU||CHG||DUPO||FDA||PZ||PAG) return;
   var es=D.esquecidos||[], it=D.itens||[];
   if(es.some(function(e){return e.pendente})){ ESQ=true; return; }
   var ord=['reentrega','cancelamento','parcial','chat','maquininha','negociacao'];
@@ -428,6 +428,16 @@ function duplaPainel(){
     '<div class="m">Quem decide é o Fábio ou a Hellen, na tela Pagar Motoboys.</div></div>';
   return '<div style="border:1px solid var(--line);border-left:4px solid var(--bad);background:var(--s1);border-radius:16px;padding:12px 14px;margin:0">'+topo+
     '<iframe src="/pagamento/?aba=dup&embed=1&cb='+Date.now()+'" style="width:100%;height:75vh;min-height:560px;border:0;border-radius:9px;background:var(--s0)" title="Corrida em dobro"></iframe></div>';
+}
+
+/* 💵 Quanto pagar — a tela de pagamento dos motoboys aberta aqui dentro (14/10, pedido do Fabio) */
+function cardPag(){
+  return '<div class="card'+(PAG?' on':'')+'" onclick="soUm(&quot;PAG&quot;)" title="Quanto pagar a cada motoboy: clique para abrir ou fechar">'+
+    '<div class="t">💵 Quanto pagar</div><div class="v" style="color:var(--brand)">ontem</div><div class="qs">a cada motoboy</div></div>';
+}
+function pagPainel(){
+  if(!PAG) return '';
+  return '<iframe src="/pagamento/?aba=pagar&embed=1&cb='+Date.now()+'" style="width:100%;height:82vh;min-height:620px;border:0;border-radius:9px;background:var(--s0)" title="Quanto pagar a cada motoboy"></iframe>';
 }
 
 function cardEsq(){
@@ -865,6 +875,7 @@ function desenha(){
     cardParc(R)+
     cardTot(R,'chat','Cliente sem resposta','💬')+
     cardMaq(R)+
+    cardPag()+
     cardTot(R,'negociacao','Negociação do iFood','🤝')+
     cardCheg()+
     cardDup()+
@@ -878,6 +889,8 @@ function desenha(){
   h+=painelQ('CHG',chegada());
 
   h+=painelQ('DUPO',duplaPainel());
+
+  h+=painelQ('PAG',pagPainel());
 
   if(TIPO){
     const porTipo = itens.filter(function(x){return x.tipo===TIPO});
