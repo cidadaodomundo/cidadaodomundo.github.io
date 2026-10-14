@@ -85,6 +85,15 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .meta .fr{margin-top:.4em;font-weight:800;font-size:.95em}
 .meta .fr.ok{color:var(--ok)}.meta .fr.nao{color:var(--text2)}
 .meta .ant{color:var(--muted);font-size:.75em;margin-top:.2em}
+/* 14/10/2026 carrossel das fotos dos erros da semana (Fabio: "crie um carrosel passando as fotos dos erros"). Altura fixa:
+   a lista de Fora do ar embaixo nao pula quando a foto troca. */
+.carro{flex:0 0 auto;height:10.5em;margin-bottom:.7em;background:var(--s1);border:1px solid var(--line);border-left:.4em solid var(--bad);border-radius:.6em;padding:.4em .6em;display:grid;grid-template-columns:13em 1fr;gap:.7em;align-items:center;overflow:hidden}
+.carro .ft{height:9.6em;width:13em;border-radius:.4em;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.carro img{max-width:100%;max-height:100%;object-fit:contain}
+.carro .tx{min-width:0;font-size:.85em;line-height:1.3}
+.carro .tx .lbx{color:var(--bad);margin-bottom:.3em}
+.carro .tx .tt{font-weight:800;font-size:1.1em}
+.carro .tx small{display:block;color:var(--muted)}
 /* 13/10/2026 (obra 124, chat-tv-erros-do-dia-13-10) Fabio: "clicar no dia da semana e aparecer a tabela com todos os erros,
    lembrando que tem que ser erro mesmo". Dia que ja comecou abre a tabela (porta cozinha_tv_dia). */
 .dd.clica{cursor:pointer}.dd.clica:hover,.dd.clica:focus{filter:brightness(1.3);outline:none}
@@ -155,7 +164,7 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 <div class="melhor" id="melhor" style="display:none"></div>
 <div class="corpo">
   <div class="col"><h2>🔴 Erros de hoje <small id="dia"></small></h2><div class="num" id="num"></div><div class="lista" id="lista"></div><div class="mais" id="mais"></div></div>
-  <div class="col"><div class="meta" id="meta"></div><h2>⏸ Fora do ar no iFood <small id="pz-st"></small></h2><div class="pz" id="pz"></div><div class="cinza" id="pz-ok"></div></div>
+  <div class="col"><div class="meta" id="meta"></div><div class="carro" id="carro" style="display:none"></div><h2>⏸ Fora do ar no iFood <small id="pz-st"></small></h2><div class="pz" id="pz"></div><div class="cinza" id="pz-ok"></div></div>
 </div>
 <div class="cli nada" id="cli" style="display:none"></div>
 <div class="rodape" id="rodape"></div>
@@ -221,6 +230,7 @@ async function busca(primeira){
     VISTOS=new Set(lista.map(e=>e.k));
     DADO=j; ULT_OK=Date.now(); $('faixa').classList.remove('on');
     desenha(novos.map(e=>e.k));
+    carroBusca();   /* 14/10: fotos dos erros da semana; ela mesma so vai a rede a cada 10 min ou quando troca a loja */
     if(novos.length) apito();
     liga();
   }catch(e){ falha('SEM INTERNET — tentando de novo a cada 1 minuto.'); }
@@ -321,6 +331,24 @@ function meta(m){
     if(d.quando!=='falta') cl+=' clica';   /* 13/10: dia que ja comecou abre a tabela dos erros */
     return '<div class="dd '+cl+'"'+(d.quando!=='falta'?' data-dia="'+esc(d.dia)+'" title="Ver os erros deste dia" tabindex="0" role="button"':'')+'><div class="sm">'+(d.quando==='hoje'?'hoje':esc(d.sem))+'</div><div class="nn">'+esc(nn)+'</div><div class="dt">'+esc(d.dia)+'</div></div>';
   }).join('');
+  /* 14/10/2026 (obra 124, chat-tv-qualidade-fotos-14-10) Fabio: "quero que conste 2 erros por dia ou 14 erros no total" e,
+     nas opcoes, "Ate 14 na semana": ganha a semana (sab a sex) quem fechar com ate 14 erros. O dia verde (ate 2) fica so
+     como guia. O teto vem do banco (semana.teto_semana); sem ele, a tela volta a regra antiga dos dias verdes. */
+  const teto=Number(m.teto_semana)||0;
+  if(teto){
+    let tot=0, sobram=0;
+    m.dias.forEach(function(d){ if(d.quando!=='falta') tot+=Number(d.erros)||0; if(d.quando!=='passou') sobram++; });
+    const resta=teto-tot;
+    let fr2, cf2='';
+    if(tot>teto){ fr2='Passou de '+teto+': esta semana não dá mais ('+tot+' erros). Sábado começa outra.'; cf2='nao'; }
+    else if(!sobram){ fr2='🎉 Meta batida: churrasco no sábado! '+tot+' de '+teto+' erros'; cf2='ok'; }
+    else fr2=tot+' de '+teto+' erros · '+(resta===0?'nenhum erro a mais até sexta!':'sobra'+(resta>1?'m ':' ')+resta+' até sexta');
+    const a2=m.anterior, at=a2&&a2.total!=null?Number(a2.total):null;
+    el.innerHTML='<h2>🍖 Meta do churrasco <small>cozinha + delivery juntos'+(PORTAL?' · toque no dia':'')+'</small></h2><div class="rg">até '+esc(teto)+' erros de sáb a sex = churrasco · guia: até '+esc(lim)+' por dia</div>'
+      +'<div class="dias">'+cx+'</div><div class="fr '+cf2+'">'+esc(fr2)+'</div>'
+      +(a2&&at!=null?'<div class="ant">Semana passada ('+esc(a2.de)+' a '+esc(a2.ate)+'): '+esc(at)+' erro'+(at===1?'':'s')+(at<=teto?' — 🎉 dentro dos '+esc(teto):'')+'</div>':'');
+    return;
+  }
   const falta=Math.max(0,alvo-verdes);
   let fr, cf='';
   if(verdes>=alvo){ fr='🎉 Meta batida: churrasco no sábado! '+verdes+' dias verdes'; cf='ok'; }
@@ -516,9 +544,10 @@ function abreInfo(q){
      +'<p><b>O que aparece:</b> os erros do dia que o cliente reclamou, de cozinha e de montagem da sacola, com a marca do pedido; os itens fora do ar no iFood; e as avaliações dos clientes. A tela se atualiza sozinha. Erro novo aparece com NOVO.</p>'
      +'<p><b>De onde vem o erro:</b> chat do iFood, WhatsApp do SAC, grupos do WhatsApp, reembolso do iFood e cancelamento no Gestor Web.</p>'
      +'<p><b>O dia</b> vai das 6h às 6h, como no topo da lista de erros.</p>'
-     +'<p><b>🍖 Meta do churrasco:</b> dia verde = até '+esc(m.verde_ate==null?'—':m.verde_ate)+' erros. '+esc(m.meta_dias==null?'—':m.meta_dias)+' dias verdes de sábado a sexta = churrasco no sábado. Para a meta contam os erros de cozinha e de montagem; as avaliações não contam.</p>'
+     +(m.teto_semana?'<p><b>🍖 Meta do churrasco:</b> até '+esc(m.teto_semana)+' erros de sábado a sexta = churrasco no sábado. Guia: até '+esc(m.verde_ate==null?'—':m.verde_ate)+' erros por dia (dia verde). Para a meta contam os erros de cozinha, de montagem e o pedido que chegou frio; as avaliações não contam.</p>'
+       :'<p><b>🍖 Meta do churrasco:</b> dia verde = até '+esc(m.verde_ate==null?'—':m.verde_ate)+' erros. '+esc(m.meta_dias==null?'—':m.meta_dias)+' dias verdes de sábado a sexta = churrasco no sábado. Para a meta contam os erros de cozinha e de montagem; as avaliações não contam.</p>')
      +'<p><b>Só conta o que é erro mesmo.</b> Não contam: a mesma reclamação repetida; a equipe repetindo no grupo ou no SAC um erro que já está na lista; relatório de fechamento da equipe; pedido ou observação do cliente ("não esquece de…"); assunto só de entrega ou endereço; pedido que não chegou; erro do próprio cliente ("pedi da unidade errada"); e o mesmo pedido que caiu em outra loja. Toque no dia da meta para ver a lista: o que não contou aparece embaixo, com o motivo.</p>'
-     +'<p><b>🍳 Problema de qualidade:</b> na lista do dia (toque no dia da meta) há um quadro só para cru, queimado, estragado, frio e sem sabor, junto com as avaliações do iFood que reclamam da comida. Cru, queimado e estragado continuam contando na meta; frio e avaliação não. Quando o cliente mandou foto, aparece 📷 (a foto abre no portal).</p>'
+     +'<p><b>🍳 Problema de qualidade:</b> na lista do dia (toque no dia da meta) há um quadro só para cru, queimado, estragado, frio e sem sabor, junto com as avaliações do iFood que reclamam da comida. Cru, queimado, estragado e frio contam na meta; avaliação não. Quando o cliente mandou foto, aparece 📷, e as fotos dos erros da semana passam no carrossel da tela.</p>'
      +(px?'<p><b>Regra nova:</b> a partir de '+esc(px.a_partir)+', dia verde = até '+esc(px.verde_ate)+' erros.</p>':'')
      +'<p><b>Sem valor em R$ e sem nome de cliente</b> na TV.</p>';
   } else if(q==='codigos'){
@@ -602,7 +631,7 @@ async function abreDia(dm){
   h+='<h3>🛍 Erros de cozinha e montagem ('+M.length+')</h3>';
   if(M.length) h+='<table class="tb" data-cdm-sem-nota>'+cab+M.map(linha).join('')+'</table>';
   else h+='<div class="vazio"><b>Nenhum erro de cozinha ou montagem neste dia.</b></div>';
-  h+='<h3>🍳 Problema de qualidade ('+(Q.length+AQ.length)+')</h3><p style="font-size:.85em">Cru, queimado, estragado, frio, sem sabor — e as avaliações do iFood que reclamam da comida. Cru, queimado e estragado continuam contando na meta; frio e avaliação não contam.</p>';
+  h+='<h3>🍳 Problema de qualidade ('+(Q.length+AQ.length)+')</h3><p style="font-size:.85em">Cru, queimado, estragado, frio, sem sabor — e as avaliações do iFood que reclamam da comida. Reclamação conta na meta (inclusive frio); avaliação não conta.</p>';
   if(Q.length||AQ.length) h+='<table class="tb" data-cdm-sem-nota>'+cab+Q.map(linha).join('')+AQ.map(linhaAv).join('')+'</table>';
   else h+='<div class="vazio"><b>Nenhum problema de qualidade neste dia'+(IF.n?'':' (as avaliações do iFood ainda não chegaram)')+'.</b></div>';
   /* avaliacoes: iFood (dos pedidos deste dia) e Google (o robo so traz nota e total; avaliacao com data so quando o Google mostra "dias atras") */
@@ -654,6 +683,50 @@ async function verFotoTV(ped){
       +'<div style="color:#bbb;font-size:12px;margin-top:6px">Toque fora da foto ou aperte Esc para fechar.</div>';
   }catch(e){ if(document.body.contains(cx)) cx.innerHTML='<div style="color:#fff">Não deu para buscar as fotos. Toque para fechar.</div>'; }
 }
+/* 14/10/2026 (obra 124, chat-tv-qualidade-fotos-14-10) CARROSSEL das fotos que o cliente mandou nos erros que CONTAM da
+   semana da meta (sab a sex). Quem escolhe as fotos e confere o acesso e o banco (cozinha_tv_fotos); a Edge Function
+   guardar-foto-chat (acao carrossel) devolve links que valem 1 h. A TV pede de novo a cada 10 min, junto com a leitura
+   normal (nenhum timer de rede novo); a troca de foto a cada 8 s nao faz rede. Sem foto na semana, o quadro some. */
+let CARRO=[], CARRO_I=0, CARRO_T=0, CARRO_LOJA='', CARRO_BUSCANDO=false;
+/* 14/10 (aviso do supervisor sobre egress): o link de cada foto vale 24 h. A mesma foto (id) REUSA o link ja guardado por
+   ate 20 h e a imagem fica guardada na memoria (Image), entao o navegador baixa cada foto uma vez so, nao a cada 10 min. */
+const CARRO_LINK={};
+function carroLink(f){
+  const id=String(f.id||f.link||''), v=CARRO_LINK[id];
+  if(v && Date.now()-v.t<20*3600000) return v.link;
+  const im=new Image(); im.src=f.link;
+  CARRO_LINK[id]={link:f.link,t:Date.now(),im:im};
+  return f.link;
+}
+async function carroBusca(){
+  if(CARRO_BUSCANDO) return;
+  if(Date.now()-CARRO_T<10*60000 && CARRO_LOJA===LOJA) return;
+  if(CARRO_LOJA!==LOJA){ CARRO=[]; carroMostra(); }   /* trocou de loja: nunca mostra foto da loja anterior */
+  CARRO_BUSCANDO=true;
+  try{
+    const r=await fetch('https://kqvoatdprjwxyadhvtdd.supabase.co/functions/v1/guardar-foto-chat',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(PORTAL?{acao:'carrossel',token_portal:PTOK,loja:LOJA}:{acao:'carrossel',chave_tv:COD})});
+    const j=r.ok?await r.json():null;
+    if(j&&j.ok&&(!PORTAL||j.loja===LOJA)){
+      CARRO=(Array.isArray(j.fotos)?j.fotos:[]).map(function(f){ return Object.assign({},f,{link:carroLink(f)}); });
+      const vivos={}; CARRO.forEach(function(f){ vivos[String(f.id||f.link)]=1; });
+      Object.keys(CARRO_LINK).forEach(function(k){ if(!vivos[k]) delete CARRO_LINK[k]; });   /* foto que saiu da semana sai da memoria */
+      CARRO_I=0; CARRO_T=Date.now(); CARRO_LOJA=LOJA; carroMostra();
+    }
+  }catch(e){}
+  finally{ CARRO_BUSCANDO=false; }
+}
+function carroMostra(){
+  const el=$('carro'); if(!el) return;
+  if(!CARRO.length){ el.style.display='none'; return; }
+  const f=CARRO[CARRO_I%CARRO.length], mc=marcaCurta(f.marca);
+  el.style.display='';
+  el.innerHTML='<div class="ft"><img src="'+esc(f.link)+'" alt="foto que o cliente mandou" onerror="this.style.display=\'none\'"></div>'
+    +'<div class="tx"><div class="lbx">📷 Foto do cliente'+(CARRO.length>1?' · '+((CARRO_I%CARRO.length)+1)+'/'+CARRO.length:'')+'<small>erros da semana que contam na meta</small></div>'
+    +'<div class="tt">'+esc(f.titulo||'')+'</div>'+(mc?'<div class="mc">'+esc(mc)+'</div>':'')
+    +'<small>pedido '+esc(f.pedido||'—')+' · '+esc(f.quando||'')+'</small></div>';
+}
+setInterval(function(){ if(CARRO.length>1){ CARRO_I++; carroMostra(); } },8000);   /* so troca a foto: nao faz rede */
 function fechaInfo(){ DIA_PEDIDO++; $('info').classList.remove('on'); $('info-box').classList.remove('larga'); }
 document.addEventListener('keydown',function(ev){ if(ev.key==='Escape') fechaInfo(); });
 $('meta').addEventListener('click',function(ev){ const d=ev.target.closest('.dd.clica'); if(d) abreDia(d.getAttribute('data-dia')); });
