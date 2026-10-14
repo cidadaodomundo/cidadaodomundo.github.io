@@ -31,6 +31,14 @@ h1{font-size:17px;font-weight:800}
 .btn{background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;cursor:pointer;font-weight:600;transition:.15s}
 .btn:hover{border-color:var(--brand)}
 .btn:focus-visible,.view:focus-visible,.loja:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.secs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.sec{flex:1 1 180px;background:var(--surface);border:1px solid var(--line);color:var(--muted);border-radius:12px;padding:12px 14px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;text-align:left;transition:.15s}
+.sec small{display:block;font-size:11.5px;font-weight:500;margin-top:2px}
+.sec:hover{border-color:var(--brand)}
+.sec.active{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.sec:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.fr{display:none}
+.fr iframe{width:100%;height:84vh;min-height:640px;border:0;border-radius:11px;background:var(--surface)}
 .views{display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:4px;width:max-content;max-width:100%;margin-bottom:14px;flex-wrap:wrap}
 .view{border:none;background:none;color:var(--muted);font:inherit;font-weight:700;font-size:13px;padding:8px 16px;border-radius:8px;cursor:pointer}
 .view.active{background:var(--brand);color:var(--brand-ink)}
@@ -107,7 +115,7 @@ table.pv-tb .pv-h{font-size:16px}
 <body>
 <header>
   <div class="brand"><div class="logo">CM</div>
-    <div><h1>Hellen — Ponto e Pagamento das Taxas</h1><div class="sub" id="dataHoje">carregando…</div></div>
+    <div><h1>Hellen</h1><div class="sub" id="dataHoje">carregando…</div></div>
   </div>
   <div class="hright">
     <div class="live"><span class="pulse"></span>ao vivo</div>
@@ -115,6 +123,16 @@ table.pv-tb .pv-h{font-size:16px}
     <button class="btn" id="btnRefresh" type="button">↻ Atualizar</button>
   </div>
 </header>
+<!-- 14/10/2026 (chat-aba-hellen-3-em-1-14-10), pedido do Fabio: "criar uma aba pra hellen apenas com o pagar motoboys,
+     com o esquema das taxas com qr code que fizemos e o gestao rh". Pagar Motoboys e Central do RH sao as proprias telas
+     (pagamento/ e rh/) rodando aqui dentro, mesmo login; so abrem na primeira vez que a secao e clicada. -->
+<div class="secs" role="tablist" aria-label="Escolher assunto">
+  <button class="sec" data-sec="moto" type="button">🛵 Pagar Motoboys<small>pagamento do dia, ao vivo e maquininha</small></button>
+  <button class="sec active" data-sec="taxas" type="button">🔳 Taxas · ponto por QR<small>ponto ao vivo, batidas e pagamento</small></button>
+  <button class="sec" data-sec="rh" type="button">👥 Gestão RH<small>Central do RH · ponto do dia</small></button>
+</div>
+<div class="fr" id="frMoto" data-src="/pagamento/"></div>
+<div class="fr" id="frRh" data-src="/rh/"></div>
 <div class="views" role="tablist" aria-label="Escolher tela">
   <button class="view active" data-view="vivo" type="button">🔴 Ponto ao vivo</button>
   <button class="view" data-view="semana" type="button">📅 Batidas da semana</button>
@@ -122,7 +140,7 @@ table.pv-tb .pv-h{font-size:16px}
   <button class="view" data-view="qr" type="button">🔳 QR da semana</button>
 </div>
 <div id="content"><div class="rf-load">Carregando os registros…</div></div>
-<footer>
+<footer id="rodTaxas">
   Fonte: o ponto por QR code das taxas (sistema da Hellen) — a taxa lê o QR da loja e bate pelo celular; a batida entra na hora.
   A tela se atualiza sozinha a cada 1 minuto.
 </footer>
@@ -197,6 +215,7 @@ let AVISO_LIMITE = false;
 let ultimaLeitura = null;
 
 let VIEW = (location.hash || "").replace("#", "") || "vivo";
+let SEC = VIEW === "motoboys" ? "moto" : (VIEW === "rh" ? "rh" : "taxas");
 if (["vivo","semana","pagamento","qr"].indexOf(VIEW) < 0) VIEW = "vivo";
 let lojaAtiva = "";
 let nomeAtivo = "";
@@ -859,8 +878,25 @@ function imprimirTodos(){
 
 /* ---------- troca de tela ---------- */
 let LIBERADO = false;
+function mostraSecao(){
+  document.querySelectorAll(".sec").forEach(b => b.classList.toggle("active", b.dataset.sec === SEC));
+  const taxas = SEC === "taxas";
+  [".views", "#content", "#rodTaxas", ".hright"].forEach(q => { const el = document.querySelector(q); if (el) el.style.display = taxas ? "" : "none"; });
+  [["moto", "frMoto"], ["rh", "frRh"]].forEach(([k, id]) => {
+    const d = document.getElementById(id);
+    if (SEC === k && !d.firstChild){
+      const f = document.createElement("iframe");
+      f.src = d.dataset.src + "?cb=" + Date.now();
+      f.title = k === "moto" ? "Pagar Motoboys" : "Central do RH";
+      d.appendChild(f);
+    }
+    d.style.display = SEC === k ? "block" : "none";
+  });
+}
 function render(){
   if (!LIBERADO) return;
+  mostraSecao();
+  if (SEC !== "taxas") return;
   document.querySelectorAll(".view").forEach(b => b.classList.toggle("active", b.dataset.view === VIEW));
   if (VIEW === "qr"){ renderQR(); return; }
   if (!carregouUmaVez && erroCarga){
@@ -878,6 +914,11 @@ function render(){
 document.querySelectorAll(".view").forEach(b => b.addEventListener("click", () => {
   VIEW = b.dataset.view;
   try{ history.replaceState(null, "", "#" + VIEW); } catch(e){}
+  render();
+}));
+document.querySelectorAll(".sec").forEach(b => b.addEventListener("click", () => {
+  SEC = b.dataset.sec;
+  try{ history.replaceState(null, "", "#" + (SEC === "moto" ? "motoboys" : SEC === "rh" ? "rh" : VIEW)); } catch(e){}
   render();
 }));
 elContent.addEventListener("click", e => {
@@ -924,7 +965,7 @@ cdmGuarda().then(ok => {
   render();
   carregar(false);
   // le de novo a cada 60 s, so com a tela aberta e visivel; os dois timers sao desligados ao sair da tela (pagehide)
-  TIMER = setInterval(() => { if (!document.hidden && VIEW !== "qr" && !(VIEW === "vivo" && DIA)) carregar(true); }, 60000);
+  TIMER = setInterval(() => { if (!document.hidden && SEC === "taxas" && VIEW !== "qr" && !(VIEW === "vivo" && DIA)) carregar(true); }, 60000);
   TIMER_REL = setInterval(atualizarRelogioTopo, 60000);
 });
 window.addEventListener("pagehide", () => { if (TIMER) clearInterval(TIMER); if (TIMER_REL) clearInterval(TIMER_REL); });
