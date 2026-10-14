@@ -115,6 +115,23 @@ select.loja{padding:4px 8px;font-size:12px}
 .pill.ok{background:#12301f;color:#7fe3a0}.pill.ab{background:#3a2e0e;color:#f2c94c}.pill.an{background:#123047;color:#7cc4ff}
 .gv-pagar{margin-top:6px}
 body.gv-aberta{overflow:hidden}
+.pill.x{background:var(--surface2);color:var(--muted)}
+.pd-novo textarea{width:100%;background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:12px 14px;font:inherit;font-size:14.5px;resize:vertical;min-height:80px}
+.pd-novo textarea:focus,.pd-resp input:focus{outline:2px solid var(--brand);outline-offset:1px}
+.pd-novo-pe{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;margin:8px 0 18px;flex-wrap:wrap}
+.pd-novo-pe .rfu{flex:1;min-width:220px;line-height:1.5}
+.pd-enviar{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);font-weight:800}
+.pd-item{background:var(--surface2);border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.pd-item.fechado{border-left-color:var(--line);opacity:.75}
+.pd-topo{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.pd-texto{font-size:15px;font-weight:600;margin:6px 0 2px;line-height:1.45}
+.pd-proposta{background:#2a2410;border:1px solid #4a3f22;border-radius:10px;padding:10px 12px;margin-top:8px;font-size:13px;color:#e6d9a8}
+.pd-falas{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}
+.pd-fala{font-size:13px;padding:6px 0;line-height:1.45}
+.pd-fala.claude b{color:var(--brand)}
+.pd-resp{display:flex;gap:8px;margin-top:10px}
+.pd-resp input{flex:1;min-width:0;background:var(--surface);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 10px;font:inherit;font-size:13.5px}
+.pd-bts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 .rf-aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:10px 13px;font-size:12px;margin:10px 0}
 .rf-nota{color:var(--muted);font-size:11.5px;margin-top:8px;line-height:1.5}
 .rf-load,.rf-empty{color:var(--muted);padding:22px;text-align:center;font-size:13px}
@@ -194,6 +211,7 @@ table.pv-tb .pv-h{font-size:16px}
   <button class="view" data-view="semana" type="button">📊 Resumo por loja</button>
   <button class="view" data-view="pagamento" type="button">💰 Pagamento</button>
   <button class="view" data-view="qr" type="button">🔳 QR da semana</button>
+  <button class="view" data-view="pedir" type="button">💬 Pedir ao Claude</button>
 </div>
 <div id="content"><div class="rf-load">Carregando os registros…</div></div>
 <footer>
@@ -289,7 +307,7 @@ let AVISO_LIMITE = false;
 let ultimaLeitura = null;
 
 let VIEW = (location.hash || "").replace("#", "") || "vivo";
-if (["vivo","semana","pagamento","qr"].indexOf(VIEW) < 0) VIEW = "vivo";
+if (["vivo","semana","pagamento","qr","pedir"].indexOf(VIEW) < 0) VIEW = "vivo";
 let lojaAtiva = "";
 let nomeAtivo = "";
 // 14/10/2026: semana como numero (0 = atual, -1 = passada, ...) para andar com os botoes ‹ ›.
@@ -1295,12 +1313,105 @@ function imprimirTodos(lojas){
   janela.document.close();
 }
 
+/* ---------- 💬 Pedir ao Claude (14/10/2026) ----------
+   Fabio: "criar um espaco nesse portal da hellen que tudo que ela peca, seja como se estivesse pedindo por aqui".
+   Escolha dele: um robo do Claude olha a caixa a cada 2 horas; mudanca de tela so vai ao ar com a aprovacao dele.
+   Banco: hellen_pedido / hellen_pedido_fala, pela porta hellen_pedido_porta (exige a tela Hellen). */
+let PEDIDOS = null, PEDIDOS_ADMIN = false, PEDIDOS_ERRO = "";
+const STATUS_PEDIDO = {
+  novo: ["⏳ na fila do Claude", "an"], perguntei: ["❓ o Claude perguntou — responda", "ab"],
+  respondido: ["💬 respondido — confira", "ok"], feito: ["✓ feito — confira", "ok"],
+  aguardando_fabio: ["🟡 esperando o Fábio aprovar", "ab"], aprovado: ["✅ aprovado pelo Fábio", "an"],
+  recusado: ["✖ o Fábio não aprovou", "x"], so_fabio: ["🔒 só o Fábio pode decidir", "ab"], fechado: ["fechado", "x"]
+};
+async function portaPedido(acao, dados){
+  const r = await fetch(SB + "rpc/hellen_pedido_porta", { method: "POST",
+    headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ p_token: cdmTok(), p_acao: acao, p_dados: dados || {} }) });
+  let j = null; try{ j = await r.json(); }catch(e){}
+  if (!r.ok || !j || j.ok === false) throw new Error((j && (j.erro || j.message)) || ("HTTP " + r.status));
+  return j;
+}
+async function carregarPedidos(){
+  try{ const j = await portaPedido("listar"); PEDIDOS = j.pedidos || []; PEDIDOS_ADMIN = !!j.admin; PEDIDOS_ERRO = ""; }
+  catch(e){ PEDIDOS_ERRO = (e && e.message) ? e.message : "erro"; }
+  desenharPedidos();
+}
+function quandoTxt(iso){ const ms = new Date(iso).getTime(); return formatDiaMes(ms) + " " + hhmm(ms); }
+function renderPedir(){
+  if (!document.getElementById("pedirLista")){
+    elContent.innerHTML = '<div class="rf-h2">💬 Pedir ao Claude <span class="hint">escreva como se estivesse falando com ele</span></div>'
+      + '<div class="rf-card"><div class="pd-novo">'
+      + '<textarea id="pedirTexto" rows="3" maxlength="4000" placeholder="Ex.: quanto a Flávia tem para receber hoje? · a Michelle agora é do salão · coloque o telefone da taxa na ficha"></textarea>'
+      + '<div class="pd-novo-pe"><span class="rfu">O Claude olha esta caixa a cada 2 horas, das 9h50 às 21h50. Pergunta e ajuste de setor ou de "como recebe" ele resolve sozinho. Mudança na tela espera o Fábio aprovar. Dinheiro, pagamento, acesso e apagar coisa ficam só com o Fábio.</span>'
+      + '<button type="button" class="btn pd-enviar" id="pedirEnviar">Enviar ao Claude</button></div></div>'
+      + '<div id="pedirLista"><div class="rf-load">Carregando os pedidos…</div></div></div>';
+    document.getElementById("pedirEnviar").addEventListener("click", async () => {
+      const ta = document.getElementById("pedirTexto"), b = document.getElementById("pedirEnviar");
+      const txt = ta.value.trim(); if (!txt){ ta.focus(); return; }
+      b.disabled = true; b.textContent = "Enviando…";
+      try{ await portaPedido("pedir", { texto: txt }); ta.value = ""; }
+      catch(e){ alert("Não consegui enviar: " + e.message); }
+      b.disabled = false; b.textContent = "Enviar ao Claude";
+      carregarPedidos();
+    });
+  }
+  carregarPedidos();
+}
+function desenharPedidos(){
+  const el = document.getElementById("pedirLista"); if (!el) return;
+  const digitado = {}; let foco = null;
+  el.querySelectorAll(".pd-resp-txt").forEach(i => { if (i.value) digitado[i.dataset.pedId] = i.value; if (i === document.activeElement) foco = i.dataset.pedId; });
+  if (PEDIDOS_ERRO && !PEDIDOS){ el.innerHTML = '<div class="err">Não consegui ler os pedidos: ' + escapeHtml(PEDIDOS_ERRO) + '</div>'; return; }
+  if (!PEDIDOS || !PEDIDOS.length){ el.innerHTML = '<div class="rf-empty">Nenhum pedido ainda. Escreva o primeiro aí em cima.</div>'; return; }
+  // os abertos primeiro, os fechados depois
+  const ordem = p => (p.status === "fechado" || p.status === "recusado") ? 1 : 0;
+  const lista = PEDIDOS.slice().sort((a, b) => ordem(a) - ordem(b) || b.id - a.id);
+  el.innerHTML = lista.map(p => {
+    const st = STATUS_PEDIDO[p.status] || [p.status, "x"];
+    const falas = (p.falas || []).slice(1).map(f => '<div class="pd-fala ' + escapeHtml(f.papel) + '"><b>' + escapeHtml(f.papel === "claude" ? "🤖 Claude" : (f.quem || "?")) + '</b> <span class="rfu">' + quandoTxt(f.quando) + '</span><div>' + escapeHtml(f.texto).replace(/\n/g, "<br>") + '</div></div>').join("");
+    const aberto = !["fechado", "recusado"].includes(p.status);
+    let acoes = "";
+    if (aberto && ["perguntei", "respondido", "feito", "so_fabio", "aguardando_fabio"].includes(p.status))
+      acoes += '<div class="pd-resp"><input type="text" class="pd-resp-txt" data-ped-id="' + p.id + '" maxlength="4000" placeholder="Responder ou pedir um ajuste…"><button type="button" class="btn" data-ped-acao="responder" data-ped-id="' + p.id + '">Responder</button></div>';
+    const bts = [];
+    if (aberto && (p.meu || PEDIDOS_ADMIN) && ["respondido", "feito"].includes(p.status)) bts.push('<button type="button" class="pay-pago" data-ped-acao="fechar" data-ped-id="' + p.id + '">✓ Ficou bom</button>');
+    if (PEDIDOS_ADMIN && ["aguardando_fabio", "so_fabio"].includes(p.status)){
+      bts.push('<button type="button" class="pay-pago" data-ped-acao="aprovar" data-ped-id="' + p.id + '">✅ Aprovar</button>');
+      bts.push('<button type="button" class="pay-marcar" data-ped-acao="recusar" data-ped-id="' + p.id + '">✖ Não fazer</button>');
+    }
+    if (bts.length) acoes += '<div class="pd-bts">' + bts.join("") + '</div>';
+    return '<div class="pd-item' + (aberto ? '' : ' fechado') + '">'
+      + '<div class="pd-topo"><span class="rfu">#' + p.id + ' · ' + escapeHtml(p.quem || "?") + ' · ' + quandoTxt(p.criado_em) + '</span><span class="pill ' + st[1] + '">' + st[0] + '</span></div>'
+      + '<div class="pd-texto">' + escapeHtml(p.texto).replace(/\n/g, "<br>") + '</div>'
+      + (p.proposta ? '<div class="pd-proposta"><b>O que o Claude propõe mudar na tela:</b><div>' + escapeHtml(p.proposta).replace(/\n/g, "<br>") + '</div></div>' : '')
+      + (falas ? '<div class="pd-falas">' + falas + '</div>' : '')
+      + acoes + '</div>';
+  }).join("");
+  el.querySelectorAll(".pd-resp-txt").forEach(i => { if (digitado[i.dataset.pedId]) i.value = digitado[i.dataset.pedId]; if (foco === i.dataset.pedId) i.focus(); });
+}
+elContent.addEventListener("click", async e => {
+  const b = e.target.closest("[data-ped-acao]"); if (!b) return;
+  const acao = b.getAttribute("data-ped-acao"), id = b.getAttribute("data-ped-id");
+  const dados = { id: id };
+  if (acao === "responder"){
+    const inp = elContent.querySelector('.pd-resp-txt[data-ped-id="' + id + '"]');
+    dados.texto = inp ? inp.value.trim() : "";
+    if (!dados.texto){ if (inp) inp.focus(); return; }
+  }
+  b.disabled = true;
+  try{ await portaPedido(acao, dados); }
+  catch(err){ alert("Não deu: " + err.message); }
+  carregarPedidos();
+});
+
 /* ---------- troca de tela ---------- */
 let LIBERADO = false;
 function render(){
   if (!LIBERADO) return;
   document.querySelectorAll(".view").forEach(b => b.classList.toggle("active", b.dataset.view === VIEW));
   if (VIEW === "qr"){ renderQR(); return; }
+  if (VIEW === "pedir"){ renderPedir(); return; }
   if (!carregouUmaVez && erroCarga){
     elContent.innerHTML = '<div class="err">Não consegui carregar os registros agora.<br>' + escapeHtml(erroCarga) + '<br><button class="btn" id="btnTentarDeNovo" type="button">Tentar de novo</button></div>';
     document.getElementById("btnTentarDeNovo").addEventListener("click", () => carregar(false));
