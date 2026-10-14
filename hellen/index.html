@@ -6,7 +6,7 @@
 <title>Hellen · Ponto e Pagamento das Taxas · Cidadão do Mundo</title>
 <meta name="theme-color" content="#E0A81C">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <style>
 /* 13/10/2026 (chat-ponto-freelas-hellen-13-10), pedido do Fabio: "faça um painel desse dentro do nosso portal
    para controle e pagamento de taxas... crie uma aba escrita Hellen". Mesmo visual do "Ponto ao vivo" da Central do RH.
@@ -194,11 +194,38 @@ table.pv-tb thead th,table.pv-tb tbody td{padding:8px 8px}
 table.pv-tb .pv-nome{font-size:13.5px;white-space:normal}
 table.pv-tb .pv-h{font-size:16px}
 }
+
+/* 14/10/2026 (chat-aba-hellen-3-em-1-14-10), Fabio: "usar nosso design de front end". Mesmas cores e titulos do kit do
+   portal (assets/cdm-ui.css): preto quente, titulo em Anton caixa alta, selecionado em branco, ouro so no que importa. */
+:root{--bg:#111110;--surface:#1a1a19;--surface2:#232321;--line:#34332f;--text:#ffffff;--muted:#8a897e;--sem:#25a35f;--text2:#c3c2b7;--bad:#e66767}
+html{background:var(--bg)}
+body{font-size:15px}
+header{border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:16px}
+.logo{width:52px;height:52px;border-radius:50%;border:2px solid #e8e8e8;background:#000;object-fit:cover;display:block}
+h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.01em;line-height:1.02;font-size:clamp(24px,4vw,34px)}
+.rf-h2{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.01em;font-size:22px;margin:10px 0 12px}
+.rf-h2 .hint{font-family:'Barlow',sans-serif;text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:500}
+.views{border-radius:999px;padding:5px;gap:4px}
+.view{border-radius:999px;color:var(--text2);font-size:13.5px}
+.view:hover{color:#fff}
+.view.active,.loja.active{background:#fff;border-color:#fff;color:#111}
+.loja{border-radius:999px;color:var(--text2)}
+.btn{border-radius:999px}
+.rf-card{border-radius:16px;padding:16px}
+.diasem{color:#fff}
+table.pv-tb tr.pv-setor td{color:var(--text2)}
+.chip{color:var(--text2)}
+.pd-enviar,.pd-enviar:hover{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+/* refeicao que nao foi lancada: vermelho, para cobrar quem lanca (Hellen, Rita, Lanna) */
+.ref-nao{display:inline-block;background:#3a1515;color:#ff9a9a;border:1px solid #6e2626;border-radius:999px;padding:2px 10px;font-weight:800;font-size:12px;white-space:nowrap}
+.ref-ainda{display:inline-block;background:#33280f;color:#f2c94c;border:1px solid #5c4a1c;border-radius:999px;padding:2px 10px;font-weight:700;font-size:12px;white-space:nowrap}
+.cobrar{background:#2a1212;border:1px solid #6e2626;border-left:5px solid var(--bad);color:#ffd6d6;border-radius:12px;padding:12px 14px;margin:10px 0;font-size:14px;line-height:1.5}
+.cobrar b{color:#fff}
 </style>
 </head>
 <body>
 <header>
-  <div class="brand"><div class="logo">CM</div>
+  <div class="brand"><img class="logo" src="https://acconimages.s3.amazonaws.com/merchants/logos/378-1755286245137.png" alt="Cidadão do Mundo">
     <div><h1>Hellen — Ponto e Pagamento das Taxas</h1><div class="sub" id="dataHoje">carregando…</div></div>
   </div>
   <div class="hright">
@@ -1071,9 +1098,21 @@ function celRefeicao(t){
   if (c.status === "carregando") return '<td class="n"><span class="pv-nada">…</span></td>';
   if (c.status === "erro") return '<td class="n"><span class="pv-nada" title="' + escapeHtml(c.erro) + '">—</span></td>';
   const itens = refeicoesDe(c.lista, t.chave);
-  if (!itens.length) return '<td class="n"><span class="pv-nada">nenhuma</span></td>';
+  if (!itens.length){
+    if (!c.lista.length) return '<td class="n"><span class="pv-nada" title="O Saipos ainda não trouxe as comandas deste dia">—</span></td>';
+    if (t.aberto) return '<td class="n"><span class="ref-ainda">ainda não</span></td>';
+    return '<td class="n"><span class="ref-nao" title="Trabalhou e não tem refeição lançada no Saipos">não pegou</span></td>';
+  }
   const dica = itens.map(x => x.produto + " · " + x.unidade + " · comanda: " + x.quem).join("\n");
   return '<td class="n pv-ref" title="' + escapeHtml(dica) + '">🍽 ' + escapeHtml(resumoRefeicoes(itens, NOME_EXIBICAO[t.loja] || t.loja)) + '</td>';
+}
+// Fabio 14/10: "deixar em vermelho quem nao pegou pra cobrar a hellen, rita e lanna"
+function avisoSemRefeicao(g, dia){
+  const c = REFEICOES.get(dia); if (!c || c.status !== "ok" || !c.lista.length) return "";
+  const nomes = Array.from(new Set(g.filter(t => !t.aberto && msTrabalhado(t) && !refeicoesDe(c.lista, t.chave).length).map(t => nomeDe(t.chave))));
+  if (!nomes.length) return "";
+  return '<div class="cobrar">🔴 <b>' + nomes.length + (nomes.length === 1 ? ' taxa trabalhou' : ' taxas trabalharam') + ' sem refeição lançada no Saipos</b>: '
+    + nomes.map(escapeHtml).join(", ") + '. Cobrar a <b>Hellen</b>, a <b>Rita</b> e a <b>Lanna</b> — ou a taxa não comeu, ou comeu e não foi lançado na comanda.</div>';
 }
 // refeicoes no cartao TAXAS / FREELA sem nome escrito: ninguem sabe de quem e
 function avisoRefeicaoSemNome(dia){
@@ -1101,7 +1140,7 @@ function refeicaoNaFicha(chave, dias){
   if (REF_PESSOA.status !== "ok") return "";
   const itens = refeicoesDe(REF_PESSOA.lista.filter(x => dias.indexOf(String(x.dia).slice(0, 10)) >= 0), chave);
   const loja = NOME_EXIBICAO[chave.split("|")[0]] || chave.split("|")[0];
-  return '<br><span class="rfu">🍽 ' + (itens.length ? escapeHtml(resumoRefeicoes(itens, loja)) : 'nenhuma refeição lançada') + '</span>';
+  return '<br><span class="rfu">🍽 ' + (itens.length ? escapeHtml(resumoRefeicoes(itens, loja)) : '<span class="ref-nao">não pegou refeição</span>') + '</span>';
 }
 
 /* ---------- 🔴 Ponto ao vivo ---------- */
@@ -1171,7 +1210,7 @@ function renderVivo(){
     elContent.innerHTML = h + '<div class="rf-empty">Nenhuma taxa bateu ponto hoje' + (lojaAtiva ? ' nesta loja' : '') + '.</div></div>';
     return;
   }
-  h += tabelaTurnos(g) + avisoRefeicaoSemNome(hoje);
+  h += avisoSemRefeicao(g, hoje) + tabelaTurnos(g) + avisoRefeicaoSemNome(hoje);
   h += '<div class="rf-nota">Hoje = o dia de trabalho de hoje, das 08:00 às 03:00 do dia seguinte (quem entra de tarde e sai de madrugada fica no dia em que entrou), e todo mundo que ainda está na loja. '
      + 'O nome é digitado pela taxa a cada batida: grafias diferentes da mesma pessoa (com ou sem acento, espaço, sobrenome) são juntadas numa linha só e aparecem em "digitou também".</div>';
   elContent.innerHTML = h + '</div>';
@@ -1200,7 +1239,7 @@ function renderDia(dia, hoje){
     elContent.innerHTML = h + '<div class="rf-empty">Nenhuma taxa bateu ponto neste dia' + (lojaAtiva ? ' nesta loja' : '') + '.</div></div>';
     return;
   }
-  h += tabelaTurnos(g) + avisoRefeicaoSemNome(dia);
+  h += avisoSemRefeicao(g, dia) + tabelaTurnos(g) + avisoRefeicaoSemNome(dia);
   h += '<div class="rf-nota">O dia vai das 08:00 às 03:00 do dia seguinte: quem entra de tarde e sai de madrugada fica no dia em que entrou (a saída aparece com a data dela). Batida antes das 05:00 conta no dia anterior.</div>';
   elContent.innerHTML = h + '</div>';
 }
