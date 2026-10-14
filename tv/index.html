@@ -154,6 +154,7 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
    a tv vai ficar ligada na cara deles / as infos tem que aparecer maiores". Uma informacao por vez, em letra grande, trocando
    sozinha. Na TV da parede ja abre assim; na aba do portal liga no botao Carrossel. */
 #slides{display:none}
+#som-aviso{position:fixed;left:1em;right:1em;bottom:2.2em;z-index:4;background:var(--bad);color:#fff;font-weight:800;font-size:1.6em;text-align:center;padding:.4em .8em;border-radius:.5em;animation:pisca 1.2s ease-in-out infinite}
 body.modo-carro .corpo,body.modo-carro .melhor,body.modo-carro .cli{display:none!important}
 body.modo-carro #slides{display:flex;flex-direction:column;flex:1;min-height:0;padding:.8em 1.6em .2em}
 .sl{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;animation:slEntra .5s ease-out}
@@ -227,6 +228,7 @@ body.modo-carro #slides{display:flex;flex-direction:column;flex:1;min-height:0;p
   <div class="col"><h2>🔴 Erros de hoje <small id="dia"></small></h2><div class="num" id="num"></div><div class="lista" id="lista"></div><div class="mais" id="mais"></div></div>
   <div class="col"><div class="meta" id="meta"></div><div class="carro" id="carro" style="display:none"></div><h2>⏸ Fora do ar no iFood <small id="pz-st"></small></h2><div class="pz" id="pz"></div><div class="cinza" id="pz-ok"></div></div>
 </div>
+<div id="som-aviso" style="display:none">🔇 Som travado pelo navegador — aperte qualquer botão do controle (ou toque na tela) uma vez para o alarme de erro tocar</div>
 <div id="slides"><div class="sl" id="sl"></div><div class="sl-rodape"><div class="sl-pontos" id="sl-pontos"></div><div class="sl-barra"><b id="sl-barra"></b></div></div></div>
 <div class="cli nada" id="cli" style="display:none"></div>
 <div class="rodape" id="rodape"></div>
@@ -262,7 +264,10 @@ const PORTAL=/[?&]portal=1/.test(location.search);
 const LOJAS=['Água Verde','São Braz','Ahú'];
 let LOJA='', DE_NOVO=false; try{ LOJA=localStorage.getItem('cdm_tv_loja')||''; }catch(e){}
 if(LOJAS.indexOf(LOJA)<0) LOJA=LOJAS[0];
-try{ SOM=localStorage.getItem('cdm_tv_som')==='1'; }catch(e){}
+/* 14/10/2026 (chat-tv-qualidade-fotos-14-10) Fabio: "qdo aparecer algum erro ja tem que pular na tv fazendo som".
+   Na TV da parede o som ja nasce LIGADO (antes nascia desligado e ninguem apertava o botao); no portal continua desligado
+   ate a pessoa ligar. Quem desligar no botao, fica desligado (guardado). */
+try{ const v=localStorage.getItem('cdm_tv_som'); SOM = v===null ? !PORTAL : v==='1'; }catch(e){ SOM=!PORTAL; }
 
 function guarda(c){ try{ localStorage.setItem('cdm_tv_codigo',c); }catch(e){} try{ history.replaceState(null,'','#'+c); }catch(e){} }
 function esquece(){ try{ localStorage.removeItem('cdm_tv_codigo'); }catch(e){} try{ history.replaceState(null,'',location.pathname); }catch(e){} }
@@ -544,11 +549,25 @@ function som(){
   SOM=!SOM; try{ localStorage.setItem('cdm_tv_som',SOM?'1':'0'); }catch(e){}
   botaoSom(); if(SOM) apito();
 }
-function botaoSom(){ const b=$('bt-som'); b.textContent=SOM?'🔔 Som ligado':'🔕 Ligar som'; b.classList.toggle('on',SOM); }
+function botaoSom(){ const b=$('bt-som'); b.textContent=SOM?'🔔 Som ligado':'🔕 Ligar som'; b.classList.toggle('on',SOM); somAviso(); }
+/* 14/10: o navegador da TV so deixa tocar som depois de alguem apertar um botao do controle ou tocar na tela, e isso volta a
+   valer cada vez que a pagina recarrega. Entao: qualquer tecla/toque destrava o som, e enquanto estiver travado aparece
+   um aviso grande na tela pedindo para apertar um botao (sem isso o alarme ficaria mudo sem ninguem saber). */
+function somPronto(){ return !!(AC && AC.state==='running'); }
+function somAviso(){
+  const el=$('som-aviso'); if(!el) return;
+  el.style.display=(SOM && !somPronto())?'':'none';
+}
+function somDestrava(){
+  try{ const C=window.AudioContext||window.webkitAudioContext; if(!C) return; if(!AC) AC=new C();
+    if(AC.state!=='running') AC.resume().then(somAviso,somAviso); }catch(e){}
+  somAviso();
+}
+['pointerdown','keydown','touchstart','click'].forEach(function(ev){ document.addEventListener(ev, somDestrava, true); });
 function apito(){
   if(!SOM) return;
   try{ const C=window.AudioContext||window.webkitAudioContext; if(!C) return; if(!AC) AC=new C(); if(AC.state==='suspended') AC.resume();
-    [0,0.35,0.7].forEach(function(t){ const o=AC.createOscillator(), g=AC.createGain(); o.type='square'; o.frequency.value=880;
+    [0,0.35,0.7,1.4,1.75,2.1].forEach(function(t){   /* 14/10: duas rodadas de 3 bipes */ const o=AC.createOscillator(), g=AC.createGain(); o.type='square'; o.frequency.value=880;
       g.gain.value=0.18; o.connect(g); g.connect(AC.destination); o.start(AC.currentTime+t); o.stop(AC.currentTime+t+0.22); });
   }catch(e){}
 }
@@ -895,12 +914,13 @@ function slPontos(nome){
   const vivos=SL_ORDEM.filter(function(k){ try{ return k===nome || !!SL_FAZ[k](); }catch(e){ return false; } });
   $('sl-pontos').innerHTML=vivos.map(function(k){ return '<i'+(k===nome?' class="on"':'')+'></i>'; }).join('');
 }
-function slMostra(nome){
+function slMostra(nome, durMin){
   if(!MODO_CARRO) return;
   clearTimeout(SL_T); SL_T=null;
   let r=null, i=SL_ORDEM.indexOf(nome), tent=0;
   while(!r && tent<SL_ORDEM.length){ try{ r=SL_FAZ[SL_ORDEM[i]](); }catch(e){ r=null; } if(!r){ i=(i+1)%SL_ORDEM.length; tent++; } }
   if(!r){ SL_T=setTimeout(function(){ slMostra('erros'); },5000); return; }   /* ainda sem dado: tenta de novo em 5 s */
+  if(durMin && r.dur<durMin) r.dur=durMin;
   SL_I=i; SL_ATUAL=SL_ORDEM[i];
   $('sl').innerHTML=r.html; const sl=$('sl'); sl.style.animation='none'; void sl.offsetWidth; sl.style.animation='';
   slPontos(SL_ATUAL);
@@ -910,7 +930,7 @@ function slMostra(nome){
 /* leitura nova: so redesenha na hora a tela de erros ou da meta (as outras esperam a vez delas) */
 function slAtualiza(novos){
   if(!MODO_CARRO) return;
-  if(novos&&novos.length){ slMostra('erros'); return; }
+  if(novos&&novos.length){ slMostra('erros', 30); return; }   /* 14/10: erro novo fica 30 s na tela, com o alarme */
   if(!SL_T){ slMostra('erros'); return; }
   if(SL_ATUAL==='erros'||SL_ATUAL==='meta'){ const r=SL_FAZ[SL_ATUAL](); if(r){ $('sl').innerHTML=r.html; slPontos(SL_ATUAL); } }
 }
@@ -929,7 +949,7 @@ function telaCheia(){ try{ if(document.fullscreenElement) document.exitFullscree
 
 
 (function(){
-  botaoSom(); relogio(); setInterval(relogio,15000); acordada();
+  somDestrava(); botaoSom(); relogio(); setInterval(relogio,15000); acordada();
   document.body.classList.toggle('modo-carro',MODO_CARRO);   /* 14/10: TV da parede ja abre no carrossel */
   setInterval(function(){ if(DADO) desenha([]); },60000);           /* "ha X min" e NOVO andam mesmo sem dado novo */
   setInterval(function(){ if(CLI){ CLI_I++; try{ cliMostra(); }catch(e){} } },15000);  /* troca a avaliacao; a faixa tem altura fixa */
