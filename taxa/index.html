@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ponto · Cidadão do Mundo</title>
+<meta name="theme-color" content="#b5461f">
+<style>
+/* 14/10/2026 (chat-aba-hellen-3-em-1-14-10), pedido do Fabio: "esta mandando um link do portal dela, quero que mande do cidadao do mundo".
+   Copia da pagina de bater ponto da Hellen (hellenfelizardo3123.github.io/controle-ponto-freelas/index.html), agora no endereco do
+   Cidadao do Mundo. Grava no MESMO banco do ponto por QR (dzgvawxdnjxemifeactr, tabela registros_ponto), entao a aba Hellen do portal
+   le tudo igual. Mesmo codigo da semana (muda toda quarta) e a mesma regra: ate 02:00 de quarta o codigo da semana anterior ainda vale.
+   Pagina publica (a taxa nao entra no portal): nao usa o login do portal. */
+body { font-family: Arial, sans-serif; background: #fdf6ec; margin: 0; padding: 20px; color: #333; }
+.container { max-width: 420px; margin: 0 auto; background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+.loja { text-align: center; font-size: 20px; margin-bottom: 20px; font-weight: bold; color: #b5461f; }
+label { display: block; margin-top: 16px; margin-bottom: 6px; font-weight: bold; }
+input[type=text] { width: 100%; padding: 12px; font-size: 16px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; }
+.tipos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.tipo-btn { padding: 16px 8px; font-size: 15px; border-radius: 10px; border: 2px solid #b5461f; background: white; color: #b5461f; cursor: pointer; font-family: inherit; }
+.tipo-btn.selecionado { background: #b5461f; color: white; }
+.registrar-btn { width: 100%; margin-top: 20px; padding: 16px; font-size: 18px; border-radius: 10px; border: none; background: #2e7d32; color: white; cursor: pointer; font-family: inherit; }
+.registrar-btn:disabled { background: #aaa; }
+.mensagem { margin-top: 16px; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; }
+.mensagem.ok { background: #e8f5e9; color: #2e7d32; }
+.mensagem.erro { background: #fdecea; color: #b5461f; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="loja" id="nomeLoja">-</div>
+<div id="mensagem"></div>
+<div id="formulario">
+<label for="nome">Seu nome</label>
+<input type="text" id="nome" placeholder="Digite seu nome completo" autocomplete="name">
+<label>O que você está registrando?</label>
+<div class="tipos">
+<button class="tipo-btn" type="button" data-tipo="Chegada">Chegada</button>
+<button class="tipo-btn" type="button" data-tipo="Inicio do intervalo">Início do intervalo</button>
+<button class="tipo-btn" type="button" data-tipo="Fim do intervalo">Fim do intervalo</button>
+<button class="tipo-btn" type="button" data-tipo="Saida">Saída</button>
+</div>
+<button class="registrar-btn" id="btnRegistrar" type="button" disabled>Registrar</button>
+</div>
+</div>
+
+<script>
+// Banco do ponto por QR (o mesmo da pagina da Hellen). Chave publica, so grava batida.
+const PONTO_REST = "https://dzgvawxdnjxemifeactr.supabase.co/rest/v1/registros_ponto";
+const PONTO_KEY = "sb_publishable_to-gABecxZny25QLi0OTcQ_HK8nePyG";
+
+// --- codigo semanal (muda toda quarta-feira) - a mesma conta da pagina da Hellen e da aba Hellen do portal ---
+const CODIGO_SECRET = "CDMBurgersArts-ponto-2026";
+const CODIGO_REF_Y = 2026, CODIGO_REF_M = 8, CODIGO_REF_D = 9; // mes 0-indexado: 8 = setembro
+function fnv1a(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
+function diaEpochBrasilia(ms) {
+  const d = new Date(ms - 3 * 3600 * 1000);
+  return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86400000);
+}
+function diaEpochCalendario(y, m, d) { return Math.floor(Date.UTC(y, m, d) / 86400000); }
+function cicloAtual() { return Math.floor((diaEpochBrasilia(Date.now()) - diaEpochCalendario(CODIGO_REF_Y, CODIGO_REF_M, CODIGO_REF_D)) / 7); }
+function codigoDoCiclo(ciclo) { return fnv1a(CODIGO_SECRET + ":" + ciclo).slice(0, 8); }
+function horaBrasilia(ms) { return new Date(ms - 3 * 3600 * 1000).getUTCHours(); }
+function hhmmBrasilia(ms) { const d = new Date(ms - 3 * 3600 * 1000); return String(d.getUTCHours()).padStart(2, "0") + ":" + String(d.getUTCMinutes()).padStart(2, "0"); }
+
+// nomes gravados no banco (sem acento, nao mexer) e nomes para mostrar
+const lojas = { aguaverde: "Agua Verde", ahu: "Ahu", saobraz: "Sao Braz" };
+const nomesExibicao = { aguaverde: "Água Verde", ahu: "Ahú", saobraz: "São Braz" };
+
+const params = new URLSearchParams(window.location.search);
+const codigoLoja = params.get("loja");
+const codigoUrl = (params.get("codigo") || "").toLowerCase();
+const nomeLojaEl = document.getElementById("nomeLoja");
+const formulario = document.getElementById("formulario");
+const mensagemEl = document.getElementById("mensagem");
+
+const lojaValida = !!codigoLoja && Object.prototype.hasOwnProperty.call(lojas, codigoLoja);
+const cicloHoje = cicloAtual();
+const codigosValidos = [codigoDoCiclo(cicloHoje)];
+if (horaBrasilia(Date.now()) < 2) codigosValidos.push(codigoDoCiclo(cicloHoje - 1));
+const codigoValido = codigosValidos.includes(codigoUrl);
+
+function nomeLojaBonito() { return "Cidadão do Mundo " + (nomesExibicao[codigoLoja] || lojas[codigoLoja]); }
+
+// --- impedir lancar a mesma batida de novo so de atualizar a pagina (F5) ---
+const ESPERA_MS = 2 * 60 * 1000;
+const chaveUltimoRegistro = "pontoUltimoRegistro_" + (codigoLoja || "desconhecida");
+function registroRecente() {
+  try {
+    const salvo = localStorage.getItem(chaveUltimoRegistro);
+    if (!salvo) return null;
+    const dados = JSON.parse(salvo);
+    return (Date.now() - dados.hora < ESPERA_MS) ? dados : null;
+  } catch (e) { return null; }
+}
+function salvarRegistroRecente(quandoMs, tipo) {
+  try { localStorage.setItem(chaveUltimoRegistro, JSON.stringify({ hora: quandoMs, tipo: tipo })); } catch (e) {}
+}
+function mostrarConfirmacao(dados) {
+  formulario.style.display = "none";
+  const quando = dados && dados.hora ? " às " + hhmmBrasilia(dados.hora) : "";
+  const oque = dados && dados.tipo ? " (" + ({ "Inicio do intervalo": "Início do intervalo", "Saida": "Saída" }[dados.tipo] || dados.tipo) + ")" : "";
+  mensagemEl.innerHTML = "<div class='mensagem ok'>Registrado com sucesso" + quando + oque + "!<br><br>Para registrar de novo, escaneie o QR code novamente.</div>";
+}
+
+if (!lojaValida) {
+  nomeLojaEl.textContent = "Link inválido";
+  formulario.style.display = "none";
+  mensagemEl.innerHTML = "<div class='mensagem erro'>Este link não tem uma loja válida. Peça o QR code correto para a sua loja.</div>";
+} else if (!codigoValido) {
+  nomeLojaEl.textContent = nomeLojaBonito();
+  formulario.style.display = "none";
+  mensagemEl.innerHTML = "<div class='mensagem erro'>Este QR code está desatualizado (o código muda toda quarta-feira, por segurança). Peça o QR code novo desta semana.</div>";
+} else {
+  nomeLojaEl.textContent = nomeLojaBonito();
+  const recente = registroRecente();
+  if (recente) mostrarConfirmacao(recente);
+}
+
+const inputNome = document.getElementById("nome");
+let tipoSelecionado = null;
+const botoesTipo = document.querySelectorAll(".tipo-btn");
+botoesTipo.forEach(btn => {
+  btn.addEventListener("click", () => {
+    botoesTipo.forEach(b => b.classList.remove("selecionado"));
+    btn.classList.add("selecionado");
+    tipoSelecionado = btn.dataset.tipo;
+    document.getElementById("btnRegistrar").disabled = false;
+  });
+});
+
+const btnRegistrar = document.getElementById("btnRegistrar");
+btnRegistrar.addEventListener("click", async () => {
+  const nome = inputNome.value.trim();
+  if (!nome) { mensagemEl.innerHTML = "<div class='mensagem erro'>Digite seu nome.</div>"; return; }
+  if (!tipoSelecionado) { mensagemEl.innerHTML = "<div class='mensagem erro'>Escolha o que está registrando.</div>"; return; }
+  btnRegistrar.disabled = true;
+  mensagemEl.innerHTML = "<div class='mensagem'>Registrando...</div>";
+  try {
+    const r = await fetch(PONTO_REST, {
+      method: "POST",
+      headers: { apikey: PONTO_KEY, Authorization: "Bearer " + PONTO_KEY, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ nome: nome, tipo: tipoSelecionado, loja: lojas[codigoLoja] })
+    });
+    if (!r.ok) {
+      let m = "HTTP " + r.status;
+      try { const j = await r.json(); if (j && j.message) m = j.message; } catch (e) {}
+      throw new Error(m);
+    }
+  } catch (e) {
+    mensagemEl.innerHTML = "<div class='mensagem erro'>Não foi possível registrar. Tente novamente. (" + String(e.message || e).replace(/[<>&]/g, "") + ")</div>";
+    btnRegistrar.disabled = false;
+    return;
+  }
+  const agora = Date.now();
+  salvarRegistroRecente(agora, tipoSelecionado);
+  mostrarConfirmacao({ hora: agora, tipo: tipoSelecionado });
+});
+</script>
+</body>
+</html>
