@@ -180,8 +180,25 @@ function valorHoraDaLoja(loja){
 }
 function textoValores(){
   if (!VALOR_HORA) return "⚠️ não consegui ler o valor por hora (" + escapeHtml(ERRO_VALOR) + ") — os valores em R$ não foram calculados";
-  return LOJAS_ORDEM.map(l => { const v = valorHoraDaLoja(l); return NOME_EXIBICAO[l] + " " + (v !== null ? formatBRL(v) + "/h" : "sem valor por hora cadastrado"); }).join(" · ");
+  const lojas = LOJAS_ORDEM.map(l => { const v = valorHoraDaLoja(l); return NOME_EXIBICAO[l] + " " + (v !== null ? formatBRL(v) + "/h" : "sem valor por hora cadastrado"); });
+  // quem tem valor proprio (ex.: Yago R$ 15,50/h + R$ 12 de VT por dia, Fabio 14/10)
+  const proprios = new Map();
+  PESSOAS.forEach((x, k) => {
+    if (x.valor_hora == null && !Number(x.vt_dia)) return;
+    const nome = nomeDe(k);
+    proprios.set(nome, nome + " " + (x.valor_hora != null ? formatBRL(Number(x.valor_hora)) + "/h" : "valor da loja") + (Number(x.vt_dia) ? " + " + formatBRL(Number(x.vt_dia)) + " VT/dia" : ""));
+  });
+  return lojas.concat(Array.from(proprios.values())).join(" · ");
 }
+// Valor por hora da pessoa: o proprio (taxa_pessoa.valor_hora), senao o da loja. VT = por dia trabalhado.
+function valorHoraDe(chave, loja){
+  const p = pessoaDe(chave);
+  if (p && p.valor_hora != null && Number(p.valor_hora) > 0) return Number(p.valor_hora);
+  return valorHoraDaLoja(loja);
+}
+function vtDe(chave){ const p = pessoaDe(chave); return p && Number(p.vt_dia) > 0 ? Number(p.vt_dia) : 0; }
+// quantos dias de trabalho a pessoa teve nessas batidas (para somar o VT)
+function diasDe(regs, chave){ return new Set(regs.filter(r => r.chave === chave && r.diaEfetivo).map(r => r.diaEfetivo)).size; }
 // A partir daqui o painel "esquece" tudo que foi batido antes desse momento
 // (testes de quando o sistema estava sendo montado). Nada é apagado do banco,
 // só escondido — se um dia precisar ver os testes antigos, é só tirar esse filtro.
@@ -687,13 +704,14 @@ async function gravarPessoa(chave, campo, valor){
   await carregarPessoas(); render();
 }
 function valorDe(t){
-  const ms = msTrabalhado(t), vh = valorHoraDaLoja(t.loja);
-  return (ms === null || vh === null) ? null : (ms / 3600000) * vh;
+  const ms = msTrabalhado(t), vh = valorHoraDe(t.chave, t.loja);
+  return (ms === null || vh === null) ? null : (ms / 3600000) * vh + (ms > 0 ? vtDe(t.chave) : 0);
 }
 function celReceber(t){
   const v = valorDe(t);
   if (v === null) return '<td class="n pv-valor"><span class="pv-nada">—</span></td>';
   return '<td class="n pv-valor">' + formatBRL(v) + (t.aberto ? ' <span class="rfu">até agora</span>' : '')
+    + (vtDe(t.chave) && msTrabalhado(t) ? '<div class="rfu">com ' + formatBRL(vtDe(t.chave)) + ' de VT</div>' : '')
     + (pagamentoDe(t.chave) === "semanal" ? '<div class="rfu">recebe na quarta</div>' : '') + '</td>';
 }
 function caixaSetor(chave){
@@ -726,7 +744,7 @@ function resumoSemana(ciclo){
   const o = { ms: 0, valor: 0, pessoas: 0, setor: { "Cozinha": { ms: 0, valor: 0 }, "Salão": { ms: 0, valor: 0 }, "": { ms: 0, valor: 0 } } };
   calcularPagamentos(regs).forEach(p => {
     if (!p.ms) return;
-    const vh = valorHoraDaLoja(p.loja), v = vh === null ? 0 : (p.ms / 3600000) * vh;
+    const vh = valorHoraDe(p.chave, p.loja), v = vh === null ? 0 : (p.ms / 3600000) * vh + vtDe(p.chave) * diasDe(regs, p.chave);
     o.pessoas++; o.ms += p.ms; o.valor += v;
     const st = o.setor[setorDe(p.chave) || ""]; st.ms += p.ms; st.valor += v;
   });
@@ -914,8 +932,9 @@ let PAY_LINHAS = { dia: [], sem: [] }, PAY_MARCA = { dia: "", sem: "" };
 function linhasPagamento(regs, ehAgora){
   const linhas = Array.from(calcularPagamentos(regs).values()).sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
   linhas.forEach(p => {
-    const vh = valorHoraDaLoja(p.loja);
-    p.valor = vh === null ? null : (p.ms / 3600000) * vh;
+    const vh = valorHoraDe(p.chave, p.loja);
+    p.vt = p.ms > 0 ? vtDe(p.chave) * diasDe(regs, p.chave) : 0;
+    p.valor = vh === null ? null : (p.ms / 3600000) * vh + p.vt;
     // quem esta na loja agora tem o turno aberto: nao e batida incompleta, so ainda nao bateu a saida
     p.naLoja = ehAgora && turnos.some(t => t.chave === p.chave && t.aberto);
     if (p.naLoja && p.incompletos > 0) p.incompletos--;
@@ -940,7 +959,7 @@ function tabelaPagamento(linhas, grupo, marca){
       + (lojaAtiva ? '' : '<td>' + escapeHtml(NOME_EXIBICAO[p.loja] || p.loja) + '</td>')
       + '<td>' + (st ? escapeHtml(st) : caixaSetor(p.chave)) + '</td>'
       + '<td class="n pv-h">' + formatHoras(p.ms) + '</td>'
-      + '<td class="n pv-valor">' + (p.valor === null ? '<span class="rfx">sem valor por hora</span>' : formatBRL(p.valor)) + '</td>'
+      + '<td class="n pv-valor">' + (p.valor === null ? '<span class="rfx">sem valor por hora</span>' : formatBRL(p.valor) + (p.vt ? '<div class="rfu">com ' + formatBRL(p.vt) + ' de VT</div>' : '')) + '</td>'
       + '<td class="n">' + (pago
           ? '<button type="button" class="pay-pago" data-g="' + grupo + '" data-i="' + i + '">✓ Pago <span class="desfazer">(desfazer)</span></button>'
           : '<button type="button" class="pay-marcar" data-g="' + grupo + '" data-i="' + i + '">Marcar como pago</button>') + '</td></tr>';
