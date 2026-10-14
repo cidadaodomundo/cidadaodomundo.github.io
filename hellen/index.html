@@ -159,7 +159,8 @@ table.pv-tb .pv-valor{font-family:'Barlow Condensed',sans-serif;font-size:18px;f
 .qr-grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 .qr-loja{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
 .qr-loja .qr-nome{font-weight:800;font-size:15px}
-.qr-loja img{width:180px;height:180px;background:#fff;border-radius:8px;padding:8px}
+.qr-loja .qr-img{width:180px;height:180px;background:#fff;border-radius:8px;padding:8px}
+.qr-loja .qr-img svg,.qr-loja .qr-img img{width:100%;height:100%;display:block}
 .qr-link{font-size:10.5px;color:var(--muted);overflow-wrap:anywhere}
 .qr-botoes{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
 a.btn{text-decoration:none;display:inline-block}
@@ -200,6 +201,7 @@ table.pv-tb .pv-h{font-size:16px}
   A tela se atualiza sozinha a cada 1 minuto.
 </footer>
 
+<script src="/assets/qrcode.js?v=1"></script>
 <script>
 (function(){
 // Banco do ponto por QR da Hellen (separado do banco do portal). A chave e a publica, a mesma que o QR usa para gravar.
@@ -1220,15 +1222,22 @@ function codigoDoCiclo(ciclo){ return fnv1a(CODIGO_SECRET + ":" + ciclo).slice(0
 // grava no mesmo banco). 14/10/2026, Fabio: "esta mandando um link do portal dela, quero que mande do cidadao do mundo".
 const PAGINA_QR = "https://cidadaodomundo.github.io/taxa/";
 function linkDaLoja(loja, codigo){ return PAGINA_QR + "?loja=" + CHAVE_LOJA[loja] + "&codigo=" + codigo; }
+// 14/10/2026 (Fabio: "o link esta levando para uma pagina errada, nao esta mostrando o qrcode"): o que se manda no WhatsApp
+// e a pagina que MOSTRA o QR da loja (taxa/qr.html), sempre o da semana certa - fica aberta na loja ou se imprime.
+function linkDoQR(loja){ return "https://cidadaodomundo.github.io/taxa/qr.html?loja=" + CHAVE_LOJA[loja]; }
 // 14/10/2026 (Fabio): "os qr codes tem que ter links faceis de enviar e um botao imprimir agora".
 // Cada loja: Enviar no WhatsApp (mensagem pronta), Copiar link, Imprimir agora. No topo: os 3 de uma vez.
 // O link continua sendo o da semana (muda toda quarta): link fixo deixaria bater ponto de casa.
 function periodoQR(){ const c = cicloAtual(); return formatDiaMes(inicioCicloMs(c)) + " a " + formatDiaMes(inicioCicloMs(c + 1) - 1); }
 function mensagemQR(lojas){
-  const codigo = codigoDoCiclo(cicloAtual());
-  let m = "Ponto das taxas · Cidadão do Mundo\nSemana de " + periodoQR() + " (o link muda toda quarta)\n";
-  lojas.forEach(loja => { m += "\n" + (NOME_EXIBICAO[loja] || loja) + ": " + linkDaLoja(loja, codigo); });
-  return m + "\n\nAbra o link da sua loja na chegada, no intervalo e na saída.";
+  let m = "Ponto das taxas · Cidadão do Mundo\nQR code do ponto (é sempre o da semana certa, troca sozinho na quarta):\n";
+  lojas.forEach(loja => { m += "\n" + (NOME_EXIBICAO[loja] || loja) + ": " + linkDoQR(loja); });
+  return m + "\n\nDeixe aberto num celular ou tablet na loja, ou imprima. A taxa aponta a câmera na chegada, no intervalo e na saída.";
+}
+// QR desenhado no proprio navegador (assets/qrcode.js), sem depender de site de fora
+function desenhoQR(texto){
+  try{ const q = qrcode(0, "M"); q.addData(texto); q.make(); return q.createSvgTag({ cellSize: 8, margin: 0, scalable: true }); }
+  catch(e){ return '<img src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=' + encodeURIComponent(texto) + '" alt="QR code">'; }
 }
 function linkZap(texto){ return "https://wa.me/?text=" + encodeURIComponent(texto); }
 async function copiarTexto(btn, texto){
@@ -1248,12 +1257,14 @@ function renderQR(){
   LOJAS_ORDEM.forEach(loja => {
     const link = linkDaLoja(loja, codigo), nomeLoja = NOME_EXIBICAO[loja] || loja;
     h += '<div class="qr-loja"><span class="qr-nome">' + nomeLoja + '</span>'
-      + '<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(link) + '" alt="QR code ' + nomeLoja + '" loading="lazy">'
+      + '<div class="qr-img" role="img" aria-label="QR code ' + nomeLoja + '">' + desenhoQR(link) + '</div>'
       + '<div class="qr-botoes">'
       + '<a class="btn btn-zap" href="' + escapeHtml(linkZap(mensagemQR([loja]))) + '" target="_blank" rel="noopener">📲 Enviar no WhatsApp</a>'
+      + '<a class="btn" href="' + escapeHtml(linkDoQR(loja)) + '" target="_blank" rel="noopener">🔳 Abrir o QR</a>'
       + '<button class="btn qr-imprimir" type="button" data-loja="' + loja + '">🖨 Imprimir agora</button>'
-      + '<button class="btn qr-copiar" type="button" data-link="' + escapeHtml(link) + '">Copiar link</button>'
-      + '</div><span class="qr-link">' + escapeHtml(link) + '</span></div>';
+      + '<button class="btn qr-copiar" type="button" data-link="' + escapeHtml(linkDoQR(loja)) + '">Copiar link do QR</button>'
+      + '</div><span class="qr-link">' + escapeHtml(linkDoQR(loja)) + '</span>'
+      + '<button class="btn qr-copiar" type="button" data-link="' + escapeHtml(link) + '" style="font-size:11px;padding:4px 10px">Copiar o link de bater ponto (desta semana)</button></div>';
   });
   elContent.innerHTML = h + '</div></div>';
   elContent.querySelectorAll(".qr-copiar").forEach(btn => btn.addEventListener("click", () => copiarTexto(btn, btn.dataset.link)));
@@ -1270,12 +1281,12 @@ function imprimirTodos(lojas){
     const link = linkDaLoja(loja, codigo), nomeLoja = NOME_EXIBICAO[loja] || loja;
     paginas += '<div class="pagina"><h1>' + escapeHtml(nomeLoja) + '</h1>'
       + '<p>' + escapeHtml(periodo) + ' — aponte a câmera do celular para bater o ponto</p>'
-      + '<img src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=' + encodeURIComponent(link) + '" alt="QR code ' + escapeHtml(nomeLoja) + '"></div>';
+      + '<div class="qrp">' + desenhoQR(link) + '</div></div>';
   });
   const conteudo = '<!doc' + 'type html><html lang="pt-br"><head><meta charset="UTF-8"><title>QR codes - Cidadão do Mundo</title><style>'
     + 'body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;color:#152622;}'
     + '.pagina{page-break-after:always;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px;box-sizing:border-box;}'
-    + '.pagina:last-child{page-break-after:auto;}h1{font-size:32px;margin:0 0 8px;}p{color:#555;margin:0 0 24px;font-size:16px;}img{width:320px;height:320px;}'
+    + '.pagina:last-child{page-break-after:auto;}h1{font-size:32px;margin:0 0 8px;}p{color:#555;margin:0 0 24px;font-size:16px;}.qrp,.qrp svg,.qrp img{width:320px;height:320px;display:block;}'
     + '</style></head><body>' + paginas
     + '<script>window.addEventListener("load", function(){ setTimeout(function(){ window.print(); }, 300); });<\/script></body></' + 'html>';
   const janela = window.open("", "_blank");

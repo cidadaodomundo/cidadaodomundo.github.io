@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR do ponto · Cidadão do Mundo</title>
+<meta name="theme-color" content="#111111">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* 14/10/2026 (chat-aba-hellen-3-em-1-14-10), pedido do Fabio: o link mandado no WhatsApp "esta levando para uma pagina errada,
+   nao esta mostrando o qrcode". Esta pagina MOSTRA o QR do ponto da loja, sempre o da semana certa (troca sozinho na quarta):
+   fica aberta num celular/tablet na loja ou se imprime. O QR leva para taxa/index.html (a pagina de bater ponto).
+   Cores da marca: preto da casa, branco, uma coisa so em ouro (o aro do QR). */
+:root{--preto:#111111;--carvao:#1b1b1b;--linha:#2e2e2e;--branco:#ffffff;--cinza:#a9a9a9;--ouro:#E0A81C}
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;background:radial-gradient(circle at 50% -10%,rgba(194,118,42,.22),transparent 55%),var(--preto);color:var(--branco);font-family:'Barlow',Arial,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;text-align:center}
+.logo{width:76px;height:76px;border-radius:50%;border:2px solid #e8e8e8;background:#000;object-fit:cover}
+.marca{font-family:'Anton',Impact,'Arial Black',sans-serif;text-transform:uppercase;letter-spacing:.5px;font-size:15px;color:var(--cinza);margin-top:10px}
+h1{font-family:'Anton',Impact,'Arial Black',sans-serif;text-transform:uppercase;font-weight:400;letter-spacing:.5px;font-size:clamp(34px,9vw,58px);line-height:1;margin-top:6px}
+.sub{font-size:24px;font-weight:700;color:#ffffff;margin-top:6px}
+.qr{margin:22px auto 0;background:#fff;border:6px solid var(--ouro);border-radius:22px;padding:16px;width:min(78vw,380px);aspect-ratio:1}
+.qr img,.qr svg{width:100%;height:100%;display:block}
+.passo{margin-top:20px;font-size:17px;font-weight:700}
+.passo small{display:block;font-weight:400;color:var(--cinza);font-size:14px;margin-top:4px}
+.validade{margin-top:14px;font-size:13px;color:var(--cinza)}
+.acoes{margin-top:18px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.btn{background:var(--carvao);border:1px solid var(--linha);color:var(--branco);border-radius:10px;padding:10px 16px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none}
+.btn:hover{border-color:#fff}
+.erro{max-width:420px;background:var(--carvao);border:1px solid var(--linha);border-radius:14px;padding:18px;margin-top:20px;font-size:16px}
+@media print{
+  body{background:#fff;color:#111;min-height:auto;padding:30px}
+  .marca,.validade{color:#555}.sub{color:#333}
+  .logo{border-color:#111}
+  .acoes{display:none}
+}
+</style>
+</head>
+<body>
+<img class="logo" src="https://acconimages.s3.amazonaws.com/merchants/logos/378-1755286245137.png" alt="Cidadão do Mundo">
+<div class="marca">Cidadão do Mundo · Burgers &amp; Arts</div>
+<div id="corpo"></div>
+
+<!-- gerador de QR guardado no proprio portal (qrcode-generator 1.4.4, Kazuhiko Arase, licenca MIT): nao depende de site de fora -->
+<script src="/assets/qrcode.js?v=1"></script>
+<script>
+(function(){
+// A mesma conta do codigo da semana da pagina de bater ponto (taxa/index.html) e da aba Hellen do portal.
+const CODIGO_SECRET = "CDMBurgersArts-ponto-2026";
+const REF_Y = 2026, REF_M = 8, REF_D = 9; // quarta 09/09/2026 = semana 0
+function fnv1a(str){ let h = 0x811c9dc5; for (let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16).padStart(8, "0"); }
+function diaEpochBrasilia(ms){ const d = new Date(ms - 3 * 3600 * 1000); return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86400000); }
+const REF = Math.floor(Date.UTC(REF_Y, REF_M, REF_D) / 86400000);
+function cicloAtual(){ return Math.floor((diaEpochBrasilia(Date.now()) - REF) / 7); }
+function codigoDoCiclo(c){ return fnv1a(CODIGO_SECRET + ":" + c).slice(0, 8); }
+function diaMes(epochDia){ const d = new Date(epochDia * 86400000); return String(d.getUTCDate()).padStart(2, "0") + "/" + String(d.getUTCMonth() + 1).padStart(2, "0"); }
+
+function desenhoQR(texto){
+  try{ const q = qrcode(0, "M"); q.addData(texto); q.make(); return q.createSvgTag({ cellSize: 8, margin: 0, scalable: true }); }
+  catch(e){ return '<img src="https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=0&data=' + encodeURIComponent(texto) + '" alt="QR code">'; }
+}
+const LOJAS = { aguaverde: "Água Verde", ahu: "Ahú", saobraz: "São Braz" };
+const loja = new URLSearchParams(location.search).get("loja");
+const corpo = document.getElementById("corpo");
+const PAGINA_PONTO = "https://cidadaodomundo.github.io/taxa/";
+
+if (!loja || !Object.prototype.hasOwnProperty.call(LOJAS, loja)){
+  corpo.innerHTML = '<h1>Link inválido</h1><div class="erro">Este link não diz qual é a loja. Peça o link do QR de novo para a Hellen.</div>';
+  return;
+}
+let cicloMostrado = null;
+function desenhar(){
+  const c = cicloAtual();
+  if (c === cicloMostrado) return;
+  cicloMostrado = c;
+  const link = PAGINA_PONTO + "?loja=" + loja + "&codigo=" + codigoDoCiclo(c);
+  const ini = REF + c * 7;
+  document.title = "QR do ponto · " + LOJAS[loja] + " · Cidadão do Mundo";
+  corpo.innerHTML = '<h1>Ponto das taxas</h1><div class="sub">' + LOJAS[loja] + '</div>'
+    + '<div class="qr" role="img" aria-label="QR code do ponto da loja ' + LOJAS[loja] + '">' + desenhoQR(link) + '</div>'
+    + '<div class="passo">Aponte a câmera do celular<small>na chegada, no início e no fim do intervalo e na saída</small></div>'
+    + '<div class="validade">QR da semana de ' + diaMes(ini) + ' a ' + diaMes(ini + 6) + ' · troca sozinho toda quarta-feira</div>'
+    + '<div class="acoes"><button class="btn" type="button" id="btnImprimir">🖨 Imprimir</button><a class="btn" href="' + link + '">Abrir a página de bater ponto</a></div>';
+  document.getElementById("btnImprimir").addEventListener("click", () => window.print());
+}
+desenhar();
+// aberta num tablet na loja: confere a cada minuto se virou a semana e troca o QR sozinho
+setInterval(desenhar, 60000);
+// tenta manter a tela acesa (celular/tablet na loja); se o aparelho nao deixar, nada acontece
+async function telaAcesa(){ try{ if (navigator.wakeLock && document.visibilityState === "visible") await navigator.wakeLock.request("screen"); }catch(e){} }
+telaAcesa();
+document.addEventListener("visibilitychange", telaAcesa);
+})();
+</script>
+</body>
+</html>
