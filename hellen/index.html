@@ -192,6 +192,7 @@ let erroCarga = "";
 let DIA = null;              // dia escolhido no botao dos dias (null = hoje, ao vivo)
 let CARREGADO_DESDE = null;  // a partir de quando as batidas foram lidas
 let DIA_DADOS = null;        // dia antigo lido a parte: { dia, turnos } (ou { dia, erro })
+let DIA_CARREGANDO = null;   // dia antigo que esta sendo lido agora
 let AVISO_LIMITE = false;
 let ultimaLeitura = null;
 
@@ -601,15 +602,19 @@ function barraDias(dia, hoje){
 function irParaDia(d){
   const hoje = diaOperacional(Date.now()), min = diaBrasilia(new Date(INICIO_USO_REAL).getTime());
   if (!d || d >= hoje) d = null; else if (d < min) d = min;
+  const voltouPraHoje = DIA !== null && d === null;
   DIA = d;
+  if (voltouPraHoje){ carregar(true); return; }
   // dia mais antigo que o que ja foi lido: le so a janela dele (vespera ate o dia seguinte), uma vez, sem mexer no resto
   if (DIA && CARREGADO_DESDE !== null && inicioDiaBrasiliaMs(DIA) - 24 * 3600 * 1000 < CARREGADO_DESDE && !(DIA_DADOS && DIA_DADOS.dia === DIA)) carregarDia(DIA);
   else render();
 }
 async function carregarDia(dia){
+  if (DIA_CARREGANDO === dia) return;
+  DIA_CARREGANDO = dia;
   elContent.innerHTML = '<div class="rf-load">Carregando o dia…</div>';
   try{
-    const de = new Date(inicioDiaBrasiliaMs(dia) - 24 * 3600 * 1000).toISOString();
+    const de = new Date(Math.max(inicioDiaBrasiliaMs(dia) - 24 * 3600 * 1000, new Date(INICIO_USO_REAL).getTime())).toISOString();
     const ate = new Date(inicioDiaBrasiliaMs(dia) + 48 * 3600 * 1000).toISOString();
     const data = await hsb("registros_ponto?select=nome,tipo,loja,criado_em&criado_em=gte." + encodeURIComponent(de)
       + "&criado_em=lt." + encodeURIComponent(ate) + "&order=criado_em.asc&limit=1000");
@@ -621,6 +626,7 @@ async function carregarDia(dia){
   } catch(e){
     DIA_DADOS = { dia: dia, erro: (e && e.message) ? e.message : "erro" };
   }
+  DIA_CARREGANDO = null;
   render();
 }
 function renderVivo(){
@@ -664,11 +670,15 @@ function renderVivo(){
 
 /* ---------- 📅 Ponto de um dia escolhido no botao dos dias ---------- */
 function renderDia(dia, hoje){
+  if (DIA_CARREGANDO === dia){ elContent.innerHTML = '<div class="rf-load">Carregando o dia…</div>'; return; }
   const deFora = DIA_DADOS && DIA_DADOS.dia === dia;
   if (deFora && DIA_DADOS.erro){
-    elContent.innerHTML = '<div class="rf-card">' + barraLojas() + barraDias(dia, hoje) + '<div class="err">Não consegui ler este dia: ' + escapeHtml(DIA_DADOS.erro) + '</div></div>';
+    elContent.innerHTML = '<div class="rf-card">' + barraLojas() + barraDias(dia, hoje) + '<div class="err">Não consegui ler este dia: ' + escapeHtml(DIA_DADOS.erro)
+      + '<br><button class="btn" data-dia-ler="' + dia + '" type="button">Tentar de novo</button></div></div>';
     return;
   }
+  // dia que saiu da janela normal (ex.: virada da semana) e ainda nao foi lido a parte: le agora
+  if (!deFora && CARREGADO_DESDE !== null && inicioDiaBrasiliaMs(dia) - 24 * 3600 * 1000 < CARREGADO_DESDE){ carregarDia(dia); return; }
   const base = deFora ? DIA_DADOS.turnos : turnos;
   const g = base.filter(t => (!lojaAtiva || t.loja === lojaAtiva) && t.diaEfetivo === dia)
     .sort((a,b) => (a.entrada || a.inicioMs) - (b.entrada || b.inicioMs));
@@ -877,6 +887,7 @@ elContent.addEventListener("click", e => {
   else if (b.hasAttribute("data-semana-pay")){ semanaPay = b.getAttribute("data-semana-pay"); render(); }
   else if (b.hasAttribute("data-dia-nav")){ const hoje = diaOperacional(Date.now()); irParaDia(somaDia(DIA || hoje, +b.getAttribute("data-dia-nav"))); }
   else if (b.hasAttribute("data-dia-hoje")){ irParaDia(null); }
+  else if (b.hasAttribute("data-dia-ler")){ DIA_DADOS = null; carregarDia(b.getAttribute("data-dia-ler")); }
 });
 btnRefresh.addEventListener("click", () => carregar(false));
 elContent.addEventListener("change", e => { if (e.target && e.target.id === "diaSel") irParaDia(e.target.value); });
