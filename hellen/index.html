@@ -43,6 +43,8 @@ h1{font-size:17px;font-weight:800}
 .loja{background:var(--surface2);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
 .loja.active{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
 select.loja{color:var(--text);max-width:220px}
+input.loja{color:var(--text);color-scheme:dark;font-family:inherit}
+.loja:disabled{opacity:.4;cursor:default}
 .periodo{color:var(--muted);font-size:12px;margin-left:4px}
 .rf-aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:10px 13px;font-size:12px;margin:10px 0}
 .rf-nota{color:var(--muted);font-size:11.5px;margin-top:8px;line-height:1.5}
@@ -187,6 +189,10 @@ let turnos = [];
 let marcadosPagos = new Set();
 let carregouUmaVez = false;
 let erroCarga = "";
+let DIA = null;              // dia escolhido no botao dos dias (null = hoje, ao vivo)
+let CARREGADO_DESDE = null;  // a partir de quando as batidas foram lidas
+let DIA_DADOS = null;        // dia antigo lido a parte: { dia, turnos } (ou { dia, erro })
+let DIA_CARREGANDO = null;   // dia antigo que esta sendo lido agora
 let AVISO_LIMITE = false;
 let ultimaLeitura = null;
 
@@ -206,6 +212,14 @@ function diaBrasilia(isoOuMs){
   const d = new Date(ms - 3 * 3600 * 1000);
   return d.getUTCFullYear() + "-" + String(d.getUTCMonth()+1).padStart(2,"0") + "-" + String(d.getUTCDate()).padStart(2,"0");
 }
+// Dia de trabalho (Fabio, 14/10/2026): "os turno de um dia completo é das 08:00 as 02:20 começa num dia e termina no outro".
+// Batida antes das 05:00 conta no dia anterior; o turno fica no dia em que COMECOU.
+const CORTE_DIA_H = 5;
+function diaOperacional(isoOuMs){
+  const ms = typeof isoOuMs === "string" ? new Date(isoOuMs).getTime() : isoOuMs;
+  return diaBrasilia(ms - CORTE_DIA_H * 3600 * 1000);
+}
+function somaDia(diaStr, n){ return diaBrasilia(inicioDiaBrasiliaMs(diaStr) + n * 86400000 + 12 * 3600 * 1000); }
 function inicioDiaBrasiliaMs(diaStr){ const p = diaStr.split("-"); return Date.UTC(+p[0], +p[1] - 1, +p[2]) + 3 * 3600 * 1000; }
 function hhmm(ms){
   const d = new Date(ms - 3 * 3600 * 1000);
@@ -213,7 +227,7 @@ function hhmm(ms){
 }
 const DIAS_SEMANA = ["domingo","segunda","terça","quarta","quinta","sexta","sábado"];
 function rotuloDia(diaStr){
-  const hoje = diaBrasilia(Date.now()), ontem = diaBrasilia(Date.now() - 24*3600*1000);
+  const hoje = diaOperacional(Date.now()), ontem = somaDia(hoje, -1);
   const p = diaStr.split("-");
   const dow = DIAS_SEMANA[new Date(Date.UTC(+p[0], +p[1]-1, +p[2], 12)).getUTCDay()];
   const dm = p[2] + "/" + p[1];
@@ -287,7 +301,7 @@ function aoMesmoTempo(grupoA, grupoB, regsPorChave){
     const outro = e.lado === "A" ? "B" : "A";
     if (dentro[outro] !== null && e.ms - dentro[outro] > MAX_TURNO_MS) dentro[outro] = null; // esqueceu a saida
     if (e.tipo === "chegada"){
-      if (dentro[outro] !== null && diaBrasilia(e.ms) === diaBrasilia(dentro[outro])) return true;
+      if (dentro[outro] !== null && diaOperacional(e.ms) === diaOperacional(dentro[outro])) return true;
       dentro[e.lado] = e.ms;
     } else if (e.tipo === "saida"){
       dentro.A = null; dentro.B = null; // a saida fecha o turno, venha de qual grafia vier
@@ -354,7 +368,8 @@ function montarNomesExibicao(lista){
   return nomes;
 }
 let NOMES = new Map();
-function nomeDe(chave){ return NOMES.get(chave) || chave.split("|")[1]; }
+let NOMES_DIA = new Map();
+function nomeDe(chave){ return NOMES.get(chave) || NOMES_DIA.get(chave) || chave.split("|")[1]; }
 // Outras grafias que a pessoa usou (so as que mudam de verdade, nao maiuscula/acento)
 function outrasGrafias(chave, nomesUsados){
   const base = normalizarNome(nomeDe(chave)), vistos = new Set([base]), out = [];
@@ -372,8 +387,8 @@ function tipoDe(t){
 }
 // Monta um turno por pessoa e por vez que ela veio. Tolerante a batida repetida (tocou duas vezes):
 // 2a Chegada no mesmo dia com o turno aberto, 2o inicio de intervalo, Saida repetida em ate 10 min — tudo ignorado.
-// Cada batida ganha o "dia efetivo" do turno: o dia em que o turno TERMINOU (quem sai de madrugada fica no dia da saida),
-// que e o mesmo dia usado na conta do pagamento.
+// Cada batida ganha o "dia efetivo" do turno: o dia de trabalho em que o turno COMECOU (08:00 ate 02:20 do dia seguinte;
+// quem entra de tarde e sai de madrugada fica no dia em que entrou). E o mesmo dia usado na conta do pagamento.
 function montarTurnos(lista){
   const ord = lista.slice().sort((a,b) => a.ms - b.ms);
   const abertos = new Map(), ultimoFechado = new Map(), out = [];
@@ -386,7 +401,7 @@ function montarTurnos(lista){
     const tipo = tipoDe(r.tipo);
     let t = abertos.get(r.chave);
     if (tipo === "chegada"){
-      if (t && diaBrasilia(r.ms) === diaBrasilia(t.inicioMs)){ /* chegada repetida */ }
+      if (t && diaOperacional(r.ms) === diaOperacional(t.inicioMs)){ /* chegada repetida */ }
       else { if (t) t.semSaida = true; t = novo(r); t.entrada = r.ms; abertos.set(r.chave, t); }
     } else {
       if (!t && tipo === "saida"){
@@ -406,7 +421,7 @@ function montarTurnos(lista){
   const agora = Date.now();
   out.forEach(t => {
     t.fimMs = t.regs[t.regs.length - 1].ms;
-    t.diaEfetivo = diaBrasilia(t.fimMs);
+    t.diaEfetivo = diaOperacional(t.inicioMs);
     t.regs.forEach(r => { r.diaEfetivo = t.diaEfetivo; });
     if (t.saida === null && !t.semSaida && agora - t.fimMs > MAX_TURNO_MS) t.semSaida = true;
     t.aberto = t.saida === null && !t.semSaida;
@@ -439,7 +454,7 @@ function calcularPagamentos(lista){
     p.nomes.push(r.nome || "");
     if (r.tipo === "Chegada"){
       if (st.status === "fechado"){ st.status = "aberto"; st.inicioTurno = t; st.pausaMs = 0; }
-      else if (diaBrasilia(t) !== diaBrasilia(st.inicioTurno)){ p.incompletos++; st.status = "aberto"; st.inicioTurno = t; st.pausaMs = 0; }
+      else if (diaOperacional(t) !== diaOperacional(st.inicioTurno)){ p.incompletos++; st.status = "aberto"; st.inicioTurno = t; st.pausaMs = 0; }
       // turno aberto no mesmo dia: batida repetida, ignora. Turno aberto em outro dia: esqueceram a saida, descarta e comeca turno novo.
     } else if (r.tipo === "Inicio do intervalo"){
       if (st.status === "aberto"){ st.status = "intervalo"; st.inicioIntervalo = t; }
@@ -503,6 +518,7 @@ async function carregar(silencioso){
   try{
     // desde a semana passada (e 1 dia antes, para pegar a Chegada de quem virou a noite na troca de semana)
     const desde = Math.max(inicioCicloMs(cicloAtual() - 1) - 24 * 3600 * 1000, new Date(INICIO_USO_REAL).getTime());
+    CARREGADO_DESDE = desde;
     const data = await hsb("registros_ponto?select=nome,tipo,loja,criado_em&criado_em=gte." + encodeURIComponent(new Date(desde).toISOString())
       + "&order=criado_em.asc&limit=1000");
     AVISO_LIMITE = (data || []).length >= 1000;
@@ -575,8 +591,48 @@ function situacao(t){
 function classeLinha(t){ return t.aberto ? (t.intAberto !== null ? "pv-int" : "pv-ok") : "pv-off"; }
 
 /* ---------- 🔴 Ponto ao vivo ---------- */
+function barraDias(dia, hoje){
+  const min = diaBrasilia(new Date(INICIO_USO_REAL).getTime());
+  return '<div class="barra">Dia: <button class="loja" data-dia-nav="-1" type="button" aria-label="dia anterior"' + (dia <= min ? ' disabled' : '') + '>‹</button>'
+    + '<input class="loja" type="date" id="diaSel" value="' + dia + '" min="' + min + '" max="' + hoje + '" aria-label="escolher o dia">'
+    + '<button class="loja" data-dia-nav="1" type="button" aria-label="dia seguinte"' + (dia >= hoje ? ' disabled' : '') + '>›</button>'
+    + '<button class="loja' + (dia === hoje ? ' active' : '') + '" data-dia-hoje="1" type="button">Hoje</button>'
+    + '<span class="periodo">' + rotuloDia(dia) + ' · o dia vai das 08:00 às 02:20 do dia seguinte (batida antes das 05:00 conta no dia anterior)</span></div>';
+}
+function irParaDia(d){
+  const hoje = diaOperacional(Date.now()), min = diaBrasilia(new Date(INICIO_USO_REAL).getTime());
+  if (!d || d >= hoje) d = null; else if (d < min) d = min;
+  const voltouPraHoje = DIA !== null && d === null;
+  DIA = d;
+  if (voltouPraHoje){ carregar(true); return; }
+  // dia mais antigo que o que ja foi lido: le so a janela dele (vespera ate o dia seguinte), uma vez, sem mexer no resto
+  if (DIA && CARREGADO_DESDE !== null && inicioDiaBrasiliaMs(DIA) - 24 * 3600 * 1000 < CARREGADO_DESDE && !(DIA_DADOS && DIA_DADOS.dia === DIA)) carregarDia(DIA);
+  else render();
+}
+async function carregarDia(dia){
+  if (DIA_CARREGANDO === dia) return;
+  DIA_CARREGANDO = dia;
+  elContent.innerHTML = '<div class="rf-load">Carregando o dia…</div>';
+  try{
+    const de = new Date(Math.max(inicioDiaBrasiliaMs(dia) - 24 * 3600 * 1000, new Date(INICIO_USO_REAL).getTime())).toISOString();
+    const ate = new Date(inicioDiaBrasiliaMs(dia) + 48 * 3600 * 1000).toISOString();
+    const data = await hsb("registros_ponto?select=nome,tipo,loja,criado_em&criado_em=gte." + encodeURIComponent(de)
+      + "&criado_em=lt." + encodeURIComponent(ate) + "&order=criado_em.asc&limit=1000");
+    const lista = (data || []).map(r => Object.assign({}, r, { ms: new Date(r.criado_em).getTime() }));
+    const apelidos = montarApelidos(lista);
+    lista.forEach(r => { r.chave = apelidos.get(r.loja + "|" + chaveBase(r.nome)) || (r.loja + "|" + chaveBase(r.nome)); });
+    NOMES_DIA = montarNomesExibicao(lista);
+    DIA_DADOS = { dia: dia, turnos: montarTurnos(lista) };
+  } catch(e){
+    DIA_DADOS = { dia: dia, erro: (e && e.message) ? e.message : "erro" };
+  }
+  DIA_CARREGANDO = null;
+  render();
+}
 function renderVivo(){
-  const hoje = diaBrasilia(Date.now());
+  const hoje = diaOperacional(Date.now());
+  if (DIA && DIA >= hoje) DIA = null;
+  if (DIA){ renderDia(DIA, hoje); return; }
   const g = turnos.filter(t => (!lojaAtiva || t.loja === lojaAtiva) && (t.aberto || t.diaEfetivo === hoje));
   g.sort((a,b) => {
     if (a.aberto !== b.aberto) return a.aberto ? -1 : 1;
@@ -590,7 +646,7 @@ function renderVivo(){
   const ult = daLoja.length ? daLoja[daLoja.length - 1] : null;
 
   let h = '<div class="rf-h2">🔴 Ponto ao vivo <span class="hint">quem bateu o ponto pelo QR hoje e quem ainda está na loja</span></div>';
-  h += '<div class="rf-card">' + barraLojas();
+  h += '<div class="rf-card">' + barraLojas() + barraDias(hoje, hoje);
   h += '<div class="rf-aviso">' + (ult
       ? 'Última batida: <b>' + hhmm(ult.ms) + '</b>' + (diaBrasilia(ult.ms) !== hoje ? ' de ' + formatDiaMes(ult.ms) : '') + ' — ' + escapeHtml(nomeDe(ult.chave)) + ' (' + escapeHtml(NOME_EXIBICAO[ult.loja] || ult.loja) + ', ' + escapeHtml(ult.tipo) + '). A batida entra na hora em que a taxa lê o QR; a tela se atualiza sozinha a cada 1 minuto.'
       : '⚠️ Nenhuma batida pelo QR ainda nesta loja.') + '</div>';
@@ -607,8 +663,43 @@ function renderVivo(){
       + '<td class="n"><span class="pv-bat">' + t.regs.length + '</span></td></tr>';
   });
   h += '</tbody></table></div>';
-  h += '<div class="rf-nota">Hoje = turnos que terminaram hoje (quem sai de madrugada fica no dia da saída, igual à conta do pagamento) e todo mundo que ainda está na loja. '
+  h += '<div class="rf-nota">Hoje = o dia de trabalho de hoje, das 08:00 às 02:20 do dia seguinte (quem entra de tarde e sai de madrugada fica no dia em que entrou), e todo mundo que ainda está na loja. '
      + 'O nome é digitado pela taxa a cada batida: grafias diferentes da mesma pessoa (com ou sem acento, espaço, sobrenome) são juntadas numa linha só e aparecem em "digitou também".</div>';
+  elContent.innerHTML = h + '</div>';
+}
+
+/* ---------- 📅 Ponto de um dia escolhido no botao dos dias ---------- */
+function renderDia(dia, hoje){
+  if (DIA_CARREGANDO === dia){ elContent.innerHTML = '<div class="rf-load">Carregando o dia…</div>'; return; }
+  const deFora = DIA_DADOS && DIA_DADOS.dia === dia;
+  if (deFora && DIA_DADOS.erro){
+    elContent.innerHTML = '<div class="rf-card">' + barraLojas() + barraDias(dia, hoje) + '<div class="err">Não consegui ler este dia: ' + escapeHtml(DIA_DADOS.erro)
+      + '<br><button class="btn" data-dia-ler="' + dia + '" type="button">Tentar de novo</button></div></div>';
+    return;
+  }
+  // dia que saiu da janela normal (ex.: virada da semana) e ainda nao foi lido a parte: le agora
+  if (!deFora && CARREGADO_DESDE !== null && inicioDiaBrasiliaMs(dia) - 24 * 3600 * 1000 < CARREGADO_DESDE){ carregarDia(dia); return; }
+  const base = deFora ? DIA_DADOS.turnos : turnos;
+  const g = base.filter(t => (!lojaAtiva || t.loja === lojaAtiva) && t.diaEfetivo === dia)
+    .sort((a,b) => (a.entrada || a.inicioMs) - (b.entrada || b.inicioMs));
+  let tot = 0; g.forEach(t => { tot += msTrabalhado(t) || 0; });
+  const nPes = new Set(g.map(t => t.chave)).size;
+  let h = '<div class="rf-h2">📅 Ponto do dia <span class="hint">quem bateu o ponto pelo QR no dia escolhido</span></div>';
+  h += '<div class="rf-card">' + barraLojas() + barraDias(dia, hoje);
+  h += '<div class="rf-aviso"><b>' + nPes + '</b> ' + (nPes === 1 ? 'taxa trabalhou' : 'taxas trabalharam') + ' · <b>' + formatHoras(tot) + '</b> no total</div>';
+  if (!g.length){
+    elContent.innerHTML = h + '<div class="rf-empty">Nenhuma taxa bateu ponto neste dia' + (lojaAtiva ? ' nesta loja' : '') + '.</div></div>';
+    return;
+  }
+  h += '<div class="pv-wrap"><table class="pv-tb"><thead><tr><th>Taxa</th><th>Situação</th><th class="n">Entrada</th><th class="n">Intervalo</th><th class="n">Saída</th><th class="n">Horas</th><th class="n">Batidas</th></tr></thead><tbody>';
+  g.forEach(t => {
+    h += '<tr class="' + classeLinha(t) + '">' + celNome(t, !lojaAtiva)
+      + '<td class="pv-sit">' + situacao(t) + '</td>'
+      + celHora(t.entrada, t) + celIntervalo(t) + celHora(t.saida, t) + celHoras(t)
+      + '<td class="n"><span class="pv-bat">' + t.regs.length + '</span></td></tr>';
+  });
+  h += '</tbody></table></div>';
+  h += '<div class="rf-nota">O dia vai das 08:00 às 02:20 do dia seguinte: quem entra de tarde e sai de madrugada fica no dia em que entrou (a saída aparece com a data dela). Batida antes das 05:00 conta no dia anterior.</div>';
   elContent.innerHTML = h + '</div>';
 }
 
@@ -647,7 +738,7 @@ function renderSemana(){
     });
     h += '</tbody></table></div>';
   });
-  h += '<div class="rf-nota">O dia de cada turno é o dia em que ele terminou — quem entra às 18h e sai à 00h30 aparece no dia da saída, igual à conta do pagamento. '
+  h += '<div class="rf-nota">O dia vai das 08:00 às 02:20 do dia seguinte: quem entra às 18h e sai à 00h30 fica no dia em que entrou, igual à conta do pagamento. '
      + 'Horas = da chegada à saída, menos o intervalo. Turno sem chegada ou sem saída fica com ⚠️ e não entra no pagamento.</div>';
   elContent.innerHTML = h + '</div>';
   bindSelect();
@@ -703,6 +794,7 @@ function renderPagamento(){
   h += '</tbody></table></div>';
   if (semValor > 0) h += '<div class="rf-nota">⚠️ ' + semValor + (semValor === 1 ? ' pessoa ficou' : ' pessoas ficaram') + ' sem valor em R$ porque a loja não tem valor por hora cadastrado — não entrou no total.</div>';
   if (totalInc > 0) h += '<div class="rf-nota">⚠️ batida incompleta = não bateu a entrada ou a saída nessa semana — essas horas não entraram na conta. Confira em 📅 Batidas da semana.</div>';
+  h += '<div class="rf-nota">O turno conta no dia em que começou (o dia vai das 08:00 às 02:20): quem entra na terça e sai na quarta de madrugada conta na semana da terça.</div>';
   h += '<div class="rf-nota">A mesma pessoa digitada de jeitos diferentes conta numa linha só. Se uma grafia antiga já tinha sido marcada como paga, a pessoa aparece como paga.</div>';
   elContent.innerHTML = h + '</div>';
   elContent.querySelectorAll(".pay-marcar").forEach(b => b.addEventListener("click", () => { b.disabled = true; marcarComoPago(PAY_LINHAS[+b.dataset.i], semanaInicioStr); }));
@@ -793,8 +885,12 @@ elContent.addEventListener("click", e => {
   if (b.hasAttribute("data-loja")){ lojaAtiva = b.getAttribute("data-loja"); nomeAtivo = ""; render(); }
   else if (b.hasAttribute("data-semana-lista")){ semanaLista = b.getAttribute("data-semana-lista"); render(); }
   else if (b.hasAttribute("data-semana-pay")){ semanaPay = b.getAttribute("data-semana-pay"); render(); }
+  else if (b.hasAttribute("data-dia-nav")){ const hoje = diaOperacional(Date.now()); irParaDia(somaDia(DIA || hoje, +b.getAttribute("data-dia-nav"))); }
+  else if (b.hasAttribute("data-dia-hoje")){ irParaDia(null); }
+  else if (b.hasAttribute("data-dia-ler")){ DIA_DADOS = null; carregarDia(b.getAttribute("data-dia-ler")); }
 });
 btnRefresh.addEventListener("click", () => carregar(false));
+elContent.addEventListener("change", e => { if (e.target && e.target.id === "diaSel") irParaDia(e.target.value); });
 
 /* ---------- porta unica do portal ---------- */
 const CDMMODS = ["hellen"];
@@ -828,7 +924,7 @@ cdmGuarda().then(ok => {
   render();
   carregar(false);
   // le de novo a cada 60 s, so com a tela aberta e visivel; os dois timers sao desligados ao sair da tela (pagehide)
-  TIMER = setInterval(() => { if (!document.hidden && VIEW !== "qr") carregar(true); }, 60000);
+  TIMER = setInterval(() => { if (!document.hidden && VIEW !== "qr" && !(VIEW === "vivo" && DIA)) carregar(true); }, 60000);
   TIMER_REL = setInterval(atualizarRelogioTopo, 60000);
 });
 window.addEventListener("pagehide", () => { if (TIMER) clearInterval(TIMER); if (TIMER_REL) clearInterval(TIMER_REL); });
