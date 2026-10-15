@@ -133,8 +133,8 @@ async function troca(mid,el){
   }catch(e){el.classList.remove('trab');alert('Não deu para mudar esse acesso. Tente de novo.')}
 }
 
-async function resetar(){
-  const u=pessoa(SEL); if(!u)return;
+async function resetar(id){
+  const u=pessoa(id==null?SEL:id); if(!u)return;
   const souEu=(String(u.usuario).toLowerCase()===String(EU).toLowerCase());
   if(!confirm(souEu
     ? 'ATENÇÃO: esta pessoa é VOCÊ.\n\nCriar senha nova aqui vai TE DERRUBAR do portal na hora, e você só volta com a senha nova.\n\nEla vai aparecer numa tarja verde no alto da tela. ANOTE antes de fechar ou de atualizar — depois não dá para ver de novo.\n\nQuer mesmo?'
@@ -144,6 +144,7 @@ async function resetar(){
     MSG='';
     TOPO='<div class="senha">Senha nova de <b>'+esc(u.nome)+'</b> (entra como <code>'+esc(u.usuario)+'</code>): <code>'+esc(r.senha_provisoria)+'</code><div class="m" style="color:#a8e6c2">Passe para ela por WhatsApp. Na primeira entrada o portal pede para trocar. Esta senha some da tela quando você atualizar.</div></div>';
     await boot();
+    window.scrollTo(0,0);
   }catch(e){alert('Não deu para trocar a senha.')}
 }
 
@@ -252,17 +253,18 @@ function desenha(){
   if(!USO.length){h+='<div class="vazio">ninguém abriu o portal nestes 7 dias</div>'}
   else{
     const ord=USO.slice().sort(function(a,b){return (b.minutos7||0)-(a.minutos7||0)});
-    h+='<div class="rolar"><table><tr><th>Quem</th><th>Hoje</th><th>Visitas em 7 dias</th><th>Tempo em 7 dias</th><th>Visita mais longa</th><th>Última vez</th></tr>';
+    h+='<div class="rolar"><table><tr><th>Quem</th><th>Hoje</th><th>Visitas em 7 dias</th><th>Tempo em 7 dias</th><th>Visita mais longa</th><th>Última vez</th><th>Senha</th></tr>';
     ord.forEach(function(x){
       const nunca=!x.ultimo_acesso;
       h+='<tr><td><b>'+esc(x.nome)+'</b>'+(x.ativo?'':' <span class="pill p-bad">desligada</span>')+'</td>'+
          '<td>'+(x.hoje||0)+'</td><td>'+(x.visitas7||0)+'</td><td>'+tempoTxt(x.minutos7)+'</td>'+
          '<td>'+tempoTxt(x.maior_visita7)+'</td>'+
-         '<td>'+(nunca?'<span class="pill p-bad">nunca entrou</span>':esc(dataTxt(x.ultimo_acesso)))+'</td></tr>';
+         '<td>'+(nunca?'<span class="pill p-bad">nunca entrou</span>':esc(dataTxt(x.ultimo_acesso)))+'</td>'+
+         '<td>'+(pessoa(x.id)?'<button class="b" onclick="resetar('+Number(x.id)+')">🔑 Senha nova</button>':'')+'</td></tr>';
     });
     h+='</table></div>';
   }
-  h+='<div class="m">O portal anota cada vez que alguém abre uma tela, mas não sabe a hora em que a pessoa fecha o navegador. O tempo aqui é uma <b>estimativa</b>: aberturas com menos de 30 minutos de intervalo contam como a mesma visita.</div>';
+  h+='<div class="m">O portal anota cada vez que alguém abre uma tela, mas não sabe a hora em que a pessoa fecha o navegador. O tempo aqui é uma <b>estimativa</b>: aberturas com menos de 30 minutos de intervalo contam como a mesma visita. O portal não guarda a senha de ninguém (só uma versão embaralhada, que não dá para ler): o botão <b>🔑 Senha nova</b> cria uma senha e mostra na tarja verde lá em cima — a antiga para de valer na hora.</div>';
   h+='</div>';
 
   /* escolher a pessoa */
