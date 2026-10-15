@@ -261,8 +261,12 @@ let COD='', DADO=null, VISTOS=null, TIMER=null, ULT_OK=0, SOM=false, BUSCANDO=fa
    Sem ?portal=1 (TV fisica) continua o codigo proprio da TV, como antes. No modo portal vale a mesma trava das outras telas (cdmGuarda + portal.js). */
 const PTOK=(function(){ try{ return sessionStorage.getItem('cdm_token')||''; }catch(e){ return ''; } })();
 const PORTAL=/[?&]portal=1/.test(location.search);
-const LOJAS=['Água Verde','São Braz','Ahú'];
-let LOJA='', DE_NOVO=false; try{ LOJA=localStorage.getItem('cdm_tv_loja')||''; }catch(e){}
+/* 15/10/2026 (obra 124, chat-tv-ahu-saobraz-15-10) Fabio: "no ahu coloque tambem a tv da cozinha e no sao braz tambem"
+   + "coloque somente ahu no ahu e sao braz somente sao braz". Botao do grupo Ahu = tv/?portal=1&loja=ahu (modulo tvahu) e do
+   grupo Sao Braz = &loja=sb (modulo tvsb): a tela fica presa na loja, sem botao das outras. O banco (cozinha_tv_pode) confere. */
+const FIXA=({sb:'São Braz',ahu:'Ahú'})[(new URLSearchParams(location.search).get('loja')||'').toLowerCase()]||'';
+const LOJAS=FIXA?[FIXA]:['Água Verde','São Braz','Ahú'];
+let LOJA='', DE_NOVO=false; if(!FIXA){ try{ LOJA=localStorage.getItem('cdm_tv_loja')||''; }catch(e){} }
 if(LOJAS.indexOf(LOJA)<0) LOJA=LOJAS[0];
 /* 14/10/2026 (chat-tv-qualidade-fotos-14-10) Fabio: "qdo aparecer algum erro ja tem que pular na tv fazendo som".
    Na TV da parede o som ja nasce LIGADO (antes nascia desligado e ninguem apertava o botao); no portal continua desligado
@@ -580,7 +584,7 @@ document.addEventListener('visibilitychange',function(){ if(document.visibilityS
 function montaLojas(){
   const rt=document.querySelector('.topo .rt'); if(!rt) return;
   const d=document.createElement('div'); d.className='lojas-tv';
-  d.innerHTML=LOJAS.map(function(l){ return '<button class="bt'+(l===LOJA?' on':'')+'" data-l="'+esc(l)+'">'+esc(l)+'</button>'; }).join('')
+  d.innerHTML=(LOJAS.length<2?'':LOJAS.map(function(l){ return '<button class="bt'+(l===LOJA?' on':'')+'" data-l="'+esc(l)+'">'+esc(l)+'</button>'; }).join(''))
     +'<button class="bt" data-cheia="1">⛶ Tela cheia</button><button class="bt'+(MODO_CARRO?' on':'')+'" data-carro="1">📺 Carrossel</button>'
     +'<button class="bt" data-info="regras">📖 Regras</button><button class="bt" data-info="codigos">🔑 Códigos das TVs</button><button class="bt" data-info="ligar">📲 Como ligar a TV</button>'
     +'<span class="cod-tv" id="cod-tv"></span>';
@@ -599,7 +603,7 @@ function montaLojas(){
   });
 }
 /* trava de entrada do modo portal: a mesma das outras telas (copia da Central Cozinha) */
-const CDMMODS=['tv'];
+const CDMMODS=FIXA?['tv',FIXA==='Ahú'?'tvahu':'tvsb']:['tv'];   /* 15/10: botao da loja aceita o modulo da loja */
 function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
 function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
@@ -636,7 +640,7 @@ function abreInfo(q){
      +'<p><b>Sem valor em R$ e sem nome de cliente</b> na TV.</p>';
   } else if(q==='codigos'){
     const cs=Array.isArray(j.codigos_tv)?j.codigos_tv:[];
-    h='<h1>🔑 Códigos das TVs</h1><p>Cada loja tem o seu. Digite na TV uma vez só: ela guarda.</p>'
+    h='<h1>🔑 '+(FIXA?'Código da TV · '+esc(FIXA):'Códigos das TVs')+'</h1><p>Cada loja tem o seu. Digite na TV uma vez só: ela guarda.</p>'
      +(cs.length? cs.map(function(c){ return '<div class="codl"><span>'+esc(c.loja)+'</span><span class="c">'+esc(c.codigo)+'</span></div>'; }).join('')
                 : '<p>Ainda não carregou. Feche e abra de novo daqui a pouco.</p>')
      +'<p style="margin-top:1em">Quem tem o código vê só a TV da cozinha daquela loja. Perdeu ou vazou? Peça para criar outro e desligar o antigo.</p>';
