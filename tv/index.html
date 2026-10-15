@@ -348,7 +348,7 @@ function desenha(novos){
       return '<div class="e s-'+esc(e.setor)+(e.grave?' grave':'')+(nv?' novo':'')+'">'
         +'<div><div class="hr">'+esc(e.hora)+'</div><div class="ha">'+haMin(e.ts)+'</div></div><div>'
         +'<div class="tt">'+esc(e.titulo)+(nv?' <span class="pl p-novo">novo</span>':'')+' <span class="pl '+pc+'">'+esc(e.setor)+'</span></div>'
-        +'<div class="lj">'+(marcaCurta(e.marca)?'<span class="mc">'+esc(marcaCurta(e.marca))+'</span>':'<span class="mc sem">marca não informada</span>')+' · '+(e.pedido?'pedido <b>'+esc(e.pedido)+'</b>':'sem nº de pedido')+(e.item?' · '+esc(e.item):'')+'</div>'
+        +'<div class="lj">'+(marcaLoja(e.marca)?'<span class="mc">'+esc(marcaLoja(e.marca))+'</span>':'<span class="mc sem">marca não informada</span>')+' · '+(e.pedido?'pedido <b>'+esc(e.pedido)+'</b>':'sem nº de pedido')+(e.item?' · '+esc(e.item):'')+'</div>'
         +(e.disse?'<div class="ds">“'+esc(e.disse)+'”</div>':'')
         +'</div></div>';
     }).join('');
@@ -374,7 +374,7 @@ function desenha(novos){
   $('pz-st').innerHTML=(lm==null||lm>30)? '<span class="alerta">⚠️ iFood sem leitura '+(lm==null?'há mais de 2 dias':'há '+tempo(lm))+' — lista pode estar velha</span>' : 'iFood lido há '+lm+' min';
   $('pz').innerHTML=ab.length? ab.slice(0,12).map(function(x){
       return '<div class="p'+(x.o_que?'':' aberto')+'"><div class="it">'+esc(x.item)+'<small>'+(x.o_que?'loja disse: '+esc(x.o_que):'<b style="color:var(--bad)">loja ainda não explicou</b>')+'</small>'
-        +'<small class="mk">'+((x.nomes.length||x.marcas)>1?(x.nomes.length||x.marcas)+' marcas':'1 marca')+(x.nomes.length?': '+esc(x.nomes.join(', ')):'')+'</small></div><div class="tm">fora há '+tempo(x.min)+'</div></div>';
+        +'<small class="mk">'+(lojaTv()?esc(lojaTv())+' · ':'')+((x.nomes.length||x.marcas)>1?(x.nomes.length||x.marcas)+' marcas':'1 marca')+(x.nomes.length?': '+esc(x.nomes.join(', ')):'')+'</small></div><div class="tm">fora há '+tempo(x.min)+'</div></div>';
     }).join('')
     : '<div class="vazio"><b>Nada fora do ar</b> além do que é de propósito.</div>';
   $('pz-ok').innerHTML=ok.length? '<b>Fora do ar de propósito</b> ('+ok.length+(ok.length>1?' itens':' item')+', a loja já explicou): '+ok.slice(0,14).map(x=>esc(x.item)).join(' · ') : '';
@@ -509,6 +509,10 @@ function marcaCurta(m){
   if(/cidadao do mundo burger/.test(t)) return 'Cidadão Burger';
   const c=curta(m).trim(); return c===c.toUpperCase()? c.toLowerCase().replace(/(^|\s)\S/g,x=>x.toUpperCase()) : c;
 }
+/* 15/10/2026 (obra 124, chat-tv-ahu-saobraz-15-10) Fabio: "colocar o nome completo da loja por gentileza pra nao gerar duvidas":
+   a marca vem sempre com a loja ("Cidadão Burger · São Braz"). A loja e a que o banco devolveu (so tem dado dela na tela). */
+function lojaTv(){ return (DADO&&DADO.loja)||(PORTAL?LOJA:''); }
+function marcaLoja(m){ const c=marcaCurta(m), l=lojaTv(); return c? c+(l?' · '+l:'') : ''; }
 function cliMostra(){
   const el=$('cli'); const av=CLI; if(!av){ el.style.display='none'; return; } el.style.display='';
   const h=av.hoje||{}, hn=Number(h.n)||0;
@@ -543,7 +547,7 @@ function cliMostra(){
   /* so as etiquetas que o PROPRIO cliente marcou no iFood (o classificador de erro da cozinha dava nome errado a texto de avaliacao) */
   const sobre=r.elogio?'nota máxima':(Array.isArray(r.tags)&&r.tags.length?esc(r.tags.slice(0,2).join(', '))+(r.tags.length>2?' +'+(r.tags.length-2):''):'');
   el.className='cli'+(r.elogio?' bom':'');
-  el.innerHTML=lb+'<div><div class="q1">'+(fila.length>1?((CLI_I%fila.length)+1)+'/'+fila.length+' · ':'')+'<span class="st">'+st+'</span> · avaliou '+esc(r.dia)+(r.pedido?' · pedido '+esc(r.pedido)+(r.pedido_dia?' de '+esc(r.pedido_dia):''):'')+(marcaCurta(r.marca)?' · <b>'+esc(marcaCurta(r.marca))+'</b>':'')+(sobre?' · '+sobre:'')+'</div>'
+  el.innerHTML=lb+'<div><div class="q1">'+(fila.length>1?((CLI_I%fila.length)+1)+'/'+fila.length+' · ':'')+'<span class="st">'+st+'</span> · avaliou '+esc(r.dia)+(r.pedido?' · pedido '+esc(r.pedido)+(r.pedido_dia?' de '+esc(r.pedido_dia):''):'')+(marcaLoja(r.marca)?' · <b>'+esc(marcaLoja(r.marca))+'</b>':'')+(sobre?' · '+sobre:'')+'</div>'
     +'<div class="q2">'+(r.disse&&String(r.disse).trim()?'“'+esc(r.disse)+'”':'<span style="font-style:normal;color:var(--muted)">(sem comentário escrito)</span>')+'</div></div>';
 }
 
@@ -698,7 +702,7 @@ async function abreDia(dm){
   const foto=e=>{ const k=Number(e.fotos)||0; if(!k||!e.pedido) return '';
     return PORTAL?'<br><button class="bt" style="margin-top:.3em" onclick="verFotoTV(\''+esc(String(e.pedido).replace(/[^0-9A-Za-z-]/g,''))+'\')">📷 ver '+(k===1?'a foto':'as '+k+' fotos')+' do cliente</button>'
                  :'<br><span class="pl p-exp" style="font-size:.75em">📷 '+k+(k===1?' foto':' fotos')+' do cliente · veja no portal</span>'; };
-  const mp=e=>{ const mc=marcaCurta(e.marca);
+  const mp=e=>{ const mc=marcaLoja(e.marca);
     return (mc?'<span class="mc" style="font-size:1em">'+esc(mc)+'</span>':'<span style="color:var(--muted)">marca não informada</span>')+'<br>'+(e.pedido?'pedido <b>'+esc(e.pedido)+'</b>':'sem nº de pedido')+foto(e); };
   const linha=e=>'<tr><td class="hr">'+esc(e.hora)+'</td><td><span class="pl '+(e.setor==='cozinha'?'p-coz':e.setor==='montagem'?'p-mon':'p-exp')+'">'+esc(e.setor)+'</span>'
           +(e.qual?'<br><small style="color:'+(e.na_meta?'var(--bad)':'var(--muted)')+'">'+(e.na_meta?'conta na meta':'não conta na meta')+'</small>':'')+'</td>'
@@ -807,7 +811,7 @@ async function carroBusca(){
 function carroMostra(){
   const el=$('carro'); if(!el) return;
   if(!CARRO.length){ el.style.display='none'; return; }
-  const f=CARRO[CARRO_I%CARRO.length], mc=marcaCurta(f.marca);
+  const f=CARRO[CARRO_I%CARRO.length], mc=marcaLoja(f.marca);
   el.style.display='';
   el.innerHTML='<div class="ft"><img src="'+esc(f.link)+'" alt="foto que o cliente mandou" onerror="this.style.display=\'none\'"></div>'
     +'<div class="tx"><div class="lbx">📷 Foto do cliente'+(CARRO.length>1?' · '+((CARRO_I%CARRO.length)+1)+'/'+CARRO.length:'')+'<small>erros da semana que contam na meta</small></div>'
@@ -830,7 +834,7 @@ function slErros(){
     +'<div class="sl-nums"><div><b>'+L.length+'</b><span>erros hoje</span></div><div><b style="color:var(--bad)">'+n('cozinha')+'</b><span>cozinha · comida</span></div><div><b style="color:var(--warn)">'+n('montagem')+'</b><span>montagem · sacola</span></div></div>';
   if(!L.length) return {html:h+'<div class="sl-vazio">Nenhum erro hoje até agora 👏</div>', dur:12};
   h+='<div class="sl-es">'+L.slice(0,2).map(function(e){
-      const nv=(Date.now()-e.ts)<NOVO_MIN*60000, mc=marcaCurta(e.marca);
+      const nv=(Date.now()-e.ts)<NOVO_MIN*60000, mc=marcaLoja(e.marca);
       return '<div class="sl-e s-'+esc(e.setor)+(nv?' novo':'')+'"><div class="hr">'+esc(e.hora)+'</div><div>'
         +'<div class="tt">'+esc(e.titulo)+(nv?' <span class="pl p-novo">novo</span>':'')+'</div>'
         +'<div class="lj">'+(mc?'<span class="mc">'+esc(mc)+'</span> · ':'')+(e.pedido?'pedido <b>'+esc(e.pedido)+'</b>':'sem nº de pedido')+'</div>'
@@ -862,7 +866,7 @@ function slMeta(){
 }
 function slFotos(){
   if(!CARRO.length) return null;
-  const f=CARRO[SL_FOTO%CARRO.length], mc=marcaCurta(f.marca);
+  const f=CARRO[SL_FOTO%CARRO.length], mc=marcaLoja(f.marca);
   return {html:'<div class="sl-tit">📷 Foto do cliente <small>erros da semana que contam na meta'+(CARRO.length>1?' · '+((SL_FOTO%CARRO.length)+1)+' de '+CARRO.length:'')+'</small></div>'
     +'<div class="sl-foto"><div class="ft"><img src="'+esc(f.link)+'" alt="foto que o cliente mandou" onerror="this.style.display=\'none\'"></div>'
     +'<div><div class="tt">'+esc(f.titulo||'')+'</div>'+(mc?'<span class="mc">'+esc(mc)+'</span>':'')+'<div class="q">pedido '+esc(f.pedido||'—')+' · '+esc(f.quando||'')+'</div></div></div>',
@@ -880,7 +884,7 @@ function slPz(){
   if(!ab.length) return null;
   return {html:'<div class="sl-tit">⏸ Fora do ar no iFood <small>'+ab.length+(ab.length>1?' itens':' item')+' sem ser de propósito</small></div>'
     +'<div class="sl-ps">'+ab.slice(0,5).map(function(x){
-      return '<div class="sl-p'+(x.o_que?' exp':'')+'"><div class="it">'+esc(x.item)+'<small>'+(x.o_que?'loja disse: '+esc(x.o_que):'<b style="color:var(--bad)">loja ainda não explicou</b>')+(x.nomes.length?' · '+esc(x.nomes.slice(0,3).join(', ')):'')+'</small></div><div class="tm">há '+tempo(x.min)+'</div></div>';
+      return '<div class="sl-p'+(x.o_que?' exp':'')+'"><div class="it">'+esc(x.item)+'<small>'+(x.o_que?'loja disse: '+esc(x.o_que):'<b style="color:var(--bad)">loja ainda não explicou</b>')+(x.nomes.length?' · '+esc(lojaTv())+': '+esc(x.nomes.slice(0,3).join(', ')):'')+'</small></div><div class="tm">há '+tempo(x.min)+'</div></div>';
     }).join('')+'</div>'+(ab.length>5?'<div class="sl-mais">+ '+(ab.length-5)+' outros</div>':''), dur:12};
 }
 function slCli(){
@@ -900,7 +904,7 @@ function slCli(){
       +(gn!=null?'<div class="sl-fr">'+(gn>0?gn+(gn>1?' avaliações novas':' avaliação nova')+' em 7 dias':'Nenhuma avaliação nova em 7 dias')+'</div>':''),
       dur:10, depois:function(){ SL_CLI++; }};
   }
-  const nt=Math.max(0,Math.min(5,Number(r.nota)|0)), mc=marcaCurta(r.marca);
+  const nt=Math.max(0,Math.min(5,Number(r.nota)|0)), mc=marcaLoja(r.marca);
   const tags=r.elogio?'nota máxima':(Array.isArray(r.tags)&&r.tags.length?'o cliente marcou: '+r.tags.slice(0,3).join(', '):'');
   return {html:'<div class="sl-tit">⭐ O cliente disse <small>iFood · avaliou '+esc(r.dia||'')+(fila.length>1?' · '+((SL_CLI%fila.length)+1)+' de '+fila.length:'')+'</small></div>'
     +'<div class="sl-cli"><div class="st"'+(r.elogio?' style="color:var(--ok)"':'')+'>'+'★'.repeat(nt)+'☆'.repeat(5-nt)+'</div>'
