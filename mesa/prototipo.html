@@ -6,472 +6,600 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Courier+Prime:wght@400;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-/* Layout: barra de demonstração em cima; abaixo, a "tela" do tablet (trilho de categorias · vitrine · sacola) ou a impressora da cozinha ou o painel do gerente. Visual único: fachada preta, letra branca, ouro só no botão principal. */
+/* Conceito: a parede preta da casa vira um mural de cartazes lambe-lambe (um por prato, cada prato tem nome de artista).
+   O pedido é uma comanda de papel térmico. Ao enviar, a comanda sai imprimindo. Ouro só no botão que manda o pedido. */
 :root{
-  --preto:#111111; --carvao:#1a1916; --carvao2:#22201c; --linha:#33302a;
-  --branco:#ffffff; --texto2:#b8b1a4; --texto3:#8a8478;
-  --ouro:#E0A81C; --ouro-tinta:#111111; --ambar:#C2762A;
-  --ok:#4cb874; --ruim:#e0645a;
-  --papel:#f5f1e6; --tinta:#161512;
+  --muro:#0e0d0b; --muro2:#161412; --muro3:#1f1c19; --linha:#2c2823;
+  --branco:#ffffff; --cinza:#a69e90; --cinza2:#6e675d;
+  --ouro:#E0A81C; --ambar:#C2762A;
+  --papel:#ECE5D3; --kraft:#C8AD82; --cartaz-preto:#1b1916; --tinta:#14120f;
+  --termico:#f6f4ee; --ok:#63c78e; --ruim:#ef7b6d;
   --f-titulo:"Anton","Oswald","Arial Black",sans-serif;
   --f-corpo:"Barlow","Helvetica Neue",Arial,sans-serif;
   --f-rotulo:"Barlow Condensed","Barlow","Arial Narrow",sans-serif;
   --f-cupom:"Courier Prime","Courier New",monospace;
+  --ruido:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .05 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  --sujo:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .11 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
   color-scheme:dark;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{height:100%}
-body{background:var(--preto);color:var(--branco);font-family:var(--f-corpo);font-size:15px;line-height:1.4;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 24px}
-button{font:inherit;color:inherit;cursor:pointer}
-button:focus-visible,input:focus-visible{outline:2px solid var(--ouro);outline-offset:2px}
-.tit{font-family:var(--f-titulo);text-transform:uppercase;letter-spacing:.01em;font-weight:400;line-height:1.02;text-wrap:balance;margin:0}
-.rot{font-family:var(--f-rotulo);text-transform:uppercase;letter-spacing:.08em;font-weight:600;font-size:12px;color:var(--texto2)}
+body{margin:0;background:#070706;color:var(--branco);font-family:var(--f-corpo);font-size:15px;line-height:1.4;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 28px}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0}
+:focus-visible{outline:2px solid var(--branco);outline-offset:3px}
+.tit{font-family:var(--f-titulo);font-weight:400;text-transform:uppercase;line-height:.92;letter-spacing:.005em;text-wrap:balance;margin:0}
+.rot{font-family:var(--f-rotulo);font-weight:600;text-transform:uppercase;letter-spacing:.16em;font-size:12px;color:var(--cinza)}
 .num{font-variant-numeric:tabular-nums}
+.ic{width:18px;height:18px;flex:none}
 
-/* barra de demonstração */
-.demo{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;max-width:1180px;margin:0 auto 12px}
-.demo .aviso{font-size:13px;color:var(--texto2);min-width:0;flex:1 1 280px}
-.demo .aviso b{color:var(--branco)}
-.vistas{display:flex;gap:4px;background:var(--carvao);border:1px solid var(--linha);border-radius:999px;padding:4px;flex-wrap:wrap}
-.vistas button{border:0;background:transparent;padding:8px 14px;border-radius:999px;font-family:var(--f-rotulo);font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:13px;color:var(--texto2)}
-.vistas button[aria-pressed="true"]{background:var(--branco);color:var(--preto)}
-.vistas .bolha{display:inline-block;min-width:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--ruim);color:#fff;font-size:11px;line-height:18px;text-align:center}
+/* ===== barra de demonstração (fora do tablet) ===== */
+.demo{max-width:1220px;margin:0 auto 14px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}
+.demo p{margin:0;font-size:13px;color:var(--cinza);flex:1 1 320px;min-width:0}
+.demo p b{color:var(--branco);font-weight:600}
+.vistas{display:flex;flex-wrap:wrap;gap:2px;padding:3px;border:1px solid var(--linha);border-radius:10px;background:var(--muro2)}
+.vistas button{font-family:var(--f-rotulo);font-weight:600;letter-spacing:.1em;text-transform:uppercase;font-size:12.5px;color:var(--cinza);padding:8px 14px;border-radius:7px;display:flex;align-items:center;gap:6px}
+.vistas button[aria-pressed="true"]{background:var(--branco);color:var(--tinta)}
+.bolha{min-width:18px;height:18px;border-radius:9px;background:var(--ruim);color:#fff;font-size:11px;display:inline-grid;place-items:center;padding:0 5px}
 
-/* moldura do tablet */
-.tablet{max-width:1180px;margin:0 auto;background:var(--carvao);border:10px solid #000;border-radius:26px;box-shadow:0 0 0 1px var(--linha),0 30px 80px rgba(0,0,0,.6);overflow:hidden;position:relative;min-height:620px;display:flex;flex-direction:column}
-.topo{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;border-bottom:1px solid var(--linha);background:var(--preto);flex-wrap:wrap}
+/* ===== o tablet ===== */
+.tablet{max-width:1220px;margin:0 auto;height:min(820px,calc(100vh - 90px));min-height:600px;position:relative;display:flex;flex-direction:column;overflow:hidden;overflow:clip;
+  border-radius:30px;border:11px solid #000;outline:1px solid #26231f;box-shadow:0 40px 90px -30px rgba(0,0,0,.9);
+  background:var(--ruido),radial-gradient(ellipse 80% 55% at 50% 118%,rgba(194,118,42,.22),transparent 70%),var(--muro)}
+.topo{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;border-bottom:1px solid var(--linha);background:rgba(10,9,8,.85);flex-wrap:wrap;position:relative;z-index:2}
 .marca{display:flex;align-items:center;gap:12px;min-width:0}
-.selo{width:44px;height:44px;border-radius:50%;border:2px solid var(--branco);display:grid;place-items:center;flex:none;background:#000}
-.selo svg{width:30px;height:30px}
-.marca .tit{font-size:22px}
-.marca small{display:block;font-family:var(--f-rotulo);letter-spacing:.14em;text-transform:uppercase;font-size:11px;color:var(--texto2)}
-.onde{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.chip{font-family:var(--f-rotulo);text-transform:uppercase;letter-spacing:.08em;font-weight:700;font-size:14px;border:1px solid var(--linha);border-radius:999px;padding:6px 14px;background:var(--carvao2)}
-.btn-sec{border:1px solid var(--linha);background:transparent;border-radius:12px;padding:10px 14px;font-family:var(--f-rotulo);text-transform:uppercase;letter-spacing:.08em;font-weight:700;font-size:14px}
-.btn-sec:hover{border-color:var(--texto3)}
-.btn-ouro{border:0;background:var(--ouro);color:var(--ouro-tinta);border-radius:14px;padding:16px 22px;font-family:var(--f-titulo);text-transform:uppercase;font-size:20px;letter-spacing:.02em}
-.btn-ouro:disabled{background:var(--linha);color:var(--texto3);cursor:not-allowed}
+.marca .tit{font-size:21px;line-height:1}
+.marca small{display:block;font-family:var(--f-rotulo);font-weight:600;letter-spacing:.2em;text-transform:uppercase;font-size:10.5px;color:var(--cinza);margin-top:3px}
+.acoes{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.onde{font-family:var(--f-titulo);text-transform:uppercase;font-size:17px;letter-spacing:.03em;padding:7px 14px;border:1.5px solid var(--branco);border-radius:8px;line-height:1}
+.fantasma{display:inline-flex;align-items:center;gap:8px;font-family:var(--f-rotulo);font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:13.5px;padding:9px 14px;border-radius:9px;border:1px solid var(--linha);color:var(--branco);background:var(--muro2)}
+.fantasma:hover{border-color:var(--cinza2)}
+.btn-ouro{background:var(--ouro);color:var(--tinta);font-family:var(--f-titulo);text-transform:uppercase;font-size:21px;letter-spacing:.02em;padding:16px 24px;border-radius:12px;line-height:1;display:inline-flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 10px 24px -12px rgba(224,168,28,.7)}
+.btn-ouro:hover{filter:brightness(1.06)}
+.btn-ouro:active{transform:translateY(1px)}
+.btn-ouro:disabled{background:var(--muro3);color:var(--cinza2);box-shadow:none;cursor:not-allowed}
+#tela{flex:1;min-height:0;display:flex;flex-direction:column;position:relative}
 
-/* tela de boas-vindas */
-.boas{flex:1;display:grid;place-items:center;padding:40px 20px;text-align:center;
-  background:radial-gradient(ellipse 70% 60% at 50% 110%, rgba(194,118,42,.28), transparent 70%),var(--carvao)}
-.boas .tit{font-size:clamp(40px,7vw,84px)}
-.boas p{color:var(--texto2);max-width:46ch;margin:14px auto 28px;font-size:17px}
-.boas .escolha{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
-.cartao-opcao{width:min(260px,100%);border:1px solid var(--linha);background:var(--carvao2);border-radius:18px;padding:22px;text-align:left;display:grid;gap:6px}
-.cartao-opcao:hover{border-color:var(--branco)}
-.cartao-opcao .tit{font-size:28px}
-.cartao-opcao span{color:var(--texto2);font-size:14px}
+/* ===== boas-vindas ===== */
+.boas{flex:1;display:grid;grid-template-rows:1fr auto;overflow:hidden}
+.boas-meio{display:grid;place-items:center;align-content:center;gap:14px;text-align:center;padding:30px 20px}
+.boas .gigante{font-size:clamp(68px,13vw,168px);line-height:.9;padding-bottom:.12em}
+.boas p{margin:4px 0 14px;color:var(--cinza);font-size:18px;max-width:40ch}
+.boas p b{color:var(--branco);font-weight:600}
+.faixa{transform:rotate(-2.2deg);margin:0 -40px 46px;background:var(--sujo),var(--kraft);color:var(--tinta);padding:12px 0;overflow:hidden;box-shadow:0 12px 26px -12px #000}
+.faixa-rolo{display:flex;width:max-content;animation:rola 70s linear infinite}
+.faixa span{font-family:var(--f-titulo);text-transform:uppercase;font-size:30px;white-space:nowrap;padding:0 18px;line-height:1}
+.faixa i{font-style:normal;opacity:.45}
+@keyframes rola{to{transform:translateX(-50%)}}
 
-/* cardápio */
-.corpo{flex:1;display:grid;grid-template-columns:200px minmax(0,1fr) 320px;min-height:0}
-.trilho{border-right:1px solid var(--linha);padding:12px 0;overflow:auto;background:var(--preto)}
-.trilho button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:12px 18px;font-family:var(--f-rotulo);text-transform:uppercase;letter-spacing:.06em;font-weight:600;font-size:15px;color:var(--texto2);border-left:3px solid transparent}
-.trilho button[aria-current="true"]{color:var(--branco);border-left-color:var(--branco);background:var(--carvao)}
-.vitrine{padding:18px 20px 28px;overflow:auto;min-width:0}
-.vitrine h2.tit{font-size:34px;margin-bottom:4px}
-.vitrine .sub{color:var(--texto3);font-size:13px;margin:0 0 16px}
-.grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
-.prod{border:1px solid var(--linha);background:var(--carvao2);border-radius:16px;padding:0;text-align:left;display:flex;flex-direction:column;overflow:hidden;min-width:0}
-.prod:hover{border-color:var(--texto3)}
-.foto{aspect-ratio:16/9;max-width:100%;display:grid;place-items:center;position:relative;overflow:hidden}
-.foto .tit{font-size:30px;color:rgba(255,255,255,.92);padding:0 10px;text-align:center}
-.foto i{position:absolute;bottom:6px;right:8px;font-style:normal;font-family:var(--f-rotulo);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.55)}
-.prod .info{padding:12px 14px 14px;display:grid;gap:4px}
-.prod .nome{font-family:var(--f-rotulo);font-weight:700;text-transform:uppercase;letter-spacing:.03em;font-size:18px;line-height:1.1}
-.prod .desc{color:var(--texto2);font-size:13px;min-height:1.2em}
-.prod .preco{font-weight:700;font-size:16px}
-.sacola{border-left:1px solid var(--linha);display:flex;flex-direction:column;background:var(--preto);min-width:0}
-.sacola header{padding:16px 18px 10px;display:flex;justify-content:space-between;align-items:baseline}
-.sacola header .tit{font-size:24px}
-.itens{flex:1;overflow:auto;padding:0 18px;display:grid;align-content:start;gap:10px}
-.vazio{color:var(--texto3);font-size:14px;padding:20px 0}
-.item{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 0;border-bottom:1px solid var(--linha)}
-.item .n{font-weight:600}
-.item .ex{grid-column:1/-1;color:var(--texto2);font-size:13px}
-.qtd{display:flex;align-items:center;gap:6px;grid-column:1/-1;margin-top:4px}
-.qtd button{width:30px;height:30px;border-radius:8px;border:1px solid var(--linha);background:transparent;font-weight:700}
-.sacola footer{padding:14px 18px 18px;border-top:1px solid var(--linha);display:grid;gap:10px}
-.total{display:flex;justify-content:space-between;align-items:baseline}
-.total b{font-family:var(--f-titulo);font-size:30px;font-weight:400}
-.regra{font-size:12px;color:var(--texto3)}
-.regra b{color:var(--texto2)}
+/* ===== cardápio ===== */
+.cardapio{flex:1;min-height:0;display:grid;grid-template-columns:190px minmax(0,1fr) 330px}
+.setlist{padding:18px 0 18px 18px;overflow:auto;display:flex;flex-direction:column;gap:2px}
+.setlist .rot{margin:0 0 10px 2px}
+.setlist button{text-align:left;font-family:var(--f-titulo);text-transform:uppercase;font-size:21px;line-height:1.05;color:var(--cinza2);padding:7px 10px 7px 12px;border-left:3px solid transparent;display:flex;justify-content:space-between;gap:8px}
+.setlist button:hover{color:var(--cinza)}
+.setlist button[aria-current="true"]{color:var(--branco);border-left-color:var(--branco)}
+.setlist button small{font-family:var(--f-rotulo);font-size:12px;font-weight:600;letter-spacing:.06em;padding-top:4px}
+.mural{overflow:auto;padding:20px 26px 40px;min-width:0}
+.mural-cab{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:22px;flex-wrap:wrap}
+.mural-cab .tit{font-size:clamp(38px,4.6vw,58px)}
+.mural-cab p{margin:0;color:var(--cinza2);font-size:13px;max-width:30ch;text-align:right}
+.parede{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:30px 22px;padding-top:6px}
 
-/* janelas */
-.fundo{position:absolute;inset:0;background:rgba(0,0,0,.72);display:grid;place-items:center;padding:20px;z-index:5}
-.janela{background:var(--carvao);border:1px solid var(--linha);border-radius:20px;width:min(560px,100%);max-height:100%;overflow:auto;display:flex;flex-direction:column}
-.janela .cab{padding:20px 22px 6px}
-.janela .cab .tit{font-size:32px}
-.janela .cab p{color:var(--texto2);margin:6px 0 0}
-.grupo{padding:14px 22px;border-top:1px solid var(--linha);margin-top:12px}
-.grupo .gtit{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;gap:10px}
-.grupo .gtit b{font-weight:700}
-.op{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--linha);border-radius:12px;margin-top:8px;background:var(--carvao2);width:100%;text-align:left}
-.op[aria-pressed="true"]{border-color:var(--branco);background:#2b2924}
-.op .marc{width:22px;height:22px;border-radius:6px;border:2px solid var(--texto3);flex:none;display:grid;place-items:center;font-size:14px;font-weight:700}
-.op[aria-pressed="true"] .marc{background:var(--branco);border-color:var(--branco);color:var(--preto)}
-textarea{width:100%;min-height:64px;background:var(--carvao2);color:var(--branco);border:1px solid var(--linha);border-radius:12px;padding:10px;font:inherit;resize:vertical}
-.pe{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:16px 22px 20px;border-top:1px solid var(--linha);flex-wrap:wrap;position:sticky;bottom:0;background:var(--carvao)}
-.passo{display:flex;align-items:center;gap:8px}
-.passo button{width:44px;height:44px;border-radius:12px;border:1px solid var(--linha);background:transparent;font-size:22px;font-weight:700}
-.passo .num{font-size:22px;min-width:2ch;text-align:center;font-weight:700}
+/* o cartaz lambe-lambe */
+.cartaz{--r:0deg;width:100%;position:relative;container-type:inline-size;display:flex;flex-direction:column;gap:8px;min-height:268px;padding:16px 15px 13px;text-align:left;
+  background:var(--sujo),var(--papel);color:var(--tinta);transform:rotate(var(--r));transition:transform .2s ease,box-shadow .2s ease;
+  box-shadow:0 18px 26px -16px rgba(0,0,0,.95),0 2px 0 rgba(0,0,0,.25);
+  clip-path:polygon(0 1.5%,6% 0,22% 1.2%,40% .2%,61% 1.4%,83% .3%,100% 1.2%,99.4% 22%,100% 48%,99.2% 77%,100% 98.6%,78% 100%,55% 98.9%,31% 100%,9% 98.8%,0 100%,.7% 72%,0 41%,.8% 17%)}
+.cartaz.kraft{background:var(--sujo),var(--kraft)}
+.cartaz.preto{background:var(--ruido),var(--cartaz-preto);color:#f4efe4}
+button.cartaz:hover,button.cartaz:focus-visible{transform:rotate(0deg) translateY(-4px) scale(1.015);box-shadow:0 26px 34px -18px #000}
+.reticula{position:absolute;right:0;top:0;width:62%;height:52%;pointer-events:none;opacity:.17;
+  background:radial-gradient(currentColor 1.15px,transparent 1.6px) 0 0/7px 7px;
+  -webkit-mask:radial-gradient(ellipse at 100% 0,#000 18%,transparent 70%);mask:radial-gradient(ellipse at 100% 0,#000 18%,transparent 70%)}
+.cartaz .olho{position:relative;display:flex;align-items:center;justify-content:space-between;gap:6px;font-family:var(--f-rotulo);font-weight:700;letter-spacing:.18em;text-transform:uppercase;font-size:11px}
+.selo-veg{font-family:var(--f-rotulo);font-weight:700;letter-spacing:.1em;font-size:10px;border:1.5px solid currentColor;border-radius:999px;padding:1px 7px;transform:rotate(-6deg)}
+.cartaz .nome{position:relative;flex:1;display:flex;align-items:center;font-family:var(--f-titulo);text-transform:uppercase;line-height:.88;letter-spacing:-.005em;
+  font-size:min(56px,calc(96cqi / (var(--L) * .5)));overflow-wrap:normal;hyphens:none}
+.cartaz .rodape{position:relative;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;border-top:2.5px solid currentColor;padding-top:8px}
+.cartaz .desc{font-size:12.5px;line-height:1.25;font-weight:500;min-width:0}
+.cartaz .preco{font-family:var(--f-titulo);font-size:25px;line-height:1;white-space:nowrap;text-align:right}
+.cartaz .preco small{display:block;font-family:var(--f-rotulo);font-weight:700;font-size:10px;letter-spacing:.12em;text-transform:uppercase}
+.cartaz .preco em{font-style:normal;font-size:.55em;margin-right:2px;vertical-align:.45em}
+.fita{position:absolute;top:-9px;left:50%;width:70px;height:20px;transform:translateX(-50%) rotate(var(--fr,-3deg));background:rgba(236,229,211,.34);box-shadow:0 1px 2px rgba(0,0,0,.25);pointer-events:none;z-index:1}
+.peca{position:relative}
 
-/* teclado do cartão */
-.visor{font-family:var(--f-titulo);font-size:56px;text-align:center;letter-spacing:.06em;padding:8px;border:1px solid var(--linha);border-radius:14px;margin:14px 22px 0;min-height:84px;background:var(--preto)}
-.teclado{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 22px}
-.teclado button{padding:16px 0;border-radius:12px;border:1px solid var(--linha);background:var(--carvao2);font-family:var(--f-titulo);font-size:26px}
+/* comanda lateral */
+.lado{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(--linha);background:rgba(8,7,6,.6)}
+.lado-rolo{flex:1;min-height:0;overflow:auto;padding:18px 18px 8px}
+.comanda{background:var(--termico);color:var(--tinta);font-family:var(--f-cupom);font-size:13.5px;line-height:1.38;padding:18px 16px 22px;position:relative;
+  -webkit-mask:radial-gradient(circle 5px at 50% 100%,transparent 97%,#000) 0 0/12px 100% repeat-x;mask:radial-gradient(circle 5px at 50% 100%,transparent 97%,#000) 0 0/12px 100% repeat-x;
+  box-shadow:0 16px 26px -16px #000}
+.comanda .c-cab{display:flex;justify-content:space-between;align-items:baseline;font-weight:700;font-size:16px;letter-spacing:.04em}
+.comanda .c-sub{font-size:11.5px;letter-spacing:.06em;margin-top:2px}
+.comanda hr{border:0;border-top:1.5px dashed var(--tinta);margin:10px 0}
+.c-vazio{margin:12px 0;font-size:13px;line-height:1.5}
+.c-lin{padding:7px 0;border-bottom:1px dotted rgba(20,18,15,.35)}
+.c-lin:last-of-type{border-bottom:0}
+.c-l1{display:flex;justify-content:space-between;gap:8px;font-weight:700}
+.c-l1 .num{white-space:nowrap}
+.c-ex{padding-left:16px;font-size:12.5px}
+.c-qtd{display:flex;gap:6px;margin-top:6px}
+.c-qtd button{width:30px;height:28px;border:1.5px solid var(--tinta);border-radius:6px;font-family:var(--f-cupom);font-weight:700;font-size:16px;line-height:1}
+.c-tot{display:flex;justify-content:space-between;font-weight:700;font-size:17px}
+.lado-pe{padding:12px 18px 18px;display:grid;gap:10px;border-top:1px solid var(--linha)}
+.lado-pe .btn-ouro{width:100%}
+.nota{margin:0;font-size:12.5px;color:var(--cinza);text-align:center}
+.barra{display:none}
 
-/* Pix */
-.pix{flex:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;padding:28px;align-items:center;background:radial-gradient(ellipse 60% 70% at 0% 100%, rgba(194,118,42,.18), transparent 70%),var(--carvao)}
-.qrbox{background:#fff;border-radius:20px;padding:18px;justify-self:center;position:relative;width:min(340px,100%)}
-.qrbox #qr{display:grid;place-items:center}
-.qrbox #qr img,.qrbox #qr canvas{max-width:100%;height:auto}
-.qrbox .marca-d{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-14deg);background:var(--ruim);color:#fff;font-family:var(--f-titulo);font-size:20px;padding:4px 12px;border-radius:6px;white-space:nowrap}
-.qrbox .valor{color:var(--tinta);text-align:center;font-family:var(--f-titulo);font-size:34px;margin-top:10px}
-.pix ol{padding-left:20px;margin:14px 0;display:grid;gap:6px;color:var(--texto2)}
+/* ===== janelas ===== */
+.fundo{position:absolute;inset:0;z-index:20;background:rgba(5,5,4,.78);backdrop-filter:blur(3px);display:grid;place-items:center;padding:22px;animation:surge .18s ease}
+@keyframes surge{from{opacity:0}}
+.janela{background:var(--ruido),var(--muro2);border:1px solid var(--linha);border-radius:18px;width:min(560px,100%);max-height:100%;overflow:auto;box-shadow:0 30px 60px -20px #000}
+.janela.larga{width:min(940px,100%);display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1fr);overflow:hidden}
+.j-cartaz{padding:34px 30px;display:grid;place-items:center;background:var(--muro);border-right:1px solid var(--linha)}
+.j-cartaz .peca{width:min(320px,100%)}
+.j-cartaz .cartaz{min-height:400px;--r:-1.2deg}
+.j-op{display:flex;flex-direction:column;min-height:0;overflow:auto;max-height:min(680px,calc(100vh - 160px))}
+.j-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:22px 24px 6px}
+.j-cab .tit{font-size:34px}
+.j-cab p{margin:6px 0 0;color:var(--cinza)}
+.fecha{width:40px;height:40px;border-radius:10px;border:1px solid var(--linha);display:grid;place-items:center;flex:none}
+.grupo{padding:16px 24px;border-top:1px solid var(--linha)}
+.g-cab{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:12px}
+.g-cab b{font-family:var(--f-rotulo);text-transform:uppercase;letter-spacing:.08em;font-size:17px}
+.opcoes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.opc{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 12px;border-radius:10px;border:1.5px solid var(--linha);background:var(--muro);text-align:left;min-width:0}
+.opc span:first-child{min-width:0}
+.opc .v{color:var(--cinza);font-size:13px;white-space:nowrap}
+.opc[aria-pressed="true"]{border-color:var(--branco);background:#26221d}
+.opc[aria-pressed="true"] .v{color:var(--branco)}
+textarea{width:100%;min-height:62px;border-radius:10px;border:1.5px solid var(--linha);background:var(--muro);color:var(--branco);padding:10px 12px;font:inherit;resize:vertical}
+.j-pe{margin-top:auto;position:sticky;bottom:0;display:flex;gap:12px;align-items:center;justify-content:space-between;padding:16px 24px 20px;border-top:1px solid var(--linha);background:var(--muro2);flex-wrap:wrap}
+.passo{display:flex;align-items:center;border:1.5px solid var(--linha);border-radius:12px}
+.passo button{width:46px;height:50px;font-size:24px;font-weight:600}
+.passo span{min-width:2ch;text-align:center;font-family:var(--f-titulo);font-size:24px}
+.j-pe .btn-ouro{flex:1;min-width:220px}
+
+.duas{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:8px 24px 24px}
+.escolha{display:flex;flex-direction:column;gap:6px;align-items:flex-start;text-align:left;padding:20px;border-radius:14px;border:1.5px solid var(--linha);background:var(--muro)}
+.escolha:hover{border-color:var(--branco)}
+.escolha .e-num{font-family:var(--f-titulo);font-size:64px;line-height:.9;text-transform:uppercase}
+.escolha span:last-child{color:var(--cinza);font-size:14px}
+.cartao-fis{margin:10px 24px 0;aspect-ratio:1.6/1;max-width:100%;border-radius:14px;background:var(--sujo),var(--papel);color:var(--tinta);padding:16px 20px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 16px 30px -16px #000}
+.cartao-fis b{font-family:var(--f-titulo);font-size:82px;line-height:.9;font-weight:400}
+.cartao-fis span{font-family:var(--f-rotulo);font-weight:700;letter-spacing:.18em;text-transform:uppercase;font-size:12px}
+.teclado{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:16px 24px}
+.teclado button{height:60px;border-radius:12px;border:1px solid var(--linha);background:var(--muro);font-family:var(--f-titulo);font-size:28px}
+.teclado .ok{background:var(--branco);color:var(--tinta);border-color:var(--branco)}
+
+/* ===== enviado / imprimindo ===== */
+.enviado{flex:1;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:30px;padding:34px 40px;align-items:center;min-height:0;overflow:auto}
+.estado{display:inline-flex;align-items:center;gap:8px;font-family:var(--f-rotulo);font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--ok);font-size:13px}
+.estado::before{content:"";width:9px;height:9px;border-radius:50%;background:currentColor}
+.enviado .tit{font-size:clamp(52px,7vw,96px);margin:10px 0 16px}
+.enviado p{color:var(--cinza);font-size:18px;max-width:38ch;margin:0}
+.enviado p b{color:var(--branco);font-weight:600}
+.botoes{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
+.impressora{justify-self:center;width:min(320px,100%)}
+.boca{height:30px;border-radius:14px 14px 6px 6px;background:linear-gradient(#2b2824,#0c0b0a);box-shadow:inset 0 -6px 0 #000,0 1px 0 #3a362f;position:relative;z-index:2}
+.boca::after{content:"";position:absolute;left:12px;right:12px;bottom:6px;height:3px;border-radius:2px;background:#000}
+.saida{overflow:hidden;margin:-9px 14px 0;padding-bottom:18px}
+.saida .cupom{width:100%;animation:imprime 1.9s steps(22,end) .25s both}
+@keyframes imprime{from{transform:translateY(-102%)}to{transform:none}}
+
+/* cupom (o papel que sai) */
+.cupom{background:var(--termico);color:var(--tinta);font-family:var(--f-cupom);font-size:13px;line-height:1.36;padding:16px 16px 24px;
+  -webkit-mask:radial-gradient(circle 5px at 50% 100%,transparent 97%,#000) 0 0/12px 100% repeat-x;mask:radial-gradient(circle 5px at 50% 100%,transparent 97%,#000) 0 0/12px 100% repeat-x}
+.cupom .c{text-align:center}
+.cupom .g{font-size:19px;font-weight:700;letter-spacing:.03em}
+.cupom hr{border:0;border-top:1.5px dashed var(--tinta);margin:8px 0}
+.cupom .l{display:flex;justify-content:space-between;gap:8px}
+.cupom .a{padding-left:16px}
+.cupom .pg{border:2px solid var(--tinta);text-align:center;font-weight:700;padding:4px;margin-top:8px;letter-spacing:.05em}
+
+/* ===== Pix ===== */
+.pix{flex:1;display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:34px;padding:34px 40px;align-items:center;overflow:auto}
+.qr-papel{justify-self:center;width:min(340px,100%);background:var(--sujo),var(--papel);color:var(--tinta);padding:22px 22px 18px;transform:rotate(-1.2deg);box-shadow:0 26px 40px -22px #000;position:relative}
+.qr-papel #qr{display:grid;place-items:center;background:#fff;padding:10px}
+.qr-papel #qr img,.qr-papel #qr canvas{max-width:100%;height:auto}
+.qr-papel .carimbo{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%) rotate(-12deg);border:3px solid var(--ruim);color:var(--ruim);font-family:var(--f-titulo);font-size:28px;padding:2px 12px;background:rgba(236,229,211,.85)}
+.qr-papel .v{font-family:var(--f-titulo);font-size:40px;text-align:center;margin-top:12px;line-height:1}
+.pix ol{margin:16px 0;padding-left:22px;display:grid;gap:8px;color:var(--cinza);font-size:16px}
 .pix ol b{color:var(--branco)}
-.relogio{font-family:var(--f-titulo);font-size:44px}
-.esperando{display:flex;align-items:center;gap:10px;color:var(--texto2);margin:10px 0 16px}
-.pulso{width:12px;height:12px;border-radius:50%;background:var(--ok);animation:p 1.4s infinite}
-@keyframes p{0%{box-shadow:0 0 0 0 rgba(76,184,116,.6)}100%{box-shadow:0 0 0 14px rgba(76,184,116,0)}}
-@media (prefers-reduced-motion:reduce){.pulso{animation:none}}
-.copia{display:flex;gap:8px;margin:6px 0 14px}
-.copia input{flex:1;min-width:0;background:var(--preto);border:1px solid var(--linha);border-radius:10px;color:var(--texto2);padding:10px;font:13px var(--f-cupom)}
-.simula{border:1px dashed var(--texto3);border-radius:14px;padding:12px 14px;display:grid;gap:8px;margin-top:14px}
+.esperando{display:flex;align-items:center;gap:12px;color:var(--cinza);margin:6px 0 18px;flex-wrap:wrap}
+.pulso{width:11px;height:11px;border-radius:50%;background:var(--ok);animation:pulsa 1.4s infinite}
+@keyframes pulsa{0%{box-shadow:0 0 0 0 rgba(99,199,142,.55)}100%{box-shadow:0 0 0 14px rgba(99,199,142,0)}}
+.relogio{font-family:var(--f-titulo);font-size:26px;color:var(--branco)}
+.copia{display:flex;gap:8px;margin:4px 0 16px}
+.copia input{flex:1;min-width:0;border-radius:9px;border:1px solid var(--linha);background:var(--muro);color:var(--cinza);padding:10px;font:12.5px var(--f-cupom)}
+.simula{border:1.5px dashed var(--cinza2);border-radius:12px;padding:12px 14px;display:grid;gap:10px;margin-top:18px}
 .simula .rot{color:var(--ambar)}
 .simula div{display:flex;gap:8px;flex-wrap:wrap}
 
-/* pago */
-.pago{flex:1;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:28px;padding:28px;align-items:center}
-.pago .ok{color:var(--ok);font-family:var(--f-rotulo);font-weight:700;letter-spacing:.12em;text-transform:uppercase}
-.pago .tit{font-size:clamp(34px,5vw,58px);margin:6px 0 12px}
-.pago p{color:var(--texto2);font-size:16px;max-width:44ch}
+/* ===== cozinha ===== */
+.cozinha{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:26px;padding:26px 30px;overflow:auto;align-items:start}
+.cozinha .tit{font-size:46px;margin:6px 0 8px}
+.cozinha p.sub{margin:0 0 26px;color:var(--cinza)}
+.trilho{height:14px;border-radius:7px;background:linear-gradient(#d9d6cf,#8d8a83 55%,#5d5a54);box-shadow:0 6px 12px -6px #000;position:relative;z-index:2}
+.penduradas{display:flex;gap:18px;align-items:flex-start;padding:0 14px;overflow-x:auto;min-height:120px}
+.pendura{position:relative;width:250px;flex:none;margin-top:-6px;transform-origin:top center;animation:balanca 1.2s ease-out both}
+.pendura:nth-child(even){transform:rotate(.8deg)}
+.pendura::before{content:"";position:absolute;top:-4px;left:50%;width:34px;height:16px;transform:translateX(-50%);background:linear-gradient(#55524c,#2a2824);border-radius:3px;z-index:3}
+@keyframes balanca{0%{transform:rotate(3deg)}50%{transform:rotate(-1.5deg)}100%{transform:rotate(0)}}
+.vazio-coz{color:var(--cinza2);padding:30px 4px}
+.bloco{border:1px solid var(--linha);border-radius:14px;background:var(--muro2);padding:16px;display:grid;gap:4px}
+.bloco + .bloco{margin-top:14px}
+.lin{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--linha);font-size:14px}
+.bloco .rot + .lin{border-top:0}
+.tag{font-family:var(--f-rotulo);font-weight:700;letter-spacing:.06em;font-size:12.5px;padding:2px 8px;border-radius:6px;white-space:nowrap}
+.tag.esp{background:#3a301b;color:#f1cb6a}.tag.can{background:#3d221f;color:#f3a399}.tag.imp{background:#1c3426;color:#94e3b5}
+.nada{color:var(--cinza2);font-size:14px;margin:6px 0 0}
 
-/* cupom térmico */
-.cupom{background:var(--papel);color:var(--tinta);font-family:var(--f-cupom);font-size:13px;line-height:1.35;padding:16px 16px 22px;width:min(300px,100%);justify-self:center;
-  -webkit-mask:radial-gradient(circle 6px at 50% 100%,transparent 98%,#000) 0 0/14px 100% repeat-x;mask:radial-gradient(circle 6px at 50% 100%,transparent 98%,#000) 0 0/14px 100% repeat-x;box-shadow:0 8px 24px rgba(0,0,0,.4)}
-.cupom .c{text-align:center}
-.cupom .g{font-size:20px;font-weight:700}
-.cupom hr{border:0;border-top:1px dashed var(--tinta);margin:8px 0}
-.cupom .l{display:flex;justify-content:space-between;gap:8px}
-.cupom .a{padding-left:14px}
-.cupom .pg{border:2px solid var(--tinta);text-align:center;font-weight:700;padding:4px;margin-top:8px}
+/* ===== gerente ===== */
+.gerente{flex:1;overflow:auto;padding:28px 34px}
+.gerente .tit{font-size:46px;margin:6px 0 6px}
+.gerente > p{color:var(--cinza);margin:0 0 24px}
+.ajustes{display:grid;gap:22px;max-width:760px}
+.ajuste .rot{display:block;margin-bottom:10px}
+.modos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.modo{text-align:left;padding:16px;border-radius:12px;border:1.5px solid var(--linha);background:var(--muro2);display:grid;gap:6px;align-content:start}
+.modo b{font-family:var(--f-titulo);font-size:24px;text-transform:uppercase;font-weight:400}
+.modo span{color:var(--cinza);font-size:13.5px}
+.modo[aria-pressed="true"]{border-color:var(--branco);background:#26221d}
+.linha-aj{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.linha-aj input{width:96px;border-radius:10px;border:1.5px solid var(--linha);background:var(--muro);color:var(--branco);padding:10px 12px;font-family:var(--f-titulo);font-size:24px}
+.lojas{display:flex;gap:8px;flex-wrap:wrap}
+.lojas button{padding:10px 16px;border-radius:10px;border:1.5px solid var(--linha);font-family:var(--f-rotulo);font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.lojas button[aria-pressed="true"]{background:var(--branco);color:var(--tinta);border-color:var(--branco)}
+.chave{display:flex;align-items:center;gap:14px;text-align:left;padding:14px 16px;border-radius:12px;border:1.5px solid var(--linha);background:var(--muro2);width:100%}
+.chave .trilho-ch{width:50px;height:28px;border-radius:14px;background:var(--linha);position:relative;flex:none;transition:background .2s}
+.chave .trilho-ch::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--cinza);transition:transform .2s,background .2s}
+.chave[aria-pressed="true"] .trilho-ch{background:var(--ok)}
+.chave[aria-pressed="true"] .trilho-ch::after{transform:translateX(22px);background:#fff}
+.chave span{color:var(--cinza);font-size:13.5px}
+.chave b{display:block;color:var(--branco);font-size:16px}
 
-/* cozinha */
-.cozinha{flex:1;padding:22px;display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:22px;align-items:start}
-.cozinha h2.tit{font-size:30px}
-.cozinha .sub{color:var(--texto2);margin:4px 0 16px;font-size:14px}
-.fila{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
-.fila .cupom{width:260px}
-.bloco{border:1px solid var(--linha);border-radius:16px;padding:16px;background:var(--carvao2);display:grid;gap:10px}
-.bloco h3{margin:0}
-.lin{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--linha);font-size:14px}
-.lin:first-of-type{border-top:0}
-.tag{font-family:var(--f-rotulo);text-transform:uppercase;letter-spacing:.08em;font-weight:700;font-size:12px;padding:2px 8px;border-radius:6px;white-space:nowrap}
-.tag.esp{background:#3a3220;color:#f0c75a}
-.tag.can{background:#3b2220;color:#f19a92}
-.tag.imp{background:#1f3326;color:#8fe0ac}
-.nada{color:var(--texto3);font-size:14px}
+.toast{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:40;background:var(--branco);color:var(--tinta);font-weight:600;padding:12px 18px;border-radius:10px;box-shadow:0 14px 30px -10px #000;max-width:calc(100% - 32px);animation:sobe .22s ease}
+@keyframes sobe{from{opacity:0;transform:translate(-50%,8px)}}
 
-/* gerente */
-.gerente{flex:1;padding:24px;display:grid;gap:18px;max-width:760px}
-.gerente h2.tit{font-size:32px}
-.gerente .op{max-width:none}
-.campo{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.campo input{width:100px;background:var(--preto);border:1px solid var(--linha);border-radius:10px;color:var(--branco);padding:10px;font:inherit;font-size:18px}
-.toast{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);background:var(--branco);color:var(--preto);padding:12px 18px;border-radius:12px;font-weight:600;z-index:9;box-shadow:0 10px 30px rgba(0,0,0,.4);max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:reduce){
+  .faixa-rolo,.saida .cupom,.pendura,.pulso,.fundo,.toast{animation:none!important}
+  .cartaz{transition:none}
+}
 
-/* celular */
-@media (max-width:820px){
-  .tablet{border-width:6px;border-radius:18px}
-  .corpo{grid-template-columns:minmax(0,1fr)}
-  .trilho{display:flex;overflow-x:auto;border-right:0;border-bottom:1px solid var(--linha);padding:0}
-  .trilho button{white-space:nowrap;border-left:0;border-bottom:3px solid transparent;width:auto;padding:12px 14px}
-  .trilho button[aria-current="true"]{border-bottom-color:var(--branco)}
-  .sacola{border-left:0;border-top:1px solid var(--linha)}
-  .itens{max-height:220px}
-  .pix,.pago,.cozinha{grid-template-columns:minmax(0,1fr);padding:18px}
-  .grade{grid-template-columns:repeat(auto-fill,minmax(135px,1fr))}
-  .foto .tit{font-size:22px}
+/* ===== celular e tablet em pé ===== */
+@media (max-width:900px){
+  .tablet{height:auto;min-height:0;border-width:7px;border-radius:22px}
+  .fundo,.toast{position:fixed}
+  .fundo{padding:12px}
+  .cardapio{grid-template-columns:minmax(0,1fr)}
+  .setlist{flex-direction:row;overflow-x:auto;padding:10px 12px;border-bottom:1px solid var(--linha);gap:4px}
+  .setlist .rot{display:none}
+  .setlist button{white-space:nowrap;border-left:0;border-bottom:3px solid transparent;font-size:18px;padding:6px 10px}
+  .setlist button[aria-current="true"]{border-bottom-color:var(--branco)}
+  .setlist button small{display:none}
+  .mural{padding:18px 16px 96px}
+  .mural-cab p{text-align:left}
+  .parede{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 14px}
+  .cartaz{min-height:220px;padding:13px 12px 11px}
+  .cartaz .preco{font-size:21px}
+  .lado{display:none}
+  .barra{display:flex;position:sticky;bottom:0;z-index:5;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;background:rgba(10,9,8,.95);border-top:1px solid var(--linha)}
+  .barra .btn-ouro{font-size:17px;padding:13px 16px}
+  .janela.larga{grid-template-columns:minmax(0,1fr)}
+  .j-cartaz{padding:22px;border-right:0;border-bottom:1px solid var(--linha)}
+  .j-cartaz .cartaz{min-height:240px}
+  .opcoes{grid-template-columns:minmax(0,1fr)}
+  .enviado,.pix,.cozinha{grid-template-columns:minmax(0,1fr);padding:22px 18px}
+  .modos{grid-template-columns:minmax(0,1fr)}
+  .gerente{padding:22px 18px}
+  .faixa span{font-size:22px}
+  .duas{grid-template-columns:minmax(0,1fr)}
 }
 </style>
 
 <div class="demo">
-  <div class="aviso"><b>Protótipo para clicar.</b> Nenhum pedido é de verdade e nada vai para a impressora. O Pix antes da cozinha está desligado (liga no Gerente). Cardápio e preços do salão da Água Verde, lidos do Saipos em 17/09/2026.</div>
+  <p><b>Protótipo para clicar.</b> Nenhum pedido é de verdade e nada vai para a impressora. Cardápio e preços do salão da Água Verde, lidos do Saipos em 17/09/2026. Pix antes da cozinha: desligado (liga no Gerente).</p>
   <div class="vistas" role="group" aria-label="O que ver">
     <button id="v-tablet" aria-pressed="true">Tablet da mesa</button>
-    <button id="v-cozinha" aria-pressed="false">Impressora da cozinha<span class="bolha" id="bolha" hidden>0</span></button>
+    <button id="v-cozinha" aria-pressed="false">Cozinha <span class="bolha" id="bolha" hidden>0</span></button>
     <button id="v-gerente" aria-pressed="false">Gerente</button>
   </div>
 </div>
 
 <div class="tablet" id="tablet">
-  <div class="topo">
-    <div class="marca">
-      <div class="selo" aria-hidden="true">
-        <svg viewBox="0 0 40 40" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="20" cy="27" r="9"/><path d="M11 27h18M20 18c-4 3-4 15 0 18M20 18c4 3 4 15 0 18"/><circle cx="20" cy="6" r="2.2" fill="#fff" stroke="none"/><path d="M20 8.5v8M20 11l-3 4M17 10.5l-2.5 1v4.5h3M26 4v14"/></svg>
-      </div>
-      <div><h1 class="tit">Cidadão do Mundo</h1><small id="loja-rot">Burgers &amp; Arts · Água Verde</small></div>
+  <header class="topo">
+    <div class="marca"><span id="selo-topo"></span><div><h1 class="tit">Cidadão do Mundo</h1><small id="loja-rot">Burgers &amp; Arts · Água Verde</small></div></div>
+    <div class="acoes">
+      <span class="onde" id="onde">Mesa 12</span>
+      <button class="fantasma" id="conta"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Minha conta</button>
+      <button class="fantasma" id="garcom"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 17h16M6 17a6 6 0 0 1 12 0M12 8V6M10 6h4"/></svg>Chamar garçom</button>
     </div>
-    <div class="onde">
-      <span class="chip" id="onde-chip">Mesa 12</span>
-      <button class="btn-sec" id="conta">Minha conta</button>
-      <button class="btn-sec" id="garcom">Chamar garçom</button>
-    </div>
-  </div>
-  <div id="tela" style="flex:1;display:flex;flex-direction:column;min-height:0"></div>
+  </header>
+  <main id="tela"></main>
 </div>
 
 <script>
 (function(){
 "use strict";
 // ---------- cardápio (Saipos Água Verde, salão, lido 17/09/2026) ----------
-const TURBINAR={id:"turbo",titulo:"Deseja turbinar o seu prato?",regra:"Escolha de 0 a 3",max:3,min:0,ops:[
-  ["Ovo frito",400],["Cebola grelhada",400],["Salada do dia",500],["Onion rings",1199],["Batata frita",1199],["Tiras de peito de frango grelhado",1200]]};
-const TAM_CHOPE=(a,b,c)=>({id:"tam",titulo:"Tamanho",regra:"Escolha 1",max:1,min:1,ops:[["300 ml",a],["500 ml",b],["1 litro",c]],substitui:true});
+const TURBINAR={id:"turbo",titulo:"Turbinar o prato",regra:"Até 3, se quiser",max:3,min:0,ops:[
+  ["Ovo frito",400],["Cebola grelhada",400],["Salada do dia",500],["Onion rings",1199],["Batata frita",1199],["Tiras de frango grelhado",1200]]};
+const TAM=(a,b,c)=>({id:"tam",titulo:"Tamanho",regra:"Escolha um",max:1,min:1,substitui:true,ops:[["300 ml",a],["500 ml",b],["1 litro",c]]});
 const C=[
- {id:"esp",nome:"Burgers especiais",tom:"#3b2a1a",itens:[
-  ["Cidadão do Mundo Burger","",4599,[TURBINAR]],["Gaudério Burger","",4899,[TURBINAR]],["Demogorgon Burger","",5499,[TURBINAR]],
+ {id:"esp",nome:"Especiais",tipo:"Burger especial",itens:[
+  ["Cidadão do Mundo Burger","O da casa",4599,[TURBINAR]],["Gaudério Burger","",4899,[TURBINAR]],["Demogorgon Burger","",5499,[TURBINAR]],
   ["John Lennon","",4499,[TURBINAR]],["Honolulu Burger","",4399,[TURBINAR]],["Mad Max Burger","",4199,[TURBINAR]],
   ["Cheech e Chong","",4099,[TURBINAR]],["James Brown","",4099,[TURBINAR]],["Charles Chaplin","",3699,[TURBINAR]],["Jesse Pinkman","",3499,[TURBINAR]]]},
- {id:"cla",nome:"Burgers clássicos",tom:"#2f2a22",itens:[
+ {id:"cla",nome:"Clássicos",tipo:"Burger clássico",itens:[
   ["Rubens Barrichello","",3799,[TURBINAR]],["Ayrton Senna","",3699,[TURBINAR]],["Alain Prost","",3699,[TURBINAR]],
   ["Michael Schumacher","",3499,[TURBINAR]],["Nelson Piquet","",3399,[TURBINAR]]]},
- {id:"sma",nome:"Smash",tom:"#3a2318",itens:[["Big Citizen","",3699,[TURBINAR]],["Shack Citizen","",3699,[TURBINAR]],["Stacker Citizen","",3699,[TURBINAR]]]},
- {id:"veg",nome:"Veganos",tom:"#24301f",itens:[
+ {id:"sma",nome:"Smash",tipo:"Smash burger",itens:[["Big Citizen","",3699,[TURBINAR]],["Shack Citizen","",3699,[TURBINAR]],["Stacker Citizen","",3699,[TURBINAR]]]},
+ {id:"veg",nome:"Veganos",tipo:"Burger vegano",vegano:true,itens:[
   ["Hélio Gracie","Burger de cogumelo",3899,[TURBINAR]],["Cidadão Vegano","",3799,[TURBINAR]],["Ogros Veganos","Burger de PTS",3599,[TURBINAR]],
   ["Da Vinci","Burger de PTS",3399,[TURBINAR]],["Lewis Hamilton","Burger de PTS",3399,[TURBINAR]]]},
- {id:"pra",nome:"Pratos",tom:"#33281c",itens:[
+ {id:"pra",nome:"Pratos",tipo:"Prato",itens:[
   ["Adoniran Barbosa","Parmegiana de carne e salada",3999,[TURBINAR]],["Agostinho Carrara","Strogonoff de carne e salada",3999,[TURBINAR]],
   ["Silvio Santos","Bife grelhado e batata frita",3799,[TURBINAR]],["Bezerra da Silva","Milanesa de carne e salada",3699,[TURBINAR]],
   ["Severino","Carne desfiada e salada",3599,[TURBINAR]],["Paulo Cintura","Peito de frango grelhado e salada",3499,[TURBINAR]]]},
- {id:"por",nome:"Porções",tom:"#3a2c14",itens:[
+ {id:"por",nome:"Porções",tipo:"Porção",itens:[
   ["Pork and Cubes","Torresmo em cubos",5799,[]],["Las Vegas","Bolinho de pernil",5699,[]],["Amsterdam","Batata, cheddar e bacon",4199,[]],
   ["Kentucky","Frango crocante",3599,[]],["Berlim","Batata e onion rings",3199,[]],["London","Batata",2999,[]],["New York","Onion rings",2999,[]]]},
- {id:"cho",nome:"Chopes",tom:"#3b3010",itens:[
-  ["Pilsen Bird Beer","",800,[TAM_CHOPE(800,1200,2000)]],["Pilsen Brahma","",900,[TAM_CHOPE(900,1500,2800)]],
-  ["Curitipa Bird Beer","",900,[TAM_CHOPE(900,1500,2800)]],["Chopp de Vinho","",900,[TAM_CHOPE(900,1500,2800)]],
-  ["IPA Loka Way Beer","",1300,[TAM_CHOPE(1300,2100,4000)]],["Trooper IPA Bodebrown","",1300,[TAM_CHOPE(1300,2100,4000)]]]},
- {id:"beb",nome:"Bebidas e drinks",tom:"#1f2a2c",itens:[
+ {id:"cho",nome:"Chopes",tipo:"Chope",itens:[
+  ["Pilsen Bird Beer","300 ml, 500 ml ou 1 litro",800,[TAM(800,1200,2000)]],["Pilsen Brahma","300 ml, 500 ml ou 1 litro",900,[TAM(900,1500,2800)]],
+  ["Curitipa Bird Beer","300 ml, 500 ml ou 1 litro",900,[TAM(900,1500,2800)]],["Chopp de Vinho","300 ml, 500 ml ou 1 litro",900,[TAM(900,1500,2800)]],
+  ["IPA Loka Way Beer","300 ml, 500 ml ou 1 litro",1300,[TAM(1300,2100,4000)]],["Trooper IPA Bodebrown","300 ml, 500 ml ou 1 litro",1300,[TAM(1300,2100,4000)]]]},
+ {id:"beb",nome:"Drinks e bebidas",tipo:"Bebida",itens:[
   ["Caipirinha de limão","",2199,[]],["Moscow Mule","",1999,[]],["Gin tônica","",2499,[]],["Negroni","",2499,[]],
-  ["Soda italiana de morango","",1299,[]],["Suco de morango","",900,[]],["Pepsi lata 350 ml","",600,[]],["Guaraná Antarctica lata 350 ml","",600,[]],["Água sem gás 500 ml","",500,[]]]},
- {id:"sob",nome:"Sobremesas",tom:"#2e1f22",itens:[
+  ["Soda italiana","Morango",1299,[]],["Suco de morango","",900,[]],["Pepsi","Lata 350 ml",600,[]],["Guaraná Antarctica","Lata 350 ml",600,[]],["Água sem gás","500 ml",500,[]]]},
+ {id:"sob",nome:"Sobremesas",tipo:"Sobremesa",itens:[
   ["Tim Maia","",1999,[]],["Amy Winehouse","",1799,[]],["Aretha Franklin","",1799,[]],["Elza Soares","",1599,[]],
-  ["Salvador Dalí","",1599,[]],["Torta alemã","",1599,[]],["Brownie tradicional","",899,[]]]}
+  ["Salvador Dalí","",1599,[]],["Torta alemã","",1599,[]],["Brownie","Tradicional",899,[]]]}
 ];
-let pid=0; C.forEach(c=>c.itens=c.itens.map(([nome,desc,preco,grupos])=>({id:"p"+(++pid),nome,desc,preco,grupos,tom:c.tom,cat:c.nome})));
+const ESTILOS=["papel","kraft","papel","preto","kraft","papel","preto","papel"], ROT=[-1.4,.9,-.5,1.6,-1,.4,1.2,-.3,.7,-1.7];
+let pid=0;
+C.forEach(c=>c.itens=c.itens.map(([nome,desc,preco,grupos])=>{const i=pid++;
+  return {id:"p"+i,nome,desc,preco,grupos,tipo:c.tipo,vegano:!!c.vegano,estilo:ESTILOS[i%ESTILOS.length],rot:ROT[i%ROT.length],fr:(i%3-1)*3,apartir:grupos.some(g=>g.substitui)};}));
+const TODOS=C.flatMap(c=>c.itens);
 
 // ---------- estado ----------
 const S={vista:"tablet",tela:"inicio",cat:C[0].id,sacola:[],modo:"escolhe",mesa:12,minutos:10,loja:"Água Verde",pix:false,
-  destino:null,pedidos:[],seq:412,atual:null,janela:null,timer:null};
+  destino:null,pedidos:[],seq:412,atual:null,janela:null,timer:null,fim:0};
 const $=s=>document.querySelector(s), tela=$("#tela"), tablet=$("#tablet");
 const brl=c=>"R$ "+(c/100).toFixed(2).replace(".",",");
+const preco=c=>`<em>R$</em>${(c/100).toFixed(2).replace(".",",")}`;
 const esc=s=>String(s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
-const sigla=n=>n.split(/\s+/).filter(w=>w.length>2||/^[A-Z]/.test(w)).slice(0,2).map(w=>w[0]).join("").toUpperCase();
-function precoLinha(l){let u=l.base;for(const g of l.esc){for(const o of g.ops){u = g.substitui? o[1] : u+o[1];}}return u;}
+const hora=d=>d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+const plural=(n,a,b)=>n+" "+(n===1?a:b);
+function precoLinha(l){let u=l.base;for(const g of l.esc)for(const o of g.ops)u=g.substitui?o[1]:u+o[1];return u;}
 const totalSacola=()=>S.sacola.reduce((t,l)=>t+precoLinha(l)*l.qtd,0);
+const qtdSacola=()=>S.sacola.reduce((t,l)=>t+l.qtd,0);
+const rotDest=d=>d.tipo==="mesa"?"Mesa "+d.n:"Cartão "+d.n;
+const ondePadrao=()=>S.destino?rotDest(S.destino):S.modo==="mesa"?"Mesa "+S.mesa:S.modo==="cartao"?"No cartão":"Mesa "+S.mesa;
 
-function toast(t){tablet.querySelector(".toast")?.remove();const d=document.createElement("div");d.className="toast";d.textContent=t;tablet.appendChild(d);setTimeout(()=>d.remove(),2600);}
-$("#garcom").onclick=()=>toast(S.destino?`Garçom chamado para ${rotDestino(S.destino)}.`:(S.modo==="mesa"?`Garçom chamado para a mesa ${S.mesa}.`:"Garçom chamado. Ele vem até você."));
-$("#conta").onclick=()=>{if(S.vista!=="tablet")return;
-  const d=S.destino||(S.modo==="mesa"?{tipo:"mesa",n:S.mesa}:null);
-  const meus=d?S.pedidos.filter(p=>p.st==="impresso"&&p.destino.tipo===d.tipo&&p.destino.n===d.n):[];
-  S.janela=function(){const f=document.createElement("div");f.className="fundo";f.innerHTML=`<div class="janela" role="dialog" aria-modal="true" aria-label="Minha conta">
-    <div class="cab"><h2 class="tit">Minha conta</h2><p>${d?(d.tipo==="mesa"?"Mesa "+d.n:"Cartão "+d.n):"Você ainda não fez pedido neste tablet."}</p></div>
-    <div class="grupo">${meus.length?meus.map(p=>`<div class="lin"><span>Pedido ${p.id} · ${hora(p.criado)} · ${((n)=>n+(n===1?" item":" itens"))(p.linhas.reduce((t,l)=>t+l.qtd,0))}</span><span class="num">${brl(p.total)}</span></div>`).join(""):`<p class="nada">Nenhum pedido enviado ainda.</p>`}
-      <div class="lin" style="font-weight:700"><span>Total da conta</span><span class="num">${brl(meus.filter(p=>!p.pix).reduce((t,p)=>t+p.total,0))}</span></div>
-      ${meus.some(p=>p.pix)?`<p class="regra">Pedidos pagos no Pix já estão quitados e não entram no total.</p>`:""}</div>
-    <div class="pe"><span class="rot">O pagamento é no caixa</span><button class="btn-sec" id="fecha">Fechar</button></div></div>`;
-    tablet.appendChild(f);f.querySelector("#fecha").onclick=fechaJanela;};
-  desenha();};
-function rotDestino(d){return d.tipo==="mesa"?`a mesa ${d.n}`:`o cartão ${d.n}`;}
-function chip(){$("#onde-chip").textContent=S.destino?(S.destino.tipo==="mesa"?"Mesa "+S.destino.n:"Cartão "+S.destino.n):(S.modo==="cartao"?"Pedido no cartão":S.modo==="mesa"?"Mesa "+S.mesa:"Mesa ou cartão");$("#loja-rot").textContent="Burgers & Arts · "+S.loja;}
+function selo(t){return `<svg width="${t}" height="${t}" viewBox="0 0 120 120" role="img" aria-label="Selo Cidadão do Mundo">
+ <defs><path id="sa${t}" d="M22,60 A38,38 0 0,1 98,60"/><path id="sb${t}" d="M13,60 A47,47 0 0,0 107,60"/></defs>
+ <circle cx="60" cy="60" r="58" fill="#000" stroke="#fff" stroke-width="2.2"/><circle cx="60" cy="60" r="52.5" fill="none" stroke="#fff" stroke-width=".7"/>
+ <text fill="#fff" font-family="Anton,Arial Black,sans-serif" font-size="11.5" letter-spacing="1.2"><textPath href="#sa${t}" startOffset="50%" text-anchor="middle">CIDADÃO DO MUNDO</textPath></text>
+ <text fill="#fff" font-family="Anton,Arial Black,sans-serif" font-size="9" letter-spacing="1.6"><textPath href="#sb${t}" startOffset="50%" text-anchor="middle">BURGERS &amp; ARTS</textPath></text>
+ <g fill="none" stroke="#fff" stroke-width="1.4"><circle cx="60" cy="73" r="14"/><ellipse cx="60" cy="73" rx="6" ry="14"/><path d="M46 73h28M48 66h24M48 80h24"/></g>
+ <g fill="#fff"><circle cx="58" cy="40" r="3"/><path d="M55.5 44h5l1.4 10h-2.2l-1-5-.9 5h-2.6z"/><rect x="61" y="44.5" width="4.5" height="6.5" rx="1"/></g>
+ <path d="M52 41.5v18" stroke="#fff" stroke-width="1.3"/></svg>`;}
+$("#selo-topo").innerHTML=selo(46);
 
-// ---------- vistas ----------
-["tablet","cozinha","gerente"].forEach(v=>$("#v-"+v).onclick=()=>{S.vista=v;["tablet","cozinha","gerente"].forEach(x=>$("#v-"+x).setAttribute("aria-pressed",x===v));desenha();});
-function bolha(){const n=S.pedidos.filter(p=>p.st==="impresso").length;const b=$("#bolha");b.hidden=!n;b.textContent=n;}
+function toast(t){tablet.querySelector(".toast")?.remove();const d=document.createElement("div");d.className="toast";d.setAttribute("role","status");d.textContent=t;tablet.appendChild(d);setTimeout(()=>d.remove(),2600);}
+function topo(){$("#onde").textContent=ondePadrao();$("#loja-rot").textContent="Burgers & Arts · "+S.loja;
+  const n=S.pedidos.filter(p=>p.st==="impresso").length,b=$("#bolha");b.hidden=!n;b.textContent=n;}
 
-function desenha(){chip();bolha();tablet.querySelector(".fundo")?.remove();
+["tablet","cozinha","gerente"].forEach(v=>$("#v-"+v).onclick=()=>{S.vista=v;S.janela=null;["tablet","cozinha","gerente"].forEach(x=>$("#v-"+x).setAttribute("aria-pressed",x===v));desenha();});
+$("#garcom").onclick=()=>toast(`Pronto. O garçom já vem até ${S.destino?(S.destino.tipo==="mesa"?"a mesa "+S.destino.n:"você"):"a mesa "+S.mesa}.`);
+$("#conta").onclick=()=>{if(S.vista!=="tablet"){$("#v-tablet").click();}abreConta();};
+
+function desenha(){topo();tablet.querySelector(".fundo")?.remove();
   if(S.vista==="cozinha")return telaCozinha();
   if(S.vista==="gerente")return telaGerente();
-  ({inicio:telaInicio,menu:telaMenu,pix:telaPix,pago:telaPago,expirou:telaExpirou})[S.tela]();
+  ({inicio:telaInicio,menu:telaMenu,pix:telaPix,enviado:telaEnviado,expirou:telaExpirou})[S.tela]();
   if(S.janela)S.janela();
 }
+function abreJanela(html,liga,cls){const f=document.createElement("div");f.className="fundo";f.innerHTML=`<div class="janela ${cls||""}" role="dialog" aria-modal="true">${html}</div>`;
+  f.addEventListener("click",e=>{if(e.target===f)fechaJanela();});tablet.appendChild(f);liga(f);}
+function fechaJanela(){S.janela=null;desenha();}
 
 // ---------- boas-vindas ----------
 function telaInicio(){
-  const fim=S.pix?"Escolha, pague no Pix e seu pedido vai direto para a cozinha.":"Escolha e seu pedido vai direto para a cozinha. Você paga no fim, no caixa.";
-  const txt=S.modo==="mesa"?`Você está na <b>mesa ${S.mesa}</b>. ${fim}`
-    :S.modo==="cartao"?"Pegue o cartão que você recebeu na entrada. "+fim
-    :fim;
-  tela.innerHTML=`<div class="boas"><div><h2 class="tit">Bem-vindo, cidadão</h2><p>${txt}</p>
-    <button class="btn-ouro" id="comecar">Ver o cardápio</button></div></div>`;
+  const fim=S.pix?"Escolha, pague no Pix e o pedido sai na cozinha.":"Escolha no mural e o pedido sai na cozinha na hora. A conta você paga no fim, no caixa.";
+  const grande=S.modo==="mesa"?"Mesa "+S.mesa:"Peça daqui";
+  const nomes=TODOS.filter(p=>!/^(Pepsi|Água|Guaraná|Suco|Brownie|Soda)/.test(p.nome)).map(p=>`<span>${esc(p.nome)}</span><span><i>✦</i></span>`).join("");
+  tela.innerHTML=`<div class="boas"><div class="boas-meio">${selo(112)}
+    <h2 class="tit gigante">${esc(grande)}</h2><p>${S.modo==="cartao"?"Tenha à mão o cartão que você recebeu na entrada. ":""}${fim}</p>
+    <button class="btn-ouro" id="comecar">Ver o cardápio <span aria-hidden="true">→</span></button></div>
+    <div class="faixa" aria-hidden="true"><div class="faixa-rolo">${nomes}${nomes}</div></div></div>`;
   $("#comecar").onclick=()=>{S.tela="menu";desenha();};
 }
 
+// ---------- o cartaz ----------
+function cartaz(p,tag){const L=Math.max(5,...p.nome.split(/\s+/).map(w=>w.length));const t=tag||"button";
+  return `<div class="peca"><span class="fita" style="--fr:${p.fr}deg" aria-hidden="true"></span><${t} class="cartaz ${p.estilo}" ${t==="button"?`data-p="${p.id}" aria-label="${esc(p.nome)}, ${brl(p.preco)}"`:""} style="--r:${p.rot}deg;--L:${L}">
+    <span class="reticula" aria-hidden="true"></span>
+    <span class="olho"><span>${esc(p.tipo)}</span>${p.vegano?'<b class="selo-veg">Vegano</b>':""}</span>
+    <span class="nome">${esc(p.nome)}</span>
+    <span class="rodape"><span class="desc">${esc(p.desc)}</span><span class="preco num">${p.apartir?"<small>a partir de</small>":""}${preco(p.preco)}</span></span></${t}></div>`;}
+
+// ---------- comanda ----------
+function extras(l){return [...l.esc.flatMap(g=>g.ops.map(o=>(g.substitui?"":"+ ")+o[0])),l.obs?"Obs: "+l.obs:""].filter(Boolean);}
+function comandaHTML(){return `<div class="comanda"><div class="c-cab"><span>COMANDA</span><span>${esc(ondePadrao().toUpperCase())}</span></div>
+  <div class="c-sub">${esc(S.loja.toUpperCase())} · SALÃO · ${hora(new Date())}</div><hr>
+  ${S.sacola.length?S.sacola.map((l,i)=>`<div class="c-lin"><div class="c-l1"><span>${l.qtd}x ${esc(l.nome.toUpperCase())}</span><span class="num">${brl(precoLinha(l)*l.qtd)}</span></div>
+     ${extras(l).map(e=>`<div class="c-ex">${esc(e)}</div>`).join("")}
+     <div class="c-qtd"><button data-menos="${i}" aria-label="Tirar um ${esc(l.nome)}">−</button><button data-mais="${i}" aria-label="Mais um ${esc(l.nome)}">+</button></div></div>`).join("")
+   :`<p class="c-vazio">Comanda em branco.<br>Toque num cartaz do mural para começar.</p>`}
+  <hr><div class="c-tot"><span>TOTAL</span><span class="num">${brl(totalSacola())}</span></div></div>`;}
+function ligaComanda(raiz,depois){raiz.querySelectorAll("[data-mais]").forEach(b=>b.onclick=()=>{S.sacola[+b.dataset.mais].qtd++;depois();});
+  raiz.querySelectorAll("[data-menos]").forEach(b=>b.onclick=()=>{const i=+b.dataset.menos,l=S.sacola[i];l.qtd--;if(!l.qtd)S.sacola.splice(i,1);depois();});}
+const rotuloEnviar=()=>S.pix?"Pagar com Pix":"Enviar para a cozinha";
+const notaEnviar=()=>S.pix?"O pedido só sai na cozinha depois que o Pix cair.":"Sai na impressora da cozinha na hora. A conta é no fim, no caixa.";
+
 // ---------- cardápio ----------
 function telaMenu(){
-  const cat=C.find(c=>c.id===S.cat);
-  tela.innerHTML=`<div class="corpo">
-    <nav class="trilho" aria-label="Categorias">${C.map(c=>`<button data-cat="${c.id}" aria-current="${c.id===S.cat}">${esc(c.nome)}</button>`).join("")}</nav>
-    <section class="vitrine"><h2 class="tit">${esc(cat.nome)}</h2><p class="sub">Fotos de exemplo. No app de verdade entram as fotos dos pratos.</p>
-      <div class="grade">${cat.itens.map(p=>`<button class="prod" data-p="${p.id}">
-        <div class="foto" style="background:linear-gradient(135deg,${p.tom},#141310)"><span class="tit">${esc(sigla(p.nome))}</span><i>foto</i></div>
-        <div class="info"><span class="nome">${esc(p.nome)}</span><span class="desc">${esc(p.desc)}</span>
-        <span class="preco num">${p.grupos.some(g=>g.substitui)?"a partir de ":""}${brl(p.preco)}</span></div></button>`).join("")}</div></section>
-    <aside class="sacola" aria-label="Seu pedido"><header><h2 class="tit">Seu pedido</h2><span class="rot num">${((n)=>n+(n===1?" item":" itens"))(S.sacola.reduce((t,l)=>t+l.qtd,0))}</span></header>
-      <div class="itens">${S.sacola.length?S.sacola.map((l,i)=>`<div class="item"><span class="n">${l.qtd}× ${esc(l.nome)}</span><span class="num">${brl(precoLinha(l)*l.qtd)}</span>
-        ${l.esc.length||l.obs?`<span class="ex">${esc([...l.esc.flatMap(g=>g.ops.map(o=>(g.substitui?"":"+ ")+o[0])),l.obs?"Obs.: "+l.obs:""].filter(Boolean).join(" · "))}</span>`:""}
-        <div class="qtd"><button data-menos="${i}" aria-label="Tirar um">−</button><span class="num">${l.qtd}</span><button data-mais="${i}" aria-label="Pôr mais um">+</button></div></div>`).join("")
-        :`<p class="vazio">Toque num item para colocar no pedido.</p>`}</div>
-      <footer><div class="total"><span class="rot">Total</span><b class="num">${brl(totalSacola())}</b></div>
-        <button class="btn-ouro" id="pagar" ${S.sacola.length?"":"disabled"}>${S.pix?"Pagar com Pix":"Enviar para a cozinha"}</button>
-        <p class="regra">${S.pix?"<b>O pedido só vai para a cozinha depois que o Pix cair.</b>":"Você paga no fim, no caixa. <b>Confira antes de enviar.</b>"}</p></footer></aside></div>`;
-  tela.querySelectorAll("[data-cat]").forEach(b=>b.onclick=()=>{S.cat=b.dataset.cat;desenha();});
-  tela.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>abreProduto(C.flatMap(c=>c.itens).find(p=>p.id===b.dataset.p)));
-  tela.querySelectorAll("[data-mais]").forEach(b=>b.onclick=()=>{S.sacola[+b.dataset.mais].qtd++;desenha();});
-  tela.querySelectorAll("[data-menos]").forEach(b=>b.onclick=()=>{const l=S.sacola[+b.dataset.menos];l.qtd--;if(!l.qtd)S.sacola.splice(+b.dataset.menos,1);desenha();});
-  $("#pagar").onclick=identificar;
+  const cat=C.find(c=>c.id===S.cat), n=qtdSacola();
+  tela.innerHTML=`<div class="cardapio">
+    <nav class="setlist" aria-label="Partes do cardápio"><span class="rot">Cardápio</span>${C.map(c=>`<button data-cat="${c.id}" aria-current="${c.id===S.cat}">${esc(c.nome)}<small class="num">${c.itens.length}</small></button>`).join("")}</nav>
+    <section class="mural" id="mural"><div class="mural-cab"><h2 class="tit">${esc(cat.nome)}</h2><p>Toque num cartaz para escolher. No app de verdade, cada cartaz leva a foto do prato.</p></div>
+      <div class="parede">${cat.itens.map(p=>cartaz(p)).join("")}</div></section>
+    <aside class="lado" aria-label="Seu pedido"><div class="lado-rolo">${comandaHTML()}</div>
+      <div class="lado-pe"><button class="btn-ouro" id="enviar" ${n?"":"disabled"}>${rotuloEnviar()}</button><p class="nota">${notaEnviar()}</p></div></aside>
+    <div class="barra"><button class="fantasma" id="ver-comanda">Comanda · ${plural(n,"item","itens")} · ${brl(totalSacola())}</button><button class="btn-ouro" id="enviar2" ${n?"":"disabled"}>${S.pix?"Pagar":"Enviar"}</button></div></div>`;
+  tela.querySelectorAll("[data-cat]").forEach(b=>b.onclick=()=>{S.cat=b.dataset.cat;desenha();$("#mural").scrollTop=0;});
+  const ativo=tela.querySelector(".setlist [aria-current=\"true\"]"),sl=tela.querySelector(".setlist");if(ativo&&sl.scrollWidth>sl.clientWidth)sl.scrollLeft=ativo.offsetLeft-sl.clientWidth/2+ativo.offsetWidth/2;
+  tela.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>abreProduto(TODOS.find(p=>p.id===b.dataset.p)));
+  ligaComanda(tela.querySelector(".lado"),desenha);
+  $("#enviar").onclick=identificar; $("#enviar2").onclick=identificar;
+  $("#ver-comanda").onclick=()=>{S.janela=function(){abreJanela(`<div class="j-cab"><div><h2 class="tit">Sua comanda</h2></div><button class="fecha" id="fecha" aria-label="Fechar">✕</button></div>
+      <div style="padding:6px 24px 0">${comandaHTML()}</div><div class="j-pe"><button class="btn-ouro" id="j-enviar" ${qtdSacola()?"":"disabled"}>${rotuloEnviar()}</button></div>`,
+      f=>{f.querySelector("#fecha").onclick=fechaJanela;f.querySelector("#j-enviar").onclick=()=>{S.janela=null;identificar();};ligaComanda(f,desenha);});};desenha();};
 }
 
 function abreProduto(p){
-  const sel={}; p.grupos.forEach(g=>sel[g.id]=g.min===1?[0]:[]); let qtd=1;
+  const sel={};p.grupos.forEach(g=>sel[g.id]=g.min===1?[0]:[]);let qtd=1,obs="";
   S.janela=function render(){
-    let unit=p.preco; p.grupos.forEach(g=>sel[g.id].forEach(i=>{unit=g.substitui?g.ops[i][1]:unit+g.ops[i][1];}));
-    const f=document.createElement("div");f.className="fundo";f.innerHTML=`<div class="janela" role="dialog" aria-modal="true" aria-label="${esc(p.nome)}">
-      <div class="cab"><h2 class="tit">${esc(p.nome)}</h2>${p.desc?`<p>${esc(p.desc)}</p>`:""}</div>
-      ${p.grupos.map(g=>`<div class="grupo"><div class="gtit"><b>${esc(g.titulo)}</b><span class="rot">${esc(g.regra)}</span></div>
-        ${g.ops.map((o,i)=>`<button class="op" data-g="${g.id}" data-i="${i}" aria-pressed="${sel[g.id].includes(i)}"><span style="display:flex;gap:10px;align-items:center"><span class="marc">${sel[g.id].includes(i)?"✓":""}</span>${esc(o[0])}</span><span class="num">${g.substitui?brl(o[1]):"+ "+brl(o[1])}</span></button>`).join("")}</div>`).join("")}
-      <div class="grupo"><div class="gtit"><b>Alguma observação?</b><span class="rot">Opcional</span></div><textarea id="obs" placeholder="Ex.: sem cebola, ponto da carne"></textarea></div>
-      <div class="pe"><div class="passo"><button id="qmenos" aria-label="Menos">−</button><span class="num">${qtd}</span><button id="qmais" aria-label="Mais">+</button></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn-sec" id="fecha">Voltar</button><button class="btn-ouro" id="poe">Adicionar ${brl(unit*qtd)}</button></div></div></div>`;
-    const obsAnt=tablet.querySelector("#obs")?.value||""; tablet.querySelector(".fundo")?.remove(); tablet.appendChild(f); f.querySelector("#obs").value=obsAnt;
-    f.querySelectorAll(".op").forEach(b=>b.onclick=()=>{const g=p.grupos.find(x=>x.id===b.dataset.g),i=+b.dataset.i,a=sel[g.id];
-      if(g.max===1){sel[g.id]=[i];}else if(a.includes(i)){a.splice(a.indexOf(i),1);}else if(a.length<g.max){a.push(i);}else{toast(`Escolha no máximo ${g.max}.`);}
-      render();});
-    f.querySelector("#qmenos").onclick=()=>{if(qtd>1){qtd--;render();}};
-    f.querySelector("#qmais").onclick=()=>{qtd++;render();};
-    f.querySelector("#fecha").onclick=fechaJanela;
-    f.querySelector("#poe").onclick=()=>{
-      const escolhas=p.grupos.map(g=>({titulo:g.titulo,substitui:!!g.substitui,ops:sel[g.id].map(i=>g.ops[i])})).filter(g=>g.ops.length);
-      S.sacola.push({nome:p.nome,base:p.preco,esc:escolhas,obs:f.querySelector("#obs").value.trim(),qtd});fechaJanela();toast(`${p.nome} no pedido.`);};
+    let unit=p.preco;p.grupos.forEach(g=>sel[g.id].forEach(i=>{unit=g.substitui?g.ops[i][1]:unit+g.ops[i][1];}));
+    tablet.querySelector(".fundo")?.remove();
+    abreJanela(`<div class="j-cartaz">${cartaz(p,"div")}</div>
+      <div class="j-op"><div class="j-cab"><div><span class="rot">${esc(p.tipo)}</span><h2 class="tit" style="margin-top:6px">${p.grupos.length?"Do seu jeito":"Quantos?"}</h2></div><button class="fecha" id="fecha" aria-label="Fechar">✕</button></div>
+      ${p.grupos.map(g=>`<section class="grupo"><div class="g-cab"><b>${esc(g.titulo)}</b><span class="rot">${esc(g.regra)}</span></div>
+        <div class="opcoes">${g.ops.map((o,i)=>`<button class="opc" data-g="${g.id}" data-i="${i}" aria-pressed="${sel[g.id].includes(i)}"><span>${esc(o[0])}</span><span class="v num">${g.substitui?brl(o[1]):"+ "+brl(o[1])}</span></button>`).join("")}</div></section>`).join("")}
+      <section class="grupo"><div class="g-cab"><b>Observação</b><span class="rot">Opcional</span></div><textarea id="obs" placeholder="Ex.: sem cebola, carne bem passada"></textarea></section>
+      <div class="j-pe"><div class="passo"><button id="qmenos" aria-label="Menos um">−</button><span class="num" aria-live="polite">${qtd}</span><button id="qmais" aria-label="Mais um">+</button></div>
+        <button class="btn-ouro" id="poe">Pôr na comanda · <span class="num">${brl(unit*qtd)}</span></button></div></div>`,
+      f=>{const ta=f.querySelector("#obs");ta.value=obs;ta.oninput=()=>obs=ta.value;
+        f.querySelector("#fecha").onclick=fechaJanela;
+        f.querySelectorAll(".opc").forEach(b=>b.onclick=()=>{const g=p.grupos.find(x=>x.id===b.dataset.g),i=+b.dataset.i,a=sel[g.id];
+          if(g.max===1)sel[g.id]=[i];else if(a.includes(i))a.splice(a.indexOf(i),1);else if(a.length<g.max)a.push(i);else{toast(`Dá para escolher até ${g.max}.`);return;}
+          render();});
+        f.querySelector("#qmenos").onclick=()=>{if(qtd>1){qtd--;render();}};
+        f.querySelector("#qmais").onclick=()=>{qtd++;render();};
+        f.querySelector("#poe").onclick=()=>{const escolhas=p.grupos.map(g=>({substitui:!!g.substitui,ops:sel[g.id].map(i=>g.ops[i])})).filter(g=>g.ops.length);
+          S.sacola.push({nome:p.nome,base:p.preco,esc:escolhas,obs:obs.trim(),qtd});S.janela=null;desenha();toast(`${p.nome} está na comanda.`);};
+      },"larga");
   };
   desenha();
 }
-function fechaJanela(){S.janela=null;tablet.querySelector(".fundo")?.remove();desenha();}
 
 // ---------- mesa ou cartão ----------
 function identificar(){
+  if(!S.sacola.length)return;
   if(S.modo==="mesa"){S.destino={tipo:"mesa",n:S.mesa};return seguir();}
   if(S.modo==="cartao")return tecladoCartao();
-  S.janela=function(){const f=document.createElement("div");f.className="fundo";f.innerHTML=`<div class="janela" role="dialog" aria-modal="true" aria-label="Para onde vai o pedido">
-    <div class="cab"><h2 class="tit">Como você quer pedir?</h2><p>Escolha uma vez. O garçom leva o pedido até você.</p></div>
-    <div class="grupo" style="display:flex;gap:12px;flex-wrap:wrap">
-      <button class="cartao-opcao" id="pm"><span class="tit">Mesa ${S.mesa}</span><span>O pedido vai para esta mesa. Bom para quem está junto.</span></button>
-      <button class="cartao-opcao" id="pc"><span class="tit">Meu cartão</span><span>O pedido vai no número do seu cartão. Cada um com o seu.</span></button></div>
-    <div class="pe"><button class="btn-sec" id="fecha">Voltar</button></div></div>`;
-    tablet.querySelector(".fundo")?.remove();tablet.appendChild(f);
-    f.querySelector("#fecha").onclick=fechaJanela;
-    f.querySelector("#pm").onclick=()=>{S.janela=null;S.destino={tipo:"mesa",n:S.mesa};seguir();};
-    f.querySelector("#pc").onclick=()=>{S.janela=null;tecladoCartao();};};
+  S.janela=function(){abreJanela(`<div class="j-cab"><div><h2 class="tit">Para onde vai o pedido?</h2><p>O garçom leva até você do mesmo jeito.</p></div><button class="fecha" id="fecha" aria-label="Fechar">✕</button></div>
+    <div class="duas"><button class="escolha" id="pm"><span class="rot">Mesa</span><span class="e-num">${S.mesa}</span><span>Tudo na conta da mesa. Bom para quem está junto.</span></button>
+    <button class="escolha" id="pc"><span class="rot">Cartão</span><span class="e-num">Nº</span><span>Cada um no seu cartão, cada um com a sua conta.</span></button></div>`,
+    f=>{f.querySelector("#fecha").onclick=fechaJanela;
+      f.querySelector("#pm").onclick=()=>{S.janela=null;S.destino={tipo:"mesa",n:S.mesa};seguir();};
+      f.querySelector("#pc").onclick=()=>{S.janela=null;tecladoCartao();};});};
   desenha();
 }
 function tecladoCartao(){let v="";
-  S.janela=function render(){const f=document.createElement("div");f.className="fundo";f.innerHTML=`<div class="janela" role="dialog" aria-modal="true" aria-label="Número do cartão">
-    <div class="cab"><h2 class="tit">Número do seu cartão</h2><p>Está escrito no cartão que você recebeu na entrada.</p></div>
-    <div class="visor num">${v||"&nbsp;"}</div>
-    <div class="teclado">${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-k="${n}">${n}</button>`).join("")}<button data-k="x" aria-label="Apagar">⌫</button><button data-k="0">0</button><button data-k="ok" aria-label="Confirmar" style="background:var(--branco);color:var(--preto)">OK</button></div>
-    <div class="pe"><button class="btn-sec" id="fecha">Voltar</button><span class="rot">Cartões de 1 a 999</span></div></div>`;
-    tablet.querySelector(".fundo")?.remove();tablet.appendChild(f);
-    f.querySelector("#fecha").onclick=fechaJanela;
-    f.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{const k=b.dataset.k;
-      if(k==="x")v=v.slice(0,-1);else if(k==="ok"){if(!v||+v<1){toast("Digite o número do cartão.");return;}S.janela=null;S.destino={tipo:"cartao",n:+v};return seguir();}
-      else if(v.length<3)v+=k;render();});};
+  S.janela=function render(){tablet.querySelector(".fundo")?.remove();
+    abreJanela(`<div class="j-cab"><div><h2 class="tit">Número do seu cartão</h2><p>Está impresso no cartão que você recebeu na entrada.</p></div><button class="fecha" id="fecha" aria-label="Fechar">✕</button></div>
+    <div class="cartao-fis"><span>Cartão de consumo</span><b class="num" aria-live="polite">${v||"—"}</b><span>Cidadão do Mundo · ${esc(S.loja)}</span></div>
+    <div class="teclado">${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-k="${n}">${n}</button>`).join("")}<button data-k="x" aria-label="Apagar">⌫</button><button data-k="0">0</button><button data-k="ok" class="ok">OK</button></div>`,
+    f=>{f.querySelector("#fecha").onclick=fechaJanela;
+      f.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{const k=b.dataset.k;
+        if(k==="x")v=v.slice(0,-1);
+        else if(k==="ok"){if(!v||+v<1){toast("Digite o número que está no cartão.");return;}S.janela=null;S.destino={tipo:"cartao",n:+v};return seguir();}
+        else if(v.length<3)v+=k;
+        render();});});};
   desenha();
 }
 
-// ---------- enviar (sem Pix) ou Pix ----------
-function seguir(){if(S.pix)return abrePix();
-  const ped={id:++S.seq,txid:"",destino:S.destino,linhas:JSON.parse(JSON.stringify(S.sacola)),total:totalSacola(),st:"impresso",criado:new Date(),pago:null,loja:S.loja,pix:false};
-  S.pedidos.unshift(ped);S.atual=ped;S.sacola=[];S.tela="pago";desenha();}
-function abrePix(){
-  const id=++S.seq, txid="CDM"+Date.now().toString(36).toUpperCase();
-  const ped={id,txid,destino:S.destino,linhas:JSON.parse(JSON.stringify(S.sacola)),total:totalSacola(),st:"esperando",criado:new Date(),pago:null,loja:S.loja,pix:true};
-  S.pedidos.unshift(ped);S.atual=ped;S.tela="pix";S.fim=Date.now()+S.minutos*60000;
-  clearInterval(S.timer);S.timer=setInterval(tique,1000);desenha();
-}
-function tique(){if(S.tela!=="pix"){clearInterval(S.timer);return;}const r=Math.max(0,S.fim-Date.now());
-  const el=$("#rel");if(el)el.textContent=String(Math.floor(r/60000)).padStart(2,"0")+":"+String(Math.floor(r/1000)%60).padStart(2,"0");
-  if(!r)expira();}
-function expira(){const p=S.atual;if(!p||p.st!=="esperando")return;p.st="cancelado";clearInterval(S.timer);S.tela="expirou";desenha();}
-function telaPix(){const p=S.atual;const copia=`00020126 PROTOTIPO CIDADAO DO MUNDO ${p.txid} NAO PAGUE`;
-  tela.innerHTML=`<div class="pix">
-    <div class="qrbox"><div id="qr" aria-label="QR Code de exemplo"></div><span class="marca-d">EXEMPLO</span><div class="valor num">${brl(p.total)}</div></div>
-    <div><span class="rot">Pedido ${p.id} · ${p.destino.tipo==="mesa"?"Mesa "+p.destino.n:"Cartão "+p.destino.n}</span>
-      <h2 class="tit" style="font-size:44px;margin:6px 0 4px">Pague no Pix</h2>
-      <ol><li>Abra o app do seu banco e escolha <b>Pix › Ler QR Code</b>.</li><li>Aponte para o código ao lado. O valor <b>${brl(p.total)}</b> já vem preenchido.</li><li>Confirme. <b>Seu pedido vai para a cozinha na hora.</b></li></ol>
-      <div class="copia"><input id="cc" readonly value="${esc(copia)}" aria-label="Pix copia e cola"><button class="btn-sec" id="cpy">Copiar</button></div>
-      <div class="esperando"><span class="pulso"></span>Esperando o banco confirmar · tempo para pagar <span class="relogio num" id="rel" style="font-size:22px">--:--</span></div>
-      <button class="btn-sec" id="cancela">Cancelar e voltar ao cardápio</button>
-      <div class="simula"><span class="rot">Só no protótipo: fingir o que o banco responde</span>
-        <div><button class="btn-sec" id="sim-ok">O cliente pagou</button><button class="btn-sec" id="sim-exp">O tempo acabou</button></div></div></div></div>`;
-  try{new QRCode($("#qr"),{text:copia,width:260,height:260,colorDark:"#111111",colorLight:"#ffffff"});}catch(e){$("#qr").textContent="QR";}
-  tique();
-  $("#cpy").onclick=()=>{const i=$("#cc");navigator.clipboard?.writeText(i.value).then(()=>toast("Código copiado."),()=>{i.select();toast("Selecionado. Copie com o dedo.");})||(i.select());};
-  $("#cancela").onclick=()=>{p.st="cancelado";clearInterval(S.timer);S.tela="menu";desenha();toast("Pedido cancelado. Nada foi para a cozinha.");};
-  $("#sim-ok").onclick=()=>{p.st="impresso";p.pago=new Date();clearInterval(S.timer);S.sacola=[];S.tela="pago";desenha();};
-  $("#sim-exp").onclick=expira;
-}
-const hora=d=>d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+// ---------- enviar ----------
+function novoPedido(st,pix){const ped={id:++S.seq,txid:pix?"CDM"+Date.now().toString(36).toUpperCase():"",destino:S.destino,
+  linhas:JSON.parse(JSON.stringify(S.sacola)),total:totalSacola(),st,criado:new Date(),pago:null,loja:S.loja,pix};S.pedidos.unshift(ped);S.atual=ped;return ped;}
+function seguir(){if(S.pix)return abrePix();novoPedido("impresso",false);S.sacola=[];S.tela="enviado";desenha();}
 function cupom(p){return `<div class="cupom"><div class="c g">CIDADÃO DO MUNDO</div><div class="c">${esc(p.loja.toUpperCase())} · SALÃO · TABLET</div><hr>
-  <div class="c g">${p.destino.tipo==="mesa"?"MESA "+p.destino.n:"CARTÃO "+p.destino.n}</div><div class="c">PEDIDO ${p.id} · ${hora(p.pago||p.criado)}</div><hr>
-  ${p.linhas.map(l=>`<div class="l"><span>${l.qtd}x ${esc(l.nome.toUpperCase())}</span></div>${l.esc.flatMap(g=>g.ops.map(o=>`<div class="a">${g.substitui?"":"+ "}${esc(o[0].toUpperCase())}</div>`)).join("")}${l.obs?`<div class="a">OBS: ${esc(l.obs.toUpperCase())}</div>`:""}`).join("")}
-  <hr><div class="l"><b>TOTAL</b><b class="num">${brl(p.total)}</b></div><div class="pg">${p.pix?"PAGO NO PIX ✓":"PAGAR NO CAIXA"}</div>${p.txid?`<div class="c" style="font-size:11px;margin-top:6px">${p.txid}</div>`:""}</div>`;}
-function telaPago(){const p=S.atual;
-  tela.innerHTML=`<div class="pago"><div><span class="ok">${p.pix?"Pix recebido":"Pedido enviado"}</span><h2 class="tit">Pedido ${p.id} foi para a cozinha</h2>
-    <p>${p.destino.tipo==="mesa"?`O garçom leva até a mesa ${p.destino.n}.`:`O garçom chama pelo cartão ${p.destino.n}.`} ${p.pix?"":"Você paga no fim, no caixa. "}Quer mais alguma coisa? É só pedir de novo.</p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px"><button class="btn-ouro" id="denovo">Fazer outro pedido</button><button class="btn-sec" id="vercoz">Ver a impressora da cozinha</button></div></div>
-    <div><span class="rot" style="display:block;text-align:center;margin-bottom:8px">É isto que sai na impressora</span>${cupom(p)}</div></div>`;
+  <div class="c g" style="font-size:24px">${esc(rotDest(p.destino).toUpperCase())}</div><div class="c">PEDIDO ${p.id} · ${hora(p.pago||p.criado)}</div><hr>
+  ${p.linhas.map(l=>`<div class="l"><b>${l.qtd}x ${esc(l.nome.toUpperCase())}</b></div>${extras(l).map(e=>`<div class="a">${esc(e.toUpperCase())}</div>`).join("")}`).join("")}
+  <hr><div class="l"><b>TOTAL</b><b class="num">${brl(p.total)}</b></div><div class="pg">${p.pix?"PAGO NO PIX ✓":"COBRAR NO CAIXA"}</div>${p.txid?`<div class="c" style="font-size:11px;margin-top:6px">${p.txid}</div>`:""}</div>`;}
+function telaEnviado(){const p=S.atual;
+  tela.innerHTML=`<div class="enviado"><div><span class="estado">${p.pix?"Pix recebido · na cozinha":"Na cozinha"}</span>
+    <h2 class="tit">Saiu na impressora.</h2>
+    <p>Pedido ${p.id} · <b>${esc(rotDest(p.destino))}</b>. ${p.destino.tipo==="mesa"?"O garçom leva até a mesa.":"O garçom chama pelo número do cartão."} ${p.pix?"":"A conta você paga no fim, no caixa."}</p>
+    <div class="botoes"><button class="btn-ouro" id="denovo">Pedir mais</button><button class="fantasma" id="vconta">Ver minha conta</button></div></div>
+    <div class="impressora" aria-label="Comanda impressa"><div class="boca"></div><div class="saida">${cupom(p)}</div></div></div>`;
   $("#denovo").onclick=()=>{S.tela="menu";desenha();};
-  $("#vercoz").onclick=()=>$("#v-cozinha").click();
-}
-function telaExpirou(){const p=S.atual;
-  tela.innerHTML=`<div class="boas"><div><span class="rot" style="color:var(--ruim)">Pix não confirmado</span><h2 class="tit" style="font-size:52px;margin-top:6px">O tempo para pagar acabou</h2>
-    <p>O pedido ${p.id} foi cancelado e <b>nada foi para a cozinha</b>. Seus itens continuam guardados.</p>
-    <button class="btn-ouro" id="tenta">Tentar pagar de novo</button></div></div>`;
-  $("#tenta").onclick=()=>abrePix();
+  $("#vconta").onclick=abreConta;
 }
 
-// ---------- impressora da cozinha ----------
-function telaCozinha(){S.janela=null;
+// ---------- minha conta ----------
+function abreConta(){
+  const d=S.destino||(S.modo==="mesa"?{tipo:"mesa",n:S.mesa}:null);
+  const meus=d?S.pedidos.filter(p=>p.st==="impresso"&&p.destino.tipo===d.tipo&&p.destino.n===d.n):[];
+  const aberto=meus.filter(p=>!p.pix).reduce((t,p)=>t+p.total,0);
+  S.janela=function(){abreJanela(`<div class="j-cab"><div><span class="rot">${d?esc(rotDest(d)):"Este tablet"}</span><h2 class="tit" style="margin-top:6px">Minha conta</h2></div><button class="fecha" id="fecha" aria-label="Fechar">✕</button></div>
+    <div class="grupo">${meus.length?meus.map(p=>`<div class="lin"><span>Pedido ${p.id} · ${hora(p.criado)} · ${plural(p.linhas.reduce((t,l)=>t+l.qtd,0),"item","itens")}${p.pix?" · pago no Pix":""}</span><span class="num">${brl(p.total)}</span></div>`).join("")
+      :`<p class="nada">Nenhum pedido enviado ainda${d?"":" neste tablet"}.</p>`}</div>
+    <div class="j-pe"><div><span class="rot">A pagar no caixa</span><div class="tit num" style="font-size:40px;margin-top:4px">${brl(aberto)}</div></div><button class="fantasma" id="ok">Fechar</button></div>`,
+    f=>{f.querySelector("#fecha").onclick=fechaJanela;f.querySelector("#ok").onclick=fechaJanela;});};
+  desenha();
+}
+
+// ---------- Pix (desligado por padrão) ----------
+function abrePix(){novoPedido("esperando",true);S.tela="pix";S.fim=Date.now()+S.minutos*60000;clearInterval(S.timer);S.timer=setInterval(tique,1000);desenha();}
+function tique(){if(S.tela!=="pix"){clearInterval(S.timer);return;}const r=Math.max(0,S.fim-Date.now()),el=$("#rel");
+  if(el)el.textContent=String(Math.floor(r/60000)).padStart(2,"0")+":"+String(Math.floor(r/1000)%60).padStart(2,"0");if(!r)expira();}
+function expira(){const p=S.atual;if(!p||p.st!=="esperando")return;p.st="cancelado";clearInterval(S.timer);S.tela="expirou";desenha();}
+function telaPix(){const p=S.atual,copia=`00020126 PROTOTIPO CIDADAO DO MUNDO ${p.txid} NAO PAGUE`;
+  tela.innerHTML=`<div class="pix"><div class="qr-papel"><div id="qr" aria-label="QR Code de exemplo"></div><span class="carimbo">Exemplo</span><div class="v num">${brl(p.total)}</div></div>
+    <div><span class="rot">Pedido ${p.id} · ${esc(rotDest(p.destino))}</span><h2 class="tit" style="font-size:64px;margin:8px 0 2px">Pague no Pix</h2>
+      <ol><li>Abra o app do seu banco e toque em <b>Pix › Ler QR Code</b>.</li><li>Aponte para o código. O valor <b>${brl(p.total)}</b> já vem preenchido.</li><li>Confirme. <b>O pedido sai na cozinha na hora.</b></li></ol>
+      <div class="copia"><input id="cc" readonly value="${esc(copia)}" aria-label="Pix copia e cola"><button class="fantasma" id="cpy">Copiar</button></div>
+      <div class="esperando"><span class="pulso"></span>Esperando o banco confirmar · <span class="relogio num" id="rel">--:--</span></div>
+      <button class="fantasma" id="cancela">Cancelar e voltar ao cardápio</button>
+      <div class="simula"><span class="rot">Só no protótipo: fingir a resposta do banco</span><div><button class="fantasma" id="sim-ok">O cliente pagou</button><button class="fantasma" id="sim-exp">O tempo acabou</button></div></div></div></div>`;
+  try{new QRCode($("#qr"),{text:copia,width:240,height:240,colorDark:"#14120f",colorLight:"#ffffff"});}catch(e){$("#qr").innerHTML='<div style="width:240px;height:240px;display:grid;place-items:center;color:#14120f">QR</div>';}
+  tique();
+  $("#cpy").onclick=()=>{const i=$("#cc");if(navigator.clipboard)navigator.clipboard.writeText(i.value).then(()=>toast("Código copiado."),()=>{i.select();toast("Código selecionado.");});else i.select();};
+  $("#cancela").onclick=()=>{p.st="cancelado";clearInterval(S.timer);S.tela="menu";desenha();toast("Pedido cancelado. Nada saiu na cozinha.");};
+  $("#sim-ok").onclick=()=>{p.st="impresso";p.pago=new Date();clearInterval(S.timer);S.sacola=[];S.tela="enviado";desenha();};
+  $("#sim-exp").onclick=expira;
+}
+function telaExpirou(){const p=S.atual;
+  tela.innerHTML=`<div class="boas"><div class="boas-meio"><span class="rot" style="color:var(--ruim)">Pix não confirmado</span><h2 class="tit" style="font-size:clamp(48px,7vw,84px)">O tempo acabou</h2>
+    <p>O pedido ${p.id} foi cancelado e <b>nada saiu na cozinha</b>. A sua comanda continua montada.</p><button class="btn-ouro" id="tenta">Tentar pagar de novo</button></div></div>`;
+  $("#tenta").onclick=abrePix;
+}
+
+// ---------- cozinha ----------
+function telaCozinha(){
   const imp=S.pedidos.filter(p=>p.st==="impresso"),esp=S.pedidos.filter(p=>p.st==="esperando"),can=S.pedidos.filter(p=>p.st==="cancelado");
-  const onde=p=>p.destino.tipo==="mesa"?"Mesa "+p.destino.n:"Cartão "+p.destino.n;
-  tela.innerHTML=`<div class="cozinha"><div><h2 class="tit">Impressora da cozinha</h2><p class="sub">${S.pix?"Só aparece aqui o que já foi pago.":"Pix desligado: todo pedido enviado do tablet sai aqui na hora."}</p>
-    <div class="fila">${imp.length?imp.map(cupom).join(""):`<p class="nada">${S.pix?"Nenhum pedido pago ainda. Faça um pedido no tablet e toque em “O cliente pagou”.":"Nenhum pedido ainda. Faça um pedido no tablet."}</p>`}</div></div>
-    <div style="display:grid;gap:14px">
-      <div class="bloco"><h3 class="rot">Esperando Pix · não imprime</h3>${esp.length?esp.map(p=>`<div class="lin"><span>Pedido ${p.id} · ${onde(p)}</span><span class="tag esp">${brl(p.total)}</span></div>`).join(""):`<p class="nada">Nenhum.</p>`}</div>
-      <div class="bloco"><h3 class="rot">Cancelados sem pagar · nunca imprimiram</h3>${can.length?can.map(p=>`<div class="lin"><span>Pedido ${p.id} · ${onde(p)}</span><span class="tag can">${brl(p.total)}</span></div>`).join(""):`<p class="nada">Nenhum.</p>`}</div>
-      <div class="bloco"><h3 class="rot">Impressos hoje</h3><div class="lin"><span>${imp.length} pedidos</span><span class="tag imp num">${brl(imp.reduce((t,p)=>t+p.total,0))}</span></div></div>
-    </div></div>`;
+  tela.innerHTML=`<div class="cozinha"><div><span class="rot">Cozinha · ${esc(S.loja)}</span><h2 class="tit">Trilho de comandas</h2>
+    <p class="sub">${S.pix?"Só sobe para o trilho o pedido que já foi pago.":"Pix desligado: todo pedido enviado do tablet sobe para o trilho na hora."}</p>
+    <div class="trilho"></div><div class="penduradas">${imp.length?imp.map(p=>`<div class="pendura">${cupom(p)}</div>`).join(""):`<p class="vazio-coz">Trilho vazio. Faça um pedido no tablet e ele aparece aqui.</p>`}</div></div>
+    <aside><div class="bloco"><span class="rot">Impressos hoje</span><div class="lin"><span>${plural(imp.length,"pedido","pedidos")}</span><span class="tag imp num">${brl(imp.reduce((t,p)=>t+p.total,0))}</span></div></div>
+      ${S.pix||esp.length||can.length?`<div class="bloco"><span class="rot">Esperando Pix · não imprime</span>${esp.length?esp.map(p=>`<div class="lin"><span>Pedido ${p.id} · ${esc(rotDest(p.destino))}</span><span class="tag esp num">${brl(p.total)}</span></div>`).join(""):`<p class="nada">Nenhum.</p>`}</div>
+      <div class="bloco"><span class="rot">Cancelados sem pagar</span>${can.length?can.map(p=>`<div class="lin"><span>Pedido ${p.id} · ${esc(rotDest(p.destino))}</span><span class="tag can num">${brl(p.total)}</span></div>`).join(""):`<p class="nada">Nenhum.</p>`}</div>`:""}</aside></div>`;
 }
 
 // ---------- gerente ----------
-function telaGerente(){S.janela=null;
-  const ops=[["mesa","Por mesa","O tablet fica preso numa mesa. Todo pedido sai com o número da mesa."],
-             ["cartao","Por cartão","O cliente digita o número do cartão que recebeu na entrada. Cada um paga e pede o seu."],
-             ["escolhe","O cliente escolhe","Na hora de pagar, o tablet pergunta: mesa ou cartão?"]];
-  tela.innerHTML=`<div class="gerente"><div><h2 class="tit">Ajuste do tablet</h2><p class="sub" style="color:var(--texto2)">Fica escondido do cliente. No app de verdade, abre com a senha do gerente.</p></div>
-    <div><span class="rot">Como o cliente pede</span>${ops.map(o=>`<button class="op" data-m="${o[0]}" aria-pressed="${S.modo===o[0]}"><span style="display:flex;gap:12px;align-items:center"><span class="marc">${S.modo===o[0]?"✓":""}</span><span><b>${o[1]}</b><br><span style="color:var(--texto2);font-size:14px">${o[2]}</span></span></span></button>`).join("")}</div>
-    <div class="campo"><label for="g-mesa"><b>Este tablet está na mesa</b></label><input id="g-mesa" type="number" min="1" max="99" value="${S.mesa}"></div>
-    <div><span class="rot">Pix antes de imprimir</span><button class="op" id="g-pix" aria-pressed="${S.pix}"><span style="display:flex;gap:12px;align-items:center"><span class="marc">${S.pix?"✓":""}</span><span><b>${S.pix?"Ligado":"Desligado por enquanto"}</b><br><span style="color:var(--texto2);font-size:14px">Ligado: o pedido só imprime depois que o Pix cai. Desligado: imprime na hora e o cliente paga no caixa.</span></span></span></button></div>
-    <div class="campo" ${S.pix?"":"hidden"}><label for="g-min"><b>Tempo para pagar o Pix (minutos)</b></label><input id="g-min" type="number" min="1" max="30" value="${S.minutos}"></div>
-    <div class="campo"><span><b>Loja</b></span>${["Água Verde","São Braz","Ahú"].map(l=>`<button class="btn-sec" data-l="${l}" style="${S.loja===l?"background:var(--branco);color:var(--preto)":""}">${l}</button>`).join("")}</div>
-    <div><button class="btn-ouro" id="g-ok">Salvar e voltar ao tablet</button></div></div>`;
-  tela.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{S.modo=b.dataset.m;telaGerente();chip();});
-  tela.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{S.loja=b.dataset.l;telaGerente();chip();});
+function telaGerente(){
+  const modos=[["mesa","Por mesa","O tablet fica preso numa mesa. Todo pedido sai com o número dela."],
+               ["cartao","Por cartão","O cliente digita o número do cartão que recebeu na entrada."],
+               ["escolhe","Cliente escolhe","Na hora de enviar, o tablet pergunta: mesa ou cartão?"]];
+  tela.innerHTML=`<div class="gerente"><span class="rot">Escondido do cliente · abre com a senha do gerente</span><h2 class="tit">Ajuste do tablet</h2><p>O que você mudar aqui vale para este tablet.</p>
+    <div class="ajustes">
+      <div class="ajuste"><span class="rot">Como o cliente pede</span><div class="modos">${modos.map(m=>`<button class="modo" data-m="${m[0]}" aria-pressed="${S.modo===m[0]}"><b>${m[1]}</b><span>${m[2]}</span></button>`).join("")}</div></div>
+      <div class="ajuste linha-aj"><label for="g-mesa"><b>Este tablet fica na mesa</b></label><input id="g-mesa" type="number" min="1" max="99" value="${S.mesa}"></div>
+      <div class="ajuste"><span class="rot">Loja</span><div class="lojas">${["Água Verde","São Braz","Ahú"].map(l=>`<button data-l="${l}" aria-pressed="${S.loja===l}">${l}</button>`).join("")}</div></div>
+      <div class="ajuste"><span class="rot">Pagamento</span><button class="chave" id="g-pix" aria-pressed="${S.pix}"><span class="trilho-ch"></span><span><b>Pix antes da cozinha: ${S.pix?"ligado":"desligado"}</b>${S.pix?"O pedido só imprime depois que o Pix cai.":"O pedido imprime na hora e o cliente paga no caixa."}</span></button></div>
+      <div class="ajuste linha-aj" ${S.pix?"":"hidden"}><label for="g-min"><b>Tempo para pagar o Pix (minutos)</b></label><input id="g-min" type="number" min="1" max="30" value="${S.minutos}"></div>
+      <div><button class="btn-ouro" id="g-ok">Salvar e voltar ao tablet</button></div></div></div>`;
+  tela.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{S.modo=b.dataset.m;S.destino=null;telaGerente();topo();});
+  tela.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{S.loja=b.dataset.l;telaGerente();topo();});
   $("#g-pix").onclick=()=>{S.pix=!S.pix;telaGerente();};
-  $("#g-ok").onclick=()=>{S.mesa=Math.max(1,+$("#g-mesa").value||1);if($("#g-min"))S.minutos=Math.min(30,Math.max(1,+$("#g-min").value||10));S.destino=null;S.tela="inicio";$("#v-tablet").click();};
+  $("#g-ok").onclick=()=>{S.mesa=Math.max(1,Math.min(99,+$("#g-mesa").value||1));const m=$("#g-min");if(m)S.minutos=Math.min(30,Math.max(1,+m.value||10));
+    S.destino=null;S.tela="inicio";$("#v-tablet").click();};
 }
 
 desenha();
