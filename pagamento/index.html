@@ -150,12 +150,39 @@ tr.aviso td{color:#e8bb62}
 .pg-det div{margin-top:4px;line-height:1.4}
 button.b[disabled]{opacity:.4;cursor:not-allowed}
 @media (max-width:640px){.pg-fita .tot{font-size:36px}.pg-grid{grid-template-columns:minmax(0,1fr)}}
+/* 🧪 Prova real (15/10) */
+.pr-cab{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 18px;margin-bottom:10px}
+.pr-cab .t{font-family:'Anton',Impact,sans-serif;font-size:28px;line-height:1;text-transform:uppercase;letter-spacing:.01em}
+.pr-cab .d{color:var(--brand);font-weight:800;font-size:14px;letter-spacing:.06em;text-transform:uppercase}
+.pr-txt{color:var(--text2);font-size:13px;line-height:1.55;max-width:900px}
+.pr-trava{background:rgba(201,133,0,.14);border:1px solid rgba(201,133,0,.45);border-radius:12px;padding:10px 14px;margin:0 0 14px;font-size:13px;line-height:1.55}
+.pr-trava b{color:#e8bb62}
+.pr-fita{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:4px 2px 10px;margin:0 0 12px}
+.pr-can{flex:0 0 auto;width:86px;background:var(--s1);border:1.5px solid var(--line);border-radius:10px;padding:8px 6px;text-align:center;cursor:pointer;font-size:11.5px;color:var(--text2)}
+.pr-can b{display:block;font-size:15px;color:var(--text);margin:1px 0 3px}
+.pr-can .s{font-size:10.5px;font-weight:700;line-height:1.25}
+.pr-can.ok{border-color:rgba(47,174,106,.7)}.pr-can.ok .s{color:#4ade80}
+.pr-can.dif{border-color:rgba(201,133,0,.8)}.pr-can.dif .s{color:#e8bb62}
+.pr-can.esp{border-style:dashed}.pr-can.fut{opacity:.45;cursor:default}
+.pr-can.on{outline:2px solid var(--brand);outline-offset:2px}
+.pr-crit{color:var(--muted);font-size:12px;margin:-2px 0 14px}
+.pr-cal{background:var(--s1);border:1px dashed var(--line);border-radius:12px;padding:11px 14px;margin:0 0 16px;font-size:13px;color:var(--text2);line-height:1.6}
+.pr-cal b{color:var(--text)}
+.pr-dia{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;border-bottom:2px solid var(--brand);padding:0 2px 6px;margin:18px 0 10px}
+.pr-dia b{font-family:'Anton',Impact,sans-serif;font-weight:400;font-size:22px;text-transform:uppercase}
+.pr-dia span{color:var(--text2);font-size:12.5px}
+.pr-mini{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.pr-mini span{background:var(--s2);border-radius:999px;padding:3px 10px;font-size:11.5px;color:var(--text2)}
+.pr-why{margin-top:8px;font-size:11.5px;line-height:1.45;color:var(--tinta)}
+.pr-why div{padding:2px 0 2px 10px;border-left:2px solid #B47A12;margin:3px 0}
+.pr-ok{color:#1a7f43;font-weight:800}
+.pr-honesto{margin-top:22px;background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:12px 15px;font-size:12.5px;color:var(--text2);line-height:1.6}
 </style>
 </head>
 <body>
 <div class="top">
   <div><h1>Pagar Motoboys</h1><div class="sub">quanto pagar a cada motoboy, maquininha, corrida em dobro e as regras — esta tela é só sua e da Hellen</div></div>
-  <div class="rt"><span class="rel" id="rel"></span><button class="b" onclick="MQ=null;PD=null;setView(VIEW)">🔄 Atualizar</button></div>
+  <div class="rt"><span class="rel" id="rel"></span><button class="b" onclick="MQ=null;PD=null;PV=null;if(!PG_EMBED&&$('t_prova').style.display==='none')provaSonda();setView(VIEW)">🔄 Atualizar</button></div>
 </div>
 
 <div class="per">
@@ -173,6 +200,7 @@ button.b[disabled]{opacity:.4;cursor:not-allowed}
   <span class="tab on" id="t_pagar" onclick="setView('pagar')">💵 Quanto pagar</span>
   <span class="tab" id="t_maq" onclick="setView('maq')">🧾 Maquininha do dia</span>
   <span class="tab" id="t_dup" onclick="setView('dup')">🔎 Corrida em dobro</span>
+  <span class="tab" id="t_prova" onclick="setView('prova')" style="display:none">🧪 Prova real</span>
   <span class="tab" id="t_reg" onclick="setView('reg')">📜 As regras</span>
 </div>
 
@@ -185,18 +213,21 @@ const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const $=i=>document.getElementById(i);
 const REGRAS_HTML='<div class="c"><h3 style="margin:0 0 12px;font-size:16px">📜 Como a conta do motoboy é feita</h3>'+
-'<div class="hs" style="margin:0"><b>O valor da hora, nas três lojas:</b> <b>R$ 20 por hora</b> de segunda a sexta e <b>R$ 25</b> sábado e domingo. Acabaram as diárias de São Braz e do Ahú — o valor por hora já vinha sendo usado há alguns meses; o que mudou foi passar a valer nas três lojas e a hora ser contada pelo GPS. A hora conta da <b>chegada no pátio pelo GPS</b> até a <b>hora da última entrega</b>. Paga-se o <b>maior</b> entre as taxas e o piso por hora — nunca a soma.<br><br>'+
-'<b>Almoço:</b> uma refeição por turno cumprido. Quem chega <b>mais de 30 minutos</b> depois do horário combinado (a escala do Jaison) perde a refeição daquele turno e o piso garantido do dia inteiro — e, se mesmo assim pegou o lanche, <b>paga por ele</b> pelo preço de cardápio.<br><br>'+
-'🔴 <b>Só se corta com prova:</b> sem carimbo de GPS do pátio o atraso não está provado e <b>nada é cortado nem cobrado</b> — a linha mostra um sinal de alerta avisando que a chegada foi estimada.<br><br>'+
-'<b>Entregas</b> é a contagem que gerou taxa — é o que sustenta o valor a pagar, e <b>não</b> é a medida de quantas entregas a loja fez no dia. Para volume, olhe a Qualidade do Delivery. Qualquer outro ajuste é decisão sua, na mão.</div></div>'+
+'<div class="hs" style="margin:0"><b>Regra em vigor desde 15/10/2026</b> (decidida pelo Fábio para a prova real, igual ao que a casa já paga):<br><br>'+
+'<b>Paga-se o maior</b> entre as taxas das entregas e o garantido — nunca a soma.<br><br>'+
+'<b>Garantido, turno por turno que ele rodou:</b> almoço conta se ele chegou antes das 15h; jantar conta se chegou depois das 15h ou fez entrega depois das 19h. Turno que está na escala do Jaison vale <b>as horas da escala × R$ 20</b> (no mínimo o piso do turno). Turno rodado fora da escala, ou dia sem escala com o nome dele, vale <b>o piso do turno da loja</b>: Água Verde e São Braz R$ 120 o turno (almoço curto da Água Verde R$ 80), Ahú R$ 100. Turno da escala em que ele <b>não apareceu</b> não entra.<br><br>'+
+'<b>Fim de semana:</b> R$ 25 a hora <b>só na Água Verde</b> (R$ 150 o turno de 6h). São Braz e Ahú pagam igual ao dia de semana.<br><br>'+
+'<b>Atraso não corta nada</b> — nem o garantido, nem o lanche. Fica só anotado na comanda.<br><br>'+
+'<b>Lanche:</b> um por turno rodado. Quem rodou almoço e jantar tem direito a dois; quem rodou um turno e pegou dois paga o segundo, pelo preço de cardápio.<br><br>'+
+'<b>Entregas</b> é a contagem que gerou taxa no TrackEat — é o que sustenta o valor a pagar, e <b>não</b> é a medida de quantas entregas a loja fez no dia. Descontos de pedido não achado, refrigerante e acertos de outro dia continuam sendo feitos à mão.</div></div>'+
 '<div class="c"><h3 style="margin:0 0 12px;font-size:16px">📋 O que cada coluna quer dizer</h3><div class="wrap"><table>'+
 '<tr><th>Coluna</th><th>O que é</th></tr>'+
 '<tr><td><b>Escala</b></td><td>A hora que ficou combinada com ele, pela escala do Jaison.</td></tr>'+
 '<tr><td><b>Real</b></td><td>A hora que o GPS carimbou a chegada no pátio, o atraso entre parênteses, e a hora da última entrega. O sinal de alerta quer dizer que não houve carimbo de GPS — a chegada é estimada e por isso nada é cortado.</td></tr>'+
-'<tr><td><b>Almoço</b></td><td><b>sim</b> = tem direito à refeição. <b>não</b> = perdeu por ter chegado mais de 30 minutos atrasado. O número entre parênteses aparece quando fez dois turnos e tem direito a duas.</td></tr>'+
+'<tr><td><b>Almoço</b></td><td>Quantas refeições ele tem direito: uma por turno rodado (duas quando rodou almoço e jantar). Atraso não tira a refeição.</td></tr>'+
 '<tr><td><b>Prato</b></td><td>O que ele efetivamente pegou na comanda Z Motoboys. Se aparece um valor em vermelho, é porque pegou sem ter direito e está pagando por ele.</td></tr>'+
 '<tr><td><b>Entregas</b></td><td>Quantas entregas geraram taxa para ele no dia.</td></tr>'+
-'<tr><td><b>Garantido</b></td><td>O piso por hora a que ele teria direito. <b>não</b> = perdeu o garantido por atraso, e recebe só as taxas.</td></tr>'+
+'<tr><td><b>Garantido</b></td><td>O mínimo do dia, somando os turnos que ele rodou (horas da escala × R$/h, ou o piso do turno quando não está na escala). Atraso não corta.</td></tr>'+
 '<tr><td><b>A pagar</b></td><td>O maior entre as taxas e o garantido, menos o lanche cobrado e mais ou menos os ajustes feitos a mão.</td></tr>'+
 '<tr><td><b>Planilha deles</b></td><td>O que a planilha que os meninos mandam no grupo FECHAMENTO MOTOBOYS manda pagar, e embaixo a diferença para a nossa conta. Verde = igual. Amarelo = o sistema paga menos que eles (quase sempre porque eles ainda usam diária cheia). Azul = o sistema paga mais. É só para conferir — quem paga é você.</td></tr>'+
 '</table></div></div>';
@@ -264,6 +295,7 @@ function setView(v){if(v==='cmp'||v==='pag')v='pagar'; VIEW=v;
   try{$('t_pagar').className='tab'+(v==='pagar'?' on':'')}catch(e){}
   $('t_maq').className='tab'+(v==='maq'?' on':'');
   try{$('t_dup').className='tab'+(v==='dup'?' on':'')}catch(e){}
+  try{$('t_prova').className='tab'+(v==='prova'?' on':'')}catch(e){}
   $('t_reg').className='tab'+(v==='reg'?' on':'');
   if(v!=='ag'&&AGT){clearInterval(AGT);AGT=null}
   if(v!=='maq'&&MAQ_TIMER){clearInterval(MAQ_TIMER);MAQ_TIMER=null}
@@ -368,7 +400,7 @@ async function viewDup(){
   el.innerHTML=h;
 }
 function viewRegras(){$('kpis').innerHTML='';$('faixa').innerHTML='';$('conteudo').innerHTML=REGRAS_HTML}
-function render(){if(VIEW==='pagar'){viewPagar();return}if(VIEW==='dup'){viewDup();return}if(VIEW==='cob'){viewCob();return}if(VIEW==='ag'){viewAgora();return}if(VIEW==='maq'){viewMaq();return}if(VIEW==='reg'){viewRegras();return}viewMaq()}
+function render(){if(VIEW==='pagar'){viewPagar();return}if(VIEW==='prova'){viewProva();return}if(VIEW==='dup'){viewDup();return}if(VIEW==='cob'){viewCob();return}if(VIEW==='ag'){viewAgora();return}if(VIEW==='maq'){viewMaq();return}if(VIEW==='reg'){viewRegras();return}viewMaq()}
 async function viewComparar(){
   $('faixa').innerHTML='';
   if(!PD){ $('conteudo').innerHTML='<div class="empty">Carregando…</div>'; await puxaPagDia(); }
@@ -763,6 +795,14 @@ function pgCopiar(btn,k){
   try{navigator.clipboard.writeText(k).then(ok,function(){alert('Copie na mão:\n\n'+k)})}catch(e){alert('Copie na mão:\n\n'+k)}
 }
 function pgComanda(m,i){
+  if(m.escondido){
+    // 15/10 prova real (prova cega): o valor do sistema só aparece depois que a planilha da loja chega no grupo
+    return '<div class="pg-tk" style="animation-delay:'+Math.min(i*45,600)+'ms">'+
+      '<div class="pg-nome">'+esc(m.entregador)+'</div>'+
+      '<div class="pg-hora">chegou '+esc(m.chegada||'—')+' · última entrega '+esc(m.ultima_entrega||'—')+'</div>'+
+      '<hr class="pg-corte"><div class="pg-total"><span class="k">A pagar</span><span class="v" style="font-size:22px">escondido</span></div>'+
+      '<div class="pg-obs" style="margin-top:8px">🧪 Prova real: a conta do sistema aparece aqui depois que a planilha desta loja for lida no grupo FECHAMENTO MOTOBOYS. Façam a planilha como sempre, pelo TrackEat.</div></div>';
+  }
   const taxas=Number(m.taxas||0), ref=Number(m.cobrar_refeicao||0), aj=Number(m.ajustes||0);
   const base=Math.round((Number(m.pagar||0)-aj+ref)*100)/100, vale_gar=base>taxas+0.01;
   let h='<div class="pg-tk" style="animation-delay:'+Math.min(i*45,600)+'ms" title="'+esc(m.aviso||'')+'">'+
@@ -787,7 +827,10 @@ function pgComanda(m,i){
   }
   if(m.aviso) h+='<details class="pg-det"><summary>ver detalhe</summary><div>'+esc(m.aviso)+'</div></details>';
   const tg=[];
-  if(!m.tem_gps) tg.push('<span class="pg-tag" title="Sem carimbo de GPS no pátio: a chegada foi estimada pela primeira entrega, por isso nada foi cortado.">chegada sem GPS · nada cortado</span>');
+  const fg=String(m.fonte_garantido||'');
+  if(fg.indexOf('sem escala')>=0) tg.push('<span class="pg-tag aviso" title="O Jaison não mandou escala com o nome dele neste dia: o garantido é o piso do turno que ele rodou.">sem escala do Jaison</span>');
+  if(fg.indexOf('faltou')>=0) tg.push('<span class="pg-tag aviso" title="'+esc(fg)+'">faltou a um turno da escala</span>');
+  if(Number(m.atraso_min)>30&&m.tem_gps) tg.push('<span class="pg-tag" title="A casa não corta por atraso: fica só anotado.">chegou '+num(m.atraso_min)+' min depois · não corta</span>');
   if(Number(m.lanche_sem_preco)>0) tg.push('<span class="pg-tag aviso">falta o preço de '+num(m.lanche_sem_preco)+' lanche</span>');
   if(tg.length) h+='<div class="pg-tags">'+tg.join('')+'</div>';
   const d=(DELES&&DELES.tem)?(MAPD||{})[chaveDeles(m.unidade,m.entregador)]:null;
@@ -801,7 +844,7 @@ function viewPagar(){
   if(!PD||(PDDIA&&PD.dia!==PDDIA)){puxaPagar(PDDIA);return}
   $('kpis').innerHTML='';$('faixa').innerHTML='';
   const l=soDaLoja(PD.linhas);
-  let h='<div class="c"><div class="hs" style="margin:0 0 8px"><b>💵 Quanto pagar a cada motoboy</b> · '+esc(PD.dia_semana)+', '+esc(PD.dia_texto)+' · '+(PD.fim_de_semana?'R$ 25 a hora':'R$ 20 a hora')+'</div>'+
+  let h='<div class="c"><div class="hs" style="margin:0 0 8px"><b>💵 Quanto pagar a cada motoboy</b> · '+esc(PD.dia_semana)+', '+esc(PD.dia_texto)+' · '+(PD.fim_de_semana?'R$ 25 a hora na Água Verde, R$ 20 em São Braz e no Ahú':'R$ 20 a hora')+'</div>'+
     '<button class="b" onclick="pagDiaPula(-1)">◀ dia anterior</button> '+
     '<input type="date" value="'+esc(PD.dia)+'" max="'+pgHojeOp()+'" onchange="pagDiaMuda(this.value)" aria-label="Escolher o dia"> '+
     '<button class="b" onclick="pagDiaPula(1)"'+(PD.dia>=pgHojeOp()?' disabled title="Este é o dia em andamento"':'')+'>dia seguinte ▶</button></div>'+maqLojas();
@@ -809,8 +852,9 @@ function viewPagar(){
   if(PD.dia===pgHojeOp()) h+='<div class="c" style="border-left:4px solid var(--warn)"><b>⏳ Este dia ainda está em andamento.</b> Os valores abaixo são parciais: pague pelo dia que já fechou.</div>';
   if(!l.length){$('conteudo').innerHTML=h+'<div class="c empty">Ninguém rodou neste dia'+(LOJA?' nesta loja':'')+'. Escolha outro dia nas setas acima.</div>';return}
   let tot=0; l.forEach(function(m){tot+=Number(m.pagar||0)}); tot=Math.round(tot*100)/100;
-  const semPix=l.filter(function(m){return !m.chave_pix}).length;
-  h+='<div class="pg-fita"><div><div class="k">Total a pagar</div><div class="tot">'+rs(tot)+'</div></div>'+
+  const semPix=l.filter(function(m){return !m.chave_pix}).length, nEsc=l.filter(function(m){return m.escondido}).length;
+  if(nEsc) h+='<div class="c" style="border-left:4px solid var(--brand)"><b>🧪 Prova real em andamento.</b> O valor do sistema de '+(nEsc===l.length?'todos os motoboys':nEsc+' motoboy(s)')+' fica escondido até a planilha da loja chegar no grupo FECHAMENTO MOTOBOYS. Façam a planilha como sempre: é ela que vai ser comparada com o sistema.</div>';
+  h+='<div class="pg-fita"><div><div class="k">Total a pagar</div><div class="tot">'+(nEsc===l.length?'—':rs(tot)+(nEsc?' <span style="font-size:14px;color:var(--muted)">+ '+nEsc+' escondido(s)</span>':''))+'</div></div>'+
      '<div><div class="k">Motoboys</div><div class="mini">'+l.length+'</div></div>'+
      (PD.ve_pix!==false&&semPix?'<div><div class="k">Sem chave Pix</div><div class="mini w">'+semPix+'</div></div>':'')+'</div>';
   const lojas=[]; l.forEach(function(m){if(lojas.indexOf(m.unidade)<0)lojas.push(m.unidade)});
@@ -818,13 +862,156 @@ function viewPagar(){
   lojas.forEach(function(u){
     const lu=l.filter(function(m){return m.unidade===u});
     let st=0; lu.forEach(function(m){st+=Number(m.pagar||0)});
-    h+='<div class="pg-loja"><b>'+esc(u)+'</b><span>'+lu.length+' motoboy(s) · <em>'+rs(Math.round(st*100)/100)+'</em></span></div><div class="pg-grid">';
+    const luEsc=lu.some(function(m){return m.escondido});
+    h+='<div class="pg-loja"><b>'+esc(u)+'</b><span>'+lu.length+' motoboy(s) · <em>'+(luEsc?'valor escondido':rs(Math.round(st*100)/100))+'</em></span></div><div class="pg-grid">';
     lu.forEach(function(m){h+=pgComanda(m,i++)});
     h+='</div>';
   });
   if(PD.pode_apontar) h+='<div style="margin-top:22px">'+semDono(PD,false)+'</div>';
   h+=PG_EMBED?'<details class="c" style="margin-top:14px"><summary style="cursor:pointer"><b>📜 Como a conta é feita</b></summary>'+REGRAS_HTML+'</details>'
     :'<div class="hs">A conta inteira está explicada na aba <a href="#" onclick="setView(\'reg\');return false" style="color:var(--brand)">📜 As regras</a>. Quando houver, “ver detalhe” explica o caso daquele motoboy. Quem decide é você.</div>';
+  $('conteudo').innerHTML=h;
+}
+
+// === 🧪 PROVA REAL — sistema (lacrado) × planilha deles × Pix que saiu, pessoa por dia (15/10) ===
+let PV=null, PVDIA=null;
+async function portaProva(){
+  const r=await fetch(SB+'rpc/prova_painel',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:cdmTok()})});
+  if(!r.ok){let c='';try{c=(await r.json()).code||''}catch(e){}const er=new Error('porta '+r.status);er.code=c;throw er}
+  return await r.json();
+}
+// só o dono e a Hellen recebem resposta; para os outros a aba nem aparece
+async function provaSonda(){try{PV=await portaProva();$('t_prova').style.display=''}catch(e){PV=null}}
+const PR_SEM=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+function prDt(iso){const p=String(iso||'').slice(0,10).split('-');return p.length===3?p[2]+'/'+p[1]:''}
+function prSem(iso){const d=new Date(String(iso).slice(0,10)+'T12:00:00');return PR_SEM[d.getDay()]||''}
+function prMais(iso,n){const d=new Date(String(iso).slice(0,10)+'T12:00:00');d.setDate(d.getDate()+n);return iso_(d)}
+function iso_(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)}
+// a referência é a planilha deles (feita sem ver o sistema); o Pix entra quando não há planilha
+function prCasa(x){return x.deles!=null?Number(x.deles):(x.pago!=null?Number(x.pago):null)}
+function prComparavel(x){return x.nosso!=null&&prCasa(x)!=null}
+// faltou de um lado: está na planilha e não no sistema, ou no sistema e em nenhum outro lugar (sem estar esperando o banco)
+function prFalta(x){return x.faixa==='so na planilha'||(x.faixa==='so no sistema'&&x.pix_status!=='esperando o banco')}
+function prBate(x){return x.faixa==='centavo'||x.faixa==='ate R$1'}
+function prConta(x){return prComparavel(x)||prFalta(x)}
+function prPorque(x){
+  const w=[], dif=function(v){return Math.abs(Number(v||0))>=0.01};
+  if(x.nosso!=null&&x.deles!=null){
+    if(dif(x.c_entregas)) w.push('taxas das entregas: o sistema somou '+rs(Math.abs(x.c_entregas))+(x.c_entregas>0?' a mais':' a menos')+' que a planilha (sistema '+rs(x.n_taxas)+' em '+num(x.n_entregas)+' entregas, planilha '+rs(x.d_taxas)+' em '+num(x.d_entregas)+')'+(Number(x.n_entregas)===Number(x.d_entregas)?' · mesmo número de entregas: a diferença está no valor das taxas':''));
+    if(dif(x.c_garantido)) w.push('garantido: o sistema deu '+rs(Math.abs(x.c_garantido))+(x.c_garantido>0?' a mais':' a menos')+' que a planilha'+(x.n_fonte?' · '+esc(x.n_fonte):''));
+    if(dif(x.c_lanche)) w.push('lanche cobrado pelo sistema: '+rs(Math.abs(x.c_lanche)));
+    if(dif(x.c_ajustes)) w.push('ajuste lançado no sistema: '+rs(x.c_ajustes));
+    if(dif(x.c_desconto)) w.push('a planilha descontou '+rs(x.c_desconto)+' (refrigerante, pedido não achado ou corrida em dobro)');
+  }
+  if(x.deles!=null&&x.pago!=null&&dif(x.dif_dp)) w.push('o Pix saiu '+rs(Math.abs(x.dif_dp))+(x.dif_dp>0?' a menos':' a mais')+' que a planilha (desconto ou acerto feito na hora de pagar)');
+  if(x.nosso!=null&&x.deles==null&&x.pago!=null) w.push('a planilha deste dia não foi lida: comparado direto com o Pix');
+  if(x._acerto) w.push('parece acerto com o dia '+prDt(x._acerto)+': lá a diferença é do mesmo valor, ao contrário — somando os dois dias, bate');
+  if(x.mudou_depois) w.push('o número do sistema mudou depois que a planilha chegou: à noite, antes da planilha, era '+rs(x.nosso_antes)+' (entrou entrega, escala ou ajuste depois)');
+  if(/^sem dono: /.test(String(x.pessoa||''))) w.push('não sei de quem é '+(x.deles!=null?'esta linha da planilha':'este Pix')+': a Hellen precisa dizer quem é (pode ser alguém com outro nome no banco)');
+  else if(x.nosso==null) w.push(x.deles!=null?'só na planilha: o sistema não tem entrega dele neste dia (nome diferente ou TrackEat sem dado)':'só no Pix: o sistema e a planilha não têm esta pessoa neste dia (pode ser acerto, parcela, outro dia ou planilha não lida)');
+  if(x.nosso!=null&&x.deles==null&&x.pago==null&&x.pix_status!=='esperando o banco') w.push('só no sistema: não está na planilha nem no Pix deste dia');
+  return w;
+}
+function prComanda(x,i){
+  const casa=prCasa(x), d=(x.nosso!=null&&casa!=null)?Math.round((Number(x.nosso)-casa)*100)/100:null;
+  let h='<div class="pg-tk" style="animation-delay:'+Math.min(i*35,500)+'ms">'+
+    '<div class="pg-nome">'+esc(String(x.pessoa||'').replace(/^sem dono: /,'❓ '))+'</div>'+
+    '<div class="pg-hora">'+esc(x.lojas||'')+(x.lacre_tipo?' · lacre '+esc(String(x.lacre_tipo).toLowerCase()):'')+'</div><hr class="pg-corte">';
+  h+=pgLn('sistema (lacrado)',x.nosso!=null?pgV(x.nosso):'—','forte');
+  if(x.mudou_depois) h+=pgLn('· antes da planilha',pgV(x.nosso_antes),'fraco');
+  h+=pgLn('planilha deles',x.deles!=null?pgV(x.deles):'—',x.deles==null?'fraco':'');
+  h+=pgLn('Pix que saiu',x.pago!=null?pgV(x.pago):(x.pix_status==='esperando o banco'?'esperando':'—'),x.pago==null?'fraco':'');
+  h+='<hr class="pg-corte"><div class="pg-total"><span class="k">Diferença</span><span class="v" style="font-size:26px">'+
+     (d==null?(prFalta(x)?'falta':'—'):(Math.abs(d)<0.01?'<span class="pr-ok">bate</span>':(d>0?'+':'−')+pgV(Math.abs(d))))+'</span></div>';
+  if(d!=null&&Math.abs(d)>=0.01) h+='<div class="pg-obs">'+(d>0?'o sistema pagaria a mais':'o sistema pagaria a menos')+(x.deles!=null?' que a planilha':' que o Pix')+'</div>';
+  const w=prPorque(x);
+  if(w.length&&!(d!=null&&Math.abs(d)<0.01&&x.faixa==='centavo'&&!x.mudou_depois)) h+='<div class="pr-why">'+w.map(function(t){return '<div>'+t+'</div>'}).join('')+'</div>';
+  if(x.pix&&x.pix.length) h+='<details class="pg-det"><summary>ver o Pix</summary><div>'+x.pix.map(function(p){return esc(prDt(p.data))+' · '+esc(p.nome)+' · '+rs(p.valor)+' · '+esc(p.conta)}).join('<br>')+'</div></details>';
+  return h+'</div>';
+}
+function viewProva(){
+  if(!PV){
+    $('conteudo').innerHTML='<div class="empty">Carregando a prova real…</div>';
+    portaProva().then(function(j){PV=j;try{$('t_prova').style.display=''}catch(e){}if(VIEW==='prova')viewProva()})
+      .catch(function(e){$('conteudo').innerHTML='<div class="c">'+(e&&e.code==='42501'?'Só o Fábio e a Hellen veem a prova real.':'Não deu para carregar a prova real. Entre no portal de novo e tente outra vez.')+'</div>'});
+    return;
+  }
+  $('kpis').innerHTML='';$('faixa').innerHTML='';
+  const J=PV.janela||{}, L=PV.linhas||[], hoje=PV.hoje;
+  const porDia={}; L.forEach(function(x){(porDia[x.dia]=porDia[x.dia]||[]).push(x)});
+  // acerto entre dias: mesma pessoa, diferença do mesmo valor ao contrário em até 3 dias
+  L.forEach(function(x){
+    if(!prComparavel(x)||prBate(x))return; const d=Number(x.nosso)-prCasa(x);
+    L.forEach(function(y){ if(y===x||y.pessoa!==x.pessoa||!prComparavel(y))return;
+      const dd=Math.abs((new Date(y.dia+'T12:00:00')-new Date(x.dia+'T12:00:00'))/864e5);
+      if(dd>=1&&dd<=3&&Math.abs(d+(Number(y.nosso)-prCasa(y)))<0.02) x._acerto=y.dia; });
+  });
+  const nDia=Number(J.dia_n||0);
+  const cab=J.terminou?'terminou em '+esc(J.ate_texto):(nDia<1?'começa hoje':'dia '+Math.min(nDia+1,J.dias_total)+' de '+esc(J.dias_total));
+  let h='<div class="pr-cab"><div class="t">🧪 Prova real</div><div class="d">'+cab+' · '+esc(J.de_texto)+' a '+esc(J.ate_texto)+'</div></div>'+
+    '<div class="pr-txt" style="margin-bottom:14px">Todo dia o sistema calcula sozinho quanto pagar a cada motoboy e <b>lacra esse número</b>: de meia em meia hora durante a noite, antes da planilha dos atendentes chegar no grupo, e de novo às 9h da manhã seguinte, já com tudo que entrou de madrugada. O lacre leva um código encadeado: ninguém consegue mexer depois. A Hellen paga como sempre, e aqui aparecem lado a lado <b>o que o sistema disse</b>, <b>o que a planilha anotou</b> e <b>o Pix que saiu</b>. Se o número da manhã for diferente do da noite, a comanda mostra os dois. Se nas duas semanas bater, dá para pagar pelo sistema.</div>';
+  const A=PV.alertas||[];
+  if(A.length) h+='<div class="pr-trava"><b>⚠️ O que está travando a prova agora:</b><br>· '+A.map(function(a){return esc(a.texto)}).join('<br>· ')+'</div>';
+  // fita dos dias
+  let fita='', ultimoComDado=null;
+  for(let k=0;k<Number(J.dias_total||0);k++){
+    const dia=prMais(J.de,k), l=porDia[dia]||[], cmp=l.filter(prConta), ok=cmp.filter(prBate).length;
+    const esperando=l.some(function(x){return x.nosso!=null&&x.pago==null&&x.deles==null&&x.pix_status==='esperando o banco'});
+    let cls='', st='';
+    if(dia>hoje){cls='fut';st='—'}
+    else if(dia===hoje){cls='esp';st=l.length?'lacrando':'rodando agora'}
+    else if(!l.length){cls='dif';st='sem lacre'}
+    else{ultimoComDado=dia;
+      if(!cmp.length){ if(esperando){cls='esp';st='esperando planilha e Pix'} else {cls='dif';st='nada para comparar'} }
+      else{cls=(ok===cmp.length?'ok':'dif');st=ok+' de '+cmp.length+' batem'+(esperando?'<br>+ esperando':'')}}
+    fita+='<div class="pr-can '+cls+(PVDIA===dia?' on':'')+'"'+(cls==='fut'?'':' onclick="PVDIA=\''+dia+'\';viewProva()"')+'>'+esc(PR_SEM[new Date(dia+'T12:00:00').getDay()].slice(0,3))+'<b>'+prDt(dia)+'</b><div class="s">'+st+'</div></div>';
+  }
+  h+='<div class="pr-fita">'+fita+'</div>';
+  // placar da janela: quem falta de um lado conta como não bate
+  const cmpAll=L.filter(prConta), okAll=cmpAll.filter(prBate).length, soPix=L.filter(function(x){return x.faixa==='so no Pix'}).length;
+  let tN=0,tC=0,mais=0,menos=0;
+  cmpAll.forEach(function(x){const n=x.nosso!=null?Number(x.nosso):0, c=prCasa(x)!=null?prCasa(x):0, d=n-c; tN+=n; tC+=c; if(!prBate(x)){if(d>0)mais+=d;else menos+=-d}});
+  const pct=cmpAll.length?Math.round(1000*okAll/cmpAll.length)/10:null;
+  h+='<div class="kpis">'+
+    '<div class="kpi '+(pct!=null&&pct>=95?'big':'')+'"><div class="n">'+(pct==null?'—':String(pct).replace('.',',')+'%')+'</div><div class="l">batem (até R$ 1) · '+okAll+' de '+cmpAll.length+'</div></div>'+
+    '<div class="kpi"><div class="n">'+rs(tN)+'</div><div class="l">o sistema mandaria pagar</div></div>'+
+    '<div class="kpi"><div class="n">'+rs(tC)+'</div><div class="l">planilha deles (ou Pix quando não há planilha)</div></div>'+
+    '<div class="kpi"><div class="n">'+rs(mais)+'</div><div class="l">sistema pagaria a mais</div></div>'+
+    '<div class="kpi '+(menos>0?'warn':'')+'"><div class="n">'+rs(menos)+'</div><div class="l">sistema pagaria a menos</div></div></div>';
+  h+='<div class="pr-crit">Para confiar: <b>95% ou mais batendo</b> nas duas semanas, e toda diferença acima de R$ 1 com o porquê.'+(soPix?' · '+soPix+' Pix sem dia ou sem dono para conferir (não contam no placar).':'')+'</div>';
+  // calibração com os dias de antes
+  const C=PV.calibracao||{}, cA=C.antiga||{}, cN=C.nova||{};
+  if(cN.comparaveis){
+    const p=function(o){return o.comparaveis?String(Math.round(1000*o.bate/o.comparaveis)/10).replace('.',',')+'%':'—'};
+    h+='<div class="pr-cal">🔁 <b>Teste com os dias de antes da prova</b> (23/09 a 14/10, recalculado hoje — <b>não conta como prova</b>, porque foi feito depois de ver a planilha): com a régua antiga batiam <b>'+p(cA)+'</b> ('+cA.bate+' de '+cA.comparaveis+'); com a régua nova, que você decidiu em 15/10, batem <b>'+p(cN)+'</b> ('+cN.bate+' de '+cN.comparaveis+'). No total do período o sistema pagaria '+rs(cN.total_nosso)+' e a casa '+rs(cN.total_casa)+'. Fora os 3 dias de setembro em que o TrackEat da Água Verde falhou.</div>';
+  }
+  // dia aberto
+  const temHoje=(porDia[hoje]||[]).length||(PV.lacres||[]).some(function(x){return x.dia===hoje});
+  const dia=PVDIA||ultimoComDado||(temHoje?hoje:null);
+  if(!dia){
+    h+='<div class="c empty">O primeiro lacre sai hoje às 22h (e de meia em meia hora até 3h30). Amanhã às 9h05 sai o lacre oficial de hoje, e a comparação aparece quando a planilha e o Pix chegarem.</div>';
+  } else {
+    const l=(porDia[dia]||[]).slice().sort(function(a,b){const da=(prComparavel(a)&&!prBate(a))||prFalta(a)?0:1, db=(prComparavel(b)&&!prBate(b))||prFalta(b)?0:1; return da-db||String(a.pessoa).localeCompare(String(b.pessoa))});
+    const lac=(PV.lacres||[]).filter(function(x){return x.dia===dia});
+    const ofi=lac.filter(function(x){return x.tipo==='OFICIAL'})[0], pre=lac.filter(function(x){return x.tipo==='PREVIA'})[0];
+    const pl=(PV.planilhas||[]).filter(function(x){return x.dia===dia});
+    const mud=l.filter(function(x){return x.mudou_depois}).length;
+    h+='<div class="pr-dia"><b>'+esc(prSem(dia))+', '+prDt(dia)+'</b><span>'+l.length+' motoboy(s)'+(mud?' · '+mud+' com número que mudou depois da planilha':'')+'</span></div>';
+    let mini='';
+    if(ofi) mini+='<span>🔒 lacre oficial '+esc(ofi.primeiro)+' · código '+esc(ofi.codigo)+'</span>';
+    if(pre) mini+='<span>🔒 '+esc(pre.n)+' lacre(s) da noite, '+esc(pre.primeiro)+' a '+esc(pre.ultimo)+'</span>';
+    pl.forEach(function(p){mini+='<span>🧾 planilha '+esc(p.unidade)+': '+(p.status==='OK'||p.status==='JA_GRAVADO'?'lida':(p.status==='SEM FOTO'?'não chegou':'não deu para ler'))+'</span>'});
+    const esp=l.filter(function(x){return x.pix_status==='esperando o banco'}).length;
+    mini+='<span>💸 Pix '+(esp?'ainda chegando ('+esp+' esperando o banco)':'chegou')+'</span>';
+    h+='<div class="pr-mini">'+mini+'</div><div class="pg-grid">';
+    l.forEach(function(x,i){h+=prComanda(x,i)});
+    h+='</div>';
+  }
+  const cd=PV.cadeia||{};
+  h+='<div class="pr-honesto"><b>Como esta prova é honesta.</b> O cálculo do sistema não lê a planilha nem o Pix (só o TrackEat, a escala do Jaison, o GPS e os lanches do Saipos). Cada lacre guarda o número de cada motoboy e um código ligado ao lacre anterior: se alguém mexer num número já lacrado, a corrente quebra e aparece aqui. Durante a prova os atendentes não veem a conta do sistema até a planilha da loja ser lida. '+
+     'Corrente hoje: '+(cd.ok?'<b style="color:#4ade80">✔ inteira</b>':'<b style="color:#f87171">✖ quebrada</b>')+' · '+esc(cd.na_prova||0)+' lacres da prova'+(cd.calibracao?' (+'+esc(cd.calibracao)+' do teste com os dias de antes)':'')+' · último código '+esc(cd.ultimo_codigo||'—')+' · lido '+esc(PV.agora||'')+'</div>';
   $('conteudo').innerHTML=h;
 }
 
@@ -1170,7 +1357,7 @@ async function cdmGuarda(){
   if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){if(!ok)return;try{$('p_sem').parentElement.style.display='none'}catch(e){}var qs=new URLSearchParams(location.search);if(qs.get('aba')==='dup'){try{$('de').value=new Date(Date.now()-21*864e5).toISOString().slice(0,10)}catch(e){}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}}setView('dup');return}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}if(qs.get('loja')!==null)LOJA=qs.get('loja');}setView('pagar');});
+cdmGuarda().then(function(ok){if(!ok)return;try{$('p_sem').parentElement.style.display='none'}catch(e){}var qs=new URLSearchParams(location.search);if(qs.get('aba')==='dup'){try{$('de').value=new Date(Date.now()-21*864e5).toISOString().slice(0,10)}catch(e){}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}}setView('dup');return}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}if(qs.get('loja')!==null)LOJA=qs.get('loja');}else{provaSonda()}if(qs.get('aba')==='prova'&&qs.get('embed')!=='1'){setView('prova');return}setView('pagar');});
 </script>
 <script src="/assets/portal.js?v=3"></script>
 </body>
