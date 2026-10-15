@@ -145,6 +145,22 @@ tr.aviso td{color:#e8bb62}
 .pg-tag.ruim{border-color:#A8321F;color:#A8321F}
 .pg-tag.aviso{border-color:#B47A12;color:#7A5208}
 .pg-plan{margin-top:8px;font-size:11.5px;color:var(--apagado)}
+.pg-turno{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;color:var(--apagado);margin-top:2px}
+.pg-mau{color:#A8321F}
+.pg-sec{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--apagado);margin:9px 0 1px}
+.pg-dup{border-left:2px solid #B5AC97;padding:2px 0 4px 8px;margin:4px 0;font-size:12px}
+.pg-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.pg-btns button{border:1.5px solid var(--tinta);background:transparent;color:var(--tinta);border-radius:7px;padding:6px 10px;font:700 12.5px 'Barlow',system-ui,sans-serif;cursor:pointer}
+.pg-btns button.pg-ok,.pg-btns button.pg-corrigir{background:var(--tinta);color:var(--papel)}
+.pg-btns button.pg-corrigir{width:100%}
+.pg-btns button:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+.pg-form{margin-top:10px;border-top:1.5px dashed #B5AC97;padding-top:8px}
+.pg-f{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:5px 0;font-size:12.5px}
+.pg-f span{flex:1}
+.pg-f input,.pg-f select{width:46%;min-width:0;border:1.5px solid #B5AC97;border-radius:6px;background:#fffdf6;color:var(--tinta);padding:5px 7px;font:13px 'Barlow',system-ui,sans-serif}
+.pg-erro{color:#A8321F;font-size:12px;font-weight:700;min-height:1em;margin-top:4px}
+.pg-tk.pg-editado{box-shadow:0 0 0 3px var(--brand),0 10px 22px rgba(0,0,0,.35)}
+.pg-edit-tag{margin-top:8px;font-size:11.5px;font-weight:700;color:#7A5208;background:#F6E7B8;border-radius:6px;padding:5px 7px}
 .pg-det{margin-top:8px;font-size:11.5px;color:var(--apagado)}
 .pg-det summary{cursor:pointer;font-weight:700;color:var(--tinta)}
 .pg-det div{margin-top:4px;line-height:1.4}
@@ -762,34 +778,133 @@ function pgCopiar(btn,k){
   function ok(){btn.textContent='Pix copiado ✓';clearTimeout(btn._t);btn._t=setTimeout(function(){btn.textContent=btn.dataset.rot},1800)}
   try{navigator.clipboard.writeText(k).then(ok,function(){alert('Copie na mão:\n\n'+k)})}catch(e){alert('Copie na mão:\n\n'+k)}
 }
+function pgTurnos(m){
+  const t=m.turnos_det||[];
+  if(!t.length) return '<div class="pg-obs">sem escala do Jaison neste dia: nada é cortado por atraso</div>';
+  return t.map(function(x){
+    let s='turno '+esc(x.combinado||'?')+' · ';
+    if(!x.chegada) s+='<b class="pg-mau">não veio</b>';
+    else{
+      const a=Number(x.atraso_min);
+      s+='chegou '+esc(x.chegada)+(x.gps?'':' (sem GPS)');
+      if(x.atraso_min!=null) s+=a>0?' · <b class="'+(x.furou?'pg-mau':'')+'">'+a+' min atrasado</b>':' · '+Math.abs(a)+' min antes';
+    }
+    return '<div class="pg-turno">'+s+'</div>';
+  }).join('');
+}
+function pgDupLinhas(m,i){
+  const d=m.duplicadas||[]; if(!d.length) return '';
+  let h='<div class="pg-sec">corridas em dobro</div>';
+  d.forEach(function(x,k){
+    const tag='dp'+i+'_'+k;
+    h+='<div class="pg-dup"><div>pedido '+esc(x.pedido_2)+' saiu 2x ('+esc(x.hora_1)+' e '+esc(x.hora_2)+') · '+pgV(x.valor_2)+'</div>';
+    if(x.decisao){
+      const txt={nao_pagar:'descontado '+pgV(x.desconto),pagar_duas:'pagas as duas',reprovado_track:'reprovada no TrackEat'}[x.decisao]||x.decisao;
+      h+='<div class="pg-obs">'+esc(txt)+' · por '+esc(x.por||'?')+' em '+esc(x.quando||'')+(PD.pode_decidir_dup?' · <a href="#" onclick="pgDup('+i+','+k+',\'desfazer\');return false">desfazer</a>':'')+'</div>';
+    } else if(PD.pode_decidir_dup){
+      h+='<div class="pg-btns"><button onclick="pgDup('+i+','+k+',\'nao_pagar\')">Descontar</button><button onclick="pgDup('+i+','+k+',\'pagar_duas\')">Pagar as duas</button></div>';
+    } else h+='<div class="pg-obs">ainda sem decisão</div>';
+    h+='</div>';
+  });
+  return h;
+}
+function pgQuem(){ try{return localStorage.getItem('pg_quem')||''}catch(e){return ''} }
+function pgGuardaQuem(n){ try{localStorage.setItem('pg_quem',n)}catch(e){} }
+async function pgPorta(nome,dados){
+  const r=await fetch(SB+'rpc/'+nome,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:cdmTok(),p_dados:dados})});
+  const j=await r.json().catch(function(){return null});
+  if(!r.ok) throw new Error((j&&(j.message||j.hint))||('erro '+r.status));
+  return j;
+}
+async function pgDup(i,k,dec){
+  const m=PG_LINHAS[i], x=(m.duplicadas||[])[k]; if(!x) return;
+  let quem=pgQuem();
+  if(!quem||PD.login_compartilhado){ quem=(prompt('Seu nome (fica registrado quem decidiu):',quem)||'').trim(); if(!quem) return; pgGuardaQuem(quem); }
+  if(dec==='nao_pagar'&&!confirm('Descontar a 2ª corrida do pedido '+x.pedido_2+' de '+m.entregador+'?')) return;
+  try{
+    const r=await pgPorta('pagamento_dupla_decidir',{unidade:m.unidade,dia:PD.dia,fonte_2:x.fonte_2,pedido_2:x.pedido_2,saiu_2:x.saiu_2,decisao:dec,quem:quem});
+    if(r&&r.msg) alert(r.msg);
+    PD=null; puxaPagar(PDDIA);
+  }catch(e){ alert('Não deu para gravar: '+e.message) }
+}
+function pgCampo(id,rot,valor,auto,tipo,extra){
+  return '<label class="pg-f"><span>'+rot+'</span><input id="'+id+'" type="'+(tipo||'number')+'" '+(extra||'')+' value="'+esc(valor==null?'':valor)+'" placeholder="'+esc(auto==null||auto===''?'':'auto: '+auto)+'"></label>';
+}
+function pgForm(m,i){
+  const c=(m.editado&&m.editado.campos)||{}, a=m.auto||{};
+  const sel=function(id,rot,valor,ops){return '<label class="pg-f"><span>'+rot+'</span><select id="'+id+'">'+ops.map(function(o){return '<option value="'+o[0]+'"'+(String(valor==null?'':valor)===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></label>'};
+  return '<div class="pg-form" id="pgf'+i+'" hidden>'+
+    '<div class="pg-obs">Deixe em branco o que estiver certo: em branco vale o automático.</div>'+
+    pgCampo('pc'+i,'Chegou às',c.chegada,a.chegada,'time')+
+    pgCampo('ph'+i,'Horas rodadas',c.horas,a.horas,'number','step="0.1" min="0" max="24"')+
+    pgCampo('pe'+i,'Entregas',c.entregas,a.entregas,'number','step="1" min="0"')+
+    pgCampo('pt'+i,'Taxas das entregas (R$)',c.taxas,a.taxas,'number','step="0.5" min="0"')+
+    sel('pg'+i,'Tem direito ao garantido?',c.tem_garantido==null?'':String(c.tem_garantido),[['','automático ('+(a.garantido===false?'não':'sim')+')'],['true','sim'],['false','não']])+
+    pgCampo('pgh'+i,'Horas do garantido (× '+pgV(m.valor_hora)+')',c.horas_garantido,a.horas_escala,'number','step="0.5" min="0" max="16"')+
+    sel('pr'+i,'Refeições com direito',c.refeicoes_direito==null?'':String(c.refeicoes_direito),[['','automático ('+num(a.direito_refeicoes)+')'],['0','0'],['1','1'],['2','2'],['3','3']])+
+    pgCampo('pa'+i,'Ajuste em R$ (− desconta, + acrescenta)',c.ajuste,null,'number','step="0.5"')+
+    pgCampo('pq'+i,'Seu nome',PD.login_compartilhado?'':pgQuem(),null,'text','maxlength="40"')+
+    pgCampo('pm'+i,'Motivo da mudança',null,null,'text','maxlength="200"')+
+    '<div class="pg-erro" id="pz'+i+'"></div>'+
+    '<div class="pg-btns"><button class="pg-ok" onclick="pgSalvar('+i+',false)">Salvar</button>'+
+    (m.editado?'<button onclick="pgSalvar('+i+',true)">Voltar ao automático</button>':'')+
+    '<button onclick="document.getElementById(\'pgf'+i+'\').hidden=true">Cancelar</button></div></div>';
+}
+async function pgSalvar(i,limpar){
+  const m=PG_LINHAS[i], v=function(id){const e=document.getElementById(id);return e?String(e.value).trim():''};
+  const quem=v('pq'+i), mot=v('pm'+i), z=document.getElementById('pz'+i);
+  if(quem.length<2){z.textContent='Escreva o seu nome.';return}
+  if(mot.length<3){z.textContent='Escreva o motivo da mudança.';return}
+  pgGuardaQuem(quem);
+  const d={dia:PD.dia,unidade:m.unidade,entregador:m.entregador,quem:quem,motivo:mot,limpar:!!limpar,
+    chegada:v('pc'+i),horas:v('ph'+i),entregas:v('pe'+i),taxas:v('pt'+i),tem_garantido:v('pg'+i),
+    horas_garantido:v('pgh'+i),refeicoes_direito:v('pr'+i),ajuste:v('pa'+i)};
+  z.textContent='Gravando…';
+  try{ await pgPorta('pagamento_editar',d); PD=null; puxaPagar(PDDIA); }
+  catch(e){ z.textContent='Não gravou: '+e.message }
+}
+var PG_LINHAS=[];
 function pgComanda(m,i){
-  const taxas=Number(m.taxas||0), ref=Number(m.cobrar_refeicao||0), aj=Number(m.ajustes||0);
-  const base=Math.round((Number(m.pagar||0)-aj+ref)*100)/100, vale_gar=base>taxas+0.01;
-  let h='<div class="pg-tk" style="animation-delay:'+Math.min(i*45,600)+'ms" title="'+esc(m.aviso||'')+'">'+
+  PG_LINHAS[i]=m;
+  const taxas=Number(m.taxas||0), ref=Number(m.cobrar_refeicao||0), aj=Number(m.ajustes||0), ajm=Number(m.ajuste_manual||0);
+  const gar=Number(m.garantido_calculado||0), vale_gar=m.garantido!==false&&gar>taxas+0.01;
+  const lan=m.lanches_det||[], dir=Number(m.direito_refeicoes||0);
+  let h='<div class="pg-tk'+(m.editado?' pg-editado':'')+'" style="animation-delay:'+Math.min(i*45,600)+'ms">'+
     '<div class="pg-nome">'+esc(m.entregador)+'</div>'+
-    '<div class="pg-hora">'+esc(m.chegada||'—')+' → '+esc(m.ultima_entrega||'—')+' · '+hhmm(m.horas)+(Number(m.turnos)>1?' · '+num(m.turnos)+' turnos':'')+'</div>'+
-    '<hr class="pg-corte">';
+    '<div class="pg-hora">chegou '+esc(m.chegada||'—')+' → última entrega '+esc(m.ultima_entrega||'—')+' · '+hhmm(m.horas)+' rodadas</div>'+
+    pgTurnos(m)+'<hr class="pg-corte">';
   h+=pgLn(num(m.entregas)+' entregas',pgV(taxas),vale_gar?'fraco':'');
-  if(vale_gar){
-    const hx=Number(m.horas_escala)*Number(m.valor_hora), confere=Number(m.horas_escala)>0&&Math.abs(hx-base)<0.01;
-    h+=pgLn('garantido'+(confere?' '+num(m.horas_escala)+'h × '+num(m.valor_hora):' do turno'),pgV(base),'forte');
-    h+='<div class="pg-obs">as entregas deram menos que o garantido: vale o garantido</div>';
+  if(m.pendentes_track) h+='<div class="pg-obs">⚠️ '+num(m.pendentes_track.n)+' entrega(s) pendente(s) no TrackEat ('+pgV(m.pendentes_track.valor)+') — já estão contadas</div>';
+  h+=pgDupLinhas(m,i);
+  h+='<div class="pg-sec">garantido</div>';
+  if(m.garantido===false) h+=pgLn('sem direito ao garantido','—','menos');
+  else{
+    const hx=Number(m.horas_escala)*Number(m.valor_hora), confere=Number(m.horas_escala)>0&&Math.abs(hx-gar)<0.01;
+    h+=pgLn('tem direito'+(confere?' · '+num(m.horas_escala)+'h × '+num(m.valor_hora):(m.editado&&m.editado.campos&&m.editado.campos.horas_garantido!=null?' · '+num(m.editado.campos.horas_garantido)+'h × '+num(m.valor_hora):' · piso do turno')),pgV(gar),vale_gar?'forte':'fraco');
+    h+='<div class="pg-obs">'+(vale_gar?'as entregas deram menos: vale o garantido':'as entregas deram mais: vale o valor das entregas')+'</div>';
   }
-  if(m.garantido===false) h+=pgLn('garantido perdido','—','menos')+'<div class="pg-obs">chegou '+num(m.atraso_min)+' min depois do combinado (GPS)</div>';
-  if(ref>0) h+=pgLn('lanche a mais','− '+pgV(ref),'menos')+(m.lanche_produto?'<div class="pg-obs">'+esc(m.lanche_produto)+'</div>':'');
-  if(Math.abs(aj)>0.004) h+=pgLn('ajuste',(aj>0?'+ ':'− ')+pgV(Math.abs(aj)),aj<0?'menos':'')+(m.motivos?'<div class="pg-obs">'+esc(m.motivos)+'</div>':'');
+  h+='<div class="pg-sec">refeição</div>';
+  h+=pgLn('direito a '+num(dir)+' · pegou '+num(lan.length),ref>0?'− '+pgV(ref):'ok',ref>0?'menos':'');
+  if(ref>0&&m.lanche_produto) h+='<div class="pg-obs">'+esc(m.lanche_produto)+'</div>';
+  if(Math.abs(aj)>0.004) h+=pgLn('ajuste (corrida em dobro etc.)',(aj>0?'+ ':'− ')+pgV(Math.abs(aj)),aj<0?'menos':'');
+  if(Math.abs(ajm)>0.004) h+=pgLn('ajuste à mão',(ajm>0?'+ ':'− ')+pgV(Math.abs(ajm)),ajm<0?'menos':'');
   h+='<hr class="pg-corte"><div class="pg-total"><span class="k">A pagar</span><span class="v">'+rs(m.pagar)+'</span></div>';
+  if(m.editado){
+    const ap=m.auto&&m.auto.pagar!=null?Number(m.auto.pagar):null;
+    h+='<div class="pg-edit-tag">✏️ corrigido por '+esc(m.editado.quem||'?')+' em '+esc(m.editado.quando||'')+' · '+esc(m.editado.motivo||'')+(ap!=null&&Math.abs(ap-Number(m.pagar))>0.004?' · automático era '+rs(ap):'')+'</div>';
+  }
   if(PD.ve_pix!==false){
     if(m.chave_pix){
       const k=String(m.chave_pix);
       h+='<div class="pg-pix"><button onclick="pgCopiar(this,\''+esc(k).replace(/'/g,'\\\'')+'\')">Copiar a chave Pix</button><div class="ch">'+esc(k)+'</div></div>';
     } else h+='<div class="pg-sempix">Sem chave Pix — peça antes de pagar</div>';
   }
-  if(m.aviso) h+='<details class="pg-det"><summary>ver detalhe</summary><div>'+esc(m.aviso)+'</div></details>';
+  if(PD.pode_editar) h+='<div class="pg-btns"><button class="pg-corrigir" onclick="var f=document.getElementById(\'pgf'+i+'\');f.hidden=!f.hidden">✏️ Corrigir</button></div>'+pgForm(m,i);
   const tg=[];
   if(!m.tem_gps) tg.push('<span class="pg-tag" title="Sem carimbo de GPS no pátio: a chegada foi estimada pela primeira entrega, por isso nada foi cortado.">chegada sem GPS · nada cortado</span>');
   if(Number(m.lanche_sem_preco)>0) tg.push('<span class="pg-tag aviso">falta o preço de '+num(m.lanche_sem_preco)+' lanche</span>');
   if(tg.length) h+='<div class="pg-tags">'+tg.join('')+'</div>';
+  if(m.aviso) h+='<details class="pg-det"><summary>ver detalhe</summary><div>'+esc(m.aviso)+'</div></details>';
   const d=(DELES&&DELES.tem)?(MAPD||{})[chaveDeles(m.unidade,m.entregador)]:null;
   if(d&&d.deles_pagar!=null){
     const dif=Math.round((Number(m.pagar||0)-Number(d.deles_pagar||0))*100)/100;
@@ -814,7 +929,7 @@ function viewPagar(){
      '<div><div class="k">Motoboys</div><div class="mini">'+l.length+'</div></div>'+
      (PD.ve_pix!==false&&semPix?'<div><div class="k">Sem chave Pix</div><div class="mini w">'+semPix+'</div></div>':'')+'</div>';
   const lojas=[]; l.forEach(function(m){if(lojas.indexOf(m.unidade)<0)lojas.push(m.unidade)});
-  let i=0;
+  let i=0; PG_LINHAS=[];
   lojas.forEach(function(u){
     const lu=l.filter(function(m){return m.unidade===u});
     let st=0; lu.forEach(function(m){st+=Number(m.pagar||0)});
