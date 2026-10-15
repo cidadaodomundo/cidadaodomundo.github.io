@@ -307,7 +307,7 @@ function direitoFrase(l, dono){
   }
   if(d==='no_prazo') return 'Ainda dentro do prazo: chegando até <b>'+esc(l.limite_txt||'')+'</b> '+(l.garantido_perdido
       ? 'fica com o rango deste turno, mas '+gpOutro+'.' : 'tem direito ao rango e ao garantido.');
-  if(d==='nao_chegou') return gpsParado() ? 'TrackEat desligado: anote quando ele chegar.' : 'Não apareceu na fila do TrackEat nem no balcão neste turno.';
+  if(d==='nao_chegou') return gpsParado() ? 'TrackEat sem sinal: anote quando ele chegar.' : 'Não apareceu na fila do TrackEat nem no balcão neste turno.';
   if(d==='aguarda_balcao') return 'Quando ele chegar, anote a hora: aí aparece se tem direito ao rango.';
   if(d==='fora') return 'Fora da escala do Jaison: sem horário combinado, não dá para medir atraso.';
   return '';
@@ -392,10 +392,13 @@ function desenha(){
     return '<div class="card '+cls+'"'+(alvo?' onclick="vaiPara(&quot;'+alvo+'&quot;)" title="Clique para ir até a lista"':'')+'>'+
       '<div class="t">'+em+' '+t+'</div><div class="v">'+v+'</div>'+(qs?'<div class="qs">'+qs+'</div>':'')+'</div>';
   };
-  if(gp) h+='<div class="gpsparado">⚠️ <b>O GPS do TrackEat está desligado de propósito (volta quando sair a API)'+(D.gps_ultimo?'; último dado em '+esc(D.gps_ultimo):'')+'.</b> '+
+  /* 14/10/2026, pedido do Fabio ("corrija"): o TrackEat voltou pela API oficial em 13/10 (robo trackeat-api-fila).
+     Sem sinal agora quer dizer ninguem com o aplicativo ligado (antes do 1o motoboy) ou robo parado. */
+  if(gp) h+='<div class="gpsparado">⚠️ <b>Sem sinal de GPS do TrackEat'+(D.gps_ultimo?'; último dado em '+esc(D.gps_ultimo):'')+'.</b> '+
+     'Antes do primeiro motoboy ligar o aplicativo é normal. Em horário de movimento, avise: o robô do TrackEat pode ter parado. '+
      'A tela não sabe quem está rodando nem a hora que o sistema viu cada um — por isso não aparece "o sistema não viu". '+
      'A anotação do balcão continua valendo: anote normalmente.</div>';
-  var semGps=function(em,t){ return '<div class="card sd"><div class="t">'+em+' '+t+'</div><div class="v">—</div><div class="qs">sem GPS: TrackEat desligado</div></div>'; };
+  var semGps=function(em,t){ return '<div class="card sd"><div class="t">'+em+' '+t+'</div><div class="v">—</div><div class="qs">sem GPS: TrackEat sem sinal</div></div>'; };
   var an=P.anotados||0, tu=P.turnos||0;
   h+='<div class="cards">'+q(an<tu?'atencao':'bem','✍️','Anotados pelo balcão',an+'/'+tu,an<tu?(tu-an)+' turno(s) sem a hora do balcão':'todos anotados',vivo?'b_rodando':'b_escala');
   /* 14/10/2026 (chat-chegada-garantido-14-10): quem tem direito ao garantido e ao rango, pela escala do Jaison x trava da fila do TrackEat */
