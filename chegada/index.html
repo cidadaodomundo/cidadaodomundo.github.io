@@ -297,12 +297,16 @@ function direitoFrase(l, dono){
       : 'tem direito ao <b>garantido</b> e ao <b>rango</b>.');
   if(d==='rango_excecao') return (quanto||'Chegou depois de '+esc(l.limite_txt||''))+' — passou de '+tol+' min: <b>perde o garantido do dia</b>, mas <b>fica com o rango</b> (combinado com o Jaison).';
   if(d==='perdeu') return (quanto||'Chegou depois de '+esc(l.limite_txt||''))+' — passou de '+tol+' min: <b>perde o rango deste turno e o garantido do dia</b>.';
+  /* 15/10 (2a revisao): se outro turno ja derrubou o garantido do dia, a frase nao promete o garantido */
+  var gpOutro = 'o garantido do dia <b>já caiu</b> (atrasou mais de '+tol+' min em outro turno)';
   if(d==='sem_prova'){
-    if(l.motivo_sem_prova==='nome') return 'A fila do TrackEat viu, mas o nome na escala do Jaison está escrito diferente do TrackEat. Sem prova, <b>não se corta</b> nada.';
-    if(l.motivo_sem_prova==='gps') return 'Sem carimbo do GPS no pátio para medir o atraso. Sem prova, <b>não se corta</b> nada.';
-    return 'O GPS não registrou a chegada'+(l.anotado_txt?' (o balcão anotou '+esc(l.anotado_txt)+')':'')+'. Sem prova, <b>não se corta</b> nada.';
+    var nc = l.garantido_perdido ? 'Sem prova, <b>não se corta o rango</b> deste turno; '+gpOutro+'.' : 'Sem prova, <b>não se corta</b> nada.';
+    if(l.motivo_sem_prova==='nome') return 'A fila do TrackEat viu, mas o nome na escala do Jaison está escrito diferente do TrackEat. '+nc;
+    if(l.motivo_sem_prova==='gps') return 'Sem carimbo do GPS no pátio para medir o atraso. '+nc;
+    return 'O GPS não registrou a chegada'+(l.anotado_txt?' (o balcão anotou '+esc(l.anotado_txt)+')':'')+'. '+nc;
   }
-  if(d==='no_prazo') return 'Ainda dentro do prazo: chegando até <b>'+esc(l.limite_txt||'')+'</b> tem direito ao rango e ao garantido.';
+  if(d==='no_prazo') return 'Ainda dentro do prazo: chegando até <b>'+esc(l.limite_txt||'')+'</b> '+(l.garantido_perdido
+      ? 'fica com o rango deste turno, mas '+gpOutro+'.' : 'tem direito ao rango e ao garantido.');
   if(d==='nao_chegou') return gpsParado() ? 'TrackEat desligado: anote quando ele chegar.' : 'Não apareceu na fila do TrackEat nem no balcão neste turno.';
   if(d==='aguarda_balcao') return 'Quando ele chegar, anote a hora: aí aparece se tem direito ao rango.';
   if(d==='fora') return 'Fora da escala do Jaison: sem horário combinado, não dá para medir atraso.';
@@ -398,7 +402,13 @@ function desenha(){
   if(!gp){
     var pd=P.perderam||0, gpd=P.garantido_perdido||0, sr=P.so_rango||0;
     h+=q('bem','✅','Garantido + rango',(P.com_direito||0),'turno(s) dentro de '+tolMin()+' min da escala'+(sr?' · mais '+sr+' só com o rango':''),vivo?'b_rodando':'b_escala')+
-       q(pd?'mal':'bem','❌','Perderam o rango',pd,pd?gpd+' pessoa(s) sem o garantido do dia':'ninguém atrasou mais de '+tolMin()+' min',vivo?'b_rodando':'b_escala');
+       /* 15/10 (2a revisao): "ninguem atrasou" so quando e verdade sobre o dia inteiro que a pessoa ve */
+       q(pd?'mal':(gpd?'atencao':'bem'),'❌','Perderam o rango',pd,
+         pd ? gpd+' pessoa(s) sem o garantido do dia'
+            : gpd ? gpd+' pessoa(s) sem o garantido do dia, com o rango mantido'
+            : (!dono && an<tu) ? 'entre os turnos já anotados'
+            : 'ninguém atrasou mais de '+tolMin()+' min',
+         vivo?'b_rodando':'b_escala');
   }
   if(vivo && gp){
     h+=semGps('🟢','Rodando agora')+semGps('📌','Fora da escala')+semGps('📵','App ligado e parado')+semGps('⚪','Escalado sem sinal');
