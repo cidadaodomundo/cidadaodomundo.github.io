@@ -4,6 +4,8 @@ Pedido do Fábio, 15/10: um app igual ao Goomer, com a cara do Cidadão. O clien
 
 Protótipo para clicar: https://claude.ai/artifact/YPAJV5Fam1d7NTKA2rZZsm
 
+> **Atualizado 15/10, decisões do Fábio:** "os tablets são nossos" e "vamos deixar sem o Pix por enquanto". Agora o pedido do tablet vai **direto para a cozinha** e o cliente **paga no fim, no caixa**, como hoje. O Pix continua pronto no desenho, desligado (o gerente liga quando quiser). O que trava o próximo passo agora é **só o Saipos**.
+
 ---
 
 ## 1. O que o Goomer faz hoje (engenharia reversa)
@@ -12,13 +14,18 @@ Protótipo para clicar: https://claude.ai/artifact/YPAJV5Fam1d7NTKA2rZZsm
 |---|---|---|
 | Cardápio no tablet | Categorias, foto, preço, adicionais ("Deseja turbinar o seu prato? 1 a 3") | Igual, com a fonte e as cores da casa |
 | Modo de pedir | Dois modos: **Mesa** (pedido vai pelo número da mesa) e **Comanda/Ficha** (cada um no seu cartão) | Três: **Mesa**, **Cartão** ou **o cliente escolhe** na hora |
-| Pagamento | Pede primeiro, paga no fim, no caixa | **Paga no Pix antes.** Sem Pix confirmado, nada imprime |
+| Pagamento | Pede primeiro, paga no fim, no caixa | **Por enquanto, igual:** paga no fim, no caixa. Pix antes da cozinha fica desligado |
 | Chegar na cozinha | Integração com o Saipos (pedida ao suporte do Saipos) e o Saipos imprime | Mesmo caminho: mandar o pedido **pago** para o Saipos (ver item 3) |
-| Gerente | Painel do Goomer, botão "Publicar alterações" | Ajuste escondido no tablet (modo, mesa, tempo do Pix) |
+| Gerente | Painel do Goomer, botão "Publicar alterações" | Ajuste escondido no tablet (modo, mesa, Pix liga/desliga) |
+| Conta | Gestor de mesas, conta no fim | Botão **Minha conta** no tablet: soma o que a mesa ou o cartão já pediu |
 
 Fontes: central de ajuda do Goomer ("Modo de Operação") e páginas do Saipos sobre a integração com o Goomer. O que já se sabia no caderno: Goomer na Água Verde (loja 269560) e no São Braz (270370), mesmo login; o adicional do tablet já saiu errado na comanda do São Braz (07/09).
 
 ## 2. Como o pedido anda no app novo
+
+**Hoje (Pix desligado):** cliente monta o pedido, toca em **Enviar para a cozinha**, escolhe mesa ou cartão, e o pedido vai para o Saipos, que imprime. Paga no fim, no caixa.
+
+**Quando o Pix for ligado:**
 
 1. Cliente monta o pedido no tablet.
 2. Toca em **Pagar com Pix**. Se a loja estiver no modo cartão, digita o número do cartão.
@@ -33,7 +40,7 @@ Fontes: central de ajuda do Goomer ("Modo de Operação") e páginas do Saipos s
 |---|---|---|
 | Tela do tablet | Página web aberta em tela cheia no tablet | Protótipo pronto. Falta ligar no cardápio de verdade e nas fotos |
 | Cardápio | Vem do Saipos (já lemos no banco) | ⚠️ Última leitura do salão no banco: **17/09/2026**. Precisa voltar a ler |
-| Pix | Um banco ou intermediário que gere Pix com valor e **avise quando cair** | **Falta decidir qual** (ver 4) |
+| Pix | Um banco ou intermediário que gere Pix com valor e **avise quando cair** | **Adiado** pelo Fábio em 15/10 |
 | Impressora | Pedido pago entra no Saipos e o Saipos imprime | **Falta pedir ao Saipos** acesso à API de pedidos. O Saipos diz ter "API aberta", mas a documentação não é pública |
 | Banco de dados | Supabase, que já usamos | Pronto para receber as tabelas de pedido |
 
@@ -41,9 +48,9 @@ Fontes: central de ajuda do Goomer ("Modo de Operação") e páginas do Saipos s
 
 ## 4. O que só o Fábio decide
 
-1. **Qual banco recebe o Pix.** Precisa ter API com aviso automático de pagamento. Pode ser o banco onde a loja já recebe Pix ou um intermediário. Taxa de cada um: **não sei**, tem que pedir cotação.
-2. **Pedir ao suporte do Saipos** a integração de pedidos (a mesma que o Goomer usa) para o app próprio.
-3. **Os tablets são da casa ou alugados do Goomer?** Não sei. Se forem do Goomer, precisa comprar tablets.
+1. ~~Qual banco recebe o Pix~~ — **adiado** (15/10).
+2. **Pedir ao suporte do Saipos** a integração de pedidos (a mesma que o Goomer usa) para o app próprio. **É o que trava agora.**
+3. ~~Os tablets são da casa?~~ — **sim, são nossos** (15/10).
 4. **Modo de cada loja:** mesa, cartão ou o cliente escolhe.
 5. **Item que acaba depois de pago:** devolve o Pix na hora (o banco permite) ou troca por outro?
 
@@ -56,8 +63,8 @@ Fontes: central de ajuda do Goomer ("Modo de Operação") e páginas do Saipos s
 
 ## 6. Ordem de trabalho proposta
 
-1. Fábio decide o banco do Pix e liga para o Saipos (item 4).
-2. Montar o Pix de teste com o banco escolhido (R$ 1,00, pago pelo próprio Fábio).
-3. Ligar o pedido pago no Saipos, em teste, numa loja.
+1. Fábio pede ao Saipos a integração de pedidos (item 4).
+2. Ligar o pedido do tablet no Saipos, em teste, numa loja.
+3. (Depois, se quiser) ligar o Pix antes da cozinha.
 4. Tablet piloto numa mesa da Água Verde, ao lado do Goomer.
 5. Se der certo, trocar loja por loja.

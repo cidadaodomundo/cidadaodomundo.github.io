@@ -198,7 +198,7 @@ textarea{width:100%;min-height:64px;background:var(--carvao2);color:var(--branco
 </style>
 
 <div class="demo">
-  <div class="aviso"><b>Protótipo para clicar.</b> Nenhum pedido é de verdade, o QR não paga nada e nada vai para a impressora. Cardápio e preços do salão da Água Verde, lidos do Saipos em 17/09/2026.</div>
+  <div class="aviso"><b>Protótipo para clicar.</b> Nenhum pedido é de verdade e nada vai para a impressora. O Pix antes da cozinha está desligado (liga no Gerente). Cardápio e preços do salão da Água Verde, lidos do Saipos em 17/09/2026.</div>
   <div class="vistas" role="group" aria-label="O que ver">
     <button id="v-tablet" aria-pressed="true">Tablet da mesa</button>
     <button id="v-cozinha" aria-pressed="false">Impressora da cozinha<span class="bolha" id="bolha" hidden>0</span></button>
@@ -216,6 +216,7 @@ textarea{width:100%;min-height:64px;background:var(--carvao2);color:var(--branco
     </div>
     <div class="onde">
       <span class="chip" id="onde-chip">Mesa 12</span>
+      <button class="btn-sec" id="conta">Minha conta</button>
       <button class="btn-sec" id="garcom">Chamar garçom</button>
     </div>
   </div>
@@ -262,7 +263,7 @@ const C=[
 let pid=0; C.forEach(c=>c.itens=c.itens.map(([nome,desc,preco,grupos])=>({id:"p"+(++pid),nome,desc,preco,grupos,tom:c.tom,cat:c.nome})));
 
 // ---------- estado ----------
-const S={vista:"tablet",tela:"inicio",cat:C[0].id,sacola:[],modo:"escolhe",mesa:12,minutos:10,loja:"Água Verde",
+const S={vista:"tablet",tela:"inicio",cat:C[0].id,sacola:[],modo:"escolhe",mesa:12,minutos:10,loja:"Água Verde",pix:false,
   destino:null,pedidos:[],seq:412,atual:null,janela:null,timer:null};
 const $=s=>document.querySelector(s), tela=$("#tela"), tablet=$("#tablet");
 const brl=c=>"R$ "+(c/100).toFixed(2).replace(".",",");
@@ -273,6 +274,17 @@ const totalSacola=()=>S.sacola.reduce((t,l)=>t+precoLinha(l)*l.qtd,0);
 
 function toast(t){tablet.querySelector(".toast")?.remove();const d=document.createElement("div");d.className="toast";d.textContent=t;tablet.appendChild(d);setTimeout(()=>d.remove(),2600);}
 $("#garcom").onclick=()=>toast(S.destino?`Garçom chamado para ${rotDestino(S.destino)}.`:(S.modo==="mesa"?`Garçom chamado para a mesa ${S.mesa}.`:"Garçom chamado. Ele vem até você."));
+$("#conta").onclick=()=>{if(S.vista!=="tablet")return;
+  const d=S.destino||(S.modo==="mesa"?{tipo:"mesa",n:S.mesa}:null);
+  const meus=d?S.pedidos.filter(p=>p.st==="impresso"&&p.destino.tipo===d.tipo&&p.destino.n===d.n):[];
+  S.janela=function(){const f=document.createElement("div");f.className="fundo";f.innerHTML=`<div class="janela" role="dialog" aria-modal="true" aria-label="Minha conta">
+    <div class="cab"><h2 class="tit">Minha conta</h2><p>${d?(d.tipo==="mesa"?"Mesa "+d.n:"Cartão "+d.n):"Você ainda não fez pedido neste tablet."}</p></div>
+    <div class="grupo">${meus.length?meus.map(p=>`<div class="lin"><span>Pedido ${p.id} · ${hora(p.criado)} · ${((n)=>n+(n===1?" item":" itens"))(p.linhas.reduce((t,l)=>t+l.qtd,0))}</span><span class="num">${brl(p.total)}</span></div>`).join(""):`<p class="nada">Nenhum pedido enviado ainda.</p>`}
+      <div class="lin" style="font-weight:700"><span>Total da conta</span><span class="num">${brl(meus.filter(p=>!p.pix).reduce((t,p)=>t+p.total,0))}</span></div>
+      ${meus.some(p=>p.pix)?`<p class="regra">Pedidos pagos no Pix já estão quitados e não entram no total.</p>`:""}</div>
+    <div class="pe"><span class="rot">O pagamento é no caixa</span><button class="btn-sec" id="fecha">Fechar</button></div></div>`;
+    tablet.appendChild(f);f.querySelector("#fecha").onclick=fechaJanela;};
+  desenha();};
 function rotDestino(d){return d.tipo==="mesa"?`a mesa ${d.n}`:`o cartão ${d.n}`;}
 function chip(){$("#onde-chip").textContent=S.destino?(S.destino.tipo==="mesa"?"Mesa "+S.destino.n:"Cartão "+S.destino.n):(S.modo==="cartao"?"Pedido no cartão":S.modo==="mesa"?"Mesa "+S.mesa:"Mesa ou cartão");$("#loja-rot").textContent="Burgers & Arts · "+S.loja;}
 
@@ -289,9 +301,10 @@ function desenha(){chip();bolha();tablet.querySelector(".fundo")?.remove();
 
 // ---------- boas-vindas ----------
 function telaInicio(){
-  const txt=S.modo==="mesa"?`Você está na <b>mesa ${S.mesa}</b>. Escolha, pague no Pix e seu pedido vai direto para a cozinha.`
-    :S.modo==="cartao"?"Pegue o cartão que você recebeu na entrada. Escolha, pague no Pix e seu pedido vai direto para a cozinha."
-    :"Escolha, pague no Pix e seu pedido vai direto para a cozinha.";
+  const fim=S.pix?"Escolha, pague no Pix e seu pedido vai direto para a cozinha.":"Escolha e seu pedido vai direto para a cozinha. Você paga no fim, no caixa.";
+  const txt=S.modo==="mesa"?`Você está na <b>mesa ${S.mesa}</b>. ${fim}`
+    :S.modo==="cartao"?"Pegue o cartão que você recebeu na entrada. "+fim
+    :fim;
   tela.innerHTML=`<div class="boas"><div><h2 class="tit">Bem-vindo, cidadão</h2><p>${txt}</p>
     <button class="btn-ouro" id="comecar">Ver o cardápio</button></div></div>`;
   $("#comecar").onclick=()=>{S.tela="menu";desenha();};
@@ -307,14 +320,14 @@ function telaMenu(){
         <div class="foto" style="background:linear-gradient(135deg,${p.tom},#141310)"><span class="tit">${esc(sigla(p.nome))}</span><i>foto</i></div>
         <div class="info"><span class="nome">${esc(p.nome)}</span><span class="desc">${esc(p.desc)}</span>
         <span class="preco num">${p.grupos.some(g=>g.substitui)?"a partir de ":""}${brl(p.preco)}</span></div></button>`).join("")}</div></section>
-    <aside class="sacola" aria-label="Seu pedido"><header><h2 class="tit">Seu pedido</h2><span class="rot num">${S.sacola.reduce((t,l)=>t+l.qtd,0)} itens</span></header>
+    <aside class="sacola" aria-label="Seu pedido"><header><h2 class="tit">Seu pedido</h2><span class="rot num">${((n)=>n+(n===1?" item":" itens"))(S.sacola.reduce((t,l)=>t+l.qtd,0))}</span></header>
       <div class="itens">${S.sacola.length?S.sacola.map((l,i)=>`<div class="item"><span class="n">${l.qtd}× ${esc(l.nome)}</span><span class="num">${brl(precoLinha(l)*l.qtd)}</span>
         ${l.esc.length||l.obs?`<span class="ex">${esc([...l.esc.flatMap(g=>g.ops.map(o=>(g.substitui?"":"+ ")+o[0])),l.obs?"Obs.: "+l.obs:""].filter(Boolean).join(" · "))}</span>`:""}
         <div class="qtd"><button data-menos="${i}" aria-label="Tirar um">−</button><span class="num">${l.qtd}</span><button data-mais="${i}" aria-label="Pôr mais um">+</button></div></div>`).join("")
         :`<p class="vazio">Toque num item para colocar no pedido.</p>`}</div>
       <footer><div class="total"><span class="rot">Total</span><b class="num">${brl(totalSacola())}</b></div>
-        <button class="btn-ouro" id="pagar" ${S.sacola.length?"":"disabled"}>Pagar com Pix</button>
-        <p class="regra"><b>O pedido só vai para a cozinha depois que o Pix cair.</b></p></footer></aside></div>`;
+        <button class="btn-ouro" id="pagar" ${S.sacola.length?"":"disabled"}>${S.pix?"Pagar com Pix":"Enviar para a cozinha"}</button>
+        <p class="regra">${S.pix?"<b>O pedido só vai para a cozinha depois que o Pix cair.</b>":"Você paga no fim, no caixa. <b>Confira antes de enviar.</b>"}</p></footer></aside></div>`;
   tela.querySelectorAll("[data-cat]").forEach(b=>b.onclick=()=>{S.cat=b.dataset.cat;desenha();});
   tela.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>abreProduto(C.flatMap(c=>c.itens).find(p=>p.id===b.dataset.p)));
   tela.querySelectorAll("[data-mais]").forEach(b=>b.onclick=()=>{S.sacola[+b.dataset.mais].qtd++;desenha();});
@@ -350,7 +363,7 @@ function fechaJanela(){S.janela=null;tablet.querySelector(".fundo")?.remove();de
 
 // ---------- mesa ou cartão ----------
 function identificar(){
-  if(S.modo==="mesa"){S.destino={tipo:"mesa",n:S.mesa};return abrePix();}
+  if(S.modo==="mesa"){S.destino={tipo:"mesa",n:S.mesa};return seguir();}
   if(S.modo==="cartao")return tecladoCartao();
   S.janela=function(){const f=document.createElement("div");f.className="fundo";f.innerHTML=`<div class="janela" role="dialog" aria-modal="true" aria-label="Para onde vai o pedido">
     <div class="cab"><h2 class="tit">Como você quer pedir?</h2><p>Escolha uma vez. O garçom leva o pedido até você.</p></div>
@@ -360,7 +373,7 @@ function identificar(){
     <div class="pe"><button class="btn-sec" id="fecha">Voltar</button></div></div>`;
     tablet.querySelector(".fundo")?.remove();tablet.appendChild(f);
     f.querySelector("#fecha").onclick=fechaJanela;
-    f.querySelector("#pm").onclick=()=>{S.janela=null;S.destino={tipo:"mesa",n:S.mesa};abrePix();};
+    f.querySelector("#pm").onclick=()=>{S.janela=null;S.destino={tipo:"mesa",n:S.mesa};seguir();};
     f.querySelector("#pc").onclick=()=>{S.janela=null;tecladoCartao();};};
   desenha();
 }
@@ -373,15 +386,18 @@ function tecladoCartao(){let v="";
     tablet.querySelector(".fundo")?.remove();tablet.appendChild(f);
     f.querySelector("#fecha").onclick=fechaJanela;
     f.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{const k=b.dataset.k;
-      if(k==="x")v=v.slice(0,-1);else if(k==="ok"){if(!v||+v<1){toast("Digite o número do cartão.");return;}S.janela=null;S.destino={tipo:"cartao",n:+v};return abrePix();}
+      if(k==="x")v=v.slice(0,-1);else if(k==="ok"){if(!v||+v<1){toast("Digite o número do cartão.");return;}S.janela=null;S.destino={tipo:"cartao",n:+v};return seguir();}
       else if(v.length<3)v+=k;render();});};
   desenha();
 }
 
-// ---------- Pix ----------
+// ---------- enviar (sem Pix) ou Pix ----------
+function seguir(){if(S.pix)return abrePix();
+  const ped={id:++S.seq,txid:"",destino:S.destino,linhas:JSON.parse(JSON.stringify(S.sacola)),total:totalSacola(),st:"impresso",criado:new Date(),pago:null,loja:S.loja,pix:false};
+  S.pedidos.unshift(ped);S.atual=ped;S.sacola=[];S.tela="pago";desenha();}
 function abrePix(){
   const id=++S.seq, txid="CDM"+Date.now().toString(36).toUpperCase();
-  const ped={id,txid,destino:S.destino,linhas:JSON.parse(JSON.stringify(S.sacola)),total:totalSacola(),st:"esperando",criado:new Date(),pago:null,loja:S.loja};
+  const ped={id,txid,destino:S.destino,linhas:JSON.parse(JSON.stringify(S.sacola)),total:totalSacola(),st:"esperando",criado:new Date(),pago:null,loja:S.loja,pix:true};
   S.pedidos.unshift(ped);S.atual=ped;S.tela="pix";S.fim=Date.now()+S.minutos*60000;
   clearInterval(S.timer);S.timer=setInterval(tique,1000);desenha();
 }
@@ -411,10 +427,10 @@ const hora=d=>d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
 function cupom(p){return `<div class="cupom"><div class="c g">CIDADÃO DO MUNDO</div><div class="c">${esc(p.loja.toUpperCase())} · SALÃO · TABLET</div><hr>
   <div class="c g">${p.destino.tipo==="mesa"?"MESA "+p.destino.n:"CARTÃO "+p.destino.n}</div><div class="c">PEDIDO ${p.id} · ${hora(p.pago||p.criado)}</div><hr>
   ${p.linhas.map(l=>`<div class="l"><span>${l.qtd}x ${esc(l.nome.toUpperCase())}</span></div>${l.esc.flatMap(g=>g.ops.map(o=>`<div class="a">${g.substitui?"":"+ "}${esc(o[0].toUpperCase())}</div>`)).join("")}${l.obs?`<div class="a">OBS: ${esc(l.obs.toUpperCase())}</div>`:""}`).join("")}
-  <hr><div class="l"><b>TOTAL</b><b class="num">${brl(p.total)}</b></div><div class="pg">PAGO NO PIX ✓</div><div class="c" style="font-size:11px;margin-top:6px">${p.txid}</div></div>`;}
+  <hr><div class="l"><b>TOTAL</b><b class="num">${brl(p.total)}</b></div><div class="pg">${p.pix?"PAGO NO PIX ✓":"PAGAR NO CAIXA"}</div>${p.txid?`<div class="c" style="font-size:11px;margin-top:6px">${p.txid}</div>`:""}</div>`;}
 function telaPago(){const p=S.atual;
-  tela.innerHTML=`<div class="pago"><div><span class="ok">Pix recebido</span><h2 class="tit">Pedido ${p.id} foi para a cozinha</h2>
-    <p>${p.destino.tipo==="mesa"?`O garçom leva até a mesa ${p.destino.n}.`:`O garçom chama pelo cartão ${p.destino.n}.`} Quer mais alguma coisa? É só pedir de novo.</p>
+  tela.innerHTML=`<div class="pago"><div><span class="ok">${p.pix?"Pix recebido":"Pedido enviado"}</span><h2 class="tit">Pedido ${p.id} foi para a cozinha</h2>
+    <p>${p.destino.tipo==="mesa"?`O garçom leva até a mesa ${p.destino.n}.`:`O garçom chama pelo cartão ${p.destino.n}.`} ${p.pix?"":"Você paga no fim, no caixa. "}Quer mais alguma coisa? É só pedir de novo.</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px"><button class="btn-ouro" id="denovo">Fazer outro pedido</button><button class="btn-sec" id="vercoz">Ver a impressora da cozinha</button></div></div>
     <div><span class="rot" style="display:block;text-align:center;margin-bottom:8px">É isto que sai na impressora</span>${cupom(p)}</div></div>`;
   $("#denovo").onclick=()=>{S.tela="menu";desenha();};
@@ -431,8 +447,8 @@ function telaExpirou(){const p=S.atual;
 function telaCozinha(){S.janela=null;
   const imp=S.pedidos.filter(p=>p.st==="impresso"),esp=S.pedidos.filter(p=>p.st==="esperando"),can=S.pedidos.filter(p=>p.st==="cancelado");
   const onde=p=>p.destino.tipo==="mesa"?"Mesa "+p.destino.n:"Cartão "+p.destino.n;
-  tela.innerHTML=`<div class="cozinha"><div><h2 class="tit">Impressora da cozinha</h2><p class="sub">Só aparece aqui o que já foi pago.</p>
-    <div class="fila">${imp.length?imp.map(cupom).join(""):`<p class="nada">Nenhum pedido pago ainda. Faça um pedido no tablet e toque em “O cliente pagou”.</p>`}</div></div>
+  tela.innerHTML=`<div class="cozinha"><div><h2 class="tit">Impressora da cozinha</h2><p class="sub">${S.pix?"Só aparece aqui o que já foi pago.":"Pix desligado: todo pedido enviado do tablet sai aqui na hora."}</p>
+    <div class="fila">${imp.length?imp.map(cupom).join(""):`<p class="nada">${S.pix?"Nenhum pedido pago ainda. Faça um pedido no tablet e toque em “O cliente pagou”.":"Nenhum pedido ainda. Faça um pedido no tablet."}</p>`}</div></div>
     <div style="display:grid;gap:14px">
       <div class="bloco"><h3 class="rot">Esperando Pix · não imprime</h3>${esp.length?esp.map(p=>`<div class="lin"><span>Pedido ${p.id} · ${onde(p)}</span><span class="tag esp">${brl(p.total)}</span></div>`).join(""):`<p class="nada">Nenhum.</p>`}</div>
       <div class="bloco"><h3 class="rot">Cancelados sem pagar · nunca imprimiram</h3>${can.length?can.map(p=>`<div class="lin"><span>Pedido ${p.id} · ${onde(p)}</span><span class="tag can">${brl(p.total)}</span></div>`).join(""):`<p class="nada">Nenhum.</p>`}</div>
@@ -448,12 +464,14 @@ function telaGerente(){S.janela=null;
   tela.innerHTML=`<div class="gerente"><div><h2 class="tit">Ajuste do tablet</h2><p class="sub" style="color:var(--texto2)">Fica escondido do cliente. No app de verdade, abre com a senha do gerente.</p></div>
     <div><span class="rot">Como o cliente pede</span>${ops.map(o=>`<button class="op" data-m="${o[0]}" aria-pressed="${S.modo===o[0]}"><span style="display:flex;gap:12px;align-items:center"><span class="marc">${S.modo===o[0]?"✓":""}</span><span><b>${o[1]}</b><br><span style="color:var(--texto2);font-size:14px">${o[2]}</span></span></span></button>`).join("")}</div>
     <div class="campo"><label for="g-mesa"><b>Este tablet está na mesa</b></label><input id="g-mesa" type="number" min="1" max="99" value="${S.mesa}"></div>
-    <div class="campo"><label for="g-min"><b>Tempo para pagar o Pix (minutos)</b></label><input id="g-min" type="number" min="1" max="30" value="${S.minutos}"></div>
+    <div><span class="rot">Pix antes de imprimir</span><button class="op" id="g-pix" aria-pressed="${S.pix}"><span style="display:flex;gap:12px;align-items:center"><span class="marc">${S.pix?"✓":""}</span><span><b>${S.pix?"Ligado":"Desligado por enquanto"}</b><br><span style="color:var(--texto2);font-size:14px">Ligado: o pedido só imprime depois que o Pix cai. Desligado: imprime na hora e o cliente paga no caixa.</span></span></span></button></div>
+    <div class="campo" ${S.pix?"":"hidden"}><label for="g-min"><b>Tempo para pagar o Pix (minutos)</b></label><input id="g-min" type="number" min="1" max="30" value="${S.minutos}"></div>
     <div class="campo"><span><b>Loja</b></span>${["Água Verde","São Braz","Ahú"].map(l=>`<button class="btn-sec" data-l="${l}" style="${S.loja===l?"background:var(--branco);color:var(--preto)":""}">${l}</button>`).join("")}</div>
     <div><button class="btn-ouro" id="g-ok">Salvar e voltar ao tablet</button></div></div>`;
   tela.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{S.modo=b.dataset.m;telaGerente();chip();});
   tela.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{S.loja=b.dataset.l;telaGerente();chip();});
-  $("#g-ok").onclick=()=>{S.mesa=Math.max(1,+$("#g-mesa").value||1);S.minutos=Math.min(30,Math.max(1,+$("#g-min").value||10));S.destino=null;S.tela="inicio";$("#v-tablet").click();};
+  $("#g-pix").onclick=()=>{S.pix=!S.pix;telaGerente();};
+  $("#g-ok").onclick=()=>{S.mesa=Math.max(1,+$("#g-mesa").value||1);if($("#g-min"))S.minutos=Math.min(30,Math.max(1,+$("#g-min").value||10));S.destino=null;S.tela="inicio";$("#v-tablet").click();};
 }
 
 desenha();
