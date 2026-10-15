@@ -275,14 +275,18 @@ function vaiPara(id){ var e=document.getElementById(id); if(e&&e.scrollIntoView)
    que ele entrou na fila do patio no TrackEat (chegou_txt / chegou_fonte) e o atraso. A regra e a MESMA do pagamento. */
 /* a tolerancia vem do banco (motoboy_param via chegada_conferir); sem ela a tela nao inventa numero */
 function tolMin(){ return (D&&D.tolerancia!=null)?esc(String(D.tolerancia)):'—'; }
+/* 15/10/2026 (revisao do supervisor): rango_excecao = combinado com o Jaison (motoboy_excecao_rango); aguarda_balcao = quem
+   nao e dono so ve o veredito depois de anotar a chegada (o banco esconde antes); com o GPS parado, "nao chegou" vira "sem GPS". */
 function direitoPill(l){
   var d=l.direito;
   if(d==='ok') return l.garantido_perdido ? '<span class="pill p-warn">🍔 rango sim · garantido não</span>'
                                           : '<span class="pill p-ok">✅ garantido + rango</span>';
+  if(d==='rango_excecao') return '<span class="pill p-warn">🍔 rango sim (combinado) · garantido não</span>';
   if(d==='perdeu') return '<span class="pill p-bad">❌ sem rango · sem garantido</span>';
-  if(d==='sem_prova') return '<span class="pill p-off">sem GPS · não se corta</span>';
+  if(d==='sem_prova') return '<span class="pill p-off">sem prova · não se corta</span>';
   if(d==='no_prazo') return '<span class="pill p-off">⏳ no prazo até '+esc(l.limite_txt||'')+'</span>';
-  if(d==='nao_chegou') return '<span class="pill p-off">não chegou</span>';
+  if(d==='nao_chegou') return gpsParado() ? '<span class="pill p-off">sem GPS</span>' : '<span class="pill p-off">não chegou</span>';
+  if(d==='aguarda_balcao') return '<span class="pill p-off">anote a chegada para ver o rango</span>';
   return '';
 }
 function direitoFrase(l, dono){
@@ -291,10 +295,16 @@ function direitoFrase(l, dono){
   if(d==='ok') return (quanto?quanto+' — ':'Chegou no prazo — ')+(l.garantido_perdido
       ? 'tem o rango deste turno, mas <b>perdeu o garantido do dia</b> (atrasou mais de '+tol+' min em outro turno).'
       : 'tem direito ao <b>garantido</b> e ao <b>rango</b>.');
+  if(d==='rango_excecao') return (quanto||'Chegou depois de '+esc(l.limite_txt||''))+' — passou de '+tol+' min: <b>perde o garantido do dia</b>, mas <b>fica com o rango</b> (combinado com o Jaison).';
   if(d==='perdeu') return (quanto||'Chegou depois de '+esc(l.limite_txt||''))+' — passou de '+tol+' min: <b>perde o rango deste turno e o garantido do dia</b>.';
-  if(d==='sem_prova') return 'O GPS não registrou a chegada'+(l.anotado_txt?' (o balcão anotou '+esc(l.anotado_txt)+')':'')+'. Sem prova, <b>não se corta</b> nada.';
+  if(d==='sem_prova'){
+    if(l.motivo_sem_prova==='nome') return 'A fila do TrackEat viu, mas o nome na escala do Jaison está escrito diferente do TrackEat. Sem prova, <b>não se corta</b> nada.';
+    if(l.motivo_sem_prova==='gps') return 'Sem carimbo do GPS no pátio para medir o atraso. Sem prova, <b>não se corta</b> nada.';
+    return 'O GPS não registrou a chegada'+(l.anotado_txt?' (o balcão anotou '+esc(l.anotado_txt)+')':'')+'. Sem prova, <b>não se corta</b> nada.';
+  }
   if(d==='no_prazo') return 'Ainda dentro do prazo: chegando até <b>'+esc(l.limite_txt||'')+'</b> tem direito ao rango e ao garantido.';
-  if(d==='nao_chegou') return 'Não apareceu na fila do TrackEat nem no balcão neste turno.';
+  if(d==='nao_chegou') return gpsParado() ? 'TrackEat desligado: anote quando ele chegar.' : 'Não apareceu na fila do TrackEat nem no balcão neste turno.';
+  if(d==='aguarda_balcao') return 'Quando ele chegar, anote a hora: aí aparece se tem direito ao rango.';
   if(d==='fora') return 'Fora da escala do Jaison: sem horário combinado, não dá para medir atraso.';
   return '';
 }
@@ -305,8 +315,10 @@ function outrosTurnos(l){
 }
 function cartaoChegada(l, i, mostraOnde, dono, marcaEscala){
   var sitCls = l.anotado_txt ? 'ok' : 'warn';
-  if(dono && !gpsParado() && (l.situacao==='nao bate'||l.situacao==='o sistema perdeu')) sitCls='bad';
-  if(l.direito==='perdeu') sitCls='bad'; else if(l.direito==='ok' && !l.garantido_perdido) sitCls='ok'; else if(l.direito==='sem_prova') sitCls='warn';
+  /* 15/10/2026: fora da escala com a trava da fila (chegou_txt) nao e "o sistema perdeu" */
+  if(dono && !gpsParado() && (l.situacao==='nao bate'||(l.situacao==='o sistema perdeu'&&!l.chegou_txt))) sitCls='bad';
+  if(l.direito==='perdeu') sitCls='bad'; else if(l.direito==='ok' && !l.garantido_perdido) sitCls='ok';
+  else if(l.direito==='sem_prova'||l.direito==='rango_excecao') sitCls='warn';
   /* o dono ve a hora que o sistema viu: a trava da fila do TrackEat, o GPS do patio ou a 1a entrega */
   var chegou = dono ? (l.chegou_txt ? '📍 Chegou <b>'+esc(l.chegou_txt)+'</b> <span class="m" style="display:inline">'+esc(l.chegou_fonte||'')+'</span>'
                                     : ((gpsParado() || l.direito==='no_prazo') ? '' : '📍 Sistema: não viu')) : '';
@@ -325,7 +337,7 @@ function cartaoChegada(l, i, mostraOnde, dono, marcaEscala){
       (frase?'<div class="rs" style="color:var(--text2)">'+frase+'</div>':'')+
       (outros?'<div class="rs">'+outros+'</div>':'')+
       (mostraOnde?'<div class="rs">'+ondeTxt(l)+'</div>':'')+
-      (dono && l.anotado_txt && l.chegou_txt?'<div class="rs">Balcão × sistema: '+sitTxt(l)+'</div>':'')+
+      (dono && l.anotado_txt && l.sistema_txt?'<div class="rs">Balcão × sistema: '+sitTxt(l)+'</div>':'')+
     '</td>'+
     '<td class="sit"><div class="bal">Balcão anotou</div>'+
       (l.anotado_txt
@@ -343,13 +355,16 @@ function bloco(titulo, pares, mostraOnde, dono, vazio, marcaEscala, id){
 /* uma linha por pessoa: quem faz dois turnos aparece no turno que falta anotar (ou no ultimo) */
 function umPorPessoa(pares){
   var vistos={}, fora=[];
-  /* 14/10/2026: fica o turno que ja tem veredito (chegou, perdeu, sem prova); o outro turno aparece numa linha do cartao */
-  var peso=function(l){ return (l.direito==='ok'||l.direito==='perdeu'||l.direito==='sem_prova')?2:(l.direito==='no_prazo'?1:0); };
+  /* 15/10/2026 (revisao do supervisor): a regra de antes manda — o turno que FALTA ANOTAR fica no cartao, para o balcao
+     ter o botao "Chegou agora". So entre dois turnos iguais (os dois anotados ou os dois sem anotar) fica o que ja tem
+     veredito. O outro turno aparece numa linha do cartao. */
+  var peso=function(l){ return (l.direito==='ok'||l.direito==='perdeu'||l.direito==='sem_prova'||l.direito==='rango_excecao')?2:(l.direito==='no_prazo'?1:0); };
   pares.forEach(function(p){
     var k=p[0].unidade+'|'+p[0].entregador;
     if(!(k in vistos)){ vistos[k]=fora.length; fora.push(p); return }
-    var atual=fora[vistos[k]][0];
-    if(peso(p[0])>peso(atual) || (peso(p[0])===peso(atual) && atual.anotado_txt)) fora[vistos[k]]=p;
+    var atual=fora[vistos[k]][0], novo=p[0];
+    if(atual.anotado_txt && !novo.anotado_txt) fora[vistos[k]]=p;
+    else if(!atual.anotado_txt===!novo.anotado_txt && (peso(novo)>peso(atual) || (peso(novo)===peso(atual) && atual.anotado_txt))) fora[vistos[k]]=p;
   });
   return fora;
 }
@@ -381,8 +396,8 @@ function desenha(){
   h+='<div class="cards">'+q(an<tu?'atencao':'bem','✍️','Anotados pelo balcão',an+'/'+tu,an<tu?(tu-an)+' turno(s) sem a hora do balcão':'todos anotados',vivo?'b_rodando':'b_escala');
   /* 14/10/2026 (chat-chegada-garantido-14-10): quem tem direito ao garantido e ao rango, pela escala do Jaison x trava da fila do TrackEat */
   if(!gp){
-    var pd=P.perderam||0, gpd=P.garantido_perdido||0;
-    h+=q('bem','✅','Garantido + rango',(P.com_direito||0),'turno(s) dentro de '+tolMin()+' min da escala',vivo?'b_rodando':'b_escala')+
+    var pd=P.perderam||0, gpd=P.garantido_perdido||0, sr=P.so_rango||0;
+    h+=q('bem','✅','Garantido + rango',(P.com_direito||0),'turno(s) dentro de '+tolMin()+' min da escala'+(sr?' · mais '+sr+' só com o rango':''),vivo?'b_rodando':'b_escala')+
        q(pd?'mal':'bem','❌','Perderam o rango',pd,pd?gpd+' pessoa(s) sem o garantido do dia':'ninguém atrasou mais de '+tolMin()+' min',vivo?'b_rodando':'b_escala');
   }
   if(vivo && gp){
@@ -423,7 +438,7 @@ function desenha(){
     if(sobra.length)h+=bloco('📝 Anotado pelo balcão, fora da escala', sobra, false, dono, '');
   }
   if(!dono){
-    h+='<div class="aviso">Anote a hora que <b>você viu</b> a pessoa entrar. Não existe resposta certa para copiar aqui — é o seu olho que vale.</div>';
+    h+='<div class="aviso">Anote a hora que <b>você viu</b> a pessoa entrar. Não existe resposta certa para copiar aqui — é o seu olho que vale. Depois de anotar, o cartão mostra se ele tem direito ao rango.</div>';
   }
   $('app').innerHTML=avisoHtml()+h;
 }
