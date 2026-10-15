@@ -18,6 +18,13 @@
 .pr{border:1px solid #3a3a34;border-radius:12px;padding:10px 12px;margin-bottom:8px;display:flex;flex-direction:column;gap:5px}
 .pr .nm{font-weight:700}
 .pr.ruim{opacity:.6}
+/* 15/10/2026 (chat-menu-faxina-pausados-15-10): Quem conserta virou aba da Manutencao */
+[hidden]{display:none!important}
+.abas{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.aba{background:var(--s1);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:8px 16px;font:inherit;font-weight:700;font-size:14.5px;cursor:pointer}
+.aba.on{background:var(--brand);border-color:var(--brand);color:var(--s0)}
+.aba:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+#pg_qc iframe{width:100%;height:80vh;min-height:620px;border:0;border-radius:10px;background:var(--s0)}
 </style>
 </head>
 <body>
@@ -35,9 +42,16 @@
     </div>
   </div>
 
+  <div class="abas" id="abas" hidden>
+    <button class="aba on" id="ab_ch" onclick="aba('ch')">🔧 Chamados</button>
+    <button class="aba" id="ab_qc" onclick="aba('qc')">📞 Quem conserta</button>
+  </div>
+  <div id="pg_ch">
   <div class="chips" id="chips"></div>
   <div class="busca"><span class="lupa">🔎</span><input id="q" placeholder="O que quebrou? freezer, pia, chapa, tomada…" oninput="pinta()"></div>
   <div id="app"><div class="vazio"><span class="em">🔧</span>Carregando…</div></div>
+  </div>
+  <div id="pg_qc" hidden></div>
 </div>
 
 <dialog id="dlg">
@@ -146,8 +160,16 @@ function abrePrest(s){
   });
   $('p_tit').textContent='📞 '+(s?'Quem conserta · '+s:'Prestadores de serviço');
   $('p_corpo').innerHTML=h+(s?'<div style="margin-top:10px"><button class="bt mini" data-prest="">Ver todos os prestadores</button></div>':'');
-  $('p_link').innerHTML=MODS.indexOf('prestadores')>=0?'<a class="volta" href="/prestadores/">✏️ Editar a lista</a>':'';
+  $('p_link').innerHTML=MODS.indexOf('prestadores')>=0?'<a class="volta" href="#" onclick="fechaPrest();aba(\'qc\');return false">✏️ Editar a lista</a>':'';
   const d=$('dlgP');if(d.showModal&&!d.open)d.showModal();else d.setAttribute('open','');
+}
+/* 15/10/2026 (chat-menu-faxina-pausados-15-10): pedido do Fabio "colocar quem conserta dentro da manutencao".
+   A aba carrega a propria tela Quem conserta (/prestadores/?embed=1) uma vez so; nao tem timer. */
+function aba(k){
+  const qc=k==='qc';
+  $('ab_ch').classList.toggle('on',!qc);$('ab_qc').classList.toggle('on',qc);
+  $('pg_ch').hidden=qc;$('pg_qc').hidden=!qc;
+  if(qc&&!$('pg_qc').firstChild)$('pg_qc').innerHTML='<iframe src="/prestadores/?embed=1" title="Quem conserta"></iframe>';
 }
 function fechaPrest(){const d=$('dlgP');if(d.close)d.close();else d.removeAttribute('open')}
 document.addEventListener('click',function(ev){const b=ev.target.closest('[data-prest]');if(b)abrePrest(b.getAttribute('data-prest'))});
@@ -396,6 +418,9 @@ async function cdmGuarda(){
   if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
   const ms=Array.isArray(j.modulos)?j.modulos:[];
   MODS=ms.map(function(m){return m&&m.id});
+  /* 15/10/2026: a aba Quem conserta aparece para quem pode editar a lista (modulo prestadores) */
+  var ab=document.getElementById('abas');if(ab)ab.hidden=MODS.indexOf('prestadores')<0;
+  try{if(MODS.indexOf('prestadores')>=0&&new URLSearchParams(location.search).get('aba')==='qc')aba('qc')}catch(e){}
   if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
