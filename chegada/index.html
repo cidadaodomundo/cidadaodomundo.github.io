@@ -69,6 +69,17 @@ table.vv td.sit{width:250px}
 .vv .bal{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;margin-bottom:4px}
 .gpsparado{background:#2a1716;border:1px solid var(--bad);color:#ffb4b4;border-radius:13px;padding:11px 14px;font-size:13px;margin:0 0 12px}
 @media (max-width:640px){table.vv,table.vv tbody{display:block}table.vv tr{display:grid;grid-template-columns:64px minmax(0,1fr)}table.vv td{padding:12px 10px}table.vv td.hrc{padding-right:0}.vv .hr{font-size:21px}table.vv td.sit{grid-column:1/-1;width:auto;padding-top:0}table.vv td.hrc{width:auto}}
+/* 15/10/2026 (chat-chegada-botoes-15-10): botoes com/sem garantido e com/sem rango */
+.seg{display:flex;margin:0 0 6px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{flex:1;background:var(--s2);border:0;color:var(--text2);padding:8px 6px;font-size:12.5px;font-weight:800;font-family:inherit;cursor:pointer;white-space:nowrap}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on-ok{background:rgba(37,163,95,.28);color:#9ff0c2}
+.seg button.on-bad{background:rgba(230,103,103,.28);color:#ffb0b0}
+.seg button:disabled{cursor:not-allowed;opacity:.7}
+.vv .rs.mud{color:var(--warn)}
+.vv .ot{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vv .ot .seg{margin:0;min-width:200px}
+.vv td.sit a{color:var(--text2)}
 </style>
 </head>
 <body>
@@ -229,19 +240,6 @@ function ondeTxt(l){
 }
 /* 04/10/2026: com o GPS do TrackEat parado, "o sistema nao viu" era alarme falso — o sistema nem estava olhando */
 function gpsParado(){ return !!(D&&D.gps_parado) }
-function sitTxt(l){
-  if(gpsParado() && !l.sistema_txt && ['o sistema perdeu','bate','nao bate','diferenca pequena'].indexOf(l.situacao)>=0)
-    return '<span class="pill p-off">sem GPS</span>';
-  var d=(l.diferenca_min===null||l.diferenca_min===undefined)?null:Math.abs(l.diferenca_min);
-  if(l.situacao==='bate')return '<span class="pill p-ok">bate · '+d+' min</span>';
-  if(l.situacao==='diferenca pequena')return '<span class="pill p-warn">'+d+' min de diferença</span>';
-  if(l.situacao==='nao bate')return '<span class="pill p-bad">não bate · '+d+' min</span>';
-  if(l.situacao==='o sistema perdeu')return '<span class="pill p-bad">o sistema não viu</span>';
-  if(l.situacao==='esperando o balcao')return '<span class="m" style="display:inline">esperando o balcão</span>';
-  if(l.situacao==='anotado')return '<span class="pill p-ok">anotado</span>';
-  return '<span class="m" style="display:inline">não chegou</span>';
-}
-
 function linhaDe(i){ return (D&&D.linhas&&D.linhas[i])||null }
 async function marcar(u,e,t,hora,desf){
   try{ await porta('chegada_marcar',{dia:(DIA||(D&&D.dia)||hojeISO()),unidade:u,entregador:e,turno:t,hora:hora||null,desfazer:!!desf}); }
@@ -277,77 +275,107 @@ function vaiPara(id){ var e=document.getElementById(id); if(e&&e.scrollIntoView)
 function tolMin(){ return (D&&D.tolerancia!=null)?esc(String(D.tolerancia)):'—'; }
 /* 15/10/2026 (revisao do supervisor): rango_excecao = combinado com o Jaison (motoboy_excecao_rango); aguarda_balcao = quem
    nao e dono so ve o veredito depois de anotar a chegada (o banco esconde antes); com o GPS parado, "nao chegou" vira "sem GPS". */
-function direitoPill(l){
-  var d=l.direito;
-  if(d==='ok') return l.garantido_perdido ? '<span class="pill p-warn">🍔 rango sim · garantido não</span>'
-                                          : '<span class="pill p-ok">✅ garantido + rango</span>';
-  if(d==='rango_excecao') return '<span class="pill p-warn">🍔 rango sim (combinado) · garantido não</span>';
-  if(d==='perdeu') return '<span class="pill p-bad">❌ sem rango · sem garantido</span>';
-  if(d==='sem_prova') return '<span class="pill p-off">sem prova · não se corta</span>';
-  if(d==='no_prazo') return '<span class="pill p-off">⏳ no prazo até '+esc(l.limite_txt||'')+'</span>';
-  if(d==='nao_chegou') return gpsParado() ? '<span class="pill p-off">sem GPS</span>' : '<span class="pill p-off">não chegou</span>';
-  if(d==='aguarda_balcao') return '<span class="pill p-off">anote a chegada para ver o rango</span>';
-  return '';
+/* 15/10/2026 (chat-chegada-botoes-15-10), pedido do Fabio: "to achando bem confuso... somente o horario em que o motoboy
+   chegou... ter um botao garantido ou sem garantido / sem rango ou com rango... ja pensar nas peculiaridades de cada motoboy".
+   O cartao mostra so a hora que chegou e dois botoes. Os botoes ja vem marcados pela REGRA do banco (chegada_direito:
+   escala do Jaison x chegada, tolerancia de motoboy_param, combinados de motoboy_excecao_rango = direito 'rango_excecao').
+   Quem muda escreve o motivo; vai para motoboy_direito_manual pela porta chegada_direito_marcar e volta em
+   garantido_manual / rango_manual. Garantido vale o DIA (o mesmo em todos os turnos); rango vale o TURNO.
+   Clicar de volta no que a regra diz apaga a mudanca (valor null). So da para mudar hoje e ontem (o banco confere). */
+function regraGarantido(l){ return !(l.garantido_perdido || l.direito==='perdeu' || l.direito==='rango_excecao'); }
+function regraRango(l){ return l.direito!=='perdeu'; }
+function valeGarantido(l){ return (l.garantido_manual===true||l.garantido_manual===false) ? l.garantido_manual : regraGarantido(l); }
+function valeRango(l){ return (l.rango_manual===true||l.rango_manual===false) ? l.rango_manual : regraRango(l); }
+/* a hora que aparece: o dono ve a do sistema (fila do TrackEat, GPS ou 1a entrega); o balcao ve a que ele anotou */
+function horaChegou(l, dono){ return (dono && l.chegou_txt) ? l.chegou_txt : (l.anotado_txt || ''); }
+/* os botoes so aparecem depois que ele chegou e a regra ja tem veredito */
+function temBotoes(l, dono){
+  return !!horaChegou(l, dono) && ['ok','perdeu','rango_excecao','sem_prova','fora','no_prazo'].indexOf(l.direito)>=0;
 }
-function direitoFrase(l, dono){
+function podeMudar(){
+  if(!D||!D.dia||!D.hoje) return false;
+  var d=(new Date(D.hoje+'T12:00:00') - new Date(D.dia+'T12:00:00'))/86400000;
+  return d>=0 && d<=1;
+}
+function porQue(l, dono){
   var d=l.direito, a=l.atraso_min, tol=tolMin();
-  var quanto = (dono && a!=null) ? (a<=0 ? 'Chegou antes da escala' : 'Chegou '+a+' min depois da escala') : '';
-  if(d==='ok') return (quanto?quanto+' — ':'Chegou no prazo — ')+(l.garantido_perdido
-      ? 'tem o rango deste turno, mas <b>perdeu o garantido do dia</b> (atrasou mais de '+tol+' min em outro turno).'
-      : 'tem direito ao <b>garantido</b> e ao <b>rango</b>.');
-  if(d==='rango_excecao') return (quanto||'Chegou depois de '+esc(l.limite_txt||''))+' — passou de '+tol+' min: <b>perde o garantido do dia</b>, mas <b>fica com o rango</b> (combinado com o Jaison).';
-  if(d==='perdeu') return (quanto||'Chegou depois de '+esc(l.limite_txt||''))+' — passou de '+tol+' min: <b>perde o rango deste turno e o garantido do dia</b>.';
-  /* 15/10 (2a revisao): se outro turno ja derrubou o garantido do dia, a frase nao promete o garantido */
-  var gpOutro = 'o garantido do dia <b>já caiu</b> (atrasou mais de '+tol+' min em outro turno)';
-  if(d==='sem_prova'){
-    var nc = l.garantido_perdido ? 'Sem prova, <b>não se corta o rango</b> deste turno; '+gpOutro+'.' : 'Sem prova, <b>não se corta</b> nada.';
-    if(l.motivo_sem_prova==='nome') return 'A fila do TrackEat viu, mas o nome na escala do Jaison está escrito diferente do TrackEat. '+nc;
-    if(l.motivo_sem_prova==='gps') return 'Sem carimbo do GPS no pátio para medir o atraso. '+nc;
-    return 'O GPS não registrou a chegada'+(l.anotado_txt?' (o balcão anotou '+esc(l.anotado_txt)+')':'')+'. '+nc;
-  }
-  if(d==='no_prazo') return 'Ainda dentro do prazo: chegando até <b>'+esc(l.limite_txt||'')+'</b> '+(l.garantido_perdido
-      ? 'fica com o rango deste turno, mas '+gpOutro+'.' : 'tem direito ao rango e ao garantido.');
-  if(d==='nao_chegou') return gpsParado() ? 'TrackEat sem sinal: anote quando ele chegar.' : 'Não apareceu na fila do TrackEat nem no balcão neste turno.';
-  if(d==='aguarda_balcao') return 'Quando ele chegar, anote a hora: aí aparece se tem direito ao rango.';
-  if(d==='fora') return 'Fora da escala do Jaison: sem horário combinado, não dá para medir atraso.';
+  var quanto=(dono && a!=null) ? (a<=0 ? 'chegou antes da escala' : 'chegou '+a+' min depois da escala') : '';
+  if(d==='ok') return l.garantido_perdido ? (quanto?quanto+' · ':'')+'o garantido do dia já caiu em outro turno' : (quanto||'chegou no prazo');
+  if(d==='rango_excecao') return (quanto?quanto+' · ':'')+'passou de '+tol+' min, mas tem <b>combinado com o Jaison</b>: fica com o rango';
+  if(d==='perdeu') return (quanto||'chegou depois de '+esc(l.limite_txt||''))+' · passou de '+tol+' min';
+  if(d==='sem_prova') return 'sem prova do GPS: não se corta';
+  if(d==='fora') return 'fora da escala: sem horário combinado, não se corta';
+  if(d==='no_prazo') return 'dentro do prazo (até '+esc(l.limite_txt||'')+')';
   return '';
 }
-function outrosTurnos(l){
-  var L=(D&&D.linhas)||[];
-  return L.filter(function(o){ return o.unidade===l.unidade && o.entregador===l.entregador && o.n_turno!==l.n_turno && o.na_escala; })
-          .map(function(o){ return o.n_turno+'º turno ('+esc(o.escala_txt||'—')+'): '+direitoPill(o); }).join(' · ');
+function mudadoPor(l){
+  var t=[];
+  if(l.garantido_manual===true||l.garantido_manual===false)
+    t.push('✋ garantido mudado por <b>'+esc(l.garantido_quem||'?')+'</b>: '+esc(l.garantido_motivo||''));
+  if(l.rango_manual===true||l.rango_manual===false)
+    t.push('✋ rango mudado por <b>'+esc(l.rango_quem||'?')+'</b>: '+esc(l.rango_motivo||''));
+  return t.join('<br>');
+}
+function seg(i, campo, vale, sim, nao){
+  var dis=podeMudar()?'':' disabled title="Só dá para mudar hoje e ontem"';
+  return '<div class="seg">'+
+    '<button class="'+(vale?'on-ok':'')+'"'+dis+' onclick="muda('+i+',&quot;'+campo+'&quot;,true)">'+sim+'</button>'+
+    '<button class="'+(vale?'':'on-bad')+'"'+dis+' onclick="muda('+i+',&quot;'+campo+'&quot;,false)">'+nao+'</button></div>';
+}
+async function muda(i, campo, val){
+  var l=linhaDe(i); if(!l) return;
+  var regra=(campo==='garantido') ? regraGarantido(l) : regraRango(l);
+  var vale=(campo==='garantido') ? valeGarantido(l) : valeRango(l);
+  if(val===vale) return;
+  var dados={dia:(DIA||(D&&D.dia)||hojeISO()), unidade:l.unidade, entregador:l.entregador, turno:l.n_turno, campo:campo, valor:null};
+  if(val!==regra){
+    var m=prompt('Por que '+l.entregador+' fica '+(val?'COM':'SEM')+' '+campo+(campo==='garantido'?' no dia':' neste turno')+'? Escreva o motivo:','');
+    if(m===null) return;
+    m=String(m).trim();
+    if(m.length<3){ alert('Escreva o motivo (pelo menos 3 letras).'); return }
+    dados.valor=val; dados.motivo=m;
+  }
+  try{ await porta('chegada_direito_marcar', dados); }
+  catch(err){ alert('Não deu para gravar: '+(err&&err.message?err.message:'tente de novo')); return; }
+  boot();
+}
+/* quem faz dois turnos aparece num cartao so: o rango do outro turno fica numa linha de baixo, com o botao dele */
+function outrosTurnos(l, dono){
+  var L=(D&&D.linhas)||[], h='';
+  L.forEach(function(o, j){
+    if(o.unidade!==l.unidade || o.entregador!==l.entregador || o.n_turno===l.n_turno || !o.na_escala) return;
+    h+='<div class="rs ot"><span>'+o.n_turno+'º turno (escala '+esc(o.escala_txt||'—')+')'+
+       (horaChegou(o,dono)?' · chegou <b>'+esc(horaChegou(o,dono))+'</b>':' · ainda não anotado')+'</span>'+
+       (temBotoes(o,dono) ? seg(j,'rango',valeRango(o),'🍔 com rango','sem rango') : '')+'</div>';
+  });
+  return h;
 }
 function cartaoChegada(l, i, mostraOnde, dono, marcaEscala){
-  var sitCls = l.anotado_txt ? 'ok' : 'warn';
-  /* 15/10/2026: fora da escala com a trava da fila (chegou_txt) nao e "o sistema perdeu" */
-  if(dono && !gpsParado() && (l.situacao==='nao bate'||(l.situacao==='o sistema perdeu'&&!l.chegou_txt))) sitCls='bad';
-  if(l.direito==='perdeu') sitCls='bad'; else if(l.direito==='ok' && !l.garantido_perdido) sitCls='ok';
-  else if(l.direito==='sem_prova'||l.direito==='rango_excecao') sitCls='warn';
-  /* o dono ve a hora que o sistema viu: a trava da fila do TrackEat, o GPS do patio ou a 1a entrega */
-  var chegou = dono ? (l.chegou_txt ? '📍 Chegou <b>'+esc(l.chegou_txt)+'</b> <span class="m" style="display:inline">'+esc(l.chegou_fonte||'')+'</span>'
-                                    : ((gpsParado() || l.direito==='no_prazo') ? '' : '📍 Sistema: não viu')) : '';
-  var linhaHoras = l.na_escala
-      ? '🕒 Escala <b>'+esc(l.escala_txt||'—')+'</b>'+(chegou?' &nbsp;·&nbsp; '+chegou:'')+(l.limite_txt?' &nbsp;·&nbsp; <span class="m" style="display:inline">limite '+esc(l.limite_txt)+'</span>':'')
-      : chegou;
-  var outros = outrosTurnos(l), frase = direitoFrase(l, dono);
-  return '<table class="vv '+(sitCls==='warn'?'':sitCls)+'" data-cdm-livre><tr data-cdm-chave="'+esc(l.unidade+' | '+l.entregador+' | '+(l.escala_txt||'—'))+'">'+
-    '<td class="hrc"><div class="hr">'+esc(l.escala_txt||'—')+'</div><div class="ha">'+(l.escala_txt?'escala':'sem escala')+'</div></td>'+
+  var hora=horaChegou(l, dono), bt=temBotoes(l, dono);
+  var g=valeGarantido(l), r=valeRango(l);
+  var cls = !bt ? '' : (g&&r ? 'ok' : (!g&&!r ? 'bad' : ''));
+  var balcao = (dono && l.chegou_txt && l.anotado_txt && l.anotado_txt!==l.chegou_txt)
+      ? ' · balcão anotou '+esc(l.anotado_txt) : '';
+  var pq=bt?porQue(l, dono):'', mud=bt?mudadoPor(l):'';
+  return '<table class="vv '+cls+'" data-cdm-livre><tr data-cdm-chave="'+esc(l.unidade+' | '+l.entregador+' | '+(l.escala_txt||'—'))+'">'+
+    '<td class="hrc"><div class="hr">'+(hora?esc(hora):'—')+'</div><div class="ha">'+(hora?'chegou':'não chegou')+'</div></td>'+
     '<td><div class="tt">'+esc(l.entregador)+
         (l.n_turno>1?' <span class="pill p-off">'+l.n_turno+'º turno</span>':'')+
-        (l.na_escala?(marcaEscala?' <span class="pill p-ok">na escala</span>':''):' <span class="pill p-warn">fora da escala</span>')+
-        ' '+direitoPill(l)+'</div>'+
-      '<div class="lj"><b>'+esc(l.unidade)+'</b>'+(l.vivo_nome?' · no aplicativo: '+esc(l.vivo_nome):'')+'</div>'+
-      (linhaHoras?'<div class="rs" style="color:var(--text2);font-size:13px">'+linhaHoras+'</div>':'')+
-      (frase?'<div class="rs" style="color:var(--text2)">'+frase+'</div>':'')+
-      (outros?'<div class="rs">'+outros+'</div>':'')+
+        (l.na_escala?(marcaEscala?' <span class="pill p-ok">na escala</span>':''):' <span class="pill p-warn">fora da escala</span>')+'</div>'+
+      '<div class="lj"><b>'+esc(l.unidade)+'</b>'+(l.escala_txt?' · escala '+esc(l.escala_txt):'')+balcao+'</div>'+
+      (pq?'<div class="rs">'+pq+'</div>':'')+
+      (mud?'<div class="rs mud">'+mud+'</div>':'')+
+      outrosTurnos(l, dono)+
       (mostraOnde?'<div class="rs">'+ondeTxt(l)+'</div>':'')+
-      (dono && l.anotado_txt && l.sistema_txt?'<div class="rs">Balcão × sistema: '+sitTxt(l)+'</div>':'')+
     '</td>'+
-    '<td class="sit"><div class="bal">Balcão anotou</div>'+
-      (l.anotado_txt
-        ? '<span style="font-size:17px;font-weight:800">'+esc(l.anotado_txt)+'</span> <span class="m" style="display:inline">'+esc(l.quem||'')+(l.digitada?' · à mão':'')+'</span><br>'+
-          '<button class="mini" style="margin-top:6px" onclick="outraHora('+i+')">trocar</button> <button class="mini" style="margin-top:6px" onclick="apagar('+i+')">apagar</button>'
-        : '<button class="mini" onclick="chegou('+i+')">Chegou agora</button> <button class="mini" onclick="outraHora('+i+')">outra hora</button>')+
+    '<td class="sit">'+
+      (bt
+        ? seg(i,'garantido',g,'✅ com garantido','sem garantido')+seg(i,'rango',r,'🍔 com rango','sem rango')+
+          (l.anotado_txt?'<div class="m">balcão '+esc(l.anotado_txt)+' · <a href="#" onclick="outraHora('+i+');return false">trocar hora</a> · <a href="#" onclick="apagar('+i+');return false">apagar</a></div>'
+                        :'<div class="m"><a href="#" onclick="outraHora('+i+');return false">anotar a hora do balcão</a></div>')
+        : (l.anotado_txt
+            ? '<div class="m">balcão '+esc(l.anotado_txt)+'</div><button class="mini" onclick="outraHora('+i+')">trocar</button> <button class="mini" onclick="apagar('+i+')">apagar</button>'
+            : '<button class="mini" onclick="chegou('+i+')">Chegou agora</button> <button class="mini" onclick="outraHora('+i+')">outra hora</button>'))+
     '</td></tr></table>';
 }
 function bloco(titulo, pares, mostraOnde, dono, vazio, marcaEscala, id){
@@ -383,9 +411,7 @@ function desenha(){
     '<button class="chip'+(UNI==='Ahú'?' on':'')+'" onclick="UNI=&quot;Ahú&quot;;boot()">Ahú</button>'+
     '<button class="chip'+(UNI==='São Braz'?' on':'')+'" onclick="UNI=&quot;São Braz&quot;;boot()">São Braz</button>'+
     '</div>'+
-    '<div class="explica"><b>Garantido e rango:</b> vale a escala do Jaison contra a hora em que o motoboy <b>entrou na fila do pátio no TrackEat</b> (ou o GPS no pátio, ou a 1ª entrega, o que vier primeiro). Chegou mais de <b>'+tolMin()+' min</b> depois da escala: perde o rango daquele turno e o garantido do dia. Sem registro do GPS, não se corta. '+
-    'Viu o motoboy entrar? Clique no botão. A hora anotada <b>não mexe no pagamento</b> — ela serve para conferir o relógio do sistema.'+
-    (vivo&&!gp?' Em cima fica só <b>quem está rodando agora</b> — no pátio, na fila, disponível ou se mexendo na rua — com a marca <b>na escala</b> ou <b>fora da escala</b>. Quem está com o aplicativo ligado mas parado, fora da fila, fica num quadro separado. Depois da meia-noite a tela continua no dia da operação até o fim da madrugada. A tela se atualiza sozinha a cada minuto.':vivo?' Sem o GPS, a lista abaixo é a escala do dia com o que o balcão anotou. A tela se atualiza sozinha a cada minuto.':' Este é um dia passado: o aplicativo só mostra sinal do momento, então aqui fica só a escala e o que o balcão anotou.')+'</div>';
+    '<div class="explica">Anote a <b>hora que o motoboy chegou</b>. Os botões de <b>garantido</b> e <b>rango</b> já vêm marcados pela regra (chegou mais de <b>'+tolMin()+' min</b> depois da escala do Jaison perde o rango do turno e o garantido do dia; sem prova do GPS, não se corta) e pelos combinados com o Jaison. Precisa mudar? Clique no outro botão e escreva o motivo.'+(vivo?' A tela se atualiza sozinha a cada minuto.':'')+'</div>';
 
   /* o mesmo placar de antes, agora em quadros; clicar leva ate a lista */
   var q=function(cls,em,t,v,qs,alvo){
@@ -402,15 +428,16 @@ function desenha(){
   var an=P.anotados||0, tu=P.turnos||0;
   h+='<div class="cards">'+q(an<tu?'atencao':'bem','✍️','Anotados pelo balcão',an+'/'+tu,an<tu?(tu-an)+' turno(s) sem a hora do balcão':'todos anotados',vivo?'b_rodando':'b_escala');
   /* 14/10/2026 (chat-chegada-garantido-14-10): quem tem direito ao garantido e ao rango, pela escala do Jaison x trava da fila do TrackEat */
+  /* 15/10/2026 (chat-chegada-botoes-15-10): os quadros contam o que VALE (regra + mudanca da equipe), turno a turno */
   if(!gp){
-    var pd=P.perderam||0, gpd=P.garantido_perdido||0, sr=P.so_rango||0;
-    h+=q('bem','✅','Garantido + rango',(P.com_direito||0),'turno(s) dentro de '+tolMin()+' min da escala'+(sr?' · mais '+sr+' só com o rango':''),vivo?'b_rodando':'b_escala')+
-       /* 15/10 (2a revisao): "ninguem atrasou" so quando e verdade sobre o dia inteiro que a pessoa ve */
-       q(pd?'mal':(gpd?'atencao':'bem'),'❌','Perderam o rango',pd,
-         pd ? gpd+' pessoa(s) sem o garantido do dia'
-            : gpd ? gpd+' pessoa(s) sem o garantido do dia, com o rango mantido'
-            : (!dono && an<tu) ? 'entre os turnos já anotados'
-            : 'ninguém atrasou mais de '+tolMin()+' min',
+    var med=L.filter(function(l){ return temBotoes(l, dono); });
+    var cg=med.filter(function(l){ return valeGarantido(l)&&valeRango(l); }).length;
+    var sr=med.filter(function(l){ return !valeRango(l); }).length;
+    var sg={}; med.forEach(function(l){ if(!valeGarantido(l)) sg[l.unidade+'|'+l.entregador]=1; });
+    var nsg=Object.keys(sg).length;
+    h+=q('bem','✅','Com garantido e rango',cg,'turno(s) de quem já chegou',vivo?'b_rodando':'b_escala')+
+       q(sr?'mal':(nsg?'atencao':'bem'),'❌','Sem rango',sr,
+         nsg ? nsg+' pessoa(s) sem o garantido do dia' : (!dono && an<tu) ? 'entre os turnos já anotados' : 'todos com garantido',
          vivo?'b_rodando':'b_escala');
   }
   if(vivo && gp){
@@ -422,15 +449,8 @@ function desenha(){
        q(pa?'atencao':'bem','📵','App ligado e parado',pa,pa?'fora da fila, sem se mexer':'ninguém parado',pa?'b_parados':'')+
        q(ss?'mal':'bem','⚪','Escalado sem sinal',ss,ss?'na escala e sem o aplicativo ligado':'todos com o aplicativo ligado','b_semsinal');
   }
-  if(dono && gp){
-    h+=semGps('✅','Bateram')+semGps('❌','Não bateram')+semGps('👻','O sistema perdeu')+semGps('⏱','Erro médio');
-  }else if(dono){
-    var nb=P.nao_bateram||0, pe=P.perdidos||0;
-    h+=q('bem','✅','Bateram',(P.bateram||0),'balcão e sistema dizem a mesma hora','')+
-       q(nb?'mal':'bem','❌','Não bateram',nb,'','')+
-       q(pe?'mal':'bem','👻','O sistema perdeu',pe,'o balcão viu e o sistema não','')+
-       q('','⏱','Erro médio',(P.erro_medio==null?'—':P.erro_medio+' min'),'','');
-  }
+  /* 15/10/2026 (chat-chegada-botoes-15-10): sairam os quadros do dono Bateram / Nao bateram / O sistema perdeu / Erro medio
+     (Fabio: "to achando bem confuso"). O banco continua devolvendo esses numeros no placar. */
   h+='</div>';
 
   if(!L.length){
@@ -439,7 +459,7 @@ function desenha(){
   }
   const pares=L.map(function(l,i){return [l,i]});
   if(!vivo || gp){
-    h+=bloco('📋 A escala do dia', pares, false, dono, 'ninguém na escala deste dia', false, 'b_escala');
+    h+=bloco('📋 A escala do dia', umPorPessoa(pares), false, dono, 'ninguém na escala deste dia', false, 'b_escala');
   }else{
     h+=bloco('🟢 Rodando agora', umPorPessoa(pares.filter(function(p){return p[0].vivo_rodando})), true, dono,
              'ninguém rodando neste minuto', true, 'b_rodando');
@@ -451,7 +471,7 @@ function desenha(){
     if(sobra.length)h+=bloco('📝 Anotado pelo balcão, fora da escala', sobra, false, dono, '');
   }
   if(!dono){
-    h+='<div class="aviso">Anote a hora que <b>você viu</b> a pessoa entrar. Não existe resposta certa para copiar aqui — é o seu olho que vale. Depois de anotar, o cartão mostra se ele tem direito ao rango.</div>';
+    h+='<div class="aviso">Anote a hora que <b>você viu</b> a pessoa entrar. Não existe resposta certa para copiar aqui — é o seu olho que vale. Depois de anotar, aparecem os botões de garantido e rango.</div>';
   }
   $('app').innerHTML=avisoHtml()+h;
 }
