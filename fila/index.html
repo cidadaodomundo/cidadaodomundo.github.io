@@ -8,6 +8,8 @@
 <title>Fila de Pedidos · Cidadão do Mundo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/cdm-ui.css?v=4">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" onload="if(window.ULT_D)minimapas(window.ULT_D)"></script>
 <style>
 /* 03/10/2026 (chat-visual-fila-03-10): pedido do Fabio — mesmo visual e mesma dinamica do Delivery · Sao Braz.
    Mesmos botoes, mesmas leituras do banco e mesmos timers; mudou so a aparencia.
@@ -98,6 +100,15 @@ button.b:hover{border-color:var(--text2)}
 .cz .esq{margin-top:10px;font-size:13px;color:var(--text2);background:var(--s1);border:1px solid var(--line);border-left:4px solid var(--bad);border-radius:13px;padding:10px 13px;line-height:1.5}
 .cz .esq b{color:#ff9a9a}
 .rc{display:inline-block;width:13px;height:13px;border-radius:3px;flex:0 0 auto;border:1px solid rgba(255,255,255,.35);vertical-align:middle}
+.qd .mapa{display:none;height:170px;border-bottom:1px solid var(--line);background:#1b1b1b;z-index:0}
+.qd .mapa.on{display:block}
+.qd .it .sq{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:11.5px;font-weight:800;color:#111;flex:0 0 auto}
+.mm-n{width:22px;height:22px;border-radius:50%;border:2px solid #111;color:#111;font:800 12px/18px Barlow,sans-serif;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.6)}
+.mm-n.late{box-shadow:0 0 0 3px #e66767}
+.mm-e{font-size:18px;line-height:22px;text-align:center;filter:drop-shadow(0 1px 2px rgba(0,0,0,.8))}
+.qd .leaflet-container{font-family:Barlow,sans-serif}
+.qd .leaflet-control-attribution{font-size:9px;background:rgba(0,0,0,.55)!important;color:#999}
+.qd .leaflet-control-attribution a{color:#bbb}
 .qd .cb .rc{align-self:center}
 .mbs .rc{margin-right:8px}
 .vivo{display:inline-flex;align-items:center;gap:7px;color:#7fe0aa;font-size:13px;font-weight:700;background:var(--s1);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
@@ -451,14 +462,18 @@ function desenha(d){
   h+='<div class="sec" id="sec_rua"><div class="grp"><span class="em">🛵</span><h2>Na rua com os motoboys</h2><span class="ct">'+esc(r.rua)+' pedido'+(r.rua===1?'':'s')+'</span></div>';
   if(!rua.length){ h+='<div class="vazio">'+(TEP?'Sem dado do TrackEat desde '+TEP+'.':'Nenhum pedido na rua neste minuto.')+'</div>'; }
   else{
-    h+='<div class="quadros">'+rua.map(function(m){
+    h+='<div class="quadros">'+rua.map(function(m,i){
       var g1=(m.pedidos||[]).filter(function(x){return x.grupo})[0], c1=g1&&COR[Number(g1.grupo)];
+      var ps=ordemRota(m.pedidos);
       return '<div class="qd"'+(c1?' style="border-left:4px solid '+c1+'"':'')+'><div class="cb">'+(COR_MB[m.motoboy]||'')+'<span class="nm">'+esc(m.motoboy)+'</span>'+
         (m.saiu_ha!=null?'<span class="sa">saiu há '+esc(m.saiu_ha)+' min</span>':'')+
         (m.com_gps===0?'<span class="sg" title="sem sinal de GPS deste motoboy nos últimos 30 min">sem GPS</span>':'')+
         '<span class="ct">'+esc(m.quantos)+'</span></div>'+
-        (m.pedidos||[]).map(function(p){
-          return '<div class="it'+(p.atrasado?' late':'')+'">'+quad(p.grupo)+'<span class="p">'+esc(p.pedido)+'</span>'+
+        (temPonto(ps)?'<div class="mapa" data-i="'+i+'"></div>':'')+
+        ps.map(function(p){
+          return '<div class="it'+(p.atrasado?' late':'')+'">'+
+            (p._n?'<span class="sq" style="background:'+((p.grupo&&COR[Number(p.grupo)])||'#E0A81C')+'" title="ordem na rota do TrackEat (rota '+esc(p.grupo)+')">'+p._n+'</span>':quad(p.grupo))+
+            '<span class="p">'+esc(p.pedido)+'</span>'+
             '<span class="h">'+esc(p.entrou)+'</span>'+
             dist(p.dist_m)+(p.onde==='porta'?'<span class="pt">na porta</span>':'')+
             '<span class="m">'+esc(p.min)+' min</span></div>';
@@ -470,6 +485,52 @@ function desenha(d){
   h+='<div class="rod">'+rodape(d)+'</div>';
   $('app').innerHTML=h;
   marcaAberto();
+  minimapas(d);
+}
+
+/* 20/10/2026, pedido do Fabio: "o mapa de cada rota que os pias ainda tem pra fazer... uma especie de minimapa".
+   Dentro de cada quadro da rua: a casa = loja (patio_loja), a moto = GPS dele agora (o mesmo da distancia),
+   e as entregas que FALTAM numeradas na ordem da rota do TrackEat (coluna sequencia). Entregue some sozinho.
+   A linha tracejada liga os pontos em LINHA RETA na ordem da rota - nao e o caminho de rua.
+   Mapa parado (sem arrastar nem zoom), montado de novo a cada leitura de 60 s. Mapa de fundo: OpenStreetMap/CARTO.
+   Se a biblioteca do mapa nao carregar, o quadro fica como era antes, sem mapa. */
+var MM=[];
+function ordemRota(lista){
+  var ps=(lista||[]).map(function(p){var c={};for(var k in p)c[k]=p[k];return c;});
+  if(ps.length&&ps.every(function(p){return p.seq!=null;})){
+    ps.sort(function(a,b){return (Number(a.grupo)||0)-(Number(b.grupo)||0)||a.seq-b.seq;});
+    ps.forEach(function(p,i){p._n=i+1;});
+  }
+  return ps;
+}
+function temPonto(ps){ return ps.some(function(p){return p.lat!=null&&p.lng!=null;}); }
+function minimapas(d){
+  window.ULT_D=d;
+  MM.forEach(function(x){try{x.remove()}catch(e){}}); MM=[];
+  if(!window.L||!d) return;
+  var rua=Array.isArray(d.na_rua)?d.na_rua:[];
+  var ic=function(html,cls,st){return L.divIcon({className:'',html:'<div class="'+cls+'"'+(st?' style="'+st+'"':'')+'>'+html+'</div>',iconSize:[22,22],iconAnchor:[11,11]});};
+  var els=document.querySelectorAll('#app .qd .mapa[data-i]');
+  for(var k=0;k<els.length;k++){
+    try{
+      var el=els[k], m=rua[Number(el.getAttribute('data-i'))]; if(!m) continue;
+      var ps=ordemRota(m.pedidos).filter(function(p){return p.lat!=null&&p.lng!=null;});
+      if(!ps.length) continue;
+      el.classList.add('on');
+      var mp=L.map(el,{zoomControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false,tap:false,zoomSnap:0.25});
+      MM.push(mp);
+      mp.attributionControl.setPrefix(false);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,attribution:'© OpenStreetMap © CARTO'}).addTo(mp);
+      var cor=(ps[0].grupo&&COR[Number(ps[0].grupo)])||'#E0A81C', pts=[], linha=[], gp=null;
+      if(d.loja&&d.loja.lat!=null&&d.loja.lng!=null){ var lj=[+d.loja.lat,+d.loja.lng]; pts.push(lj); L.marker(lj,{icon:ic('🏠','mm-e'),interactive:false}).addTo(mp); }
+      if(m.gps&&m.gps.lat!=null&&m.gps.lng!=null){ gp=[+m.gps.lat,+m.gps.lng]; pts.push(gp); linha.push(gp); }
+      ps.forEach(function(p){ var q=[+p.lat,+p.lng]; pts.push(q); linha.push(q); });
+      if(linha.length>1) L.polyline(linha,{color:cor,weight:3,opacity:.9,dashArray:'6 6',interactive:false}).addTo(mp);
+      ps.forEach(function(p){ L.marker([+p.lat,+p.lng],{icon:ic(p._n||'•','mm-n'+(p.atrasado?' late':''),'background:'+cor),interactive:false}).addTo(mp); });
+      if(gp) L.marker(gp,{icon:ic('🛵','mm-e'),zIndexOffset:1000,interactive:false}).addTo(mp);
+      mp.fitBounds(pts,{padding:[20,20],maxZoom:16});
+    }catch(e){}
+  }
 }
 
 function legenda(d){
@@ -491,6 +552,7 @@ function rodape(d){
     ' GPS lido pela última vez às '+esc(d.gps_visto_em||'—')+'. Motoboy sem sinal fica marcado <b>sem GPS</b> e os pedidos dele ficam sem distância,'+
     ' em vez de receber um número inventado.'+
     '<br>O quadradinho colorido é a cor da rota no mapa do TrackEat (mesma regra de cor do site dele): pedidos da mesma cor vão com o mesmo motoboy.'+
+    '<br>O minimapa de cada motoboy na rua mostra a loja (🏠), onde ele está agora pelo GPS (🛵) e só as entregas que ainda faltam, numeradas na ordem da rota do TrackEat (1 = a próxima). A linha tracejada é em linha reta, não é o caminho de rua. Bolinha com anel vermelho = passando do normal.'+
     '<br>A tela se atualiza sozinha a cada minuto e o TrackEat também é lido de minuto em minuto.';
 }
 
