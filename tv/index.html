@@ -208,6 +208,32 @@ body.modo-carro #slides{display:flex;flex-direction:column;flex:1;min-height:0;p
 .sl-cli .q{font-size:3.2em;font-style:italic;line-height:1.2;margin:.3em 0;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 .sl-cli .inf{font-size:1.7em;color:var(--text2)}
 .sl-mel .lbx{display:none}
+/* 20/10/2026 (obra 124) NOTAS DO IFOOD / rumo ao Super Restaurante */
+.sl-nt{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:1.6em}
+.sl-nt .bx{background:var(--s1);border:2px solid var(--line);border-radius:.6em;padding:.5em 1em;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.sl-nt .rt{font-size:1.5em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:800;color:var(--text2);margin-bottom:.15em}
+.sl-nt .rt small{font-weight:600;color:var(--muted);font-size:.75em}
+.sl-nt .md{display:flex;align-items:baseline;gap:.3em;white-space:nowrap}
+.sl-nt .md b{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:5em;line-height:.95}
+.sl-nt .md span{font-size:1.5em;color:var(--text2)}
+.sl-nt .st{color:var(--brand);font-size:2em;letter-spacing:.04em;line-height:1}
+.sl-nt .es{display:grid;gap:.15em;margin-top:.3em}
+.sl-nt .e5{display:grid;grid-template-columns:2.6em 1fr 2em;gap:.5em;align-items:center;font-size:1.6em;font-weight:700}
+.sl-nt .e5 .br{height:.75em;background:var(--s2);border-radius:1em;overflow:hidden}
+.sl-nt .e5 .br i{display:block;height:100%;border-radius:1em;background:var(--brand)}
+.sl-nt .e5.ruim .br i{background:var(--bad)}
+.sl-nt .e5 .q{text-align:right;font-family:'Barlow Condensed',sans-serif}
+.sl-nt .mk{display:grid;grid-template-columns:minmax(0,1fr) 3.1em 4.6em;gap:.5em;align-items:center;font-size:1.4em;padding:.08em 0;border-bottom:1px solid var(--line)}
+.sl-nt .mk:last-child{border-bottom:0}
+.sl-nt .mk .nm{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sl-nt .mk .nm small{color:var(--muted);font-weight:500;font-size:.7em}
+.sl-nt .mk .v{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.35em;text-align:right}
+.sl-nt .mk .ok{color:var(--ok);font-weight:800;font-size:.85em}
+.sl-nt .mk .no{color:var(--bad);font-weight:800;font-size:.85em}
+.sl-nt .rk{font-size:1.35em;color:var(--text2);margin-top:.35em}
+.sl-nt .rk b{color:var(--text)}
+.sl-nt .rk .eu{color:var(--brand)}
+.sl-nt .obj{font-size:1.55em;font-weight:800;color:var(--brand);margin-top:.35em;line-height:1.15}
 .sl-mel .ins{background:var(--s1);border:2px solid var(--line);border-left:.5em solid var(--brand);border-radius:.6em;padding:.5em 1em;margin-bottom:.7em}
 .sl-mel .ins:empty{display:none}
 .sl-mel .ac{font-size:3em;font-weight:800;line-height:1.15}
@@ -825,7 +851,7 @@ setInterval(function(){ if(CARRO.length>1){ CARRO_I++; carroMostra(); } },8000);
    Erro novo: volta na hora para "Erros de hoje". */
 let MODO_CARRO=!PORTAL;
 try{ if(PORTAL) MODO_CARRO=localStorage.getItem('cdm_tv_carro')==='1'; }catch(e){}
-const SL_ORDEM=['erros','meta','fotos','pz','cli','mel'];
+const SL_ORDEM=['erros','meta','fotos','pz','cli','notas','mel'];
 let SL_I=-1, SL_T=null, SL_FOTO=0, SL_CLI=0, SL_ATUAL='';
 function slErros(){
   const j=DADO; if(!j) return null;
@@ -917,7 +943,38 @@ function slMel(){
   const per=(DADO&&DADO.melhorar&&DADO.melhorar.de)?esc(DADO.melhorar.de)+' a '+esc(DADO.melhorar.ate):'';
   return {html:'<div class="sl-tit">🎯 Onde melhorar <small>últimos 7 dias'+(per?' · '+per:'')+'</small></div><div class="sl-mel">'+el.innerHTML+'</div>', dur:12};
 }
-const SL_FAZ={erros:slErros, meta:slMeta, fotos:slFotos, pz:slPz, cli:slCli, mel:slMel};
+/* 20/10/2026 (obra 124, chat-revisor-erros-tv-15-10) Fabio: "no carrosel da tv quero acrescentar tambem o ranking de notas...
+   um resumo de todas as notas do dia de 1 a 5, mostrar a media da loja e mostrar o objetivo que e crescer os indices para que
+   todos virem super restaurante". Dado vem pronto da porta (notas = cozinha_tv_notas): o "dia" e o ultimo dia que o iFood ja
+   liberou inteiro (a nota chega 1 a 2 dias depois); media da loja, marcas e ranking das lojas = ultimos 30 dias. Meta do Super: 4,7. */
+function slNotas(){
+  const n=DADO&&DADO.notas; if(!n||!n.loja_n) return null;
+  const meta=Number(n.meta)||4.7, f2=v=>Number(v).toFixed(2).replace('.',','), f1=v=>Number(v).toFixed(1).replace('.',',');
+  if(n.atraso_dias==null||Number(n.atraso_dias)>3)
+    return {html:'<div class="sl-tit">⭐ Notas do iFood <small>rumo ao Super Restaurante</small></div><div class="sl-fr nao">⚠️ Nenhuma nota nova do iFood desde '+esc(n.ultima||'—')+' — o robô pode estar parado.</div>', dur:8};
+  const de=n.dia_estrelas||{}, tot=Number(n.dia_n)||0, mx=Math.max(1,...[1,2,3,4,5].map(k=>Number(de[k])||0));
+  const dm=n.dia_media==null?null:Number(n.dia_media), cor=v=>v>=meta?'var(--ok)':'var(--bad)';
+  const esq=tot
+    ? '<div class="md"><b style="color:'+cor(dm)+'">'+f2(dm)+'</b><span>média do dia · '+tot+' nota'+(tot>1?'s':'')+'</span></div>'
+      +'<div class="st">'+'★'.repeat(Math.floor(dm))+'☆'.repeat(5-Math.floor(dm))+'</div>'
+      +'<div class="es">'+[5,4,3,2,1].map(function(k){ const q=Number(de[k])||0;
+        return '<div class="e5'+(k<=3?' ruim':'')+'"><span>'+k+' ★</span><div class="br"><i style="width:'+(q?Math.max(3,Math.round(q/mx*100)):0)+'%"></i></div><span class="q">'+q+'</span></div>'; }).join('')+'</div>'
+    : '<div class="sl-fr" style="margin-top:.5em">Nenhuma nota do iFood nesse dia.</div>';
+  const lm=Number(n.loja_media), mk=(n.marcas||[]).slice(0,7);
+  const dir='<div class="md"><b style="color:'+cor(lm)+'">'+f2(lm)+'</b><span>média da loja · meta '+f1(meta)+'</span></div>'
+    +mk.map(function(m){ const v=Number(m.media);
+      return '<div class="mk"><div class="nm">'+esc(marcaCurta(m.marca))+' <small>'+esc(m.n)+' notas</small></div><div class="v" style="color:'+cor(v)+'">'+f2(v)+'</div>'
+        +(v>=meta?'<span class="ok">✔ Super</span>':'<span class="no">falta '+f2(meta-v)+'</span>')+'</div>'; }).join('');
+  const lj=(n.lojas||[]), md=['🥇','🥈','🥉'];
+  const rk=lj.length>1?'<div class="rk">Ranking das lojas: '+lj.map(function(x,i){ return '<span'+(x.loja===((DADO&&DADO.loja)||LOJA)?' class="eu"':'')+'>'+(md[i]||(i+1)+'º')+' <b>'+esc(x.loja)+'</b> '+f2(x.media)+'</span>'; }).join(' · ')+'</div>':'';
+  const falta=mk.filter(m=>Number(m.media)<meta).length;
+  const obj=falta?'🎯 Objetivo: todas as marcas com '+f1(meta)+' ou mais = Super Restaurante. Falta'+(falta>1?'m '+falta+' marcas':' 1 marca')+'.'
+    :'🏆 Todas as marcas da loja com '+f1(meta)+' ou mais. Agora é segurar e subir!';
+  return {html:'<div class="sl-tit">⭐ Notas do iFood <small>rumo ao Super Restaurante</small></div>'
+    +'<div class="sl-nt"><div class="bx"><div class="rt">Notas de '+esc(n.dia||'')+' <small>· o iFood libera depois</small></div>'+esq+'</div>'
+    +'<div class="bx"><div class="rt">🏆 Últimos 30 dias <small>· '+esc(n.loja_n)+' notas</small></div>'+dir+rk+'<div class="obj">'+esc(obj)+'</div></div></div>', dur:16};
+}
+const SL_FAZ={erros:slErros, meta:slMeta, fotos:slFotos, pz:slPz, cli:slCli, notas:slNotas, mel:slMel};
 function slPontos(nome){
   const vivos=SL_ORDEM.filter(function(k){ try{ return k===nome || !!SL_FAZ[k](); }catch(e){ return false; } });
   $('sl-pontos').innerHTML=vivos.map(function(k){ return '<i'+(k===nome?' class="on"':'')+'></i>'; }).join('');
