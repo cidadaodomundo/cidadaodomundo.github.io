@@ -109,6 +109,23 @@ button.b:hover{border-color:var(--text2)}
 .qd .leaflet-container{font-family:Barlow,sans-serif}
 .qd .leaflet-control-attribution{font-size:9px;background:rgba(0,0,0,.55)!important;color:#999}
 .qd .leaflet-control-attribution a{color:#bbb}
+.qd .it{flex-wrap:wrap}
+.qd .it .en{flex-basis:100%;padding-left:28px;margin-top:-2px;color:var(--muted);font-size:12px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+[data-ped]{cursor:pointer;text-decoration:underline dotted rgba(255,255,255,.35);text-underline-offset:3px}
+[data-ped]:hover{color:var(--brand)}
+.mm-n{cursor:pointer}
+.pdm{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px}
+.pdm .cx{background:var(--s1,#1c1c1c);border:1px solid var(--line);border-radius:18px;width:100%;max-width:440px;max-height:85vh;overflow:auto;padding:16px 18px;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+.pdm .tp{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.pdm .tp b{font-family:'Anton',Impact,sans-serif;font-weight:400;font-size:24px;letter-spacing:.02em}
+.pdm .fx{margin-left:auto;background:none;border:1px solid var(--line);color:var(--text);border-radius:999px;width:34px;height:34px;font-size:16px;cursor:pointer}
+.pdm .pe{color:var(--text2);font-size:13.5px;line-height:1.45;margin-bottom:12px}
+.pdm .pe small{display:block;color:var(--muted);font-size:12.5px}
+.pdm .ii{border-top:1px solid var(--line);padding:10px 0;font-size:14.5px;line-height:1.4}
+.pdm .ii .qn{font-weight:800;color:var(--brand);margin-right:6px}
+.pdm .ii .es{color:var(--text2);font-size:13px;padding-left:22px}
+.pdm .ii .ob{color:var(--warn);font-size:13px;padding-left:22px;font-weight:700}
+.pdm .pa{color:var(--muted);font-size:13px;line-height:1.45;border-top:1px solid var(--line);padding-top:10px}
 .qd .cb .rc{align-self:center}
 .mbs .rc{margin-right:8px}
 .vivo{display:inline-flex;align-items:center;gap:7px;color:#7fe0aa;font-size:13px;font-weight:700;background:var(--s1);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
@@ -450,7 +467,7 @@ function desenha(d){
       var bola=(p.onde==='preparo')?'b-vm':'b-rx';
       return '<div class="linha'+(p.atrasado?' late':'')+'">'+
         '<span class="bola '+bola+'"></span>'+quad(p.grupo)+
-        '<span class="ped">'+esc(p.pedido)+'</span>'+
+        '<span class="ped" data-ped="'+esc(p.pedido)+'" title="toque para ver os itens">'+esc(p.pedido)+'</span>'+
         '<span class="est">'+esc(nomeEtapa(p.onde))+'</span>'+
         (p.motoboy?'<span class="mb">· '+esc(p.motoboy)+'</span>':'')+
         '<span class="dir"><span class="hr">entrou '+esc(p.entrou)+'</span>'+
@@ -473,10 +490,11 @@ function desenha(d){
         ps.map(function(p){
           return '<div class="it'+(p.atrasado?' late':'')+'">'+
             (p._n?'<span class="sq" style="background:'+((p.grupo&&COR[Number(p.grupo)])||'#E0A81C')+'" title="ordem na rota do TrackEat (rota '+esc(p.grupo)+')">'+p._n+'</span>':quad(p.grupo))+
-            '<span class="p">'+esc(p.pedido)+'</span>'+
+            '<span class="p" data-ped="'+esc(p.pedido)+'" title="toque para ver os itens">'+esc(p.pedido)+'</span>'+
             '<span class="h">'+esc(p.entrou)+'</span>'+
             dist(p.dist_m)+(p.onde==='porta'?'<span class="pt">na porta</span>':'')+
-            '<span class="m">'+esc(p.min)+' min</span></div>';
+            '<span class="m">'+esc(p.min)+' min</span>'+
+            (p.end?'<span class="en" title="'+esc(p.end)+'">📍 '+esc(endCurto(p.end))+'</span>':'')+'</div>';
         }).join('')+'</div>';
     }).join('')+'</div>';
   }
@@ -503,6 +521,49 @@ function ordemRota(lista){
   }
   return ps;
 }
+/* 20/10/2026, pedido do Fabio: "o endereco real" e "quando apertar em cima do numero do pedido, abrir para ver quais itens".
+   O endereco vem do TrackEat (o mesmo que o motoboy ve). Na lista vai rua, numero e bairro; o complemento aparece ao abrir o pedido.
+   Os itens vem do Saipos pela porta fila_pedido_itens, SO no toque (sem timer). O Saipos e lido de 10 em 10 min:
+   pedido recem-feito pode ainda nao ter itens, e a janela diz isso em vez de mostrar vazio. Sem preco e sem nome de cliente. */
+function endCurto(e){ return String(e||'').split(' - Compl:')[0]; }
+function endCompl(e){ var i=String(e||'').indexOf(' - Compl:'); return i<0?'':String(e).slice(i+9).trim(); }
+function qtd(q){ var n=Number(q); if(!isFinite(n)) return ''; return (n%1===0?String(n):String(n).replace('.',','))+'×'; }
+function fechaPedido(){ var m=$('pdm'); if(m) m.remove(); }
+async function abrePedido(num){
+  fechaPedido();
+  var m=document.createElement('div'); m.className='pdm'; m.id='pdm';
+  m.onclick=function(e){ if(e.target===m) fechaPedido(); };
+  var topo='<div class="tp"><b>Pedido '+esc(num)+'</b><button class="fx" onclick="fechaPedido()" title="fechar">✕</button></div>';
+  m.innerHTML='<div class="cx">'+topo+'<div class="pa">Abrindo…</div></div>';
+  document.body.appendChild(m);
+  var uni=UNI;
+  var d=await rpc('fila_pedido_itens',{p_token:cdmTok(),p_unidade:uni,p_pedido:String(num)});
+  if(!$('pdm')||m!==$('pdm')) return;
+  var h=topo;
+  if(!d){ h+='<div class="pa">Não consegui abrir o pedido agora. Tente de novo.</div>'; }
+  else if(!d.achou){ h+='<div class="pa">Este pedido não está no TrackEat de hoje.</div>'; }
+  else{
+    if(d.endereco){ var cp=endCompl(d.endereco); h+='<div class="pe">📍 '+esc(endCurto(d.endereco))+(cp?'<small>'+esc(cp)+'</small>':'')+'</div>'; }
+    var it=Array.isArray(d.itens)?d.itens:[];
+    if(!d.tem_venda||!it.length){
+      h+='<div class="pa">Os itens deste pedido ainda não chegaram do Saipos — ele é lido de 10 em 10 minutos. Tente de novo daqui a pouco.</div>';
+    }else{
+      h+=it.map(function(x){
+        return '<div class="ii"><span class="qn">'+esc(qtd(x.q))+'</span>'+esc(x.nome)+
+          (x.obs?'<div class="ob">obs: '+esc(x.obs)+'</div>':'')+
+          (x.escolhas||[]).map(function(c){ return '<div class="es">+ '+esc(c.nome)+'</div>'+(c.obs?'<div class="ob">obs: '+esc(c.obs)+'</div>':''); }).join('')+
+          '</div>';
+      }).join('');
+      h+='<div class="pa">Itens do Saipos'+(d.lido_em?', lidos às '+esc(d.lido_em):'')+'.</div>';
+    }
+  }
+  m.innerHTML='<div class="cx">'+h+'</div>';
+}
+document.addEventListener('click',function(e){
+  var t=e.target&&e.target.closest?e.target.closest('[data-ped]'):null;
+  if(t){ e.stopPropagation(); abrePedido(t.getAttribute('data-ped')); }
+});
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') fechaPedido(); });
 function temPonto(ps){ return ps.some(function(p){return p.lat!=null&&p.lng!=null;}); }
 function minimapas(d){
   window.ULT_D=d;
@@ -526,7 +587,7 @@ function minimapas(d){
       if(m.gps&&m.gps.lat!=null&&m.gps.lng!=null){ gp=[+m.gps.lat,+m.gps.lng]; pts.push(gp); linha.push(gp); }
       ps.forEach(function(p){ var q=[+p.lat,+p.lng]; pts.push(q); linha.push(q); });
       if(linha.length>1) L.polyline(linha,{color:cor,weight:3,opacity:.9,dashArray:'6 6',interactive:false}).addTo(mp);
-      ps.forEach(function(p){ L.marker([+p.lat,+p.lng],{icon:ic(p._n||'•','mm-n'+(p.atrasado?' late':''),'background:'+cor),interactive:false}).addTo(mp); });
+      ps.forEach(function(p){ L.marker([+p.lat,+p.lng],{icon:ic(p._n||'•','mm-n'+(p.atrasado?' late':''),'background:'+cor),title:p.pedido+(p.end?' · '+endCurto(p.end):'')}).on('click',function(){abrePedido(p.pedido);}).addTo(mp); });
       if(gp) L.marker(gp,{icon:ic('🛵','mm-e'),zIndexOffset:1000,interactive:false}).addTo(mp);
       mp.fitBounds(pts,{padding:[20,20],maxZoom:16});
     }catch(e){}
@@ -553,6 +614,7 @@ function rodape(d){
     ' em vez de receber um número inventado.'+
     '<br>O quadradinho colorido é a cor da rota no mapa do TrackEat (mesma regra de cor do site dele): pedidos da mesma cor vão com o mesmo motoboy.'+
     '<br>O minimapa de cada motoboy na rua mostra a loja (🏠), onde ele está agora pelo GPS (🛵) e só as entregas que ainda faltam, numeradas na ordem da rota do TrackEat (1 = a próxima). A linha tracejada é em linha reta, não é o caminho de rua. Bolinha com anel vermelho = passando do normal.'+
+    '<br>Toque no número de um pedido (ou na bolinha dele no mapa) para ver os itens, o endereço e o complemento. Os itens vêm do Saipos, lido de 10 em 10 minutos.'+
     '<br>A tela se atualiza sozinha a cada minuto e o TrackEat também é lido de minuto em minuto.';
 }
 
