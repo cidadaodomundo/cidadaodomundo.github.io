@@ -345,6 +345,28 @@ async function dupDecide(i,dec){
   }catch(e){ if(b) b.innerHTML='<span style="color:#e66767">não gravou: '+escDup(e.message||'')+'</span>' }
 }
 function dupFil(f){ DUP_FIL=f; viewDup() }
+/* 20/10/2026: regra do Fabio - toda reprovada do TrackEat conferida: era repetida de verdade? saiu no Pix? */
+function dupRpCor(v){v=String(v||'');if(v.indexOf('reprovada errada: ')===0)return '#e66767';if(v.indexOf('certa')===0)return '#2fae6a';if(v.indexOf('não sei')===0||v.indexOf('Pix ainda')===0||v.indexOf('mas foi paga')>=0)return '#c98500';return '#8a8a8a'}
+function dupReprov(L,J){
+  L=L||[]; if(!L.length) return ''; J=J||{};
+  var jan=J.repetida_janela_min!=null?Number(J.repetida_janela_min):null, raio=J.repetida_raio_m!=null?Number(J.repetida_raio_m):null;
+  var certas=0, erradas=0, semRs=0, abertas=0;
+  L.forEach(function(r){var v=String(r.veredito||''); if(v.indexOf('certa')===0)certas++; else if(v.indexOf('reprovada errada')===0){erradas++; if(v.indexOf('ficou sem')>=0)semRs+=Number(r.valor||0)} else if(v.indexOf('não sei')===0||v.indexOf('Pix ainda')===0)abertas++});
+  var h='<div class="m" style="margin:16px 0 8px">⛔ <b>Reprovadas no TrackEat — conferidas com o Pix</b> · para cada corrida reprovada: tinha mesmo outra entrega no mesmo endereço'+(jan!=null&&raio!=null?(' (até '+raio+' m no mapa, até '+jan+' min de diferença; mais que isso parece <b>reentrega</b> e deve ser paga)'):'')+'? e o que saiu no Pix do motoboy? <b>Vale o Pix que saiu da conta.</b></div>';
+  h+='<div class="kpis">'+dupCard('Certas', certas, 'era repetida mesmo', 'g')+dupCard('🔴 Reprovadas erradas', erradas, semRs>0?('motoboy ficou sem '+rs(semRs)):'não era repetida', erradas?'w':'')+dupCard('Falta saber', abertas, 'Pix ainda não chegou ou não deu para saber')+'</div>';
+  var rows='';
+  L.forEach(function(r){
+    var cor=dupRpCor(r.veredito);
+    var rep=r.repetida?('sim: com o pedido <b>'+escDup(r.par_pedido)+'</b>'+(r.par_entregador&&r.par_entregador!==r.entregador?' ('+escDup(r.par_entregador)+')':'')):(r.par_pedido?('<b>não</b>: o pedido <b>'+escDup(r.par_pedido)+'</b> foi no mesmo endereço, mas em outro horário — parece reentrega'):'<b>não</b>: nenhuma outra entrega nesse endereço');
+    rows+='<tr data-cdm-chave="'+escDup('rp|'+r.unidade+'|'+r.dia+'|'+r.pedido)+'" style="border-top:1px solid #8883;vertical-align:top"><td>'+escDup(String(r.dia||'').slice(8,10)+'/'+String(r.dia||'').slice(5,7))+'</td><td>'+escDup(r.unidade)+'</td>'
+      +'<td><b>'+escDup(r.pedido)+'</b> '+dupHora(r.saiu)+' · '+escDup(r.entregador||'')+' · '+rs(r.valor)+'<div style="color:var(--muted);font-size:11.5px">'+escDup(r.endereco||'')+'</div></td>'
+      +'<td>'+escDup(r.motivo||'sem motivo')+'</td><td>'+rep+'</td>'
+      +'<td>'+(r.pago!=null?rs(r.pago):'—')+'<div style="color:var(--muted);font-size:11.5px">'+escDup(r.resultado||'')+'</div></td>'
+      +'<td><span style="display:inline-block;border-radius:9px;padding:3px 10px;font-size:11.5px;font-weight:800;background:'+cor+'22;color:'+cor+'">'+escDup(r.veredito||'')+'</span></td></tr>';
+  });
+  h+='<div class="c"><div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th>Dia</th><th>Loja</th><th>Corrida reprovada</th><th>Motivo no TrackEat</th><th>Era repetida?</th><th>Pix do dia</th><th>Veredito</th></tr>'+rows+'</table></div></div>';
+  return h;
+}
 async function viewDup(){
   var el=$('conteudo'); if(!el)return;
   $('kpis').innerHTML=''; $('faixa').innerHTML='';
@@ -367,7 +389,8 @@ async function viewDup(){
      '<span class="dst" style="background:#2fae6a22;color:#2fae6a">✅ aprovada no TrackEat</span> alguém já aprovou, ela vai ser paga · '+
      '<span class="dst" style="background:#c9850022;color:#c98500">⏳ pendente no TrackEat</span> ainda dá para barrar · '+
      '<span class="dst" style="background:#8882;color:var(--muted)">Foody · sem aprovação</span> o Foody não tem aprovação, só o botão daqui barra.'+
-     '<br>Já saem da lista sozinhos: pedido <b>cancelado</b>, corrida <b>reprovada</b> no TrackEat e a mesma corrida repetida.'+
+     '<br>Já saem da lista sozinhos: pedido <b>cancelado</b>, corrida <b>reprovada</b> no TrackEat (conferidas no quadro de baixo) e a mesma corrida repetida.'+
+     '<br><b>🤖 Robô do Pix</b> (10h15, 14h15, 18h15): quando o Pix do dia já saiu, ele decide sozinho pelo que foi pago de verdade — sem lançar desconto. O que ele não consegue saber fica para vocês.'+
      '<br><b>🚫 Não pagar a 2ª</b> lança um desconto na conta do motoboy daquele dia — só o que a corrida realmente somou (se o piso por hora já cobria, o desconto é zero). Se depois alguém reprovar a mesma corrida no TrackEat, o desconto sai sozinho.</div>';
   if(DUP_MSG){ h+='<div class="c" style="margin:0 0 10px;border-left:3px solid #2fae6a">✔ '+escDup(DUP_MSG)+'</div>'; DUP_MSG=''; }
   h+='<div class="kpis">';
@@ -395,8 +418,9 @@ async function viewDup(){
       +'<td>'+escDup(r.porta_txt||'—')+'<div style="color:var(--muted);font-size:11.5px">cliente '+escDup(r.cliente_1||'?')+(r.cliente_2&&r.cliente_2!==r.cliente_1?(' e '+escDup(r.cliente_2)):'')+'</div></td>'
       +'<td>'+corridas+'</td><td>'+gps+'</td><td>'+ver+'</td><td>'+dupAcao(r,i)+'</td></tr>';
   });
-  if(!n){ el.innerHTML=h+'<div class="c"><div class="empty">'+(DUP_FIL==='abertos'?'Nada esperando decisão no período. 👍':'Nada para conferir no período.')+'</div></div>'; return }
-  h+='<div class="c"><div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th>Dia</th><th>Loja</th><th>Onde</th><th>As duas corridas</th><th>O que o GPS diz</th><th>Veredito</th><th>Decisão</th></tr>'+rows+'</table></div></div>';
+  var rp=dupReprov(j&&j.reprovadas,j);
+  if(!n){ el.innerHTML=h+'<div class="c"><div class="empty">'+(DUP_FIL==='abertos'?'Nada esperando decisão no período. 👍':'Nada para conferir no período.')+'</div></div>'+rp; return }
+  h+='<div class="c"><div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th>Dia</th><th>Loja</th><th>Onde</th><th>As duas corridas</th><th>O que o GPS diz</th><th>Veredito</th><th>Decisão</th></tr>'+rows+'</table></div></div>'+rp;
   el.innerHTML=h;
 }
 function viewRegras(){$('kpis').innerHTML='';$('faixa').innerHTML='';$('conteudo').innerHTML=REGRAS_HTML}
