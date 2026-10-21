@@ -347,16 +347,17 @@ async function dupDecide(i,dec){
 function dupFil(f){ DUP_FIL=f; viewDup() }
 /* 20/10/2026: regra do Fabio - toda reprovada do TrackEat conferida: era repetida de verdade? saiu no Pix? */
 function dupRpCor(v){v=String(v||'');if(v.indexOf('reprovada errada: ')===0)return '#e66767';if(v.indexOf('certa')===0)return '#2fae6a';if(v.indexOf('não sei')===0||v.indexOf('Pix ainda')===0||v.indexOf('mas foi paga')>=0)return '#c98500';return '#8a8a8a'}
-function dupReprov(L){
-  L=L||[]; if(!L.length) return '';
+function dupReprov(L,J){
+  L=L||[]; if(!L.length) return ''; J=J||{};
+  var jan=J.repetida_janela_min!=null?Number(J.repetida_janela_min):null, raio=J.repetida_raio_m!=null?Number(J.repetida_raio_m):null;
   var certas=0, erradas=0, semRs=0, abertas=0;
   L.forEach(function(r){var v=String(r.veredito||''); if(v.indexOf('certa')===0)certas++; else if(v.indexOf('reprovada errada')===0){erradas++; if(v.indexOf('ficou sem')>=0)semRs+=Number(r.valor||0)} else if(v.indexOf('não sei')===0||v.indexOf('Pix ainda')===0)abertas++});
-  var h='<div class="m" style="margin:16px 0 8px">⛔ <b>Reprovadas no TrackEat — conferidas com o Pix</b> · para cada corrida reprovada: tinha mesmo outra entrega no mesmo endereço (até 30 m no mapa, até 3 h)? e o que saiu no Pix do motoboy? <b>Vale o Pix que saiu da conta.</b></div>';
+  var h='<div class="m" style="margin:16px 0 8px">⛔ <b>Reprovadas no TrackEat — conferidas com o Pix</b> · para cada corrida reprovada: tinha mesmo outra entrega no mesmo endereço'+(jan!=null&&raio!=null?(' (até '+raio+' m no mapa, até '+jan+' min de diferença; mais que isso parece <b>reentrega</b> e deve ser paga)'):'')+'? e o que saiu no Pix do motoboy? <b>Vale o Pix que saiu da conta.</b></div>';
   h+='<div class="kpis">'+dupCard('Certas', certas, 'era repetida mesmo', 'g')+dupCard('🔴 Reprovadas erradas', erradas, semRs>0?('motoboy ficou sem '+rs(semRs)):'não era repetida', erradas?'w':'')+dupCard('Falta saber', abertas, 'Pix ainda não chegou ou não deu para saber')+'</div>';
   var rows='';
   L.forEach(function(r){
     var cor=dupRpCor(r.veredito);
-    var rep=r.repetida?('sim: com o pedido <b>'+escDup(r.par_pedido)+'</b>'+(r.par_entregador&&r.par_entregador!==r.entregador?' ('+escDup(r.par_entregador)+')':'')):'<b>não</b>: nenhuma outra entrega nesse endereço';
+    var rep=r.repetida?('sim: com o pedido <b>'+escDup(r.par_pedido)+'</b>'+(r.par_entregador&&r.par_entregador!==r.entregador?' ('+escDup(r.par_entregador)+')':'')):(r.par_pedido?('<b>não</b>: o pedido <b>'+escDup(r.par_pedido)+'</b> foi no mesmo endereço, mas em outro horário — parece reentrega'):'<b>não</b>: nenhuma outra entrega nesse endereço');
     rows+='<tr data-cdm-chave="'+escDup('rp|'+r.unidade+'|'+r.dia+'|'+r.pedido)+'" style="border-top:1px solid #8883;vertical-align:top"><td>'+escDup(String(r.dia||'').slice(8,10)+'/'+String(r.dia||'').slice(5,7))+'</td><td>'+escDup(r.unidade)+'</td>'
       +'<td><b>'+escDup(r.pedido)+'</b> '+dupHora(r.saiu)+' · '+escDup(r.entregador||'')+' · '+rs(r.valor)+'<div style="color:var(--muted);font-size:11.5px">'+escDup(r.endereco||'')+'</div></td>'
       +'<td>'+escDup(r.motivo||'sem motivo')+'</td><td>'+rep+'</td>'
@@ -417,7 +418,7 @@ async function viewDup(){
       +'<td>'+escDup(r.porta_txt||'—')+'<div style="color:var(--muted);font-size:11.5px">cliente '+escDup(r.cliente_1||'?')+(r.cliente_2&&r.cliente_2!==r.cliente_1?(' e '+escDup(r.cliente_2)):'')+'</div></td>'
       +'<td>'+corridas+'</td><td>'+gps+'</td><td>'+ver+'</td><td>'+dupAcao(r,i)+'</td></tr>';
   });
-  var rp=dupReprov(j&&j.reprovadas);
+  var rp=dupReprov(j&&j.reprovadas,j);
   if(!n){ el.innerHTML=h+'<div class="c"><div class="empty">'+(DUP_FIL==='abertos'?'Nada esperando decisão no período. 👍':'Nada para conferir no período.')+'</div></div>'+rp; return }
   h+='<div class="c"><div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th>Dia</th><th>Loja</th><th>Onde</th><th>As duas corridas</th><th>O que o GPS diz</th><th>Veredito</th><th>Decisão</th></tr>'+rows+'</table></div></div>'+rp;
   el.innerHTML=h;
