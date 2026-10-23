@@ -107,6 +107,7 @@ button.b:hover{border-color:var(--text2)}
 .mm-n.late{box-shadow:0 0 0 3px #e66767}
 .mm-e{font-size:18px;line-height:22px;text-align:center;filter:drop-shadow(0 1px 2px rgba(0,0,0,.8))}
 .qd .leaflet-container{font-family:Barlow,sans-serif}
+.qd .mm-fundo{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9)}
 .qd .leaflet-control-attribution{font-size:9px;background:rgba(0,0,0,.55)!important;color:#999}
 .qd .leaflet-control-attribution a{color:#bbb}
 .qd .it{flex-wrap:wrap}
@@ -510,7 +511,9 @@ function desenha(d){
    Dentro de cada quadro da rua: a casa = loja (patio_loja), a moto = GPS dele agora (o mesmo da distancia),
    e as entregas que FALTAM numeradas na ordem da rota do TrackEat (coluna sequencia). Entregue some sozinho.
    A linha tracejada liga os pontos em LINHA RETA na ordem da rota - nao e o caminho de rua.
-   Mapa parado (sem arrastar nem zoom), montado de novo a cada leitura de 60 s. Mapa de fundo: OpenStreetMap/CARTO.
+   Mapa parado (sem arrastar nem zoom), montado de novo a cada leitura de 60 s. Mapa de fundo: OpenStreetMap.
+   23/10/2026: o CARTO passou a pedir chave paga e o fundo virou "API KEY REQUIRED" sem ruas; trocado pelo OpenStreetMap
+   (gratis, sem chave), escurecido por filtro para combinar com a tela escura.
    Se a biblioteca do mapa nao carregar, o quadro fica como era antes, sem mapa. */
 var MM=[];
 function ordemRota(lista){
@@ -581,7 +584,7 @@ function minimapas(d){
       var mp=L.map(el,{zoomControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false,tap:false,zoomSnap:0.25});
       MM.push(mp);
       mp.attributionControl.setPrefix(false);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,attribution:'© OpenStreetMap © CARTO'}).addTo(mp);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,className:'mm-fundo',attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(mp);
       var cor=(ps[0].grupo&&COR[Number(ps[0].grupo)])||'#E0A81C', pts=[], linha=[], gp=null;
       if(d.loja&&d.loja.lat!=null&&d.loja.lng!=null){ var lj=[+d.loja.lat,+d.loja.lng]; pts.push(lj); L.marker(lj,{icon:ic('🏠','mm-e'),interactive:false}).addTo(mp); }
       if(m.gps&&m.gps.lat!=null&&m.gps.lng!=null){ gp=[+m.gps.lat,+m.gps.lng]; pts.push(gp); linha.push(gp); }
