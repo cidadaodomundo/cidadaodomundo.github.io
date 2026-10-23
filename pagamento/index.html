@@ -217,17 +217,17 @@ const REGRAS_HTML='<div class="c"><h3 style="margin:0 0 12px;font-size:16px">�
 '<b>Paga-se o maior</b> entre as taxas das entregas e o garantido — nunca a soma.<br><br>'+
 '<b>Garantido, turno por turno que ele rodou:</b> almoço conta se ele chegou antes das 15h; jantar conta se chegou depois das 15h ou fez entrega depois das 19h. Turno que está na escala do Jaison vale <b>as horas da escala × R$ 20</b> (no mínimo o piso do turno). Turno rodado fora da escala, ou dia sem escala com o nome dele, vale <b>o piso do turno da loja</b>: Água Verde e São Braz R$ 120 o turno (almoço curto da Água Verde R$ 80), Ahú R$ 100. Turno da escala em que ele <b>não apareceu</b> não entra.<br><br>'+
 '<b>Fim de semana:</b> R$ 25 a hora <b>só na Água Verde</b> (R$ 150 o turno de 6h). São Braz e Ahú pagam igual ao dia de semana.<br><br>'+
-'<b>Atraso não corta nada</b> — nem o garantido, nem o lanche. Fica só anotado na comanda.<br><br>'+
+'<b>Atraso — quem manda é a tela Chegada</b> (decisão do Fábio, 23/10/2026): chegou <b>mais de 30 min</b> depois da escala do Jaison, com carimbo de GPS, fica <b>sem o garantido do dia</b> e <b>sem o lanche daquele turno</b> — igual à planilha da casa. Sem carimbo de GPS nada é cortado. Se a equipe marcar na tela <b>Chegada</b> "com garantido" ou "com rango" (com o motivo), vale o que foi marcado lá, e esta tela obedece na hora.<br><br>'+
 '<b>Lanche:</b> um por turno rodado. Quem rodou almoço e jantar tem direito a dois; quem rodou um turno e pegou dois paga o segundo, pelo preço de cardápio.<br><br>'+
 '<b>Entregas</b> é a contagem que gerou taxa no TrackEat — é o que sustenta o valor a pagar, e <b>não</b> é a medida de quantas entregas a loja fez no dia. Descontos de pedido não achado, refrigerante e acertos de outro dia continuam sendo feitos à mão.</div></div>'+
 '<div class="c"><h3 style="margin:0 0 12px;font-size:16px">📋 O que cada coluna quer dizer</h3><div class="wrap"><table>'+
 '<tr><th>Coluna</th><th>O que é</th></tr>'+
 '<tr><td><b>Escala</b></td><td>A hora que ficou combinada com ele, pela escala do Jaison.</td></tr>'+
 '<tr><td><b>Real</b></td><td>A hora que o GPS carimbou a chegada no pátio, o atraso entre parênteses, e a hora da última entrega. O sinal de alerta quer dizer que não houve carimbo de GPS — a chegada é estimada e por isso nada é cortado.</td></tr>'+
-'<tr><td><b>Almoço</b></td><td>Quantas refeições ele tem direito: uma por turno rodado (duas quando rodou almoço e jantar). Atraso não tira a refeição.</td></tr>'+
+'<tr><td><b>Almoço</b></td><td>Quantas refeições ele tem direito: uma por turno rodado (duas quando rodou almoço e jantar). Chegou mais de 30 min atrasado (GPS) perde a daquele turno, a não ser que a tela Chegada marque "com rango".</td></tr>'+
 '<tr><td><b>Prato</b></td><td>O que ele efetivamente pegou na comanda Z Motoboys. Se aparece um valor em vermelho, é porque pegou sem ter direito e está pagando por ele.</td></tr>'+
 '<tr><td><b>Entregas</b></td><td>Quantas entregas geraram taxa para ele no dia.</td></tr>'+
-'<tr><td><b>Garantido</b></td><td>O mínimo do dia, somando os turnos que ele rodou (horas da escala × R$/h, ou o piso do turno quando não está na escala). Atraso não corta.</td></tr>'+
+'<tr><td><b>Garantido</b></td><td>O mínimo do dia, somando os turnos que ele rodou (horas da escala × R$/h, ou o piso do turno quando não está na escala). Chegou mais de 30 min atrasado (GPS) fica sem, a não ser que a tela Chegada marque "com garantido".</td></tr>'+
 '<tr><td><b>A pagar</b></td><td>O maior entre as taxas e o garantido, menos o lanche cobrado e mais ou menos os ajustes feitos a mão.</td></tr>'+
 '<tr><td><b>Planilha deles</b></td><td>O que a planilha que os meninos mandam no grupo FECHAMENTO MOTOBOYS manda pagar, e embaixo a diferença para a nossa conta. Verde = igual. Amarelo = o sistema paga menos que eles (quase sempre porque eles ainda usam diária cheia). Azul = o sistema paga mais. É só para conferir — quem paga é você.</td></tr>'+
 '</table></div></div>';
@@ -839,7 +839,10 @@ function pgComanda(m,i){
     h+=pgLn('garantido'+(confere?' '+num(m.horas_escala)+'h × '+num(m.valor_hora):' do turno'),pgV(base),'forte');
     h+='<div class="pg-obs">as entregas deram menos que o garantido: vale o garantido</div>';
   }
-  if(m.garantido===false) h+=pgLn('garantido perdido','—','menos')+'<div class="pg-obs">chegou '+num(m.atraso_min)+' min depois do combinado (GPS)</div>';
+  /* 23/10/2026 (chat-garantido-chegada-pagamento-23-10): "A Chegada manda" - o garantido e o rango vem da tela Chegada (regra + botoes) */
+  if(m.garantido===false) h+=pgLn('sem garantido','—','menos')+'<div class="pg-obs">'+(m.garantido_fonte==='botao'?'marcado na tela Chegada por '+esc(m.garantido_quem||'?')+': '+esc(m.garantido_motivo||''):'chegou '+num(m.atraso_min)+' min depois do combinado (GPS) · tela Chegada')+'</div>';
+  else if(m.garantido_fonte==='botao') h+='<div class="pg-obs">✋ com garantido marcado na tela Chegada por '+esc(m.garantido_quem||'?')+': '+esc(m.garantido_motivo||'')+'</div>';
+  if(m.rango_notas) h+='<div class="pg-obs">🍔 '+esc(m.rango_notas)+'</div>';
   if(ref>0) h+=pgLn('lanche a mais','− '+pgV(ref),'menos')+(m.lanche_produto?'<div class="pg-obs">'+esc(m.lanche_produto)+'</div>':'');
   if(Math.abs(aj)>0.004) h+=pgLn('ajuste',(aj>0?'+ ':'− ')+pgV(Math.abs(aj)),aj<0?'menos':'')+(m.motivos?'<div class="pg-obs">'+esc(m.motivos)+'</div>':'');
   h+='<hr class="pg-corte"><div class="pg-total"><span class="k">A pagar</span><span class="v">'+rs(m.pagar)+'</span></div>';
@@ -854,7 +857,7 @@ function pgComanda(m,i){
   const fg=String(m.fonte_garantido||'');
   if(fg.indexOf('sem escala')>=0) tg.push('<span class="pg-tag aviso" title="O Jaison não mandou escala com o nome dele neste dia: o garantido é o piso do turno que ele rodou.">sem escala do Jaison</span>');
   if(fg.indexOf('faltou')>=0) tg.push('<span class="pg-tag aviso" title="'+esc(fg)+'">faltou a um turno da escala</span>');
-  if(Number(m.atraso_min)>30&&m.tem_gps) tg.push('<span class="pg-tag" title="A casa não corta por atraso: fica só anotado.">chegou '+num(m.atraso_min)+' min depois · não corta</span>');
+  if(Number(m.atraso_min)>30&&m.tem_gps&&m.garantido!==false) tg.push('<span class="pg-tag" title="Chegou atrasado, mas a tela Chegada liberou o garantido.">chegou '+num(m.atraso_min)+' min depois · liberado na Chegada</span>');
   if(Number(m.lanche_sem_preco)>0) tg.push('<span class="pg-tag aviso">falta o preço de '+num(m.lanche_sem_preco)+' lanche</span>');
   if(tg.length) h+='<div class="pg-tags">'+tg.join('')+'</div>';
   const d=(DELES&&DELES.tem)?(MAPD||{})[chaveDeles(m.unidade,m.entregador)]:null;
