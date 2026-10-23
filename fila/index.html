@@ -107,7 +107,20 @@ button.b:hover{border-color:var(--text2)}
 .mm-n.late{box-shadow:0 0 0 3px #e66767}
 .mm-e{font-size:18px;line-height:22px;text-align:center;filter:drop-shadow(0 1px 2px rgba(0,0,0,.8))}
 .qd .leaflet-container{font-family:Barlow,sans-serif}
-.qd .mm-fundo{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9)}
+.mm-fundo{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9)}
+.qd .mapa.on,.qd .mapa.on .leaflet-container{cursor:zoom-in}
+.qd .mapa.on::after{content:'🔍 ampliar';position:absolute;left:6px;top:6px;z-index:800;pointer-events:none;font-size:11px;font-weight:700;color:#ddd;background:rgba(0,0,0,.6);border-radius:999px;padding:2px 8px}
+.pmg{position:fixed;inset:0;z-index:1900;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:12px}
+.pmg .cx{background:var(--s1,#1c1c1c);border:1px solid var(--line);border-radius:18px;width:100%;max-width:1100px;height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+.pmg .tp{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.pmg .tp b{font-family:'Anton',Impact,sans-serif;font-weight:400;font-size:22px;letter-spacing:.02em}
+.pmg .tp small{color:var(--muted);font-size:12.5px}
+.pmg .fx{margin-left:auto;background:none;border:1px solid var(--line);color:var(--text);border-radius:999px;width:34px;height:34px;font-size:16px;cursor:pointer;flex:0 0 auto}
+.pmg .mg{flex:1;min-height:0;background:#1b1b1b}
+.pmg .av{padding:8px 14px;color:var(--warn);font-size:13px;font-weight:700;border-bottom:1px solid var(--line)}
+.pmg .leaflet-container{font-family:Barlow,sans-serif}
+.pmg .leaflet-control-attribution{font-size:10px;background:rgba(0,0,0,.55)!important;color:#999}
+.pmg .leaflet-control-attribution a{color:#bbb}
 .qd .leaflet-control-attribution{font-size:9px;background:rgba(0,0,0,.55)!important;color:#999}
 .qd .leaflet-control-attribution a{color:#bbb}
 .qd .it{flex-wrap:wrap}
@@ -566,35 +579,85 @@ document.addEventListener('click',function(e){
   var t=e.target&&e.target.closest?e.target.closest('[data-ped]'):null;
   if(t){ e.stopPropagation(); abrePedido(t.getAttribute('data-ped')); }
 });
-document.addEventListener('keydown',function(e){ if(e.key==='Escape') fechaPedido(); });
+document.addEventListener('keydown',function(e){ if(e.key!=='Escape') return; if($('pdm')) fechaPedido(); else fechaMapa(); });
 function temPonto(ps){ return ps.some(function(p){return p.lat!=null&&p.lng!=null;}); }
+var MAPA_FUNDO='https://tile.openstreetmap.org/{z}/{x}/{y}.png', MAPA_ATRIB='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+function mmIcone(html,cls,st,t){ t=t||22; return L.divIcon({className:'',html:'<div class="'+cls+'"'+(st?' style="'+st+'"':'')+'>'+html+'</div>',iconSize:[t,t],iconAnchor:[t/2,t/2]}); }
+/* desenha loja, moto e entregas que faltam (mesma regra do minimapa) dentro de "alvo" (mapa ou camada); devolve os pontos para enquadrar */
+function desenhaRota(alvo,d,m,ps){
+  var cor=(ps[0].grupo&&COR[Number(ps[0].grupo)])||'#E0A81C', pts=[], linha=[], gp=null;
+  if(d.loja&&d.loja.lat!=null&&d.loja.lng!=null){ var lj=[+d.loja.lat,+d.loja.lng]; pts.push(lj); L.marker(lj,{icon:mmIcone('🏠','mm-e'),interactive:false}).addTo(alvo); }
+  if(m.gps&&m.gps.lat!=null&&m.gps.lng!=null){ gp=[+m.gps.lat,+m.gps.lng]; pts.push(gp); linha.push(gp); }
+  ps.forEach(function(p){ var q=[+p.lat,+p.lng]; pts.push(q); linha.push(q); });
+  if(linha.length>1) L.polyline(linha,{color:cor,weight:3,opacity:.9,dashArray:'6 6',interactive:false}).addTo(alvo);
+  ps.forEach(function(p){ L.marker([+p.lat,+p.lng],{icon:mmIcone(p._n||'•','mm-n'+(p.atrasado?' late':''),'background:'+cor),title:p.pedido+(p.end?' · '+endCurto(p.end):'')}).on('click',function(){abrePedido(p.pedido);}).addTo(alvo); });
+  if(gp) L.marker(gp,{icon:mmIcone('🛵','mm-e'),zIndexOffset:1000,interactive:false}).addTo(alvo);
+  return pts;
+}
+function pontosRota(m){ return ordemRota(m&&m.pedidos).filter(function(p){return p.lat!=null&&p.lng!=null;}); }
 function minimapas(d){
   window.ULT_D=d;
   MM.forEach(function(x){try{x.remove()}catch(e){}}); MM=[];
   if(!window.L||!d) return;
   var rua=Array.isArray(d.na_rua)?d.na_rua:[];
-  var ic=function(html,cls,st){return L.divIcon({className:'',html:'<div class="'+cls+'"'+(st?' style="'+st+'"':'')+'>'+html+'</div>',iconSize:[22,22],iconAnchor:[11,11]});};
   var els=document.querySelectorAll('#app .qd .mapa[data-i]');
   for(var k=0;k<els.length;k++){
     try{
       var el=els[k], m=rua[Number(el.getAttribute('data-i'))]; if(!m) continue;
-      var ps=ordemRota(m.pedidos).filter(function(p){return p.lat!=null&&p.lng!=null;});
+      var ps=pontosRota(m);
       if(!ps.length) continue;
       el.classList.add('on');
       var mp=L.map(el,{zoomControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false,tap:false,zoomSnap:0.25});
       MM.push(mp);
       mp.attributionControl.setPrefix(false);
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,className:'mm-fundo',attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(mp);
-      var cor=(ps[0].grupo&&COR[Number(ps[0].grupo)])||'#E0A81C', pts=[], linha=[], gp=null;
-      if(d.loja&&d.loja.lat!=null&&d.loja.lng!=null){ var lj=[+d.loja.lat,+d.loja.lng]; pts.push(lj); L.marker(lj,{icon:ic('🏠','mm-e'),interactive:false}).addTo(mp); }
-      if(m.gps&&m.gps.lat!=null&&m.gps.lng!=null){ gp=[+m.gps.lat,+m.gps.lng]; pts.push(gp); linha.push(gp); }
-      ps.forEach(function(p){ var q=[+p.lat,+p.lng]; pts.push(q); linha.push(q); });
-      if(linha.length>1) L.polyline(linha,{color:cor,weight:3,opacity:.9,dashArray:'6 6',interactive:false}).addTo(mp);
-      ps.forEach(function(p){ L.marker([+p.lat,+p.lng],{icon:ic(p._n||'•','mm-n'+(p.atrasado?' late':''),'background:'+cor),title:p.pedido+(p.end?' · '+endCurto(p.end):'')}).on('click',function(){abrePedido(p.pedido);}).addTo(mp); });
-      if(gp) L.marker(gp,{icon:ic('🛵','mm-e'),zIndexOffset:1000,interactive:false}).addTo(mp);
-      mp.fitBounds(pts,{padding:[20,20],maxZoom:16});
+      L.tileLayer(MAPA_FUNDO,{maxZoom:19,className:'mm-fundo',attribution:MAPA_ATRIB}).addTo(mp);
+      mp.fitBounds(desenhaRota(mp,d,m,ps),{padding:[20,20],maxZoom:16});
+      (function(nome){ mp.on('click',function(){ abreMapa(nome); }); })(m.motoboy);
     }catch(e){}
   }
+  try{ atualizaMapa(d); }catch(e){}
+}
+/* 23/10/2026, pedido do Fabio: "qdo eu clicar em cima do mapa quero que ele aumente e mostre a rota mais aproximada
+   que de pra ver o nome das ruas". Toque no minimapa abre o mesmo mapa grande, com zoom (botoes +/-, roda do mouse,
+   pinca) e arraste, ja enquadrado perto o bastante para ler as ruas. Toque numa bolinha abre os itens do pedido.
+   A cada leitura de 60 s os pontos se atualizam sem mexer no zoom que a pessoa escolheu. A linha continua em linha
+   reta na ordem da rota - nao e o caminho de rua. Se o motoboy sumir da lista na rua, o mapa grande avisa. */
+var MG=null;
+function fechaMapa(){ if(!MG) return; try{MG.mp.remove()}catch(e){} if(MG.el) MG.el.remove(); MG=null; }
+function abreMapa(nome){
+  fechaMapa();
+  var d=window.ULT_D; if(!window.L||!d) return;
+  var m=(Array.isArray(d.na_rua)?d.na_rua:[]).filter(function(x){return x.motoboy===nome;})[0];
+  var ps=pontosRota(m); if(!ps.length) return;
+  var w=document.createElement('div'); w.className='pmg'; w.id='pmg';
+  w.onclick=function(e){ if(e.target===w) fechaMapa(); };
+  w.innerHTML='<div class="cx"><div class="tp"><b>'+esc(nome)+'</b><small id="pmg_h"></small><button class="fx" onclick="fechaMapa()" title="fechar">✕</button></div><div class="av" id="pmg_av" style="display:none"></div><div class="mg" id="pmg_m"></div></div>';
+  document.body.appendChild(w);
+  var mp=L.map($('pmg_m'),{zoomControl:true,zoomSnap:0.5});
+  mp.attributionControl.setPrefix(false);
+  L.tileLayer(MAPA_FUNDO,{maxZoom:19,className:'mm-fundo',attribution:MAPA_ATRIB}).addTo(mp);
+  var cam=L.layerGroup().addTo(mp);
+  MG={mp:mp,cam:cam,nome:nome,uni:UNI,el:w};
+  var pts=desenhaRota(cam,d,m,ps);
+  $('pmg_h').textContent=rotuloMapa(d,ps);
+  mp.invalidateSize();
+  mp.fitBounds(pts,{padding:[40,40],maxZoom:17});
+}
+function atualizaMapa(d){
+  if(!MG) return;
+  if(MG.uni!==UNI){ fechaMapa(); return; }
+  var m=(Array.isArray(d.na_rua)?d.na_rua:[]).filter(function(x){return x.motoboy===MG.nome;})[0];
+  var ps=pontosRota(m), av=$('pmg_av');
+  if(!ps.length){ if(av){ av.textContent=(m?'Sem entrega com endereço no mapa nesta leitura':'Não aparece mais na rua nesta leitura')+' — o mapa ficou como estava antes.'; av.style.display=''; } return; }
+  if(av) av.style.display='none';
+  MG.cam.clearLayers();
+  desenhaRota(MG.cam,d,m,ps);
+  $('pmg_h').textContent=rotuloMapa(d,ps);
+}
+/* horas do proprio dado (as mesmas do rodape da tela), nunca o relogio do navegador */
+function rotuloMapa(d,ps){
+  return ps.length+' entrega'+(ps.length===1?'':'s')+' faltando · '+
+    (TEP?'TrackEat sem dado desde '+TEP:'TrackEat lido às '+(d.visto_em||'—')+' · GPS lido às '+(d.gps_visto_em||'—'));
 }
 
 function legenda(d){
