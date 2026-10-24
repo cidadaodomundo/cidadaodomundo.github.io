@@ -182,7 +182,7 @@ async function abrir(nome){
       rows+='<tr><td>'+esc(ac(l.r))+'<div class="como">'+esc(ac(l.como||''))+'</div></td><td>'+esc(l.ref||'')+'</td><td class="n p">'+(l.p!=null?rs(l.p):'')+'</td><td class="n d">'+(l.d!=null?rs(l.d):'')+'</td></tr>';
     });
     const fora=(j.fora||[]).map(function(l){return '<tr><td>'+esc(ac(l.r))+'<div class="como">'+esc(ac(l.como||''))+'</div></td><td></td><td class="n p">'+(l.p!=null?rs(l.p):'')+'</td><td class="n d">'+(l.d!=null?rs(l.d):'')+'</td></tr>'}).join('');
-    const bon=(j.bonificacao||[]).map(function(b){return '<span class="bon '+(b.ganhou?'sim':'nao')+'">'+esc(b.mes.slice(5))+'/'+esc(b.mes.slice(0,4))+' · '+(b.ganhou?'R$ 200':'perdeu')+'</span>'}).join(' ');
+    const bon=(j.bonificacao||[]).map(function(b){return '<span class="bon '+(b.ganhou?'sim':'nao')+'">'+esc(b.mes.slice(5))+'/'+esc(b.mes.slice(0,4))+' · '+(b.ganhou?rs(b.valor):'perdeu')+'</span>'}).join(' ');
     const dt=j.datas||{};
     box.innerHTML='<div class="card"><div class="det-pessoa"><div><h2>'+esc(j.pessoa.nome)+'</h2><div class="como">'+esc(j.pessoa.cargo||'')+' · '+esc(j.pessoa.empresa||'')+' · salário '+rs(j.pessoa.salario)+'</div></div>'
       +'<div style="text-align:right"><div class="como">líquido da folha</div><div class="liq">'+rs(j.totais.liquido)+'</div>'
@@ -206,7 +206,7 @@ async function carregaBon(){
         if(b.antes_admissao)return '<td><span class="bon na">—</span><div class="motivo">antes da admissão</div></td>';
         if(b.futuro)return '<td><span class="bon na">ainda não</span></td>';
         soma+=Number(b.valor)||0;
-        if(b.ganhou)return '<td><span class="bon sim">R$ 200</span></td>';
+        if(b.ganhou)return '<td><span class="bon sim">'+rs(b.valor)+'</span></td>';
         const mot=(b.motivos||[]).map(function(x){return esc(TIPO[x.tipo]||x.tipo)+' '+br(x.data)}).join(', ');
         return '<td><span class="bon nao">perdeu</span><div class="motivo">'+mot+'</div></td>';
       }).join('');
@@ -214,7 +214,7 @@ async function carregaBon(){
       rows+='<tr><td>'+esc(p.nome)+'<div class="como">'+esc(p.empresa||'')+'</div></td>'+cel+'<td class="n"><b>'+rs(soma)+'</b></td></tr>';
     });
     box.innerHTML='<div class="card"><h2>Bonificação · '+tri+'º trimestre de '+j.ano+'</h2>'
-      +'<div class="como" style="margin-bottom:10px">R$ 200 por mês sem advertência, suspensão, falta ou atestado registrados no portal. Paga em '+esc(j.paga_em)+'. Total do trimestre: <b>'+rs(tot)+'</b>.</div>'
+      +'<div class="como" style="margin-bottom:10px">Ganha o mês quem não teve advertência, suspensão, falta a confirmar ou atestado registrados no portal. Paga em '+esc(j.paga_em)+'. Total do trimestre: <b>'+rs(tot)+'</b>.</div>'
       +'<div class="tabela"><table><thead><tr><th>Pessoa</th>'+meses.map(function(x){return '<th>'+NOMEMES[+x.slice(5)-1]+'</th>'}).join('')+'<th class="n">Trimestre</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   }catch(e){box.innerHTML='<div class="erro">'+esc(e.message)+'</div>'}
 }
