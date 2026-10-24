@@ -71,14 +71,16 @@ tr.grp td{color:var(--brand);font-weight:700;font-size:11.5px;text-transform:upp
     <div class="form">
       <div><label>Pessoa</label><select id="f_nome"><option value="">carregando…</option></select></div>
       <div><label>Último dia de trabalho</label><input type="date" id="f_data"></div>
-      <div><label>Motivo</label><select id="f_motivo" onchange="ajustaAviso()">
-        <option value="sem_justa_causa">Demissão sem justa causa</option>
-        <option value="pedido">Pedido de demissão</option>
-        <option value="acordo">Acordo entre as partes</option>
-        <option value="fim_experiencia">Fim do contrato de experiência</option>
-        <option value="justa_causa">Justa causa</option>
+      <div><label>Quem quer encerrar?</label><select id="f_motivo" onchange="ajustaAviso()">
+        <option value="pedido">O funcionário pediu as contas</option>
+        <option value="sem_justa_causa">A empresa vai demitir (sem justa causa)</option>
+        <option value="justa_causa">A empresa vai demitir por justa causa</option>
+        <option value="acordo">Acordo entre os dois</option>
+        <option value="experiencia">Contrato de experiência</option>
       </select></div>
-      <div><label>Aviso prévio</label><select id="f_aviso"></select></div>
+      <div><label id="l_aviso">E o aviso prévio?</label><select id="f_aviso" onchange="ajustaExtra()"></select></div>
+      <div id="x_dias" style="display:none"><label>Quantos dias do aviso ele trabalhou?</label><input id="f_dias" inputmode="numeric" placeholder="ex.: 10"></div>
+      <div id="x_fimctr" style="display:none"><label>Último dia previsto no contrato de experiência</label><input type="date" id="f_fimctr"></div>
       <div><button class="btn pri" style="width:100%" onclick="simular()">Calcular</button></div>
     </div>
     <details>
@@ -151,13 +153,35 @@ function verAba(a){
   ['sim','emp'].forEach(function(x){$('a_'+x).classList.toggle('on',x===a);$('v_'+x).style.display=(x===a)?'':'none'});
   if(a==='emp')carregaEmp();
 }
+/* "Quem quer encerrar?" + a segunda pergunta de cada caso */
 function ajustaAviso(){
   const m=$('f_motivo').value, s=$('f_aviso');
-  const ops={sem_justa_causa:[['indenizado','Indenizado (paga sem trabalhar)'],['trabalhado','Trabalhado (cumpriu os dias)']],
-    pedido:[['descontado','Não cumpriu — desconta o aviso'],['cumprido','Cumpriu o aviso'],['dispensado','Empresa liberou do aviso']],
-    acordo:[['indenizado','Metade indenizada (acordo)']],
-    fim_experiencia:[['','Não tem aviso']],justa_causa:[['','Não tem aviso']]}[m]||[];
+  const ops={
+    pedido:[['cumprido','Vai cumprir o aviso (trabalha os dias)'],['descontado','Não quer cumprir — a empresa desconta'],
+            ['parcial','Cumpriu só uma parte do aviso'],['dispensado','A empresa libera do aviso, sem desconto']],
+    sem_justa_causa:[['indenizado','Aviso indenizado (paga e a pessoa não trabalha)'],['trabalhado','Aviso trabalhado (a pessoa trabalha os dias)']],
+    justa_causa:[['','Não tem aviso prévio']],
+    acordo:[['indenizado','Aviso pela metade, indenizado']],
+    experiencia:[['fim_experiencia','Termina no último dia do contrato'],['exp_antecipada_empresa','A empresa encerra antes do fim'],
+                 ['exp_antecipada_empregado','O funcionário sai antes do fim']]}[m]||[];
+  $('l_aviso').textContent=(m==='experiencia')?'Como termina a experiência?':'E o aviso prévio?';
   s.innerHTML=ops.map(function(o){return '<option value="'+o[0]+'">'+o[1]+'</option>'}).join('');
+  ajustaExtra();
+}
+function ajustaExtra(){
+  const m=$('f_motivo').value, a=$('f_aviso').value;
+  $('x_dias').style.display=(m==='pedido'&&a==='parcial')?'':'none';
+  $('x_fimctr').style.display=(m==='experiencia'&&a!=='fim_experiencia')?'':'none';
+}
+/* traduz o formulario para o que o banco entende: motivo, aviso e opcoes */
+function escolha(){
+  const m=$('f_motivo').value, a=$('f_aviso').value, op={};
+  if(m==='experiencia'){
+    if(a!=='fim_experiencia'&&$('f_fimctr').value)op.fim_contrato=$('f_fimctr').value;
+    return {motivo:a,aviso:'',opcoes:op};
+  }
+  if(m==='pedido'&&a==='parcial')op.dias_cumpridos=parseInt($('f_dias').value,10)||0;
+  return {motivo:m,aviso:a,opcoes:op};
 }
 function horasNum(v){
   v=String(v||'').trim(); if(!v)return null;
@@ -182,7 +206,9 @@ async function simular(){
   Object.keys(hs).forEach(function(k){if(hs[k]==null)delete hs[k]});
   $('res').innerHTML='<div class="vazio">Calculando…</div>';
   try{
-    const j=await porta('simular',{nome:nome,data:data,motivo:$('f_motivo').value,aviso:$('f_aviso').value,horas:temH?hs:null});
+    const es=escolha();
+    if($('f_motivo').value==='pedido'&&$('f_aviso').value==='parcial'&&!$('f_dias').value){alert('Diga quantos dias do aviso ele trabalhou.');$('res').innerHTML='';return}
+    const j=await porta('simular',{nome:nome,data:data,motivo:es.motivo,aviso:es.aviso,opcoes:es.opcoes,horas:temH?hs:null});
     $('res').innerHTML=desenha(j);
   }catch(e){$('res').innerHTML='<div class="erro">'+esc(e.message)+'</div>'}
 }
@@ -194,9 +220,13 @@ const ACENTO=[[/\bSalario\b/g,'Salário'],[/\bsalario\b/g,'salário'],[/\bprevio
   [/\bATENCAO\b/g,'ATENÇÃO'],[/\brescisao\b/g,'rescisão'],[/\bdemissao\b/g,'demissão'],[/\bexperiencia\b/g,'experiência'],
   [/\bvoce\b/g,'você'],[/\bate\b/g,'até'],[/\besta (dentro|no)\b/g,'está $1'],[/\bperiodo\b/g,'período'],[/\bperiodos\b/g,'períodos'],
   [/\bcalculo\b/g,'cálculo'],[/\bmes\(es\)/g,'mês(es)'],[/\bpar\. 5\b/g,'§5º'],[/\bconcessao\b/g,'concessão'],[/\bsao\b/g,'são'],
-  [/\bSao Braz\b/g,'São Braz'],[/\bpeca\b/g,'peça'],[/\bsaida\b/g,'saída'],[/\bultima\b/g,'última'],[/\bultimo\b/g,'último']];
+  [/\bSao Braz\b/g,'São Braz'],[/\bIndenizacao\b/g,'Indenização'],[/\bFuncionario\b/g,'Funcionário'],[/\bDemissao\b/g,'Demissão'],
+  [/\bprejuizo\b/g,'prejuízo'],[/\breducao\b/g,'redução'],[/\badvertencia\(s\)/g,'advertência(s)'],[/\bsuspensao\(oes\)/g,'suspensão(ões)'],
+  [/\bJustica\b/g,'Justiça'],[/\bE opcional\b/g,'É opcional'],[/\bja\b/g,'já'],[/\bultimos\b/g,'últimos'],[/\bsalario\b/g,'salário'],[/\bpeca\b/g,'peça'],[/\bsaida\b/g,'saída'],[/\bultima\b/g,'última'],[/\bultimo\b/g,'último']];
 function ac(s){s=String(s==null?'':s);ACENTO.forEach(function(a){s=s.replace(a[0],a[1])});return s}
-const MOT={sem_justa_causa:'Demissão sem justa causa',pedido:'Pedido de demissão',acordo:'Acordo entre as partes',fim_experiencia:'Fim da experiência',justa_causa:'Justa causa'};
+const MOT={sem_justa_causa:'Demissão sem justa causa',pedido:'Pedido de demissão',acordo:'Acordo entre os dois',fim_experiencia:'Fim da experiência',
+  justa_causa:'Justa causa',exp_antecipada_empresa:'Empresa encerrou a experiência antes',exp_antecipada_empregado:'Funcionário saiu antes do fim da experiência'};
+const AV={indenizado:'aviso indenizado',trabalhado:'aviso trabalhado',cumprido:'cumpriu o aviso',descontado:'não cumpriu o aviso',parcial:'cumpriu parte do aviso',dispensado:'liberado do aviso'};
 function desenha(j){
   const p=j.pessoa||{}, e=j.entrada||{}, t=j.totais||{}, emp=j.empresa||{};
   let g='', rows='';
@@ -210,7 +240,7 @@ function desenha(j){
       +'<div class="nome">'+esc(p.nome)+'</div>'
       +'<div class="linha">'+esc(p.cargo||'')+' · '+esc(p.empresa||'')+'</div>'
       +'<div class="linha">Admissão '+br(p.admissao)+' · '+(p.anos_de_casa||0)+' ano(s) de casa · salário '+rs(p.salario)+'</div>'
-      +'<div class="linha">'+esc(MOT[e.motivo]||e.motivo)+' · saída '+br(e.data)
+      +'<div class="linha">'+esc(MOT[e.motivo]||e.motivo)+(AV[e.aviso]?' · '+AV[e.aviso]:'')+' · saída '+br(e.data)
         +(e.dias_aviso?' · aviso '+e.dias_aviso+' dias':'')+(e.projecao?' · projeção até '+br(e.projecao):'')+'</div>'
       +'<div class="det">horas do mês: '+esc(ac(e.horas_de||'—'))+'</div>'
     +'</div><div class="liq"><div class="det">a pessoa recebe (estimativa)</div><div class="v">'+rs(t.liquido)+'</div>'
