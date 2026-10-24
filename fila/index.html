@@ -119,6 +119,16 @@ button.b:hover{border-color:var(--text2)}
 .pmg .mg{flex:1;min-height:0;background:#1b1b1b}
 .pmg .av{padding:8px 14px;color:var(--warn);font-size:13px;font-weight:700;border-bottom:1px solid var(--line)}
 .pmg .leaflet-container{font-family:Barlow,sans-serif}
+.pmg .lr{max-height:34%;overflow:auto;border-top:1px solid var(--line);padding:8px 14px 10px;font-size:13.5px}
+.pmg .lr .nt{color:var(--muted);font-size:12px;line-height:1.4;margin-bottom:4px}
+.pmg .lr .ln{display:flex;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line);line-height:1.3}
+.pmg .lr .ln .sq{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:11.5px;font-weight:800;color:#111;flex:0 0 auto}
+.pmg .lr .ln .ed{color:var(--muted);font-size:12.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pmg .lr .ln .tm{margin-left:auto;font-weight:800;white-space:nowrap;text-align:right}
+.pmg .lr .ln .tm small{display:block;font-weight:500;color:var(--muted);font-size:11.5px}
+.pmg .lr .ln.tt{font-weight:800}
+.mm-tt{background:rgba(0,0,0,.78)!important;color:#fff!important;border:0!important;font:800 11.5px Barlow,sans-serif;padding:1px 6px!important;box-shadow:none!important}
+.mm-tt:before{display:none}
 .pmg .leaflet-control-attribution{font-size:10px;background:rgba(0,0,0,.55)!important;color:#999}
 .pmg .leaflet-control-attribution a{color:#bbb}
 .qd .leaflet-control-attribution{font-size:9px;background:rgba(0,0,0,.55)!important;color:#999}
@@ -584,12 +594,12 @@ function temPonto(ps){ return ps.some(function(p){return p.lat!=null&&p.lng!=nul
 var MAPA_FUNDO='https://tile.openstreetmap.org/{z}/{x}/{y}.png', MAPA_ATRIB='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 function mmIcone(html,cls,st,t){ t=t||22; return L.divIcon({className:'',html:'<div class="'+cls+'"'+(st?' style="'+st+'"':'')+'>'+html+'</div>',iconSize:[t,t],iconAnchor:[t/2,t/2]}); }
 /* desenha loja, moto e entregas que faltam (mesma regra do minimapa) dentro de "alvo" (mapa ou camada); devolve os pontos para enquadrar */
-function desenhaRota(alvo,d,m,ps){
+function desenhaRota(alvo,d,m,ps,semLinha){
   var cor=(ps[0].grupo&&COR[Number(ps[0].grupo)])||'#E0A81C', pts=[], linha=[], gp=null;
   if(d.loja&&d.loja.lat!=null&&d.loja.lng!=null){ var lj=[+d.loja.lat,+d.loja.lng]; pts.push(lj); L.marker(lj,{icon:mmIcone('🏠','mm-e'),interactive:false}).addTo(alvo); }
   if(m.gps&&m.gps.lat!=null&&m.gps.lng!=null){ gp=[+m.gps.lat,+m.gps.lng]; pts.push(gp); linha.push(gp); }
   ps.forEach(function(p){ var q=[+p.lat,+p.lng]; pts.push(q); linha.push(q); });
-  if(linha.length>1) L.polyline(linha,{color:cor,weight:3,opacity:.9,dashArray:'6 6',interactive:false}).addTo(alvo);
+  if(linha.length>1&&!semLinha) L.polyline(linha,{color:cor,weight:3,opacity:.9,dashArray:'6 6',interactive:false}).addTo(alvo);
   ps.forEach(function(p){ L.marker([+p.lat,+p.lng],{icon:mmIcone(p._n||'•','mm-n'+(p.atrasado?' late':''),'background:'+cor),title:p.pedido+(p.end?' · '+endCurto(p.end):'')}).on('click',function(){abrePedido(p.pedido);}).addTo(alvo); });
   if(gp) L.marker(gp,{icon:mmIcone('🛵','mm-e'),zIndexOffset:1000,interactive:false}).addTo(alvo);
   return pts;
@@ -620,8 +630,8 @@ function minimapas(d){
 /* 23/10/2026, pedido do Fabio: "qdo eu clicar em cima do mapa quero que ele aumente e mostre a rota mais aproximada
    que de pra ver o nome das ruas". Toque no minimapa abre o mesmo mapa grande, com zoom (botoes +/-, roda do mouse,
    pinca) e arraste, ja enquadrado perto o bastante para ler as ruas. Toque numa bolinha abre os itens do pedido.
-   A cada leitura de 60 s os pontos se atualizam sem mexer no zoom que a pessoa escolheu. A linha continua em linha
-   reta na ordem da rota - nao e o caminho de rua. Se o motoboy sumir da lista na rua, o mapa grande avisa. */
+   A cada leitura de 60 s os pontos se atualizam sem mexer no zoom que a pessoa escolheu. Se o motoboy sumir da lista
+   na rua, o mapa grande avisa. O caminho pelas ruas e o tempo de cada trecho vem do bloco de 24/10/2026 (rotaRuas). */
 var MG=null;
 function fechaMapa(){ if(!MG) return; try{MG.mp.remove()}catch(e){} if(MG.el) MG.el.remove(); MG=null; }
 function abreMapa(nome){
@@ -631,17 +641,17 @@ function abreMapa(nome){
   var ps=pontosRota(m); if(!ps.length) return;
   var w=document.createElement('div'); w.className='pmg'; w.id='pmg';
   w.onclick=function(e){ if(e.target===w) fechaMapa(); };
-  w.innerHTML='<div class="cx"><div class="tp"><b>'+esc(nome)+'</b><small id="pmg_h"></small><button class="fx" onclick="fechaMapa()" title="fechar">✕</button></div><div class="av" id="pmg_av" style="display:none"></div><div class="mg" id="pmg_m"></div></div>';
+  w.innerHTML='<div class="cx"><div class="tp"><b>'+esc(nome)+'</b><small id="pmg_h"></small><button class="fx" onclick="fechaMapa()" title="fechar">✕</button></div><div class="av" id="pmg_av" style="display:none"></div><div class="mg" id="pmg_m"></div><div class="lr" id="pmg_l"></div></div>';
   document.body.appendChild(w);
   var mp=L.map($('pmg_m'),{zoomControl:true,zoomSnap:0.5});
   mp.attributionControl.setPrefix(false);
   L.tileLayer(MAPA_FUNDO,{maxZoom:19,className:'mm-fundo',attribution:MAPA_ATRIB}).addTo(mp);
   var cam=L.layerGroup().addTo(mp);
-  MG={mp:mp,cam:cam,nome:nome,uni:UNI,el:w};
-  var pts=desenhaRota(cam,d,m,ps);
-  $('pmg_h').textContent=rotuloMapa(d,ps);
+  MG={mp:mp,cam:cam,nome:nome,uni:UNI,el:w,rr:null,pend:null,falhou:null};
+  var pts=pintaMapa(d,m,ps);
   mp.invalidateSize();
   mp.fitBounds(pts,{padding:[40,40],maxZoom:17});
+  rotaRuas();
 }
 function atualizaMapa(d){
   if(!MG) return;
@@ -650,9 +660,85 @@ function atualizaMapa(d){
   var ps=pontosRota(m), av=$('pmg_av');
   if(!ps.length){ if(av){ av.textContent=(m?'Sem entrega com endereço no mapa nesta leitura':'Não aparece mais na rua nesta leitura')+' — o mapa ficou como estava antes.'; av.style.display=''; } return; }
   if(av) av.style.display='none';
+  MG.falhou=null;
+  pintaMapa(d,m,ps);
+  rotaRuas();
+}
+
+/* 24/10/2026, pedido do Fabio: "quero o caminho pelas ruas" e "uma estimativa de qto tempo vai demorar cada entrega...
+   o tempo que vai durar uma entrega para outra". SO no mapa grande (o minimapa continua em linha reta, sem chamada nova).
+   Quem calcula e o servico publico de rotas OSRM, sobre o mapa do OpenStreetMap (gratis, sem chave): caminho de CARRO,
+   SEM transito e SEM o tempo parado na porta - por isso a tela escreve "estimativa" e diz isso embaixo.
+   Comeca no GPS dele (sem GPS, na loja) e segue a ordem da rota do TrackEat. Uma chamada ao abrir e no maximo uma por
+   leitura de 60 s, so quando a moto ou as entregas mudaram. Tempo de um trecho so aparece junto das entregas que ele
+   mediu; se o servico nao responder, volta a linha reta e a tela avisa. Nada disso vai para o banco.
+   Vai ao OSRM so a coordenada (4 casas, ~10 m), nunca nome nem endereco. */
+var ROTAS='https://router.project-osrm.org/route/v1/driving/';
+function inicioRota(d,m){
+  if(m&&m.gps&&m.gps.lat!=null&&m.gps.lng!=null) return {ll:[+m.gps.lat,+m.gps.lng],gps:true};
+  if(d&&d.loja&&d.loja.lat!=null&&d.loja.lng!=null) return {ll:[+d.loja.lat,+d.loja.lng],gps:false};
+  return null;
+}
+function chaveRota(ini,ps){ return [ini.ll].concat(ps.map(function(p){return [+p.lat,+p.lng];})).map(function(q){return q[1].toFixed(4)+','+q[0].toFixed(4);}).join(';'); }
+function minTxt(s){ return '~'+Math.max(1,Math.round(s/60))+' min'; }
+function kmTxt(mt){ return mt<1000?(Math.round(mt/10)*10)+' m':(mt/1000).toFixed(1).replace('.',',')+' km'; }
+function pintaMapa(d,m,ps){
+  MG.d=d; MG.m=m; MG.ps=ps;
+  var ini=inicioRota(d,m), ch=ini?chaveRota(ini,ps):null;
+  var rr=(MG.rr&&MG.rr.chave===ch)?MG.rr:null;
   MG.cam.clearLayers();
-  desenhaRota(MG.cam,d,m,ps);
+  var pts=desenhaRota(MG.cam,d,m,ps,!!rr);
+  var cor=(ps[0].grupo&&COR[Number(ps[0].grupo)])||'#E0A81C';
+  if(rr){
+    L.polyline(rr.linha,{color:cor,weight:5,opacity:.95,interactive:false}).addTo(MG.cam);
+    ps.forEach(function(p,i){ var lg=rr.legs[i]; if(!lg) return;
+      L.circleMarker([+p.lat,+p.lng],{radius:1,opacity:0,fillOpacity:0,interactive:false})
+        .bindTooltip(minTxt(lg.duration),{permanent:true,direction:'right',offset:[12,0],className:'mm-tt'}).addTo(MG.cam); });
+  }
   $('pmg_h').textContent=rotuloMapa(d,ps);
+  listaRota(ini,ps,rr,cor);
+  return pts;
+}
+function listaRota(ini,ps,rr,cor){
+  var el=$('pmg_l'); if(!el) return;
+  var h;
+  if(rr) h='<div class="nt">Tempo rodando de um ponto ao outro — <b>estimativa</b> do serviço de rotas OSRM (mapa OpenStreetMap): de carro, sem trânsito e sem o tempo parado na porta.'+(ini&&!ini.gps?' Sem GPS dele: contado a partir da loja.':'')+'</div>';
+  else if(MG.falhou===chaveRota(ini||{ll:[0,0]},ps)) h='<div class="nt">O serviço de rotas não respondeu agora — o mapa mostra a linha reta, sem tempo estimado. Tenta de novo na próxima leitura.</div>';
+  else if(!ini) h='<div class="nt">Sem GPS e sem a posição da loja: não dá para calcular o caminho.</div>';
+  else h='<div class="nt">Calculando o caminho pelas ruas…</div>';
+  var tot=0, totm=0;
+  ps.forEach(function(p,i){
+    var lg=rr&&rr.legs[i], de=i===0?(ini&&ini.gps?'🛵':'🏠'):String(ps[i-1]._n||i);
+    if(lg){ tot+=lg.duration; totm+=lg.distance; }
+    h+='<div class="ln"><span class="sq" style="background:'+cor+'">'+esc(p._n||'•')+'</span>'+
+       '<span><span data-ped="'+esc(p.pedido)+'">'+esc(p.pedido)+'</span><div class="ed">'+esc(endCurto(p.end))+'</div></span>'+
+       (lg?'<span class="tm">'+esc(de)+' → '+esc(p._n||'')+': '+minTxt(lg.duration)+'<small>'+kmTxt(lg.distance)+' · '+minTxt(tot)+' no total</small></span>':'')+
+       '</div>';
+  });
+  if(rr&&ps.length>1) h+='<div class="ln tt"><span>Até a última entrega</span><span class="tm">'+minTxt(tot)+'<small>'+kmTxt(totm)+' rodando</small></span></div>';
+  el.innerHTML=h;
+}
+async function rotaRuas(){
+  if(!MG||!MG.ps) return;
+  var ini=inicioRota(MG.d,MG.m); if(!ini) return;
+  var ch=chaveRota(ini,MG.ps);
+  if((MG.rr&&MG.rr.chave===ch)||MG.pend===ch||MG.falhou===ch) return;
+  MG.pend=ch; var eu=MG;
+  var ac=window.AbortController?new AbortController():null, to=setTimeout(function(){ if(ac) ac.abort(); },10000);
+  var rr=null;
+  try{
+    var r=await fetch(ROTAS+ch+'?overview=full&geometries=geojson&steps=false',ac?{signal:ac.signal}:{});
+    var j=r.ok?await r.json():null, ro=j&&j.code==='Ok'&&j.routes&&j.routes[0];
+    if(ro&&ro.geometry&&Array.isArray(ro.legs)&&ro.legs.length===ch.split(';').length-1)
+      rr={chave:ch,linha:ro.geometry.coordinates.map(function(c){return [c[1],c[0]];}),legs:ro.legs};
+  }catch(e){}
+  clearTimeout(to);
+  if(MG!==eu) return;
+  var ini2=inicioRota(MG.d,MG.m);
+  if(!ini2||chaveRota(ini2,MG.ps)!==ch) return;   /* resposta de pontos que ja mudaram: a chamada nova cuida */
+  MG.pend=null;
+  if(rr){ MG.rr=rr; MG.falhou=null; } else MG.falhou=ch;
+  try{ pintaMapa(MG.d,MG.m,MG.ps); }catch(e){}
 }
 /* horas do proprio dado (as mesmas do rodape da tela), nunca o relogio do navegador */
 function rotuloMapa(d,ps){
@@ -679,7 +765,7 @@ function rodape(d){
     ' GPS lido pela última vez às '+esc(d.gps_visto_em||'—')+'. Motoboy sem sinal fica marcado <b>sem GPS</b> e os pedidos dele ficam sem distância,'+
     ' em vez de receber um número inventado.'+
     '<br>O quadradinho colorido é a cor da rota no mapa do TrackEat (mesma regra de cor do site dele): pedidos da mesma cor vão com o mesmo motoboy.'+
-    '<br>O minimapa de cada motoboy na rua mostra a loja (🏠), onde ele está agora pelo GPS (🛵) e só as entregas que ainda faltam, numeradas na ordem da rota do TrackEat (1 = a próxima). A linha tracejada é em linha reta, não é o caminho de rua. Bolinha com anel vermelho = passando do normal.'+
+    '<br>O minimapa de cada motoboy na rua mostra a loja (🏠), onde ele está agora pelo GPS (🛵) e só as entregas que ainda faltam, numeradas na ordem da rota do TrackEat (1 = a próxima). A linha tracejada é em linha reta, não é o caminho de rua. Tocando no minimapa ele abre grande, com o caminho pelas ruas e o tempo estimado de um ponto ao outro (serviço de rotas OSRM: de carro, sem trânsito e sem o tempo parado na porta). Bolinha com anel vermelho = passando do normal.'+
     '<br>Toque no número de um pedido (ou na bolinha dele no mapa) para ver os itens, o endereço e o complemento. Os itens vêm do Saipos, lido de 10 em 10 minutos.'+
     '<br>A tela se atualiza sozinha a cada minuto e o TrackEat também é lido de minuto em minuto.';
 }
