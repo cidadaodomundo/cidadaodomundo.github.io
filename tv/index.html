@@ -85,6 +85,13 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .meta .fr{margin-top:.4em;font-weight:800;font-size:.95em}
 .meta .fr.ok{color:var(--ok)}.meta .fr.nao{color:var(--text2)}
 .meta .ant{color:var(--muted);font-size:.75em;margin-top:.2em}
+/* 24/10/2026 Fabio: a meta do churrasco da AV tambem depende de 50 avaliacoes novas no Google (salao). Quadrados embaixo dos dias */
+.dias.goo{margin-top:.3em}
+.dd.g{padding:.12em .1em;background:rgba(224,168,28,.1);border-color:transparent}
+.dd.g .nn{font-size:1.1em;color:var(--brand)}
+.dd.g.zero .nn,.dd.g.falta .nn{color:var(--muted)}
+.gfr{margin-top:.3em;font-weight:700;font-size:.85em;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gfr b{color:var(--brand)}.gfr.ok b{color:var(--ok)}.gfr small{color:var(--muted);font-weight:500}
 /* 14/10/2026 carrossel das fotos dos erros da semana (Fabio: "crie um carrosel passando as fotos dos erros"). Altura fixa:
    a lista de Fora do ar embaixo nao pula quando a foto troca. */
 .carro{flex:0 0 auto;height:10.5em;margin-bottom:.7em;background:var(--s1);border:1px solid var(--line);border-left:.4em solid var(--bad);border-radius:.6em;padding:.4em .6em;display:grid;grid-template-columns:13em 1fr;gap:.7em;align-items:center;overflow:hidden}
@@ -192,6 +199,8 @@ body.modo-carro #slides{display:flex;flex-direction:column;flex:1;min-height:0;p
 .sl-fr{font-size:2.6em;font-weight:800;line-height:1.15}
 .sl-fr.nao{color:var(--bad)}.sl-fr.ok{color:var(--ok)}
 .sl-ant{font-size:1.6em;color:var(--muted);margin-top:.2em}
+.sl-dias.goo{margin-top:-.2em}.sl-dias .dd.g{padding:.1em}.sl-dias .dd.g .nn{font-size:2.6em}
+.sl-gfr .gfr{font-size:1.9em;margin:0 0 .3em}
 .sl-foto{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:1.4em;align-items:center}
 .sl-foto .ft{height:100%;min-height:0;background:#000;border-radius:.6em;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .sl-foto img{max-width:100%;max-height:100%;object-fit:contain}
@@ -327,6 +336,7 @@ async function busca(primeira){
     VISTOS=new Set(lista.map(e=>e.k));
     DADO=j; ULT_OK=Date.now(); $('faixa').classList.remove('on');
     desenha(novos.map(e=>e.k));
+    gooBusca();     /* 24/10: avaliacoes novas do Google da meta do churrasco; so vai a rede a cada 30 min ou quando troca a loja */
     carroBusca();   /* 14/10: fotos dos erros da semana; ela mesma so vai a rede a cada 10 min ou quando troca a loja */
     try{ slAtualiza(novos); }catch(e){}   /* 14/10: modo carrossel - erro novo pula para "Erros de hoje"; falha aqui nunca vira "sem internet" */
     if(novos.length) apito();
@@ -414,6 +424,67 @@ function desenha(novos){
   }
 }
 
+/* 24/10/2026 Fabio: "a meta do churrasco tambem estara atrelada a 50 avaliacoes 5 estrelas no google conseguidas pelo pessoal
+   do salao" e "vc olha no google as avaliacoes novas a partir de hj, e coloca junto com o placar do churrasco, talvez os quadrados
+   em baixo". A regra (loja, desde, total do Google no dia de inicio, alvo) mora no banco (tv_meta_google); loja sem linha = sem
+   meta do Google. O robo do Google le 1 vez por dia (~12h20) e so ve a NOTA e o TOTAL da loja, nao a estrela de cada avaliacao:
+   conta-se toda avaliacao nova. Cada quadrado = quantas novas a leitura daquele dia achou. */
+let GOO=null, GOO_T=0, GOO_LOJA='', GOO_BUSCANDO=false;
+async function gooBusca(){
+  if(GOO_BUSCANDO) return;
+  if(Date.now()-GOO_T<30*60000 && GOO_LOJA===LOJA) return;
+  if(GOO_LOJA!==LOJA) GOO=null;   /* trocou de loja: nunca mostra o Google da loja anterior */
+  GOO_BUSCANDO=true;
+  const loja=LOJA, h={apikey:KEY,Authorization:'Bearer '+KEY};
+  try{
+    const r=await fetch(SB+'tv_meta_google?select=loja,desde,base_total,alvo&loja=eq.'+encodeURIComponent(loja),{headers:h});
+    if(!r.ok) return;
+    const mt=(await r.json())[0]||null;
+    let lei=[];
+    if(mt){
+      const d10=new Date(Date.now()-10*86400000).toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'});
+      const de=mt.desde>d10?mt.desde:d10;
+      const r2=await fetch(SB+'google_fato_avaliacao?select=data_coleta,num_avaliacoes,created_at&unidade=eq.'+encodeURIComponent(loja)+'&data_coleta=gte.'+de+'&order=data_coleta.asc,created_at.asc',{headers:h});
+      if(!r2.ok) return;
+      lei=await r2.json();
+    }
+    if(loja!==LOJA) return;
+    GOO=mt?{loja:loja,desde:mt.desde,base:Number(mt.base_total),alvo:Number(mt.alvo),lei:lei}:{loja:loja,nada:true};
+    GOO_T=Date.now(); GOO_LOJA=loja;
+    if(DADO) desenha([]);
+  }catch(e){}
+  finally{ GOO_BUSCANDO=false; }
+}
+/* devolve null quando a loja nao tem meta do Google; senao os quadrados (alinhados com os dias) e a frase */
+function gooCalc(m){
+  const g=GOO; if(!g||g.nada||g.loja!==lojaTv()||!g.alvo) return null;
+  const tot={}; let ult=null;
+  (g.lei||[]).forEach(function(x){ tot[x.data_coleta]=Number(x.num_avaliacoes); ult=x; });   /* mesmo dia lido 2 vezes: vale a ultima */
+  const dias=Object.keys(tot).sort(), nov={};
+  dias.forEach(function(d,i){
+    if(d<g.desde) return;
+    const ant=d===g.desde||(i>0&&dias[i-1]<g.desde)?g.base:(i>0?tot[dias[i-1]]:null);   /* sem leitura no dia de inicio: a base vale como a leitura dele */
+    if(ant!=null) nov[d]=tot[d]-ant;
+  });
+  const y0=Number(String(g.desde).slice(0,4)), m0=Number(String(g.desde).slice(5,7));
+  const iso=function(dm){ const p=String(dm).split('/'), mm=Number(p[1]); return (mm<m0-6?y0+1:y0)+'-'+p[1]+'-'+p[0]; };
+  const cx=m.dias.map(function(d){
+    const k=iso(d.dia);
+    if(k<g.desde||d.quando==='falta') return '<div class="dd g falta"><div class="nn">–</div></div>';
+    if(nov[k]==null) return '<div class="dd g falta" title="O Google ainda não foi lido neste dia (lê 1 vez por dia, perto do meio-dia)"><div class="nn">…</div></div>';
+    const n=nov[k];
+    return '<div class="dd g'+(n>0?'':' zero')+'" title="Avaliações novas no Google achadas na leitura de '+esc(d.dia)+'"><div class="nn">⭐'+(n>0?'+':'')+esc(n)+'</div></div>';
+  }).join('');
+  const y=ult&&ult.data_coleta>=g.desde? tot[ult.data_coleta]-g.base : 0, falta=Math.max(0,g.alvo-y);
+  const velho=!ult||(Date.now()-new Date(ult.created_at).getTime())>36*3600000;
+  const dsd=String(g.desde).slice(8,10)+'/'+String(g.desde).slice(5,7);
+  const fr='<div class="gfr'+(falta?'':' ok')+'">⭐ Google (salão): <b>'+esc(y)+' de '+esc(g.alvo)+'</b> novas desde '+esc(dsd)
+    +(falta?' · falta'+(falta>1?'m ':' ')+falta:' — 🎉 meta do Google batida!')
+    +(velho?' <span class="alerta">⚠️ Google sem leitura '+(ult?'desde '+esc(ddmm(ult.created_at)):'')+' — robô pode estar parado</span>'
+           :' <small>· lido '+esc(ddmm(ult.created_at))+' '+esc(hhmm(ult.created_at))+'</small>')+'</div>';
+  return {html:'<div class="dias goo">'+cx+'</div>'+fr, cx:cx, fr:fr, y:y, falta:falta, alvo:g.alvo};
+}
+
 /* META DO CHURRASCO (05/10/2026, Fabio escolheu "dias verdes"): o banco manda os 7 dias de sabado a sexta.
    Meta UNICA da cozinha e do delivery (Fabio: "os dois setores caminham juntos... se complementassem"): bebida conta.
    Dia que passou: verde se ficou ate o limite. Hoje: ja fica vermelho se passou do limite; senao esta valendo. */
@@ -432,18 +503,19 @@ function meta(m){
   /* 14/10/2026 (obra 124, chat-tv-qualidade-fotos-14-10) Fabio: "quero que conste 2 erros por dia ou 14 erros no total" e,
      nas opcoes, "Ate 14 na semana": ganha a semana (sab a sex) quem fechar com ate 14 erros. O dia verde (ate 2) fica so
      como guia. O teto vem do banco (semana.teto_semana); sem ele, a tela volta a regra antiga dos dias verdes. */
-  const teto=Number(m.teto_semana)||0;
+  const teto=Number(m.teto_semana)||0, G=gooCalc(m), gH=G?G.html:'';
   if(teto){
     let tot=0, sobram=0;
     m.dias.forEach(function(d){ if(d.quando!=='falta') tot+=Number(d.erros)||0; if(d.quando!=='passou') sobram++; });
     const resta=teto-tot;
     let fr2, cf2='';
     if(tot>teto){ fr2='Passou de '+teto+': esta semana não dá mais ('+tot+' erros). Sábado começa outra.'; cf2='nao'; }
+    else if(!sobram&&G&&G.falta){ fr2='Erros dentro da meta ('+tot+' de '+teto+'), mas falta'+(G.falta>1?'m ':' ')+G.falta+' avaliações no Google para o churrasco'; cf2=''; }
     else if(!sobram){ fr2='🎉 Meta batida: churrasco no sábado! '+tot+' de '+teto+' erros'; cf2='ok'; }
     else fr2=tot+' de '+teto+' erros · '+(resta===0?'nenhum erro a mais até sexta!':'sobra'+(resta>1?'m ':' ')+resta+' até sexta');
     const a2=m.anterior, at=a2&&a2.total!=null?Number(a2.total):null;
-    el.innerHTML='<h2>🍖 Meta do churrasco <small>cozinha + delivery juntos'+(PORTAL?' · toque no dia':'')+'</small></h2><div class="rg">até '+esc(teto)+' erros de sáb a sex = churrasco · guia: até '+esc(lim)+' por dia</div>'
-      +'<div class="dias">'+cx+'</div><div class="fr '+cf2+'">'+esc(fr2)+'</div>'
+    el.innerHTML='<h2>🍖 Meta do churrasco <small>cozinha + delivery juntos'+(PORTAL?' · toque no dia':'')+'</small></h2><div class="rg">'+(G?'até '+esc(teto)+' erros de sáb a sex + '+esc(G.alvo)+' avaliações no Google = churrasco':'até '+esc(teto)+' erros de sáb a sex = churrasco · guia: até '+esc(lim)+' por dia')+'</div>'
+      +'<div class="dias">'+cx+'</div>'+gH+'<div class="fr '+cf2+'">'+esc(fr2)+'</div>'
       +(a2&&at!=null?'<div class="ant">Semana passada ('+esc(a2.de)+' a '+esc(a2.ate)+'): '+esc(at)+' erro'+(at===1?'':'s')+(at<=teto?' — 🎉 dentro dos '+esc(teto):'')+'</div>':'');
     return;
   }
@@ -455,7 +527,7 @@ function meta(m){
   else fr=verdes+' de '+alvo+' dias verdes · '+(falta>1?'faltam ':'falta ')+falta+' · ainda dá!';
   const a=m.anterior;
   el.innerHTML='<h2>🍖 Meta do churrasco <small>cozinha + delivery juntos'+(PORTAL?' · toque no dia':'')+'</small></h2><div class="rg">dia verde = até '+esc(lim)+' erros · '+esc(alvo)+' verdes de sáb a sex = churrasco</div>'
-    +'<div class="dias">'+cx+'</div><div class="fr '+cf+'">'+esc(fr)+'</div>'
+    +'<div class="dias">'+cx+'</div>'+gH+'<div class="fr '+cf+'">'+esc(fr)+'</div>'
     +(a?'<div class="ant">Semana passada ('+esc(a.de)+' a '+esc(a.ate)+'): '+esc(a.verdes)+' dia'+(a.verdes==1?'':'s')+' verde'+(a.verdes==1?'':'s')+(a.verdes>=alvo?' — 🎉 ganharam o churrasco!':'')+'</div>':'');
 }
 
@@ -664,6 +736,7 @@ function abreInfo(q){
      +'<p><b>O dia</b> vai das 6h às 6h, como no topo da lista de erros.</p>'
      +(m.teto_semana?'<p><b>🍖 Meta do churrasco:</b> até '+esc(m.teto_semana)+' erros de sábado a sexta = churrasco no sábado. Guia: até '+esc(m.verde_ate==null?'—':m.verde_ate)+' erros por dia (dia verde). Para a meta contam os erros de cozinha, de montagem e o pedido que chegou frio; as avaliações não contam.</p>'
        :'<p><b>🍖 Meta do churrasco:</b> dia verde = até '+esc(m.verde_ate==null?'—':m.verde_ate)+' erros. '+esc(m.meta_dias==null?'—':m.meta_dias)+' dias verdes de sábado a sexta = churrasco no sábado. Para a meta contam os erros de cozinha e de montagem; as avaliações não contam.</p>')
+     +((GOO&&!GOO.nada&&GOO.loja===lojaTv()&&GOO.alvo)?'<p><b>⭐ Google (salão):</b> o churrasco também depende de '+esc(GOO.alvo)+' avaliações novas no Google, contando desde '+esc(String(GOO.desde).slice(8,10)+'/'+String(GOO.desde).slice(5,7))+'. Os quadrados embaixo dos dias mostram quantas avaliações novas o Google achou em cada dia. O Google é lido 1 vez por dia, perto do meio-dia, e só mostra o total da loja — não dá para ver a estrela de cada avaliação, então conta toda avaliação nova.</p>':'')
      +'<p><b>Só conta o que é erro mesmo.</b> Não contam: a mesma reclamação repetida; a equipe repetindo no grupo ou no SAC um erro que já está na lista; relatório de fechamento da equipe; pedido ou observação do cliente ("não esquece de…"); assunto só de entrega ou endereço; pedido que não chegou; erro do próprio cliente ("pedi da unidade errada"); e o mesmo pedido que caiu em outra loja. Toque no dia da meta para ver a lista: o que não contou aparece embaixo, com o motivo.</p>'
      +'<p><b>🍳 Problema de qualidade:</b> na lista do dia (toque no dia da meta) há um quadro só para cru, queimado, estragado, frio e sem sabor, junto com as avaliações do iFood que reclamam da comida. Cru, queimado, estragado e frio contam na meta; avaliação não. Quando o cliente mandou foto, aparece 📷, e as fotos dos erros da semana passam no carrossel da tela.</p>'
      +(px?'<p><b>Regra nova:</b> a partir de '+esc(px.a_partir)+', dia verde = até '+esc(px.verde_ate)+' erros.</p>':'')
@@ -881,13 +954,14 @@ function slMeta(){
     return '<div class="dd '+cl+'"><div class="sm">'+(d.quando==='hoje'?'HOJE':esc(d.sem))+'</div><div class="nn">'+esc(nn)+'</div><div class="dt">'+esc(d.dia)+'</div></div>';
   }).join('');
   if(!teto) return null;
-  const passou=tot>teto, resta=teto-tot, a=m.anterior;
+  const passou=tot>teto, resta=teto-tot, a=m.anterior, G=gooCalc(m);   /* 24/10: meta do Google do salao, quando a loja tem */
   const fr=passou?'Passou de '+teto+': esta semana não dá mais. Sábado começa outra.'
-    :(!sobram?'🎉 Meta batida: churrasco no sábado!':(resta===0?'Nenhum erro a mais até sexta!':'Sobra'+(resta>1?'m ':' ')+resta+' erro'+(resta>1?'s':'')+' até sexta'));
-  return {html:'<div class="sl-tit">🍖 Meta do churrasco <small>até '+esc(teto)+' erros de sábado a sexta · guia: até '+esc(lim)+' por dia</small></div>'
-    +'<div class="sl-big" style="color:'+(passou?'var(--bad)':'var(--ok)')+'">'+tot+' <small>de '+esc(teto)+' erros na semana</small></div>'
+    :(!sobram&&G&&G.falta?'Erros dentro da meta, mas falta'+(G.falta>1?'m ':' ')+G.falta+' avaliações no Google':!sobram?'🎉 Meta batida: churrasco no sábado!':(resta===0?'Nenhum erro a mais até sexta!':'Sobra'+(resta>1?'m ':' ')+resta+' erro'+(resta>1?'s':'')+' até sexta'));
+  return {html:'<div class="sl-tit">🍖 Meta do churrasco <small>até '+esc(teto)+' erros de sábado a sexta'+(G?' + '+esc(G.alvo)+' no Google':' · guia: até '+esc(lim)+' por dia')+'</small></div>'
+    +'<div class="sl-big" style="color:'+(passou?'var(--bad)':'var(--ok)')+(G?';font-size:6.5em':'')+'">'+tot+' <small>de '+esc(teto)+' erros na semana</small></div>'
     +'<div class="sl-dias dias">'+cx+'</div>'
-    +'<div class="sl-fr '+(passou?'nao':(!sobram?'ok':''))+'">'+esc(fr)+'</div>'
+    +(G?'<div class="sl-dias dias goo">'+G.cx+'</div><div class="sl-gfr">'+G.fr+'</div>':'')
+    +'<div class="sl-fr '+(passou?'nao':(!sobram&&!(G&&G.falta)?'ok':''))+'">'+esc(fr)+'</div>'
     +(a&&a.total!=null?'<div class="sl-ant">Semana passada ('+esc(a.de)+' a '+esc(a.ate)+'): '+esc(a.total)+' erros</div>':''), dur:12};
 }
 function slFotos(){
