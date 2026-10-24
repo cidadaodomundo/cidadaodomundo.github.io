@@ -428,7 +428,8 @@ function desenha(novos){
    do salao" e "vc olha no google as avaliacoes novas a partir de hj, e coloca junto com o placar do churrasco, talvez os quadrados
    em baixo". A regra (loja, desde, total do Google no dia de inicio, alvo) mora no banco (tv_meta_google); loja sem linha = sem
    meta do Google. O robo do Google le 1 vez por dia (~12h20) e so ve a NOTA e o TOTAL da loja, nao a estrela de cada avaliacao:
-   conta-se toda avaliacao nova. Cada quadrado = quantas novas a leitura daquele dia achou. */
+   conta-se toda avaliacao nova. Cada quadrado = quantas novas a leitura daquele dia achou.
+   24/10 Fabio: "zera toda semana sabado" - o placar e a soma dos quadrados da semana (sab a sex), como os erros. */
 let GOO=null, GOO_T=0, GOO_LOJA='', GOO_BUSCANDO=false;
 async function gooBusca(){
   if(GOO_BUSCANDO) return;
@@ -468,17 +469,18 @@ function gooCalc(m){
   });
   const y0=Number(String(g.desde).slice(0,4)), m0=Number(String(g.desde).slice(5,7));
   const iso=function(dm){ const p=String(dm).split('/'), mm=Number(p[1]); return (mm<m0-6?y0+1:y0)+'-'+p[1]+'-'+p[0]; };
+  let y=0;
   const cx=m.dias.map(function(d){
     const k=iso(d.dia);
+    if(k>=g.desde&&d.quando!=='falta'&&nov[k]!=null) y+=nov[k];
     if(k<g.desde||d.quando==='falta') return '<div class="dd g falta"><div class="nn">–</div></div>';
     if(nov[k]==null) return '<div class="dd g falta" title="O Google ainda não foi lido neste dia (lê 1 vez por dia, perto do meio-dia)"><div class="nn">…</div></div>';
     const n=nov[k];
     return '<div class="dd g'+(n>0?'':' zero')+'" title="Avaliações novas no Google achadas na leitura de '+esc(d.dia)+'"><div class="nn">⭐'+(n>0?'+':'')+esc(n)+'</div></div>';
   }).join('');
-  const y=ult&&ult.data_coleta>=g.desde? tot[ult.data_coleta]-g.base : 0, falta=Math.max(0,g.alvo-y);
+  const falta=Math.max(0,g.alvo-y);
   const velho=!ult||(Date.now()-new Date(ult.created_at).getTime())>36*3600000;
-  const dsd=String(g.desde).slice(8,10)+'/'+String(g.desde).slice(5,7);
-  const fr='<div class="gfr'+(falta?'':' ok')+'">⭐ Google (salão): <b>'+esc(y)+' de '+esc(g.alvo)+'</b> novas desde '+esc(dsd)
+  const fr='<div class="gfr'+(falta?'':' ok')+'">⭐ Google (salão): <b>'+esc(y)+' de '+esc(g.alvo)+'</b> novas nesta semana'
     +(falta?' · falta'+(falta>1?'m ':' ')+falta:' — 🎉 meta do Google batida!')
     +(velho?' <span class="alerta">⚠️ Google sem leitura '+(ult?'desde '+esc(ddmm(ult.created_at)):'')+' — robô pode estar parado</span>'
            :' <small>· lido '+esc(ddmm(ult.created_at))+' '+esc(hhmm(ult.created_at))+'</small>')+'</div>';
@@ -514,7 +516,7 @@ function meta(m){
     else if(!sobram){ fr2='🎉 Meta batida: churrasco no sábado! '+tot+' de '+teto+' erros'; cf2='ok'; }
     else fr2=tot+' de '+teto+' erros · '+(resta===0?'nenhum erro a mais até sexta!':'sobra'+(resta>1?'m ':' ')+resta+' até sexta');
     const a2=m.anterior, at=a2&&a2.total!=null?Number(a2.total):null;
-    el.innerHTML='<h2>🍖 Meta do churrasco <small>cozinha + delivery juntos'+(PORTAL?' · toque no dia':'')+'</small></h2><div class="rg">'+(G?'até '+esc(teto)+' erros de sáb a sex + '+esc(G.alvo)+' avaliações no Google = churrasco':'até '+esc(teto)+' erros de sáb a sex = churrasco · guia: até '+esc(lim)+' por dia')+'</div>'
+    el.innerHTML='<h2>🍖 Meta do churrasco <small>cozinha + delivery juntos'+(PORTAL?' · toque no dia':'')+'</small></h2><div class="rg">'+(G?'até '+esc(teto)+' erros de sáb a sex + '+esc(G.alvo)+' avaliações no Google na semana = churrasco':'até '+esc(teto)+' erros de sáb a sex = churrasco · guia: até '+esc(lim)+' por dia')+'</div>'
       +'<div class="dias">'+cx+'</div>'+gH+'<div class="fr '+cf2+'">'+esc(fr2)+'</div>'
       +(a2&&at!=null?'<div class="ant">Semana passada ('+esc(a2.de)+' a '+esc(a2.ate)+'): '+esc(at)+' erro'+(at===1?'':'s')+(at<=teto?' — 🎉 dentro dos '+esc(teto):'')+'</div>':'');
     return;
@@ -736,7 +738,7 @@ function abreInfo(q){
      +'<p><b>O dia</b> vai das 6h às 6h, como no topo da lista de erros.</p>'
      +(m.teto_semana?'<p><b>🍖 Meta do churrasco:</b> até '+esc(m.teto_semana)+' erros de sábado a sexta = churrasco no sábado. Guia: até '+esc(m.verde_ate==null?'—':m.verde_ate)+' erros por dia (dia verde). Para a meta contam os erros de cozinha, de montagem e o pedido que chegou frio; as avaliações não contam.</p>'
        :'<p><b>🍖 Meta do churrasco:</b> dia verde = até '+esc(m.verde_ate==null?'—':m.verde_ate)+' erros. '+esc(m.meta_dias==null?'—':m.meta_dias)+' dias verdes de sábado a sexta = churrasco no sábado. Para a meta contam os erros de cozinha e de montagem; as avaliações não contam.</p>')
-     +((GOO&&!GOO.nada&&GOO.loja===lojaTv()&&GOO.alvo)?'<p><b>⭐ Google (salão):</b> o churrasco também depende de '+esc(GOO.alvo)+' avaliações novas no Google, contando desde '+esc(String(GOO.desde).slice(8,10)+'/'+String(GOO.desde).slice(5,7))+'. Os quadrados embaixo dos dias mostram quantas avaliações novas o Google achou em cada dia. O Google é lido 1 vez por dia, perto do meio-dia, e só mostra o total da loja — não dá para ver a estrela de cada avaliação, então conta toda avaliação nova.</p>':'')
+     +((GOO&&!GOO.nada&&GOO.loja===lojaTv()&&GOO.alvo)?'<p><b>⭐ Google (salão):</b> o churrasco também depende de '+esc(GOO.alvo)+' avaliações novas no Google na semana (sábado a sexta; zera todo sábado, como os erros). Os quadrados embaixo dos dias mostram quantas avaliações novas o Google achou em cada dia. O Google é lido 1 vez por dia, perto do meio-dia, e só mostra o total da loja — não dá para ver a estrela de cada avaliação, então conta toda avaliação nova.</p>':'')
      +'<p><b>Só conta o que é erro mesmo.</b> Não contam: a mesma reclamação repetida; a equipe repetindo no grupo ou no SAC um erro que já está na lista; relatório de fechamento da equipe; pedido ou observação do cliente ("não esquece de…"); assunto só de entrega ou endereço; pedido que não chegou; erro do próprio cliente ("pedi da unidade errada"); e o mesmo pedido que caiu em outra loja. Toque no dia da meta para ver a lista: o que não contou aparece embaixo, com o motivo.</p>'
      +'<p><b>🍳 Problema de qualidade:</b> na lista do dia (toque no dia da meta) há um quadro só para cru, queimado, estragado, frio e sem sabor, junto com as avaliações do iFood que reclamam da comida. Cru, queimado, estragado e frio contam na meta; avaliação não. Quando o cliente mandou foto, aparece 📷, e as fotos dos erros da semana passam no carrossel da tela.</p>'
      +(px?'<p><b>Regra nova:</b> a partir de '+esc(px.a_partir)+', dia verde = até '+esc(px.verde_ate)+' erros.</p>':'')
