@@ -62,8 +62,8 @@ button.b:hover{border-color:var(--text2)}
 .pz b{font-weight:800}
 .pz.perto{background:rgba(201,133,0,.16);color:#ffc65a}
 .pz.passou{background:rgba(230,103,103,.18);color:#ff9a9a}
-.qd .it .pz{margin-left:auto}
-.qd .it .pz+.m{margin-left:0}
+.qd .it .qbr{flex-basis:100%;height:0}
+.qd .it .pz{margin-left:28px;margin-top:-2px}
 .quadros{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:11px}
 .quadros>*{min-width:0}
 .qd{background:var(--s1);border:1px solid var(--line);border-radius:18px;overflow:hidden}
@@ -243,9 +243,11 @@ function pz(p){
   if(!p||!p.prometido||p.falta_prom==null) return '';
   var f=+p.falta_prom, t=' title="o iFood prometeu ao cliente entregar até '+esc(p.prometido)+'"';
   if(f<0) return '<span class="pz passou"'+t+'><span class="pzl">prometido </span>'+esc(p.prometido)+' · <b>passou '+(-f)+' min</b></span>';
-  return '<span class="pz'+(f<=10?' perto':'')+'"'+t+'><span class="pzl">entregar até </span>'+esc(p.prometido)+' · <b>faltam '+f+'</b></span>';
+  return '<span class="pz'+(f<=10?' perto':'')+'"'+t+'><span class="pzl">entregar até </span>'+esc(p.prometido)+' · <b>'+(f===0?'é agora':(f===1?'falta 1 min':'faltam '+f+' min'))+'</b></span>';
 }
 function irTempo(){
+  /* a aba Tempo guarda a loja dela em cdm_tempo_uni: abre na MESMA loja que esta na Fila (supervisor 24/10) */
+  try{ localStorage.setItem('cdm_tempo_uni',UNI); }catch(e){}
   try{ if(window.parent!==window&&typeof window.parent.vai==='function'){ window.parent.vai('tempo'); return; } }catch(e){}
   location.href='/tempo/';
 }
@@ -253,19 +255,27 @@ function irTempo(){
    nos pedidos que entraram nos ultimos 45 min, e a faixa do iFood. A faixa e a sugestao vem da MESMA conta
    da aba Tempo de entrega (delivery_tempo_calc) - aqui nao se recalcula nada. */
 function promBloco(d){
-  if(TEP) return '';
-  var P=d.promessa||{}, A=d.promessa_agora||{}, F=d.faixa||null, pas=+P.passou||0;
-  var h='<div class="grp"><span class="em">⏱</span><h2>A promessa ao cliente</h2><span class="ct">a hora que o iFood prometeu · toque na faixa para trocar</span></div><div class="cards">';
-  h+=kc('Já passaram da hora prometida',pas,pas?'o pior está <b>'+esc(P.pior_min)+' min</b> atrasado':(+P.com?'todos dentro da promessa 🎉':'nenhum pedido do iFood aberto'),pas?'var(--bad)':(+P.com?'var(--ok)':'var(--muted)'));
+  var P=d.promessa||{}, A=d.promessa_agora||{}, F=(d.faixa&&d.faixa.atual)?d.faixa:null, pas=+P.passou||0;
+  var h='<div class="grp"><span class="em">⏱</span><h2>A promessa ao cliente</h2><span class="ct">a hora que o iFood prometeu'+(F?' · toque na faixa para ver a conta e trocar':'')+'</span></div><div class="cards">';
+  /* com o TrackEat parado nao ha lista de pedidos para comparar; o resto do bloco nao depende dele e continua */
+  h+=TEP?kc('Já passaram da hora prometida','—','sem dado do TrackEat desde '+TEP,'var(--muted)')
+        :kc('Já passaram da hora prometida',pas,pas?'o pior está <b>'+esc(P.pior_min)+' min</b> atrasado':(+P.com?'todos dentro da promessa 🎉':'nenhum pedido aberto com a hora prometida ainda'),pas?'var(--bad)':(+P.com?'var(--ok)':'var(--muted)'));
   h+=+A.n?kc('Prometendo agora','<span style="white-space:nowrap">'+(A.min===A.max?esc(A.min):esc(A.min)+'–'+esc(A.max))+'<span style="font-size:.5em"> min</span></span>','último pedido às '+esc(A.ultimo_em)+': '+esc(A.ultimo)+' min · '+esc(A.n)+' pedido'+(+A.n===1?'':'s')+' em 45 min','var(--text)')
         :kc('Prometendo agora','—','nenhum pedido do iFood nos últimos 45 min','var(--muted)');
-  if(F&&F.atual){
-    var k='', s='';
-    if(F.loja_status==='fechada'){ s='loja fechada no iFood agora'; k='sd'; }
-    else if(F.cego){ s='sem dado ao vivo para dizer se sobe ou desce'; k='sd'; }
-    else if(F.acao==='subir'&&F.sugerida){ s='🔺 a conta pede <b>'+esc(F.sugerida)+'</b> ('+esc(F.sug_de)+'–'+esc(F.sug_ate)+' min) — toque para trocar'; k='mal'; }
-    else if(F.acao==='baixar'&&F.sugerida){ s='🔻 dá para voltar para <b>'+esc(F.sugerida)+'</b> ('+esc(F.sug_de)+'–'+esc(F.sug_ate)+' min)'; k='aviso'; }
-    else { s='✅ a conta diz para manter'; k='bem'; }
+  if(F){
+    /* MESMA regra, na mesma ordem, da caixa de decisao da aba Tempo (tempo/index.html): cego/fechada manda em tudo,
+       depois "a fila nao esta andando", depois a acao da conta. Assim o cartao nunca diz o contrario da aba que ele abre. */
+    var k='', s='', prom=+F.prometido||0, sug=+F.sugerido||0, dif=sug-prom, par=+F.parados||0, ph=+F.pedidos_hora||0;
+    var fx=function(){return '<b>'+esc(F.sugerida)+'</b> ('+esc(F.sug_de)+'–'+esc(F.sug_ate)+' min)';};
+    if(F.cego===true||F.cor==='cinza'){ k='sd'; s=F.loja_status==='fechada'?'🔒 loja fechada no iFood agora':'⚪ sem dado ao vivo para dizer se sobe ou desce'; }
+    else if(par>0&&ph>0&&(F.acao==='subir'||sug>prom+4)){ k='mal'; s='🛵 a fila não está andando — '+(F.acao==='subir'&&F.sugerida?'trocar para '+fx():'subir para a próxima faixa'); }
+    else if(par>0&&ph>0){ k=''; s='⏸ a fila não está andando, mas a faixa já cobre — não mexer agora'; }
+    else if(F.acao==='subir'&&F.sugerida){ k='mal'; s='🔺 trocar para '+fx(); }
+    else if(F.acao==='baixar'&&F.sugerida){ k='aviso'; s='🔻 dá para voltar para '+fx(); }
+    else if(F.acao==='fica'){ k='bem'; s='✅ fique na '+esc(F.atual); }
+    else if(dif>4){ k='mal'; s='🔺 subir para '+sug+' min'; }
+    else if(dif<-8){ k='aviso'; s='🔻 dá para baixar para '+sug+' min'; }
+    else { k='bem'; s='✅ está bom assim'; }
     h+='<div class="card '+k+'" onclick="irTempo()" title="Abrir a aba Tempo de entrega"><div class="t">Faixa no iFood agora</div>'+
        '<div class="v">'+esc(F.atual)+'</div><div class="qs">configurada '+esc(F.prometido)+' min · cliente vê '+esc(F.cliente_ve)+' min<br>'+s+'</div></div>';
   }
@@ -566,7 +576,7 @@ function desenha(d){
             '<span class="p" data-ped="'+esc(p.pedido)+'" title="toque para ver os itens">'+esc(p.pedido)+'</span>'+
             '<span class="h">'+esc(p.entrou)+'</span>'+
             dist(p.dist_m)+(p.onde==='porta'?'<span class="pt">na porta</span>':'')+
-            pz(p)+'<span class="m">'+esc(p.min)+' min</span>'+
+            '<span class="m">'+esc(p.min)+' min</span>'+(pz(p)?'<span class="qbr"></span>'+pz(p):'')+
             (p.end?'<span class="en" title="'+esc(p.end)+'">📍 '+esc(endCurto(p.end))+'</span>':'')+'</div>';
         }).join('')+'</div>';
     }).join('')+'</div>';
