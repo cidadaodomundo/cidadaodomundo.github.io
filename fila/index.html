@@ -50,6 +50,10 @@ button.b:hover{border-color:var(--text2)}
 .linha:last-child{border-bottom:none}
 .linha .ped{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:21px;letter-spacing:.02em;min-width:56px;line-height:1}
 .linha .est{color:var(--text2);font-size:13.5px;font-weight:600}
+/* 25/10/2026: numero do pedido no iFood ao lado do numero do Saipos */
+.ifn{display:inline-block;border-radius:6px;padding:3px 7px;font-size:12px;font-weight:800;line-height:1.2;letter-spacing:.02em;white-space:nowrap;color:#ff8a8a;background:rgba(234,29,44,.14);flex:0 0 auto}
+.linha .ifn{min-width:88px;text-align:center}
+.linha .ifn.vz{visibility:hidden}
 .linha .mb{color:var(--muted);font-size:12.5px;margin-left:4px}
 .linha .dir{margin-left:auto;display:flex;align-items:center;gap:14px}
 .linha .hr{color:var(--muted);font-size:12.5px}
@@ -553,8 +557,9 @@ function desenha(d){
     h+='<div class="lista">'+loja.map(function(p){
       var bola=(p.onde==='preparo')?'b-vm':'b-rx';
       return '<div class="linha'+(p.atrasado?' late':'')+'">'+
-        '<span class="bola '+bola+'"></span>'+quad(p.grupo)+
-        '<span class="ped" data-ped="'+esc(p.pedido)+'" title="toque para ver os itens">'+esc(p.pedido)+'</span>'+
+        '<span class="bola '+bola+'"></span>'+(quad(p.grupo)||'<span class="rc" style="visibility:hidden"></span>')+
+        '<span class="ped" data-ped="'+esc(p.pedido)+'" title="número do Saipos — toque para ver os itens">'+esc(p.pedido)+'</span>'+
+        ifn(p)+
         '<span class="est">'+esc(nomeEtapa(p.onde))+'</span>'+
         (p.motoboy?'<span class="mb">· '+esc(p.motoboy)+'</span>':'')+
         '<span class="dir"><span class="hr">entrou '+esc(p.entrou)+'</span>'+pz(p)+
@@ -580,7 +585,8 @@ function desenha(d){
         ps.map(function(p){
           return '<div class="it'+(p.atrasado?' late':'')+'">'+
             (p._n?'<span class="sq" style="background:'+((p.grupo&&COR[Number(p.grupo)])||'#E0A81C')+'" title="ordem na rota do TrackEat (rota '+esc(p.grupo)+')">'+p._n+'</span>':quad(p.grupo))+
-            '<span class="p" data-ped="'+esc(p.pedido)+'" title="toque para ver os itens">'+esc(p.pedido)+'</span>'+
+            '<span class="p" data-ped="'+esc(p.pedido)+'" title="número do Saipos — toque para ver os itens">'+esc(p.pedido)+'</span>'+
+            (p.ifood?ifn(p):'')+
             '<span class="h">'+esc(p.entrou)+'</span>'+
             dist(p.dist_m)+(p.onde==='porta'?'<span class="pt">na porta</span>':'')+
             '<span class="m">'+esc(p.min)+' min</span>'+(pz(p)?'<span class="qbr"></span>'+pz(p):'')+
@@ -845,10 +851,19 @@ function rotuloMapa(d,ps){
     (TEP?'TrackEat sem dado desde '+TEP:'TrackEat lido às '+(d.visto_em||'—')+' · GPS lido às '+(d.gps_visto_em||'—'));
 }
 
+/* 25/10/2026, pedido do Fabio: "quero o numero do saipos e do ifood". O numero grande e o do Saipos (o mesmo do
+   TrackEat); ao lado vai o numero curto do iFood (o que o cliente e o Gestor de Pedidos mostram), vindo do banco
+   (fila_pedidos_calc, campo ifood). Pedido que nao e do iFood fica sem. Na lista da loja o espaco fica reservado
+   mesmo vazio, para os numeros ficarem alinhados. */
+function ifn(p){
+  return p.ifood?'<span class="ifn" title="número do pedido no iFood (o mesmo do Gestor de Pedidos e do cliente)">iFood '+esc(p.ifood)+'</span>'
+                :'<span class="ifn vz"></span>';
+}
 function legenda(d){
   var g=d.regua;
   return '<div class="leg"><span class="bola b-vm"></span>em preparo na cozinha &nbsp;·&nbsp; '+
     '<span class="bola b-rx"></span>pronto, esperando motoboy'+
+    '<br>O número grande é o do Saipos; ao lado, em vermelho, o número do mesmo pedido no iFood. Pedido que não é do iFood fica só com o do Saipos. Pedido recém-feito pode ficar alguns minutos sem o número do iFood: a ligação entre os dois vem do Saipos, lido de 15 em 15 minutos.'+
     (g?'<br>O tempo fica vermelho quando passa do normal desta loja: '+esc(g.ate_sair)+
        ' min da entrada até sair com o motoboy e '+esc(g.ate_entregar)+' min até ser entregue '+
        '(mediana dos últimos '+esc(g.amostra)+' pedidos entregues, medida às '+esc(g.medida_em)+').'
