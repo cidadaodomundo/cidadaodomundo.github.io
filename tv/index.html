@@ -394,7 +394,7 @@ function desenha(novos){
     const sobra=L.length-el.children.length;
     $('mais').textContent=sobra>0? '+ '+sobra+' erro'+(sobra>1?'s':'')+' mais cedo — lista completa no portal › Central Cozinha' : '';
   }
-  meta(j.semana);   /* antes da lista de fora do ar: o cartao ocupa espaco na mesma coluna */
+  meta(j.semana, j.regra_proxima);   /* antes da lista de fora do ar: o cartao ocupa espaco na mesma coluna */
   /* fora do ar: junta o mesmo item de varias marcas; sem resposta da loja primeiro */
   const pz=(j.pausados&&j.pausados.itens)||[], g={};
   pz.forEach(function(p){
@@ -432,11 +432,14 @@ function desenha(novos){
    24/10 Fabio: "zera toda semana sabado" - o placar e a soma dos quadrados da semana (sab a sex), como os erros. */
 let GOO=null, GOO_T=0, GOO_LOJA='', GOO_BUSCANDO=false;
 async function gooBusca(){
+  /* 25/10 (chat-meta-churrasco-sb-24-10): na TV da parede a loja vem do banco (lojaTv), nao do botao (que fica na 1a da lista,
+     Agua Verde): sem isso a TV do Sao Braz buscava o Google da Agua Verde e nunca mostrava o dela. */
+  const LJ=lojaTv()||LOJA;
   if(GOO_BUSCANDO) return;
-  if(Date.now()-GOO_T<30*60000 && GOO_LOJA===LOJA) return;
-  if(GOO_LOJA!==LOJA) GOO=null;   /* trocou de loja: nunca mostra o Google da loja anterior */
+  if(Date.now()-GOO_T<30*60000 && GOO_LOJA===LJ) return;
+  if(GOO_LOJA!==LJ) GOO=null;   /* trocou de loja: nunca mostra o Google da loja anterior */
   GOO_BUSCANDO=true;
-  const loja=LOJA, h={apikey:KEY,Authorization:'Bearer '+KEY};
+  const loja=LJ, h={apikey:KEY,Authorization:'Bearer '+KEY};
   try{
     const r=await fetch(SB+'tv_meta_google?select=loja,desde,base_total,alvo&loja=eq.'+encodeURIComponent(loja),{headers:h});
     if(!r.ok) return;
@@ -449,7 +452,7 @@ async function gooBusca(){
       if(!r2.ok) return;
       lei=await r2.json();
     }
-    if(loja!==LOJA) return;
+    if(loja!==(lojaTv()||LOJA)) return;
     GOO=mt?{loja:loja,desde:mt.desde,base:Number(mt.base_total),alvo:Number(mt.alvo),lei:lei}:{loja:loja,nada:true};
     GOO_T=Date.now(); GOO_LOJA=loja;
     if(DADO) desenha([]);
@@ -490,7 +493,16 @@ function gooCalc(m){
 /* META DO CHURRASCO (05/10/2026, Fabio escolheu "dias verdes"): o banco manda os 7 dias de sabado a sexta.
    Meta UNICA da cozinha e do delivery (Fabio: "os dois setores caminham juntos... se complementassem"): bebida conta.
    Dia que passou: verde se ficou ate o limite. Hoje: ja fica vermelho se passou do limite; senao esta valendo. */
-function meta(m){
+/* 24/10/2026 (obra 124, chat-meta-churrasco-sb-24-10) Fabio: "vamos mudar a meta do churrasco deles" (Sao Braz) e "e pra deixar
+   dificil": a regra de erros de cada loja e semana vem do banco (cozinha_tv_meta_regra) e a proxima ja marcada vem em
+   regra_proxima, para a equipe ver o aviso antes de comecar. O Google segue o tv_meta_google (gooCalc). */
+function pxLinha(px){
+  if(!px||!px.a_partir) return '';
+  return '<div class="ant" style="color:var(--warn);font-weight:700">📢 A partir de '+esc(px.a_partir)+': '
+    +(px.teto!=null?'até '+esc(px.teto)+' erros na semana':'dia verde = até '+esc(px.verde_ate)+' erros')
+    +(px.google_meta!=null?' E pelo menos '+esc(px.google_meta)+' avaliações novas no Google':'')+' = churrasco</div>';
+}
+function meta(m, px){
   const el=$('meta'); if(!m||!m.dias){ el.style.display='none'; return; } el.style.display='';
   const lim=m.verde_ate, alvo=m.meta_dias;
   let verdes=0, aindaPode=0;
@@ -515,10 +527,11 @@ function meta(m){
     else if(!sobram&&G&&G.falta){ fr2='Erros dentro da meta ('+tot+' de '+teto+'), mas falta'+(G.falta>1?'m ':' ')+G.falta+' avaliações no Google para o churrasco'; cf2=''; }
     else if(!sobram){ fr2='🎉 Meta batida: churrasco no sábado! '+tot+' de '+teto+' erros'; cf2='ok'; }
     else fr2=tot+' de '+teto+' erros · '+(resta===0?'nenhum erro a mais até sexta!':'sobra'+(resta>1?'m ':' ')+resta+' até sexta');
-    const a2=m.anterior, at=a2&&a2.total!=null?Number(a2.total):null;
+    const a2=m.anterior, at=a2&&a2.total!=null?Number(a2.total):null, tt2=a2&&a2.teto!=null?Number(a2.teto):teto;   /* 24/10: a semana passada com o teto dela */
     el.innerHTML='<h2>🍖 Meta do churrasco <small>cozinha + delivery juntos'+(PORTAL?' · toque no dia':'')+'</small></h2><div class="rg">'+(G?'até '+esc(teto)+' erros de sáb a sex + '+esc(G.alvo)+' avaliações no Google na semana = churrasco':'até '+esc(teto)+' erros de sáb a sex = churrasco · guia: até '+esc(lim)+' por dia')+'</div>'
       +'<div class="dias">'+cx+'</div>'+gH+'<div class="fr '+cf2+'">'+esc(fr2)+'</div>'
-      +(a2&&at!=null?'<div class="ant">Semana passada ('+esc(a2.de)+' a '+esc(a2.ate)+'): '+esc(at)+' erro'+(at===1?'':'s')+(at<=teto?' — 🎉 dentro dos '+esc(teto):'')+'</div>':'');
+      +(a2&&at!=null?'<div class="ant">Semana passada ('+esc(a2.de)+' a '+esc(a2.ate)+'): '+esc(at)+' erro'+(at===1?'':'s')+(at<=tt2?' — 🎉 dentro dos '+esc(tt2):'')+'</div>':'')
+      +pxLinha(px);
     return;
   }
   const falta=Math.max(0,alvo-verdes);
@@ -741,7 +754,7 @@ function abreInfo(q){
      +((GOO&&!GOO.nada&&GOO.loja===lojaTv()&&GOO.alvo)?'<p><b>⭐ Google (salão):</b> o churrasco também depende de '+esc(GOO.alvo)+' avaliações novas no Google na semana (sábado a sexta; zera todo sábado, como os erros). Os quadrados embaixo dos dias mostram quantas avaliações novas o Google achou em cada dia. O Google é lido 1 vez por dia, perto do meio-dia, e só mostra o total da loja — não dá para ver a estrela de cada avaliação, então conta toda avaliação nova.</p>':'')
      +'<p><b>Só conta o que é erro mesmo.</b> Não contam: a mesma reclamação repetida; a equipe repetindo no grupo ou no SAC um erro que já está na lista; relatório de fechamento da equipe; pedido ou observação do cliente ("não esquece de…"); assunto só de entrega ou endereço; pedido que não chegou; erro do próprio cliente ("pedi da unidade errada"); e o mesmo pedido que caiu em outra loja. Toque no dia da meta para ver a lista: o que não contou aparece embaixo, com o motivo.</p>'
      +'<p><b>🍳 Problema de qualidade:</b> na lista do dia (toque no dia da meta) há um quadro só para cru, queimado, estragado, frio e sem sabor, junto com as avaliações do iFood que reclamam da comida. Cru, queimado, estragado e frio contam na meta; avaliação não. Quando o cliente mandou foto, aparece 📷, e as fotos dos erros da semana passam no carrossel da tela.</p>'
-     +(px?'<p><b>Regra nova:</b> a partir de '+esc(px.a_partir)+', dia verde = até '+esc(px.verde_ate)+' erros.</p>':'')
+     +(px&&px.a_partir?'<p><b>Regra nova:</b> a partir de '+esc(px.a_partir)+', '+(px.teto!=null?'até '+esc(px.teto)+' erros na semana (guia: até '+esc(px.verde_ate)+' por dia)':'dia verde = até '+esc(px.verde_ate)+' erros')+(px.google_meta!=null?' e pelo menos '+esc(px.google_meta)+' avaliações novas no Google':'')+'.</p>':'')   /* 24/10: regra_proxima vem da cozinha_tv_meta_regra */
      +'<p><b>Sem valor em R$ e sem nome de cliente</b> na TV.</p>';
   } else if(q==='codigos'){
     const cs=Array.isArray(j.codigos_tv)?j.codigos_tv:[];
@@ -964,7 +977,8 @@ function slMeta(){
     +'<div class="sl-dias dias">'+cx+'</div>'
     +(G?'<div class="sl-dias dias goo">'+G.cx+'</div><div class="sl-gfr">'+G.fr+'</div>':'')
     +'<div class="sl-fr '+(passou?'nao':(!sobram&&!(G&&G.falta)?'ok':''))+'">'+esc(fr)+'</div>'
-    +(a&&a.total!=null?'<div class="sl-ant">Semana passada ('+esc(a.de)+' a '+esc(a.ate)+'): '+esc(a.total)+' erros</div>':''), dur:12};
+    +(a&&a.total!=null?'<div class="sl-ant">Semana passada ('+esc(a.de)+' a '+esc(a.ate)+'): '+esc(a.total)+' erros</div>':'')
+    +(DADO.regra_proxima&&DADO.regra_proxima.a_partir?'<div class="sl-ant">'+pxLinha(DADO.regra_proxima)+'</div>':''), dur:12};
 }
 function slFotos(){
   if(!CARRO.length) return null;
