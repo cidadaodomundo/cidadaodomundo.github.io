@@ -107,16 +107,12 @@ button.b:hover{border-color:var(--text2)}
 .cz .esq{margin-top:10px;font-size:13px;color:var(--text2);background:var(--s1);border:1px solid var(--line);border-left:4px solid var(--bad);border-radius:13px;padding:10px 13px;line-height:1.5}
 .cz .esq b{color:#ff9a9a}
 .rc{display:inline-block;width:13px;height:13px;border-radius:3px;flex:0 0 auto;border:1px solid rgba(255,255,255,.35);vertical-align:middle}
-.qd .mapa{display:none;height:170px;border-bottom:1px solid var(--line);background:#1b1b1b;z-index:0}
-.qd .mapa.on{display:block}
 .qd .it .sq{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:11.5px;font-weight:800;color:#111;flex:0 0 auto}
 .mm-n{width:22px;height:22px;border-radius:50%;border:2px solid #111;color:#111;font:800 12px/18px Barlow,sans-serif;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.6)}
 .mm-n.late{box-shadow:0 0 0 3px #e66767}
 .mm-e{font-size:18px;line-height:22px;text-align:center;filter:drop-shadow(0 1px 2px rgba(0,0,0,.8))}
-.qd .leaflet-container{font-family:Barlow,sans-serif}
+.mapao .leaflet-container{font-family:Barlow,sans-serif}
 .mm-fundo{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9)}
-.qd .mapa.on,.qd .mapa.on .leaflet-container{cursor:zoom-in}
-.qd .mapa.on::after{content:'🔍 ampliar';position:absolute;left:6px;top:6px;z-index:800;pointer-events:none;font-size:11px;font-weight:700;color:#ddd;background:rgba(0,0,0,.6);border-radius:999px;padding:2px 8px}
 .pmg{position:fixed;inset:0;z-index:1900;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:12px}
 .pmg .cx{background:var(--s1,#1c1c1c);border:1px solid var(--line);border-radius:18px;width:100%;max-width:1100px;height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.6)}
 .pmg .tp{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
@@ -138,9 +134,17 @@ button.b:hover{border-color:var(--text2)}
 .mm-tt:before{display:none}
 .pmg .leaflet-control-attribution{font-size:10px;background:rgba(0,0,0,.55)!important;color:#999}
 .pmg .leaflet-control-attribution a{color:#bbb}
-.qd .leaflet-control-attribution{font-size:9px;background:rgba(0,0,0,.55)!important;color:#999}
-.qd .leaflet-control-attribution a{color:#bbb}
+.mapao .leaflet-control-attribution{font-size:10px;background:rgba(0,0,0,.55)!important;color:#999}
+.mapao .leaflet-control-attribution a{color:#bbb}
 .qd .it{flex-wrap:wrap}
+.mapao{height:440px;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#1b1b1b;margin-bottom:8px;z-index:0}
+@media (max-width:640px){.mapao{height:320px}}
+.mapdica{color:var(--muted);font-size:12.5px;margin:0 2px 12px}
+.mm-nome{border-radius:999px;padding:1px 8px;font:800 12px/18px Barlow,sans-serif;color:#111;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.7);border:2px solid #111;cursor:pointer}
+.qd[data-mb]{cursor:pointer;transition:opacity .15s}
+.quadros.foco .qd[data-mb]{opacity:.45}
+.quadros.foco .qd.sel{opacity:1;box-shadow:0 0 0 2px var(--brand)}
+.qd .cb .vr{margin-left:6px;background:none;border:1px solid var(--line);color:var(--text2);border-radius:999px;padding:2px 9px;font:700 11.5px Barlow,sans-serif;cursor:pointer;flex:0 0 auto}
 .qd .it .en{flex-basis:100%;padding-left:28px;margin-top:-2px;color:var(--muted);font-size:12px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 [data-ped]{cursor:pointer;text-decoration:underline dotted rgba(255,255,255,.35);text-underline-offset:3px}
 [data-ped]:hover{color:var(--brand)}
@@ -562,14 +566,17 @@ function desenha(d){
   h+='<div class="sec" id="sec_rua"><div class="grp"><span class="em">🛵</span><h2>Na rua com os motoboys</h2><span class="ct">'+esc(r.rua)+' pedido'+(r.rua===1?'':'s')+'</span></div>';
   if(!rua.length){ h+='<div class="vazio">'+(TEP?'Sem dado do TrackEat desde '+TEP+'.':'Nenhum pedido na rua neste minuto.')+'</div>'; }
   else{
-    h+='<div class="quadros">'+rua.map(function(m,i){
+    if(DEST&&!rua.some(function(m){return m.motoboy===DEST;})){ DEST=null; MV=null; }   /* o motoboy escolhido voltou para a loja */
+    if(rua.some(function(m){return temPonto(ordemRota(m.pedidos));}))
+      h+='<div class="mapao" id="mapao"></div><div class="mapdica">Toque no quadro de um motoboy (ou no nome dele no mapa) para ver só a rota dele. Toque de novo para ver todos.</div>';
+    h+='<div class="quadros'+(DEST?' foco':'')+'">'+rua.map(function(m,i){
       var g1=(m.pedidos||[]).filter(function(x){return x.grupo})[0], c1=g1&&COR[Number(g1.grupo)];
       var ps=ordemRota(m.pedidos);
-      return '<div class="qd"'+(c1?' style="border-left:4px solid '+c1+'"':'')+'><div class="cb">'+(COR_MB[m.motoboy]||'')+'<span class="nm">'+esc(m.motoboy)+'</span>'+
+      return '<div class="qd'+(DEST===m.motoboy?' sel':'')+'" data-mb="'+esc(m.motoboy)+'"'+(c1?' style="border-left:4px solid '+c1+'"':'')+'><div class="cb">'+(COR_MB[m.motoboy]||'')+'<span class="nm">'+esc(m.motoboy)+'</span>'+
         (m.saiu_ha!=null?'<span class="sa">saiu há '+esc(m.saiu_ha)+' min</span>':'')+
         (m.com_gps===0?'<span class="sg" title="sem sinal de GPS deste motoboy nos últimos 30 min">sem GPS</span>':'')+
-        '<span class="ct">'+esc(m.quantos)+'</span></div>'+
-        (temPonto(ps)?'<div class="mapa" data-i="'+i+'"></div>':'')+
+        '<span class="ct">'+esc(m.quantos)+'</span>'+
+        (temPonto(ps)?'<button class="vr" data-ruas="'+esc(m.motoboy)+'" title="abrir com o caminho pelas ruas e o tempo de cada trecho">🔍 ruas</button>':'')+'</div>'+
         ps.map(function(p){
           return '<div class="it'+(p.atrasado?' late':'')+'">'+
             (p._n?'<span class="sq" style="background:'+((p.grupo&&COR[Number(p.grupo)])||'#E0A81C')+'" title="ordem na rota do TrackEat (rota '+esc(p.grupo)+')">'+p._n+'</span>':quad(p.grupo))+
@@ -653,39 +660,72 @@ function temPonto(ps){ return ps.some(function(p){return p.lat!=null&&p.lng!=nul
 var MAPA_FUNDO='https://tile.openstreetmap.org/{z}/{x}/{y}.png', MAPA_ATRIB='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 function mmIcone(html,cls,st,t){ t=t||22; return L.divIcon({className:'',html:'<div class="'+cls+'"'+(st?' style="'+st+'"':'')+'>'+html+'</div>',iconSize:[t,t],iconAnchor:[t/2,t/2]}); }
 /* desenha loja, moto e entregas que faltam (mesma regra do minimapa) dentro de "alvo" (mapa ou camada); devolve os pontos para enquadrar */
-function desenhaRota(alvo,d,m,ps,semLinha){
+function desenhaRota(alvo,d,m,ps,semLinha,apaga){
+  var op=apaga?.22:1;
   var cor=(ps[0].grupo&&COR[Number(ps[0].grupo)])||'#E0A81C', pts=[], linha=[], gp=null;
   if(d.loja&&d.loja.lat!=null&&d.loja.lng!=null){ var lj=[+d.loja.lat,+d.loja.lng]; pts.push(lj); L.marker(lj,{icon:mmIcone('🏠','mm-e'),interactive:false}).addTo(alvo); }
   if(m.gps&&m.gps.lat!=null&&m.gps.lng!=null){ gp=[+m.gps.lat,+m.gps.lng]; pts.push(gp); linha.push(gp); }
   ps.forEach(function(p){ var q=[+p.lat,+p.lng]; pts.push(q); linha.push(q); });
-  if(linha.length>1&&!semLinha) L.polyline(linha,{color:cor,weight:3,opacity:.9,dashArray:'6 6',interactive:false}).addTo(alvo);
-  ps.forEach(function(p){ L.marker([+p.lat,+p.lng],{icon:mmIcone(p._n||'•','mm-n'+(p.atrasado?' late':''),'background:'+cor),title:p.pedido+(p.end?' · '+endCurto(p.end):'')}).on('click',function(){abrePedido(p.pedido);}).addTo(alvo); });
-  if(gp) L.marker(gp,{icon:mmIcone('🛵','mm-e'),zIndexOffset:1000,interactive:false}).addTo(alvo);
+  if(linha.length>1&&!semLinha) L.polyline(linha,{color:cor,weight:3,opacity:.9*op,dashArray:'6 6',interactive:false}).addTo(alvo);
+  ps.forEach(function(p){ L.marker([+p.lat,+p.lng],{opacity:op,icon:mmIcone(p._n||'•','mm-n'+(p.atrasado?' late':''),'background:'+cor),title:p.pedido+(p.end?' · '+endCurto(p.end):'')}).on('click',function(){abrePedido(p.pedido);}).addTo(alvo); });
+  if(gp) L.marker(gp,{opacity:op,icon:mmIcone('🛵','mm-e'),zIndexOffset:1000,interactive:false}).addTo(alvo);
   return pts;
 }
 function pontosRota(m){ return ordemRota(m&&m.pedidos).filter(function(p){return p.lat!=null&&p.lng!=null;}); }
+/* 25/10/2026, pedido do Fabio ("melhor esses quadradinhos ou um mapa inteiro?", previa aprovada): no lugar de um
+   minimapa por quadro, UM mapa grande com todos os motoboys na rua, cada um na cor da rota dele e o nome junto da moto.
+   Toque no quadro de um motoboy (ou no nome dele no mapa): a rota dele fica acesa e as outras apagadas; toque de novo
+   volta a todos. O botao "ruas" de cada quadro abre o mapa grande de antes (caminho pelas ruas e tempo de cada trecho).
+   A leitura de 60 s monta o mapa de novo: se a pessoa mexeu no zoom ou arrastou, o mapa volta onde ela deixou.
+   No celular o mapa nao arrasta com um dedo (para a pagina rolar); da para aproximar com dois dedos ou nos botoes +/-. */
+var DEST=null, MV=null;
+function primeiroNome(n){ var p=String(n||'').replace(/^\d+\s+GME\s+/i,'').split(/\s+/); return p[0]||n; }
 function minimapas(d){
   window.ULT_D=d;
   MM.forEach(function(x){try{x.remove()}catch(e){}}); MM=[];
   if(!window.L||!d) return;
-  var rua=Array.isArray(d.na_rua)?d.na_rua:[];
-  var els=document.querySelectorAll('#app .qd .mapa[data-i]');
-  for(var k=0;k<els.length;k++){
-    try{
-      var el=els[k], m=rua[Number(el.getAttribute('data-i'))]; if(!m) continue;
-      var ps=pontosRota(m);
-      if(!ps.length) continue;
-      el.classList.add('on');
-      var mp=L.map(el,{zoomControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false,tap:false,zoomSnap:0.25});
-      MM.push(mp);
-      mp.attributionControl.setPrefix(false);
-      L.tileLayer(MAPA_FUNDO,{maxZoom:19,className:'mm-fundo',attribution:MAPA_ATRIB}).addTo(mp);
-      mp.fitBounds(desenhaRota(mp,d,m,ps),{padding:[20,20],maxZoom:16});
-      (function(nome){ mp.on('click',function(){ abreMapa(nome); }); })(m.motoboy);
-    }catch(e){}
-  }
+  var el=$('mapao');
+  if(el){ try{
+    var rua=Array.isArray(d.na_rua)?d.na_rua:[];
+    if(DEST&&!rua.some(function(m){return m.motoboy===DEST;})){ DEST=null; MV=null; }
+    if(MV&&(MV.uni!==UNI||MV.dest!==DEST)) MV=null;
+    var mp=L.map(el,{zoomControl:true,scrollWheelZoom:false,dragging:!L.Browser.mobile,zoomSnap:0.25});
+    MM.push(mp);
+    mp.attributionControl.setPrefix(false);
+    L.tileLayer(MAPA_FUNDO,{maxZoom:19,className:'mm-fundo',attribution:MAPA_ATRIB}).addTo(mp);
+    var todos=[], foco=[];
+    if(d.loja&&d.loja.lat!=null&&d.loja.lng!=null){ var lj=[+d.loja.lat,+d.loja.lng]; todos.push(lj); foco.push(lj);
+      L.marker(lj,{icon:mmIcone('🏠','mm-e',null,26),zIndexOffset:2000,interactive:false}).addTo(mp); }
+    rua.forEach(function(m){
+      var ps=pontosRota(m); if(!ps.length) return;
+      var apaga=!!DEST&&DEST!==m.motoboy, cor=(ps[0].grupo&&COR[Number(ps[0].grupo)])||'#E0A81C';
+      var pts=desenhaRota(mp,{},m,ps,false,apaga);
+      todos=todos.concat(pts); if(DEST===m.motoboy) foco=foco.concat(pts);
+      var gp=(m.gps&&m.gps.lat!=null&&m.gps.lng!=null)?[+m.gps.lat,+m.gps.lng]:[+ps[0].lat,+ps[0].lng];
+      if(!apaga) L.marker(gp,{icon:L.divIcon({className:'',html:'<div class="mm-nome" style="background:'+cor+'">'+esc(primeiroNome(m.motoboy))+'</div>',iconSize:null,iconAnchor:[-14,9]}),zIndexOffset:1500,title:m.motoboy})
+        .on('click',function(){ escolheMb(m.motoboy); }).addTo(mp);
+    });
+    /* o 1o movimento e o enquadramento da propria tela; dai em diante so a PESSOA mexe (arrastar, botoes +/-, pinca) */
+    var auto=true;
+    mp.on('moveend',function(){ if(auto){ auto=false; return; } MV={c:mp.getCenter(),z:mp.getZoom(),uni:UNI,dest:DEST}; });
+    if(MV) mp.setView(MV.c,MV.z);
+    else{ var alvo=(DEST&&foco.length>1)?foco:todos; if(alvo.length) mp.fitBounds(alvo,{padding:[30,30],maxZoom:16}); else auto=false; }
+  }catch(e){} }
   try{ atualizaMapa(d); }catch(e){}
 }
+function escolheMb(nome){
+  DEST=(DEST===nome)?null:nome; MV=null;
+  var q=document.querySelector('#app .quadros');
+  if(q){ q.classList.toggle('foco',!!DEST);
+    q.querySelectorAll('.qd[data-mb]').forEach(function(x){ x.classList.toggle('sel',x.getAttribute('data-mb')===DEST); }); }
+  minimapas(window.ULT_D);
+}
+document.addEventListener('click',function(e){
+  var t=e.target&&e.target.closest?e.target:null; if(!t) return;
+  var b=t.closest('[data-ruas]'); if(b){ abreMapa(b.getAttribute('data-ruas')); return; }
+  if(t.closest('[data-ped]')) return;
+  var q=t.closest('#app .qd[data-mb]'); if(q) escolheMb(q.getAttribute('data-mb'));
+});
 /* 23/10/2026, pedido do Fabio: "qdo eu clicar em cima do mapa quero que ele aumente e mostre a rota mais aproximada
    que de pra ver o nome das ruas". Toque no minimapa abre o mesmo mapa grande, com zoom (botoes +/-, roda do mouse,
    pinca) e arraste, ja enquadrado perto o bastante para ler as ruas. Toque numa bolinha abre os itens do pedido.
@@ -824,7 +864,7 @@ function rodape(d){
     ' GPS lido pela última vez às '+esc(d.gps_visto_em||'—')+'. Motoboy sem sinal fica marcado <b>sem GPS</b> e os pedidos dele ficam sem distância,'+
     ' em vez de receber um número inventado.'+
     '<br>O quadradinho colorido é a cor da rota no mapa do TrackEat (mesma regra de cor do site dele): pedidos da mesma cor vão com o mesmo motoboy.'+
-    '<br>O minimapa de cada motoboy na rua mostra a loja (🏠), onde ele está agora pelo GPS (🛵) e só as entregas que ainda faltam, numeradas na ordem da rota do TrackEat (1 = a próxima). A linha tracejada é em linha reta, não é o caminho de rua. Tocando no minimapa ele abre grande, com o caminho pelas ruas e o tempo estimado de um ponto ao outro (serviço de rotas OSRM: de carro, sem trânsito e sem o tempo parado na porta). Bolinha com anel vermelho = passando do normal.'+
+    '<br>O mapa dos motoboys na rua mostra a loja (🏠), onde cada um está agora pelo GPS (🛵, com o nome ao lado) e só as entregas que ainda faltam, numeradas na ordem da rota do TrackEat (1 = a próxima). A linha tracejada é em linha reta, não é o caminho de rua. Tocando no quadro de um motoboy (ou no nome dele no mapa) só a rota dele fica acesa. O botão 🔍 ruas abre o mapa grande dele, com o caminho pelas ruas e o tempo estimado de um ponto ao outro (serviço de rotas OSRM: de carro, sem trânsito e sem o tempo parado na porta). Bolinha com anel vermelho = passando do normal.'+
     '<br>Toque no número de um pedido (ou na bolinha dele no mapa) para ver os itens, o endereço e o complemento. Os itens vêm do Saipos, lido de 10 em 10 minutos.'+
     '<br>A tela se atualiza sozinha a cada minuto e o TrackEat também é lido de minuto em minuto.';
 }
