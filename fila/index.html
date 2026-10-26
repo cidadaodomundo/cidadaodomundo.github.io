@@ -46,7 +46,7 @@ button.b:hover{border-color:var(--text2)}
 .b-vm{background:var(--bad);box-shadow:0 0 0 3px rgba(230,103,103,.2)}
 .b-rx{background:var(--roxo);box-shadow:0 0 0 3px rgba(169,139,245,.2)}
 .lista{background:var(--s1);border:1px solid var(--line);border-radius:16px;overflow:hidden}
-.linha{display:flex;align-items:center;gap:11px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.linha{display:flex;align-items:center;gap:11px;padding:11px 14px;border-bottom:1px solid var(--line);border-left:4px solid transparent}
 .linha:last-child{border-bottom:none}
 .linha .ped{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:21px;letter-spacing:.02em;min-width:56px;line-height:1}
 .linha .est{color:var(--text2);font-size:13.5px;font-weight:600}
@@ -146,7 +146,16 @@ button.b:hover{border-color:var(--text2)}
 .mapdica{color:var(--muted);font-size:12.5px;margin:0 2px 12px;line-height:1.6}
 .mapdica .bola{width:10px;height:10px;margin:0 3px 0 0;vertical-align:middle}
 /* 25/10/2026: pedidos da loja no mapa (mesmas cores da lista) e a ficha que aparece ao passar o mouse */
-.mm-l{width:16px;height:16px;border-radius:50%;border:2px solid #111;box-shadow:0 1px 4px rgba(0,0,0,.6);cursor:pointer}
+.mm-l{position:absolute;left:0;top:0;transform:translate(-50%,-50%);padding:0 6px;border-radius:999px;border:2px solid #111;font:800 12.5px/17px 'Barlow Condensed',Barlow,sans-serif;letter-spacing:.02em;color:#111;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.6);cursor:pointer}
+.mm-pisca{animation:mmPisca .6s ease-in-out 6}
+@keyframes mmPisca{50%{box-shadow:0 0 0 7px rgba(255,255,255,.85),0 1px 4px rgba(0,0,0,.6)}}
+@media (prefers-reduced-motion:reduce){.mm-pisca{animation:none;outline:3px solid #fff}}
+.vm{cursor:pointer;font-size:14px;line-height:1;flex:0 0 auto;padding:2px;border-radius:6px}
+.vm:hover{background:var(--s2)}
+.qd .it .en[data-mapa]{cursor:pointer}
+.qd .it .en[data-mapa]:hover{color:var(--text)}
+.linha .vm.vz{visibility:hidden}
+#sec_mapa .grp .b{margin-left:auto;padding:5px 10px;font-size:12px;cursor:pointer}
 .mm-prep{background:var(--bad)}
 .mm-pron{background:var(--roxo)}
 .mm-l.late{box-shadow:0 0 0 3px #e66767,0 1px 4px rgba(0,0,0,.6)}
@@ -570,11 +579,12 @@ function desenha(d){
   var noMapa=loja.filter(function(p){return p.lat!=null&&p.lng!=null;}).length+
              rua.reduce(function(a,m){return a+pontosRota(m).length;},0);
   if(noMapa)
-    h+='<div class="sec" id="sec_mapa"><div class="grp"><span class="em">🗺️</span><h2>Mapa dos pedidos</h2><span class="ct">'+noMapa+' pedido'+(noMapa===1?'':'s')+' no mapa</span></div>'+
+    h+='<div class="sec" id="sec_mapa"><div class="grp"><span class="em">🗺️</span><h2>Mapa dos pedidos</h2><span class="ct">'+noMapa+' pedido'+(noMapa===1?'':'s')+' no mapa</span>'+
+       '<button class="b" onclick="mapaTodos()" title="voltar a mostrar todos os pedidos e motoboys">ver todos</button></div>'+
        '<div class="mapao" id="mapao"></div>'+
-       '<div class="mapdica"><span class="bola b-vm"></span>em preparo &nbsp;·&nbsp; <span class="bola b-rx"></span>pronto, esperando motoboy &nbsp;·&nbsp; '+
+       '<div class="mapdica">etiqueta com o número do Saipos = pedido na loja: <span class="bola b-vm"></span>em preparo &nbsp;·&nbsp; <span class="bola b-rx"></span>pronto, esperando motoboy &nbsp;·&nbsp; '+
        'bolinha com número = na rua, na cor da rota, na ordem de entrega &nbsp;·&nbsp; anel vermelho = passando do normal &nbsp;·&nbsp; 🏠 loja &nbsp;·&nbsp; 🛵 motoboy agora'+
-       '<br>Passe o mouse em cima de um pedido para ver os números, o tempo e o endereço; tocando, abre os itens. '+
+       '<br>Passe o mouse em cima de um pedido para ver os números, o tempo e o endereço; tocando, abre os itens. Na lista, o 📍 ao lado do número (e o endereço nos quadros dos motoboys) mostra o pedido no mapa. '+
        'Toque no quadro de um motoboy (ou no nome dele no mapa) para ver só a rota dele; toque de novo para ver todos.</div></div>';
 
   h+='<div class="sec" id="sec_loja"><div class="grp"><span class="em">🍳</span><h2>Na loja</h2><span class="ct">'+loja.length+' pedido'+(loja.length===1?'':'s')+'</span></div>';
@@ -585,7 +595,7 @@ function desenha(d){
       return '<div class="linha'+(p.atrasado?' late':'')+'">'+
         '<span class="bola '+bola+'"></span>'+(quad(p.grupo)||'<span class="rc" style="visibility:hidden"></span>')+
         '<span class="ped" data-ped="'+esc(p.pedido)+'" title="número do Saipos — toque para ver os itens">'+esc(p.pedido)+'</span>'+
-        ifn(p)+
+        ifn(p)+vm(p,true)+
         '<span class="est">'+esc(nomeEtapa(p.onde))+'</span>'+
         (p.motoboy?'<span class="mb">· '+esc(p.motoboy)+'</span>':'')+
         '<span class="dir"><span class="hr">entrou '+esc(p.entrou)+'</span>'+pz(p)+
@@ -613,7 +623,7 @@ function desenha(d){
             '<span class="h">'+esc(p.entrou)+'</span>'+
             dist(p.dist_m)+(p.onde==='porta'?'<span class="pt">na porta</span>':'')+
             '<span class="m">'+esc(p.min)+' min</span>'+(pz(p)?'<span class="qbr"></span>'+pz(p):'')+
-            (p.end?'<span class="en" title="'+esc(p.end)+'">📍 '+esc(endCurto(p.end))+'</span>':'')+'</div>';
+            (p.end?'<span class="en"'+(p.lat!=null&&p.lng!=null?' data-mapa="'+esc(p.pedido)+'" title="mostrar no mapa: '+esc(p.end)+'"':' title="'+esc(p.end)+'"')+'>📍 '+esc(endCurto(p.end))+'</span>':'')+'</div>';
         }).join('')+'</div>';
     }).join('')+'</div>';
   }
@@ -696,8 +706,9 @@ function desenhaRota(alvo,d,m,ps,semLinha,apaga){
   if(m.gps&&m.gps.lat!=null&&m.gps.lng!=null){ gp=[+m.gps.lat,+m.gps.lng]; pts.push(gp); linha.push(gp); }
   ps.forEach(function(p){ var q=[+p.lat,+p.lng]; pts.push(q); linha.push(q); });
   if(linha.length>1&&!semLinha) L.polyline(linha,{color:cor,weight:3,opacity:.9*op,dashArray:'6 6',interactive:false}).addTo(alvo);
-  ps.forEach(function(p){ L.marker([+p.lat,+p.lng],{opacity:op,icon:mmIcone(p._n||'•','mm-n'+(p.atrasado?' late':''),'background:'+cor)})
-    .bindTooltip(fichaRua(p,m),{direction:'top',offset:[0,-10],className:'mm-dica'}).on('click',function(){abrePedido(p.pedido);}).addTo(alvo); });
+  ps.forEach(function(p){ var mk=L.marker([+p.lat,+p.lng],{opacity:op,icon:mmIcone(p._n||'•','mm-n'+(p.atrasado?' late':''),'background:'+cor)})
+    .bindTooltip(fichaRua(p,m),{direction:'top',offset:[0,-10],className:'mm-dica'}).on('click',function(){abrePedido(p.pedido);}).addTo(alvo);
+    if(MKREG) MKREG[p.pedido]=mk; });
   if(gp) L.marker(gp,{opacity:op,icon:mmIcone('🛵','mm-e'),zIndexOffset:1000,interactive:false}).addTo(alvo);
   return pts;
 }
@@ -714,8 +725,9 @@ function minimapas(d){
   window.ULT_D=d;
   MM.forEach(function(x){try{x.remove()}catch(e){}}); MM=[];
   if(!window.L||!d) return;
-  var el=$('mapao');
+  var el=$('mapao'); MAPA_MK={};
   if(el){ try{
+    MKREG=MAPA_MK;
     var rua=Array.isArray(d.na_rua)?d.na_rua:[];
     if(DEST&&!rua.some(function(m){return m.motoboy===DEST;})){ DEST=null; MV=null; }
     if(MV&&(MV.uni!==UNI||MV.dest!==DEST)) MV=null;
@@ -738,18 +750,20 @@ function minimapas(d){
     (Array.isArray(d.na_loja)?d.na_loja:[]).forEach(function(p){
       if(p.lat==null||p.lng==null) return;
       var ll=[+p.lat,+p.lng], apaga=!!DEST&&p.motoboy!==DEST;
-      L.marker(ll,{opacity:apaga?.22:1,zIndexOffset:p.atrasado?600:400,
-                   icon:mmIcone('','mm-l '+(p.onde==='preparo'?'mm-prep':'mm-pron')+(p.atrasado?' late':''),null,16)})
-        .bindTooltip(fichaLoja(p),{direction:'top',offset:[0,-8],className:'mm-dica'})
+      MAPA_MK[p.pedido]=L.marker(ll,{opacity:apaga?.22:1,zIndexOffset:p.atrasado?600:400,
+                   icon:L.divIcon({className:'',iconSize:[0,0],iconAnchor:[0,0],
+                     html:'<div class="mm-l '+(p.onde==='preparo'?'mm-prep':'mm-pron')+(p.atrasado?' late':'')+'">'+esc(p.pedido)+'</div>'})})
+        .bindTooltip(fichaLoja(p),{direction:'top',offset:[0,-12],className:'mm-dica'})
         .on('click',function(){ abrePedido(p.pedido); }).addTo(mp);
       todos.push(ll); if(DEST&&p.motoboy===DEST) foco.push(ll);
     });
     /* o 1o movimento e o enquadramento da propria tela; dai em diante so a PESSOA mexe (arrastar, botoes +/-, pinca) */
     var auto=true;
     mp.on('moveend',function(){ if(auto){ auto=false; return; } MV={c:mp.getCenter(),z:mp.getZoom(),uni:UNI,dest:DEST}; });
+    MKREG=null;
     if(MV) mp.setView(MV.c,MV.z);
     else{ var alvo=(DEST&&foco.length>1)?foco:todos; if(alvo.length) mp.fitBounds(alvo,{padding:[30,30],maxZoom:16}); else auto=false; }
-  }catch(e){} }
+  }catch(e){ MKREG=null; } }
   try{ atualizaMapa(d); }catch(e){}
 }
 /* a ficha de cada pedido no mapa: os mesmos dados da lista (numeros, tempo, hora prometida, endereco), nada novo */
@@ -771,6 +785,30 @@ function fichaRua(p,m){
   return fichaPed(p,'na rua com '+esc(m.motoboy)+(p._n?' · '+p._n+'ª entrega':'')+
     (p.onde==='porta'?' · na porta':(p.dist_m!=null?' · a '+kmTxt(+p.dist_m)+' dele':'')));
 }
+/* 26/10/2026, pedido do Fabio: "qdo clicar em cima do numero poderia colocar o pedido no mapa, ou numerar os pedidos
+   no mapa". Os pedidos da loja viraram etiqueta com o numero do Saipos; o 📍 ao lado do numero na lista leva o mapa
+   ate o pedido, aproxima, faz piscar e abre a ficha. O toque no numero continua abrindo os itens (pedido de 20/10).
+   "ver todos" volta ao enquadramento de todos os pedidos. */
+var MAPA_MK={}, MKREG=null;
+function vm(p,reserva){
+  if(p.lat!=null&&p.lng!=null) return '<span class="vm" data-mapa="'+esc(p.pedido)+'" title="mostrar este pedido no mapa">📍</span>';
+  return reserva?'<span class="vm vz"></span>':'';
+}
+function mapaTodos(){ DEST=null; MV=null;
+  var q=document.querySelector('#app .quadros');
+  if(q){ q.classList.remove('foco'); q.querySelectorAll('.qd.sel').forEach(function(x){ x.classList.remove('sel'); }); }
+  minimapas(window.ULT_D); }
+function verNoMapa(ped){
+  if(!window.L) return;
+  if(DEST&&MAPA_MK[ped]&&MAPA_MK[ped].options.opacity<1) mapaTodos();   /* pedido apagado por causa do motoboy escolhido */
+  var mk=MAPA_MK[ped], mp=MM[0], sec=$('sec_mapa');
+  if(!mk||!mp) return;
+  if(sec&&sec.scrollIntoView) sec.scrollIntoView({behavior:'smooth',block:'start'});
+  mp.setView(mk.getLatLng(),Math.max(mp.getZoom(),15),{animate:false});
+  mk.openTooltip();
+  var e=mk.getElement(), alvo=e&&(e.querySelector('.mm-l,.mm-n')||e);
+  if(alvo){ alvo.classList.remove('mm-pisca'); void alvo.offsetWidth; alvo.classList.add('mm-pisca'); }
+}
 function escolheMb(nome){
   DEST=(DEST===nome)?null:nome; MV=null;
   var q=document.querySelector('#app .quadros');
@@ -781,6 +819,7 @@ function escolheMb(nome){
 document.addEventListener('click',function(e){
   var t=e.target&&e.target.closest?e.target:null; if(!t) return;
   var b=t.closest('[data-ruas]'); if(b){ abreMapa(b.getAttribute('data-ruas')); return; }
+  var vmb=t.closest('[data-mapa]'); if(vmb){ verNoMapa(vmb.getAttribute('data-mapa')); return; }
   if(t.closest('[data-ped]')) return;
   var q=t.closest('#app .qd[data-mb]'); if(q) escolheMb(q.getAttribute('data-mb'));
 });
@@ -931,7 +970,7 @@ function rodape(d){
     ' GPS lido pela última vez às '+esc(d.gps_visto_em||'—')+'. Motoboy sem sinal fica marcado <b>sem GPS</b> e os pedidos dele ficam sem distância,'+
     ' em vez de receber um número inventado.'+
     '<br>O quadradinho colorido é a cor da rota no mapa do TrackEat (mesma regra de cor do site dele): pedidos da mesma cor vão com o mesmo motoboy.'+
-    '<br>O mapa dos pedidos mostra a loja (🏠), os pedidos da loja (vermelho = em preparo, roxo = pronto), onde cada motoboy está agora pelo GPS (🛵, com o nome ao lado) e só as entregas que ainda faltam, numeradas na ordem da rota do TrackEat (1 = a próxima). A linha tracejada é em linha reta, não é o caminho de rua. Tocando no quadro de um motoboy (ou no nome dele no mapa) só a rota dele fica acesa. O botão 🔍 ruas abre o mapa grande dele, com o caminho pelas ruas e o tempo estimado de um ponto ao outro (serviço de rotas OSRM: de carro, sem trânsito e sem o tempo parado na porta). Bolinha com anel vermelho = passando do normal.'+
+    '<br>O mapa dos pedidos mostra a loja (🏠), os pedidos da loja com o número do Saipos (vermelho = em preparo, roxo = pronto; o 📍 na lista leva até ele), onde cada motoboy está agora pelo GPS (🛵, com o nome ao lado) e só as entregas que ainda faltam, numeradas na ordem da rota do TrackEat (1 = a próxima). A linha tracejada é em linha reta, não é o caminho de rua. Tocando no quadro de um motoboy (ou no nome dele no mapa) só a rota dele fica acesa. O botão 🔍 ruas abre o mapa grande dele, com o caminho pelas ruas e o tempo estimado de um ponto ao outro (serviço de rotas OSRM: de carro, sem trânsito e sem o tempo parado na porta). Bolinha com anel vermelho = passando do normal.'+
     '<br>Toque no número de um pedido (ou na bolinha dele no mapa) para ver os itens, o endereço e o complemento. Os itens vêm do Saipos, lido de 10 em 10 minutos.'+
     '<br>A tela se atualiza sozinha a cada minuto e o TrackEat também é lido de minuto em minuto.';
 }
