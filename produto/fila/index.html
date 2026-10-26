@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#E0A81C">
 <title>Fila de Pedidos · Portal de Gestão</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/cdm-ui.css?v=4">
+<link rel="stylesheet" href="../assets/pdg-ui.css?v=4">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" onload="if(window.ULT_D)minimapas(window.ULT_D)"></script>
 <style>
@@ -229,7 +229,7 @@ var LOJAS=Array.isArray(PORTAL_CFG.lojas)?PORTAL_CFG.lojas:[];
 function lojaDe(id){ for(var i=0;i<LOJAS.length;i++) if(LOJAS[i].id===id) return LOJAS[i]; return null; }
 function nomeLoja(id){ var l=lojaDe(id); return l?l.nome:String(id||''); }
 var UNI=LOJAS.length?LOJAS[0].id:'';
-try{var _u=localStorage.getItem('cdm_fila_uni'); if(lojaDe(_u)) UNI=_u;}catch(e){}
+try{var _u=localStorage.getItem('pdg_fila_uni'); if(lojaDe(_u)) UNI=_u;}catch(e){}
 try{var _q=new URLSearchParams(location.search).get('loja'); if(lojaDe(_q)) UNI=_q;}catch(e){}
 (function(){
   var el=$('lojas'); if(!el) return;
@@ -240,7 +240,7 @@ try{var _q=new URLSearchParams(location.search).get('loja'); if(lojaDe(_q)) UNI=
 })();
 
 function trocaLoja(u){
-  UNI=u; try{localStorage.setItem('cdm_fila_uni',u)}catch(e){}
+  UNI=u; try{localStorage.setItem('pdg_fila_uni',u)}catch(e){}
   var bs=document.querySelectorAll('#lojas .chip');
   for(var i=0;i<bs.length;i++){ bs[i].classList.toggle('on', bs[i].getAttribute('data-u')===u); }
   placar('');
@@ -282,8 +282,8 @@ function pz(p){
   return '<span class="pz'+(f<=10?' perto':'')+'"'+t+'><span class="pzl">entregar até </span>'+esc(p.prometido)+' · <b>'+(f===0?'é agora':(f===1?'falta 1 min':'faltam '+f+' min'))+'</b></span>';
 }
 function irTempo(){
-  /* a aba Tempo guarda a loja dela em cdm_tempo_uni (id da loja): abre na mesma loja que esta na Fila */
-  try{ localStorage.setItem('cdm_tempo_uni',UNI); }catch(e){}
+  /* a aba Tempo guarda a loja dela em pdg_tempo_uni (id da loja): abre na mesma loja que esta na Fila */
+  try{ localStorage.setItem('pdg_tempo_uni',UNI); }catch(e){}
   try{ if(window.parent!==window&&typeof window.parent.vai==='function'){ window.parent.vai('tempo'); return; } }catch(e){}
   location.href=PORTAL_CFG.url('tempo/')+'?loja='+encodeURIComponent(UNI);
 }
@@ -503,19 +503,19 @@ function czBloco(){
        kc('Motoboys','—','o iFood não diz quem levou',cz)+
        kc('% no prazo',gp==null?'—':pf(gp),gc||'pelo iFood',gp==null?'var(--muted)':gb==null?'var(--text)':gp>=gb?'var(--ok)':gp>=gb-5?'var(--warn)':'var(--bad)')+
        kc('Atrasos',gat,gat?'acima do horário prometido':'nenhum 🎉',gat?'var(--bad)':'var(--ok)')+
-       (window.CDM_FOODY===false?'':kc('Sem código','—',FOP?'sistema de entregas parado desde '+FOP:sd,cz))+kc('🔁 Reentrega','—',sd,cz)+
+       (window.PDG_FOODY===false?'':kc('Sem código','—',FOP?'sistema de entregas parado desde '+FOP:sd,cz))+kc('🔁 Reentrega','—',sd,cz)+
        kc('Esqueceram na sacola',esq.length,esq.length?'faltou item na sacola':'nenhuma reclamação 🎉',esq.length?'var(--bad)':'var(--ok)');
   } else if(TEP&&!ent){
     var sd='sem dado desde '+TEP, cz='var(--muted)';
     h+=kc('Entregas','—',sd,cz)+kc('Motoboys','—',sd,cz)+kc('% no prazo real','—',sd,cz)+kc('Atrasos reais','—',sd,cz)+
-       (window.CDM_FOODY===false?'':kc('Sem código','—',FOP?'sistema de entregas parado desde '+FOP:sd,cz))+kc('🔁 Reentrega','—',sd,cz)+
+       (window.PDG_FOODY===false?'':kc('Sem código','—',FOP?'sistema de entregas parado desde '+FOP:sd,cz))+kc('🔁 Reentrega','—',sd,cz)+
        kc('Esqueceram na sacola',esq.length,esq.length?'faltou item na sacola':'nenhuma reclamação 🎉',esq.length?'var(--bad)':'var(--ok)');
   } else
   h+=kc('Entregas',ent,PN.ultima_entrega?'última às '+esc(PN.ultima_entrega):'nenhuma ainda','var(--roxo)')+
      kc('Motoboys',PN.motoboys||0,'entregaram hoje','var(--roxo)')+
      kc('% no prazo real',pct==null?'—':pf(pct),cmp,pct==null?'var(--muted)':pct>=85?'var(--ok)':pct>=70?'var(--warn)':'var(--bad)')+
      kc('Atrasos reais',atr,atr?'acima do horário prometido':'nenhum 🎉',atr?'var(--bad)':'var(--ok)')+
-     (window.CDM_FOODY===false?'':kc('Sem código',PN.sem_codigo||0,PN.sem_codigo?'sem Cód. de Coleta':'tudo certo 🎉',PN.sem_codigo?'var(--warn)':'var(--ok)'))+
+     (window.PDG_FOODY===false?'':kc('Sem código',PN.sem_codigo||0,PN.sem_codigo?'sem Cód. de Coleta':'tudo certo 🎉',PN.sem_codigo?'var(--warn)':'var(--ok)'))+
      kc('🔁 Reentrega',PN.reentrega||0,PN.reentrega?'esperando explicação':'nenhuma 🎉',PN.reentrega?'var(--bad)':'var(--ok)')+
      kc('Esqueceram na sacola',esq.length,esq.length?'faltou item na sacola':'nenhuma reclamação 🎉',esq.length?'var(--bad)':'var(--ok)');
   h+='</div>';
@@ -527,8 +527,8 @@ function czBloco(){
   }
   if(TEP&&!ent&&G) h+='<div class="leg"><b>Com o TrackEat sem dado, entregas, % no prazo e atrasos vêm do Gestor de Pedidos do iFood</b>, lido às '+esc(G.lido_em||'—')+
      ' (a leitura automática roda de 15 em 15 min). Só pedidos de entrega do iFood — site próprio, balcão e telefone não entram. No prazo = pedido concluído no iFood até a hora prometida ao cliente no Gestor de Pedidos (o Saipos mostra a mesma hora prometida), mesma conta da aba Prazo pelo iFood da tela Como fomos. A comparação é com o mesmo dia da semana nas 4 semanas anteriores, <b>só até o mesmo horário de agora</b> e só nos dias em que houve leitura; com menos de 20 pedidos para comparar, não compara.</div>';
-  h+='<div class="leg">Cozinha: do pedido entrar até ficar pronto'+(window.CDM_FOODY===false?'':' (sistema de entregas)')+', comparado com os 7 dias anteriores desta loja. '+
-     (TEP&&!ent&&G?'':'Entregas, prazo, atrasos'+(window.CDM_FOODY===false?'':' e sem código')+': mesma conta da Central do Delivery; a média do prazo é do mesmo dia da semana nas 4 semanas anteriores. ')+
+  h+='<div class="leg">Cozinha: do pedido entrar até ficar pronto'+(window.PDG_FOODY===false?'':' (sistema de entregas)')+', comparado com os 7 dias anteriores desta loja. '+
+     (TEP&&!ent&&G?'':'Entregas, prazo, atrasos'+(window.PDG_FOODY===false?'':' e sem código')+': mesma conta da Central do Delivery; a média do prazo é do mesmo dia da semana nas 4 semanas anteriores. ')+
      'Reentrega: mesma conta da tela Resolver hoje. Esqueceram na sacola: mesma conta da Central Cozinha (dia da cozinha, das 6h às 6h; só o que conta — o que chegou como erro mas não conta fica de fora, como na TV da Cozinha) — chat do iFood lido pela última vez em '+esc(PN.chat_lido_em||'—')+'.</div></div>';
   return h;
 }
@@ -667,7 +667,7 @@ async function abrePedido(num){
   m.innerHTML='<div class="cx">'+topo+'<div class="pa">Abrindo…</div></div>';
   document.body.appendChild(m);
   var uni=nomeLoja(UNI);
-  var d=await rpc('fila_pedido_itens',{p_token:cdmTok(),p_unidade:uni,p_pedido:String(num)});
+  var d=await rpc('fila_pedido_itens',{p_token:pdgTok(),p_unidade:uni,p_pedido:String(num)});
   if(!$('pdm')||m!==$('pdm')) return;
   var h=topo;
   if(!d){ h+='<div class="pa">Não consegui abrir o pedido agora. Tente de novo.</div>'; }
@@ -998,7 +998,7 @@ async function frPega(){
 function frParado(f){var x=FR&&FR[f];if(!x||x.farol!=='PARADO'||!x.ultimo_dia)return null;var p=String(x.ultimo_dia).split('-');return p[2]+'/'+p[1];}
 var VEZ=0, OK_EM=0;
 async function boot(){
-  const t=(function(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}})();
+  const t=(function(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}})();
   const minha=++VEZ, uni=UNI, nome=nomeLoja(UNI);
   const [d,cz,pn]=await Promise.all([rpc('fila_pedidos',{p_token:t,p_unidade:nome}),czPega(),rpc('fila_painel',{p_token:t,p_unidade:nome}),frPega()]);
   if(minha!==VEZ||uni!==UNI) return;   /* trocou de loja no meio: descarta a resposta velha */
@@ -1016,30 +1016,30 @@ function selo(){
 }
 
 /* ===== porta unica do portal ===== */
-const CDMMODS=['fila'];
-function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
-function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+const PDGMODS=['fila'];
+function pdgTok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
+function pdgSaia(m){try{sessionStorage.setItem('pdg_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
-async function cdmGuarda(){
-  const t=cdmTok();
-  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+async function pdgGuarda(){
+  const t=pdgTok();
+  if(!t){pdgSaia('Entre no portal para acessar esta tela');return false}
   let j=null;
   try{
     const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'fila'})});
     if(r.ok)j=await r.json();
   }catch(e){j=null}
-  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  if(!j||!j.usuario){pdgSaia('Entre no portal para acessar esta tela');return false}
   const ms=Array.isArray(j.modulos)?j.modulos:[];
-  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  if(!ms.some(function(m){return m&&PDGMODS.indexOf(m.id)>=0})){pdgSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){
+pdgGuarda().then(function(ok){
   if(!ok) return;
   trocaLoja(UNI);
-  var cdmT=setInterval(boot,60000), cdmS=setInterval(selo,1000);   /* cdmS: so relogio na tela, sem rede */
+  var pdgT=setInterval(boot,60000), pdgS=setInterval(selo,1000);   /* pdgS: so relogio na tela, sem rede */
   document.addEventListener('visibilitychange',function(){
-    if(document.hidden){ clearInterval(cdmT); clearInterval(cdmS); cdmT=null; cdmS=null; }
-    else if(!cdmT){ boot(); cdmT=setInterval(boot,60000); cdmS=setInterval(selo,1000); }
+    if(document.hidden){ clearInterval(pdgT); clearInterval(pdgS); pdgT=null; pdgS=null; }
+    else if(!pdgT){ boot(); pdgT=setInterval(boot,60000); pdgS=setInterval(selo,1000); }
   });
 });
 </script>

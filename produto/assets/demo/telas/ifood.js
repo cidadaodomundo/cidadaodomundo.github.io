@@ -3,7 +3,7 @@
    Portas simuladas:
      tabelas ifood_dim_loja, ifood_fato_cancelamento, ifood_fato_negociacao, ifood_fato_avaliacao,
      ifood_fato_qualidade_periodo, ifood_fato_super_status;
-     do sistema de entregas antigo (so com CDM_FOODY ligado): tabelas foody_vw_entregas_dia,
+     do sistema de entregas antigo (so com PDG_FOODY ligado): tabelas foody_vw_entregas_dia,
      foody_vw_pedido_prazo e rpc foody_pagamento_motoboy (senha da demonstracao: demo).
    Tudo sai de MUNDO e segue as mesmas regras da Central do Delivery: mesmas lojas no iFood,
    mesmos pedidos, cancelamentos, chamados e avaliacoes. Fotos e conversas sao exemplos inventados. */
@@ -384,7 +384,7 @@
   D.tabela('ifood_fato_super_status', superLinhas);
 
   /* =================================================================
-     Sistema de entregas antigo (so aparece com CDM_FOODY ligado em assets/chaves.js)
+     Sistema de entregas antigo (so aparece com PDG_FOODY ligado em assets/chaves.js)
      ================================================================= */
   function entreguesIfood(dia) {
     var out = [];

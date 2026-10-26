@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#E0A81C">
 <title>Resolver hoje · Portal de Gestão</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/cdm-ui.css?v=4">
+<link rel="stylesheet" href="../assets/pdg-ui.css?v=4">
 <style>
 /* Quadros com numero no topo; tocar num quadro abre a lista dele logo embaixo. */
 .per{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
@@ -104,7 +104,7 @@ const SB=PORTAL_CFG.rest;
 const KEY=PORTAL_CFG.chave;
 const $=i=>document.getElementById(i);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
+const tok=()=>{try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}};
 let D=null, DIAS=1, ONT=false, UNI='', VER='abertas', TIPO='';
 
 async function porta(nome,dados){
@@ -245,7 +245,7 @@ function duplaPainel(){
   var d=(D&&D.dupla)||{};
   if(!DUPO || !(d.abertos>0)) return '';
   var topo='<div style="color:var(--bad);font-size:11px;font-weight:800;margin-bottom:7px">CORRIDA EM DOBRO — A MESMA ENTREGA PODE TER SIDO PAGA DUAS VEZES</div>'+
-    '<div class="m" style="margin-bottom:8px">'+d.abertos+' sem decisão desde '+(d.desde||'')+' ("pagar uma só" e "conferir na mão"; antes disso não entra) · '+(d.da_para_barrar||0)+' deles ainda pendentes no TrackEat'+(window.CDM_FOODY===false?'':' ou do Foody')+'. Pedido cancelado e corrida já reprovada no TrackEat não aparecem aqui.</div>';
+    '<div class="m" style="margin-bottom:8px">'+d.abertos+' sem decisão desde '+(d.desde||'')+' ("pagar uma só" e "conferir na mão"; antes disso não entra) · '+(d.da_para_barrar||0)+' deles ainda pendentes no TrackEat'+(window.PDG_FOODY===false?'':' ou do Foody')+'. Pedido cancelado e corrida já reprovada no TrackEat não aparecem aqui.</div>';
   if(!d.pode_decidir) return '<div style="border:1px solid var(--line);border-left:4px solid var(--bad);background:var(--s1);border-radius:16px;padding:12px 14px;margin:0">'+topo+
     '<div class="m">Quem decide é o dono ou o escritório, na tela Pagar Motoboys.</div></div>';
   return '<div style="border:1px solid var(--line);border-left:4px solid var(--bad);background:var(--s1);border-radius:16px;padding:12px 14px;margin:0">'+topo+
@@ -528,7 +528,7 @@ function cartaoPz(g,i){
   else sit=(g.sit==='VENCIDA'?'<div class="m" style="margin-bottom:6px">'+esc(g.quem||'')+' disse em '+esc(g.em||'')+': '+esc(g.o_que||'')+'</div>':'')+
       (g.sit==='CONTRA'?'<div class="m" style="margin-bottom:6px">'+esc(g.quem||'')+' em '+esc(g.em||'')+': '+esc(g.o_que||'')+'</div>':'')+
       MOT_PZ.map(function(m,k){ return '<button class="mini" style="margin:0 4px 4px 0" onclick="marcaPz('+i+','+k+')">'+esc(m)+'</button>' }).join('');
-  return '<table class="vv'+(ok?' ok':'')+(g.sit==='VENCIDA'?' pzv':'')+'" data-cdm-livre><tr data-cdm-chave="'+esc(g.unidade+' | '+g.item)+'">'+
+  return '<table class="vv'+(ok?' ok':'')+(g.sit==='VENCIDA'?' pzv':'')+'" data-pdg-livre><tr data-pdg-chave="'+esc(g.unidade+' | '+g.item)+'">'+
     '<td class="hrc"><div class="hr">'+esc(hora)+'</div><div class="ha">'+esc(dia)+'</div></td>'+
     '<td><div class="tt">'+esc(g.item)+' '+pill+(g.compl?' <span class="pill p-off">complemento</span>':'')+'</div>'+
       '<div class="lj"><b>'+esc(g.unidade||'')+'</b> &#183; '+esc(g.marcas.join(' · '))+'</div>'+
@@ -607,7 +607,7 @@ function cartaoGeral(l,i){
   var ok=!!l.resolvido, q=String(l.quando||''), tm=/ \d{2}:\d{2}$/.test(q);
   var det=String(l.detalhe||'').split(' | ').join(' · ');
   if(l.cliente_disse && det===l.cliente_disse) det='';
-  return '<table class="vv'+(ok?' ok':'')+'" data-cdm-livre><tr data-cdm-chave="'+esc(l.chave||'')+'">'+
+  return '<table class="vv'+(ok?' ok':'')+'" data-pdg-livre><tr data-pdg-chave="'+esc(l.chave||'')+'">'+
     '<td class="hrc"><div class="hr">'+esc(tm?q.slice(6):(q||'—'))+'</div><div class="ha">'+esc(tm?haQuando(q):'')+'</div></td>'+
     '<td><div class="tt">'+esc(rotulo(l.tipo))+' '+(ok?'<span class="pill p-ok">resolvido</span>':'<span class="pill p-bad">esperando alguém</span>')+'</div>'+
       '<div class="lj"><b>'+esc(l.unidade||'')+'</b> · pedido <b>'+esc(l.referencia||'—')+'</b></div>'+
@@ -644,7 +644,7 @@ function cartaoParc(l,i){
   var disse=d['disse']||l.cliente_disse||'', item=d['item']||'';
   if(item && disse && (disse.indexOf(item)>=0 || item.indexOf(disse)>=0)) item='';
   var hora=String(l.quando||'').slice(6)||'—';
-  return '<table class="vv'+(ok?' ok':'')+'" data-cdm-livre><tr data-cdm-chave="'+esc(l.chave||'')+'">'+
+  return '<table class="vv'+(ok?' ok':'')+'" data-pdg-livre><tr data-pdg-chave="'+esc(l.chave||'')+'">'+
     '<td class="hrc"><div class="hr">'+esc(hora)+'</div><div class="ha">'+esc(haQuando(l.quando))+'</div></td>'+
     '<td><div class="tt">'+(cc?'🚫 '+esc(d['tipo']||'Cancelado inteiro'):'✂️ Item cancelado')+' '+(ok?'<span class="pill p-ok">resolvido</span>':'<span class="pill p-bad">esperando alguém</span>')+
         (cc&&d['quem cancelou']?' <span class="pill p-off">cancelou: '+esc(d['quem cancelou'])+'</span>':'')+'</div>'+
@@ -751,24 +751,24 @@ async function boot(){
   desenha();
 }
 /* ===== porta unica do portal ===== */
-const CDMMODS=['resolver'];
-function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
-function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+const PDGMODS=['resolver'];
+function pdgTok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
+function pdgSaia(m){try{sessionStorage.setItem('pdg_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
-async function cdmGuarda(){
-  const t=cdmTok();
-  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+async function pdgGuarda(){
+  const t=pdgTok();
+  if(!t){pdgSaia('Entre no portal para acessar esta tela');return false}
   let j=null;
   try{
     const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'resolver'})});
     if(r.ok)j=await r.json();
   }catch(e){j=null}
-  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  if(!j||!j.usuario){pdgSaia('Entre no portal para acessar esta tela');return false}
   const ms=Array.isArray(j.modulos)?j.modulos:[];
-  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  if(!ms.some(function(m){return m&&PDGMODS.indexOf(m.id)>=0})){pdgSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){if(ok)boot()});
+pdgGuarda().then(function(ok){if(ok)boot()});
 </script>
 <script src="../assets/portal.js?v=3"></script>
 </body>

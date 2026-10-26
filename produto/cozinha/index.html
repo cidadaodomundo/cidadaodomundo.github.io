@@ -134,7 +134,7 @@ let LOJA_SEL='todas';
 let DADO={};
 
 const fmtN = n => (n==null?'—':Number(n).toLocaleString('pt-BR'));
-const fmtR = n => ((n==null||!(function(){try{return sessionStorage.getItem("cdm_admin")==="1"}catch(e){return false}})())?'—':'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
+const fmtR = n => ((n==null||!(function(){try{return sessionStorage.getItem("pdg_admin")==="1"}catch(e){return false}})())?'—':'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
 const fmtM = n => (n==null?'—':Number(n).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' min');
 const dBR  = s => s? String(s).slice(0,10).split('-').reverse().join('/') : '—';
 const diaISO = d => new Date(Date.now()-d*864e5).toISOString().slice(0,10);
@@ -179,7 +179,7 @@ const daLoja = u => (LOJA_SEL==='todas' || u===LOJA_SEL);
    e avaliacao ruim. Busca de 1 em 1 minuto so com a aba Cozinha aberta e a janela visivel;
    o timer para (clearInterval) ao trocar de aba, esconder a janela ou sair. */
 let VIVO_PRONTO=false, VIVO=null, VIVO_VISTOS=null, VIVO_TIMER=null, VIVO_ONTEM=false, VIVO_ERRO='', VIVO_NOVOS=[];
-let VIVO_SOM=false; try{ VIVO_SOM=localStorage.getItem('cdm_cozinha_som')==='1'; }catch(e){}
+let VIVO_SOM=false; try{ VIVO_SOM=localStorage.getItem('pdg_cozinha_som')==='1'; }catch(e){}
 const VIVO_NOVO_MIN=30; /* erro com menos de 30 min ganha a etiqueta NOVO */
 const hhmm = s => { try{ return new Date(s).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'}); }catch(e){ return '—'; } };
 const ddmm = s => { try{ return new Date(s).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',timeZone:'America/Sao_Paulo'}); }catch(e){ return '—'; } };
@@ -188,7 +188,7 @@ const haMin = ts => { const m=Math.max(0,Math.round((Date.now()-ts)/60000)); ret
 async function vivoBusca(){
   try{
     const r=await fetch(SB+'rpc/cozinha_ao_vivo',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({p_token:cdmTok(),p_dados:{ontem:VIVO_ONTEM}})});
+      body:JSON.stringify({p_token:pdgTok(),p_dados:{ontem:VIVO_ONTEM}})});
     if(!r.ok){ VIVO_ERRO='Não consegui ler os erros agora (código '+r.status+'). Tento de novo em 1 minuto.'; vivoDesenha(); return; }
     const j=await r.json(); VIVO_ERRO='';
     const lista=j.erros||[];
@@ -211,7 +211,7 @@ window.addEventListener('pageshow',function(){ if(VIVO_PRONTO && vivoAbaCozinha(
 
 function vivoDia(o){ VIVO_ONTEM=!!o; VIVO_VISTOS=null; VIVO=null; vivoDesenha(); vivoBusca(); }
 function vivoSom(){
-  VIVO_SOM=!VIVO_SOM; try{ localStorage.setItem('cdm_cozinha_som',VIVO_SOM?'1':'0'); }catch(e){}
+  VIVO_SOM=!VIVO_SOM; try{ localStorage.setItem('pdg_cozinha_som',VIVO_SOM?'1':'0'); }catch(e){}
   if(VIVO_SOM){ apito(); try{ if(window.Notification && Notification.permission==='default') Notification.requestPermission(); }catch(e){} }
   vivoDesenha();
 }
@@ -327,7 +327,7 @@ function mediaPond(rows){
 function secPreparo(){
   const rows=DADO.prep.filter(r=>r.preparo_medio_min!=null && daLoja(r.unidade));
   let h='<div class="sec"><h2>⏱ Tempo de preparo <span class="hint">do pedido entrar até ficar pronto · últimos 7 dias, comparado com os 7 dias anteriores</span></h2>';
-  if(!rows.length){ return h+'<div class="semdado">Sem dado de preparo no período.'+(window.CDM_FOODY===false?'':' O tempo de preparo vem do sistema de entregas.')+'</div></div>'; }
+  if(!rows.length){ return h+'<div class="semdado">Sem dado de preparo no período.'+(window.PDG_FOODY===false?'':' O tempo de preparo vem do sistema de entregas.')+'</div></div>'; }
 
   const alvo = LOJA_SEL==='todas' ? UNI : [LOJA_SEL];
   h+='<div class="cards">';
@@ -417,7 +417,7 @@ let PZ=null, PZ_T=0, PZ_ERRO='';
 async function pzBusca(){
   try{
     const r=await fetch(SB+'rpc/cozinha_pausados',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({p_token:cdmTok(),p_dados:{}})});
+      body:JSON.stringify({p_token:pdgTok(),p_dados:{}})});
     if(!r.ok){ PZ_ERRO='Não consegui ler os itens fora do ar agora (código '+r.status+').'; }
     else { PZ=await r.json(); PZ_ERRO=''; PZ_T=Date.now(); }
   }catch(e){ PZ_ERRO='Sem conexão para ler os itens fora do ar.'; }
@@ -516,22 +516,22 @@ function render(){
 }
 
 /* ===== porta unica do portal: sessao por usuario ===== */
-const CDMMODS=['cozinha'];
-function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
-function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+const PDGMODS=['cozinha'];
+function pdgTok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
+function pdgSaia(m){try{sessionStorage.setItem('pdg_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
-async function cdmGuarda(){
-  const t=cdmTok();
-  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+async function pdgGuarda(){
+  const t=pdgTok();
+  if(!t){pdgSaia('Entre no portal para acessar esta tela');return false}
   let j=null;
   try{
     const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'cozinha'})});
     if(r.ok)j=await r.json();
   }catch(e){j=null}
-  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  if(!j||!j.usuario){pdgSaia('Entre no portal para acessar esta tela');return false}
   const ms=Array.isArray(j.modulos)?j.modulos:[];
-  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
-  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  try{sessionStorage.setItem('pdg_nome',j.nome||'');sessionStorage.setItem('pdg_admin',j.admin?'1':'0');sessionStorage.setItem('pdg_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&PDGMODS.indexOf(m.id)>=0})){pdgSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
 function mostraAba(q){var d=(q==='desp');
@@ -542,7 +542,7 @@ $('aba-b-desp').className=d?'ab on':'ab';
 var fl=$('filtros');if(fl)fl.style.display=d?'none':'';
 if(d)vivoDesliga();else{vivoBusca();vivoLiga();}
 if(d){var f=$('ifr-desp');if(f.getAttribute('src')==='about:blank')f.setAttribute('src',PORTAL_CFG.url('operacao/?embed=1'));}}
-cdmGuarda().then(function(ok){if(ok)boot()});
+pdgGuarda().then(function(ok){if(ok)boot()});
 </script>
 <script src="../assets/portal.js?v=3"></script>
 </body>

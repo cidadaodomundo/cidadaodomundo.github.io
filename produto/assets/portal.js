@@ -16,41 +16,41 @@
   var st = document.createElement('style');
   st.textContent =
     'table th:not([onclick]){cursor:pointer;-webkit-user-select:none;user-select:none}' +
-    'table th[data-cdmsd]::after{content:" \\25B2";font-size:9px;opacity:.8}' +
-    'table th[data-cdmsd="d"]::after{content:" \\25BC"}' +
-    '.cdm-fresh{display:inline-block;font-size:11px;line-height:1.5;padding:1px 8px;' +
+    'table th[data-pdgsd]::after{content:" \\25B2";font-size:9px;opacity:.8}' +
+    'table th[data-pdgsd="d"]::after{content:" \\25BC"}' +
+    '.pdg-fresh{display:inline-block;font-size:11px;line-height:1.5;padding:1px 8px;' +
     'border-radius:999px;border:1px solid currentColor;margin-left:8px;white-space:nowrap}' +
-    '.cdm-fresh.ok{color:#38b26a}.cdm-fresh.warn{color:#e0a33a}.cdm-fresh.old{color:#e2574c}' +
-    '.cdm-fresh-bar{padding:6px 14px 0;font-size:11px}' +
-    '@media print{.cdm-fresh{border:0}}' +
+    '.pdg-fresh.ok{color:#38b26a}.pdg-fresh.warn{color:#e0a33a}.pdg-fresh.old{color:#e2574c}' +
+    '.pdg-fresh-bar{padding:6px 14px 0;font-size:11px}' +
+    '@media print{.pdg-fresh{border:0}}' +
     /* 3. sem rolagem lateral */
     'html,body{max-width:100%}' +
     'table{min-width:0!important;max-width:100%}' +
     'th,td{white-space:normal!important;overflow-wrap:break-word}' +
     '@media (max-width:700px){' +
-    'table.cdm-card,table.cdm-card>tbody{display:block!important;width:auto!important;' +
+    'table.pdg-card,table.pdg-card>tbody{display:block!important;width:auto!important;' +
     'max-width:100%!important;min-width:0!important;overflow:visible!important}' +
     /* linha e celula sem !important: a tela continua podendo esconder linha/coluna */
-    'table.cdm-card>tbody>tr,table.cdm-card>tr,table.cdm-card>tbody>tr>td,table.cdm-card>tr>td{display:block}' +
-    'table.cdm-card>tbody>tr>td,table.cdm-card>tr>td{width:auto!important;max-width:100%!important;min-width:0!important}' +
-    'table.cdm-card>thead,table.cdm-card tr.cdm-hd{display:none!important}' +
-    'table.cdm-card>tbody>tr,table.cdm-card>tr{border:1px solid rgba(128,128,128,.35)!important;' +
+    'table.pdg-card>tbody>tr,table.pdg-card>tr,table.pdg-card>tbody>tr>td,table.pdg-card>tr>td{display:block}' +
+    'table.pdg-card>tbody>tr>td,table.pdg-card>tr>td{width:auto!important;max-width:100%!important;min-width:0!important}' +
+    'table.pdg-card>thead,table.pdg-card tr.pdg-hd{display:none!important}' +
+    'table.pdg-card>tbody>tr,table.pdg-card>tr{border:1px solid rgba(128,128,128,.35)!important;' +
     'border-radius:10px;margin:0 0 10px;padding:6px 10px}' +
-    'table.cdm-card td{border:0!important;padding:3px 0!important;text-align:left!important}' +
-    'table.cdm-card td[data-cdm-l]::before{content:attr(data-cdm-l);display:block;font-size:10.5px;' +
+    'table.pdg-card td{border:0!important;padding:3px 0!important;text-align:left!important}' +
+    'table.pdg-card td[data-pdg-l]::before{content:attr(data-pdg-l);display:block;font-size:10.5px;' +
     'opacity:.6;text-transform:uppercase;letter-spacing:.03em;margin-top:2px}' +
-    'table.cdm-grade{font-size:11px!important}table.cdm-grade th,table.cdm-grade td{padding:3px 2px!important}}' +
+    'table.pdg-grade{font-size:11px!important}table.pdg-grade th,table.pdg-grade td{padding:3px 2px!important}}' +
     /* 4. anotacao */
-    '.cdm-nota{display:block;width:100%;box-sizing:border-box;margin-top:6px;min-width:0;' +
+    '.pdg-nota{display:block;width:100%;box-sizing:border-box;margin-top:6px;min-width:0;' +
     'font:inherit;font-size:12px;padding:5px 8px;border-radius:8px;border:1px dashed rgba(128,128,128,.55);' +
     'background:transparent;color:inherit}' +
-    '.cdm-nota:focus{outline:none;border-style:solid;border-color:#e0a33a}' +
-    '.cdm-nota.tem{border-style:solid;border-color:#e0a33a;background:rgba(224,163,58,.08)}' +
-    '.cdm-nota-q{display:block;font-size:10.5px;opacity:.6;margin-top:2px;white-space:normal}' +
-    '.cdm-nota-tela{max-width:1100px;margin:18px auto 24px;padding:0 14px}' +
-    '.cdm-nota-tela b{display:block;font-size:12px;opacity:.75;margin-bottom:4px}' +
-    '.cdm-nota-tela textarea.cdm-nota{min-height:54px;resize:vertical}' +
-    '@media print{.cdm-nota:not(.tem),.cdm-nota-tela{display:none}}';
+    '.pdg-nota:focus{outline:none;border-style:solid;border-color:#e0a33a}' +
+    '.pdg-nota.tem{border-style:solid;border-color:#e0a33a;background:rgba(224,163,58,.08)}' +
+    '.pdg-nota-q{display:block;font-size:10.5px;opacity:.6;margin-top:2px;white-space:normal}' +
+    '.pdg-nota-tela{max-width:1100px;margin:18px auto 24px;padding:0 14px}' +
+    '.pdg-nota-tela b{display:block;font-size:12px;opacity:.75;margin-bottom:4px}' +
+    '.pdg-nota-tela textarea.pdg-nota{min-height:54px;resize:vertical}' +
+    '@media print{.pdg-nota:not(.tem),.pdg-nota-tela{display:none}}';
   document.head.appendChild(st);
 
   /* ---------------- 1. ordenacao ---------------- */
@@ -97,9 +97,9 @@
     if (corpo.length < 2) return;
 
     var i = th.cellIndex;
-    var desc = th.getAttribute('data-cdmsd') !== 'd';
-    [].forEach.call(linha.cells, function (c) { c.removeAttribute('data-cdmsd'); });
-    th.setAttribute('data-cdmsd', desc ? 'd' : 'a');
+    var desc = th.getAttribute('data-pdgsd') !== 'd';
+    [].forEach.call(linha.cells, function (c) { c.removeAttribute('data-pdgsd'); });
+    th.setAttribute('data-pdgsd', desc ? 'd' : 'a');
     var dir = desc ? -1 : 1;
 
     corpo.sort(function (a, b) {
@@ -141,7 +141,7 @@
     var a = ancora();
     if (!a) {
       var bar = document.createElement('div');
-      bar.className = 'cdm-fresh-bar';
+      bar.className = 'pdg-fresh-bar';
       bar.appendChild(el);
       var h = document.querySelector('header');
       if (h && h.parentNode) h.parentNode.insertBefore(bar, h.nextSibling);
@@ -172,7 +172,7 @@
         var d = String(j[0][f.c]).slice(0, 10);
         var dias = Math.round((new Date(hoje) - new Date(d)) / 864e5);
         var el = document.createElement('span');
-        el.className = 'cdm-fresh ' + (dias <= 1 ? 'ok' : (dias <= 3 ? 'warn' : 'old'));
+        el.className = 'pdg-fresh ' + (dias <= 1 ? 'ok' : (dias <= 3 ? 'warn' : 'old'));
         el.title = 'Fonte: ' + f.t + '.' + f.c;
         el.textContent = 'dados ate ' + d.slice(8, 10) + '/' + d.slice(5, 7) +
                          (dias > 1 ? ' - ' + dias + ' dias atras' : '');
@@ -195,7 +195,7 @@
   }
 
   function cartao(tab) {
-    if (tab.hasAttribute('data-cdm-livre')) return;
+    if (tab.hasAttribute('data-pdg-livre')) return;
     var linhas = [].slice.call(tab.rows);
     var hd = null, ncol = 0;
     linhas.forEach(function (r) {
@@ -205,8 +205,8 @@
       if (!hd && ehCabecalho(r)) hd = r;
     });
     if (ncol < 3) return;
-    if (ncol > 12) { tab.classList.add('cdm-grade'); return; }
-    tab.classList.add('cdm-card');
+    if (ncol > 12) { tab.classList.add('pdg-grade'); return; }
+    tab.classList.add('pdg-card');
     var nomes = [];
     if (hd) {
       [].forEach.call(hd.cells, function (c) {
@@ -214,11 +214,11 @@
       });
     }
     linhas.forEach(function (r) {
-      if (ehCabecalho(r)) { r.classList.add('cdm-hd'); return; }
+      if (ehCabecalho(r)) { r.classList.add('pdg-hd'); return; }
       var pos = 0;
       [].forEach.call(r.cells, function (c) {
         var nm = nomes[pos];
-        if (nm && !c.hasAttribute('data-cdm-l')) c.setAttribute('data-cdm-l', nm.replace(/[\u25B2\u25BC]/g, '').trim());
+        if (nm && !c.hasAttribute('data-pdg-l')) c.setAttribute('data-pdg-l', nm.replace(/[\u25B2\u25BC]/g, '').trim());
         pos += c.colSpan || 1;
       });
     });
@@ -228,7 +228,7 @@
   var TELA = location.pathname.replace(/\/index\.html$/, '/').replace(/\/+$/, '') || '/';
   var NOTAS = null, NOTAS_PEDIDO = false;
 
-  function token() { try { return sessionStorage.getItem('cdm_token') || ''; } catch (e) { return ''; } }
+  function token() { try { return sessionStorage.getItem('pdg_token') || ''; } catch (e) { return ''; } }
 
   function rpc(fn, corpo) {
     return fetch(SB + 'rpc/' + fn, {
@@ -245,10 +245,10 @@
     return z(d.getDate()) + '/' + z(d.getMonth() + 1) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes());
   }
 
-  function temAcao(td) { return !!td.querySelector('button,select,input:not(.cdm-nota),a[onclick]'); }
+  function temAcao(td) { return !!td.querySelector('button,select,input:not(.pdg-nota),a[onclick]'); }
 
   function chaveLinha(tr, acao) {
-    var k = tr.getAttribute('data-cdm-chave');
+    var k = tr.getAttribute('data-pdg-chave');
     if (k) return k;
     var partes = [];
     for (var i = 0; i < tr.cells.length && partes.length < 3; i++) {
@@ -262,26 +262,26 @@
   }
 
   function preencher(inp) {
-    var n = NOTAS && NOTAS[inp.getAttribute('data-cdm-k')];
-    var q = inp.nextSibling && inp.nextSibling.className === 'cdm-nota-q' ? inp.nextSibling : null;
+    var n = NOTAS && NOTAS[inp.getAttribute('data-pdg-k')];
+    var q = inp.nextSibling && inp.nextSibling.className === 'pdg-nota-q' ? inp.nextSibling : null;
     if (n && document.activeElement !== inp) inp.value = n.texto;
     inp.classList.toggle('tem', !!(n && n.texto));
     if (q) q.textContent = n && n.texto ? ('anotado por ' + (n.autor || '?') + ' em ' + quando(n.atualizado_em)) : '';
   }
 
   function gravar(inp) {
-    var k = inp.getAttribute('data-cdm-k'), txt = inp.value.trim();
+    var k = inp.getAttribute('data-pdg-k'), txt = inp.value.trim();
     var antes = NOTAS && NOTAS[k] ? NOTAS[k].texto : '';
     if (txt === antes) return;
     var q = inp.nextSibling;
-    if (q && q.className === 'cdm-nota-q') q.textContent = 'gravando…';
+    if (q && q.className === 'pdg-nota-q') q.textContent = 'gravando…';
     rpc('anotacao_gravar', { p_token: token(), p_tela: TELA, p_chave: k, p_texto: txt,
-                              p_contexto: inp.getAttribute('data-cdm-ctx') || null })
+                              p_contexto: inp.getAttribute('data-pdg-ctx') || null })
       .then(function (j) {
         NOTAS = NOTAS || {};
         NOTAS[k] = { texto: txt, autor: j && j.autor, atualizado_em: new Date().toISOString() };
-        document.querySelectorAll('.cdm-nota').forEach(function (o) {
-          if (o.getAttribute('data-cdm-k') === k) preencher(o);
+        document.querySelectorAll('.pdg-nota').forEach(function (o) {
+          if (o.getAttribute('data-pdg-k') === k) preencher(o);
         });
       })
       .catch(function () { if (q) q.textContent = 'não gravou — entre de novo no portal e tente outra vez'; });
@@ -290,10 +290,10 @@
   function campo(k, ctx, grande) {
     var inp = document.createElement(grande ? 'textarea' : 'input');
     if (!grande) inp.type = 'text';
-    inp.className = 'cdm-nota';
+    inp.className = 'pdg-nota';
     inp.placeholder = grande ? '\u270F\uFE0F Anotação desta tela (fica gravada com seu nome)' : '\u270F\uFE0F anotação...';
-    inp.setAttribute('data-cdm-k', k);
-    if (ctx) inp.setAttribute('data-cdm-ctx', ctx);
+    inp.setAttribute('data-pdg-k', k);
+    if (ctx) inp.setAttribute('data-pdg-ctx', ctx);
     inp.maxLength = 1000;
     var espera = null;
     inp.addEventListener('input', function () {
@@ -303,16 +303,16 @@
     inp.addEventListener('change', function () { clearTimeout(espera); gravar(inp); });
     inp.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !grande) inp.blur(); });
     var q = document.createElement('span');
-    q.className = 'cdm-nota-q';
+    q.className = 'pdg-nota-q';
     var f = document.createDocumentFragment();
     f.appendChild(inp); f.appendChild(q);
     return { frag: f, inp: inp };
   }
 
   function notaNaLinha(tr) {
-    if (tr.querySelector('.cdm-nota') || ehCabecalho(tr) || tr.cells.length < 2) return;
+    if (tr.querySelector('.pdg-nota') || ehCabecalho(tr) || tr.cells.length < 2) return;
     var tab = tr.closest('table');
-    if (!tab || tab.hasAttribute('data-cdm-sem-nota') || tr.hasAttribute('data-cdm-sem-nota')) return;
+    if (!tab || tab.hasAttribute('data-pdg-sem-nota') || tr.hasAttribute('data-pdg-sem-nota')) return;
     var acao = null;
     for (var i = tr.cells.length - 1; i >= 0; i--) if (temAcao(tr.cells[i])) { acao = tr.cells[i]; break; }
     if (!acao) return;
@@ -324,9 +324,9 @@
   }
 
   function notaDaTela() {
-    if (document.querySelector('.cdm-nota-tela') || !document.body) return;
+    if (document.querySelector('.pdg-nota-tela') || !document.body) return;
     var box = document.createElement('div');
-    box.className = 'cdm-nota-tela';
+    box.className = 'pdg-nota-tela';
     var b = document.createElement('b');
     b.textContent = 'Anotação da equipe nesta tela';
     box.appendChild(b);
@@ -343,7 +343,7 @@
       .then(function (j) {
         NOTAS = {};
         (j || []).forEach(function (n) { NOTAS[n.chave] = n; });
-        document.querySelectorAll('.cdm-nota').forEach(preencher);
+        document.querySelectorAll('.pdg-nota').forEach(preencher);
       })
       .catch(function () { NOTAS = {}; });
   }
@@ -369,7 +369,7 @@
       new MutationObserver(function (ms) {
         for (var i = 0; i < ms.length; i++) {
           var t = ms[i].target;
-          if (t && t.classList && (t.classList.contains('cdm-nota-q'))) continue;
+          if (t && t.classList && (t.classList.contains('pdg-nota-q'))) continue;
           agenda(); return;
         }
       }).observe(document.body, { childList: true, subtree: true });

@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#E0A81C">
 <title>Tempo de Entrega · Portal de Gestão</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/cdm-ui.css?v=4">
+<link rel="stylesheet" href="../assets/pdg-ui.css?v=4">
 <style>
 /* Tela de balcao: os numeros ficam em quadros e tocar num quadro leva ate a lista dele
    (as listas ficam sempre abertas). */
@@ -91,12 +91,12 @@ div.q{cursor:default}
 .vz{color:var(--muted);font-size:14px;padding:18px 14px;text-align:center}
 
 /* dia, hora e loja aberta (cabecalho do banco) */
-.cdmcab{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:12px 15px;margin:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.cdmdia{font-family:'Barlow Condensed',sans-serif;font-size:21px;font-weight:700;letter-spacing:.02em}
-.cdmabe,.cdmfec,.cdmsem{border-radius:999px;padding:5px 12px;font-size:13px;font-weight:700}
-.cdmabe{background:rgba(37,163,95,.15);color:#7fe0aa}
-.cdmfec{background:rgba(230,103,103,.18);color:#ff9a9a;font-weight:800}
-.cdmsem{background:rgba(201,133,0,.16);color:var(--warn)}
+.pdgcab{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:12px 15px;margin:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pdgdia{font-family:'Barlow Condensed',sans-serif;font-size:21px;font-weight:700;letter-spacing:.02em}
+.pdgabe,.pdgfec,.pdgsem{border-radius:999px;padding:5px 12px;font-size:13px;font-weight:700}
+.pdgabe{background:rgba(37,163,95,.15);color:#7fe0aa}
+.pdgfec{background:rgba(230,103,103,.18);color:#ff9a9a;font-weight:800}
+.pdgsem{background:rgba(201,133,0,.16);color:var(--warn)}
 .parado{background:var(--s1);border:1.5px dashed #4a4943;color:var(--text2);border-radius:13px;padding:12px 16px;margin-bottom:14px;font-size:14px;font-weight:600;line-height:1.5}
 
 body.alarme{animation:fundoAl .9s ease-in-out infinite alternate;min-height:100vh}
@@ -233,16 +233,16 @@ async function rpc(nome,corpo){
   }catch(e){return null}
 }
 
-function cdmCab(d){
+function pdgCab(d){
   var s='';
   var hr=d.loja_horario?(' · '+d.loja_horario):'';
-  if(d.loja_status==='fechada'){s='<div class="cdmfec">🔴 A LOJA ESTÁ FECHADA no iFood'+(d.loja_horario?(' — hoje o horário é '+d.loja_horario):'')+'</div>';}
-  else if(d.loja_status==='aberta'){s='<div class="cdmabe">🟢 Loja aberta no iFood'+hr+'</div>';}
-  else if(!d.loja_status){var q=Number(d.loja_status_ha_min||0);var qt=q>=2880?(Math.round(q/1440)+' dias'):(q>=120?(Math.round(q/60)+' horas'):(q+' minutos'));s='<div class="cdmsem">⚠️ Não sei dizer se a loja está aberta — esse dado não é lido há '+qt+'</div>';}
+  if(d.loja_status==='fechada'){s='<div class="pdgfec">🔴 A LOJA ESTÁ FECHADA no iFood'+(d.loja_horario?(' — hoje o horário é '+d.loja_horario):'')+'</div>';}
+  else if(d.loja_status==='aberta'){s='<div class="pdgabe">🟢 Loja aberta no iFood'+hr+'</div>';}
+  else if(!d.loja_status){var q=Number(d.loja_status_ha_min||0);var qt=q>=2880?(Math.round(q/1440)+' dias'):(q>=120?(Math.round(q/60)+' horas'):(q+' minutos'));s='<div class="pdgsem">⚠️ Não sei dizer se a loja está aberta — esse dado não é lido há '+qt+'</div>';}
   return (d.aviso?'<div class="parado">ⓘ '+esc(d.aviso)+'</div>':'')+
-    '<div class="cdmcab"><div class="cdmdia">'+esc(d.agora_dia||d.agora||'')+'</div>'+s+'</div>';
+    '<div class="pdgcab"><div class="pdgdia">'+esc(d.agora_dia||d.agora||'')+'</div>'+s+'</div>';
 }
-function cdmRetrato(d){
+function pdgRetrato(d){
   var p=d.pedidos||[];
   var cab=function(tit,ct){return '<div class="painel" id="sec_ret"><div class="ph"><h3>📦 '+tit+'</h3>'+(ct?'<span class="ct">'+ct+'</span>':'')+'<button class="b fecha" data-fecha="1">fechar ✕</button></div>';};
   if(!p.length) return cab('O que está acontecendo agora','')+'<div class="lista caixa"><div class="vz">'+((d.cego===true&&d.loja_status!=='fechada')?'Sem dado ao vivo — não dá para saber quem está com pedido na mão':'Ninguém com pedido na mão agora')+'</div></div></div>';
@@ -400,7 +400,7 @@ let moto='';
         }).join('')+'</div>'+mbLegenda(mb)+mbRegua(d.motoboys_regua)
       : '<div class="vazio">'+((d.cego===true&&d.loja_status!=='fechada')?'Sem dado ao vivo do aplicativo dos motoboys — não dá para saber quem está na rua.':'Nenhum motoboy com o aplicativo ligado nos últimos 30 minutos.')+'</div>')+
    '</div></div>';
-  h+=cdmRetrato(d);
+  h+=pdgRetrato(d);
 
   /* caixa onde a equipe do delivery escreve o que mudar nesta tela */
   var sg = Array.isArray(d.sugestoes)?d.sugestoes:[];
@@ -437,9 +437,9 @@ let moto='';
    'Onde mudar: no Gestor de Pedidos do iFood, em <b>Ajustes → Gestão de lojas → Gerenciar pré-configurações</b> — escolha a faixa e salve. Faixa nova se cria no Portal do Parceiro.</div></div></div>';
   h+=hSug;
 
-  h+='<div class="rod">Atualizado às '+esc(d.agora)+'. A tela se atualiza sozinha de 3 em 3 minutos. <b>Quando fica vermelha, ela pisca e apita</b> a cada 10 segundos até a situação resolver (o botão no canto pausa o vermelho e o apito por 15 minutos). Na primeira vez, toque uma vez na tela para liberar o som. O iFood dá <b>10 minutos de tolerância</b> em cima do que você promete — por isso os '+(prom||44)+' min viram '+((prom||44)+10)+' na conta do cliente, e é essa a régua usada aqui. O "prometido" é lido automaticamente na configuração do iFood, uma vez por hora — uma mudança feita agora pode levar até 1 hora para aparecer aqui. Todas as lojas aparecem aqui — escolha no alto da tela.'+(window.CDM_FOODY===false?'':' O dado de pedido e de motoboy vem do Foody e do TrackEat, conforme o que estiver respondendo em cada loja.')+'</div>';
+  h+='<div class="rod">Atualizado às '+esc(d.agora)+'. A tela se atualiza sozinha de 3 em 3 minutos. <b>Quando fica vermelha, ela pisca e apita</b> a cada 10 segundos até a situação resolver (o botão no canto pausa o vermelho e o apito por 15 minutos). Na primeira vez, toque uma vez na tela para liberar o som. O iFood dá <b>10 minutos de tolerância</b> em cima do que você promete — por isso os '+(prom||44)+' min viram '+((prom||44)+10)+' na conta do cliente, e é essa a régua usada aqui. O "prometido" é lido automaticamente na configuração do iFood, uma vez por hora — uma mudança feita agora pode levar até 1 hora para aparecer aqui. Todas as lojas aparecem aqui — escolha no alto da tela.'+(window.PDG_FOODY===false?'':' O dado de pedido e de motoboy vem do Foody e do TrackEat, conforme o que estiver respondendo em cada loja.')+'</div>';
 
-  h = cdmCab(d) + h;
+  h = pdgCab(d) + h;
   var px=$('plx');
   if(px) px.innerHTML='<span class="pl">Faixa agora <b>'+(pAtual?esc(pAtual)+' · ':'')+prom+' min</b></span>'+
     '<span class="pl"'+(cls==='vermelho'?' style="border-color:rgba(230,103,103,.5)"':'')+'>A conta pede <b'+(cls==='vermelho'?' style="color:#ff9a9a"':'')+'>'+sug+' min</b></span>'+
@@ -459,13 +459,13 @@ async function sugEnviar(){
   var txt=(t.value||'').trim();
   if(txt.length<5){av.className='av ruim';av.textContent='Escreva pelo menos uma frase.';return}
   av.className='av'; av.textContent='Mandando…';
-  var r=await rpc('delivery_sugestao_gravar',{p_token:cdmTok(),p_unidade:nomeLoja(UNI),p_quem:(q?q.value:''),p_texto:txt});
+  var r=await rpc('delivery_sugestao_gravar',{p_token:pdgTok(),p_unidade:nomeLoja(UNI),p_quem:(q?q.value:''),p_texto:txt});
   if(r&&r.ok){av.className='av';av.textContent='Recado enviado. Obrigado!';sugRascunhoTxt='';t.value='';boot()}
   else{av.className='av ruim';av.textContent=(r&&r.erro)?r.erro:'Não consegui enviar agora. Tente de novo.'}
 }
 async function sugAcao(id,st){
   var av=$('sugAviso'); if(av){av.className='av';av.textContent='Salvando…'}
-  var r=await rpc('delivery_sugestao_acao',{p_token:cdmTok(),p_id:id,p_status:st});
+  var r=await rpc('delivery_sugestao_acao',{p_token:pdgTok(),p_id:id,p_status:st});
   if(r&&r.ok){boot()} else if(av){av.className='av ruim';av.textContent=(r&&r.erro)?r.erro:'Não consegui salvar.'}
 }
 let AC=null,somOk=false,silAte=0,apitador=null;
@@ -475,15 +475,15 @@ function ligaSom(){try{if(!AC)AC=new (window.AudioContext||window.webkitAudioCon
 function apita(){if(!somOk||!AC)return;if(Date.now()<silAte)return;try{var t=AC.currentTime;var o=AC.createOscillator(),g=AC.createGain();o.type='square';o.frequency.value=880;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.5,t+0.05);g.gain.exponentialRampToValueAtTime(0.0001,t+0.55);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+0.6);var o2=AC.createOscillator(),g2=AC.createGain();o2.type='square';o2.frequency.value=660;g2.gain.setValueAtTime(0.0001,t+0.6);g2.gain.exponentialRampToValueAtTime(0.5,t+0.65);g2.gain.exponentialRampToValueAtTime(0.0001,t+1.15);o2.connect(g2);g2.connect(AC.destination);o2.start(t+0.6);o2.stop(t+1.2);}catch(e){}}
 function alarme(liga){if(Date.now()<silAte)liga=false;document.body.classList.toggle('alarme',liga);var b=document.getElementById('sil');if(b)b.style.display=liga?'block':'none';var av=document.getElementById('somaviso');if(av)av.style.display=(liga&&!somOk)?'block':'none';if(liga&&somOk){if(!apitador){apita();apitador=setInterval(apita,10000)}}else if(apitador){clearInterval(apitador);apitador=null}}
 try{if(navigator.wakeLock)navigator.wakeLock.request('screen').catch(function(){})}catch(e){}
-function cdmPrimeiroToque(){ligaSom();if(somOk){['click','touchstart','keydown'].forEach(function(ev){document.removeEventListener(ev,cdmPrimeiroToque)});if(document.body.classList.contains('alarme')&&!apitador){apita();apitador=setInterval(apita,10000)}}}
-['click','touchstart','keydown'].forEach(function(ev){document.addEventListener(ev,cdmPrimeiroToque,{passive:true})});
+function pdgPrimeiroToque(){ligaSom();if(somOk){['click','touchstart','keydown'].forEach(function(ev){document.removeEventListener(ev,pdgPrimeiroToque)});if(document.body.classList.contains('alarme')&&!apitador){apita();apitador=setInterval(apita,10000)}}}
+['click','touchstart','keydown'].forEach(function(ev){document.addEventListener(ev,pdgPrimeiroToque,{passive:true})});
 /* seletor de loja: as lojas vem do config.js (PORTAL_CFG.lojas); UNI guarda o id da loja escolhida.
    Ao banco vai o nome da loja (p_unidade). Aceita ?loja=ID no endereco. */
 var LOJAS=Array.isArray(PORTAL_CFG.lojas)?PORTAL_CFG.lojas:[];
 function lojaDe(id){ for(var i=0;i<LOJAS.length;i++) if(LOJAS[i].id===id) return LOJAS[i]; return null; }
 function nomeLoja(id){ var l=lojaDe(id); return l?l.nome:String(id||''); }
 let UNI=LOJAS.length?LOJAS[0].id:'';
-try{var _u=localStorage.getItem('cdm_tempo_uni'); if(lojaDe(_u)) UNI=_u;}catch(e){}
+try{var _u=localStorage.getItem('pdg_tempo_uni'); if(lojaDe(_u)) UNI=_u;}catch(e){}
 try{var _ql=new URLSearchParams(location.search).get('loja'); if(lojaDe(_ql)) UNI=_ql;}catch(e){}
 (function(){
   var el=$('lojas'); if(!el) return;
@@ -498,14 +498,14 @@ function pintaLojas(){
   var s=$('sub'); if(s) s.innerHTML='Loja <b>'+esc(nomeLoja(UNI))+'</b> — quanto prometer ao cliente agora';
 }
 function trocaLoja(u){
-  UNI=u; try{localStorage.setItem('cdm_tempo_uni',u)}catch(e){}
+  UNI=u; try{localStorage.setItem('pdg_tempo_uni',u)}catch(e){}
   var px=$('plx'); if(px) px.innerHTML='';
   pintaLojas();
   $('app').innerHTML='<div class="load">Carregando '+esc(nomeLoja(u))+'…</div>';
   boot();
 }
 async function boot(){
-  const t=cdmTok();
+  const t=pdgTok();
   pintaLojas();
   const d=await rpc('delivery_tempo',{p_token:t,p_unidade:nomeLoja(UNI)});
   if(!d){$('app').innerHTML='<div class="load">Não consegui ler agora. Clique em Atualizar.</div>';return}
@@ -513,24 +513,24 @@ async function boot(){
 }
 
 /* ===== porta unica do portal ===== */
-const CDMMODS=['tempo'];
-function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
-function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+const PDGMODS=['tempo'];
+function pdgTok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
+function pdgSaia(m){try{sessionStorage.setItem('pdg_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
-async function cdmGuarda(){
-  const t=cdmTok();
-  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+async function pdgGuarda(){
+  const t=pdgTok();
+  if(!t){pdgSaia('Entre no portal para acessar esta tela');return false}
   let j=null;
   try{
     const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'tempo'})});
     if(r.ok)j=await r.json();
   }catch(e){j=null}
-  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  if(!j||!j.usuario){pdgSaia('Entre no portal para acessar esta tela');return false}
   const ms=Array.isArray(j.modulos)?j.modulos:[];
-  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  if(!ms.some(function(m){return m&&PDGMODS.indexOf(m.id)>=0})){pdgSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){if(ok){boot();var cdmT=setInterval(boot,180000);document.addEventListener('visibilitychange',function(){if(document.hidden){clearInterval(cdmT);cdmT=null;if(apitador){clearInterval(apitador);apitador=null}}else if(!cdmT){boot();cdmT=setInterval(boot,180000)}})}});
+pdgGuarda().then(function(ok){if(ok){boot();var pdgT=setInterval(boot,180000);document.addEventListener('visibilitychange',function(){if(document.hidden){clearInterval(pdgT);pdgT=null;if(apitador){clearInterval(apitador);apitador=null}}else if(!pdgT){boot();pdgT=setInterval(boot,180000)}})}});
 </script>
 <script src="../assets/portal.js?v=3"></script>
 </body>

@@ -47,13 +47,13 @@ servidor.listen(0, '127.0.0.1', async () => {
       await hub.evaluate((p) => entrarComo(p), papel);
       await hub.waitForTimeout(1200);
       const mods = await hub.evaluate(() => MODULOS.map((m) => ({ id: m.id, url: m.url, nome: m.nome })));
-      const token = await hub.evaluate(() => sessionStorage.getItem('cdm_token'));
-      const admin = await hub.evaluate(() => sessionStorage.getItem('cdm_admin'));
+      const token = await hub.evaluate(() => sessionStorage.getItem('pdg_token'));
+      const admin = await hub.evaluate(() => sessionStorage.getItem('pdg_admin'));
       await hub.close();
       for (const m of mods) {
         const r = { papel, id: m.id, url: m.url, erros_js: [], erros_console: [], http_404: [], externos: [], faltando: [], quebra: [] };
         const pg = await ctx.newPage();
-        await pg.addInitScript(([t, a]) => { try { sessionStorage.setItem('cdm_token', t); sessionStorage.setItem('cdm_admin', a); } catch (e) {} }, [token, admin]);
+        await pg.addInitScript(([t, a]) => { try { sessionStorage.setItem('pdg_token', t); sessionStorage.setItem('pdg_admin', a); } catch (e) {} }, [token, admin]);
         pg.on('pageerror', (e) => r.erros_js.push(String(e && e.message || e).slice(0, 200)));
         pg.on('console', (c) => { if (c.type() === 'error' && !/Failed to load resource/.test(c.text())) r.erros_console.push(c.text().slice(0, 200)); });
         pg.on('request', (q) => { const u = q.url(); if (!u.startsWith(base) && !PERMITIDOS.some((re) => re.test(u))) r.externos.push(u.slice(0, 150)); });

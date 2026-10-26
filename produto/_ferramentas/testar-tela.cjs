@@ -7,6 +7,7 @@
      --esperar 3000    quantos milissegundos esperar depois de abrir
      --shot arq.png    salva uma foto da tela inteira
      --largura 1366    largura da janela (use 390 para ver como celular)
+     --altura 900      altura da janela (ex.: 1080 para a TV)
      --clicar "sel"    clica num seletor CSS depois de abrir (pode repetir; espera 1,2 s apos cada clique)
      --js "expr"       avalia uma expressao JavaScript na pagina e mostra o resultado
      --sem-login       nao entra automaticamente (para testar a tela de entrada)
@@ -29,6 +30,7 @@ const PAPEL = opt('papel', 'dono');
 const ESPERA = +opt('esperar', 3000);
 const SHOT = opt('shot', null);
 const LARG = +opt('largura', 1366);
+const ALT = +opt('altura', 900);
 const JS = opt('js', null);
 const CLIQUES = opts('clicar');
 const SEM_LOGIN = args.includes('--sem-login');
@@ -52,13 +54,13 @@ servidor.listen(0, '127.0.0.1', async () => {
   let browser;
   try {
     browser = await chromium.launch();
-    const ctx = await browser.newContext({ viewport: { width: LARG, height: 900 }, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' });
+    const ctx = await browser.newContext({ viewport: { width: LARG, height: ALT }, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' });
     if (!SEM_LOGIN) {
       await ctx.addInitScript((p) => {
         try {
-          if (!sessionStorage.getItem('cdm_token')) {
-            sessionStorage.setItem('cdm_token', 'demo-' + p);
-            sessionStorage.setItem('cdm_admin', p === 'dono' ? '1' : '0');
+          if (!sessionStorage.getItem('pdg_token')) {
+            sessionStorage.setItem('pdg_token', 'demo-' + p);
+            sessionStorage.setItem('pdg_admin', p === 'dono' ? '1' : '0');
           }
         } catch (e) {}
       }, PAPEL);

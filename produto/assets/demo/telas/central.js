@@ -6,7 +6,7 @@
      tabelas ifood_dim_loja, ifood_fato_cancelamento, ifood_fato_avaliacao,
      ifood_fato_negociacao, ifood_fato_super_status, ifood_previa_dia,
      cardapio_pausado, saipos_venda_status, saipos_vw_status_dia
-     e as do sistema de entregas antigo (foody_*), usadas so com CDM_FOODY ligado.
+     e as do sistema de entregas antigo (foody_*), usadas so com PDG_FOODY ligado.
    Tudo sai de MUNDO: mesmos pedidos, motoboys e equipe das outras telas. */
 (function () {
   'use strict';
@@ -476,7 +476,7 @@
     return out;
   });
 
-  /* ---------------- sistema de entregas antigo (so com CDM_FOODY ligado) ---------------- */
+  /* ---------------- sistema de entregas antigo (so com PDG_FOODY ligado) ---------------- */
   function porMotoboy(dia) {
     var g = {};
     detalhe(dia).forEach(function (p) {

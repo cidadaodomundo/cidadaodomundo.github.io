@@ -47,7 +47,7 @@
   }
 
   function lerToken() {
-    try { return sessionStorage.getItem('cdm_token') || ''; } catch (e) { return ''; }
+    try { return sessionStorage.getItem('pdg_token') || ''; } catch (e) { return ''; }
   }
   function papelDoToken(t) {
     var m = /^demo-([a-z]+)$/.exec(String(t || ''));
@@ -60,9 +60,9 @@
       var raizPath = new URL(C.raiz, location.href).pathname, p = location.pathname;
       var ehHub = p === raizPath || p === raizPath + 'index.html';
       if (!ehHub && !papelDoToken(lerToken())) {
-        sessionStorage.setItem('cdm_token', 'demo-dono');
-        sessionStorage.setItem('cdm_admin', '1');
-        sessionStorage.setItem('cdm_nome', USUARIOS.dono.nome);
+        sessionStorage.setItem('pdg_token', 'demo-dono');
+        sessionStorage.setItem('pdg_admin', '1');
+        sessionStorage.setItem('pdg_nome', USUARIOS.dono.nome);
       }
     } catch (e) {}
   })();

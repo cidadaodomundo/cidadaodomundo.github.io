@@ -291,33 +291,33 @@ const SB=PORTAL_CFG.rest;
 /* logo e marca do cliente (config.js) */
 document.querySelectorAll('img.logo').forEach(function(i){i.src=PORTAL_CFG.logoUrl;i.alt=PORTAL_CFG.marca});
 if(PORTAL_CFG.demo){var _gd=document.getElementById('gdemo');if(_gd)_gd.style.display='block'}
-async function escRPC(acao,dados){const t=(function(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}})();if(!t)throw new Error('Entre pelo portal para usar a escala.');const r=await fetch(SB+'rpc/escala_consulta',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_cred:t,p_acao:acao,p_dados:dados||{}})});const j=await r.json().catch(function(){return null});if(!r.ok)throw new Error((j&&j.message)||('HTTP '+r.status));return j}
+async function escRPC(acao,dados){const t=(function(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}})();if(!t)throw new Error('Entre pelo portal para usar a escala.');const r=await fetch(SB+'rpc/escala_consulta',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_cred:t,p_acao:acao,p_dados:dados||{}})});const j=await r.json().catch(function(){return null});if(!r.ok)throw new Error((j&&j.message)||('HTTP '+r.status));return j}
 const KEY=PORTAL_CFG.chave;
 const H={apikey:KEY,Authorization:'Bearer '+KEY};
 /* ===== porta unica do portal: sessao por usuario ===== */
-const CDMMODS=['rh'];
-function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
-function cdmTem(id){try{const l=JSON.parse(sessionStorage.getItem('cdm_modulos')||'[]');return Array.isArray(l)&&l.some(function(m){return m&&m.id===id})}catch(e){return false}}
-function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+const PDGMODS=['rh'];
+function pdgTok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
+function pdgTem(id){try{const l=JSON.parse(sessionStorage.getItem('pdg_modulos')||'[]');return Array.isArray(l)&&l.some(function(m){return m&&m.id===id})}catch(e){return false}}
+function pdgSaia(m){try{sessionStorage.setItem('pdg_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
-async function cdmGuarda(){
-  const t=cdmTok();
-  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+async function pdgGuarda(){
+  const t=pdgTok();
+  if(!t){pdgSaia('Entre no portal para acessar esta tela');return false}
   let j=null;
   try{
     const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_token:t,p_tela:'rh'})});
     if(r.ok)j=await r.json();
   }catch(e){j=null}
-  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  if(!j||!j.usuario){pdgSaia('Entre no portal para acessar esta tela');return false}
   const ms=Array.isArray(j.modulos)?j.modulos:[];
-  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_papel',j.papel||'');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
-  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  try{sessionStorage.setItem('pdg_nome',j.nome||'');sessionStorage.setItem('pdg_admin',j.admin?'1':'0');sessionStorage.setItem('pdg_papel',j.papel||'');sessionStorage.setItem('pdg_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&PDGMODS.indexOf(m.id)>=0})){pdgSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
 function gateTry(){
   const el=document.getElementById('gpw'), v=(el&&el.value)||'';
   if(!v){document.getElementById('gerr').textContent='Digite a senha do escritório.';return}
-  try{sessionStorage.setItem('cdm_rh_pw',v)}catch(e){}
+  try{sessionStorage.setItem('pdg_rh_pw',v)}catch(e){}
   if(el)el.value='';
   RH_CRED=null;RH_SEM_SENHA=false;RH_PULOU=false;
   document.getElementById('gate').style.display='none';
@@ -409,8 +409,8 @@ function arrOk(r,q){if(Array.isArray(r))return r;ARRERR++;try{console.error('[rh
 const dbr=d=>d?String(d).slice(0,10).split('-').reverse().join('/'):'';
 /* o token da sessao vale como credencial; a senha do escritorio vale como reserva. */
 let RH_CRED=null,RH_PULOU=false;
-function rhPw(){try{return sessionStorage.getItem('cdm_rh_pw')||''}catch(e){return ''}}
-function rhTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function rhPw(){try{return sessionStorage.getItem('pdg_rh_pw')||''}catch(e){return ''}}
+function rhTok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
 function rhPular(){RH_PULOU=true;const g=$('gate');if(g)g.style.display='none';}
 function rhPedeSenha(msg){RH_CRED=null;RH_SEM_SENHA=true;if(RH_PULOU)return;const g=$('gate');if(g)g.style.display='flex';const el=$('gerr');if(el)el.textContent=msg||'Digite a senha do escritório para ver o detalhe.';}
 async function _rhTenta(cred,acao,dados){
@@ -427,7 +427,7 @@ async function rhRPC(acao,dados){
       if(r.ok){RH_CRED=cands[i];RH_SEM_SENHA=false;return r.lista}
       if(r.code!=='28000'){RH_SEM_SENHA=true;return[]}
     }
-    try{sessionStorage.removeItem('cdm_rh_pw')}catch(e){}
+    try{sessionStorage.removeItem('pdg_rh_pw')}catch(e){}
     rhPedeSenha('Digite a senha do escritório para ver o detalhe.');
     return[];
   }catch(err){RH_SEM_SENHA=true;return[]}
@@ -500,7 +500,7 @@ async function expCarregar(){
     EXPLISTA=l; expPara(); expPinta(); try{render()}catch(e){}
   }catch(e){}
 }
-function xpDono(){try{return sessionStorage.getItem('cdm_admin')==='1'||['gerente','escritorio'].indexOf(sessionStorage.getItem('cdm_papel')||'')>=0}catch(e){return false}}
+function xpDono(){try{return sessionStorage.getItem('pdg_admin')==='1'||['gerente','escritorio'].indexOf(sessionStorage.getItem('pdg_papel')||'')>=0}catch(e){return false}}
 function xpEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function xpRot(d){return d==='nao_renovado'?'n&atilde;o renovar':(d==='efetivado'?'efetivado':(d==='prorrogado'?'prorrogado':xpEsc(d)))}
 async function xpDecidir(bt,nome,marco,dec,k){
@@ -958,7 +958,7 @@ if('Notification' in window&&Notification.permission==='granted')setTimeout(()=>
 function checkAcoes(){
   const last=DAYS[DAYS.length-1]; if(!last)return;
   const acoes=ALL.filter(r=>r.data===last&&['SERIO','GRAVE','INFRACAO','VERBAL'].includes(NV(r)));
-  const key='rhcdm_seen_'+last;
+  const key='rhpdg_seen_'+last;
   if(acoes.length&&!localStorage.getItem(key)){
     localStorage.setItem(key,'1');
     const nomes=acoes.map(a=>a.nome.split(' ')[0]).join(', ');
@@ -985,7 +985,7 @@ function rhAutoDesliga(){if(RHAUTO){clearInterval(RHAUTO);RHAUTO=null}}
 document.addEventListener('visibilitychange',function(){if(document.hidden)rhAutoDesliga();else rhAutoLiga()});
 window.addEventListener('pagehide',rhAutoDesliga);
 rhAutoLiga();
-cdmGuarda().then(function(ok){if(ok)loadAll()});
+pdgGuarda().then(function(ok){if(ok)loadAll()});
 </script>
 <script>
 /* ===== 🍽 REFEIÇÃO DA EQUIPE ===== */
@@ -1000,8 +1000,8 @@ function rfNum(v){return v==null?'—':Number(v).toLocaleString('pt-BR')}
 function rfIso(d){return d.toISOString().slice(0,10)}
 function rfHoje(){return rfIso(new Date())}
 function rfAtras(n){return rfIso(new Date(Date.now()-n*864e5))}
-function rfTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
-function rfNome(){try{return sessionStorage.getItem('cdm_nome')||''}catch(e){return ''}}
+function rfTok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
+function rfNome(){try{return sessionStorage.getItem('pdg_nome')||''}catch(e){return ''}}
 function rfMsg(id,txt,erro){var e=document.getElementById(id);if(!e)return;e.style.color=erro?'#e66767':'#2fae6a';e.textContent=txt||''}
 async function rfOp(acao,dados){
   var r=await fetch(SB+'rpc/operacao_consulta',{method:'POST',
@@ -1441,7 +1441,7 @@ async function rfCarregaMoto(){
       });
       h+='</table></div>';
     }
-    h+='<div class="rf-nota">'+(window.CDM_FOODY===false?'':'Quem rodou vem do Foody, por turno. ')+'A refeição vem das vendas feitas no <b>cliente</b> dos motoboys no Saipos (ex.: um cliente chamado "Motoboys"). Se o nome do cliente mudar, marque o novo aqui embaixo.</div></div>';
+    h+='<div class="rf-nota">'+(window.PDG_FOODY===false?'':'Quem rodou vem do Foody, por turno. ')+'A refeição vem das vendas feitas no <b>cliente</b> dos motoboys no Saipos (ex.: um cliente chamado "Motoboys"). Se o nome do cliente mudar, marque o novo aqui embaixo.</div></div>';
     h+='<div id="rfcli"><div class="rf-load">Vendo os clientes…</div></div>';
     rfBox(h);
     rfCarregaClientes();

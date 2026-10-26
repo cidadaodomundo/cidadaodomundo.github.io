@@ -252,29 +252,29 @@ const H={apikey:KEY,Authorization:'Bearer '+KEY};
   Object.keys(lk).forEach(function(id){const a=document.getElementById(id); if(a)a.href=PORTAL_CFG.url(lk[id])});
 })();
 /* ===== porta unica do portal: sessao por usuario ===== */
-const CDMMODS=['ponto'];
-function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
-function cdmTem(id){try{const l=JSON.parse(sessionStorage.getItem('cdm_modulos')||'[]');return Array.isArray(l)&&l.some(function(m){return m&&m.id===id})}catch(e){return false}}
-function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+const PDGMODS=['ponto'];
+function pdgTok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
+function pdgTem(id){try{const l=JSON.parse(sessionStorage.getItem('pdg_modulos')||'[]');return Array.isArray(l)&&l.some(function(m){return m&&m.id===id})}catch(e){return false}}
+function pdgSaia(m){try{sessionStorage.setItem('pdg_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
-async function cdmGuarda(){
-  const t=cdmTok();
-  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+async function pdgGuarda(){
+  const t=pdgTok();
+  if(!t){pdgSaia('Entre no portal para acessar esta tela');return false}
   let j=null;
   try{
     const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_token:t,p_tela:'ponto'})});
     if(r.ok)j=await r.json();
   }catch(e){j=null}
-  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  if(!j||!j.usuario){pdgSaia('Entre no portal para acessar esta tela');return false}
   const ms=Array.isArray(j.modulos)?j.modulos:[];
-  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
-  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  try{sessionStorage.setItem('pdg_nome',j.nome||'');sessionStorage.setItem('pdg_admin',j.admin?'1':'0');sessionStorage.setItem('pdg_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&PDGMODS.indexOf(m.id)>=0})){pdgSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
 function gateTry(){
   const el=document.getElementById('gpw'), v=(el&&el.value)||'';
   if(!v){document.getElementById('gerr').textContent='Digite a senha do escritório.';return}
-  try{sessionStorage.setItem('cdm_rh_pw',v)}catch(e){}
+  try{sessionStorage.setItem('pdg_rh_pw',v)}catch(e){}
   if(el)el.value='';
   RH_CRED=null;RH_SEM_SENHA=false;RH_PULOU=false;
   document.getElementById('gate').style.display='none';
@@ -286,8 +286,8 @@ const EV_DE='2000-01-01',ESP_DE=new Date(Date.now()-90*864e5).toISOString().slic
 let RH_SEM_SENHA=false;
 /* credencial do RH: primeiro o token da sessao; a senha do escritorio fica como reserva. */
 let RH_CRED=null,RH_PULOU=false;
-function rhPw(){try{return sessionStorage.getItem('cdm_rh_pw')||''}catch(e){return ''}}
-function rhTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function rhPw(){try{return sessionStorage.getItem('pdg_rh_pw')||''}catch(e){return ''}}
+function rhTok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
 function rhPular(){RH_PULOU=true;const g=document.getElementById('gate');if(g)g.style.display='none';}
 function rhPedeSenha(msg){RH_CRED=null;RH_SEM_SENHA=true;if(RH_PULOU)return;const g=document.getElementById('gate');if(g)g.style.display='flex';const el=document.getElementById('gerr');if(el)el.textContent=msg||'Digite a senha do escritório para ver o histórico.';}
 async function _rhTenta(cred,acao,dados){
@@ -304,7 +304,7 @@ async function rhRPC(acao,dados){
       if(r.ok){RH_CRED=cands[i];RH_SEM_SENHA=false;return r.lista}
       if(r.code!=='28000'){RH_SEM_SENHA=true;return[]}
     }
-    try{sessionStorage.removeItem('cdm_rh_pw')}catch(e){}
+    try{sessionStorage.removeItem('pdg_rh_pw')}catch(e){}
     rhPedeSenha('Digite a senha do escritório para ver o histórico.');
     return[];
   }catch(err){RH_SEM_SENHA=true;return[]}
@@ -326,7 +326,7 @@ VERBAL:'RH: orientar verbalmente sobre o intervalo e registrar a conversa (data 
 CONFERIR:'RH: conferir antes de qualquer medida — escala real do dia, horário oficial no cadastro e se há férias/atestado/folga registrados. Só depois tratar como ocorrência.'};
 const MESES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 let ALL=[],MEN=[],EVT=[],DAYS=[],DI=0,UNIT='Todas',FILT=null,VIEW='day';
-let OCCAT=[],OCPER='30d',OCLOJA='Todas',OCTIPO=(function(){try{return sessionStorage.getItem('cdm_rh_tipo')||'FALTA'}catch(e){return 'FALTA'}})();
+let OCCAT=[],OCPER='30d',OCLOJA='Todas',OCTIPO=(function(){try{return sessionStorage.getItem('pdg_rh_tipo')||'FALTA'}catch(e){return 'FALTA'}})();
 const $=id=>document.getElementById(id);
 const fmt=m=>m==null?'—':Math.floor(m/60)+'h'+String(m%60).padStart(2,'0');
 const title=n=>n.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
@@ -541,7 +541,7 @@ const ocDM=d=>d?String(d).slice(8,10)+'/'+String(d).slice(5,7):'—';
 const ocLimpa=t=>String(t||'').replace(new RegExp('falt'+'ou','gi'),'ficou sem');
 const ocEsc=t=>String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const ocPlural=(n,s,p)=>n+' '+(n===1?s:p);
-function ocSetTipo(k){OCTIPO=k;try{sessionStorage.setItem('cdm_rh_tipo',k)}catch(e){}renderTipo()}
+function ocSetTipo(k){OCTIPO=k;try{sessionStorage.setItem('pdg_rh_tipo',k)}catch(e){}renderTipo()}
 function ocSetPer(v){OCPER=v;renderTipo()}
 function ocSetLoja(v){OCLOJA=v;renderTipo()}
 function ocSel(id,val,opts,fn){
@@ -1000,6 +1000,6 @@ $('q').addEventListener('input',e=>{
   sr.style.display='block';
 });
 document.addEventListener('click',e=>{if(!e.target.closest('.search'))$('sr').style.display='none'});
-cdmGuarda().then(function(ok){if(ok)loadAll()});
+pdgGuarda().then(function(ok){if(ok)loadAll()});
 </script><script src="../assets/portal.js?v=3"></script>
 </body></html>

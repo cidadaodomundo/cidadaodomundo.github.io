@@ -61,7 +61,7 @@
   var DENTRO_DELIVERY = ['chegada', 'resolver', 'delivery', 'tempo', 'fila'];
   var PAPEIS = {
     dono: null, /* todos */
-    gerente: ['agora', 'pausados', 'cancelados', 'turno', 'avaliacoes', 'qualidade', 'escala', 'motoboys',
+    gerente: ['agora', 'pausados', 'cancelados', 'turno', 'avaliacoes', 'qualidade', 'escala', 'motoboys', 'placar', 'ifood',
               'rh', 'salao', 'cozinha', 'tv', 'freelas', 'manutencao', 'cancelcaixa', 'caixadia', 'escala-mensal',
               'estoque', 'producao', 'operacao', 'encomendas', 'prestadores'].concat(DENTRO_DELIVERY),
     escritorio: ['pagamento', 'ponto', 'rhcaixa', 'folha', 'rescisao', 'contas', 'receber', 'conferencia',
@@ -74,7 +74,8 @@
   }
   function sessao(papel) {
     var u = D.usuarios[papel];
-    return { usuario: u.usuario, nome: u.nome, admin: u.admin, papel: papel, modulos: modulosDe(papel), precisa_trocar: false };
+    /* usuario = nome de entrada (texto), como no banco de verdade; usuario_id = numero */
+    return { usuario: papel, usuario_id: u.usuario, nome: u.nome, admin: u.admin, papel: papel, modulos: modulosDe(papel), precisa_trocar: false };
   }
   /* para outras telas de demonstracao */
   D.modulos = MODULOS;
@@ -111,7 +112,7 @@
   /* frescor das fontes de dados: na demonstracao, tudo em dia */
   D.tabela('fato_frescor', function () {
     var h = M.hoje();
-    return ['pdv_vendas', 'ifood_avaliacao', 'ifood_cancelamento', 'maquininha', 'ponto', 'entregas', 'google_avaliacao']
+    return ['pdv_vendas', 'ifood_avaliacao', 'ifood_cancelamento', 'maquininha', 'ponto', 'entregas', 'google_avaliacao', 'delivery_entrega', 'delivery_pedido']
       .map(function (f) { return { fonte: f, ultimo_dia: h, farol: 'OK', ultima_carga: M.agoraISO() }; });
   });
 })();

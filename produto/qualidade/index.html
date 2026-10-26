@@ -8,9 +8,9 @@
 <meta name="theme-color" content="#E0A81C">
 <title>Qualidade do Delivery · Portal de Gestão</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/cdm-ui.css?v=4">
+<link rel="stylesheet" href="../assets/pdg-ui.css?v=4">
 <style>
-/* Mesmo kit visual das outras telas (assets/cdm-ui.css): titulo grande, pilulas de placar, botoes redondos,
+/* Mesmo kit visual das outras telas (assets/pdg-ui.css): titulo grande, pilulas de placar, botoes redondos,
    quadros de numero grande e tabela com faixa de cabecalho e linhas zebradas. */
 .per{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .per .chip{padding:7px 13px}
@@ -108,11 +108,11 @@ table.pz tr.off b{color:var(--text2);font-weight:600}
   table.pz td:first-child{box-shadow:inset 4px 0 0 var(--brand)}
   table.pz tr.off td:first-child{box-shadow:inset 4px 0 0 #4a4943}
   table.pz tr.dia>td{border-top:2px solid #4a4943}
-  table.pz:has(th[data-cdmsd]) tr.dia>td{border-top:1px solid var(--line)}
+  table.pz:has(th[data-pdgsd]) tr.dia>td{border-top:1px solid var(--line)}
   table.pz th:nth-child(5),table.pz td:nth-child(5){padding-left:26px}
 }
 @media (max-width:700px){
-  /* prazo no celular: um cartao compacto por dia e loja (a tabela tem data-cdm-livre, o portal.js nao mexe nela) */
+  /* prazo no celular: um cartao compacto por dia e loja (a tabela tem data-pdg-livre, o portal.js nao mexe nela) */
   table.pz,table.pz tbody{display:block}
   table.pz tr:first-child{display:none}
   table.pz tr{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px 8px;padding:10px 10px 10px 14px;border-top:1px solid var(--line);box-shadow:inset 4px 0 0 var(--brand)}
@@ -185,7 +185,7 @@ const SB=PORTAL_CFG.rest;
 const KEY=PORTAL_CFG.chave;
 const $=i=>document.getElementById(i);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
+const tok=()=>{try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}};
 
 let D=null,DD=null,SU=null,DIAS=30,UNI='',ABA='prazo',DIA='',PER='hoje',CC=null,VIVO='';
 
@@ -254,7 +254,7 @@ async function puxaSuper(){SU=await porta('qualidade_super',{dias:DIAS});desenha
 function n(v){return v==null?'—':String(v)}
 /* numero com virgula decimal (4,7 e 2,5%) */
 function nd(v){return n(v).replace('.',',')}
-function br(v){return (v==null||!(function(){try{return sessionStorage.getItem("cdm_admin")==="1"}catch(e){return false}})())?'—':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function br(v){return (v==null||!(function(){try{return sessionStorage.getItem("pdg_admin")==="1"}catch(e){return false}})())?'—':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 
 /* compara com o periodo anterior. bom=true quer dizer "subir e bom" */
 function delta(agora,antes,bom,suf){
@@ -356,7 +356,7 @@ function reeMarcar(el){
   var u=el.getAttribute('data-u'),t=el.getAttribute('data-t'),mo=el.value;
   if(!mo)return;
   el.disabled=true;
-  reeRPC('marcar',{unidade:u,data_hora_pedido:t,motivo:mo,lancado_por:(sessionStorage.getItem('cdm_papel')||'portal')})
+  reeRPC('marcar',{unidade:u,data_hora_pedido:t,motivo:mo,lancado_por:(sessionStorage.getItem('pdg_papel')||'portal')})
     .then(function(){REE=null;REEbusy=false;reePuxa()})
     .catch(function(e){el.disabled=false;alert('Não consegui gravar: '+e.message)});
 }
@@ -364,7 +364,7 @@ function reeResp(el){
   var u=el.getAttribute('data-u'),t=el.getAttribute('data-t'),mo=el.getAttribute('data-m'),re=el.value;
   if(!mo){el.value='';return}
   el.disabled=true;
-  reeRPC('marcar',{unidade:u,data_hora_pedido:t,motivo:mo,responsavel:re,lancado_por:(sessionStorage.getItem('cdm_papel')||'portal')})
+  reeRPC('marcar',{unidade:u,data_hora_pedido:t,motivo:mo,responsavel:re,lancado_por:(sessionStorage.getItem('pdg_papel')||'portal')})
     .then(function(){REE=null;REEbusy=false;reePuxa()})
     .catch(function(e){el.disabled=false;alert('Não consegui gravar: '+e.message)});
 }
@@ -446,7 +446,7 @@ function maqHtml(j){
       '<td>'+rede+'</td>'+
       '<td>'+gps+'</td>'+
       '<td>'+maqPill(l.situacao)+'</td></tr>';
-    h+='<tr class="ex'+z+'"><td colspan="'+(dono?9:8)+'" data-cdm-l="">'+esc(x[2])+'</td></tr>';
+    h+='<tr class="ex'+z+'"><td colspan="'+(dono?9:8)+'" data-pdg-l="">'+esc(x[2])+'</td></tr>';
   });
   h+='</table></div></div>';
   h+='<div class="c" style="font-size:12px;color:var(--text2);line-height:1.55">Como eu confiro: pego cada entrega que o <b>Saipos</b> diz que foi paga na porta (cartão, vale, Pix, dinheiro), procuro o valor exato na <b>Rede</b> da mesma loja em até '+esc(j.janela_min||240)+' minutos da hora da entrega (cada cobrança da Rede só pode casar com <b>um</b> pedido — a mesa do salão paga na mesma hora não conta duas vezes), depois no <b>extrato</b> (Pix) e, por último, olho o <b>GPS</b> do motoboy: estar a menos de '+esc(j.raio_m||150)+' m da casa do cliente prova que ele entregou. Regra de exemplo (configurável): <b>o preço já inclui a taxa — nada é cobrado por fora</b>.</div>';
@@ -548,12 +548,12 @@ function cancVivo(){
   if(CV===null)return h+'<div class="c"><div class="load">Buscando as fontes vivas…</div></div>';
   if(CV===false)return h+'<div class="c"><div class="vazio">não deu para carregar as fontes vivas — tente Atualizar</div></div>'+'<h2>📋 O quadro oficial do iFood (atrasa 1 dia)</h2>';
   const f=CV.fontes||{};
-  h+='<div class="m" style="margin:0 0 8px">Este bloco é o <b>' + esc((CV.janela&&CV.janela.rotulo)||'turno de hoje') + '</b>' + ((CV.janela&&CV.janela.de)?' (' + esc(CV.janela.de) + ' → ' + esc(CV.janela.ate) + ')':'') + ', não segue o período dos botões · Saipos atualizado '+(f.saipos?String(f.saipos).slice(11,16):'—')+' · última conversa do iFood '+(f.chat?String(f.chat).slice(11,16):'—')+' · porta oficial '+(f.api?String(f.api).slice(11,16):'—')+' · Gestor Web '+(f.gw?String(f.gw).slice(11,16):'—')+(window.CDM_FOODY===false?'.':' · Foody de 15 em 15 min.')+'</div>';
+  h+='<div class="m" style="margin:0 0 8px">Este bloco é o <b>' + esc((CV.janela&&CV.janela.rotulo)||'turno de hoje') + '</b>' + ((CV.janela&&CV.janela.de)?' (' + esc(CV.janela.de) + ' → ' + esc(CV.janela.ate) + ')':'') + ', não segue o período dos botões · Saipos atualizado '+(f.saipos?String(f.saipos).slice(11,16):'—')+' · última conversa do iFood '+(f.chat?String(f.chat).slice(11,16):'—')+' · porta oficial '+(f.api?String(f.api).slice(11,16):'—')+' · Gestor Web '+(f.gw?String(f.gw).slice(11,16):'—')+(window.PDG_FOODY===false?'.':' · Foody de 15 em 15 min.')+'</div>';
   const L=CV.por_loja||[];
   if(!L.length)h+='<div class="c"><div class="vazio">Nenhum cancelamento (total ou parcial) registrado hoje até agora.</div></div>';
   else{
-    h+='<div class="c"><div class="rolar"><table><tr><th>Loja</th><th>Cancelados (Saipos)</th><th>Parciais (itens tirados)</th>'+(window.CDM_FOODY===false?'':'<th>Foody cancelado</th>')+'<th>Porta oficial</th><th>Gestor Web</th></tr>';
-    L.forEach(function(l){h+='<tr><td><b>'+esc(l.unidade)+'</b></td><td>'+n(l.totais)+'</td><td>'+n(l.parciais)+(l.itens?' <span class="m">('+n(l.itens)+(l.itens===1?' item':' itens')+')</span>':'')+'</td>'+(window.CDM_FOODY===false?'':'<td>'+n(l.foody)+'</td>')+'<td>'+n(l.api_cancel)+'</td><td>'+n(l.gw_cancel)+'</td></tr>'});
+    h+='<div class="c"><div class="rolar"><table><tr><th>Loja</th><th>Cancelados (Saipos)</th><th>Parciais (itens tirados)</th>'+(window.PDG_FOODY===false?'':'<th>Foody cancelado</th>')+'<th>Porta oficial</th><th>Gestor Web</th></tr>';
+    L.forEach(function(l){h+='<tr><td><b>'+esc(l.unidade)+'</b></td><td>'+n(l.totais)+'</td><td>'+n(l.parciais)+(l.itens?' <span class="m">('+n(l.itens)+(l.itens===1?' item':' itens')+')</span>':'')+'</td>'+(window.PDG_FOODY===false?'':'<td>'+n(l.foody)+'</td>')+'<td>'+n(l.api_cancel)+'</td><td>'+n(l.gw_cancel)+'</td></tr>'});
     h+='</table></div></div>';
   }
   const ch=CV.chats||{};
@@ -585,7 +585,7 @@ function motoVivo(){
 function reeAba(){
   if(REE===null)return '<div class="c"><div class="vazio">Carregando reentregas…</div></div>';
   var rs=(REE||[]).filter(function(r){return !UNI||r.unidade===UNI});
-  var h='<div class="m" style="margin:0 0 8px">🔁 <b>O mesmo pedido que saiu duas vezes</b> · últimos 7 dias · a lista vem do '+(window.CDM_FOODY===false?'TrackEat':'Foody e do TrackEat')+', traz a fala do cliente no chat do iFood e, para o dono, o custo da corrida extra. Marcar o motivo e o responsável grava de verdade.'+((rs[0]&&rs[0].cache_em)?(' · lista refeita <b>'+reeQuando(rs[0].cache_em)+'</b>'):'')+'</div>';
+  var h='<div class="m" style="margin:0 0 8px">🔁 <b>O mesmo pedido que saiu duas vezes</b> · últimos 7 dias · a lista vem do '+(window.PDG_FOODY===false?'TrackEat':'Foody e do TrackEat')+', traz a fala do cliente no chat do iFood e, para o dono, o custo da corrida extra. Marcar o motivo e o responsável grava de verdade.'+((rs[0]&&rs[0].cache_em)?(' · lista refeita <b>'+reeQuando(rs[0].cache_em)+'</b>'):'')+'</div>';
   if(REEERRO)h+='<div class="aviso">'+esc(REEERRO)+'</div>';
   if(!rs.length)return h+'<div class="c"><div class="vazio">Nenhuma reentrega nos últimos 7 dias'+(UNI?' na '+esc(UNI):'')+'.</div></div>';
   var dias=[];rs.forEach(function(r){if(dias.indexOf(r.dia_operacional)<0)dias.push(r.dia_operacional)});
@@ -1132,7 +1132,7 @@ function pzAba(){
     h+='</div>';
   } else h+='<div class="c"><div class="vazio">Nenhum dia com medida suficiente no período.</div></div>';
   if(!L.length)return h+'<div class="c"><div class="vazio">Sem pedidos no período.</div></div>';
-  h+='<div class="c"><div class="rolar"><table class="pz" data-cdm-livre><tr><th>Dia</th><th>Loja</th><th class="n">Pedidos iFood</th><th class="n">Medidos</th><th>No prazo</th><th class="n">Pedido → entrega</th><th class="n">Na rua</th></tr>';
+  h+='<div class="c"><div class="rolar"><table class="pz" data-pdg-livre><tr><th>Dia</th><th>Loja</th><th class="n">Pedidos iFood</th><th class="n">Medidos</th><th>No prazo</th><th class="n">Pedido → entrega</th><th class="n">Na rua</th></tr>';
   var diaAnt=null;
   L.forEach(function(r){
     var ok=bom(r);
@@ -1280,24 +1280,24 @@ async function boot(){
 }
 
 /* ===== porta unica do portal ===== */
-const CDMMODS=['qualidade'];
-function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
-function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+const PDGMODS=['qualidade'];
+function pdgTok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
+function pdgSaia(m){try{sessionStorage.setItem('pdg_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
-async function cdmGuarda(){
-  const t=cdmTok();
-  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+async function pdgGuarda(){
+  const t=pdgTok();
+  if(!t){pdgSaia('Entre no portal para acessar esta tela');return false}
   let j=null;
   try{
     const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'qualidade'})});
     if(r.ok)j=await r.json();
   }catch(e){j=null}
-  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  if(!j||!j.usuario){pdgSaia('Entre no portal para acessar esta tela');return false}
   const ms=Array.isArray(j.modulos)?j.modulos:[];
-  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  if(!ms.some(function(m){return m&&PDGMODS.indexOf(m.id)>=0})){pdgSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){if(ok)boot()});
+pdgGuarda().then(function(ok){if(ok)boot()});
 </script>
 <script src="../assets/portal.js?v=3"></script>
 </body>

@@ -289,22 +289,22 @@ const NOVO_MIN=30; /* erro com menos de 30 min ganha NOVO e pisca */
 
 let COD='', DADO=null, VISTOS=null, TIMER=null, ULT_OK=0, SOM=false, BUSCANDO=false;
 /* Aberta pelo menu do portal (tv/?portal=1) a tela entra com o login do portal (porta cozinha_tv_portal) e a pessoa escolhe a loja.
-   Sem ?portal=1 (TV fisica) usa o codigo proprio da TV. No modo portal vale a mesma trava das outras telas (cdmGuarda + portal.js). */
-const PTOK=(function(){ try{ return sessionStorage.getItem('cdm_token')||''; }catch(e){ return ''; } })();
+   Sem ?portal=1 (TV fisica) usa o codigo proprio da TV. No modo portal vale a mesma trava das outras telas (pdgGuarda + portal.js). */
+const PTOK=(function(){ try{ return sessionStorage.getItem('pdg_token')||''; }catch(e){ return ''; } })();
 const PORTAL=/[?&]portal=1/.test(location.search);
 /* As lojas vem do config.js (PORTAL_CFG.lojas). tv/?portal=1&loja=ID deixa a tela presa naquela loja, sem botao das outras. */
 const TODAS=(Array.isArray(PORTAL_CFG.lojas)?PORTAL_CFG.lojas:[]).map(function(l){ return l.nome; });
 const FIXA=(function(){ const q=(new URLSearchParams(location.search).get('loja')||'').toLowerCase(); if(!q) return '';
   const l=(PORTAL_CFG.lojas||[]).find(function(x){ return String(x.id).toLowerCase()===q; }); return l?l.nome:''; })();
 const LOJAS=FIXA?[FIXA]:TODAS;
-let LOJA='', DE_NOVO=false; if(!FIXA){ try{ LOJA=localStorage.getItem('cdm_tv_loja')||''; }catch(e){} }
+let LOJA='', DE_NOVO=false; if(!FIXA){ try{ LOJA=localStorage.getItem('pdg_tv_loja')||''; }catch(e){} }
 if(LOJAS.indexOf(LOJA)<0) LOJA=LOJAS[0];
 /* Na TV da parede o som ja nasce LIGADO (erro novo apita); no portal fica desligado ate a pessoa ligar.
    Quem desligar no botao, fica desligado (guardado). */
-try{ const v=localStorage.getItem('cdm_tv_som'); SOM = v===null ? !PORTAL : v==='1'; }catch(e){ SOM=!PORTAL; }
+try{ const v=localStorage.getItem('pdg_tv_som'); SOM = v===null ? !PORTAL : v==='1'; }catch(e){ SOM=!PORTAL; }
 
-function guarda(c){ try{ localStorage.setItem('cdm_tv_codigo',c); }catch(e){} try{ history.replaceState(null,'','#'+c); }catch(e){} }
-function esquece(){ try{ localStorage.removeItem('cdm_tv_codigo'); }catch(e){} try{ history.replaceState(null,'',location.pathname); }catch(e){} }
+function guarda(c){ try{ localStorage.setItem('pdg_tv_codigo',c); }catch(e){} try{ history.replaceState(null,'','#'+c); }catch(e){} }
+function esquece(){ try{ localStorage.removeItem('pdg_tv_codigo'); }catch(e){} try{ history.replaceState(null,'',location.pathname); }catch(e){} }
 function pedeCodigo(msg){ $('cod').classList.add('on'); $('cod-err').textContent=msg||''; setTimeout(function(){ try{$('cod-in').focus();}catch(e){} },50); }
 function entra(){
   const c=limpa($('cod-in').value);
@@ -667,7 +667,7 @@ function cliMostra(){
 /* som: o navegador so deixa tocar depois de um clique; o botao liga e guarda a escolha */
 let AC=null;
 function som(){
-  SOM=!SOM; try{ localStorage.setItem('cdm_tv_som',SOM?'1':'0'); }catch(e){}
+  SOM=!SOM; try{ localStorage.setItem('pdg_tv_som',SOM?'1':'0'); }catch(e){}
   botaoSom(); if(SOM) apito();
 }
 function botaoSom(){ const b=$('bt-som'); b.textContent=SOM?'🔔 Som ligado':'🔕 Ligar som'; b.classList.toggle('on',SOM); somAviso(); }
@@ -712,7 +712,7 @@ function montaLojas(){
     if(b.getAttribute('data-carro')){ modoCarro(!MODO_CARRO); return; }
     if(b.getAttribute('data-info')){ abreInfo(b.getAttribute('data-info')); return; }
     const l=b.getAttribute('data-l'); if(!l||l===LOJA) return;
-    LOJA=l; try{ localStorage.setItem('cdm_tv_loja',l); }catch(e){}
+    LOJA=l; try{ localStorage.setItem('pdg_tv_loja',l); }catch(e){}
     [].forEach.call(d.querySelectorAll('button[data-l]'),function(x){ x.classList.toggle('on', x.getAttribute('data-l')===l); });
     DADO=null; VISTOS=null; $('loja').textContent=l; $('st').textContent='carregando…';
     SL_FOTO=0; SL_CLI=0; if(MODO_CARRO){ clearTimeout(SL_T); SL_T=null; $('sl').innerHTML=''; }
@@ -720,22 +720,22 @@ function montaLojas(){
   });
 }
 /* trava de entrada do modo portal: a mesma das outras telas */
-const CDMMODS=['tv'];
-function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
-function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+const PDGMODS=['tv'];
+function pdgTok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
+function pdgSaia(m){try{sessionStorage.setItem('pdg_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
-async function cdmGuarda(){
-  const t=cdmTok();
-  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+async function pdgGuarda(){
+  const t=pdgTok();
+  if(!t){pdgSaia('Entre no portal para acessar esta tela');return false}
   let j=null;
   try{
     const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'tv'})});
     if(r.ok)j=await r.json();
   }catch(e){j=null}
-  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  if(!j||!j.usuario){pdgSaia('Entre no portal para acessar esta tela');return false}
   const ms=Array.isArray(j.modulos)?j.modulos:[];
-  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
-  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  try{sessionStorage.setItem('pdg_nome',j.nome||'');sessionStorage.setItem('pdg_admin',j.admin?'1':'0');sessionStorage.setItem('pdg_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&PDGMODS.indexOf(m.id)>=0})){pdgSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
 /* janelas de ajuda (so no modo portal): regras, codigos das TVs, como ligar.
@@ -834,16 +834,16 @@ async function abreDia(dm){
     +' · cozinha '+n('cozinha')+' · montagem '+n('montagem')+' · qualidade '+(Q.length+AQ.length)+' · dia das 6h às 6h'+(j.hoje?' · <b>hoje, ainda contando</b>':'')+'</p>'
     +'<p style="font-size:.85em">'+(j.lido_em?'Lido em '+esc(j.lido_em)+'.':'')+(j.ontem?' Reclamação do iFood às vezes chega com 1 dia de atraso: este número ainda pode subir.':'')+'</p>';
   h+='<h3>🛍 Erros de cozinha e montagem ('+M.length+')</h3>';
-  if(M.length) h+='<table class="tb" data-cdm-sem-nota>'+cab+M.map(linha).join('')+'</table>';
+  if(M.length) h+='<table class="tb" data-pdg-sem-nota>'+cab+M.map(linha).join('')+'</table>';
   else h+='<div class="vazio"><b>Nenhum erro de cozinha ou montagem neste dia.</b></div>';
   h+='<h3>🍳 Problema de qualidade ('+(Q.length+AQ.length)+')</h3><p style="font-size:.85em">Cru, queimado, estragado, frio, sem sabor — e as avaliações do iFood que reclamam da comida. Reclamação conta na meta (inclusive frio); avaliação não conta.</p>';
-  if(Q.length||AQ.length) h+='<table class="tb" data-cdm-sem-nota>'+cab+Q.map(linha).join('')+AQ.map(linhaAv).join('')+'</table>';
+  if(Q.length||AQ.length) h+='<table class="tb" data-pdg-sem-nota>'+cab+Q.map(linha).join('')+AQ.map(linhaAv).join('')+'</table>';
   else h+='<div class="vazio"><b>Nenhum problema de qualidade neste dia'+(IF.n?'':' (as avaliações do iFood ainda não chegaram)')+'.</b></div>';
   /* avaliacoes: iFood (dos pedidos deste dia) e Google (a leitura so traz nota e total; avaliacao com data so quando o Google mostra "dias atras") */
   let av='<h3>⭐ Avaliações dos clientes</h3>';
   if(IF.n) av+='<p><b>iFood:</b> '+esc(IF.n)+' avaliaç'+(IF.n==1?'ão':'ões')+' dos pedidos deste dia'+(IF.media!=null?' · média '+esc(String(IF.media).replace('.',',')):'')+' · '+(RU.length?'<b style="color:var(--bad)">'+RU.length+(RU.length>1?' ruins':' ruim')+'</b> (nota até 3)':'nenhuma ruim')+'.</p>';
   else av+='<p><b>iFood:</b> nenhuma avaliação dos pedidos deste dia ainda — o iFood libera cerca de 1 dia depois.</p>';
-  if(AO.length) av+='<table class="tb" data-cdm-sem-nota>'+cab+AO.map(linhaAv).join('')+'</table>';
+  if(AO.length) av+='<table class="tb" data-pdg-sem-nota>'+cab+AO.map(linhaAv).join('')+'</table>';
   if(GO&&GO.total!=null){
     const nv=GO.novas==null?null:Number(GO.novas);
     av+='<p><b>Google:</b> nota '+esc(String(GO.nota).replace('.',','))+' · '+esc(Number(GO.total).toLocaleString('pt-BR'))+' avaliações'
@@ -938,7 +938,7 @@ setInterval(function(){ if(CARRO.length>1){ CARRO_I++; carroMostra(); } },8000);
    Nenhuma chamada de rede nova: o timer so troca a tela. Tela sem nada para mostrar (fora do ar vazio, sem foto) e pulada.
    Erro novo: volta na hora para "Erros de hoje". */
 let MODO_CARRO=!PORTAL;
-try{ if(PORTAL) MODO_CARRO=localStorage.getItem('cdm_tv_carro')==='1'; }catch(e){}
+try{ if(PORTAL) MODO_CARRO=localStorage.getItem('pdg_tv_carro')==='1'; }catch(e){}
 const SL_ORDEM=['erros','meta','fotos','pz','cli','notas','mel'];
 let SL_I=-1, SL_T=null, SL_FOTO=0, SL_CLI=0, SL_ATUAL='';
 function slErros(){
@@ -1091,7 +1091,7 @@ function slAtualiza(novos){
 }
 function modoCarro(on){
   MODO_CARRO=!!on; document.body.classList.toggle('modo-carro',MODO_CARRO);
-  try{ if(PORTAL) localStorage.setItem('cdm_tv_carro',MODO_CARRO?'1':'0'); }catch(e){}
+  try{ if(PORTAL) localStorage.setItem('pdg_tv_carro',MODO_CARRO?'1':'0'); }catch(e){}
   const b=document.querySelector('button[data-carro]'); if(b) b.classList.toggle('on',MODO_CARRO);
   clearTimeout(SL_T); SL_T=null;   /* nunca sobra relogio do carrossel anterior */
   if(MODO_CARRO) slMostra('erros'); else if(DADO) desenha([]);
@@ -1113,11 +1113,11 @@ function telaCheia(){ try{ if(document.fullscreenElement) document.exitFullscree
   if(PORTAL){
     $('loja').textContent=LOJA; $('st').textContent='conferindo o login…';
     try{ const ps=document.createElement('script'); ps.src='../assets/portal.js?v=3'; document.body.appendChild(ps); }catch(e){}
-    cdmGuarda().then(function(ok){ if(ok){ montaLojas(); busca(true); } });
+    pdgGuarda().then(function(ok){ if(ok){ montaLojas(); busca(true); } });
     return;
   }
   let c=''; try{ c=limpa(decodeURIComponent((location.hash||'').replace(/^#(k=)?/i,''))); }catch(e){ c=''; }
-  if(c.length!==8){ try{ c=limpa(localStorage.getItem('cdm_tv_codigo')); }catch(e){ c=''; } }
+  if(c.length!==8){ try{ c=limpa(localStorage.getItem('pdg_tv_codigo')); }catch(e){ c=''; } }
   if(c.length===8){ COD=c; busca(true); } else pedeCodigo();
 })();
 </script>

@@ -149,32 +149,32 @@ const KEY=PORTAL_CFG.chave;
 const H={apikey:KEY,Authorization:'Bearer '+KEY};
 const HJ=Object.assign({'Content-Type':'application/json'},H);
 /* ===== porta unica do portal: sessao por usuario ===== */
-const CDMMODS=['escala'];
-function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
-function cdmTem(id){try{const l=JSON.parse(sessionStorage.getItem('cdm_modulos')||'[]');return Array.isArray(l)&&l.some(function(m){return m&&m.id===id})}catch(e){return false}}
-function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+const PDGMODS=['escala'];
+function pdgTok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
+function pdgTem(id){try{const l=JSON.parse(sessionStorage.getItem('pdg_modulos')||'[]');return Array.isArray(l)&&l.some(function(m){return m&&m.id===id})}catch(e){return false}}
+function pdgSaia(m){try{sessionStorage.setItem('pdg_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
-async function cdmGuarda(){
-  const t=cdmTok();
-  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+async function pdgGuarda(){
+  const t=pdgTok();
+  if(!t){pdgSaia('Entre no portal para acessar esta tela');return false}
   let j=null;
   try{
     const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:HJ,body:JSON.stringify({p_token:t,p_tela:'escala'})});
     if(r.ok)j=await r.json();
   }catch(e){j=null}
-  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  if(!j||!j.usuario){pdgSaia('Entre no portal para acessar esta tela');return false}
   const ms=Array.isArray(j.modulos)?j.modulos:[];
-  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
-  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  try{sessionStorage.setItem('pdg_nome',j.nome||'');sessionStorage.setItem('pdg_admin',j.admin?'1':'0');sessionStorage.setItem('pdg_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&PDGMODS.indexOf(m.id)>=0})){pdgSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
 
 const LOJAS=(PORTAL_CFG.lojas||[]).map(function(l){return l.nome});
-var LOJA_PREV=(function(){try{var v=sessionStorage.getItem('cdm_esc_loja');return LOJAS.indexOf(v)>=0?v:LOJAS[0]}catch(e){return LOJAS[0]}})();
+var LOJA_PREV=(function(){try{var v=sessionStorage.getItem('pdg_esc_loja');return LOJAS.indexOf(v)>=0?v:LOJAS[0]}catch(e){return LOJAS[0]}})();
 var NOMES_AB={};
-function setLojaPrev(l){if(LOJAS.indexOf(l)<0)return;LOJA_PREV=l;try{sessionStorage.setItem('cdm_esc_loja',l)}catch(e){}render()}
+function setLojaPrev(l){if(LOJAS.indexOf(l)<0)return;LOJA_PREV=l;try{sessionStorage.setItem('pdg_esc_loja',l)}catch(e){}render()}
 function toggleNomes(k){NOMES_AB[k]=!NOMES_AB[k];render()}
-const DONO=(function(){try{return sessionStorage.getItem('cdm_admin')==='1'}catch(e){return false}})();
+const DONO=(function(){try{return sessionStorage.getItem('pdg_admin')==='1'}catch(e){return false}})();
 const DOWNS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 function periodoAderDow(k){var d=new Date();d.setHours(12,0,0,0);var i=0;while(d.getDay()!==k&&i<8){d.setDate(d.getDate()-1);i++}if(iso(d)===iso(new Date())){d.setDate(d.getDate()-7)}var v=iso(d);ADER_INI=v;ADER_FIM=v;var x=document.getElementById('aderIni'),y=document.getElementById('aderFim');if(x)x.value=v;if(y)y.value=v;aplicarPeriodoAder();}
 const TURNOS=['Almoço','Tarde','Jantar','Madrugada'];
@@ -190,7 +190,7 @@ const hmT=t=>t?String(t).slice(0,5):'—';
 function toast(m,e){const t=$('toast');t.textContent=m;t.className='toast'+(e?' err':'');t.style.display='block';setTimeout(()=>{t.style.display='none'},3600)}
 async function fj(u){const r=await fetch(SB+u,{headers:H});if(!r.ok)throw new Error('HTTP '+r.status+' em '+u);return r.json()}
 async function rpc(fn,args){const r=await fetch(SB+'rpc/'+fn,{method:'POST',headers:HJ,body:JSON.stringify(args||{})});if(!r.ok)throw new Error('HTTP '+r.status+' em '+fn);return r.json()}
-function escRPC(acao,dados){return rpc('escala_consulta',{p_cred:cdmTok(),p_acao:acao,p_dados:dados||{}})}
+function escRPC(acao,dados){return rpc('escala_consulta',{p_cred:pdgTok(),p_acao:acao,p_dados:dados||{}})}
 
 // ícone do tempo pelo código WMO da Open-Meteo
 function wxIcon(code,mm){
@@ -229,7 +229,7 @@ if(!ADER_INI){ADER_INI=dm7;ADER_FIM=iso(new Date(Date.now()-864e5))}
     SUG=r[0];CLIMA=r[1];ESC=r[2];ADER=r[3].aderencia||[];FORA=r[3].fora||[];
     ULT=Date.now();
     const at=CLIMA.length?CLIMA[CLIMA.length-1].atualizado_em:null;
-    $('hsub').textContent=(window.CDM_FOODY===false?'previsão do tempo + histórico de pedidos · clima atualizado ':'previsão do tempo + histórico do Foody · clima atualizado ')+(at?hm(at):'—')+' · esta tela: '+hm(ULT);
+    $('hsub').textContent=(window.PDG_FOODY===false?'previsão do tempo + histórico de pedidos · clima atualizado ':'previsão do tempo + histórico do Foody · clima atualizado ')+(at?hm(at):'—')+' · esta tela: '+hm(ULT);
     if(!DATA)DATA=dias(8)[1];
     render();
   }catch(e){$('conteudo').innerHTML='<div class="sec"><div class="empty">Erro ao carregar: '+esc(e.message)+'</div></div>'}
@@ -456,7 +456,7 @@ const extras=ROWS.map(r=>r.nome).filter(n=>ATIVOS.indexOf(n)<0);
     });
     h+='</div>';
   });
-  h+='<div class="sec"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="text" id="novoNome" placeholder="'+(window.CDM_FOODY===false?'outro motoboy':'outro motoboy (nome igual ao Foody)')+'\u2026" style="flex:2;min-width:150px"><select id="selTurno" style="min-width:110px">'+TURNOS_ESC.map(t=>'<option>'+t+'</option>').join('')+'</select><button class="btnr" onclick="addManual()">adicionar</button></div></div>';
+  h+='<div class="sec"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="text" id="novoNome" placeholder="'+(window.PDG_FOODY===false?'outro motoboy':'outro motoboy (nome igual ao Foody)')+'\u2026" style="flex:2;min-width:150px"><select id="selTurno" style="min-width:110px">'+TURNOS_ESC.map(t=>'<option>'+t+'</option>').join('')+'</select><button class="btnr" onclick="addManual()">adicionar</button></div></div>';
   h+='<button class="btnv" onclick="salvar()">\uD83D\uDCBE SALVAR ESCALA DESTE DIA</button>';
   $('montbody').innerHTML=h;
 }
@@ -472,7 +472,7 @@ function addNome(nome,turno,ent,sai){
 function addSel(){
   const v=$('selNome').value,t=$('selTurno').value;
   if(!v){toast('escolha um motoboy',1);return}
-  if(v==='__outro__'){const n=prompt(window.CDM_FOODY===false?'Nome do motoboy:':'Nome do motoboy (igual está no Foody):');if(!n)return;addNome(n.trim(),t,'','');return}
+  if(v==='__outro__'){const n=prompt(window.PDG_FOODY===false?'Nome do motoboy:':'Nome do motoboy (igual está no Foody):');if(!n)return;addNome(n.trim(),t,'','');return}
   const p=v.split('|');addNome(p[0],t,p[1],p[2]);
 }
 function aplicar(turno,n){
@@ -532,7 +532,7 @@ h+='<div class="tabs">'+['Todas'].concat(LOJAS).map(l=>'<span class="tab '+(LOJA
     kpi('Sem registro','b',falt,'nenhuma hora registrada no dia')+
   '</div>';
 
-  h+='<div class="hint">A chegada é a hora que o <b>balcão anotou</b> na tela Chegada do dia. Sem anotação, vale o GPS do pátio'+(window.CDM_FOODY===false?'.':'; nos dias antigos, o QR ou a 1ª coleta do Foody.')+(tol!=null?' Atrasado = chegou mais de <b>'+tol+' min</b> depois do combinado.':'')+'</div>';
+  h+='<div class="hint">A chegada é a hora que o <b>balcão anotou</b> na tela Chegada do dia. Sem anotação, vale o GPS do pátio'+(window.PDG_FOODY===false?'.':'; nos dias antigos, o QR ou a 1ª coleta do Foody.')+(tol!=null?' Atrasado = chegou mais de <b>'+tol+' min</b> depois do combinado.':'')+'</div>';
 
   h+='<div class="sec"><h2>👤 Por motoboy</h2><div class="hs">quem foi escalado mais vezes primeiro</div>';
   const by={};
@@ -552,7 +552,7 @@ h+='<div class="tabs">'+['Todas'].concat(LOJAS).map(l=>'<span class="tab '+(LOJA
       return '<div class="vv off"><div><div class="hr">'+o.dias+'</div><div class="ha">'+(o.dias==1?'turno escalado':'turnos escalados')+'</div></div><div style="min-width:0">'+
         '<div class="tt">'+esc(o.nome)+' <span class="pill '+(pct>=80?'pg':pct>=60?'pw':'pb')+'">'+pct+'% no horário</span></div>'+
         '<div class="lj">'+o.noH+' no horário · '+o.atr+(o.atr==1?' atraso':' atrasos')+' · '+(o.falt?'<span style="color:#f19191">'+o.falt+' sem registro</span>':'0 sem registro')+'</div>'+
-        '<div class="rs">'+(DONO?'atraso médio '+(o.cnt?Math.round(o.soma/o.cnt)+' min':'—')+(window.CDM_FOODY===false?'':' · '):'')+(window.CDM_FOODY===false?'':(function(){const c=Object.keys(o.entDia).length, sf=Object.keys(o.semFoody).filter(k=>!o.entDia[k]).length;
+        '<div class="rs">'+(DONO?'atraso médio '+(o.cnt?Math.round(o.soma/o.cnt)+' min':'—')+(window.PDG_FOODY===false?'':' · '):'')+(window.PDG_FOODY===false?'':(function(){const c=Object.keys(o.entDia).length, sf=Object.keys(o.semFoody).filter(k=>!o.entDia[k]).length;
           return c?(o.ent+(o.ent==1?' entrega':' entregas')+(sf?' · '+sf+(sf==1?' dia':' dias')+' sem dado do Foody':'')):'entregas: sem dado do Foody';})())+'</div>'+
       '</div></div>';
     }).join('')+'</div>';
@@ -574,13 +574,13 @@ h+='<div class="tabs">'+['Todas'].concat(LOJAS).map(l=>'<span class="tab '+(LOJA
         '<div class="lj">'+esc(x.unidade)+' · '+esc(x.turno||'—')+'</div>'+
         '<div class="rs">chegou '+hm(x.chegada_efetiva)+(x.fonte_chegada?' <span class="pill pi">'+esc(x.fonte_chegada==='Foody (1ª coleta)'?'Foody':x.fonte_chegada)+'</span>':'')+
           ' · <span style="color:'+(x.atraso_min>(tol!=null?tol:5)?'#f19191':'#5fd396')+'">'+dif+'</span>'+
-          (x.primeira_coleta!=null&&x.entregas!=null?' · '+x.entregas+(Number(x.entregas)==1?' entrega no dia':' entregas no dia'):(window.CDM_FOODY===false?'':' · entregas: sem dado do Foody'))+'</div>'+
+          (x.primeira_coleta!=null&&x.entregas!=null?' · '+x.entregas+(Number(x.entregas)==1?' entrega no dia':' entregas no dia'):(window.PDG_FOODY===false?'':' · entregas: sem dado do Foody'))+'</div>'+
       '</div></div>';
     }).join('')+'</div>';
   }
   h+='</div>';
 
-  if(fora.length&&window.CDM_FOODY!==false){
+  if(fora.length&&window.PDG_FOODY!==false){
     h+='<div class="sec"><h2>❓ Rodou sem estar na escala</h2><div class="hs">apareceu no Foody mas não estava escalado — confira se foi troca de última hora</div><div class="vv-lista duas">'+fora.slice(0,60).map(f=>
       '<div class="vv off"><div><div class="hr">'+hm(f.primeira_coleta)+'</div><div class="ha">'+br(f.dia_op)+' · 1ª coleta</div></div><div style="min-width:0">'+
         '<div class="tt">'+esc(f.nome)+' <span class="pill pw">fora da escala</span></div>'+
@@ -627,7 +627,7 @@ document.addEventListener('visibilitychange',function(){
   if(!ULT||Date.now()-ULT<60000)return;
   loadAll();
 });
-cdmGuarda().then(function(ok){if(ok)loadAll()});
+pdgGuarda().then(function(ok){if(ok)loadAll()});
 </script>
 <script src="../assets/portal.js?v=3"></script>
 </body>

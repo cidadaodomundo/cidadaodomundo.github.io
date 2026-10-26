@@ -89,23 +89,23 @@ var EMBUTIDO=false;try{EMBUTIDO=!!new URLSearchParams(location.search).get('embe
 if(EMBUTIDO){var _t=document.querySelector('.top');if(_t)_t.style.display='none';document.body.style.padding='0';document.body.style.maxWidth='none';}
 
 /* ===== porta unica do portal: sessao por usuario ===== */
-const CDMMODS=['operacao','escritorio','cozinha'];
-function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
-function cdmNome(){try{return sessionStorage.getItem('cdm_nome')||''}catch(e){return ''}}
-function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+const PDGMODS=['operacao','escritorio','cozinha'];
+function pdgTok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
+function pdgNome(){try{return sessionStorage.getItem('pdg_nome')||''}catch(e){return ''}}
+function pdgSaia(m){try{sessionStorage.setItem('pdg_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
-async function cdmGuarda(){
-  const t=cdmTok();
-  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+async function pdgGuarda(){
+  const t=pdgTok();
+  if(!t){pdgSaia('Entre no portal para acessar esta tela');return false}
   let j=null;
   try{
     const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:H,body:JSON.stringify({p_token:t,p_tela:'operacao'})});
     if(r.ok)j=await r.json();
   }catch(e){j=null}
-  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  if(!j||!j.usuario){pdgSaia('Entre no portal para acessar esta tela');return false}
   const ms=Array.isArray(j.modulos)?j.modulos:[];
-  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
-  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  try{sessionStorage.setItem('pdg_nome',j.nome||'');sessionStorage.setItem('pdg_admin',j.admin?'1':'0');sessionStorage.setItem('pdg_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&PDGMODS.indexOf(m.id)>=0})){pdgSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
 
@@ -120,7 +120,7 @@ let DESP=[], RESUMO=[], DIAS=30;
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function iso(d){return d.toISOString().slice(0,10)}
 function br(s){return s?String(s).slice(8,10)+'/'+String(s).slice(5,7):'—'}
-function brl(v){return (v==null||!(function(){try{return sessionStorage.getItem("cdm_admin")==="1"}catch(e){return false}})())?'—':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function brl(v){return (v==null||!(function(){try{return sessionStorage.getItem("pdg_admin")==="1"}catch(e){return false}})())?'—':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function num(v){return v==null?'—':Number(v).toLocaleString('pt-BR')}
 function hoje(){return iso(new Date())}
 function diasAtras(n){return iso(new Date(Date.now()-n*864e5))}
@@ -129,7 +129,7 @@ function setMsg(id,txt,erro){const e=$(id);if(!e)return;e.className='msg '+(erro
 
 async function op(acao,dados){
   const r=await fetch(SB+'rpc/operacao_consulta',{method:'POST',headers:H,
-    body:JSON.stringify({p_cred:cdmTok(),p_acao:acao,p_dados:dados||{}})});
+    body:JSON.stringify({p_cred:pdgTok(),p_acao:acao,p_dados:dados||{}})});
   let j=null;try{j=await r.json()}catch(e){}
   if(!r.ok)throw new Error((j&&j.message)||('falha na consulta (HTTP '+r.status+')'));
   return j;
@@ -223,7 +223,7 @@ async function salva(){
       produto:prod,quantidade:String(qtd),medida:$('d_med').value,
       custo_unit:$('d_custo').value||'',motivo:$('d_mot').value,
       evitavel:$('d_evi').value==='1',detalhe:$('d_det').value.trim(),
-      lancado_por:cdmNome()});
+      lancado_por:pdgNome()});
     await carrega();
     setMsg('d_msg','✅ Lançado.');
   }catch(e){setMsg('d_msg',e.message,1)}
@@ -236,9 +236,9 @@ async function apaga(id){
   catch(e){alert(e.message)}
 }
 
-cdmGuarda().then(function(ok){
+pdgGuarda().then(function(ok){
   if(!ok)return;
-  const n=cdmNome();if(n)$('quem').textContent=n;
+  const n=pdgNome();if(n)$('quem').textContent=n;
   carrega();
 });
 </script>

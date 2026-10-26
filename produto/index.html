@@ -156,7 +156,7 @@ const DESC={
   receber:'O que entra: repasses e recebíveis',
   conferencia:'Vendas da maquininha conferidas com o sistema',
   hoje:'Só o que está fora do lugar hoje',
-  painel:'Vendas, prazo e equipe em tempo real',
+  painel:'Quem está usando o portal e o que está parado',
   placar:'Ranking e metas do delivery',
   cobranca:'Pedidos pagos na porta: cobrou ou não cobrou?',
   ifood:'Notas, cancelamentos, chamados e selo de qualidade',
@@ -169,7 +169,7 @@ let NOME='';
 let ATUAL=null;
 function arrOk(r){return Array.isArray(r)?r:[]}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-function tok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function tok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
 async function rpc(fn,body){
   const r=await fetch(SB+'rpc/'+fn,{method:'POST',headers:H,body:JSON.stringify(body)});
   let j=null;try{j=await r.json()}catch(e){}
@@ -190,9 +190,9 @@ async function rpc(fn,body){
 function aplicar(j){
   NOME=(j&&j.nome)||'';
   MODULOS=arrOk(j&&j.modulos).filter(m=>m&&m.id).sort((a,b)=>(a.ordem||0)-(b.ordem||0));
-  try{sessionStorage.setItem('cdm_nome',NOME);
-      sessionStorage.setItem('cdm_admin',(j&&j.admin)?'1':'0');
-      sessionStorage.setItem('cdm_modulos',JSON.stringify(MODULOS));}catch(e){}
+  try{sessionStorage.setItem('pdg_nome',NOME);
+      sessionStorage.setItem('pdg_admin',(j&&j.admin)?'1':'0');
+      sessionStorage.setItem('pdg_modulos',JSON.stringify(MODULOS));}catch(e){}
 }
 function entrarComo(p){$('guser').value=p;$('gpw').value='demo';entrar()}
 async function entrar(){
@@ -202,7 +202,7 @@ async function entrar(){
   try{
     const j=await rpc('portal_login',{p_usuario:u,p_senha:s});
     $('gpw').value='';
-    try{sessionStorage.setItem('cdm_token',(j&&j.token)||'')}catch(e){}
+    try{sessionStorage.setItem('pdg_token',(j&&j.token)||'')}catch(e){}
     aplicar(j);
     $('gerr').textContent='';
     if(j&&j.precisa_trocar){pedeTroca()}else{$('gate').style.display='none';boot()}
@@ -237,7 +237,7 @@ async function trocar(){
 async function sair(){
   const t=tok();
   try{if(t)await rpc('portal_sair',{p_token:t})}catch(e){}
-  ['cdm_token','cdm_nome','cdm_admin','cdm_modulos','cdm_rh_pw','cdm_esc_pw','cdm_moto_pw','cdm_aviso'].forEach(function(k){try{sessionStorage.removeItem(k)}catch(e){}});
+  ['pdg_token','pdg_nome','pdg_admin','pdg_modulos','pdg_rh_pw','pdg_esc_pw','pdg_moto_pw','pdg_aviso'].forEach(function(k){try{sessionStorage.removeItem(k)}catch(e){}});
   location.replace(CFG.url('index.html'));
 }
 function mods(){return MODULOS}
@@ -262,8 +262,8 @@ function inicio(){ATUAL=null;location.hash='';$('titulo').textContent='Início';
 function avdCarregar(){
   if(typeof AVD==='undefined'||!$('avd'))return;
   AVD.montar($('avd'),{aoVencer:function(){
-    ['cdm_token','cdm_nome','cdm_admin','cdm_modulos'].forEach(function(k){try{sessionStorage.removeItem(k)}catch(x){}});
-    try{sessionStorage.setItem('cdm_aviso','Sua sessão expirou. Entre de novo.')}catch(x){}
+    ['pdg_token','pdg_nome','pdg_admin','pdg_modulos'].forEach(function(k){try{sessionStorage.removeItem(k)}catch(x){}});
+    try{sessionStorage.setItem('pdg_aviso','Sua sessão expirou. Entre de novo.')}catch(x){}
     location.replace(CFG.url('index.html'));
   }});
 }
@@ -273,7 +273,7 @@ async function carimboFontes(){try{
   const rows=await r.json();
   const el=document.getElementById('fresco');
   if(!el)return;
-  const nm={pdv_vendas:'Vendas do PDV',ifood_avaliacao:'iFood avaliações',ifood_cancelamento:'iFood cancelamentos',maquininha:'Maquininha',ponto:'Relógio de ponto',entregas:'Entregas',google_avaliacao:'Google avaliações'};
+  const nm={delivery_entrega:'Entregas',delivery_pedido:'Pedidos do delivery',pdv_vendas:'Vendas do PDV',ifood_avaliacao:'iFood avaliações',ifood_cancelamento:'iFood cancelamentos',maquininha:'Maquininha',ponto:'Relógio de ponto',entregas:'Entregas',google_avaliacao:'Google avaliações'};
   if(!rows.length){el.innerHTML='<div style="display:inline-block;margin:2px;padding:6px 14px;border-radius:999px;background:#16351f;color:#7ce28f;font-size:13px">✓ todas as fontes de dados em dia</div>';return}
   el.innerHTML=rows.map(function(x){
     const d=String(x.ultimo_dia||'').split('-').reverse().slice(0,2).join('/');
@@ -295,7 +295,7 @@ function recarregar(){const f=$('fr');if(f)f.src=f.src}
 function voltar(){const f=$('fr');if(!f||!URLBASE){inicio();return;}f.src=URLBASE;}
 function boot(){menu();const h=location.hash.replace('#','');if(h&&MODULOS.find(x=>x.id===h)){abrir(h)}else{inicio()}}
 (async function(){
-  let av='';try{av=sessionStorage.getItem('cdm_aviso')||'';sessionStorage.removeItem('cdm_aviso')}catch(e){}
+  let av='';try{av=sessionStorage.getItem('pdg_aviso')||'';sessionStorage.removeItem('pdg_aviso')}catch(e){}
   if(av)$('gerr').textContent=av;
   const t=tok();
   if(!t){try{$('guser').focus()}catch(e){}return}
@@ -305,7 +305,7 @@ function boot(){menu();const h=location.hash.replace('#','');if(h&&MODULOS.find(
     if(eu&&eu.precisa_trocar){pedeTroca();return}
     $('gate').style.display='none';boot();
   }catch(e){
-    ['cdm_token','cdm_nome','cdm_admin','cdm_modulos'].forEach(function(k){try{sessionStorage.removeItem(k)}catch(x){}});
+    ['pdg_token','pdg_nome','pdg_admin','pdg_modulos'].forEach(function(k){try{sessionStorage.removeItem(k)}catch(x){}});
     if(!av)$('gerr').textContent='Sua sessão expirou. Entre de novo.';
     try{$('guser').focus()}catch(x){}
   }

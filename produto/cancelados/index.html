@@ -8,9 +8,9 @@
 <meta name="theme-color" content="#E0A81C">
 <title>Cancelamentos · Portal de Gestão</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/cdm-ui.css?v=4">
+<link rel="stylesheet" href="../assets/pdg-ui.css?v=4">
 <style>
-/* Quadros e cartoes no visual do kit (cdm-ui.css), iguais aos do Resolver hoje.
+/* Quadros e cartoes no visual do kit (pdg-ui.css), iguais aos do Resolver hoje.
    Cores dos turnos sobre o fundo escuro: dia #d0784c (terracota), noite #2fa79a (verde-agua). */
 button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:7px 11px;font-size:13px;font-weight:700}
 button.b:hover{border-color:var(--text2)}
@@ -144,7 +144,7 @@ const SB=PORTAL_CFG.rest;
 const KEY=PORTAL_CFG.chave;
 const $=i=>document.getElementById(i);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
+const tok=()=>{try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}};
 
 /* ?loja=ID: a loja fica fixa e os botoes das outras somem.
    E recorte de VISAO; quem pode ver cada loja e decidido pela porta no banco. */
@@ -152,8 +152,8 @@ const LOJAS=(PORTAL_CFG.lojas||[]).map(function(l){return [l.id,l.nome]});
 let FIXA='';
 try{ var q0=new URLSearchParams(location.search).get('loja'); if(LOJAS.some(function(l){return l[0]===q0})) FIXA=q0; }catch(e){}
 let UNI=FIXA||(LOJAS.length?LOJAS[0][0]:'Todas'), PER='30';
-try{ if(!FIXA){ var u0=localStorage.getItem('cdm_cancel_uni'); if(u0==='Todas'||LOJAS.some(function(l){return l[0]===u0})) UNI=u0; }
-     var p0=localStorage.getItem('cdm_cancel_per'); if(['hoje','ontem','7','30'].indexOf(p0)>=0) PER=p0; }catch(e){}
+try{ if(!FIXA){ var u0=localStorage.getItem('pdg_cancel_uni'); if(u0==='Todas'||LOJAS.some(function(l){return l[0]===u0})) UNI=u0; }
+     var p0=localStorage.getItem('pdg_cancel_per'); if(['hoje','ontem','7','30'].indexOf(p0)>=0) PER=p0; }catch(e){}
 const PERIODOS=[['hoje','Hoje'],['ontem','Ontem'],['7','7 dias'],['30','30 dias']];
 
 let P=null, PERR='', SEL=null, L=null, LERR='', SO='', ABRE=[];
@@ -276,7 +276,7 @@ function blocoCulpa(){
   var cu=(P.culpa||[]).map(function(c){var k=CULPA[c.culpa]||[c.culpa,''];return {rot:k[0],chave:c.culpa,extra:k[1],total:c.total,dia:c.dia,noite:c.noite,fora:c.fora}});
   var mx=Math.max(1,Math.max.apply(null,cu.map(function(o){return o.total}).concat([0])));
   var d=!!P.dono;
-  var tq='<div class="rolar"><table class="tb" data-cdm-livre><tr><th>Quem cancelou</th><th class="n">Pedidos</th><th class="n">Voltou dinheiro</th><th class="n">Nada voltou</th>'+(d?'<th class="n">R$ que voltou</th>':'')+'</tr>'+
+  var tq='<div class="rolar"><table class="tb" data-pdg-livre><tr><th>Quem cancelou</th><th class="n">Pedidos</th><th class="n">Voltou dinheiro</th><th class="n">Nada voltou</th>'+(d?'<th class="n">R$ que voltou</th>':'')+'</tr>'+
     (P.quem||[]).map(function(q){ var i=reg('culpa',{tipo:'inteiro',origem:q.origem},ORIG[q.origem]||q.origem);
       return '<tr class="lk" onclick="abre('+i+')"><td>'+esc(ORIG[q.origem]||q.origem)+'</td><td class="n"><span class="cd">'+q.total+'</span></td>'+
         '<td class="n"><span class="cd">'+(q.volta_n||0)+'</span></td><td class="n"><span class="cd">'+(q.sem_volta_n||0)+'</span>'+(q.aguardando?'<div class="u">+'+q.aguardando+' esperando</div>':'')+'</td>'+
@@ -292,7 +292,7 @@ function blocoQuando(){
   var se=(P.semana||[]).map(function(s){return {rot:DS[s.dow],chave:s.dow,total:s.dia+s.noite+s.fora,dia:s.dia,noite:s.noite,fora:s.fora,
            extra:s.inteiros+' inteiros · '+s.parciais+' parte'}});
   var mx=Math.max(1,Math.max.apply(null,se.map(function(o){return o.total})));
-  var tm='<div class="rolar"><table class="tb" data-cdm-livre><tr><th>Marca</th><th class="n">Inteiros</th><th class="n">Parte devolvida</th></tr>'+
+  var tm='<div class="rolar"><table class="tb" data-pdg-livre><tr><th>Marca</th><th class="n">Inteiros</th><th class="n">Parte devolvida</th></tr>'+
     (P.marcas||[]).map(function(m){ var i=reg('quando',{marca:m.marca},m.marca);
       return '<tr class="lk" onclick="abre('+i+')"><td>'+esc(m.marca)+'</td><td class="n"><span class="cd">'+m.inteiros+'</span></td><td class="n"><span class="cd">'+m.parciais+'</span></td></tr>'; }).join('')+
     ((P.marcas||[]).length?'':'<tr><td colspan="3" class="u">Nada no período.</td></tr>')+'</table></div>';
@@ -354,7 +354,7 @@ function cartao(o,i){
     if(o.aguardando_fin) din='o financeiro do iFood ainda não chegou para dizer se voltou dinheiro';
     else din=(d&&o.valor!=null?'pedido <b>'+esc(rs(o.valor))+'</b> · ':'')+(o.volta_sim?'<span style="color:var(--ok)">o iFood pagou a loja'+(d&&o.volta!=null?' '+esc(rs(o.volta)):'')+'</span>':'<span style="color:var(--bad)">nada voltou para a loja</span>');
   } else if(d&&o.devolvido!=null) din='devolvido ao cliente <b>'+esc(rs(o.devolvido))+'</b>'+(o.valor!=null?' de um pedido de '+esc(rs(o.valor)):'');
-  var h='<table class="vv'+(ok?' ok':'')+'" data-cdm-livre><tr data-cdm-chave="'+esc(chaveNota(o))+'">'+
+  var h='<table class="vv'+(ok?' ok':'')+'" data-pdg-livre><tr data-pdg-chave="'+esc(chaveNota(o))+'">'+
     '<td class="hrc"><div class="hr">'+esc(o.hora||'—')+'</div><div class="ha">'+esc(o.dia||'')+(o.turno==='noite'?' 🌙':o.turno==='dia'?' ☀':'')+'</div></td>'+
     '<td><div class="tt">'+tit+' '+pills+'</div>'+
       '<div class="lj"><b>'+esc(o.marca||'')+'</b> · pedido <b>'+esc(o.n_pedido||'—')+'</b>'+(UNI==='Todas'?' · '+esc(o.loja_nome||''):'')+'</div>'+
@@ -466,8 +466,8 @@ function filtros(){
     '<div class="lojas"><span class="rot">LOJA</span>'+(FIXA?lj(FIXA,nomeLoja(FIXA)):lj('Todas','Todas')+LOJAS.map(function(l){return lj(l[0],l[1])}).join(''))+'</div>'+
     '<div class="lojas"><span class="rot">PERÍODO</span>'+PERIODOS.map(function(p){return pe(p[0],p[1])}).join('')+'</div></div>';
 }
-function trocaLoja(v){ UNI=v; try{localStorage.setItem('cdm_cancel_uni',v)}catch(e){} SEL=null; L=null; boot(); }
-function trocaPer(v){ PER=v; try{localStorage.setItem('cdm_cancel_per',v)}catch(e){} SEL=null; L=null; boot(); }
+function trocaLoja(v){ UNI=v; try{localStorage.setItem('pdg_cancel_uni',v)}catch(e){} SEL=null; L=null; boot(); }
+function trocaPer(v){ PER=v; try{localStorage.setItem('pdg_cancel_per',v)}catch(e){} SEL=null; L=null; boot(); }
 function avisoFontes(){
   var f=P.fontes||{}, h='';
   if(f.relatorio_dias!=null&&f.relatorio_dias>2)
@@ -501,24 +501,24 @@ async function boot(){
 }
 
 /* ===== porta unica do portal ===== */
-const CDMMODS=['cancelados'];
-function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
-function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+const PDGMODS=['cancelados'];
+function pdgTok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
+function pdgSaia(m){try{sessionStorage.setItem('pdg_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
-async function cdmGuarda(){
-  const t=cdmTok();
-  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+async function pdgGuarda(){
+  const t=pdgTok();
+  if(!t){pdgSaia('Entre no portal para acessar esta tela');return false}
   let j=null;
   try{
     const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'cancelados'})});
     if(r.ok)j=await r.json();
   }catch(e){j=null}
-  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  if(!j||!j.usuario){pdgSaia('Entre no portal para acessar esta tela');return false}
   const ms=Array.isArray(j.modulos)?j.modulos:[];
-  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  if(!ms.some(function(m){return m&&PDGMODS.indexOf(m.id)>=0})){pdgSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){if(ok)boot()});
+pdgGuarda().then(function(ok){if(ok)boot()});
 </script>
 <script src="../assets/portal.js?v=3"></script>
 </body>

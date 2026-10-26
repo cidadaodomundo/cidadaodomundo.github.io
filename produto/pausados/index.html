@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#E0A81C">
 <title>Produtos pausados · Portal de Gestão</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/cdm-ui.css?v=4">
+<link rel="stylesheet" href="../assets/pdg-ui.css?v=4">
 <style>
 /* Produtos pausados por canal: salao (tablet da mesa), delivery iFood e site proprio (Accon).
    Mesmo visual de cartoes do Resolver hoje. */
@@ -107,10 +107,10 @@ const SB=PORTAL_CFG.rest;
 const KEY=PORTAL_CFG.chave;
 const $=i=>document.getElementById(i);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
+const tok=()=>{try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}};
 /* PZD = resposta da porta pausados_consulta (somente leitura) */
 let PZD=null, UNI='', ABA='ifood', PZF='PRECISA', TBF='TODOS', PZG=[];
-try{ var a0=new URLSearchParams(location.search).get('aba')||localStorage.getItem('cdm_pausados_aba'); if(['salao','ifood','accon'].indexOf(a0)>=0) ABA=a0; }catch(e){}
+try{ var a0=new URLSearchParams(location.search).get('aba')||localStorage.getItem('pdg_pausados_aba'); if(['salao','ifood','accon'].indexOf(a0)>=0) ABA=a0; }catch(e){}
 /* ?loja=ID deixa a loja fixa e esconde os botoes das outras lojas (recorte de visao, nao de permissao). */
 let FIXA='';
 try{ var l0=new URLSearchParams(location.search).get('loja'); var L0=(PORTAL_CFG.lojas||[]).filter(function(l){return l.id===l0})[0]; FIXA=L0?L0.nome:''; if(FIXA) UNI=FIXA; }catch(e){}
@@ -136,7 +136,7 @@ function tempoFora(m){
   return d+(d===1?' dia':' dias')+(h?' e '+h+'h':'');
 }
 function daLoja(x){ return !UNI || x.unidade===UNI; }
-function abre(a){ ABA=a; try{localStorage.setItem('cdm_pausados_aba',a)}catch(e){} desenha(); }
+function abre(a){ ABA=a; try{localStorage.setItem('pdg_pausados_aba',a)}catch(e){} desenha(); }
 
 /* ================= DELIVERY · iFOOD =================
    Mesmo criterio do Resolver hoje > Cardapio pausado: um cartao por item e loja (marcas juntas, a resposta da loja
@@ -195,7 +195,7 @@ function cartaoPz(g,i){
       '<button class="mini" style="margin-top:6px" onclick="reabrePz('+i+')">reabrir</button>';
   else sit=((g.sit==='VENCIDA'||g.sit==='CONTRA')?'<div class="m" style="margin-bottom:6px">'+esc(g.quem||'')+' em '+esc(g.em||'')+': '+esc(rotMot(g.o_que))+'</div>':'')+
       MOT_PZ.map(function(m,k){ return '<button class="mini" style="margin:0 4px 4px 0" onclick="marcaPz('+i+','+k+')">'+esc(ROT_PZ[k])+'</button>' }).join('');
-  return '<table class="vv'+(ok?' ok':'')+(g.sit==='VENCIDA'?' pzv':'')+'" data-cdm-livre><tr data-cdm-chave="'+esc(g.unidade+' | '+g.item)+'">'+
+  return '<table class="vv'+(ok?' ok':'')+(g.sit==='VENCIDA'?' pzv':'')+'" data-pdg-livre><tr data-pdg-chave="'+esc(g.unidade+' | '+g.item)+'">'+
     '<td class="hrc"><div class="hr">'+esc(hora)+'</div><div class="ha">'+esc(dia)+'</div></td>'+
     '<td><div class="tt">'+esc(g.item)+' '+pill+(g.compl?' <span class="pill p-off">complemento</span>':'')+'</div>'+
       '<div class="lj"><b>'+esc(g.unidade||'')+'</b> &#183; '+esc(g.marcas.join(' · '))+'</div>'+
@@ -279,7 +279,7 @@ function cartaoC(kind,g,i){
       '<button class="mini" style="margin-top:6px" onclick="reabreC(&quot;'+kind+'&quot;,'+i+')">reabrir</button>';
   else sit=((g.sit==='VENCIDA'||g.sit==='CONTRA')?'<div class="m" style="margin-bottom:6px">'+esc(g.quem||'')+' em '+esc(g.em||'')+': '+esc(rotMot(g.o_que))+'</div>':'')+
       MOT_PZ.map(function(m,k){ return '<button class="mini" style="margin:0 4px 4px 0" onclick="marcaC(&quot;'+kind+'&quot;,'+i+','+k+')">'+esc(ROT_PZ[k])+'</button>' }).join('');
-  return '<table class="vv'+(ok?' ok':(g.sit==='VENCIDA'?' pzv':(pz?'':' esc')))+'" data-cdm-livre><tr data-cdm-chave="'+esc(g.unidade+' | '+CANAL[kind].nome+' | '+g.item)+'">'+
+  return '<table class="vv'+(ok?' ok':(g.sit==='VENCIDA'?' pzv':(pz?'':' esc')))+'" data-pdg-livre><tr data-pdg-chave="'+esc(g.unidade+' | '+CANAL[kind].nome+' | '+g.item)+'">'+
     '<td class="hrc"><div class="hr">'+(d?d+'d':'hoje')+'</div><div class="ha">desde '+esc(g.desde||'?')+'</div></td>'+
     '<td><div class="tt">'+esc(g.item)+' '+resp+'</div>'+
       '<div class="lj"><b>'+esc(g.unidade||'')+'</b>'+(g.marca?' &#183; '+esc(g.marca):'')+'</div>'+
@@ -372,24 +372,24 @@ async function boot(){
   desenha();
 }
 /* ===== porta unica do portal ===== */
-const CDMMODS=['pausados'];
-function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
-function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+const PDGMODS=['pausados'];
+function pdgTok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
+function pdgSaia(m){try{sessionStorage.setItem('pdg_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
-async function cdmGuarda(){
-  const t=cdmTok();
-  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+async function pdgGuarda(){
+  const t=pdgTok();
+  if(!t){pdgSaia('Entre no portal para acessar esta tela');return false}
   let j=null;
   try{
     const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'pausados'})});
     if(r.ok)j=await r.json();
   }catch(e){j=null}
-  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  if(!j||!j.usuario){pdgSaia('Entre no portal para acessar esta tela');return false}
   const ms=Array.isArray(j.modulos)?j.modulos:[];
-  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  if(!ms.some(function(m){return m&&PDGMODS.indexOf(m.id)>=0})){pdgSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){if(ok)boot()});
+pdgGuarda().then(function(ok){if(ok)boot()});
 </script>
 <script src="../assets/portal.js?v=3"></script>
 </body>

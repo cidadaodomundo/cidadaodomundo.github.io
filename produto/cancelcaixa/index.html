@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#E0A81C">
 <title>Cancelamentos no Caixa · Portal de Gestão</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/cdm-ui.css?v=4">
+<link rel="stylesheet" href="../assets/pdg-ui.css?v=4">
 <style>
 /* Cancelamentos no Caixa: mesmo kit visual das telas de qualidade e de cancelamentos */
 .lojas{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 10px}
@@ -68,11 +68,11 @@ const SB=PORTAL_CFG.rest;
 const KEY=PORTAL_CFG.chave;
 const $=i=>document.getElementById(i);
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
-const ehDono=()=>{try{return sessionStorage.getItem('cdm_admin')==='1'}catch(e){return false}};
+const tok=()=>{try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}};
+const ehDono=()=>{try{return sessionStorage.getItem('pdg_admin')==='1'}catch(e){return false}};
 function br(v){return (v==null||!ehDono())?'—':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
-function lembra(k,v){try{localStorage.setItem('cdm_ccx_'+k,v)}catch(e){}}
-function lido(k,p){try{const v=localStorage.getItem('cdm_ccx_'+k);return v==null?p:v}catch(e){return p}}
+function lembra(k,v){try{localStorage.setItem('pdg_ccx_'+k,v)}catch(e){}}
+function lido(k,p){try{const v=localStorage.getItem('pdg_ccx_'+k);return v==null?p:v}catch(e){return p}}
 
 const LOJAS=(PORTAL_CFG.lojas||[]).map(function(l){return l.nome});
 const PERIODOS=[['hoje','Hoje'],['ontem','Ontem'],['7','7 dias'],['30','30 dias'],['mes','Este mês']];
@@ -111,7 +111,7 @@ function senhaTxt(s,id,nome,uni){
 }
 function caixa(tit,sub,cab,lin){
   return '<div class="cx"><h2>'+tit+'</h2>'+(sub?'<div class="m">'+sub+'</div>':'')+
-    '<div class="rolar"><table class="tb" data-cdm-sem-nota><tr>'+cab+'</tr>'+lin+'</table></div></div>';
+    '<div class="rolar"><table class="tb" data-pdg-sem-nota><tr>'+cab+'</tr>'+lin+'</table></div></div>';
 }
 function vazio(t){return '<div class="cx"><div class="vazio">'+t+'</div></div>'}
 function placar(){
@@ -307,25 +307,25 @@ function vaiUni(i){UNI=i<0?'':LOJAS[i];lembra('uni',UNI);boot()}
 function vaiAba(a){ABA=a;lembra('aba',a);if(D)desenha();else boot()}
 
 /* ===== porta unica do portal ===== */
-const CDMMODS=['cancelcaixa'];
-function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
-function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+const PDGMODS=['cancelcaixa'];
+function pdgTok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
+function pdgSaia(m){try{sessionStorage.setItem('pdg_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
-async function cdmGuarda(){
-  const t=cdmTok();
-  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+async function pdgGuarda(){
+  const t=pdgTok();
+  if(!t){pdgSaia('Entre no portal para acessar esta tela');return false}
   let j=null;
   try{
     const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'cancelcaixa'})});
     if(r.ok)j=await r.json();
   }catch(e){j=null}
-  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  if(!j||!j.usuario){pdgSaia('Entre no portal para acessar esta tela');return false}
   const ms=Array.isArray(j.modulos)?j.modulos:[];
-  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
-  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  try{sessionStorage.setItem('pdg_nome',j.nome||'');sessionStorage.setItem('pdg_admin',j.admin?'1':'0');sessionStorage.setItem('pdg_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&PDGMODS.indexOf(m.id)>=0})){pdgSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){if(ok)boot()});
+pdgGuarda().then(function(ok){if(ok)boot()});
 </script>
 <script src="../assets/portal.js?v=3"></script>
 </body>

@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#E0A81C">
 <title>Manutenção · Portal de Gestão</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/cdm-ui.css?v=4">
+<link rel="stylesheet" href="../assets/pdg-ui.css?v=4">
 <style>
 /* sugestao de prestador no cartao e lista de prestadores */
 .sug{background:#14201a;border:1px solid #2f5a40;color:#cfe9d8;border-radius:13px;padding:10px 12px;font-size:13.5px;line-height:1.45;display:flex;flex-direction:column;gap:6px;margin:8px 0}
@@ -92,7 +92,7 @@ let FILTRO=SOLOJA||'';
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const br=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'';
 function dias(d){const h=new Date();h.setHours(0,0,0,0);const n=Math.round((h-new Date(String(d).slice(0,10)+'T00:00:00'))/86400000);return n<=0?'hoje':(n+' dia'+(n>1?'s':''))}
-const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
+const tok=()=>{try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}};
 
 const PRI={urgente:['🔴','Urgente','verm'],normal:['🟡','Normal','ambar'],quando_der:['⚪','Quando der','cinza']};
 const ORD={urgente:0,normal:1,quando_der:2};
@@ -406,28 +406,28 @@ async function boot(manual){
 }
 
 /* ===== porta unica do portal: sessao por usuario ===== */
-const CDMMODS=['manutencao'];
-function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
-function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+const PDGMODS=['manutencao'];
+function pdgTok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
+function pdgSaia(m){try{sessionStorage.setItem('pdg_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
-async function cdmGuarda(){
-  const t=cdmTok();
-  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+async function pdgGuarda(){
+  const t=pdgTok();
+  if(!t){pdgSaia('Entre no portal para acessar esta tela');return false}
   let j=null;
   try{
     const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'manutencao'})});
     if(r.ok)j=await r.json();
   }catch(e){j=null}
-  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  if(!j||!j.usuario){pdgSaia('Entre no portal para acessar esta tela');return false}
   const ms=Array.isArray(j.modulos)?j.modulos:[];
   MODS=ms.map(function(m){return m&&m.id});
   /* a aba Quem conserta aparece para quem pode editar a lista (modulo prestadores) */
   var ab=document.getElementById('abas');if(ab)ab.hidden=MODS.indexOf('prestadores')<0;
   try{if(MODS.indexOf('prestadores')>=0&&new URLSearchParams(location.search).get('aba')==='qc')aba('qc')}catch(e){}
-  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  if(!ms.some(function(m){return m&&PDGMODS.indexOf(m.id)>=0})){pdgSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){if(ok)boot()});
+pdgGuarda().then(function(ok){if(ok)boot()});
 </script>
 <script src="../assets/portal.js?v=3"></script>
 </body>

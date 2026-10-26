@@ -240,7 +240,7 @@ let VIEW='pagar', D=null, PD=null, PDDIA=null, AG=null, AGT=null, LOJA='';
 
 
 async function porta(de,ate){
-  const b={p_token:cdmTok()};
+  const b={p_token:pdgTok()};
   if(de)b.p_de=de; if(ate)b.p_ate=ate;
   const r=await fetch(SB+'rpc/pagamento_motoboy_consulta',{method:'POST',
     headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
@@ -336,7 +336,7 @@ async function dupDecide(i,dec){
   try{
     var resp=await fetch(SB+'rpc/pagamento_dupla_decidir',{method:'POST',
       headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({p_token:cdmTok(),p_dados:{unidade:r.unidade,dia:r.dia_operacional,fonte_2:r.fonte_2,pedido_2:r.pedido_2,saiu_2:r.saiu_2,decisao:dec}})});
+      body:JSON.stringify({p_token:pdgTok(),p_dados:{unidade:r.unidade,dia:r.dia_operacional,fonte_2:r.fonte_2,pedido_2:r.pedido_2,saiu_2:r.saiu_2,decisao:dec}})});
     var j=null; try{ j=await resp.json() }catch(e){}
     if(!resp.ok) throw new Error((j&&(j.message||j.hint))||('porta '+resp.status));
     var av=(j&&j.msg)||'Anotado.';
@@ -359,7 +359,7 @@ function dupReprov(L,J){
   L.forEach(function(r){
     var cor=dupRpCor(r.veredito);
     var rep=r.repetida?('sim: com o pedido <b>'+escDup(r.par_pedido)+'</b>'+(r.par_entregador&&r.par_entregador!==r.entregador?' ('+escDup(r.par_entregador)+')':'')):(r.par_pedido?('<b>não</b>: o pedido <b>'+escDup(r.par_pedido)+'</b> foi no mesmo endereço, mas em outro horário — parece reentrega'):'<b>não</b>: nenhuma outra entrega nesse endereço');
-    rows+='<tr data-cdm-chave="'+escDup('rp|'+r.unidade+'|'+r.dia+'|'+r.pedido)+'" style="border-top:1px solid #8883;vertical-align:top"><td>'+escDup(String(r.dia||'').slice(8,10)+'/'+String(r.dia||'').slice(5,7))+'</td><td>'+escDup(r.unidade)+'</td>'
+    rows+='<tr data-pdg-chave="'+escDup('rp|'+r.unidade+'|'+r.dia+'|'+r.pedido)+'" style="border-top:1px solid #8883;vertical-align:top"><td>'+escDup(String(r.dia||'').slice(8,10)+'/'+String(r.dia||'').slice(5,7))+'</td><td>'+escDup(r.unidade)+'</td>'
       +'<td><b>'+escDup(r.pedido)+'</b> '+dupHora(r.saiu)+' · '+escDup(r.entregador||'')+' · '+rs(r.valor)+'<div style="color:var(--muted);font-size:11.5px">'+escDup(r.endereco||'')+'</div></td>'
       +'<td>'+escDup(r.motivo||'sem motivo')+'</td><td>'+rep+'</td>'
       +'<td>'+(r.pago!=null?rs(r.pago):'—')+'<div style="color:var(--muted);font-size:11.5px">'+escDup(r.resultado||'')+'</div></td>'
@@ -377,7 +377,7 @@ async function viewDup(){
   try{
     var resp=await fetch(SB+'rpc/pagamento_dupla_consulta',{method:'POST',
       headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({p_token:cdmTok(),p_dados:{de:de,ate:ate}})});
+      body:JSON.stringify({p_token:pdgTok(),p_dados:{de:de,ate:ate}})});
     if(!resp.ok)throw new Error('porta '+resp.status);
     j=await resp.json();
   }catch(e){ el.innerHTML='<div class="c">Não deu para conferir agora. '+escDup(e.message||'')+'</div>'; return }
@@ -415,7 +415,7 @@ async function viewDup(){
       +'<div style="color:var(--muted);font-size:11.5px">'+(r.minutos_entre==null?'':r.minutos_entre+' min depois')+'</div>';
     var vtxt=String(r.veredito||''), k=vtxt.indexOf('—');
     var ver='<span style="display:inline-block;border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:800;background:'+cor+'22;color:'+cor+'">'+escDup(k>0?vtxt.slice(0,k).trim():vtxt)+'</span>'+(k>0?'<div style="color:var(--muted);font-size:11.5px;margin-top:3px">'+escDup(vtxt.slice(k+1).trim())+'</div>':'');
-    rows+='<tr data-cdm-chave="'+escDup('dup|'+r.unidade+'|'+r.dia_operacional+'|'+r.pedido_2+'|'+(r.saiu_2||''))+'" style="border-top:1px solid #8883;vertical-align:top"><td>'+escDup(String(r.dia_operacional||'').slice(8,10)+'/'+String(r.dia_operacional||'').slice(5,7))+'</td><td>'+escDup(r.unidade)+'</td>'
+    rows+='<tr data-pdg-chave="'+escDup('dup|'+r.unidade+'|'+r.dia_operacional+'|'+r.pedido_2+'|'+(r.saiu_2||''))+'" style="border-top:1px solid #8883;vertical-align:top"><td>'+escDup(String(r.dia_operacional||'').slice(8,10)+'/'+String(r.dia_operacional||'').slice(5,7))+'</td><td>'+escDup(r.unidade)+'</td>'
       +'<td>'+escDup(r.porta_txt||'—')+'<div style="color:var(--muted);font-size:11.5px">cliente '+escDup(r.cliente_1||'?')+(r.cliente_2&&r.cliente_2!==r.cliente_1?(' e '+escDup(r.cliente_2)):'')+'</div></td>'
       +'<td>'+corridas+'</td><td>'+gps+'</td><td>'+ver+'</td><td>'+dupAcao(r,i)+'</td></tr>';
   });
@@ -558,7 +558,7 @@ async function viewComparar(){
 }
 
 async function portaPagDia(dia){
-  const b={p_token:cdmTok()};
+  const b={p_token:pdgTok()};
   if(dia)b.p_dia=dia;
   const r=await fetch(SB+'rpc/pagamento_do_dia',{method:'POST',
     headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
@@ -570,7 +570,7 @@ var DELES=null;
 async function portaDeles(dia){
   const r=await fetch(SB+'rpc/fechamento_deles_do_dia',{method:'POST',
     headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
-    body:JSON.stringify({p_token:cdmTok(),p_dia:dia})});
+    body:JSON.stringify({p_token:pdgTok(),p_dia:dia})});
   if(!r.ok)return null;
   return await r.json();
 }
@@ -770,7 +770,7 @@ async function apontar(i,unidade,idSale,dia){
   try{
     const r=await fetch(SB+'rpc/pagamento_apontar',{method:'POST',
       headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({p_token:cdmTok(),p_dados:{unidade:unidade,id_sale:idSale,dia:dia,entregador:v}})});
+      body:JSON.stringify({p_token:pdgTok(),p_dados:{unidade:unidade,id_sale:idSale,dia:dia,entregador:v}})});
     if(!r.ok)throw 0;
     if(VIEW==='ag'){AG=null;puxaAgora()}else{PD=null;puxaPagar(dia)}
   }catch(e){alert('Não deu para gravar. Entre no portal de novo.')}
@@ -907,7 +907,7 @@ let PV=null, PVDIA=null;
 async function portaProva(){
   const r=await fetch(SB+'rpc/prova_painel',{method:'POST',
     headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
-    body:JSON.stringify({p_token:cdmTok()})});
+    body:JSON.stringify({p_token:pdgTok()})});
   if(!r.ok){let c='';try{c=(await r.json()).code||''}catch(e){}const er=new Error('porta '+r.status);er.code=c;throw er}
   return await r.json();
 }
@@ -1119,7 +1119,7 @@ function maqPainel(){
   return h+'</div>';
 }
 async function maqFrescor(){
-  try{ const j=await maqPorta('pagamento_varrer',{p_token:cdmTok(),p_acao:'frescor',p_dados:{}}); MAQ_FONTES=j.fontes||[]; }
+  try{ const j=await maqPorta('pagamento_varrer',{p_token:pdgTok(),p_acao:'frescor',p_dados:{}}); MAQ_FONTES=j.fontes||[]; }
   catch(e){ MAQ_FONTES=[]; }
   const el=document.getElementById('maq_fontes'); if(el)el.innerHTML=maqFontesHtml();
 }
@@ -1129,7 +1129,7 @@ async function maqVarrer(){
   if(b){b.disabled=true;b.textContent='⏳ Buscando…'}
   if(a)a.textContent='Pedindo os números de novo em todas as fontes…';
   try{
-    const j=await maqPorta('pagamento_varrer',{p_token:cdmTok(),p_acao:'varrer',p_dados:{dia:MAQ_DIA}});
+    const j=await maqPorta('pagamento_varrer',{p_token:pdgTok(),p_acao:'varrer',p_dados:{dia:MAQ_DIA}});
     MAQ_FONTES=j.fontes||[];
     const el=document.getElementById('maq_fontes'); if(el)el.innerHTML=maqFontesHtml();
     if(j.aviso){ if(a)a.textContent=j.aviso; return; }
@@ -1160,7 +1160,7 @@ async function maqMarcar(sel,i){
   const l=MAQ_LINHAS[i]; if(!l)return;
   sel.disabled=true;
   try{
-    await maqPorta('cobranca_marcar',{p_token:cdmTok(),p_dados:{
+    await maqPorta('cobranca_marcar',{p_token:pdgTok(),p_dados:{
       unidade:l.unidade, dia:MAQ_DIA, pedido:String(l.pedido||''),
       valor:(l.na_porta!=null?String(l.na_porta):'0'), cliente:l.cliente||'',
       entregador:l.motoboy||'', meio:l.forma||'', hora_entrega:l.entregue_em||'',
@@ -1176,7 +1176,7 @@ async function maqBaixar(){
   const a=document.getElementById('maq_aviso');
   if(a)a.textContent='Montando a lista… pode levar uns segundos.';
   try{
-    const j=await maqPorta('pagamento_sem_par',{p_token:cdmTok(),p_dados:{dia:MAQ_DIA,unidade:LOJA||null}});
+    const j=await maqPorta('pagamento_sem_par',{p_token:pdgTok(),p_dados:{dia:MAQ_DIA,unidade:LOJA||null}});
     const q=j.quantos||{};
     const nome='sem-par-'+(j.dia||MAQ_DIA)+(LOJA?('-'+String(LOJA).replace(/\s/g,'')):'')+'.csv';
     const blob=new Blob(["﻿"+(j.csv||'')],{type:'text/csv;charset=utf-8'});
@@ -1231,7 +1231,7 @@ let MQ=null, MQK='';
 async function portaMaq(dia,loja){
   const r=await fetch(SB+'rpc/maquininha_conferir',{method:'POST',
     headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
-    body:JSON.stringify({p_token:cdmTok(),p_dia:dia||null,p_unidade:loja||null})});
+    body:JSON.stringify({p_token:pdgTok(),p_dia:dia||null,p_unidade:loja||null})});
   if(!r.ok)throw new Error('porta '+r.status);
   return await r.json();
 }
@@ -1277,7 +1277,7 @@ function extChave(){return extDia()+'|'+(LOJA||'')+'|'+(EXTTUDO?'1':'0')}
 async function portaExt(){
   const r=await fetch(SB+'rpc/maquininha_extrato',{method:'POST',
     headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
-    body:JSON.stringify({p_token:cdmTok(),p_dados:{dia:extDia(),unidade:LOJA||null,tudo:EXTTUDO}})});
+    body:JSON.stringify({p_token:pdgTok(),p_dados:{dia:extDia(),unidade:LOJA||null,tudo:EXTTUDO}})});
   if(!r.ok)throw new Error('porta '+r.status);
   return await r.json();
 }
@@ -1325,7 +1325,7 @@ function viewMaq(){
 async function portaAgora(){
   const r=await fetch(SB+'rpc/pagamento_agora',{method:'POST',
     headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
-    body:JSON.stringify({p_token:cdmTok()})});
+    body:JSON.stringify({p_token:pdgTok()})});
   if(!r.ok)throw new Error('porta '+r.status);
   return await r.json();
 }
@@ -1372,25 +1372,25 @@ function viewAgora(){
 
 /* ===== porta unica do portal ===== */
 // dentro do Resolver (embed) também entra quem tem o Resolver; a porta do banco é quem barra de verdade
-const CDMMODS=(new URLSearchParams(location.search).get('embed')==='1')?['pagamento','resolver']:['pagamento'];
-function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
-function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+const PDGMODS=(new URLSearchParams(location.search).get('embed')==='1')?['pagamento','resolver']:['pagamento'];
+function pdgTok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
+function pdgSaia(m){try{sessionStorage.setItem('pdg_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
-async function cdmGuarda(){
-  const t=cdmTok();
-  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+async function pdgGuarda(){
+  const t=pdgTok();
+  if(!t){pdgSaia('Entre no portal para acessar esta tela');return false}
   let j=null;
   try{
     const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'pagamento'})});
     if(r.ok)j=await r.json();
   }catch(e){j=null}
-  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
-  try{sessionStorage.setItem('cdm_admin',j.admin?'1':'0')}catch(e){}
+  if(!j||!j.usuario){pdgSaia('Entre no portal para acessar esta tela');return false}
+  try{sessionStorage.setItem('pdg_admin',j.admin?'1':'0')}catch(e){}
   const ms=Array.isArray(j.modulos)?j.modulos:[];
-  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  if(!ms.some(function(m){return m&&PDGMODS.indexOf(m.id)>=0})){pdgSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){if(!ok)return;try{$('p_sem').parentElement.style.display='none'}catch(e){}var qs=new URLSearchParams(location.search);if(qs.get('aba')==='dup'){try{$('de').value=new Date(Date.now()-21*864e5).toISOString().slice(0,10)}catch(e){}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}}setView('dup');return}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}if(qs.get('loja')!==null){const lq=lojaCfg(qs.get('loja'));LOJA=lq?lq.nome:qs.get('loja');}}else{provaSonda()}if(qs.get('aba')==='prova'&&qs.get('embed')!=='1'){setView('prova');return}setView('pagar');});
+pdgGuarda().then(function(ok){if(!ok)return;try{$('p_sem').parentElement.style.display='none'}catch(e){}var qs=new URLSearchParams(location.search);if(qs.get('aba')==='dup'){try{$('de').value=new Date(Date.now()-21*864e5).toISOString().slice(0,10)}catch(e){}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}}setView('dup');return}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}if(qs.get('loja')!==null){const lq=lojaCfg(qs.get('loja'));LOJA=lq?lq.nome:qs.get('loja');}}else{provaSonda()}if(qs.get('aba')==='prova'&&qs.get('embed')!=='1'){setView('prova');return}setView('pagar');});
 </script>
 <script src="../assets/portal.js?v=3"></script>
 </body>

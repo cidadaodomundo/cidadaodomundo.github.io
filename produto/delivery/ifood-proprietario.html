@@ -123,7 +123,7 @@ document.getElementById("lkponto").href=PORTAL_CFG.url("ponto/");
 let LOJAS=[],CANC=[],NEG=[],AVAL=[],QUAL=[],SUPER=[],SUPER_ALL=[],ENTR=[],MOTO=[];
 let F={unidade:"Todas",loja:0,d1:null,d2:null,tab:"aval"};
 
-const fmtBRL=v=>((function(){try{return sessionStorage.getItem("cdm_admin")==="1"}catch(e){return false}})()?(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):"—");
+const fmtBRL=v=>((function(){try{return sessionStorage.getItem("pdg_admin")==="1"}catch(e){return false}})()?(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):"—");
 const fmtPct=v=>v==null?"–":(v*100).toLocaleString("pt-BR",{maximumFractionDigits:2})+"%";
 const dISO=d=>d.toISOString().slice(0,10);
 const dBR=s=>s?s.slice(8,10)+"/"+s.slice(5,7):"–";
@@ -152,11 +152,11 @@ async function fetchAll(table,select,order){
 }
 
 
-function motoPw(){return sessionStorage.getItem("cdm_moto_pw")||""}
+function motoPw(){return sessionStorage.getItem("pdg_moto_pw")||""}
 async function fetchMoto(){
   var s=motoPw(); if(!s)return [];
   var r=await sb.rpc("foody_pagamento_motoboy",{p_senha:s});
-  if(r.error){sessionStorage.removeItem("cdm_moto_pw");return []}
+  if(r.error){sessionStorage.removeItem("pdg_moto_pw");return []}
   return r.data||[];
 }
 function motoForm(m){
@@ -174,17 +174,17 @@ async function motoEntrar(){
   var msg=document.getElementById("motomsg"); if(msg)msg.textContent="Conferindo...";
   var r=await sb.rpc("foody_pagamento_motoboy",{p_senha:v});
   if(r.error){if(msg)msg.textContent="Senha invalida.";return}
-  sessionStorage.setItem("cdm_moto_pw",v);
+  sessionStorage.setItem("pdg_moto_pw",v);
   MOTO=r.data||[];
   render();
 }
-function motoSair(){sessionStorage.removeItem("cdm_moto_pw");MOTO=[];render();}
+function motoSair(){sessionStorage.removeItem("pdg_moto_pw");MOTO=[];render();}
 
 async function loadAll(){
   document.getElementById("content").innerHTML='<div class="panel muted">Carregando dados ao vivo…</div>';
   [ENTR,MOTO,LOJAS,CANC,NEG,AVAL,QUAL,SUPER]=await Promise.all([
-    window.CDM_FOODY===false?Promise.resolve([]):fetchAll("foody_vw_entregas_dia","id_loja,unidade,dia_operacional,turno,pedidos,no_prazo,atrasados,atraso_ate_10,atraso_10_30,atraso_mais_30,atraso_medio_min,pior_atraso_min,sem_codigo,no_prazo_foody,preparo_medio_min,entrega_medio_min"),
-    window.CDM_FOODY===false?Promise.resolve([]):fetchMoto(),
+    window.PDG_FOODY===false?Promise.resolve([]):fetchAll("foody_vw_entregas_dia","id_loja,unidade,dia_operacional,turno,pedidos,no_prazo,atrasados,atraso_ate_10,atraso_10_30,atraso_mais_30,atraso_medio_min,pior_atraso_min,sem_codigo,no_prazo_foody,preparo_medio_min,entrega_medio_min"),
+    window.PDG_FOODY===false?Promise.resolve([]):fetchMoto(),
     fetchAll("ifood_dim_loja","id_loja,nome,unidade,ativa").then(v=>v.filter(l=>l.ativa!==false)),
     fetchAll("ifood_fato_cancelamento","id_loja,id_pedido,data,turno,status_pedido,motivo,impactou_super,valor_pedido,valor_cancelamento,itens_cancelados,origem,contestavel,loja_contestou,status_contestacao,id_saipos,forma_pagamento,pagamento_online,primeiro_pedido,chat,fotos","data"),
     fetchAll("ifood_fato_negociacao","id_loja,id_pedido,data,turno,motivo,momento_solicitacao,quem_iniciou,resposta_loja,resposta_cliente,valor_reembolso,valor_cupom,cancelamento_evitado,impactou_super,id_saipos,forma_pagamento,pagamento_online,primeiro_pedido,chat,fotos","data"),
@@ -281,7 +281,7 @@ function escondeMoto(){
   Array.prototype.forEach.call(document.querySelectorAll('.bar .muted'),function(el){if((el.textContent||'').trim()==='até')el.style.display='none'});
   var c7=document.querySelector('.bar .chip[data-d="7"]');
   if(c7&&!c7.getAttribute('data-cm')){c7.setAttribute('data-cm','1');c7.onclick=function(){semanaFechada()}}
-  if(window.CDM_FOODY===false){var t0=document.getElementById('tabs');if(t0)Array.prototype.forEach.call(t0.children,function(el){var k=el.getAttribute('data-t');if(k==='entregas'||k==='moto')el.style.display='none'});}
+  if(window.PDG_FOODY===false){var t0=document.getElementById('tabs');if(t0)Array.prototype.forEach.call(t0.children,function(el){var k=el.getAttribute('data-t');if(k==='entregas'||k==='moto')el.style.display='none'});}
   if(!SEMMOTO)return;
   var t=document.getElementById('tabs');
   if(t)Array.prototype.forEach.call(t.children,function(el){if(/motoboy/i.test(el.textContent||''))el.style.display='none'});
@@ -290,7 +290,7 @@ function escondeMoto(){
 function render(){
   try{SUPER=_superDedup(SUPER_ALL)}catch(e){}
   if(SEMMOTO&&F.tab==='moto')F.tab='aval';
-  if(window.CDM_FOODY===false&&(F.tab==='moto'||F.tab==='entregas'))F.tab='aval';
+  if(window.PDG_FOODY===false&&(F.tab==='moto'||F.tab==='entregas'))F.tab='aval';
   setTimeout(escondeMoto,0);
   const f=filtered();
   const nota=f.aval.length?f.aval.reduce((s,r)=>s+r.nota,0)/f.aval.length:null;
@@ -337,7 +337,7 @@ function rEntregas(f){
     var v=S(x[1]),p=atr?100*v/atr:0;
     h+="<div style=\"margin:6px 0\"><div style=\"display:flex;justify-content:space-between;font-size:13px\"><span>"+x[0]+"</span><span class=\"muted\">"+v+" &middot; "+p.toFixed(0)+"%</span></div><div style=\"height:7px;background:var(--panel2);border-radius:4px;margin-top:3px\"><div style=\"height:100%;width:"+p+"%;background:"+x[2]+";border-radius:4px\"></div></div></div>";});
   h+="</div>";
-  h+="<div class=\"panel\" style=\"margin-top:14px\"><div class=\"lbl\" style=\"margin-bottom:8px\">Por turno <button onclick='cdmAtrasadas(this)' style='margin-left:10px;font-size:11px;padding:2px 9px;border-radius:999px;border:1px solid var(--mut);background:transparent;color:inherit;cursor:pointer'>ver pedidos atrasados</button></div><table style=\"width:100%;border-collapse:collapse;font-size:13px\"><tr style=\"color:var(--mut);text-align:left\"><th style=\"padding:6px 4px\">Turno</th><th>Pedidos</th><th>No prazo</th><th>Atrasados</th><th>Sem codigo</th><th>%</th></tr>";
+  h+="<div class=\"panel\" style=\"margin-top:14px\"><div class=\"lbl\" style=\"margin-bottom:8px\">Por turno <button onclick='pdgAtrasadas(this)' style='margin-left:10px;font-size:11px;padding:2px 9px;border-radius:999px;border:1px solid var(--mut);background:transparent;color:inherit;cursor:pointer'>ver pedidos atrasados</button></div><table style=\"width:100%;border-collapse:collapse;font-size:13px\"><tr style=\"color:var(--mut);text-align:left\"><th style=\"padding:6px 4px\">Turno</th><th>Pedidos</th><th>No prazo</th><th>Atrasados</th><th>Sem codigo</th><th>%</th></tr>";
   Object.keys(pT).sort(function(a,b){return pT[b].p-pT[a].p}).forEach(function(k){var v=pT[k],p=v.p?100*v.o/v.p:0;
     h+="<tr style=\"border-top:1px solid var(--line)\"><td style=\"padding:6px 4px\">"+k+"</td><td>"+v.p+"</td><td>"+v.o+"</td><td>"+v.a+"</td><td>"+v.s+"</td><td style=\"color:"+cor(p)+"\">"+p.toFixed(1)+"%</td></tr>";});
   h+="</table></div>";
@@ -352,7 +352,7 @@ function rEntregas(f){
 
 function rMoto(f){
   var R=f.moto; if(!motoPw()){setContent(motoForm(""));return;} if(!R.length){setContent("<div class=\"panel muted\">Sem dados de pagamento. Sem lancamentos no periodo escolhido.</div>");return;}
-  var brl=function(v){return (function(){try{return sessionStorage.getItem("cdm_admin")==="1"}catch(e){return false}})()?("R$ "+(+v||0).toFixed(2).replace(".",",")):"—"};
+  var brl=function(v){return (function(){try{return sessionStorage.getItem("pdg_admin")==="1"}catch(e){return false}})()?("R$ "+(+v||0).toFixed(2).replace(".",",")):"—"};
   var tE=R.reduce(function(a,r){return a+(+r.pagar_por_entregas||0)},0);
   var tS=R.reduce(function(a,r){return a+(+r.pagar_por_escala||0)},0);
   var tx=R.reduce(function(a,r){return a+(+r.taxas||0)},0);
@@ -368,7 +368,7 @@ function rMoto(f){
     h+="<div class=\"panel\" style=\"margin-top:14px\"><div class=\"lbl\" style=\"margin-bottom:8px\">"+d.slice(8,10)+"/"+d.slice(5,7)+" &mdash; total "+brl(sd)+"</div><table style=\"width:100%;border-collapse:collapse;font-size:13px\"><tr style=\"color:var(--mut);text-align:left\"><th style=\"padding:6px 4px\">Loja</th><th>Bloco</th><th>Entregador</th><th>Escala</th><th>Entregas</th><th>Taxas</th><th>Pagar (escala)</th><th>Pagar (entregas)</th><th>Atrasos</th></tr>";
     Lr.forEach(function(r){ h+="<tr style=\"border-top:1px solid var(--line)\"><td style=\"padding:6px 4px\">"+r.unidade+"</td><td>"+r.bloco+"</td><td>"+r.entregador+"</td><td>"+(r.horas_escala!=null?(+r.horas_escala).toFixed(1)+"h":"-")+"</td><td>"+r.entregas+"</td><td>"+brl(r.taxas)+"</td><td><b>"+brl(r.pagar_por_escala)+"</b></td><td class=\"muted\">"+brl(r.pagar_por_entregas)+"</td><td style=\"color:"+((+r.atrasos>0)?"var(--bad)":"var(--mut)")+"\">"+r.atrasos+"</td></tr>";});
     h+="</table></div>";});
-  h+="<div class=\"panel muted\" style=\"margin-top:14px;font-size:12.5px;line-height:1.5\">"+((function(){try{return sessionStorage.getItem("cdm_admin")==="1"}catch(e){return false}})()?"<b>Garantido por loja (regra de exemplo, configuravel).</b> Por hora de escala: R$ 20 em dia de semana e R$ 25 no fim de semana. Paga-se sempre o maior entre as taxas e o garantido.":"<b>Garantido por loja.</b> Cada loja tem um valor minimo por bloco de trabalho. Paga-se sempre o maior entre as taxas e o garantido.")+"<br><b>As duas bases.</b> Escala usa as horas combinadas; entregas usa o tempo entre a primeira e a ultima entrega. Compare alguns dias antes de fixar a regra.<br><b>Atrasos aparecem como informacao</b>, sem desconto automatico.</div>";
+  h+="<div class=\"panel muted\" style=\"margin-top:14px;font-size:12.5px;line-height:1.5\">"+((function(){try{return sessionStorage.getItem("pdg_admin")==="1"}catch(e){return false}})()?"<b>Garantido por loja (regra de exemplo, configuravel).</b> Por hora de escala: R$ 20 em dia de semana e R$ 25 no fim de semana. Paga-se sempre o maior entre as taxas e o garantido.":"<b>Garantido por loja.</b> Cada loja tem um valor minimo por bloco de trabalho. Paga-se sempre o maior entre as taxas e o garantido.")+"<br><b>As duas bases.</b> Escala usa as horas combinadas; entregas usa o tempo entre a primeira e a ultima entrega. Compare alguns dias antes de fixar a regra.<br><b>Atrasos aparecem como informacao</b>, sem desconto automatico.</div>";
   setContent(h);
 }
 
@@ -410,11 +410,11 @@ function rCanc(f){
       <div class="card"><div class="lbl">🏆 Causa ganha p/ loja</div><div class="big">${f.canc.filter(r=>cgCanc(r).g).length}</div><div class="muted" style="font-size:12px">${f.canc.filter(tardeCanc).length} não contestados a tempo</div></div>
       <div class="card"><div class="lbl">🔴 Impactaram o Super</div><div class="big">${f.canc.filter(r=>r.impactou_super).length}</div></div>
     </div>
-    ${(function(){try{return sessionStorage.getItem("cdm_admin")==="1"}catch(e){return false}})()?'<div class="panel"><b>Motivos (por valor perdido)</b><div class="cwrap"><canvas id="ch2"></canvas></div></div>':''}
+    ${(function(){try{return sessionStorage.getItem("pdg_admin")==="1"}catch(e){return false}})()?'<div class="panel"><b>Motivos (por valor perdido)</b><div class="cwrap"><canvas id="ch2"></canvas></div></div>':''}
     <div class="panel"><b>Cancelamentos no período</b>
       <table><tr><th>Data</th><th>Loja</th><th>Pedido</th><th>Status</th><th>Motivo</th><th>Pagamento</th><th>Valor</th><th>Contestação</th><th>Causa ganha</th><th>Chat / Fotos</th></tr>
       ${f.canc.map(r=>{const cg=cgCanc(r);return `<tr><td>${dBR(r.data)}</td><td>${lojaNome(r.id_loja)}</td><td>${pedHtml(r)}</td><td><span class="pill ${r.status_pedido==="CANCELADO"?"p-bad":"p-warn"}">${r.status_pedido==="CANCELADO"?"Total":"Parcial"}</span></td><td>${r.motivo}</td><td>${pagHtml(r)}</td><td>${fmtBRL(+r.valor_cancelamento)}</td><td>${r.status_contestacao&&r.status_contestacao!=="-"?r.status_contestacao:(r.contestavel?'<span class="pill p-warn">contestável</span>':"–")}${tardeCanc(r)?'<br><span class="pill p-bad">⏰ fora do prazo</span>':""}</td><td>${cg.g?'<span class="pill p-ok">🏆 '+cg.t+'</span>':"–"}</td><td>${chatHtml(r)} ${fotosHtml(r)}</td></tr>`}).join("")||"<tr><td colspan=10 class='muted'>nenhum no período 🎉</td></tr>"}</table></div>`);
-  if((function(){try{return sessionStorage.getItem("cdm_admin")==="1"}catch(e){return false}})())newChart("ch2",{type:"bar",data:{labels:ms.slice(0,8).map(m=>m[0].slice(0,38)),datasets:[{label:"R$ perdidos",data:ms.slice(0,8).map(m=>+m[1].v.toFixed(2)),backgroundColor:"#e5484d"}]},
+  if((function(){try{return sessionStorage.getItem("pdg_admin")==="1"}catch(e){return false}})())newChart("ch2",{type:"bar",data:{labels:ms.slice(0,8).map(m=>m[0].slice(0,38)),datasets:[{label:"R$ perdidos",data:ms.slice(0,8).map(m=>+m[1].v.toFixed(2)),backgroundColor:"#e5484d"}]},
     options:{indexAxis:"y",maintainAspectRatio:false,scales:{x:{ticks:{color:"#95a1b2"}},y:{ticks:{color:"#e6eaf0",font:{size:11}}}},plugins:{legend:{display:false}}}});
 }
 
@@ -492,32 +492,32 @@ document.querySelectorAll("#tabs .tab").forEach(t=>t.onclick=()=>{document.query
 setDays(30);
 
 /* ===== porta unica do portal: sessao por usuario ===== */
-const CDMMODS=['ifood'];
-function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
-function cdmTem(id){try{const l=JSON.parse(sessionStorage.getItem('cdm_modulos')||'[]');return Array.isArray(l)&&l.some(function(m){return m&&m.id===id})}catch(e){return false}}
-function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+const PDGMODS=['ifood'];
+function pdgTok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
+function pdgTem(id){try{const l=JSON.parse(sessionStorage.getItem('pdg_modulos')||'[]');return Array.isArray(l)&&l.some(function(m){return m&&m.id===id})}catch(e){return false}}
+function pdgSaia(m){try{sessionStorage.setItem('pdg_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
-async function cdmGuarda(){
-  const t=cdmTok();
-  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+async function pdgGuarda(){
+  const t=pdgTok();
+  if(!t){pdgSaia('Entre no portal para acessar esta tela');return false}
   let j=null;
   try{
     const r=await fetch(PORTAL_CFG.rest+'rpc/portal_eu',{method:'POST',headers:{apikey:PORTAL_CFG.chave,Authorization:'Bearer '+PORTAL_CFG.chave,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'ifood'})});
     if(r.ok)j=await r.json();
   }catch(e){j=null}
-  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  if(!j||!j.usuario){pdgSaia('Entre no portal para acessar esta tela');return false}
   const ms=Array.isArray(j.modulos)?j.modulos:[];
-  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
-  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  try{sessionStorage.setItem('pdg_nome',j.nome||'');sessionStorage.setItem('pdg_admin',j.admin?'1':'0');sessionStorage.setItem('pdg_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&PDGMODS.indexOf(m.id)>=0})){pdgSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){if(!ok)return;document.getElementById("appwrap").style.display="";loadAll();});
+pdgGuarda().then(function(ok){if(!ok)return;document.getElementById("appwrap").style.display="";loadAll();});
 </script>
 <script>
 /* Lista de pedidos atrasados — pedido + motoboy.
    Busca sob demanda (so no clique), so os atrasados, so as colunas usadas. */
-async function cdmAtrasadas(btn){
-  var velho=document.getElementById("cdmatr");
+async function pdgAtrasadas(btn){
+  var velho=document.getElementById("pdgatr");
   if(velho){velho.remove();btn.textContent="ver pedidos atrasados";return;}
   var pai=btn.closest(".panel");
   btn.textContent="carregando…";
@@ -537,13 +537,13 @@ async function cdmAtrasadas(btn){
     var R=res.data||[], tot=res.count!=null?res.count:R.length;
     btn.textContent="esconder atrasados";
     if(!R.length){
-      pai.insertAdjacentHTML("afterend",'<div class="panel" id="cdmatr" style="margin-top:14px"><div class="muted">Nenhum pedido atrasado no periodo e nas lojas selecionadas.</div></div>');
+      pai.insertAdjacentHTML("afterend",'<div class="panel" id="pdgatr" style="margin-top:14px"><div class="muted">Nenhum pedido atrasado no periodo e nas lojas selecionadas.</div></div>');
       return;
     }
     var dBR=function(d){return d?String(d).slice(8,10)+"/"+String(d).slice(5,7):"–"};
     var hr=function(x){return x?String(x).slice(11,16):""};
     var cor=function(m){return m>30?"var(--bad)":m>10?"var(--warn)":"inherit"};
-    var h='<div class="panel" id="cdmatr" style="margin-top:14px">';
+    var h='<div class="panel" id="pdgatr" style="margin-top:14px">';
     h+='<div class="lbl" style="margin-bottom:8px">Pedidos atrasados · '+tot+' no periodo';
     if(tot>R.length) h+=' <span class="muted">(mostrando os '+R.length+' piores)</span>';
     h+='</div>';
@@ -568,7 +568,7 @@ async function cdmAtrasadas(btn){
     pai.insertAdjacentHTML("afterend",h);
   }catch(e){
     btn.textContent="ver pedidos atrasados";
-    pai.insertAdjacentHTML("afterend",'<div class="panel" id="cdmatr" style="margin-top:14px"><div class="muted">Nao consegui carregar a lista: '+(e&&e.message?e.message:e)+'</div></div>');
+    pai.insertAdjacentHTML("afterend",'<div class="panel" id="pdgatr" style="margin-top:14px"><div class="muted">Nao consegui carregar a lista: '+(e&&e.message?e.message:e)+'</div></div>');
   }
 }
 

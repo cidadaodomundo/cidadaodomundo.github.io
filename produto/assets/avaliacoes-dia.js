@@ -20,7 +20,7 @@
   var EL=null, OP={}, D=null, LOJA='', QUANDO='hoje', NOTA={}, ABRE={}, T=null;
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
   function arr(r){return Array.isArray(r)?r:[]}
-  function tok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+  function tok(){try{return sessionStorage.getItem('pdg_token')||''}catch(e){return ''}}
   /* aceita https:// ou imagem embutida (data:image/...) sem aspas nem espacos */
   function urlOk(u){return typeof u==='string'&&(/^https:\/\/[^\s"'()<>]+$/.test(u)||/^data:image\/(png|jpeg|webp|svg\+xml)[;,][^\s"'<>]+$/.test(u))}
   function num(v,c){if(v==null||v==='')return '—';var n=Number(v);return isFinite(n)?n.toLocaleString('pt-BR',{minimumFractionDigits:c||0,maximumFractionDigits:c||0}):'—'}

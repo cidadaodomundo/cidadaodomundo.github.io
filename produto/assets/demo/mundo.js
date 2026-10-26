@@ -151,11 +151,20 @@
       return {
         id: id, nome: g.nome, apelido: g.primeiro, loja: l.id, unidade: l.nome, setor: setor, cargo: cargo,
         turno: t.turno, entrada: t.entrada, saida: t.saida, intervalo_min: t.intervalo,
-        folga: entre(r, 1, 3), /* 1 = segunda ... */
+        folga: entre(r, 1, 6), /* 1 = segunda ... 6 = sabado */
         admissao: adm, cartao: 'C' + (1000 + id), matricula: String(id), cargo_confianca: confianca,
         salario: SALARIO[cargo] || 2000, ativo: true, experiencia: adm > somaDias(hoje(), -90)
       };
     }
+  })();
+
+  /* tres pessoas em contrato de experiencia, sempre perto de hoje (o aviso de experiencia nunca fica vazio) */
+  (function () {
+    var cand = equipe.filter(function (p) { return !p.cargo_confianca; });
+    [[2, -25], [7, -30], [12, -86]].forEach(function (x) {
+      var p = cand[x[0]];
+      if (p) { p.admissao = somaDias(hoje(), x[1]); p.experiencia = true; }
+    });
   })();
 
   var MOTOS = ['Honda CG 160', 'Honda Biz 125', 'Yamaha Factor 150', 'Honda Pop 110', 'Yamaha Fazer 250', 'Honda Bros 160'];
@@ -210,9 +219,9 @@
   var LETRAS = 'ABCDEFGHIJLMNOPRSTV';
   function iniciais(r) { return LETRAS[entre(r, 0, LETRAS.length - 1)] + '. ' + LETRAS[entre(r, 0, LETRAS.length - 1)] + '.'; }
 
-  var COMENT_BOM = ['Chegou quentinho, muito bom!', 'Melhor burger da região.', 'Entrega rápida, parabéns.', 'Batata crocante, voltarei a pedir.', 'Tudo certo, lanche excelente.', 'Muito saboroso, embalagem caprichada.'];
-  var COMENT_MEIO = ['Bom, mas demorou um pouco.', 'Lanche bom, batata chegou morna.', 'Faltou o molho extra que pedi.'];
-  var COMENT_RUIM = ['Demorou mais de uma hora.', 'Veio o lanche errado.', 'Chegou frio.', 'Faltou um item do pedido.', 'O motoboy não achou o endereço.'];
+  var COMENT_BOM = ['Chegou quentinho, muito bom!', 'Melhor burger da região.', 'Entrega rápida, parabéns.', 'Batata crocante, voltarei a pedir.', 'Tudo certo, lanche excelente.', 'Muito saboroso, embalagem caprichada.', 'Carne no ponto certinho.', 'Pão macio e molho da casa ótimo.', 'Chegou antes do previsto, nota 10.', 'Sempre peço e nunca decepciona.', 'Milkshake perfeito.', 'Lanche bem montado, nada caiu.'];
+  var COMENT_MEIO = ['Bom, mas demorou um pouco.', 'Lanche bom, batata chegou morna.', 'Faltou o molho extra que pedi.', 'Gostoso, mas veio pouco bacon.', 'O lanche estava bom, a embalagem amassou.', 'Achei um pouco salgado.', 'Bom, mas mais caro que da última vez.'];
+  var COMENT_RUIM = ['Demorou mais de uma hora.', 'Veio o lanche errado.', 'Chegou frio.', 'Faltou um item do pedido.', 'O motoboy não achou o endereço.', 'Carne passada do ponto que pedi.', 'Batata murcha e fria.', 'Pedi sem cebola e veio com cebola.', 'Refrigerante não veio.', 'Lanche desmontado dentro da caixa.'];
   var MOTIVOS_CANCEL = ['Cliente desistiu', 'Pedido em duplicidade', 'Item indisponível', 'Endereço fora da área', 'Demora na entrega', 'Problema no pagamento'];
 
   /* ---------------- pedidos de delivery ---------------- */
@@ -229,10 +238,14 @@
     var k = diaIso + '|' + L.id;
     if (!cache[k]) cache[k] = gerarDia(diaIso, L);
     var lista = cache[k];
+    var agora = minutosAgora();
     if (diaIso === hoje()) {
-      var agora = minutosAgora();
-      if (agora < 300) agora += 1440; /* madrugada: ainda e o "dia" de ontem */
+      if (agora < 300) return []; /* madrugada: o dia de hoje ainda nao abriu; o movimento e do dia anterior */
       return lista.filter(function (p) { return p.min_pedido <= agora; }).map(function (p) { return comStatus(p, agora); });
+    }
+    if (diaIso === somaDias(hoje(), -1) && agora < 300) {
+      var ag = agora + 1440; /* madrugada: o dia anterior ainda esta terminando */
+      return lista.filter(function (p) { return p.min_pedido <= ag; }).map(function (p) { return comStatus(p, ag); });
     }
     if (diaIso > hoje()) return [];
     return lista.map(function (p) { return comStatus(p, 99999); });
@@ -244,9 +257,11 @@
     var mbs = motoboys.filter(function (m) { return m.loja === L.id; });
     var lista = [];
     for (var i = 0; i < n; i++) {
-      var almoco = r() < 0.3;
-      var min = almoco ? normal(r, 12.6 * 60, 50) : normal(r, 20.4 * 60, 70);
-      min = Math.max(11 * 60, Math.min(almoco ? 15 * 60 : 23.4 * 60, min));
+      var faixa = pesado(r, [['almoco', 30], ['tarde', 7], ['jantar', 63]]);
+      var min;
+      if (faixa === 'almoco') min = Math.max(11 * 60, Math.min(15 * 60, normal(r, 12.6 * 60, 50)));
+      else if (faixa === 'tarde') min = 15 * 60 + r() * 150;
+      else min = Math.max(17.5 * 60, Math.min(23.4 * 60, normal(r, 20.4 * 60, 70)));
       var canal = pesado(r, [['ifood', 76], ['proprio', 16], ['retirada', 8]]);
       var nItens = pesado(r, [[1, 30], [2, 40], [3, 20], [4, 10]]);
       var itens = [], total = 0;
