@@ -2,9 +2,9 @@
    1) Ordenacao por clique no cabecalho de qualquer tabela
    2) Carimbo "dados ate DD/MM" no topo de cada tela
    3) Nenhuma tela rola para o lado: tabela quebra linha no computador
-      e vira cartao no celular (24/09/2026)
+      e vira cartao no celular
    4) Linha de anotacao em toda linha de tabela que tem botao de decisao,
-      e uma caixa de anotacao geral no fim de cada tela (24/09/2026)
+      e uma caixa de anotacao geral no fim de cada tela
    Usa o endereco do banco definido em config.js (PORTAL_CFG). */
 (function () {
   'use strict';
@@ -120,7 +120,7 @@
     { re: /\/delivery\/escala/i,         t: 'foody_escala',                    c: 'data',            ate: true },
     { re: /\/delivery\/ifood/i,          t: 'ifood_fato_avaliacao',            c: 'data_avaliacao' },
     { re: /\/delivery\//i,               t: 'foody_fato_fechamento_turno_dia', c: 'dia_operacional' },
-    { re: /\/(rh|ponto|reuniao)(\/|$)/i, t: 'fato_espelho_dia',                c: 'data' },
+    { re: /\/(rh|ponto)(\/|$)/i, t: 'fato_espelho_dia',                c: 'data' },
     { re: /\/salao(\/|$)/i,              t: 'google_fato_avaliacao',           c: 'data_coleta' }
   ];
 
@@ -174,8 +174,8 @@
         var el = document.createElement('span');
         el.className = 'pdg-fresh ' + (dias <= 1 ? 'ok' : (dias <= 3 ? 'warn' : 'old'));
         el.title = 'Fonte: ' + f.t + '.' + f.c;
-        el.textContent = 'dados ate ' + d.slice(8, 10) + '/' + d.slice(5, 7) +
-                         (dias > 1 ? ' - ' + dias + ' dias atras' : '');
+        el.textContent = 'dados até ' + d.slice(8, 10) + '/' + d.slice(5, 7) +
+                         (dias > 1 ? ' - ' + dias + ' dias atrás' : '');
         fixar(el);
       })
       .catch(function () {});

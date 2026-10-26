@@ -15,7 +15,7 @@ window.PORTAL_CFG = {
   marca: 'Burger Modelo',
   slogan: 'Hamburgueria artesanal',
   logo: 'assets/logo.svg',              /* caminho a partir da pasta do portal, ou endereco https:// */
-  cores: { brand: '#E0A81C', brandInk: '#111110' },
+  cores: { brand: '#F47B3C', brandInk: '#111110' },
   lojas: [
     { id: 'centro', nome: 'Centro', curto: 'CEN' },
     { id: 'norte',  nome: 'Norte',  curto: 'NOR' },

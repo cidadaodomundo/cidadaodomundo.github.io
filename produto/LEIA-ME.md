@@ -44,7 +44,7 @@ Tudo o que muda de um cliente para outro está em **`config.js`**:
 produto: 'Portal de Gestão',
 marca:   'Burger Modelo',
 logo:    'assets/logo.svg',
-cores:   { brand: '#E0A81C', brandInk: '#111110' },
+cores:   { brand: '#F47B3C', brandInk: '#111110' },
 lojas:   [ {id:'centro', nome:'Centro', curto:'CEN'}, ... ],
 modo:    'demo',            // 'demo' ou 'supabase'
 supabaseUrl: '', supabaseChave: ''
@@ -92,7 +92,7 @@ tela (HTML)  ──fetch──▶  config.js decide o endereço
 4. Pronto: as mesmas telas passam a ler o banco. Os arquivos de `assets/demo/` deixam de ser
    carregados.
 
-### Regras de segurança que o portal original aprendeu na prática
+### Regras de segurança recomendadas
 
 * **A chave publishable é pública.** Proteção de verdade é no banco: dado de pessoa nunca sai
   por tabela aberta; sai por **função `SECURITY DEFINER` que valida o token** da sessão
@@ -101,7 +101,7 @@ tela (HTML)  ──fetch──▶  config.js decide o endereço
   e só então `grant ... to anon`.
 * **Valor em R$ só para o dono**: a porta nem coloca a chave do dinheiro no JSON quando a pessoa
   não é admin; a tela mostra `—`.
-* O papel `anon` tem tempo-limite curto (no original, 3 s). Porta pesada: `alter function ...
+* Dê ao papel `anon` um tempo-limite curto (recomendado: 3 s). Porta pesada: `alter function ...
   set statement_timeout` ou guardar o resultado pronto numa tabela de cache.
 * O menu (`portal_eu`) é só visão; a trava real é a porta checar o módulo de quem pede.
 * Login: `portal_login(p_usuario, p_senha)` devolve `{token, nome, admin, modulos[]}`;
@@ -125,14 +125,12 @@ Três caminhos, do mais simples ao mais completo:
 
 ## 6. O que ficou de fora desta cópia (de propósito)
 
-* **Tudo de aplicativo de mensagens** — telas de leitura de grupos e conversas, ligação de números, respostas sugeridas,
-  botões de mandar mensagem, e qualquer texto vindo de conversa.
-* **Telas pessoais ou internas do restaurante de origem** — agenda pessoal do dono, roteiro de
-  obra do sistema, mapa interno dos robôs, telas feitas para uma pessoa específica, telas de uma
-  loja específica, negócio paralelo de distribuição, reunião semanal, central de SAC por
-  mensagem, páginas legais (privacidade/termos) do restaurante de origem.
-* **Qualquer dado real** — nomes, apelidos, telefones, documentos, endereços, coordenadas,
-  contas, chaves, IDs de lojas e de aplicativos, cardápio próprio, comentários de histórico.
+* Esta cópia traz só as telas genéricas de gestão de restaurante. Integrações com aplicativos de
+  mensagens e telas feitas sob medida para uma casa específica ficaram de fora.
+* **Nenhum dado real** — nomes, apelidos, telefones, documentos, endereços, contas, chaves, IDs de
+  lojas e de aplicativos, cardápio próprio e comentários de histórico foram retirados ou trocados
+  por exemplos. As regras de negócio que aparecem (valor por hora, tolerâncias, metas) são
+  **exemplos** e devem ser ajustadas para cada cliente.
 
 ---
 

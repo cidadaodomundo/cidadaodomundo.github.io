@@ -312,6 +312,49 @@
     return fetchOriginal(entrada, init);
   };
 
+  /* as outras portas para a internet tambem ficam fechadas na demonstracao */
+  function anotaBloqueio(url, tipo) {
+    if (bloqueados.indexOf(url) < 0) bloqueados.push(url);
+    try { console.warn('[DEMO] bloqueado (' + tipo + '): ' + url); } catch (e) {}
+  }
+  function conexaoFalsa(Classe, tipo) {
+    if (!Classe) return Classe;
+    var F = function (url) {
+      var u = String(url);
+      anotaBloqueio(u, tipo);
+      return { url: u, readyState: 3, send: function () {}, close: function () {}, addEventListener: function () {}, removeEventListener: function () {},
+               onopen: null, onclose: null, onerror: null, onmessage: null };
+    };
+    F.CONNECTING = 0; F.OPEN = 1; F.CLOSING = 2; F.CLOSED = 3;
+    return F;
+  }
+  window.WebSocket = conexaoFalsa(window.WebSocket, 'conexao ao vivo');
+  window.EventSource = conexaoFalsa(window.EventSource, 'conexao ao vivo');
+  try {
+    if (navigator.sendBeacon) {
+      var beacon = navigator.sendBeacon.bind(navigator);
+      navigator.sendBeacon = function (url, dados) {
+        var u = new URL(String(url), location.href).href;
+        if (!livre(u)) { anotaBloqueio(u, 'envio em segundo plano'); return false; }
+        return beacon(url, dados);
+      };
+    }
+  } catch (e) {}
+  if (window.XMLHttpRequest) {
+    var xOpen = XMLHttpRequest.prototype.open, xSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function (metodo, url) {
+      var u = new URL(String(url), location.href).href;
+      this.__demoBloqueado = !livre(u);
+      if (this.__demoBloqueado) anotaBloqueio(u, 'pedido antigo');
+      return xOpen.apply(this, arguments);
+    };
+    XMLHttpRequest.prototype.send = function () {
+      if (!this.__demoBloqueado) return xSend.apply(this, arguments);
+      var x = this;
+      setTimeout(function () { try { x.dispatchEvent(new ProgressEvent('error')); } catch (e) {} }, 0);
+    };
+  }
+
   window.DEMO = {
     rpc: function (nome, fn) { RPC[nome] = fn; },
     tabela: function (nome, fn) { TAB[nome] = fn; },

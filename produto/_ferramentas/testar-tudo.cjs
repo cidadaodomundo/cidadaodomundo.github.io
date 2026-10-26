@@ -57,6 +57,7 @@ servidor.listen(0, '127.0.0.1', async () => {
         pg.on('pageerror', (e) => r.erros_js.push(String(e && e.message || e).slice(0, 200)));
         pg.on('console', (c) => { if (c.type() === 'error' && !/Failed to load resource/.test(c.text())) r.erros_console.push(c.text().slice(0, 200)); });
         pg.on('request', (q) => { const u = q.url(); if (!u.startsWith(base) && !PERMITIDOS.some((re) => re.test(u))) r.externos.push(u.slice(0, 150)); });
+        pg.on('websocket', (w) => r.externos.push('conexao ao vivo: ' + w.url().slice(0, 150)));
         pg.on('response', (s) => { if (s.url().startsWith(base) && s.status() === 404) r.http_404.push(s.url().replace(base, '')); });
         try {
           await pg.goto(base + m.url, { waitUntil: 'domcontentloaded', timeout: 30000 });

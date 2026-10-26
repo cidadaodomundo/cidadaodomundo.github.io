@@ -77,6 +77,7 @@ servidor.listen(0, '127.0.0.1', async () => {
       if (u.startsWith(base)) return;
       if (!PERMITIDOS.some((re) => re.test(u))) r.externos_proibidos.push(u.slice(0, 200));
     });
+    page.on('websocket', (w) => r.externos_proibidos.push('conexao ao vivo: ' + w.url().slice(0, 200)));
     page.on('requestfailed', (q) => { const u = q.url(); if (u.startsWith(base)) r.falhas_rede.push(u.replace(base, '') + ' ' + (q.failure() || {}).errorText); });
     page.on('response', (s) => { const u = s.url(); if (u.startsWith(base) && s.status() === 404) r.http_404.push(u.replace(base, '')); });
 
