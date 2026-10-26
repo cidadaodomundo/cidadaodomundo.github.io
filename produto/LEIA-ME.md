@@ -151,7 +151,15 @@ se algo estiver errado.
 
 ## 8. Telas
 
-Veja a lista completa, com o que cada uma faz e as portas que usa, em `CONTRATO-DE-DADOS.md`.
+44 telas, que usam **88 portas**, **29 tabelas** e **1 Edge Function**, além das portas comuns de
+entrada e menu. A lista completa, tela por tela, com o que cada porta devolve, está em
+`CONTRATO-DE-DADOS.md` (gerado por `node _ferramentas/gerar-contrato.cjs`).
+
+Para testar todas as telas de uma vez, como cada tipo de usuário:
+
+```
+node _ferramentas/testar-tudo.cjs --fotos fotos/
+```
 
 ---
 

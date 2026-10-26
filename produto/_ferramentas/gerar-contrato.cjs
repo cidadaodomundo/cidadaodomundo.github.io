@@ -3,12 +3,13 @@
    que ela usa, lidas dos arquivos de demonstracao (assets/demo/telas/*.js) e das proprias telas.
 
    node produto/_ferramentas/gerar-contrato.cjs [descricoes.json]
-   descricoes.json (opcional): { "nome_da_porta": "o que devolve", ... } para enriquecer a tabela. */
+   descricoes.json (padrao: _ferramentas/descricoes-das-portas.json): { "nome_da_porta": "o que devolve", ... }. */
 'use strict';
 const fs = require('fs');
 const path = require('path');
 const RAIZ = path.resolve(__dirname, '..');
-const DESC = process.argv[2] && fs.existsSync(process.argv[2]) ? JSON.parse(fs.readFileSync(process.argv[2], 'utf8')) : {};
+const ARQ_DESC = process.argv[2] || path.join(__dirname, 'descricoes-das-portas.json');
+const DESC = fs.existsSync(ARQ_DESC) ? JSON.parse(fs.readFileSync(ARQ_DESC, 'utf8')) : {};
 
 function html(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
@@ -20,14 +21,15 @@ function html(dir) {
 function registros(arquivo) {
   const t = fs.existsSync(arquivo) ? fs.readFileSync(arquivo, 'utf8') : '';
   const r = { rpc: new Set(), tabela: new Set(), funcao: new Set() };
-  const re = /DEMO\.(rpc|tabela|funcao)\(\s*['"]([A-Za-z0-9_-]+)['"]/g;
+  const re = /\b[A-Za-z_$][\w$]*\.(rpc|tabela|funcao)\(\s*['"]([A-Za-z0-9_-]+)['"]/g;
   let m;
   while ((m = re.exec(t))) r[m[1]].add(m[2]);
   return r;
 }
 function chamadas(texto) {
   const r = new Set();
-  const re = /(?:rpc\/|porta\(\s*['"]|rpc\(\s*['"])([a-z_0-9]+)/g;
+  /* rpc/<nome> na URL, porta('<nome>') e rpc('<nome>'); nome de porta sempre tem "_" (evita confundir com nome de acao) */
+  const re = /(?:rpc\/['"]?|porta\(\s*['"]|rpc\(\s*['"])([a-z0-9]+_[a-z_0-9]+)/g;
   let m;
   while ((m = re.exec(texto))) if (m[1] !== 'portal_eu') r.add(m[1]);
   return r;
@@ -58,7 +60,9 @@ for (const pg of paginas) {
   const reg = { rpc: new Set(), tabela: new Set(), funcao: new Set() };
   arqs.forEach((a) => { const r = registros(path.join(RAIZ, 'assets/demo', a)); for (const k in r) r[k].forEach((x) => reg[k].add(x)); });
   const usadas = chamadas(txt);
-  usadas.forEach((u) => { if (!reg.rpc.has(u) && !comum.rpc.has(u)) reg.rpc.add(u + ' ⚠ sem molde'); });
+  const textoDemo = arqs.map((a) => { const f = path.join(RAIZ, 'assets/demo', a); return fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : ''; }).join('\n');
+  /* nome chamado pela tela que nao e porta registrada: se o arquivo de demonstracao trata como acao de outra porta, tudo bem */
+  usadas.forEach((u) => { if (!reg.rpc.has(u) && !comum.rpc.has(u) && textoDemo.indexOf(u) < 0) reg.rpc.add(u + ' ⚠ sem molde'); });
   linhas.push('### ' + tit + ' — `' + pg + '`', '');
   if (arqs.length) linhas.push('Demonstração: ' + arqs.map((a) => '`assets/demo/' + a + '`').join(', '), '');
   const item = (tipo, n) => '- ' + tipo + ' `' + n + '`' + (DESC[n.replace(/ ⚠.*/, '')] ? ' — ' + DESC[n.replace(/ ⚠.*/, '')] : '');
