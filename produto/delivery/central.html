@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../config.js" data-demo="telas/central.js"></script>
+<script src="../assets/chaves.js?v=1"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#111110">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Delivery">
+<link rel="apple-touch-icon" href="../assets/logo.svg">
+<title>Central do Delivery · Portal de Gestão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --surface-0:#111110; --surface-1:#1a1a19; --surface-2:#232321; --line:#34332f;
+  --text:#ffffff; --text2:#c3c2b7; --muted:#8a897e;
+  --good:#2fae6a; --bad:#e66767; --warn:#e0a93a; --brand:#E0A81C;--brand-ink:#111110; --blue:#3987e5;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--surface-0);color:var(--text);font-family:'Barlow','Segoe UI',system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.45}
+.wrap{max-width:1100px;margin:0 auto;padding:16px 14px 60px}
+header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;border-bottom:2px solid var(--brand);padding-bottom:12px;margin-bottom:12px}
+.brand{display:flex;align-items:center;gap:12px}
+.dot{width:40px;height:40px;border-radius:10px;background:var(--brand);color:var(--brand-ink);display:grid;place-items:center;font-weight:800;font-size:16px;flex-shrink:0;overflow:hidden}
+.dot img{width:100%;height:100%;object-fit:cover;display:block}
+h1{font-size:18px;font-weight:800}
+.sub{color:var(--text2);font-size:12px;margin-top:2px}
+.btnr{background:var(--surface-1);border:1px solid var(--line);color:var(--text2);border-radius:8px;padding:7px 13px;font-size:12.5px;cursor:pointer;font-weight:600}
+.btnr:hover{border-color:var(--muted);color:#fff}
+.views{display:flex;gap:6px;background:var(--surface-1);border:1px solid var(--line);border-radius:12px;padding:4px;width:max-content;margin:4px 0 12px;flex-wrap:wrap}
+.view{border:none;background:none;color:var(--muted);font-weight:800;font-size:13.5px;padding:9px 18px;border-radius:9px;cursor:pointer}
+.view.active{background:var(--brand);color:var(--brand-ink)}
+.datenav{display:flex;align-items:center;gap:4px;background:var(--surface-1);border:1px solid var(--line);border-radius:10px;padding:3px}
+.datenav button{background:none;border:none;color:var(--text);font-size:17px;cursor:pointer;padding:5px 12px;border-radius:7px}
+.datenav button:hover{background:var(--surface-2)}
+.datenav .cur{font-weight:800;font-size:13.5px;padding:0 8px;min-width:140px;text-align:center}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.tab{background:var(--surface-1);border:1px solid var(--line);border-radius:22px;padding:7px 16px;font-size:13px;font-weight:700;color:var(--text2);cursor:pointer}
+.tab.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;margin:12px 0}
+.kpi{background:var(--surface-1);border:1px solid var(--line);border-radius:12px;padding:13px 15px;border-left:4px solid var(--kc,var(--line))}
+.kpi .l{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.kpi .v{font-size:23px;font-weight:800;margin-top:4px;color:var(--kc,var(--text))}
+.kpi .f{font-size:11.5px;color:var(--text2);margin-top:3px}
+.up{color:var(--good);font-weight:700}.down{color:var(--bad);font-weight:700}
+.sec{background:var(--surface-1);border:1px solid var(--line);border-radius:12px;padding:15px 16px;margin-bottom:14px}
+.sec h2{font-size:14px;font-weight:800}
+.sec .hs{font-size:11.5px;color:var(--muted);margin:2px 0 10px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{text-align:left;padding:8px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;cursor:pointer;user-select:none}
+th:hover{color:#fff}
+th.sd::after{content:' ▾';color:var(--brand)}
+th.sa::after{content:' ▴';color:var(--brand)}
+tr:last-child td{border-bottom:none}
+.pill{display:inline-block;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap}
+.pg{background:rgba(47,174,106,.16);color:#5fd396}
+.pw{background:rgba(224,169,58,.16);color:#e0a93a}
+.pb{background:rgba(230,103,103,.16);color:#f08d8d}
+/* cartoes da lista Por motoboy */
+.vv-lista{display:grid;gap:10px;margin-bottom:12px}
+.vv-lista.duas{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.vv-lista>*{min-width:0}
+div.vv{background:var(--surface-1);border:1px solid var(--line);border-left:5px solid var(--warn);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px}
+div.vv.ok{border-left-color:var(--good)}
+div.vv.bad{border-left-color:var(--bad)}
+div.vv.off{border-left-color:var(--muted)}
+.vv .hr{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700;line-height:1;white-space:nowrap}
+.vv .ha{color:var(--muted);font-size:11.5px;margin-top:3px}
+.vv .tt{font-size:16px;font-weight:800;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vv .lj{color:var(--text2);font-size:13px;margin-top:2px}
+.vv .rs{margin-top:6px;font-size:12px;color:var(--muted)}
+@media (max-width:640px){.vv-lista.duas{grid-template-columns:1fr}div.vv{grid-template-columns:54px minmax(0,1fr);gap:8px;padding:12px 10px}.vv .hr{font-size:21px}}
+.todo{background:linear-gradient(135deg,#1d1512,#1a1a19);border:1px solid #4a2c18;border-radius:12px;padding:16px;margin-bottom:14px}
+.todo h2{font-size:15px;font-weight:800;color:#ffb054}
+.todo .hs{font-size:11.5px;color:var(--muted);margin:2px 0 10px}
+.todo li{list-style:none;margin-bottom:9px;padding:10px 12px;background:rgba(0,0,0,.25);border-left:3px solid var(--warn);border-radius:0 8px 8px 0;font-size:13px}
+.todo li.ok{border-left-color:var(--good)}
+.todo b{color:#fff}
+.empty{color:var(--muted);padding:10px 0;font-size:12.5px}
+.loading{text-align:center;color:var(--muted);padding:60px 0}
+.err{color:#f08d8d;padding:14px;border:1px solid var(--bad);border-radius:10px;margin:12px 0}
+.stars{color:#e0a93a;font-weight:700}
+.foot{color:var(--muted);font-size:11px;margin-top:16px;line-height:1.6}
+#gate{position:fixed;inset:0;background:var(--surface-0);z-index:100;display:flex;align-items:center;justify-content:center}
+.gatebox{background:var(--surface-1);border:1px solid var(--line);border-radius:16px;padding:32px 28px;width:330px;text-align:center}
+.gatebox input{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:11px 14px;color:var(--text);font-size:15px;outline:none;margin:14px 0 10px;text-align:center}
+.gatebox button{width:100%;background:var(--brand);color:var(--brand-ink);border:none;color:#fff;border-radius:10px;padding:11px;font-size:14px;font-weight:800;cursor:pointer}
+.gerr{color:#f08d8d;font-size:12px;min-height:16px;margin-top:8px}
+.splitbar{display:flex;height:26px;border-radius:6px;overflow:hidden;margin-top:6px}
+.splitbar .seg{display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;color:#0c0c0b}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin-top:10px}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:6px}
+.lojagrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.lcard{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.lcard .ln{font-weight:800;font-size:13.5px;margin-bottom:8px;display:flex;align-items:center;gap:7px}
+.lcard .lm{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;color:var(--text2)}
+.lcard .lm b{color:var(--text)}
+.rankgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.rankgrid h4{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:7px}
+.rk{display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--line)}
+.rk .nm{color:var(--text)}
+.comp{color:#f0b95a;font-weight:700}
+@media(max-width:640px){h1{font-size:15.5px}.kpi .v{font-size:19px}.view{padding:8px 12px;font-size:12.5px}}
+
+/* tipografia da marca */
+.gatebox button{color:var(--brand-ink)}
+h1,.gatebox h1{font-weight:400}
+h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.01em;line-height:1.06}
+
+/* celular: filas de aba quebram linha ate 900px; o resto so em tela estreita */
+@media (max-width:900px){.views,.tabs,.abas,.fil,.pes,.filtros,.chips,.lojas,.periodos{display:flex;flex-wrap:wrap;gap:6px;width:auto;max-width:100%;min-width:0}.views>*,.tabs>*,.abas>*,.fil>*,.pes>*{flex:0 0 auto;max-width:100%}}@media (max-width:640px){body{padding-left:12px;padding-right:12px}table{display:block;width:max-content;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}h1{font-size:clamp(18px,6.2vw,26px);word-break:break-word}img,svg,canvas,iframe{max-width:100%}}
+</style>
+</head>
+<body>
+<script>(function(){try{var q=new URLSearchParams(location.search),e=q.get('embed');if(e){document.documentElement.className+=' embed';window._EMBED=e}}catch(x){}})();</script>
+<style>.embed header,.embed .views,.embed .foot,.embed #previahoje,.embed .wrap>div[style*="border-left"]{display:none!important}</style>
+
+<div class="wrap">
+<header>
+  <div class="brand"><div class="dot" id="marcaLogo"></div>
+    <div><h1>🎯 Central do Delivery · AGORA</h1><div class="sub"><span id="marcaNome"></span> · <span id="upd">carregando…</span></div></div>
+  </div>
+  <a href="escala.html" class="btnr" style="text-decoration:none">🗓 Escala</a> <button id="instalar" onclick="instalarApp()" class="btnr" style="display:none">📲 Instalar</button> <button class="btnr" onclick="loadAll()">↻ Atualizar</button>
+</header>
+<script>(function(){var C=window.PORTAL_CFG||{};var d=document.getElementById('marcaLogo');if(d&&C.logoUrl){var i=document.createElement('img');i.src=C.logoUrl;i.alt='';d.appendChild(i)}var n=document.getElementById('marcaNome');if(n)n.textContent=C.marca||''})();</script>
+<div style="margin:10px 0;padding:9px 12px;background:#232321;border:1px solid #34332f;border-left:3px solid var(--brand);border-radius:0 9px 9px 0;font-size:13px;color:#c3c2b7">Esta tela mostra <b style="color:#fff">o dia de hoje</b> — é para decidir agora. Para ver como a casa está indo <b style="color:#fff">no mês</b>, abra <a href="../qualidade/" style="color:#fff">📊 Qualidade do Delivery →</a></div><div id="previahoje" style="margin:8px 0"></div>
+
+<div class="views">
+  <button class="view active" id="v_diario" onclick="setView('diario')">🎯 Decisões</button>
+  <button class="view" id="v_equipe" onclick="setView('equipe')">🛵 Motoboys</button>
+</div>
+
+<div id="barra"></div>
+<div class="tabs" id="lojas"></div>
+<div id="conteudo"><div class="loading">Conectando…</div></div>
+
+<div class="foot">Quem está em cada turno: veja a 🗓 Escala.<br>
+Histórico disponível: últimos 7 dias. Dia operacional vai até 4h da manhã. Dados ao vivo (somente leitura).</div>
+</div>
+
+<script>
+const SB=PORTAL_CFG.rest;
+const KEY=PORTAL_CFG.chave;
+const H={apikey:KEY,Authorization:'Bearer '+KEY};
+/* ===== porta unica do portal: sessao por usuario ===== */
+const CDMMODS=['central','delivery'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmTem(id){try{const l=JSON.parse(sessionStorage.getItem('cdm_modulos')||'[]');return Array.isArray(l)&&l.some(function(m){return m&&m.id===id})}catch(e){return false}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'delivery'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+
+let LOJAS=['Todas'].concat((PORTAL_CFG.lojas||[]).map(function(l){return l.nome}));
+/* ?u=ID (ou nome da loja) fixa a tela numa loja so */
+let LOJAFIXA=null;try{const _q=new URLSearchParams(location.search),_u=_q.get('u')||_q.get('loja');const _l=(PORTAL_CFG.lojas||[]).filter(function(l){return _u&&(l.id===_u||l.nome===_u)})[0];if(_l){LOJAFIXA=_l.nome;LOJAS=[_l.nome]}}catch(e){}
+let BASE=[],CPDIAS={},F=[],SC=[],CANC=[],AVAL=[],NEG=[],DIMS=[],ATR=[],PAG=[],ESCH=[],IPER='hoje',DAYS=[],NAV=[],DI=0,LOJA=(LOJAFIXA||'Todas'),VIEW=(window._EMBED==='equipe'?'equipe':'diario'),PER=7;
+const $=id=>document.getElementById(id);
+const br=d=>{const[y,m,dd]=d.split('-');return dd+'/'+m};
+const DOWN=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+const dow=d=>{const[y,m,dd]=d.split('-').map(Number);return new Date(Date.UTC(y,m-1,dd)).getUTCDay()};
+const pctS=(ok,at)=>{const b=ok+at;return b?Math.round(1000*ok/b)/10:null};
+// exemplo de prazo prometido pelo iFood por raio (cenário padrão): até 2km=39 · 2-3=45 · 3-4=50 · 4-5=55 · 5-6=60 · 6-7=65 · 7+=70
+const atrasoReal=p=>p.atraso_real_min==null?null:+p.atraso_real_min;
+async function fj(u){const r=await fetch(SB+u,{headers:H});if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
+async function escRPC(acao,dados){const r=await fetch(SB+'rpc/escala_consulta',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_cred:cdmTok(),p_acao:acao,p_dados:dados||{}})});const j=await r.json().catch(function(){return null});if(!r.ok)throw new Error((j&&j.message)||('HTTP '+r.status));return j}
+async function cpRPC(acao,dia){const r=await fetch(SB+'rpc/central_pedidos',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify(dia?{p_cred:cdmTok(),p_acao:acao,p_dia:dia}:{p_cred:cdmTok(),p_acao:acao})});const j=await r.json().catch(function(){return null});if(!r.ok)throw new Error((j&&j.message)||('HTTP '+r.status));return j||[]}
+async function pag(base){let all=[],from=0,step=1000;
+  while(true){const r=await fetch(SB+base,{headers:{...H,Range:from+'-'+(from+step-1)}});if(!r.ok)throw new Error('HTTP '+r.status);
+    const p=await r.json();all=all.concat(p);if(p.length<step)break;from+=step}return all}
+
+var ENTR=[];
+var SVS=[],SVSD=[],SVSK={},SVSMAX="",PAU=[],PAUMAX="",SUP=[];
+async function svsLoad(){try{
+  var ini=(NAV&&NAV.length)?NAV[0]:(new Date(Date.now()-8*864e5)).toISOString().slice(0,10);
+  var ns=[],vis={};
+  for(var i=0;i<SC.length;i++){var s=SC[i];if(s&&s.dia_operacional>=ini&&s.n_pedido&&/^[0-9]+$/.test(s.n_pedido)&&!vis[s.n_pedido]){vis[s.n_pedido]=1;ns.push(s.n_pedido)}}
+  var alvo="cancelado.is.true"+(ns.length?",n_pedido.in.("+ns.slice(0,300).join(",")+")":"");
+  var rr=await Promise.all([
+    fj("saipos_venda_status?dia_operacional=gte."+ini+"&or=("+alvo+")&select=unidade,dia_operacional,n_pedido,cancelado,itens_cancelados,canal&order=dia_operacional.desc&limit=1000"),
+    fj("saipos_vw_status_dia?dia_operacional=gte."+ini+"&select=dia_operacional,unidade,vendas,cancelados&order=dia_operacional.desc&limit=1000")]);
+  SVS=rr[0]||[];SVSD=rr[1]||[];
+  SVSMAX="";SVSD.forEach(function(r){if(r.dia_operacional>SVSMAX)SVSMAX=r.dia_operacional});
+  SVSK={};SVS.forEach(function(r){SVSK[r.dia_operacional+"|"+r.unidade+"|"+r.n_pedido]=r.canal||""});
+}catch(e){SVS=[];SVSD=[];SVSMAX=""}}
+function canalDe(r){var v=SVSK[(r.dia_operacional||"")+"|"+(r.unidade||"")+"|"+(r.n_pedido||"")];return v?v:"—"}
+function svsLojas(){var s={};SVSD.forEach(function(r){if(fLoja(r))s[r.unidade]=1});return Object.keys(s).length}
+function svsDia(d){return SVSD.filter(function(r){return r.dia_operacional===d&&fLoja(r)})}
+function _ehDono(){try{return sessionStorage.getItem("cdm_admin")==="1"}catch(e){return false}}
+var GCOR={};(function(){var P=["#4da3ff","#f0b95a","#5ddc9b","#c58cff","#ff8a65","#4dd0e1"];(PORTAL_CFG.lojas||[]).forEach(function(l,i){GCOR[l.nome]=P[i%P.length]})})();
+function _gc(u){return GCOR[u]||"#9aa3ad"}
+function _min(a,b){if(!a||!b)return null;var m=(new Date(String(b).replace(" ","T"))-new Date(String(a).replace(" ","T")))/6e4;return (isFinite(m)&&m>=0&&m<600)?m:null}
+function _frase(t){return '<div style="margin:8px 0 2px;font-size:13.5px;line-height:1.45">'+t+'</div>'}
+function _barras(itens,fmt){
+  if(!itens.length)return '<div class="empty">Sem dado no período.</div>';
+  var mx=1;itens.forEach(function(i){if(i.v>mx)mx=i.v});
+  return '<div style="display:grid;grid-template-columns:minmax(64px,auto) 1fr auto;gap:5px 10px;align-items:center;margin-top:8px">'+itens.map(function(i){
+    var pc=Math.max(2,Math.round(100*i.v/mx));
+    return '<div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px" title="'+kEsc(i.r)+'">'+kEsc(i.r)+'</div>'+
+      '<div style="background:var(--line);border-radius:5px;height:15px"><div style="width:'+pc+'%;height:15px;border-radius:5px;background:'+(i.c||"#4da3ff")+'"></div></div>'+
+      '<div style="font-size:12px;white-space:nowrap"><b>'+(fmt?fmt(i.v):i.v)+'</b></div>'}).join("")+'</div>';
+}
+function blocoGrafPrazo(){
+  var h2='<div class="sec"><h2>📈 Prazo dia a dia</h2>';
+  var dias={},uni={};
+  PRZ.forEach(function(r){if(!fLoja(r))return;dias[r.dia_operacional]=1;var u=uni[r.unidade]=uni[r.unidade]||{};var x=u[r.dia_operacional]=u[r.dia_operacional]||{e:0,ok:0};x.e+=(+r.entregas||0);x.ok+=(+r.no_prazo||0)});
+  var ds=Object.keys(dias).sort(), us=Object.keys(uni).sort();
+  if(!ds.length)return h2+'<div class="empty">Sem dado no período.</div></div>';
+  var meio=Math.max(1,ds.length-7), rec=ds.slice(meio), ant=ds.slice(0,meio);
+  var _pp=function(u,lst){var e=0,o=0;lst.forEach(function(d){var x=uni[u][d];if(x){e+=x.e;o+=x.ok}});return e?Math.round(1000*o/e)/10:null};
+  var fr=us.map(function(u){var aa=_pp(u,ant),bb=_pp(u,rec);if(aa==null||bb==null)return null;var d=Math.round((bb-aa)*10)/10;
+    return '<b style="color:'+_gc(u)+'">'+kEsc(u)+'</b> '+(d>=1?'subiu '+d+' pontos':(d<=-1?'caiu '+Math.abs(d)+' pontos':'ficou igual'))+' na última semana ('+bb+'% agora)'}).filter(Boolean);
+  h2+=(fr.length?_frase(fr.join(' · ')+'.'):'')+'<div class="hs" style="color:var(--muted)">% no prazo por dia, últimos '+ds.length+' dias</div>';
+  var W=680,HH=160,pl=34,pr=10,pt=12,pb=22,n=ds.length;
+  var X=function(i){return pl+(n<2?(W-pl-pr)/2:i*(W-pl-pr)/(n-1))};
+  var Y=function(v){return pt+(100-v)*(HH-pt-pb)/100};
+  var g='<svg viewBox="0 0 '+W+' '+HH+'" style="width:100%;height:auto;margin-top:6px" role="img" aria-label="prazo por dia">';
+  [50,75,100].forEach(function(v){g+='<line x1="'+pl+'" y1="'+Y(v)+'" x2="'+(W-pr)+'" y2="'+Y(v)+'" stroke="var(--line)" stroke-width="1"/><text x="4" y="'+(Y(v)+4)+'" fill="var(--muted)" font-size="10">'+v+'%</text>'});
+  us.forEach(function(u){var d="",ini=false;
+    ds.forEach(function(dd,i){var x=uni[u][dd];if(!x||!x.e)return;d+=(ini?" L":"M")+X(i).toFixed(1)+" "+Y(100*x.ok/x.e).toFixed(1);ini=true});
+    if(d)g+='<path d="'+d+'" fill="none" stroke="'+_gc(u)+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'});
+  ds.forEach(function(dd,i){if(i%3===0||i===n-1)g+='<text x="'+X(i).toFixed(1)+'" y="'+(HH-6)+'" fill="var(--muted)" font-size="10" text-anchor="middle">'+dd.slice(8,10)+"/"+dd.slice(5,7)+'</text>'});
+  return h2+g+'</svg></div>';
+}
+function _pedNav(){var ok={};(NAV||[]).forEach(function(d){ok[d]=1});
+  return ATR.filter(function(p){return ok[p.dia_operacional]&&fLoja(p)&&p.data_hora_pedido&&p.t_total_min!=null})}
+function blocoGrafGargalo(){
+  var ps=_pedNav();
+  var h2='<div class="sec"><h2>🔎 Onde o tempo se perde</h2>';
+  if(!ps.length)return h2+'<div class="empty">Sem dado no período.</div></div>';
+  var et=[{r:"Cozinha (pedido → pronto)",k:["data_hora_pedido","dt_pronto"],c:"#f0b95a"},
+          {r:"Pronto parado (→ rota)",k:["dt_pronto","dt_despachado"],c:"#e2725b"},
+          {r:"Rota → coleta",k:["dt_despachado","dt_coletado"],c:"#9b8cff"},
+          {r:"Rua (coleta → entrega)",k:["dt_coletado","dt_entregue"],c:"#4da3ff"}];
+  var itens=et.map(function(e){var s=0,q=0;ps.forEach(function(p){var m=_min(p[e.k[0]],p[e.k[1]]);if(m!=null){s+=m;q++}});return {r:e.r,v:q?Math.round(10*s/q)/10:0,c:e.c}});
+  var pior=itens.slice().sort(function(a,b){return b.v-a.v})[0];
+  var tot=itens.reduce(function(a,i){return a+i.v},0);
+  var hr={};ps.forEach(function(p){var k=String(p.data_hora_pedido).slice(11,13);var x=hr[k]=hr[k]||{e:0,a:0};x.e++;if(!p.no_prazo_real)x.a++});
+  var pi=Object.keys(hr).filter(function(k){return hr[k].e>=10}).map(function(k){return {h:k,p:Math.round(1000*hr[k].a/hr[k].e)/10,e:hr[k].e}}).sort(function(a,b){return b.p-a.p}).slice(0,3);
+  h2+=_frase('Da loja até o cliente são <b>'+Math.round(tot)+' min</b> em média. O maior pedaço é <b>'+pior.r.split(" (")[0]+'</b>, com <b>'+pior.v+' min</b>.'+
+    (pi.length?' A hora mais crítica é <b>'+pi[0].h+'h</b>, com '+pi[0].p+'% de atraso.':''));
+  h2+=_barras(itens,function(v){return v+" min"});
+  if(pi.length)h2+='<div class="hs" style="margin-top:12px;color:var(--muted)">as 3 piores horas</div>'+_barras(pi.map(function(x){return {r:x.h+"h · "+x.e+" pedidos",v:x.p,c:"#e2725b"}}),function(v){return v+"%"});
+  return h2+'</div>';
+}
+function blocoGrafMotivos(){
+  var d30=(new Date(Date.now()-30*864e5)).toISOString().slice(0,10);
+  var d14=(new Date(Date.now()-14*864e5)).toISOString().slice(0,10);
+  var h2='<div class="sec"><h2>🗣 Por que cancelam e por que reclamam</h2>';
+  var cs=CANC.filter(function(r){return r.data>=d30&&fLojaI(r)});
+  var mc={};cs.forEach(function(r){var m=r.motivo||"sem motivo";mc[m]=(mc[m]||0)+1});
+  var ord=Object.keys(mc).sort(function(a,b){return mc[b]-mc[a]});
+  var i1=ord.slice(0,5).map(function(m){return {r:m.length>38?m.slice(0,36)+"…":m,v:mc[m],c:"#e2725b"}});
+  var tg={};AVAL.filter(function(r){return (+r.nota)<=3&&r.data_avaliacao>=d14&&fLojaI(r)}).forEach(function(r){(r.tags||[]).forEach(function(t){tg[t]=(tg[t]||0)+1})});
+  var ot=Object.keys(tg).sort(function(a,b){return tg[b]-tg[a]});
+  var i2=ot.slice(0,5).map(function(t){return {r:t.length>38?t.slice(0,36)+"…":t,v:tg[t],c:"#f0b95a"}});
+  if(!cs.length&&!ot.length)return h2+'<div class="empty">Sem dado no período.</div></div>';
+  h2+=_frase((ord.length?'De <b>'+cs.length+'</b> cancelamentos em 30 dias, o motivo que mais aparece é <b>'+kEsc(ord[0].toLowerCase())+'</b> ('+mc[ord[0]]+').':'')+
+    (ot.length?' A reclamação mais repetida é <b>'+kEsc(ot[0])+'</b> ('+tg[ot[0]]+'×).':''));
+  h2+='<div class="hs" style="margin-top:8px;color:var(--muted)">motivos de cancelamento · 30 dias</div>'+_barras(i1);
+  if(i2.length)h2+='<div class="hs" style="margin-top:12px;color:var(--muted)">marcações das notas 1 a 3 · 14 dias</div>'+_barras(i2);
+  return h2+'</div>';
+}
+function _dobKey(t){return "cdm_dob_"+String(t||"").replace(/[^a-zA-Z0-9]/g,"").slice(0,26)}
+function aplicaDobrar(){
+  var secs=document.querySelectorAll("#conteudo .sec");
+  for(var i=0;i<secs.length;i++){
+    var s=secs[i]; if(s.getAttribute("data-dob"))continue;
+    var h=s.querySelector("h2"); if(!h)continue;
+    s.setAttribute("data-dob","1");
+    var k=_dobKey(h.textContent);
+    var corpo=document.createElement("div");
+    var no=h.nextSibling; while(no){var pr=no.nextSibling;corpo.appendChild(no);no=pr}
+    s.appendChild(corpo);
+    var fechado=false; try{fechado=(localStorage.getItem(k)==="0")}catch(e){}
+    var cx=document.createElement("span");
+    cx.style.cssText="display:inline-block;width:14px;color:var(--muted);font-size:12px";
+    cx.textContent=fechado?"▸":"▾";
+    h.insertBefore(cx,h.firstChild);
+    h.style.cursor="pointer"; h.title="clique para abrir ou fechar";
+    corpo.style.display=fechado?"none":"";
+    h.addEventListener("click",(function(c,x,kk){return function(){
+      var f=(c.style.display==="none");
+      c.style.display=f?"":"none"; x.textContent=f?"▾":"▸";
+      try{localStorage.setItem(kk,f?"1":"0")}catch(e){}
+    }})(corpo,cx,k));
+  }
+}
+function aplicaVerTodos(){
+  var ts=document.querySelectorAll("#conteudo table");
+  for(var i=0;i<ts.length;i++){
+    var t=ts[i]; if(t.getAttribute("data-vt"))continue;
+    t.setAttribute("data-vt","1");
+    var trs=t.getElementsByTagName("tr"), corpo=[];
+    for(var j=0;j<trs.length;j++){if(!trs[j].getElementsByTagName("th").length)corpo.push(trs[j])}
+    if(corpo.length<=6)continue;
+    for(var j=5;j<corpo.length;j++)corpo[j].style.display="none";
+    var b=document.createElement("button");
+    b.className="vertodos";
+    b.textContent="ver todos os "+corpo.length;
+    b.style.cssText="margin-top:8px;background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer";
+    b.addEventListener("click",(function(c,bb){return function(){for(var j=0;j<c.length;j++)c[j].style.display="";bb.parentNode&&bb.parentNode.removeChild(bb)}})(corpo,b));
+    t.parentNode.insertBefore(b,t.nextSibling);
+  }
+}
+document.addEventListener("click",function(e){
+  var el=e.target; while(el&&el.tagName!=="TH"&&el!==document.body)el=el.parentNode;
+  if(!el||el.tagName!=="TH")return;
+  var t=el; while(t&&t.tagName!=="TABLE")t=t.parentNode;
+  if(!t||!t.parentNode)return;
+  var b=t.parentNode.querySelector(".vertodos"); if(b)b.click();
+},true);
+(function(){
+  function liga(){
+    var alvo=document.getElementById("conteudo"); if(!alvo)return;
+    try{aplicaDobrar();aplicaVerTodos()}catch(e){}
+    try{new MutationObserver(function(){try{aplicaDobrar();aplicaVerTodos()}catch(e){}}).observe(alvo,{childList:true})}catch(e){}
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",liga);else liga();
+})();
+var PRZ=[];
+async function przLoad(){try{
+  var d14=(new Date(Date.now()-14*864e5)).toISOString().slice(0,10);
+  var d3=(new Date(Date.now()-3*864e5)).toISOString().slice(0,10);
+  var _rr=await Promise.all([
+    window.CDM_FOODY===false?Promise.resolve([]):fj("foody_vw_prazo_real_dia?dia_operacional=gte."+d14+"&select=dia_operacional,unidade,entregas,no_prazo,atraso_mais_10&order=dia_operacional.desc&limit=1000"),
+    fj("cardapio_pausado?visto_em=gte."+d3+"&canal=in.(iFood,Accon)&select=canal,unidade,marca,item,tipo,estado,primeiro_visto,visto_em&order=primeiro_visto.asc&limit=1000")]);
+  PRZ=_rr[0]||[];PAU=_rr[1]||[];
+  PAUMAX="";PAU.forEach(function(r){if(r.visto_em>PAUMAX)PAUMAX=r.visto_em});
+}catch(e){PRZ=[]}}
+function _rs(v){return _ehDono()?("R$ "+(+v||0).toFixed(2).replace(".",",")):"—"}
+function blocoDinheiro(){
+  var hoje=(new Date(Date.now()-7*36e5)).toISOString().slice(0,10);
+  var ab=CANC.filter(function(r){return r.contestavel&&!r.loja_contestou&&r.data_limite_contestacao&&String(r.data_limite_contestacao).slice(0,10)>=hoje&&fLojaI(r)});
+  var tot=ab.reduce(function(a,r){return a+(+r.valor_pedido||0)},0);
+  var h='<div class="sec"><h2>💰 Dinheiro em cima da mesa</h2><div class="hs">cancelamentos que o iFood ainda deixa contestar. Passou o prazo, o dinheiro é perdido.</div>';
+  if(!ab.length)return h+'<div class="empty">✅ Nada aberto para contestar agora.</div></div>';
+  ab.sort(function(x,y){return String(x.data_limite_contestacao)<String(y.data_limite_contestacao)?-1:1});
+  h+='<div class="hs" style="margin:6px 0 10px">'+(_ehDono()?('Dá para recuperar <b>'+_rs(tot)+'</b> em '):'Para contestar: ')+'<b>'+ab.length+'</b> pedido'+(ab.length>1?"s":"")+'.</div>';
+  h+='<table><tr><th>Vence</th><th>Loja</th><th>Pedido</th><th>Motivo</th>'+(_ehDono()?'<th>Valor</th>':'')+'</tr>'+ab.map(function(r){
+    var lim=String(r.data_limite_contestacao).slice(0,10);
+    var dias=Math.round((new Date(lim+"T00:00:00")-new Date(hoje+"T00:00:00"))/864e5);
+    var txt=dias<=0?"hoje":(dias===1?"amanhã":"em "+dias+" dias");
+    var cor=dias<=2?"var(--bad)":"var(--warn)";
+    return '<tr><td data-k="'+dias+'" style="color:'+cor+'"><b>'+txt+'</b></td><td>'+kEsc(unidadeDe(r.id_loja)||"—")+'</td><td>'+kEsc(r.id_pedido||"—")+'</td><td>'+kEsc(r.motivo||"—")+'</td>'+(_ehDono()?('<td data-k="'+(+r.valor_pedido||0)+'">'+_rs(r.valor_pedido)+'</td>'):'')+'</tr>'}).join("")+'</table>';
+  return h+'</div>';
+}
+function blocoOndeMelhorar(D){
+  var esp={};
+  PRZ.forEach(function(r){if(!fLoja(r))return;var o=esp[r.unidade]=esp[r.unidade]||{d:{}};var x=o.d[r.dia_operacional]=o.d[r.dia_operacional]||{e:0,ok:0,a10:0};x.e+=(+r.entregas||0);x.ok+=(+r.no_prazo||0);x.a10+=(+r.atraso_mais_10||0)});
+  var ls=Object.keys(esp).sort();
+  var h='<div class="sec"><h2>🎯 Onde melhorar</h2><div class="hs">o dia de cada loja contra a média dela mesma nos últimos 14 dias. Não existe meta única: cada loja se compara com ela.</div>';
+  if(!ls.length)return h+'<div class="empty">Sem dado de prazo no período.</div></div>';
+  h+='<table><tr><th>Loja</th><th>Entregas no dia</th><th>No prazo no dia</th><th>Média dela</th><th>Diferença</th><th>Atrasos de 10 min ou mais</th><th>O que fazer</th></tr>';
+  ls.forEach(function(u){
+    var o=esp[u],dd=o.d[D]||null,te=0,tok=0;
+    Object.keys(o.d).forEach(function(k){te+=o.d[k].e;tok+=o.d[k].ok});
+    var med=te?Math.round(1000*tok/te)/10:null;
+    var pd=(dd&&dd.e)?Math.round(1000*dd.ok/dd.e)/10:null;
+    var dif=(pd!=null&&med!=null)?Math.round((pd-med)*10)/10:null;
+    var acao,cor;
+    if(pd==null){acao="nenhuma entrega registrada neste dia";cor="var(--muted)"}
+    else if(dif!=null&&dif<=-5){acao="caiu 5 pontos ou mais abaixo do normal dela. Vale conversar hoje com o turno que puxou para baixo.";cor="var(--bad)"}
+    else if(dif!=null&&dif>=5){acao="acima do normal dela. Vale entender o que deu certo e repetir.";cor="var(--good)"}
+    else{acao="dentro do normal dela";cor="var(--muted)"}
+    h+='<tr><td><b>'+kEsc(u)+'</b></td><td>'+((dd&&dd.e)||0)+'</td><td data-k="'+(pd==null?-1:pd)+'">'+(pd==null?"—":pd+"%")+'</td><td>'+(med==null?"—":med+"%")+'</td><td data-k="'+(dif==null?-999:dif)+'" style="color:'+cor+'"><b>'+(dif==null?"—":((dif>0?"+":"")+dif+" pontos"))+'</b></td><td>'+((dd&&dd.a10)||0)+'</td><td style="color:'+cor+'">'+acao+'</td></tr>';
+  });
+  return h+'</table></div>';
+}
+function blocoCliente(){
+  var d14=(new Date(Date.now()-14*864e5)).toISOString().slice(0,10);
+  var mx="";AVAL.forEach(function(r){if(r.data_avaliacao>mx)mx=r.data_avaliacao});
+  var rs=AVAL.filter(function(r){return (+r.nota)<=3&&r.data_avaliacao>=d14&&fLojaI(r)});
+  var nt=NEG.filter(function(r){return r.data>=d14&&fLojaI(r)});
+  var ev=nt.filter(function(r){return r.cancelamento_evitado}).length;
+  var h='<div class="sec"><h2>💬 O que o cliente disse</h2><div class="hs">notas 1 a 3 dos últimos 14 dias'+(mx?" · o iFood publicou até "+mx.slice(8,10)+"/"+mx.slice(5,7):"")+'</div>';
+  var tg={};rs.forEach(function(r){(r.tags||[]).forEach(function(t){tg[t]=(tg[t]||0)+1})});
+  var top=Object.keys(tg).sort(function(a,b){return tg[b]-tg[a]}).slice(0,3);
+  if(top.length)h+='<div class="hs" style="margin:6px 0 8px">Reclamação mais repetida: '+top.map(function(t){return '<b>'+kEsc(t)+'</b> ('+tg[t]+')'}).join(" · ")+'</div>';
+  h+='<div class="hs" style="margin:0 0 10px">Chamados no período: <b>'+nt.length+'</b>. Destes, <b>'+ev+'</b> viraram acordo em vez de cancelamento.</div>';
+  if(!rs.length)return h+'<div class="empty">Nenhuma nota baixa no período.</div></div>';
+  rs.sort(function(a,b){return a.data_avaliacao<b.data_avaliacao?1:-1});
+  h+='<table><tr><th>Data</th><th>Loja</th><th>Nota</th><th>O que a pessoa escreveu</th></tr>'+rs.slice(0,40).map(function(r){
+    return '<tr><td>'+kEsc(r.data_avaliacao?r.data_avaliacao.slice(8,10)+"/"+r.data_avaliacao.slice(5,7):"—")+'</td><td>'+kEsc(unidadeDe(r.id_loja)||"—")+'</td><td data-k="'+(+r.nota||0)+'"><b style="color:var(--bad)">'+kEsc(r.nota)+'</b></td><td>'+kEsc(r.comentario||(r.tags||[]).join(", ")||"sem comentário")+'</td></tr>'}).join("")+'</table>';
+  return h+'</div>';
+}
+async function loadAll(){
+  $('conteudo').innerHTML='<div class="loading">Carregando…</div>';
+  try{
+    [F,SC,CANC,AVAL,NEG,DIMS,ATR,PAG,ENTR]=await Promise.all([
+      window.CDM_FOODY===false?Promise.resolve([]):pag('foody_fato_fechamento_turno_dia?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=id_loja,unidade,dia_operacional,turno,entregador,horas,entregas,no_prazo,atrasos,sem_codigo&order=dia_operacional.asc'),
+      window.CDM_FOODY===false?Promise.resolve([]):fj('foody_fato_pedido_sem_codigo?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=id_loja,unidade,dia_operacional,turno,entregador,n_pedido,hora_pedido&order=hora_pedido.desc&limit=1000'),
+      fj('ifood_fato_cancelamento?data=gte.'+(new Date(Date.now()-36*864e5)).toISOString().slice(0,10)+'&select=id_loja,id_pedido,data,turno,motivo,itens_cancelados,valor_cancelamento,valor_pedido,contestavel,loja_contestou,data_limite_contestacao&order=data.desc&limit=500'),
+      fj('ifood_fato_avaliacao?data_avaliacao=gte.'+(new Date(Date.now()-14*864e5)).toISOString().slice(0,10)+'&select=id_loja,data_avaliacao,nota,tags,comentario&order=data_avaliacao.desc&limit=1000'),
+      fj('ifood_fato_negociacao?data=gte.'+(new Date(Date.now()-30*864e5)).toISOString().slice(0,10)+'&select=id_loja,id_pedido,data,motivo,resposta_loja,cancelamento_evitado&order=data.desc&limit=1000'),
+      fj('ifood_dim_loja?select=id_loja,nome,unidade'),
+      (async()=>{BASE=await cpRPC('base');var d10=(new Date(Date.now()-10*864e5)).toISOString().slice(0,10);var ds=[...new Set(BASE.map(function(r){return r.dia_operacional}))].filter(function(d){return d>=d10});ds.forEach(function(d){CPDIAS[d]=1});var r=await Promise.all(ds.map(function(d){return cpRPC('detalhe',d)}));return [].concat.apply([],r)})(),
+      window.CDM_FOODY===false?Promise.resolve([]):(async()=>{const d30=(new Date(Date.now()-29*864e5)).toISOString().slice(0,10);const rr=await Promise.all([pag('foody_vw_pagamento_dia?dia_operacional=gte.'+d30+'&select=dia_operacional,unidade,nome,fez,horas,horas_qr,entregas,atrasos,no_prazo,sem_codigo&order=dia_operacional.asc'),pag('foody_vw_prazo_real_dia?dia_operacional=gte.'+d30+'&select=dia_operacional,unidade,entregador,no_prazo,atrasos&order=dia_operacional.asc')]);const mp={};rr[1].forEach(function(x){const k=x.dia_operacional+'|'+x.unidade+'|'+x.entregador;const o=mp[k]=mp[k]||{ok:0,at:0};o.ok+=(+x.no_prazo||0);o.at+=(+x.atrasos||0);});return rr[0].map(function(z){const o=mp[z.dia_operacional+'|'+z.unidade+'|'+z.nome];return Object.assign({},z,{no_prazo:o?o.ok:null,atrasos:o?o.at:null});});})(),
+      window.CDM_FOODY===false?Promise.resolve([]):fj('foody_vw_entregas_dia?dia_operacional=gte.'+(new Date(Date.now()-29*864e5)).toISOString().slice(0,10)+'&select=*&order=dia_operacional.asc&limit=2000')
+    ]);
+    try{ESCH=((await escRPC('aderencia',{de:(new Date(Date.now()-8*864e5)).toISOString().slice(0,10),ate:(new Date(Date.now()+864e5)).toISOString().slice(0,10)})).aderencia||[]).sort(function(a,b){return (a.entrada||'')<(b.entrada||'')?-1:1})}catch(e){ESCH=[]}
+    CANC=CANC||[];AVAL=AVAL||[];NEG=NEG||[];SC=SC||[];
+    DAYS=[...new Set(F.map(r=>r.dia_operacional).concat((ATR||[]).map(r=>r.dia_operacional)).concat((BASE||[]).map(r=>r.dia_operacional)))].sort();
+    NAV=DAYS.slice(-7);
+    DI=NAV.length-1;
+    await svsLoad();
+    await przLoad();await supLoad();
+    $('upd').textContent='atualizado '+new Date().toLocaleTimeString('pt-BR');(function(){if(!document.getElementById('cdmf2')){var y=document.createElement('style');y.id='cdmf2';y.textContent='#upd .cdm-fresh{display:none}';document.head.appendChild(y)}var mx='';(ATR||[]).forEach(function(p){if(p.dia_operacional>mx)mx=p.dia_operacional});if(!mx)return;var hj=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);var dd=Math.round((new Date(hj)-new Date(mx))/864e5);var s=document.createElement('span');s.style.cssText='display:inline-block;font-size:11px;line-height:1.5;padding:1px 8px;border-radius:999px;border:1px solid currentColor;margin-left:8px;white-space:nowrap;color:'+(dd<=1?'#38b26a':(dd<=2?'#e0a33a':'#e2574c'));s.textContent='pedidos até '+mx.slice(8,10)+'/'+mx.slice(5,7)+(window.CDM_FOODY===false?' · TrackEat':' · Foody + TrackEat')+(dd>1?' · '+dd+' dias atrás':'');$('upd').appendChild(s)})();
+    render();
+  }catch(e){$('conteudo').innerHTML='<div class="err">Erro ao carregar: '+e.message+'</div>'}
+}
+function setView(v){VIEW=v;['v_diario','v_equipe'].forEach(function(i){var b=$(i);if(b)b.classList.remove('active')});var c=$('v_'+v);if(c)c.classList.add('active');render()}
+function stepDay(d){DI=Math.min(Math.max(DI+d,0),NAV.length-1);render()}
+function unidadeDe(id){const l=DIMS.find(x=>x.id_loja===id);return l?l.unidade:null}
+function nomeLoja(id){const l=DIMS.find(x=>x.id_loja===id);return l?l.nome:id}
+function fLoja(r){return LOJA==='Todas'||r.unidade===LOJA}
+var BLOCO='Todos';
+function blocoDe(t){t=(t||'').toString().toLowerCase();if(!t)return null;if(t.indexOf('almo')>=0||t.indexOf('tarde')>=0)return 'Dia';if(t.indexOf('jantar')>=0||t.indexOf('madrugada')>=0||t.indexOf('noite')>=0||t.indexOf('fecha')>=0)return 'Noite';return null}
+function fBloco(r){if(BLOCO==='Todos')return true;var b=blocoDe(r&&r.turno);return b===null?true:b===BLOCO}
+function blocoNome(){return BLOCO==='Todos'?'no dia':(BLOCO==='Dia'?'no bloco Dia':'na noite')}
+function setBloco(b){BLOCO=b;render()}
+function blocoBtns(){if(VIEW!=='diario')return '';var bs=['Todos','Dia','Noite'],o='<span style="display:inline-block;width:10px"></span>';for(var i=0;i<bs.length;i++){var b=bs[i];o+='<span class="tab '+(BLOCO===b?'on':'')+'" onclick="setBloco(&#39;'+b+'&#39;)">'+(b==='Todos'?'Dia inteiro':b)+'</span>'}return o}
+function fLojaI(r){return LOJA==='Todas'||unidadeDe(r.id_loja)===LOJA}
+function lojasHTML(){$('lojas').innerHTML=LOJAS.map(l=>'<span class="tab '+(LOJA===l?'on':'')+'" onclick="LOJA=\''+l+'\';render()">'+l+'</span>').join('')+blocoBtns()}
+function kpi(l,v,f,c,k){return '<div class="kpi'+(k?' kbtn':'')+(k&&k===KSEL?' kon':'')+'"'+(k?' onclick="kClick(\''+k+'\')" title="Clique para ver a lista"':'')+' style="--kc:'+c+'"><div class="l">'+l+'</div><div class="v">'+v+'</div><div class="f">'+(f||'')+'</div></div>'}
+var KSEL=null,KCTX={},REE=null,REEMOT=null,REEbusy=false;
+(function(){var s=document.createElement('style');s.textContent='.kbtn{cursor:pointer;transition:transform .08s,box-shadow .12s}.kbtn:hover{transform:translateY(-2px);box-shadow:0 4px 14px rgba(0,0,0,.35)}.kon{outline:2px solid var(--kc);outline-offset:1px}.kpain{background:var(--surface-1);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0 0 12px;overflow-x:auto}.kpain h4{margin:0 0 9px;font-size:14px}.kpain table{width:100%;border-collapse:collapse;font-size:13px}.kpain th,.kpain td{padding:5px 7px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.kpain select{background:var(--surface-1);color:var(--txt,#e6eaf0);border:1px solid var(--line);border-radius:7px;padding:3px 6px;font-size:12px}.ktag{padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;color:#fff}.kfech{float:right;cursor:pointer;color:var(--muted);font-weight:400}';document.head.appendChild(s)})();
+function kEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function kHora(t){return t?String(t).slice(11,16):'—'}
+function kClick(k){KSEL=(KSEL===k?null:k);render()}
+async function reeRPC(acao,dados){const r=await fetch(SB+'rpc/reentrega_consulta',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_cred:cdmTok(),p_acao:acao,p_dados:dados||{}})});const j=await r.json().catch(function(){return null});if(!r.ok)throw new Error((j&&j.message)||('HTTP '+r.status));return j}
+function reeGarante(){if(REE!==null||REEbusy)return;REEbusy=true;var de=(new Date(Date.now()-36*864e5)).toISOString().slice(0,10);Promise.all([reeRPC('listar',{de:de}),reeRPC('motivos')]).then(function(a){REE=Array.isArray(a[0])?a[0]:[];REEMOT=Array.isArray(a[1])?a[1]:[];REEbusy=false;render()}).catch(function(){REE=false;REEMOT=[];REEbusy=false;render()})}
+function _pc(v){return (v==null||v==='')?'—':(Math.round(1000*(+v))/10)+'%'}
+async function supLoad(){try{SUP=await fj("ifood_fato_super_status?tipo=eq.nivel_atual&select=id_loja,nome,e_super,nivel,total_pedidos,media_avaliacoes,pct_cancelamento,pct_chamados,atualizado_em&order=nivel.desc&limit=30")||[]}catch(e){SUP=false}}
+function supQt(){return (SUP&&SUP.length)?SUP.filter(function(s){return s.e_super}).length:0}
+function supData(){return (SUP&&SUP.length)?String((SUP[0]||{}).atualizado_em||'').slice(0,10):''}
+function chDia(D){return (typeof NEG!=='undefined'?NEG:[]).filter(function(x){return x.data===D&&fLojaI(x)})}
+function chMax(){var m='';(typeof NEG!=='undefined'?NEG:[]).forEach(function(x){if(x.data&&x.data>m)m=x.data});return m}
+function chPed(x){var p=String(x.id_pedido||'');if(!p)return '—';var c=p.length>8?p.slice(-6):p;return '<span style="cursor:pointer;color:#8ab4ff;text-decoration:underline" title="ver a conversa deste chamado" onclick="chChat(\''+p+'\')">'+kEsc(c)+'</span>'}
+function chChat(p){var d=document.getElementById('chatbox');if(!d){d=document.createElement('div');d.id='chatbox';d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';d.onclick=function(e){if(e.target===d)d.remove()};document.body.appendChild(d)}d.innerHTML='<div style="background:#181c26;max-width:560px;width:100%;max-height:80vh;overflow:auto;border-radius:12px;padding:16px"><b>Chamado do pedido '+kEsc(p)+'</b><div id="chatc" style="margin-top:10px;color:var(--text2)">Buscando…</div><div style="margin-top:12px;text-align:right"><span class="kfech" onclick="var b=document.getElementById(\'chatbox\');if(b)b.remove()">fechar ✕</span></div></div>';fj('ifood_fato_negociacao?id_pedido=eq.'+encodeURIComponent(p)+'&select=motivo,quem_iniciou,resposta_loja,resposta_cliente,chat&limit=1').then(function(a){var r=(a||[])[0]||{};var c=r.chat,h='';if(c&&c.length){h=c.map(function(m){return '<div style="margin:6px 0"><b>'+kEsc(m.autor||m.quem||m.de||'—')+':</b> '+kEsc(m.texto||m.mensagem||m.msg||'')+'</div>'}).join('')}else{h='<div>A conversa deste chamado ainda não foi importada do iFood.</div>'}h+='<div style="margin-top:10px;border-top:1px solid #2a2f3a;padding-top:8px"><div>Motivo: '+kEsc(r.motivo||'—')+'</div><div>Quem abriu: '+kEsc(r.quem_iniciou||'—')+'</div><div>A loja respondeu: '+kEsc(r.resposta_loja||'—')+'</div><div>O cliente respondeu: '+kEsc(r.resposta_cliente||'—')+'</div></div>';var el=document.getElementById('chatc');if(el)el.innerHTML=h}).catch(function(e){var el=document.getElementById('chatc');if(el)el.textContent='Não consegui buscar: '+e.message})}
+function chLinha(x){var r=(x.resposta_loja||'—');return '<tr><td>'+kEsc(unidadeDe(x.id_loja))+'</td><td>'+chPed(x)+'</td><td>'+kEsc(x.motivo||'—')+'</td><td style="color:'+(r==='NÃO RESPONDEU'?'var(--bad)':'var(--text2)')+'">'+kEsc(r)+'</td><td>'+(x.cancelamento_evitado?'sim':'—')+'</td></tr>'}
+/* Erro de cozinha (montagem, item errado, qualidade) e de despacho (pedido revirado/violado), pelo motivo do cancelamento no iFood. */
+function cancErro(D,tipo){var re=tipo==='coz'?/VEIO ERRADO|ITENS ERRADOS|ERRADO OU INCOMPLETO|IMPR[ÓO]PRIO|QUALIDADE|PARTE DO ITEM/i:/REVIRADO|VIOLADO/i;return (typeof CANC!=='undefined'?CANC:[]).filter(function(c){return c.data===D&&fLojaI(c)&&re.test(c.motivo||'')})}
+function cancMax(){var m='';(typeof CANC!=='undefined'?CANC:[]).forEach(function(c){if(c.data&&c.data>m)m=c.data});return m}
+function _rs(v){return _ehDono()?('R$ '+(Number(v)||0).toFixed(2).replace('.',',')):'—'}
+function cancLinha(c){return '<tr><td>'+kEsc(unidadeDe(c.id_loja))+'</td><td>'+kEsc(c.turno||'—')+'</td><td>'+kEsc(c.id_pedido)+'</td><td>'+kEsc(c.motivo||'—')+'</td><td>'+_rs(c.valor_cancelamento)+'</td></tr>'}
+function reeDia(D){return (REE||[]).filter(function(r){return r.dia_operacional===D&&fLoja(r)})}
+function reeCor(f){return f==='COZINHA'?'var(--bad)':f==='DESPACHO'?'var(--warn)':'var(--muted)'}
+function reeResp(el){var u=el.getAttribute('data-u'),t=el.getAttribute('data-t'),mo=el.getAttribute('data-m'),re=el.value;if(!mo){el.value='';return}el.disabled=true;reeRPC('marcar',{unidade:u,data_hora_pedido:t,motivo:mo,responsavel:re,lancado_por:(sessionStorage.getItem('cdm_papel')||'portal')}).then(function(){REE=null;REEbusy=false;reeGarante()}).catch(function(e){el.disabled=false;alert('Não consegui gravar: '+e.message)})}
+function reeMarcar(el){var u=el.getAttribute('data-u'),t=el.getAttribute('data-t'),mo=el.value;el.disabled=true;reeRPC('marcar',{unidade:u,data_hora_pedido:t,motivo:mo,lancado_por:(sessionStorage.getItem('cdm_papel')||'portal')}).then(function(){REE=null;REEbusy=false;reeGarante()}).catch(function(e){el.disabled=false;alert('Não consegui gravar: '+e.message)})}
+function reeLinha(r){var _cz=function(t){return '<div style="color:var(--muted);font-size:11.5px">'+t+'</div>'};var _selo=(r.mesmo_cliente===true)?'<span class="ktag" style="background:#7a2020">mesmo cliente</span>':(r.mesmo_cliente===false?'<span class="ktag" style="background:#3a3a3a">cliente diferente</span>':'<span class="ktag" style="background:#3a3a3a">nome não identificado</span>');var _tm=function(m){return (m==null)?'—':(m<60?(m+' min antes'):(Math.floor(m/60)+'h'+(m%60<10?'0':'')+(m%60)+' antes'))};var _par=r.par_n_pedido?('<b>'+kEsc(r.par_n_pedido)+'</b> às '+kHora(r.par_data_hora)+' · '+_tm(r.par_minutos)+_cz('canal: '+kEsc(r.par_canal||'não identificado'))+_cz('motoboy: '+kEsc(r.par_entregador||'—')+' · cliente '+kEsc(r.par_cliente_ini||'—')+' '+_selo)+_cz('mesmo endereço dos dois: '+kEsc(r.endereco||'—'))):'<span style="color:var(--muted)">sem par — a equipe lançou este com # no número</span>';var eq=r.familia==='COZINHA'?r.equipe_cozinha:r.familia==='DESPACHO'?r.equipe_despacho:null;var eqs=(eq&&eq.length)?eq.map(kEsc).join(', '):(r.familia?'<span style="color:var(--muted)">escala não lançada</span>':'—');var fam=r.familia?'<span class="ktag" style="background:'+reeCor(r.familia)+'">'+r.familia+'</span>':(r.detectada_por_endereco?(r.mesmo_cliente===true?'<span class="ktag" style="background:#5a4517">suspeita: mesmo cliente, mesmo endereço — confirmar</span>':'<span class="ktag" style="background:#5a4517">suspeita: mesmo endereço, nome não identificado — confirmar</span>'):'<span style="color:var(--muted)">a classificar</span>');var rsel=(eq&&eq.length&&r.motivo)?('<select data-u="'+kEsc(r.unidade)+'" data-t="'+kEsc(r.data_hora_pedido)+'" data-m="'+kEsc(r.motivo)+'" onchange="reeResp(this)"><option value="">— quem foi? —</option>'+eq.map(function(n){return '<option'+(r.responsavel===n?' selected':'')+'>'+kEsc(n)+'</option>'}).join('')+'</select>'):'<span style="color:var(--muted)">—</span>';var sel='<select data-u="'+kEsc(r.unidade)+'" data-t="'+kEsc(r.data_hora_pedido)+'" onchange="reeMarcar(this)"><option value="">— escolher —</option>'+(REEMOT||[]).map(function(m){return '<option'+(r.motivo===m.motivo?' selected':'')+'>'+kEsc(m.motivo)+'</option>'}).join('')+'</select>';return '<tr><td>'+kHora(r.data_hora_pedido)+'</td><td><b>'+kEsc(r.n_pedido||'—')+'</b>'+_cz('canal: '+kEsc(r.canal||'não identificado'))+_cz('cliente '+kEsc(r.cliente_ini||'—'))+'</td><td>'+kEsc(r.unidade)+'</td><td>'+kEsc(r.turno)+'</td><td>'+kEsc(r.entregador||'—')+'</td><td>'+_par+'</td><td>'+sel+'</td><td>'+fam+'</td><td>'+eqs+'</td><td>'+rsel+'</td></tr>'}
+async function previaHoje(){try{
+  const r=await fetch(SB+'ifood_previa_dia?select=data,unidade,cancelamentos_hoje,chamados_abertos,avaliacoes_sem_resposta,capturado_em&order=data.desc,capturado_em.desc&limit=12',{headers:H});
+  if(!r.ok)return;
+  const rows=(await r.json())||[];
+  const el=document.getElementById('previahoje');
+  if(!el)return;
+  if(!rows.length){el.innerHTML='<div style="background:#1f1c14;border:1px solid #4a3f22;color:#8a897e;border-radius:10px;padding:8px 12px;font-size:12px">📡 Prévia do dia (tela do iFood): a primeira chega na captura das 9h.</div>';return}
+  const d=rows[0].data;
+  const doDia=rows.filter(function(x){return x.data===d});
+  var hh='';
+  try{hh=new Date(doDia[0].capturado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}catch(e){hh=''}
+  el.innerHTML='<div style="background:#14201a;border:1px solid #2b4a38;border-radius:10px;padding:8px 12px;font-size:12.5px;color:#c3c2b7">📡 <b style="color:#7ce28f">Prévia de '+d.split('-').reverse().slice(0,2).join('/')+'</b> — números da TELA do iFood às '+hh+', podem divergir do relatório oficial — '+doDia.map(function(x){return '<b>'+x.unidade+'</b>: '+(x.cancelamentos_hoje==null?'—':x.cancelamentos_hoje)+' canc · '+(x.chamados_abertos==null?'—':x.chamados_abertos)+' chamados · '+(x.avaliacoes_sem_resposta==null?'—':x.avaliacoes_sem_resposta)+' aval s/ resposta'}).join('  ·  ')+'</div>';
+}catch(e){}}
+previaHoje();
+function kTab(cab,linhas){if(!linhas.length)return '<div class="hs" style="color:var(--muted)">Nada aqui neste dia.</div>';return '<table><thead><tr>'+cab.map(function(c){return '<th>'+c+'</th>'}).join('')+'</tr></thead><tbody>'+linhas.join('')+'</tbody></table>'}
+function kHoraD(base,t){if(!t)return "—";var s=String(t).slice(11,16);var d1=String(base||"").slice(0,10),d2=String(t).slice(0,10);return s+((d1&&d2&&d2>d1)?'<sup style="color:var(--warn)" title="ja no dia seguinte">+1</sup>':"")}
+function kMin(a,b){if(!a||!b)return null;var x=(new Date(String(b).replace(' ','T'))-new Date(String(a).replace(' ','T')))/60000;return (isFinite(x)&&x>=0&&x<600)?Math.round(x):null}
+function kEt(base,ant,atual){if(!atual)return '<td style="color:var(--muted)">—</td>';var m=kMin(ant,atual);return '<td data-k="'+String(atual).slice(11,16)+'">'+kHoraD(base,atual)+(m==null?'':' <span style="color:var(--muted)">('+m+' min)</span>')+'</td>'}
+function kPed(p){var a=(p.atraso_real_min==null)?null:+p.atraso_real_min;return "<tr><td>"+kEsc(p.unidade)+"</td><td>"+kEsc(p.entregador||"—")+"</td><td>"+kHora(p.data_hora_pedido)+"</td>"+kEt(p.data_hora_pedido,p.data_hora_pedido,p.dt_pronto)+kEt(p.data_hora_pedido,p.dt_pronto,p.dt_despachado)+kEt(p.data_hora_pedido,p.dt_despachado,p.dt_aceite)+kEt(p.data_hora_pedido,p.dt_aceite,p.dt_coletado)+kEt(p.data_hora_pedido,p.dt_coletado,p.dt_entregue)+"<td>"+kHoraD(p.data_hora_pedido,p.entrega_prometida)+(p.prazo_prometido_min!=null?' <span style="color:var(--muted)">('+Math.round(p.prazo_prometido_min)+' min)</span>':'')+"</td><td data-k='"+(a==null?"":a)+"' style='color:"+(p.no_prazo_real?"var(--good)":"var(--bad)")+"'>"+(a==null?"—":(a>0?"+"+Math.round(a)+" min":(a<0?Math.round(-a)+" min antes":"0 min")))+"</td><td>"+kEsc(p.n_pedido||"—")+"</td><td style="+'"color:var(--muted)"'+">"+kEsc(p.id_ifood||"—")+"</td></tr>"}
+function kPainel(){var _dbr=function(s){return s?s.slice(8,10)+'/'+s.slice(5,7):'—'};var _hojeOp=(new Date(Date.now()-7*36e5)).toISOString().slice(0,10);var _pauL=PAU.filter(function(r){return LOJA==='Todas'||r.unidade===LOJA});var _amax='';AVAL.forEach(function(r){if(r.data_avaliacao>_amax)_amax=r.data_avaliacao});var _pcx=function(v){return (v==null||v==='')?'—':(Math.round(1000*(+v))/10)+'%'};if(!KSEL)return '';var h='',t='';var CP=["Loja","Motoboy","Pedido entrou","Ficou pronto","Rota montada","Motoboy aceitou","Saiu com o pedido","Chegou no cliente","Prometido","Resultado","Nº pedido","Nº iFood"];function kFaixa(k){if(k==null)return 'sem distância';k=+k;return k<2?'até 2 km':(k<4?'2 a 4 km':(k<6?'4 a 6 km':'mais de 6 km'))}
+function kRaio(){var ps=(KCTX.ped||[]);if(!ps.length)return '';var ordem=['até 2 km','2 a 4 km','4 a 6 km','mais de 6 km','sem distância'];var m={},tot=0,tok=0;ps.forEach(function(p){var f=kFaixa(p.raio_km);if(!m[f])m[f]={t:0,ok:0};m[f].t++;tot++;if(p.no_prazo_real){m[f].ok++;tok++}});var geral=Math.round(100*tok/tot);var h='<div class="hs" style="margin-bottom:6px"><b>Como estamos por distância</b> <span style="color:var(--muted)">— no dia inteiro, '+geral+'% chegou no prazo. Verde: essa distância está melhor que o dia. Vermelho: está pior.</span></div><table style="margin-bottom:12px">';ordem.forEach(function(f){var o=m[f];if(!o)return;var pc=Math.round(100*o.ok/o.t);var cor=pc>=geral+5?'var(--good)':(pc<=geral-5?'var(--bad)':'var(--warn)');h+='<tr><td style="width:104px;white-space:nowrap;border-bottom:none">'+f+'</td><td style="border-bottom:none"><div style="background:var(--surface-2);border-radius:6px;height:15px;overflow:hidden"><div style="width:'+pc+'%;height:15px;background:'+cor+'"></div></div></td><td style="width:180px;white-space:nowrap;color:var(--muted);border-bottom:none"><b style="color:'+cor+'">'+pc+'%</b> — '+o.ok+' de '+o.t+' no prazo</td></tr>'});return h+'</table>'}
+function kDet(n){return '<details open style="margin-top:4px"><summary style="cursor:pointer;padding:6px 0;color:var(--text2)">ver a lista dos '+n+' pedidos, um por um</summary>'}
+function CPL(){return kRaio()+'<div class="hs" style="color:var(--muted);margin-bottom:8px">Cada horário mostra, entre parênteses, quanto tempo levou desde a etapa anterior — é assim que se enxerga onde o tempo foi embora. Ao lado do horário prometido está o prazo que o iFood deu ao cliente.</div>'}var CR=['Hora','Pedido','Loja','Turno','Motoboy','O par — 1º pedido no mesmo endereço','Motivo','Culpa','Quem estava na posição','Responsável'];
+  if(KSEL==='ent'){var ps=KCTX.ped||[];h='Indicadores do dia '+blocoNome();
+    var _ok=0,_at=0,_st=0,_qt=0,_sa=0,_qa=0;
+    ps.forEach(function(p){if(p.no_prazo_real)_ok++;else _at++;if(p.t_total_min!=null){_st+=(+p.t_total_min);_qt++}var aa=(p.atraso_real_min==null)?null:+p.atraso_real_min;if(aa!=null&&aa>0){_sa+=aa;_qa++}});
+    var _pc=ps.length?Math.round(1000*_ok/ps.length)/10:null;
+    var _nm=function(l,v,s){return '<div style="background:var(--surface-1);border-radius:10px;padding:9px 11px"><div style="font-size:11.5px;color:var(--muted)">'+l+'</div><div style="font-size:19px;font-weight:700;margin-top:2px">'+v+'</div><div style="font-size:11px;color:var(--muted)">'+(s||'&nbsp;')+'</div></div>'};
+    t='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px">'+
+      _nm('Entregas',ps.length,'')+
+      _nm('No prazo',_ok,_pc==null?'—':_pc+'%')+
+      _nm('Atrasos',_at,_pc==null?'—':(Math.round((100-_pc)*10)/10)+'%')+
+      _nm('Atraso médio',(_qa?Math.round(_sa/_qa):0)+' min','só dos atrasados')+
+      _nm('Loja até o cliente',(_qt?Math.round(_st/_qt):0)+' min','tempo médio total')+
+      _nm('Motoboys',Object.keys(ps.reduce(function(o,p){var _k=p.motoboy_chave||p.entregador;if(_k)o[_k]=1;return o},{})).length,'')+
+      '</div>';
+    var _ag=function(campo,titulo){var m={};ps.forEach(function(p){var k=p[campo]||'—';var x=m[k]=m[k]||{e:0,ok:0};x.e++;if(p.no_prazo_real)x.ok++});
+      var ks=Object.keys(m).sort(function(a,b){return m[b].e-m[a].e});
+      if(!ks.length)return '';
+      return '<div class="hs" style="margin:12px 0 4px;color:var(--muted)">'+titulo+'</div>'+kTab(['','Entregas','No prazo','Atrasos'],ks.map(function(k){var x=m[k];var pp=Math.round(1000*x.ok/x.e)/10;return '<tr><td><b>'+kEsc(k)+'</b></td><td>'+x.e+'</td><td data-k="'+pp+'">'+pp+'%</td><td>'+(x.e-x.ok)+'</td></tr>'}))};
+    t+=_ag('turno','Por turno')+_ag('unidade','Por loja');
+  }
+  else if(KSEL==="pct"){var _ok=(KCTX.ped||[]).filter(function(x){return x.no_prazo_real});h="Entregas que chegaram no prazo — "+_ok.length+" de "+(KCTX.ped||[]).length;t=CPL()+kDet(_ok.length)+kTab(CP,_ok.map(kPed))+'</details>'}
+  else if(KSEL==='atr'){h='Atrasos reais';t=CPL()+kDet((KCTX.atr||[]).length)+kTab(CP,(KCTX.atr||[]).map(kPed))+'</details>'}
+  else if(KSEL==='sc'){h='Pedidos sem Código de Coleta';t='<div class="hs" style="color:var(--muted);margin-bottom:8px">O motoboy precisa pedir o Código de Coleta ao cliente na entrega — é a prova de que o pedido foi entregue. Antes de cobrar, confira o canal: venda de balcão, telefone, Accon ou Goomer nunca tem código, e nesses casos não há o que pedir.</div>'+kTab(["Hora","Loja","Turno","Motoboy","Pedido","Canal de venda"],(KCTX.sc||[]).map(function(s){return "<tr><td>"+kHora(s.hora_pedido)+"</td><td>"+kEsc(s.unidade)+"</td><td>"+kEsc(s.turno)+"</td><td>"+kEsc(s.entregador||"—")+"</td><td>"+kEsc(s.n_pedido)+"</td><td>"+kEsc(canalDe(s))+"</td></tr>"}))}
+  else if(KSEL==='pau'){h='Itens pausados no cardápio online — iFood e Accon'+(PAUMAX?' — varredura de '+_dbr(PAUMAX):'');
+    t='<div class="hs" style="color:var(--muted);margin-bottom:8px">Pausado é o que o cliente vê e não consegue pedir. Escondido é o que ele nem vê. Complemento pausado é o que mais dói: o cliente pede o lanche e não consegue somar o adicional. Aqui só entra cardápio que vende pela internet — iFood e Accon. O tablet de mesa (Goomer) fica na Central Salão.</div>'+
+      kTab(['Dias parado','Canal','Loja','Marca','Item','Tipo','Situação'],_pauL.slice().sort(function(a,b){return String(a.primeiro_visto)<String(b.primeiro_visto)?-1:1}).map(function(r){
+        var dd=Math.round((new Date(_hojeOp+"T00:00:00")-new Date(String(r.primeiro_visto)+"T00:00:00"))/864e5);
+        if(!(dd>=0))dd=0;
+        var cor=dd>=2?"var(--bad)":"var(--warn)";
+        return '<tr><td data-k="'+dd+'" style="color:'+cor+'"><b>'+(dd<=0?'hoje':(dd===1?'1 dia':dd+' dias'))+'</b></td><td>'+kEsc(r.canal)+'</td><td>'+kEsc(r.unidade)+'</td><td>'+kEsc(r.marca||'—')+'</td><td><b>'+kEsc(r.item)+'</b></td><td>'+kEsc(r.tipo||'—')+'</td><td>'+kEsc(r.estado)+'</td></tr>'}))}
+  else if(KSEL==='moto'){h='Motoboys que entregaram '+blocoNome();var _mZ=function(n){return {n:n,e:0,a:0,ac:0,acn:0,en:0,enn:0,tt:0,ttn:0}};var _mD=function(a,b){if(!a||!b)return null;var x=(new Date(String(b).replace(' ','T'))-new Date(String(a).replace(' ','T')))/60000;return (isFinite(x)&&x>=0&&x<600)?x:null};var _mm={};(KCTX.ped||[]).forEach(function(p){var n=p.entregador||'sem nome';if(!_mm[n])_mm[n]=_mZ(n);var o=_mm[n];o.e++;if(!p.no_prazo_real)o.a++;if(p.t_aceite_min!=null){o.ac+=+p.t_aceite_min;o.acn++}var _e=_mD(p.dt_coletado,p.dt_entregue);if(_e!=null){o.en+=_e;o.enn++}if(p.t_total_min!=null){o.tt+=+p.t_total_min;o.ttn++}});var _mSC=(KCTX.sc||[]).length;var _mM=function(s,q){return q?Math.round(s/q):null};var _mC=function(v){return v==null?'<td data-k="99999" style="color:var(--muted)">—</td>':'<td data-k="'+v+'">'+v+' min</td>'};var _ml=Object.keys(_mm).map(function(k){return _mm[k]}).sort(function(x,y){return y.e-x.e});t=(_mSC?'<div class="hs" style="margin-bottom:8px"><b>'+_mSC+'</b> pedido'+(_mSC>1?'s':'')+' do dia sem Código de Coleta. <span style="color:var(--muted)">Não é falha de motoboy: o código vem do iFood junto com o pedido, e venda de balcão, telefone ou Accon nunca tem. A lista está no quadro Sem código.</span></div>':'')+'<div class="hs" style="color:var(--muted);margin-bottom:8px">Aceite da rota: da rota pronta até o motoboy aceitar. Entrega: da coleta até a porta do cliente. Do pedido à porta: o tempo que o cliente sentiu.</div>'+kTab(['Motoboy','Entregas','Atrasos','% no prazo','Aceite da rota','Entrega','Do pedido à porta'],_ml.map(function(m){var _pz=m.e?Math.round(1000*(m.e-m.a)/m.e)/10:0;return '<tr><td>'+kEsc(m.n)+'</td><td>'+m.e+'</td><td>'+m.a+'</td><td data-k="'+_pz+'">'+_pz+'%</td>'+_mC(_mM(m.ac,m.acn))+_mC(_mM(m.en,m.enn))+_mC(_mM(m.tt,m.ttn))+'</tr>'}))}
+  else if(KSEL==="canc"){h="Cancelamentos do dia (Saipos)";t="<div class='hs' style='color:var(--muted);margin-bottom:8px'>Vem do Saipos, que fecha todo dia. Canal de venda e o nome da loja ou da marca por onde o pedido entrou; quando esta vazio, foi venda direta no balcao ou no salao. O motivo e o prazo para contestar continuam no quadro Cliente nao recebeu, que vem do iFood.</div>"+kTab(["Loja","Pedido","Canal de venda","Itens cancelados"],(KCTX.canc||[]).map(function(c){return "<tr><td>"+kEsc(c.unidade)+"</td><td>"+kEsc(c.n_pedido||"—")+"</td><td>"+kEsc(c.canal||"venda direta (balcao/salao)")+"</td><td>"+kEsc(c.itens_cancelados||"—")+"</td></tr>"}))}
+  else if(KSEL==='nr'){h='Cliente não recebeu — últimos 30 dias';t='<div class="hs" style="color:var(--muted);margin-bottom:8px">Cancelamentos em que o cliente disse que não recebeu, não atendeu ou não foi localizado. O que está como <b>perdido</b> o iFood não deixa contestar. O que está como <b>CONTESTAR</b> ainda dá para recuperar.</div>'+kTab(['Data','Loja','Motivo','Valor','Situação'],(KCTX.nr||[]).map(function(c){var st=c.contestavel?(c.loja_contestou?'já contestado':'<b style="color:var(--warn)">CONTESTAR</b>'):'<b style="color:var(--bad)">perdido</b>';return '<tr><td>'+kEsc(c.data?c.data.slice(8,10)+'/'+c.data.slice(5,7):'—')+'</td><td>'+kEsc(unidadeDe(c.id_loja)||'—')+'</td><td>'+kEsc(c.motivo)+'</td><td data-k="'+(+c.valor_pedido||0)+'">'+(c.valor_pedido!=null?'R$ '+(+c.valor_pedido).toFixed(2).replace('.',','):'—')+'</td><td>'+st+'</td></tr>'}))}
+  else if(KSEL==='aval'){var _d14=(new Date(Date.now()-14*864e5)).toISOString().slice(0,10);
+    var _rs2=AVAL.filter(function(r){return (+r.nota)<=3&&r.data_avaliacao>=_d14&&fLojaI(r)}).sort(function(a,b){return a.data_avaliacao<b.data_avaliacao?1:-1});
+    h='Avaliações — notas 1 a 3 dos últimos 14 dias'+(_amax?' · o iFood publicou até '+_dbr(_amax):'');
+    var _tg={};_rs2.forEach(function(r){(r.tags||[]).forEach(function(x){_tg[x]=(_tg[x]||0)+1})});
+    var _tp=Object.keys(_tg).sort(function(a,b){return _tg[b]-_tg[a]}).slice(0,3);
+    t=(_tp.length?'<div class="hs" style="margin-bottom:8px;color:var(--muted)">Mais repetido: '+_tp.map(function(x){return '<b>'+kEsc(x)+'</b> ('+_tg[x]+')'}).join(' · ')+'</div>':'')+
+      kTab(['Data','Loja','Nota','O que a pessoa escreveu'],_rs2.map(function(a){return '<tr><td>'+kEsc(a.data_avaliacao?a.data_avaliacao.slice(8,10)+'/'+a.data_avaliacao.slice(5,7):'—')+'</td><td>'+kEsc(unidadeDe(a.id_loja)||'—')+'</td><td data-k="'+(+a.nota||0)+'"><b style="color:var(--bad)">'+kEsc(a.nota)+'</b></td><td>'+kEsc(a.comentario||(a.tags||[]).join(', ')||'sem comentário')+'</td></tr>'}))}
+  else if(KSEL==='ree'){h='Reentregas do dia — com # ou 2º pedido do mesmo cliente no mesmo endereço';t='<div class="hs" style="color:var(--muted);margin-bottom:8px">Entra aqui o pedido que a equipe lançou com # no número, e o 2º pedido feito no mesmo endereço, no mesmo dia, até 3 horas depois, quando o primeiro nome do cliente é o mesmo. A coluna do par mostra o 1º pedido — hora, quanto tempo antes, canal, motoboy e as iniciais do cliente — para você conferir que não é outra pessoa do mesmo prédio.</div>'+(REE===null?'<div class="hs" style="color:var(--muted)">Buscando…</div>':kTab(CR,(KCTX.ree||[]).map(reeLinha)))}
+  else if(KSEL==='sup'){h='Selo Super Restaurante — marca por marca';t='<div class="hs" style="color:var(--muted);margin-bottom:8px">O iFood dá o selo por marca, não por endereço, e olha os últimos 3 meses. Cancelamento e chamados: quanto menor, melhor. Este número só muda quando o iFood recalcula — a data no quadro é a do cálculo dele, não a da última captura.</div>'+kTab(['Marca','Nível','Selo','Pedidos','Nota','Cancelamento','Chamados'],(SUP||[]).map(function(s){return '<tr><td>'+kEsc(s.nome)+'</td><td data-k="'+(s.nivel||0)+'">Nível '+(s.nivel||'—')+'</td><td style="color:'+(s.e_super?'var(--good)':'var(--muted)')+'">'+(s.e_super?'Super':'—')+'</td><td>'+(s.total_pedidos||0)+'</td><td>'+(s.media_avaliacoes||'—')+'</td><td>'+_pcx(s.pct_cancelamento)+'</td><td>'+_pcx(s.pct_chamados)+'</td></tr>'}))}
+  else if(KSEL==='cha'||KSEL==='resp'){var _cl=(window.ECHA||[]);if(KSEL==='resp')_cl=_cl.filter(function(x){return (x.resposta_loja||'')==='NÃO RESPONDEU'});h=(KSEL==='cha'?'Chamados do dia':'Chamados que ficaram sem resposta');t='<div class="hs" style="color:var(--muted);margin-bottom:8px">Chamado é quando o cliente aciona a loja pelo aplicativo, antes de cancelar. Responder rápido evita o cancelamento e conta para o Super Restaurante.</div>'+kTab(['Loja','Pedido','Motivo','O que a loja respondeu','Evitou cancelamento'],_cl.map(chLinha))}
+  else if(KSEL==='coz'||KSEL==='des'){var f=KSEL==='coz'?'COZINHA':'DESPACHO';var _ec=(window.ECANC||{})[KSEL]||[];h=(KSEL==='coz'?'Erro de cozinha':'Erro de despacho');var _rl=(KCTX.ree||[]).filter(function(r){return r.familia===f}).map(reeLinha),_dn=_ehDono();t=(REE===null?'<div class="hs" style="color:var(--muted)">Buscando…</div>':((_rl.length||!_ec.length)?((_ec.length?'<div class="hs" style="margin:0 0 4px;color:var(--muted)">Reentregas lançadas</div>':'')+kTab(CR,_rl)):''))+(_ec.length?'<div class="hs" style="margin:'+((REE!==null&&_rl.length)?'12px':'0')+' 0 4px;color:var(--muted)">Reclamações no iFood deste dia</div>'+kTab(['Loja','Turno','Pedido','Motivo'].concat(_dn?['Valor']:[]),_ec.map(function(c){var l=cancLinha(c);return _dn?l:l.replace(/<td>[^<]*<\/td><\/tr>$/,'</tr>')})):'')}
+  return '<div class="kpain"><h4>'+h+'<span class="kfech" onclick="kClick(null)">fechar ✕</span></h4>'+t+'</div>'}
+function toggleAtr(){const x=document.getElementById('atrlist');if(x)x.style.display=x.style.display==='none'?'':'none'}
+function render(){lojasHTML();VIEW==='diario'?renderDiario():VIEW==='equipe'?renderEquipe():renderIfood()}
+
+/* ================= DIÁRIO ================= */
+function botoesDow(){
+  var N=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'],h='<span style="display:inline-block;width:10px"></span>';
+  for(var i=NAV.length-1;i>=0;i--){h+='<span class="tab'+((PER===1&&DI===i)?' on':'')+'" onclick="irParaDia('+i+')" style="text-align:center;line-height:1.15">'+N[dow(NAV[i])]+'<br><span style="font-size:10px;opacity:.6">'+br(NAV[i])+'</span></span>'}
+  return h;
+}
+function irParaDia(i){DI=i;PER=1;render()}
+function irParaDow(k){
+  for(var i=NAV.length-1;i>=0;i--){ if(dow(NAV[i])===k){ DI=i; PER=1; render(); return } }
+}
+function renderDiario(){
+  const D=NAV[DI];if(!D){$('conteudo').innerHTML='<div class="empty">Sem dados.</div>';$('barra').innerHTML='';return}
+  $('barra').innerHTML='<div class="datenav" style="width:max-content"><button onclick="stepDay(-1)">‹</button><div class="cur">'+DOWN[dow(D)]+' '+br(D)+'</div><button onclick="stepDay(1)">›</button></div>';
+  if(!CPDIAS[D]&&BASE.some(function(r){return r.dia_operacional===D})){CPDIAS[D]=1;$('conteudo').innerHTML='<div class="loading">Carregando o dia…</div>';cpRPC('detalhe',D).then(function(r){ATR=ATR.concat(r);render()}).catch(function(){CPDIAS[D]=0;$('conteudo').innerHTML='<div class="empty">Não consegui carregar este dia. Tente de novo.</div>'});return}
+  const w=dow(D);
+  const pedD=ATR.filter(p=>p.dia_operacional===D&&fLoja(p)&&fBloco(p)&&p.t_total_min!=null);
+  const passados=[...new Set(BASE.map(p=>p.dia_operacional))].filter(d=>d<D&&dow(d)===w).sort().slice(-4);
+  const pedBase=BASE.filter(p=>passados.includes(p.dia_operacional)&&fLoja(p)&&fBloco(p));
+  const pctReal=rs=>{if(!rs.length)return null;const ok=rs.filter(p=>p.no_prazo_real).length;return Math.round(1000*ok/rs.length)/10};
+  const ent=pedD.length;const motoQt=new Set(pedD.map(function(p){return p.motoboy_chave||p.entregador}).filter(Boolean)).size;
+  const atrD=pedD.filter(p=>!p.no_prazo_real).sort((a,b)=>atrasoReal(b)-atrasoReal(a));
+  const atr=atrD.length;
+  const pct=pctReal(pedD);
+  const bPct=(function(){var n=0,k=0;pedBase.forEach(function(r){n+=(+r.n||0);k+=(+r.n_ok||0)});return n?Math.round(1000*k/n)/10:null})();
+  const _sd=svsDia(D);const _sLoj=svsLojas();const _sSem=(_sd.length===0)||(_sd.length<_sLoj);const _sCanc=_sd.reduce((a,r)=>a+(+r.cancelados||0),0);const cancD=SVS.filter(r=>r.dia_operacional===D&&r.cancelado&&fLoja(r));
+  const d3=NAV.slice(Math.max(0,DI-2),DI+1);
+  const avalRuim=AVAL.filter(r=>d3.includes(r.data_avaliacao)&&r.nota<=3&&fLojaI(r));
+  const scD=SC.filter(r=>r.dia_operacional===D&&fLoja(r)&&fBloco(r));
+  const sem=scD.length;
+  const cmp=(v,b)=>{if(b==null||v==null)return'';const d=v-b;if(Math.abs(d)<0.05)return'<span style="color:var(--muted)">= média</span>';
+    return '<span class="'+(d>0?'up':'down')+'">'+(d>0?'▲':'▼')+' '+Math.abs(d).toFixed(1)+' vs média</span>'};
+
+  reeGarante();
+  var _cmax='',_amax='';CANC.forEach(function(r){if(r.data>_cmax)_cmax=r.data});AVAL.forEach(function(r){if(r.data_avaliacao>_amax)_amax=r.data_avaliacao});
+  var _dbr=function(s){return s?s.slice(8,10)+'/'+s.slice(5,7):'—'};
+  var _d14a=(new Date(Date.now()-14*864e5)).toISOString().slice(0,10);
+  var _avL=AVAL.filter(function(r){return r.data_avaliacao>=_d14a&&fLojaI(r)});
+  var _avQt=_avL.length,_avRuim=_avL.filter(function(r){return (+r.nota)<=3}).length;
+  var _avMed=_avQt?(_avL.reduce(function(a,r){return a+(+r.nota||0)},0)/_avQt):null;
+  var _avAtraso=(!_amax||_amax<D);
+  var _cSem=(_cmax<D),_aSem=(_amax<D),_hojeOp=(new Date(Date.now()-7*36e5)).toISOString().slice(0,10),_emCurso=(D===_hojeOp);
+  var _pauL=PAU.filter(function(r){return LOJA==='Todas'||r.unidade===LOJA});
+  var _pauVelho=_pauL.filter(function(r){return (new Date(_hojeOp+"T00:00:00")-new Date(String(r.primeiro_visto)+"T00:00:00"))/864e5>=2}).length;
+  var _pauSem=(!PAUMAX||PAUMAX<_hojeOp);var _chMax=chMax(),_chAtraso=(!_chMax||_chMax<D),_chD=(_chAtraso&&_chMax)?_chMax:D,_chL=chDia(_chD),_chNR=_chL.filter(function(x){return (x.resposta_loja||'')==='NÃO RESPONDEU'}).length,_chPct=_chL.length?Math.round(100*(_chL.length-_chNR)/_chL.length):null,_chEv=_chL.filter(function(x){return x.cancelamento_evitado}).length,_chSem=(!_chMax),_chgx=(window.ECHA=_chL);
+  var _rd=reeDia(D).filter(fBloco),_ecz=cancErro(D,'coz'),_eds=cancErro(D,'des'),_ecgx=(window.ECANC={coz:_ecz,des:_eds}),_vcz=_ecz.reduce(function(a,c){return a+(+c.valor_cancelamento||0)},0),_vds=_eds.reduce(function(a,c){return a+(+c.valor_cancelamento||0)},0),_cmax=cancMax(),_cAtraso=(!_cmax||_cmax<D),_rc=_rd.filter(function(r){return r.familia==='COZINHA'}).length+_ecz.length,_rp=_rd.filter(function(r){return r.familia==='DESPACHO'}).length+_eds.length,_rf=_rd.filter(function(r){return !r.familia}).length,_reeNunca=(Array.isArray(REE)&&REE.length===0);
+  var _MNR=['O PEDIDO NÃO FOI ENTREGUE','NINGUÉM PODERÁ RECEBER O PEDIDO','CLIENTE NÃO LOCALIZADO','O ENDEREÇO ESTÁ INCOMPLETO E O CLIENTE NÃO ATENDE'];var _d30=(new Date(Date.now()-30*864e5)).toISOString().slice(0,10);var _nr=CANC.filter(function(r){return r.data>=_d30&&fLojaI(r)&&_MNR.indexOf(r.motivo)>=0});var _nrP=_nr.filter(function(r){return !r.contestavel}),_nrC=_nr.filter(function(r){return r.contestavel&&!r.loja_contestou});var _vP=_nrP.reduce(function(a,r){return a+(+r.valor_pedido||0)},0),_vC=_nrC.reduce(function(a,r){return a+(+r.valor_pedido||0)},0);var _rs=function(v){return 'R$ '+v.toFixed(2).replace('.',',')};
+  KCTX={ped:pedD,atr:atrD,canc:cancD,aval:avalRuim,sc:scD,ree:_rd,nr:_nr};
+  let html='<div class="kpis">'+
+    kpi('Entregas',ent,_emCurso?'dia em andamento — parcial':'','var(--blue)','ent')+kpi('Motoboys',motoQt,motoQt?'entregaram '+blocoNome():'nenhum','var(--blue)','moto')+
+    kpi('% no prazo REAL',pct!=null?pct+'%':'—',cmp(pct,bPct),pct==null?'var(--muted)':pct>=85?'var(--good)':pct>=70?'var(--warn)':'var(--bad)','pct')+
+    kpi('Atrasos reais',atr,atr?'acima do horário prometido':'nenhum 🎉',atr?'var(--bad)':'var(--good)','atr')+
+    /* Sem dado do sistema de entregas no dia: o cartao nao diz "tudo certo". */
+    (window.CDM_FOODY===false?'':(function(){var m='';(F||[]).forEach(function(z){if(z.dia_operacional&&z.dia_operacional>m)m=z.dia_operacional});return (!m||m<D)?kpi('Sem código','—',m?'Foody sem dado desde '+_dbr(m):'Foody sem dado no período','var(--muted)','sc'):kpi('Sem código',sem,sem?'sem Cód. de Coleta':'tudo certo 🎉',sem?'var(--warn)':'var(--good)','sc');})())+
+    
+    kpi('Itens pausados',_pauSem?'—':_pauL.length,_pauSem?(PAUMAX?'última varredura em '+_dbr(PAUMAX):'ainda não varreu'):(_pauL.length?(_pauVelho?_pauVelho+' parado'+(_pauVelho>1?'s':'')+' há 2 dias ou mais':'todos pausados hoje'):'tudo no ar 🎉'),_pauSem?'var(--muted)':(_pauVelho?'var(--bad)':(_pauL.length?'var(--warn)':'var(--good)')),'pau')+
+    kpi('Reentregas #',REE===null?'…':(REE===false||_reeNunca?'—':_rd.length),REE===null?'buscando…':(REE===false?'não consegui buscar':(_reeNunca?'ninguém lançou no período':(_rf?_rf+' a classificar':(_rd.length?'todas classificadas':'nenhuma 🎉')))),REE===false?'var(--bad)':(_reeNunca?'var(--muted)':(_rd.length?'var(--warn)':'var(--good)')),'ree')+
+    kpi('Erro cozinha',_rc,_rc?((_ehDono()&&_vcz>0?_rs(_vcz)+' perdidos · ':'')+'veio errado, faltou parte ou impróprio'):(_cAtraso?'iFood publicou até '+_dbr(_cmax):'nenhum 🎉'),_rc?'var(--bad)':(_cAtraso?'var(--muted)':'var(--good)'),'coz')+
+    kpi('Erro despacho',_rp,_rp?((_ehDono()&&_vds>0?_rs(_vds)+' perdidos · ':'')+(_eds.length?(_rp>_eds.length?'faltou item na sacola ou pedido revirado/violado':'pedido revirado/violado'):'faltou item na sacola')):(_cAtraso?'iFood publicou até '+_dbr(_cmax):'nenhum 🎉'),_rp?'var(--bad)':(_cAtraso?'var(--muted)':'var(--good)'),'des')+kpi('Chamados',(_chSem||_chAtraso)?'—':_chL.length,_chSem?'relatório de chamados sem dado no período':(_chAtraso?('relatório antigo parado desde '+_dbr(_chMax)+' · os do chat estão em Como fomos → Negociações'):(_chL.length?(_chEv?_chEv+' cancelamento'+(_chEv>1?'s':'')+' evitado'+(_chEv>1?'s':''):'nenhum evitado'):'nenhum 🎉')),_chSem?'var(--muted)':(_chAtraso?'var(--muted)':(_chL.length?'var(--warn)':'var(--good)')),'cha')+
+    '</div>'+kPainel();
+  
+  
+  $('conteudo').innerHTML=html;
+}
+
+/* ================= ESCALA DO DIA ================= */
+function blocoEscala(D){
+  const rs=ESCH.filter(x=>x.dia_op===D&&fLoja(x));
+  let h='<div class="sec"><h2>\uD83D\uDCC5 Escala do dia \u2014 quem chegou</h2><div class="hs">escala publicada \u00D7 hor\u00E1rio estimado pela primeira coleta</div>';
+  if(!rs.length){h+='<div class="empty">A escala deste dia ainda n\u00E3o foi publicada.</div></div>';return h}
+  const st={'No hor\u00E1rio':'pg','Atrasado':'pw','Muito atrasado':'pb','Faltou':'pb','Sem check-in':'pw'};
+  const nH=rs.filter(x=>x.status==='No hor\u00E1rio').length, fa=rs.filter(x=>x.status==='Faltou').length;
+  h+='<div class="hs" style="margin:-4px 0 8px">'+rs.length+' escalados \u00B7 <b style="color:var(--good)">'+nH+' no hor\u00E1rio</b>'+(fa?' \u00B7 <b style="color:var(--bad)">'+fa+' sem aparecer</b>':'')+'</div>';
+  const hm=x=>{if(!x)return '\u2014';const d=new Date(x);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)};
+  const ord={'Almo\u00E7o':1,'Tarde':2,'Jantar':3,'Madrugada':4};
+  rs.sort((a,b)=>(ord[a.turno]||9)-(ord[b.turno]||9)||String(a.entrada).localeCompare(String(b.entrada)));
+  h+='<table><tr><th>Turno</th><th>Motoboy</th><th>Loja</th><th>Combinado</th><th>Chegou</th><th>Diferen\u00E7a</th><th>Situa\u00E7\u00E3o</th><th>Entregas</th></tr>';
+  rs.forEach(x=>{const d=x.atraso_min==null?'\u2014':(Number(x.atraso_min)>0?'+'+x.atraso_min+' min':x.atraso_min+' min');
+    h+='<tr><td>'+(x.turno||'\u2014')+'</td><td><b>'+x.nome+'</b></td><td>'+String(x.unidade||'').split(' ')[0]+'</td><td>'+String(x.entrada||'').slice(0,5)+'</td><td>'+hm(x.chegada_efetiva)+(x.fonte_chegada==='Foody (1\u00AA coleta)'?'':'')+'</td>'+
+      '<td style="color:'+(x.atraso_min>5?'var(--bad)':'var(--good)')+'">'+d+'</td><td><span class="pill '+(st[x.status]||'pw')+'">'+(x.status==='Sem check-in'?'—':x.status)+'</span></td><td>'+(x.entregas||0)+'</td></tr>'});
+  h+='</table></div>';return h;
+}
+/* ================= EQUIPE ================= */
+function _canon(){var c={},best={},nm={};(typeof ATR!=='undefined'?ATR:[]).forEach(function(p){if(!p.entregador)return;var ch=String(p.motoboy_chave||p.entregador);c[ch]=c[ch]||{};c[ch][p.entregador]=(c[ch][p.entregador]||0)+1;nm[p.entregador]=ch});Object.keys(c).forEach(function(ch){var b='',n=-1;Object.keys(c[ch]).forEach(function(x){if(c[ch][x]>n){n=c[ch][x];b=x}});best[ch]=b});var r={};Object.keys(nm).forEach(function(x){r[x]=best[nm[x]]});return r}
+function _realPorMoto(dias){var m={},_c=_canon();(typeof ATR!=='undefined'?ATR:[]).forEach(function(p){if(dias.indexOf(p.dia_operacional)<0)return;if(!p.entregador)return;var k=(_c[p.entregador]||p.entregador)+'|'+p.unidade;var o=m[k]=m[k]||{ok:0,at:0,e:0};o.e++;if(p.no_prazo_real)o.ok++;else o.at++});return m}
+function _tabelaTurno(dias){
+  var ORD={'Almoço':1,'Tarde':2,'Jantar':3,'Madrugada':4};
+  var m={},_c=_canon();
+  (typeof ATR!=='undefined'?ATR:[]).forEach(function(p){
+    if(dias.indexOf(p.dia_operacional)<0)return;
+    if(!p.entregador)return;
+    if(LOJA!=='Todas'&&String(p.unidade||'')!==LOJA)return;
+    var _n=_c[p.entregador]||p.entregador;var t=p.turno||'—', k=t+'|'+_n+'|'+p.unidade;
+    var o=m[k]=m[k]||{t:t,n:_n,l:p.unidade,e:0,ok:0,at:0,ds:{}};
+    o.e++; if(p.no_prazo_real)o.ok++; else o.at++; o.ds[p.dia_operacional]=1;
+  });
+  var L=Object.keys(m).map(function(k){var o=m[k];o.d=Object.keys(o.ds).length;o.p=pctS(o.ok,o.at);return o});
+  if(!L.length) return '';
+  L.sort(function(a,b){return (ORD[a.t]||9)-(ORD[b.t]||9)||b.e-a.e});
+  var h='</div><div class="sec"><h2>Por motoboy e turno</h2><div class="hs">quem rodou em cada turno, pelo prazo real do iFood · clique no cabeçalho para ordenar</div>';
+  h+='<table><tr><th>Turno</th><th>Motoboy</th><th>Loja</th><th>Dias</th><th>Entregas</th><th>No prazo</th><th>Atrasos</th><th>% no prazo (real)</th></tr>';
+  L.forEach(function(o){
+    var cls=o.p==null?'pw':o.p>=90?'pg':o.p>=70?'pw':'pb';
+    h+='<tr><td><b>'+o.t+'</b></td><td>'+o.n+'</td><td style="color:var(--text2)">'+o.l+'</td><td>'+o.d+'</td><td>'+o.e+'</td><td>'+o.ok+'</td><td>'+o.at+'</td><td><span class="pill '+cls+'">'+(o.p==null?'—':o.p+'%')+'</span></td></tr>';
+  });
+  return h+'</table>';
+}
+function aggMoto(rows){
+  const m={};rows.forEach(r=>{const k=r.nome+'|'+r.unidade;const o=m[k]=m[k]||{n:r.nome,l:r.unidade,d:0,h:0,e:0,ok:0,at:0,sem:0,v:0,g:0,c:0,rec:0,qr:0};
+    o.d++;o.h+=(+r.horas||0);o.e+=(+r.entregas||0);o.ok+=(+r.no_prazo||0);o.at+=(+r.atrasos||0);o.sem+=(+r.sem_codigo||0);
+    o.v+=(+r.fez||0);
+    if(r.horas_qr!=null)o.qr++;});
+  return Object.values(m).map(o=>({...o,p:pctS(o.ok,o.at)}));
+}
+const rM=v=>(_ehDono()?'R$ '+Math.round(v).toLocaleString('pt-BR'):'—');
+function kpiCodigo(dias){
+  var e=(ENTR||[]).filter(function(r){return dias.indexOf(r.dia_operacional)>=0&&fLoja(r)});
+  var ped=0,sc=0; e.forEach(function(r){ped+=(+r.pedidos||0);sc+=(+r.sem_codigo||0)});
+  var comCod=ped-sc;
+  return kpi('Código de coleta',comCod,ped?(sc+' sem código de '+ped+' pedidos iFood'):'sem pedidos no período',sc?'var(--warn)':'var(--good)');
+}
+function renderEquipe(){
+  $('barra').innerHTML='<a class="btnr" href="escala.html" style="text-decoration:none;margin-right:8px;display:inline-block;margin-bottom:8px">🗓 Escala</a>'+'<div class="tabs" style="margin:0">'+[['1','Último dia'],['3','3 dias'],['7','7 dias']].map(([n,l])=>'<span class="tab '+(PER===+n?'on':'')+'" onclick="PER='+n+';render()">'+l+'</span>').join('')+botoesDow()+'</div>';
+  const dias=NAV.slice(-PER);
+  const rs=PAG.filter(r=>dias.includes(r.dia_operacional)&&fLoja(r));
+  const rsAll=PAG.filter(r=>dias.includes(r.dia_operacional));
+  const motos=aggMoto(rs).sort((a,b)=>b.e-a.e);
+  const motosAll=aggMoto(rsAll);
+  var _R=_realPorMoto(dias),_C=_canon();var _ap=function(arr){arr.forEach(function(o){if(_C[o.n])o.n=_C[o.n];var r=_R[o.n+'|'+o.l];if(r){o.ok=r.ok;o.at=r.at;o.e=r.e}})};var _add=function(arr,filtra){Object.keys(_R).forEach(function(k){var i=k.lastIndexOf('|'),nm=k.slice(0,i),un=k.slice(i+1);if(filtra&&!(LOJA==='Todas'||un===LOJA))return;for(var j=0;j<arr.length;j++){if(arr[j].n===nm&&arr[j].l===un)return}var r=_R[k];arr.push({n:nm,l:un,d:0,h:0,e:r.e,ok:r.ok,at:r.at,sem:0,v:0,g:0,c:0,rec:0,qr:0,p:pctS(r.ok,r.at),parcial:true})})};_ap(motos);_ap(motosAll);_add(motos,true);_add(motosAll,false);motos.sort(function(a,b){return b.e-a.e});
+  let ent=0,ok=0,atr=0,sem=0,horas=0,comp=0,rec=0;
+  motos.forEach(m=>{ent+=m.e;ok+=m.ok;atr+=m.at;sem+=m.sem;horas+=m.h;comp+=m.c;rec+=m.rec});
+  const pct=pctS(ok,atr);
+  let html='<div class="kpis">'+
+    kpi('Entregas',ent,motos.length+' motoboys · '+dias.length+' dia(s)','var(--blue)')+
+    kpi('No horário',ok,pct!=null?pct+'% do total':'',pct==null?'var(--muted)':pct>=90?'var(--good)':pct>=75?'var(--warn)':'var(--bad)')+
+    kpi('Atrasadas',atr,pct!=null?(100-pct).toFixed(1)+'% do total':'','var(--bad)')+
+    (window.CDM_FOODY===false?'':kpi('Horas',Math.round(horas)+'h','trabalhadas','var(--blue)'))+
+    
+    (window.CDM_FOODY===false?'':kpiCodigo(dias))+'</div>';
+  const bs=ok+atr, pok=bs?100*ok/bs:0;
+  html+='<div class="sec"><h2>Entregas: no horário × atrasadas</h2><div class="hs">no período/loja selecionado</div>'+
+    '<div class="splitbar"><div class="seg" style="width:'+pok+'%;background:var(--good)">'+(pok>7?ok:'')+'</div><div class="seg" style="width:'+(100-pok)+'%;background:var(--bad)">'+((100-pok)>7?atr:'')+'</div></div>'+
+    '<div class="legend"><span><i style="background:var(--good)"></i><b>No horário: '+ok+' ('+(pct==null?'—':pct+'%')+')</b></span><span><i style="background:var(--bad)"></i><b>Atrasadas: '+atr+' ('+(pct==null?'—':(100-pct).toFixed(1)+'%')+')</b></span></div></div>';
+  const gLoja={};(PORTAL_CFG.lojas||[]).map(function(x){return x.nome}).forEach(l=>gLoja[l]={l,e:0,ok:0,at:0,h:0,rec:0,c:0,sem:0});
+  motosAll.forEach(o=>{const x=gLoja[o.l];if(!x)return;x.e+=o.e;x.ok+=o.ok;x.at+=o.at;x.h+=o.h;x.rec+=o.rec;x.c+=o.c;x.sem+=o.sem;x.ef=(x.ef||0)+(o.parcial?0:o.e)});
+  html+='<div class="sec"><h2>🏬 As lojas lado a lado</h2><div class="hs">no período selecionado · ignora o filtro de loja acima</div><div class="lojagrid">'+
+    Object.values(gLoja).map(x=>{const b=x.ok+x.at,p=b?Math.round(1000*x.ok/b)/10:null;const pc=p==null?'pw':p>=90?'pg':p>=60?'pw':'pb';
+      const eph=x.h?((x.ef||0)/x.h).toFixed(1):'—';const custo='—';
+      return '<div class="lcard"><div class="ln">'+x.l+'</div>'+
+        '<div class="lm"><span>Entregas</span><b>'+x.e+'</b></div>'+
+        '<div class="lm"><span>No prazo</span><span class="pill '+pc+'">'+(p==null?'—':p+'%')+'</span></div>'+
+        (window.CDM_FOODY===false?'':'<div class="lm"><span>Entregas/hora</span><b>'+eph+'</b></div>')+
+        '</div>'}).join('')+'</div></div>';
+  const pts=NAV.map(d=>{const rr=F.filter(r=>r.dia_operacional===d&&fLoja(r));let e=0,o2=0,a2=0;rr.forEach(r=>{e+=r.entregas;o2+=r.no_prazo;a2+=r.atrasos});const b2=o2+a2;return {label:DOWN[dow(d)].slice(0,3)+' '+br(d),e,p:b2?100*o2/b2:0,has:rr.length>0}});
+  const bw=52,gap=16,padL=8,padT=16,hh2=170,axB=30,plotH=hh2-padT-axB;
+  const W=Math.max(padL*2+pts.length*(bw+gap),320);
+  const maxE=Math.max(...pts.map(p=>p.e),1);
+  let bars='',lbls='',dots='',line='';const lp=[];
+  pts.forEach((p,i)=>{const x=padL+i*(bw+gap);const bh=Math.round(plotH*p.e/maxE);const by=padT+plotH-bh;
+    bars+='<rect x="'+x+'" y="'+by+'" width="'+bw+'" height="'+bh+'" rx="3" fill="#3987e5" opacity="'+(p.has?.75:.2)+'"/>';
+    if(p.e>0)bars+='<text x="'+(x+bw/2)+'" y="'+(by-4)+'" fill="#c3c2b7" font-size="10" text-anchor="middle">'+p.e+'</text>';
+    lbls+='<text x="'+(x+bw/2)+'" y="'+(hh2-10)+'" fill="#8a897e" font-size="10" text-anchor="middle">'+p.label+'</text>';
+    if(p.has){const cy=padT+plotH-Math.round(plotH*p.p/100);const cx=x+bw/2;lp.push(cx+','+cy);
+      dots+='<circle cx="'+cx+'" cy="'+cy+'" r="3.5" fill="#2fae6a"/><text x="'+cx+'" y="'+(cy-7)+'" fill="#2fae6a" font-size="9.5" font-weight="700" text-anchor="middle">'+Math.round(p.p)+'%</text>'}});
+  if(lp.length>1)line='<polyline points="'+lp.join(' ')+'" fill="none" stroke="#2fae6a" stroke-width="2"/>';
+  if(window.CDM_FOODY!==false)html+='<div class="sec"><h2>📈 Evolução no tempo</h2><div class="hs">últimos 7 dias · entregas (barras) e % no prazo (linha verde)'+(LOJA!=='Todas'?' · '+LOJA:'')+'</div><div style="overflow-x:auto"><svg width="'+W+'" height="'+hh2+'" viewBox="0 0 '+W+' '+hh2+'" style="display:block">'+bars+line+dots+lbls+'</svg></div></div>';
+  const elig=motos.filter(o=>o.e>=20);
+  const best=[...elig].sort((a,b)=>(b.p||0)-(a.p||0)).slice(0,3);
+  const worst=[...elig].sort((a,b)=>(a.p||0)-(b.p||0)).slice(0,3);
+  const compTop=[...motos].filter(o=>o.c>0).sort((a,b)=>b.c-a.c).slice(0,3);
+  const scTop=[...motos].filter(o=>o.sem>0).sort((a,b)=>b.sem-a.sem).slice(0,3);
+  const col=(t,arr,f,cls)=>{let h='<div><h4>'+t+'</h4>';if(!arr.length)h+='<div class="empty">—</div>';
+    arr.forEach(o=>{h+='<div class="rk"><span class="nm">'+o.n+'</span><span'+(cls?' class="'+cls+'"':'')+'>'+f(o)+'</span></div>'});return h+'</div>'};
+  html+='<div class="sec"><h2>⭐ Destaques</h2><div class="hs">no período/loja selecionado (mínimo 20 entregas para o ranking de %)</div><div class="rankgrid">'+
+    col('🏆 Melhor % no prazo',best,o=>(o.p==null?'—':o.p+'%'))+
+    col('⚠ Pior % no prazo',worst,o=>(o.p==null?'—':o.p+'%'))+
+    (window.CDM_FOODY===false?'':col('💰 Maior complemento (exige senha)',compTop,o=>rM(o.c),'comp'))+
+    (scTop.length?col('🚩 Mais sem código',scTop,o=>o.sem+''):col('📦 Mais entregas',[...motos].sort((a,b)=>b.e-a.e).slice(0,3),o=>o.e+''))+'</div></div>';
+  html+='<div class="sec"><h2>🛵 Por motoboy</h2><div class="hs">Entregas e % no prazo são o dia inteiro, pelo prazo real do iFood. '+(window.CDM_FOODY===false?'':'Horas vêm do fechamento de turno do Foody e aparecem como — enquanto o turno não fechou. ')+'⚠ Os valores de pagamento (garantido, complemento e a receber) ficam na tela de pagamento, que exige senha.</div>';
+  if(motos.length){
+    
+     /* um cartao por motoboy; a faixa da esquerda fica neutra (sem meta fixa de prazo) */
+     html+='<div class="vv-lista duas">'+motos.map(m=>{
+      const cls=m.p==null?'pw':m.p>=90?'pg':m.p>=70?'pw':'pb', cor='off';
+      const pz=function(s){return m.parcial?'<span style="color:var(--muted)" title="turno ainda nao fechou no Foody">—</span>':s};
+      return '<div class="vv '+cor+'"><div><div class="hr">'+m.e+'</div><div class="ha">'+(m.e==1?'entrega':'entregas')+'</div></div><div style="min-width:0">'+
+        '<div class="tt">'+kEsc(m.n)+' <span class="pill '+cls+'">'+(m.p==null?'—':m.p+'%')+' no prazo</span></div>'+
+        '<div class="lj">'+kEsc(m.l)+(m.d>0?' · '+m.d+(m.d==1?' dia':' dias'):'')+(window.CDM_FOODY===false?'':' · horas '+pz(m.h.toFixed(1)+'h'))+'</div>'+
+        '<div class="rs">'+m.at+(m.at==1?' atraso':' atrasos')+(window.CDM_FOODY===false?'':' · '+pz(m.sem>0?'<span class="pill pw">'+m.sem+' sem código</span>':'0 sem código'))+
+          (_ehDono()&&window.CDM_FOODY!==false?' · fez '+pz(rM(m.v)):'')+'</div>'+
+      '</div></div>'}).join('')+'</div>'+_tabelaTurno(dias);
+  }else html+='<div class="empty">Sem registros no período.</div>';
+  html+='</div>';
+  $('conteudo').innerHTML=html;
+}
+
+/* ================= IFOOD ================= */
+function renderIfood(){
+  $('lojas').innerHTML='';$('barra').innerHTML='';
+  if(!cdmTem('ifood')){$('conteudo').innerHTML='<div class="sec"><h2>iFood · Qualidade</h2><div class="hs">Este módulo não está liberado para o seu usuário. Fale com o administrador do portal.</div></div>';return}
+  $('conteudo').innerHTML='<iframe src="'+PORTAL_CFG.url('delivery/ifood-proprietario.html?semmoto=1')+'" style="width:100%;height:calc(100vh - 150px);min-height:620px;border:0;border-radius:12px;background:#1a1a19"></iframe>';
+}
+function sortTable(th){
+  const table=th.closest('table');if(!table)return;
+  const headRow=th.parentElement;
+  const idx=[...headRow.children].indexOf(th);
+  const rows=[...table.querySelectorAll('tr')].slice(1);
+  const key=tr=>{const c=tr.children[idx];const t=(c?c.innerText:'').trim();
+    if(t.includes(':')&&t.length<=5)return t;
+    const n=parseFloat(t.replace('+','').replace('%','').replace(' min','').replace('★','').replace(',','.'));
+    return isNaN(n)?t.toLowerCase():n};
+  const asc=th.dataset.asc!=='1';
+  headRow.querySelectorAll('th').forEach(h=>{h.dataset.asc='';h.classList.remove('sd','sa')});
+  th.dataset.asc=asc?'1':'0';th.classList.add(asc?'sa':'sd');
+  rows.sort((a,b)=>{const x=key(a),y=key(b);
+    const c=(typeof x==='string'||typeof y==='string')?String(x).localeCompare(String(y),'pt'):x-y;
+    return asc?c:-c});
+  rows.forEach(r=>table.appendChild(r));
+}
+document.addEventListener('click',e=>{const th=e.target.closest('th');if(th)sortTable(th)});
+// Recarga automatica a cada 3 horas, so com a aba visivel. Para atualizar na hora, use o botao ↻ Atualizar.
+setInterval(function(){if(VIEW!=='ifood'&&document.visibilityState==='visible')loadAll()},10800000);
+cdmGuarda().then(function(ok){if(ok)loadAll()});
+</script>
+<script>
+let _ip=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();_ip=e;const b=document.getElementById('instalar');if(b)b.style.display='inline-block'});
+function instalarApp(){if(_ip){_ip.prompt();_ip=null}else{alert('Para instalar:\n\nAndroid (Chrome): menu \u22ee \u2192 "Adicionar \u00e0 tela inicial".\niPhone (Safari): bot\u00e3o Compartilhar \u2192 "Adicionar \u00e0 Tela de In\u00edcio".')}}
+</script>
+
+<script>
+/* Atualizacao ao vivo (Realtime): so com banco de verdade; em demonstracao fica desligada. */
+if(!PORTAL_CFG.demo)document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"><\/script>');
+</script>
+<script>
+window.addEventListener('load',function(){try{
+ if(PORTAL_CFG.demo||!window.supabase)return;
+ var _c=supabase.createClient(PORTAL_CFG.rest.replace(/\/rest\/v1\/$/,''), PORTAL_CFG.chave);
+ // Varios eventos seguidos viram uma unica recarga, 20s depois, e so com a aba visivel.
+ var _t=null;
+ function _recarregaEmBreve(){
+   try{
+     if(typeof VIEW!=='undefined'&&VIEW==='ifood')return;
+     if(document.visibilityState!=='visible')return;
+     clearTimeout(_t); _t=setTimeout(function(){try{loadAll()}catch(e){}},20000);
+   }catch(e){}
+ }
+ _c.channel('cm-live')
+  .on('postgres_changes',{event:'*',schema:'public',table:'foody_checkin'},_recarregaEmBreve)
+  .on('postgres_changes',{event:'*',schema:'public',table:'foody_escala'},_recarregaEmBreve)
+  .subscribe();
+}catch(e){}});
+</script>
+<script src="../assets/portal.js?v=3"></script>
+</body>
+</html>
+
+
+

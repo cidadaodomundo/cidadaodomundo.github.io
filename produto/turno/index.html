@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../config.js" data-demo="telas/turno.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Turno do Delivery · Portal de Gestão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#E0A81C;--brand-ink:#111110;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:900px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:14px}
+.top .rt{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+button.b:hover{border-color:var(--brand)}
+select,input[type=date],input[type=text],input[type=number]{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 10px;font-size:13px;font-family:inherit}
+.abas{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.aba{background:var(--s2);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer}
+.aba.on{color:var(--text);border-color:var(--brand)}
+h2{font-size:14px;font-weight:800;margin:20px 0 8px;color:var(--text2)}
+.c{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:10px}
+.linha{display:flex;gap:9px;align-items:flex-start;padding:7px 0;font-size:14px;cursor:pointer;color:var(--text2);border-bottom:1px solid rgba(255,255,255,.04)}
+.linha:hover{color:var(--text)}
+.linha .cx{flex:0 0 auto;width:20px;text-align:center;font-size:15px}
+.linha.feito{color:var(--muted)}
+.linha.feito .tx{text-decoration:line-through}
+.assin{color:var(--muted);font-size:11.5px;margin-top:2px}
+.barra{height:8px;background:var(--s2);border-radius:999px;overflow:hidden;margin:6px 0 2px}
+.barra i{display:block;height:100%;background:var(--ok)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.mq{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:12px 14px}
+.mq b{font-size:14px}
+.mq select{width:100%;margin-top:8px}
+.form{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-top:10px}
+.form label{font-size:11.5px;color:var(--muted);display:block;margin-bottom:4px;font-weight:700}
+.form input,.form select{width:100%}
+.wide{grid-column:1/-1}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+th{text-align:left;color:var(--muted);font-size:11.5px;font-weight:700;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:top}
+.x{color:var(--muted);cursor:pointer;font-weight:700}
+.x:hover{color:var(--bad)}
+.aviso{color:var(--muted);font-size:12px;margin:18px 0 30px;line-height:1.5}
+.vazio{color:var(--muted);font-size:13px;padding:8px 0}
+
+/* tipografia do titulo */
+h1,.gatebox h1{font-weight:400}
+h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.01em;line-height:1.06}
+
+/* celular: filas de aba quebram linha ate 900px; o resto so em tela estreita */
+@media (max-width:900px){.views,.tabs,.abas,.fil,.pes,.filtros,.chips,.lojas,.periodos{display:flex;flex-wrap:wrap;gap:6px;width:auto;max-width:100%;min-width:0}.views>*,.tabs>*,.abas>*,.fil>*,.pes>*{flex:0 0 auto;max-width:100%}}@media (max-width:640px){body{padding-left:12px;padding-right:12px}table{display:block;width:max-content;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}h1{font-size:clamp(18px,6.2vw,26px);word-break:break-word}img,svg,canvas,iframe{max-width:100%}}
+</style>
+</head>
+<body>
+<div class="top">
+  <div><h1>🧾 Turno do Delivery</h1><div class="sub">o que precisa ser conferido no turno e a passagem para o turno seguinte</div></div>
+  <div class="rt">
+    <input type="date" id="dia">
+    <select id="turno"><option value="manha">☀ Manhã</option><option value="noite" selected>🌙 Noite</option></select>
+    <select id="uni"></select>
+    <button class="b" id="btAtualiza">⟳ Atualizar</button>
+  </div>
+</div>
+<div class="abas">
+  <span class="aba on" data-aba="check">✅ Checklist do turno</span>
+  <span class="aba" data-aba="pass" id="abaPass">🔁 Passagem de turno</span>
+</div>
+<div id="app">Carregando…</div>
+<div class="aviso">Cada marcação guarda o seu nome e a hora. O que você marcar fica valendo para o dia, o turno e a loja escolhidos lá em cima.</div>
+<script>
+/* link antigo da aba Cancelamentos (?aba=cancel): vai direto para a tela propria, sem passar pela guarda daqui */
+let CDMVAI=false;
+try{ const q0=new URLSearchParams(location.search);
+     if(q0.get('aba')==='cancel'){ const l0=q0.get('loja'); CDMVAI=true;
+       const lv=(PORTAL_CFG.lojas||[]).some(function(l){return l.id===l0});
+       location.replace(PORTAL_CFG.url('cancelados/')+(lv?'?loja='+encodeURIComponent(l0):'')); } }catch(e){}
+const SB=PORTAL_CFG.rest;
+const KEY=PORTAL_CFG.chave;
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+let D=null, ABA='check';
+function ctx(){return {dia:$('dia').value,turno:$('turno').value,unidade:$('uni').value}}
+async function porta(acao,dados){
+  const c=ctx(); const d=Object.assign({},c,dados||{});
+  const r=await fetch(SB+'rpc/turno_delivery',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:cdmTok(),p_acao:acao,p_dados:d})});
+  if(!r.ok)throw new Error('porta '+r.status);
+  return await r.json();
+}
+function moeda(v){if(v==null||v==='')return '—';return 'R$ '+Number(v).toFixed(2).replace('.',',')}
+/* Passagem de turno: quem sai entrega com foto do setor e da geladeira, pedidos que voltaram e B.O.s;
+   quem entra confirma "recebi ok" ou "recebi com problema".
+   PASS_LOJAS = lojas com a passagem ligada (padrao: todas as lojas do config.js).
+   As fotos sao tiradas no celular e reduzidas no proprio aparelho antes de subir (JPEG, lado maior 1000 px). */
+const PASS_LOJAS=(PORTAL_CFG.lojas||[]).map(function(l){return l.id});
+let PAS=null, PAS_ERRO='', PAS_OCUPADO='', PAS_BUSCANDO=false;
+async function passPorta(acao,dados){
+  const c=ctx(); const d=Object.assign({},c,dados||{});
+  const r=await fetch(SB+'rpc/turno_passagem',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:cdmTok(),p_acao:acao,p_dados:d})});
+  if(!r.ok){ let m='erro '+r.status; try{const j=await r.json(); if(j&&j.message)m=j.message;}catch(e){} throw new Error(m); }
+  return await r.json();
+}
+async function carregaPass(){
+  if(PAS_BUSCANDO)return; PAS_BUSCANDO=true;
+  try{ PAS=await passPorta('ver'); PAS_ERRO=''; }catch(e){ PAS=null; PAS_ERRO=e.message||'erro'; }
+  PAS_BUSCANDO=false; desenha();
+}
+function guardaNome(n){try{localStorage.setItem('portal_turno_nome',n)}catch(e){}}
+function nomeSalvo(){try{return localStorage.getItem('portal_turno_nome')||''}catch(e){return ''}}
+function reduzFoto(file){
+  return new Promise(function(ok,err){
+    const img=new Image(), url=URL.createObjectURL(file);
+    img.onload=function(){
+      const k=Math.min(1,1000/Math.max(img.width,img.height)), c=document.createElement('canvas');
+      c.width=Math.round(img.width*k); c.height=Math.round(img.height*k);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url);
+      let q=0.7, d=c.toDataURL('image/jpeg',q);
+      while(d.length>380000&&q>0.3){ q-=0.15; d=c.toDataURL('image/jpeg',q); }
+      ok(d);
+    };
+    img.onerror=function(){ URL.revokeObjectURL(url); err(new Error('não consegui ler a foto')); };
+    img.src=url;
+  });
+}
+function hm(t){return t?String(t).replace('T',' ').slice(11,16):''}
+function fotosPass(l,apagar){
+  if(!l||!l.length)return '';
+  const rot={setor:'Setor',geladeira:'Geladeira',outra:'Outra'};
+  return '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">'+l.map(function(f){
+    return '<div style="width:140px"><img src="'+esc(f.imagem)+'" data-zoom="1" alt="'+esc(rot[f.tipo]||f.tipo)+'" title="toque para ampliar" style="width:140px;height:140px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:zoom-in">'+
+      '<div class="assin">'+esc(rot[f.tipo]||f.tipo)+' · '+esc(f.hora||'')+(apagar?' · <span class="x" data-apfoto="'+f.id+'">apagar</span>':'')+'</div></div>';
+  }).join('')+'</div>';
+}
+function desenhaPass(){
+  if(PASS_LOJAS.indexOf($('uni').value)<0)return '<div class="c vazio">A passagem de turno com foto ainda não está ligada nesta loja.</div>';
+  if(PAS===null){ if(PAS_ERRO)return '<div class="c">Não deu para carregar a passagem: '+esc(PAS_ERRO)+'</div>'; carregaPass(); return '<div class="c vazio">Carregando…</div>'; }
+  const tn={manha:'manhã',noite:'noite'}, a=PAS.anterior, t=PAS.atual||{}, fs=t.fotos||[];
+  const ad=String(PAS.anterior_dia||''), adm=ad.slice(8,10)+'/'+ad.slice(5,7);
+  let h='';
+  if(PAS_OCUPADO)h+='<div class="c"><b>'+esc(PAS_OCUPADO)+'</b></div>';
+  h+='<h2>1. Receber o turno anterior — '+esc(tn[PAS.anterior_turno]||'')+' de '+esc(adm)+'</h2><div class="c">';
+  if(!a||!a.entregue_em){
+    h+='<div><b style="color:var(--bad)">O turno anterior não registrou a entrega.</b></div>';
+  }else{
+    h+='<div>Entregue por <b>'+esc(a.entregue_por)+'</b> às '+esc(hm(a.entregue_em))+'</div>'+fotosPass(a.fotos,false)+
+       '<div class="assin"><b style="color:var(--text)">Pedidos que voltaram:</b> '+esc(a.voltaram||'')+'</div>'+
+       '<div class="assin"><b style="color:var(--text)">B.O.s em aberto:</b> '+esc(a.bos||'')+'</div>';
+  }
+  if(a&&a.recebido_em){
+    h+='<div style="margin-top:10px"><b style="color:'+(a.recebido_ok?'var(--ok)':'var(--bad)')+'">'+(a.recebido_ok?'✅ Recebido ok':'⚠️ Recebido com problema')+'</b> — '+esc(a.recebido_por)+' às '+esc(hm(a.recebido_em))+(a.recebido_obs?'<div class="assin">'+esc(a.recebido_obs)+'</div>':'')+'</div>';
+  }else{
+    h+='<div class="form"><div><label>Seu nome</label><input type="text" id="pRecNome" value="'+esc(nomeSalvo())+'"></div>'+
+       '<div class="wide"><label>Se tiver problema, qual?</label><input type="text" id="pRecObs" placeholder="ex.: geladeira sem refrigerante, setor sujo"></div>'+
+       '<div class="wide"><button class="b" data-rec="1">✅ Recebi ok</button> <button class="b" data-rec="0">⚠️ Recebi com problema</button></div></div>';
+  }
+  h+='</div><h2>2. Entregar este turno</h2><div class="c">';
+  if(t.entregue_em){
+    h+='<div><b style="color:var(--ok)">✅ Entregue</b> por <b>'+esc(t.entregue_por)+'</b> às '+esc(hm(t.entregue_em))+'</div>'+fotosPass(fs,false)+
+       '<div class="assin"><b style="color:var(--text)">Pedidos que voltaram:</b> '+esc(t.voltaram||'')+'</div>'+
+       '<div class="assin"><b style="color:var(--text)">B.O.s em aberto:</b> '+esc(t.bos||'')+'</div>'+
+       (t.recebido_em?'<div class="assin" style="margin-top:6px">'+(t.recebido_ok?'✅ recebido ok':'⚠️ recebido com problema')+' por '+esc(t.recebido_por)+(t.recebido_obs?': '+esc(t.recebido_obs):'')+'</div>':'<div class="assin" style="margin-top:6px">esperando o próximo turno confirmar</div>');
+  }else{
+    const tem=function(k){return fs.some(function(f){return f.tipo===k})};
+    h+='<div class="assin">Obrigatório: '+(tem('setor')?'✔':'○')+' foto do setor · '+(tem('geladeira')?'✔':'○')+' foto da geladeira · pedidos que voltaram · B.O.s</div>'+
+       fotosPass(fs,true)+
+       '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">'+
+       '<label class="b" style="display:inline-block">📷 Foto do setor<input type="file" accept="image/*" capture="environment" data-foto="setor" style="display:none"></label>'+
+       '<label class="b" style="display:inline-block">📷 Foto da geladeira<input type="file" accept="image/*" capture="environment" data-foto="geladeira" style="display:none"></label>'+
+       '<label class="b" style="display:inline-block">📷 Outra foto<input type="file" accept="image/*" capture="environment" data-foto="outra" style="display:none"></label></div>'+
+       '<div class="form"><div><label>Seu nome</label><input type="text" id="pEntNome" value="'+esc(nomeSalvo())+'"></div>'+
+       '<div class="wide"><label>Pedidos que voltaram (ou "nenhum")</label><input type="text" id="pVoltaram" placeholder="ex.: pedido 3586 voltou, cliente não atendeu"></div>'+
+       '<div class="wide"><label>B.O.s em aberto para o próximo turno (ou "nenhum")</label><input type="text" id="pBos" placeholder="ex.: maquininha 3 sem bateria, faltou refrigerante 2L"></div>'+
+       '<div class="wide"><button class="b" id="btEntregar">🔁 Entregar o turno</button></div></div>';
+  }
+  return h+'</div>';
+}
+function desenhaCheck(){
+  const l=D.checklist||[];
+  if(!l.length)return '<div class="c vazio">Não há itens de checklist para este turno.</div>';
+  const feitos=l.filter(function(o){return o.feito}).length;
+  let h='<div class="c"><b>'+feitos+' de '+l.length+' conferidos</b><div class="barra"><i style="width:'+Math.round(feitos*100/l.length)+'%"></i></div></div>';
+  let sec='';
+  l.forEach(function(o){
+    if(o.secao!==sec){if(sec)h+='</div>';sec=o.secao;h+='<h2>'+esc(sec)+'</h2><div class="c">';}
+    h+='<div class="linha'+(o.feito?' feito':'')+'" data-item="'+o.id+'" data-ok="'+(o.feito?'1':'0')+'">'+
+       '<span class="cx">'+(o.feito?'✔':'○')+'</span><span><span class="tx">'+esc(o.texto)+'</span>'+
+       (o.feito&&o.quem?'<div class="assin">'+esc(o.quem)+' · '+esc(o.quando||'')+'</div>':'')+'</span></div>';
+  });
+  if(sec)h+='</div>';
+  return h;
+}
+function desenhaMaq(){
+  const l=D.maquininhas||[];
+  if(!l.length)return '<div class="c vazio">Nenhuma maquininha cadastrada nesta loja.</div>';
+  const ops=['<option value="">— ninguém —</option>'].concat((D.motoboys||[]).map(function(m){return '<option value="'+esc(m)+'">'+esc(m)+'</option>'})).join('');
+  let h='<div class="grid">';
+  l.forEach(function(o){
+    const sops=['<option value="">— sem número de série —</option>'].concat((D.series||[]).map(function(s){
+      return '<option value="'+esc(s.serie)+'">'+esc(s.serie)+' · '+s.vendas+' vendas'+(s.usada_por&&s.usada_por!==o.apelido?' (já é a '+esc(s.usada_por)+')':'')+'</option>';
+    })).join('');
+    h+='<div class="mq"><b>'+esc(o.apelido)+'</b>'+
+       (o.tipo==='motoboy'?'<select data-maq="'+o.id+'">'+ops+'</select>':'<div class="assin" style="margin-top:6px">fica na loja, não entra na escala</div>')+
+       '<select data-serie="'+o.id+'" style="margin-top:6px">'+sops+'</select>'+
+       '<div class="assin" style="margin-top:6px">'+(o.serie?('passou <b style="color:#fff">'+o.vendas+'</b> '+(o.vendas===1?'cartão':'cartões')+' neste turno'+(D.dono&&o.valor!=null?' · '+moeda(o.valor):'')):'ligue o número de série para saber o que ela cobrou')+'</div>'+
+       (o.quem?'<div class="assin">quem anotou: '+esc(o.quem)+' · '+esc(o.quando||'')+'</div>':(o.tipo==='motoboy'?'<div class="assin">ainda não anotado</div>':''))+
+       '</div>';
+  });
+  h+='</div>';
+  const orfas=(D.series||[]).filter(function(s){return !s.usada_por});
+  if(orfas.length){
+    h+='<h2>Séries que a Rede viu e ninguém ligou ainda (' + orfas.length + ')</h2>';
+    h+='<div class="c"><div class="assin" style="margin-bottom:8px">Enquanto uma série não estiver ligada a uma maquininha, o que ela cobrou não entra na conferência. Ligue cada uma acima, ou avise se o aparelho não é mais da casa.</div>';
+    orfas.forEach(function(s){
+      h+='<div class="linha" style="cursor:default"><span class="cx">•</span><span><b>'+esc(s.serie)+'</b> — '+s.vendas+' vendas em 30 dias · última em '+esc(s.ultimo||'')+'</span></div>';
+    });
+    h+='</div>';
+  }
+  return h;
+}
+const RESULTADOS=[
+  ['canhoto','✅ Achei o canhoto — ele cobrou'],
+  ['dinheiro','💵 Cliente pagou em dinheiro ou Pix'],
+  ['nao_entregue','🚫 O pedido não foi entregue'],
+  ['loja','🏪 Erro da loja, não do motoboy'],
+  ['descontar','🔴 Ele não cobrou — descontar dele']
+];
+let COB=null;
+async function carregaCob(){ try{ COB=await porta('cob_listar',{}); }catch(e){ COB={casos:[]} } desenha(); }
+function desenhaCob(){
+  let h='<div class="c"><b>Como conferir um sumiço, em 4 passos</b>'+
+   '<div class="linha" style="cursor:default"><span class="cx">1</span><span>Ache o <b>canhoto</b> daquele pedido — o comprovante que sai da maquininha. Confira o dia, a hora e o valor.</span></div>'+
+   '<div class="linha" style="cursor:default"><span class="cx">2</span><span>Não achou o canhoto? Pergunte ao motoboy o que aconteceu naquela entrega e anote a resposta dele aqui.</span></div>'+
+   '<div class="linha" style="cursor:default"><span class="cx">3</span><span>Veja a <b>passagem de turno</b> daquele dia — muita coisa foi anotada lá na hora: cliente que não estava, endereço errado, pagou em dinheiro.</span></div>'+
+   '<div class="linha" style="cursor:default"><span class="cx">4</span><span>Marque abaixo o que aconteceu. Enquanto ninguém marcar, o caso fica aberto e <b>ninguém é descontado</b>.</span></div>'+
+   '<div class="assin" style="margin-top:10px">O sistema só aponta o que não fechou: o pedido dizia cartão e a máquina não registrou nada daquele valor. Isso <b>não</b> quer dizer que o motoboy ficou com o dinheiro — quer dizer que falta explicação.</div>'+
+   '</div>';
+  if(!COB){ carregaCob(); return h+'<div class="c vazio">Carregando os casos…</div>'; }
+  const l=COB.casos||[];
+  const abertos=l.filter(function(o){return !o.resultado});
+  const fechados=l.filter(function(o){return o.resultado});
+  h+='<h2>Esperando explicação ('+abertos.length+')</h2>';
+  if(!abertos.length) h+='<div class="c vazio">Nada em aberto. 🎉</div>';
+  abertos.forEach(function(o){ h+=cartaoCob(o,true) });
+  if(fechados.length){
+    h+='<h2>Já explicados ('+fechados.length+')</h2>';
+    fechados.forEach(function(o){ h+=cartaoCob(o,false) });
+  }
+  return h;
+}
+function cartaoCob(o,aberto){
+  const rot={canhoto:'✅ achei o canhoto',dinheiro:'💵 pagou em dinheiro ou Pix',nao_entregue:'🚫 não foi entregue',loja:'🏪 erro da loja',descontar:'🔴 descontar do motoboy'};
+  let h='<div class="c">'+
+   '<div><b>'+esc(o.unidade)+' · pedido '+esc(o.n_pedido||'—')+'</b> · '+esc(o.dia)+(o.hora_entrega?' às '+esc(o.hora_entrega):'')+'</div>'+
+   '<div class="assin">motoboy: '+esc(o.entregador||'—')+' · cliente: '+esc(o.cliente||'—')+' · era para cobrar: '+esc(o.meio||'—')+(o.valor!=null?' '+moeda(o.valor):'')+'</div>'+
+   '<div class="assin">'+(o.origem==='COMANDA NAO COBRADA'?'a comanda ficou pendente no Saipos — quem não cobrou foi o atendente':'o pedido dizia cartão e a máquina não tem essa venda')+'</div>';
+  if(aberto){
+    h+='<div class="abas" style="margin-top:12px;margin-bottom:2px">'+RESULTADOS.map(function(r){
+      return '<span class="aba" data-cob="'+o.id+'" data-res="'+r[0]+'">'+r[1]+'</span>';
+    }).join('')+'</div>';
+  }else{
+    h+='<div class="assin" style="margin-top:8px"><b>'+esc(rot[o.resultado]||o.resultado)+'</b> — '+esc(o.quem||'')+' · '+esc(o.quando||'')+(o.observacao?' · '+esc(o.observacao):'')+'</div>';
+  }
+  return h+'</div>';
+}
+function desenha(){
+  document.querySelectorAll('.aba').forEach(function(a){a.classList.toggle('on',a.dataset.aba===ABA)});
+  if(!D){$('app').innerHTML='<div class="c vazio">Carregando…</div>';return}
+  var ap=$('abaPass'); if(ap) ap.style.display=(PASS_LOJAS.indexOf($('uni').value)>=0)?'':'none';
+  /* o que a pessoa ja digitou na passagem nao pode sumir quando a tela se redesenha (ex.: ao enviar uma foto) */
+  var guarda={}; ['pRecNome','pRecObs','pEntNome','pVoltaram','pBos'].forEach(function(i){var e=$(i); if(e&&e.value)guarda[i]=e.value;});
+  $('app').innerHTML = ABA==='check'?desenhaCheck():(ABA==='pass'?desenhaPass():desenhaCob());
+  Object.keys(guarda).forEach(function(i){var e=$(i); if(e)e.value=guarda[i];});
+  if(ABA==='maq'){
+    (D.maquininhas||[]).forEach(function(o){
+      const s=document.querySelector('[data-maq="'+o.id+'"]');
+      if(s)s.value=o.motoboy||'';
+      const t=document.querySelector('[data-serie="'+o.id+'"]');
+      if(t)t.value=o.serie||'';
+    });
+  }
+}
+async function boot(){
+  try{ D=await porta('carregar'); desenha(); }
+  catch(e){ $('app').innerHTML='<div class="c">Não deu para carregar. Entre no portal de novo e tente outra vez.</div>' }
+}
+document.addEventListener('click',async function(ev){
+  const bc=ev.target.closest('[data-cob]');
+  if(bc){
+    const obs=prompt('O que aconteceu? (pode deixar em branco)')||'';
+    try{ await porta('cob_decidir',{id:Number(bc.dataset.cob),resultado:bc.dataset.res,observacao:obs}); await carregaCob(); }
+    catch(e){ alert('Não deu para marcar.') }
+    return;
+  }
+  const aba=ev.target.closest('.aba');
+  if(aba&&aba.dataset.aba){ABA=aba.dataset.aba;if(ABA==='cob'&&!COB){carregaCob();return}desenha();return}
+  if(ev.target.id==='btAtualiza'){PAS=null;PAS_ERRO='';boot();return}
+  const rc=ev.target.closest('[data-rec]');
+  if(rc){
+    const nome=($('pRecNome')&&$('pRecNome').value||'').trim(), obs=($('pRecObs')&&$('pRecObs').value||'').trim(), ok=rc.dataset.rec==='1';
+    if(!nome){alert('Escreva seu nome.');return}
+    if(!ok&&!obs){alert('Escreva qual foi o problema.');return}
+    guardaNome(nome);
+    try{ PAS=await passPorta('receber',{nome:nome,ok:ok,obs:obs}); desenha(); }catch(e){ alert('Não deu para registrar: '+e.message) }
+    return;
+  }
+  if(ev.target.id==='btEntregar'){
+    const nome=($('pEntNome').value||'').trim(), volt=($('pVoltaram').value||'').trim(), bos=($('pBos').value||'').trim();
+    if(!nome){alert('Escreva seu nome.');return}
+    if(!volt){alert('Diga os pedidos que voltaram (ou escreva "nenhum").');return}
+    if(!bos){alert('Diga os B.O.s em aberto (ou escreva "nenhum").');return}
+    guardaNome(nome);
+    try{ PAS=await passPorta('entregar',{nome:nome,voltaram:volt,bos:bos}); desenha(); }catch(e){ alert('Não deu para entregar: '+e.message) }
+    return;
+  }
+  if(ev.target.dataset&&ev.target.dataset.zoom){
+    const o=document.createElement('div');
+    o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px;cursor:zoom-out';
+    const im=document.createElement('img'); im.src=ev.target.src; im.style.cssText='max-width:100%;max-height:100%;border-radius:8px';
+    o.appendChild(im); o.onclick=function(){o.remove()}; document.body.appendChild(o);
+    return;
+  }
+  if(ev.target.dataset&&ev.target.dataset.apfoto){
+    if(!confirm('Apagar esta foto?'))return;
+    try{ PAS=await passPorta('apagar_foto',{id:Number(ev.target.dataset.apfoto)}); desenha(); }catch(e){ alert('Não deu para apagar: '+e.message) }
+    return;
+  }
+  const li=ev.target.closest('.linha');
+  if(li){
+    const id=li.dataset.item, ok=li.dataset.ok!=='1';
+    try{ await porta('marcar',{item_id:Number(id),feito:ok}); await boot(); }
+    catch(e){ alert('Não deu para marcar.') }
+    return;
+  }
+});
+document.addEventListener('change',async function(ev){
+  if(ev.target.dataset&&ev.target.dataset.serie){
+    try{ await porta('maq_serie',{maquininha_id:Number(ev.target.dataset.serie),serie:ev.target.value}); await boot(); }
+    catch(e){ alert('Não deu para ligar o número de série.') }
+    return;
+  }
+  if(ev.target.dataset&&ev.target.dataset.maq){
+    try{ await porta('maq_definir',{maquininha_id:Number(ev.target.dataset.maq),motoboy:ev.target.value}); await boot(); }
+    catch(e){ alert('Não deu para anotar a maquininha.') }
+    return;
+  }
+  if(ev.target.dataset&&ev.target.dataset.foto){
+    const f=ev.target.files&&ev.target.files[0], tipo=ev.target.dataset.foto; if(!f)return;
+    PAS_OCUPADO='Enviando a foto…'; desenha();
+    try{ const img=await reduzFoto(f); PAS=await passPorta('foto',{tipo:tipo,imagem:img}); PAS_OCUPADO=''; }
+    catch(e){ PAS_OCUPADO=''; alert('Não deu para enviar a foto: '+e.message); }
+    desenha(); return;
+  }
+  if(ev.target.id==='dia'||ev.target.id==='turno'||ev.target.id==='uni'){PAS=null;PAS_ERRO='';boot()}
+});
+/* ===== porta unica do portal ===== */
+const CDMMODS=['turno'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'turno'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+(function(){
+  $('uni').innerHTML=(PORTAL_CFG.lojas||[]).map(function(l){return '<option value="'+esc(l.id)+'">'+esc(l.nome)+'</option>'}).join('');
+  /* turno sugerido: manha das 5h as 18h; noite depois das 18h; de madrugada ainda e a noite do dia anterior */
+  var h=new Date().getHours();
+  var hoje=new Date(Date.now()-3*3600*1000-(h<5?24*3600*1000:0)).toISOString().slice(0,10);
+  $('dia').value=hoje;
+  $('turno').value=(h>=5&&h<18)?'manha':'noite';
+})();
+if(!CDMVAI) cdmGuarda().then(function(ok){if(!ok)return;boot();});
+</script>
+<script src="../assets/portal.js?v=3"></script>
+</body>
+</html>

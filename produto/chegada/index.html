@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../config.js" data-demo="telas/chegada.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Chegada do dia · Portal de Gestão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cdm-ui.css?v=4">
+<style>
+/* Mesmo visual das outras abas do Agora: placar em quadros, e cada quadro leva ate a lista dele. */
+.per{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.per input[type=date]{background:var(--s1);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:7px 13px;font-size:13.5px;font-weight:700;font-family:inherit;color-scheme:dark}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:7px 11px;font-size:13px;font-weight:700}
+button.b:hover{border-color:var(--text2)}
+.c{display:block;background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:10px}
+.c:hover{border-color:var(--line)}
+.c .vazio{padding:16px 0;font-size:14px}
+.m{color:var(--muted);font-size:12px;margin-top:3px}
+.load{color:var(--muted);padding:40px 10px;text-align:center}
+.aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:13px;padding:11px 14px;font-size:12.5px;margin:14px 0}
+.lojas{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 10px}
+.lojas .rot{color:var(--muted);font-size:12px;font-weight:800;margin-right:2px}
+.lojas .chip{padding:7px 13px}
+.explica{color:var(--muted);font-size:12.5px;line-height:1.5;margin:0 0 12px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:6px}
+.cards>*{min-width:0}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:14px 15px;color:var(--text);display:flex;flex-direction:column;gap:3px;transition:border-color .15s,transform .08s}
+.card[onclick]{cursor:pointer}
+.card[onclick]:hover{border-color:#5a5952}
+.card[onclick]:active{transform:scale(.98)}
+.card .t{font-size:13px;font-weight:800;color:var(--text2);line-height:1.3}
+.card .v{font-family:'Anton',Impact,sans-serif;font-weight:400;font-size:42px;line-height:1.05}
+.card .qs{color:var(--muted);font-size:12px;font-weight:700;line-height:1.35}
+.card.mal{border-left:4px solid var(--bad)}
+.card.mal .v{color:#ff8a8a}
+.card.atencao{border-left:4px solid var(--warn)}
+.card.atencao .v{color:var(--warn)}
+.card.bem .v{color:#7fe0aa}
+.rolar{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;padding:0 8px 8px 0;white-space:nowrap}
+td{padding:9px 8px 9px 0;border-top:1px solid var(--line);vertical-align:top}
+.mini{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:6px 11px;font-size:12.5px;font-weight:700}
+.mini:hover{border-color:var(--text2)}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800;white-space:nowrap}
+.p-ok{background:rgba(37,163,95,.15);color:#7fe0aa}
+.p-bad{background:rgba(230,103,103,.15);color:#ff9a9a}
+.p-warn{background:rgba(201,133,0,.16);color:var(--warn)}
+.p-off{background:var(--s3);color:var(--text2)}
+@media (max-width:640px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.card .v{font-size:34px}.per{width:100%}}
+/* cartoes iguais aos do Resolver hoje */
+.card.sd{border-style:dashed}
+.card.sd .v{color:var(--muted)}
+.vv-lista{display:grid;gap:10px;margin-bottom:10px}
+table.vv{background:var(--s1);border:1px solid var(--line);border-left:5px solid var(--warn);border-radius:12px;border-collapse:separate;border-spacing:0;font-size:13px}
+table.vv.ok{border-left-color:var(--ok)}
+table.vv.bad{border-left-color:var(--bad)}
+table.vv.off{border-left-color:var(--muted)}
+table.vv td{border-top:0;padding:12px 14px;vertical-align:top}
+table.vv td.hrc{width:72px;padding-right:0}
+table.vv td.sit{width:250px}
+.vv .hr{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;line-height:1;white-space:nowrap}
+.vv .ha{color:var(--muted);font-size:11.5px;margin-top:3px}
+.vv .tt{font-size:17px;font-weight:800;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vv .lj{color:var(--text2);font-size:13px;margin-top:2px}
+.vv .rs{margin-top:6px;font-size:12px;color:var(--muted)}
+.vv .bal{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;margin-bottom:4px}
+.gpsparado{background:#2a1716;border:1px solid var(--bad);color:#ffb4b4;border-radius:13px;padding:11px 14px;font-size:13px;margin:0 0 12px}
+@media (max-width:640px){table.vv,table.vv tbody{display:block}table.vv tr{display:grid;grid-template-columns:64px minmax(0,1fr)}table.vv td{padding:12px 10px}table.vv td.hrc{padding-right:0}.vv .hr{font-size:21px}table.vv td.sit{grid-column:1/-1;width:auto;padding-top:0}table.vv td.hrc{width:auto}}
+/* botoes com/sem garantido e com/sem rango */
+.seg{display:flex;margin:0 0 6px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{flex:1;background:var(--s2);border:0;color:var(--text2);padding:8px 6px;font-size:12.5px;font-weight:800;font-family:inherit;cursor:pointer;white-space:nowrap}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on-ok{background:rgba(37,163,95,.28);color:#9ff0c2}
+.seg button.on-bad{background:rgba(230,103,103,.28);color:#ffb0b0}
+.seg button:disabled{cursor:not-allowed;opacity:.7}
+.vv .rs.mud{color:var(--warn)}
+.vv .ot{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vv .ot .seg{margin:0;min-width:200px}
+.vv td.sit a{color:var(--text2)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<div class="top">
+  <div>
+    <h1>⏱ Chegada do dia</h1>
+    <div class="placar" id="placar"><span class="pl">carregando…</span></div>
+  </div>
+  <div class="rt per" id="per"></div>
+</div>
+
+<div id="app"><div class="load">Carregando…</div></div>
+</div>
+
+<script>
+const SB=PORTAL_CFG.rest;
+const KEY=PORTAL_CFG.chave;
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
+let D=null, DIA='', UNI='', TIMER=null;
+/* ===== 🛵 Avisar o cliente — o motoboy esta chegando ===== */
+let AV=null, AVERRO='', AVABERTO=false;
+function avisoTexto(l){
+  if(l && l.situacao==='NA PORTA') return l.mensagem_porta || 'Oi! O entregador chegou e está te esperando na portaria. Consegue vir receber?';
+  return (l&&l.mensagem) || 'Oi! Seu pedido está quase aí — o entregador chega em breve. 🛵';
+}
+async function puxaAviso(){
+  if(!AVABERTO){ AV=null; return }
+  try{ AV = await porta('aviso_chegando',{unidade:UNI||null}); AVERRO=''; }
+  catch(e){ AV=false; AVERRO=(e&&e.message)||'' }
+}
+async function avisoMarcar(u,p,m,desf){
+  try{ await porta('aviso_chegando_marcar',{unidade:u,pedido:p,metros:m,desfazer:!!desf}); AVERRO=''; }
+  catch(e){ AVERRO='não deu para marcar: '+((e&&e.message)||'') }
+  await puxaAviso(); desenha();
+}
+let AVCOPIA='';
+function avisoCopiar(u,p,m,txt){
+  AVCOPIA=txt||'';
+  var fim=function(){ avisoMarcar(u,p,m,false) };
+  try{ navigator.clipboard.writeText(AVCOPIA||'').then(fim, fim) }catch(e){ fim() }
+}
+function avisoExtra(l){
+  var p=[];
+  if(l.complemento) p.push('🏠 '+esc(l.complemento));
+  if(l.referencia) p.push('📍 '+esc(l.referencia));
+  if(l.fone) p.push('📞 '+esc(l.fone)+(l.localizador?' · localizador '+esc(l.localizador):''));
+  if(!p.length) return '';
+  return '<div class="m" style="margin:2px 0 6px">'+p.join(' · ')+'</div>';
+}
+function avisoRelogio(l){
+  if(l.min_na_porta===null || l.min_na_porta===undefined) return '';
+  if(l.falta_foto_min>0) return '<div class="m" style="margin-bottom:6px">⏱ '+esc(l.min_na_porta)+' min na porta · faltam '+esc(l.falta_foto_min)+' min para tirar a foto e seguir</div>';
+  return '<div style="margin-bottom:6px;font-size:12.5px;color:#e0a33a;font-weight:700">⏱ '+esc(l.min_na_porta)+' min na porta — já pode tirar a foto e seguir</div>';
+}
+function avisoCartao(l){
+  var np=(l.situacao==='NA PORTA'), cor=np?'#d2513f':'#2fae6a', fdo=np?'rgba(210,81,63,.10)':'rgba(47,174,106,.08)';
+  return '<div class="c" style="border:2px solid '+cor+';background:'+fdo+'">'+
+    '<div style="font-size:15px;font-weight:800;color:#fff">'+(np?'🚨':'🛵')+' '+esc(l.unidade)+' · pedido #'+esc(l.pedido)+'</div>'+
+    '<div class="m" style="margin:4px 0 4px">'+esc(l.motoboy)+(np?' está <b style="color:'+cor+'">parado na porta</b>':' está a <b style="color:'+cor+'">'+esc(l.metros)+' m</b>')+' — '+esc(l.onde)+
+      ' · saiu '+esc(l.saiu)+' · posição de '+esc(l.gps_em)+'</div>'+
+    avisoExtra(l)+avisoRelogio(l)+
+    '<div style="background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.5px;color:var(--text)">'+esc(avisoTexto(l))+'</div>'+
+    '<button class="b" style="margin-top:8px;background:'+cor+';color:#08130c;border-color:'+cor+';font-weight:800"'+
+      ' onclick="avisoCopiar(&quot;'+esc(l.unidade)+'&quot;,&quot;'+esc(l.pedido_saipos||l.pedido)+'&quot;,'+(l.metros||0)+',&quot;'+esc(avisoTexto(l))+'&quot;)">'+
+      'Copiar a mensagem e marcar como avisado</button>'+
+    '<button class="b" style="margin-top:8px" onclick="avisoMarcar(&quot;'+esc(l.unidade)+'&quot;,&quot;'+esc(l.pedido_saipos||l.pedido)+'&quot;,'+(l.metros||0)+',false)">só marcar</button>'+
+    '</div>';
+}
+function avisoBotao(){
+  return '<div class="c" style="border:1px dashed #e0a33a;background:rgba(224,163,58,.06)">'+
+    '<button class="b" style="font-weight:800;border-color:#e0a33a;color:#e0a33a" onclick="AVABERTO=!AVABERTO;AV=null;if(AVABERTO){puxaAviso().then(desenha)}else{desenha()}">'+
+      (AVABERTO?'▾ fechar':'▸ abrir')+' 🛵 Avisar o cliente</button> '+
+    '<span style="background:#e0a33a;color:#1a1a17;border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:800;margin-left:8px">EM TESTE</span>'+
+    '<div style="font-size:12px;color:#8a897e;margin-top:6px">Ainda não está valendo. Serve para mostrar à equipe como vai funcionar antes de entrar na rotina — <b>não avise nenhum cliente por aqui sem a gerência combinar</b>.</div></div>';
+}
+function avisoHtml(){
+  var h=avisoBotao();
+  if(!AVABERTO) return h;
+  return h + avisoMiolo();
+}
+function avisoMiolo(){
+  if(AV===null) return '';
+  if(AV===false) return '<div class="c"><b>🛵 Avisar o cliente</b><div class="m">não deu para ler as posições agora'+(AVERRO?' — '+esc(AVERRO):'')+'</div></div>';
+  var L=AV.linhas||[], R=AV.regua||{};
+  var naporta=L.filter(function(x){return x.situacao==='NA PORTA'});
+  var pra=L.filter(function(x){return x.situacao==='AVISAR'});
+  var ja =L.filter(function(x){return x.situacao==='JA AVISADO'});
+  var h='<h2 style="margin:0 0 6px;font-size:15px;font-weight:800">🛵 Avisar o cliente — quem está chegando agora <span style="background:#e0a33a;color:#1a1a17;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800;vertical-align:middle">EM TESTE</span></h2>';
+  if(AVERRO) h+='<div class="c" style="color:#e0a33a">'+esc(AVERRO)+'</div>';
+  if(naporta.length){
+    h+='<div class="c" style="border:1px solid #d2513f;color:#d2513f;font-weight:700;font-size:13px">🚨 '+esc(naporta.length)+' entrega(s) com o motoboy parado na porta há '+esc(R.porta_min_parado)+' min ou mais — é a hora de a loja falar com o cliente.</div>';
+    naporta.forEach(function(l){ h+=avisoCartao(l) });
+  }
+  if(!pra.length && !naporta.length){
+    h+='<div class="c" style="color:#8a897e">Ninguém para avisar neste momento. '+
+       'De '+esc(L.length)+' entrega(s) a caminho, nenhuma está parada na porta nem na janela de '+esc(R.metros_min)+' a '+esc(R.metros_max)+' metros indo na direção do cliente.</div>';
+  } else {
+    pra.forEach(function(l){ h+=avisoCartao(l) });
+  }
+  if(ja.length){
+    h+='<div class="c" style="font-size:12.5px;color:#8a897e">✅ Já avisados hoje: '+
+      ja.map(function(l){return '#'+esc(l.pedido)+' ('+esc(l.avisado_em)+' · '+esc(l.avisado_por||'')+') <a href="#" onclick="avisoMarcar(&quot;'+esc(l.unidade)+'&quot;,&quot;'+esc(l.pedido_saipos||l.pedido)+'&quot;,0,true);return false" style="color:#8a897e">desfazer</a>'}).join(' · ')+'</div>';
+  }
+  var resto=L.filter(function(x){return x.situacao!=='AVISAR' && x.situacao!=='JA AVISADO' && x.situacao!=='NA PORTA'});
+  if(resto.length){
+    h+='<div class="c" style="overflow-x:auto"><div class="m" style="margin-bottom:6px">As outras entregas a caminho, e por que ainda não é hora:</div>'+
+      '<table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px"><tr>'+
+      ['Loja','Pedido','Motoboy','Distância','Por quê'].map(function(t){return '<th style="text-align:left;color:#8a897e;font-size:11px;padding:0 8px 6px 0">'+t+'</th>'}).join('')+'</tr>';
+    resto.forEach(function(l,i){
+      h+='<tr style="'+(i%2?'background:rgba(255,255,255,.02)':'')+'">'+
+        '<td style="padding:6px 8px;border-top:1px solid #34332f">'+esc(lojaCurta(l.unidade))+'</td>'+
+        '<td style="padding:6px 8px;border-top:1px solid #34332f">#'+esc(l.pedido)+'</td>'+
+        '<td style="padding:6px 8px;border-top:1px solid #34332f">'+esc(l.motoboy)+'</td>'+
+        '<td style="padding:6px 8px;border-top:1px solid #34332f;white-space:nowrap">'+esc(l.metros)+' m</td>'+
+        '<td style="padding:6px 8px;border-top:1px solid #34332f;color:#8a897e">'+esc(l.situacao)+'</td></tr>';
+    });
+    h+='</table></div>';
+  }
+  h+='<div class="c" style="font-size:12px;color:#c3c2b7">Só aparece aqui para avisar quando as quatro coisas valem ao mesmo tempo: '+
+     'o motoboy está entre <b>'+esc(R.metros_min)+' e '+esc(R.metros_max)+' metros</b> do cliente, '+
+     'é <b>a vez daquele cliente</b> na rota dele, a distância está <b>diminuindo</b> (ele está indo pra lá mesmo) '+
+     'e ele <b>ainda não passou</b> na porta. A posição do motoboy é lida de minuto em minuto. '+
+     'Copiar a mensagem já marca como avisado, para ninguém avisar duas vezes.</div>'+
+     '<div class="c" style="font-size:12px;color:#c3c2b7">🚨 <b>O cartão vermelho é outra coisa:</b> o motoboy <b>já chegou</b> e está parado a menos de '+esc(R.metros_min)+' m do cliente há <b>'+esc(R.porta_min_parado)+' minutos ou mais</b> — normalmente interfone quebrado, cliente que não atende, ou falta o apartamento. '+
+     'O complemento do endereço, o contato e o localizador saem da observação do pedido no Saipos, e só aparecem depois que o Saipos registra a venda. <b>O código de entrega não aparece aqui de propósito:</b> quem sabe o código é o cliente, e é ele que passa ao entregador para provar que recebeu.</div>';
+  return h;
+}
+
+
+/* sigla da loja (config.js); se nao achar, o proprio nome */
+function lojaCurta(u){ var l=(PORTAL_CFG.lojas||[]).filter(function(x){return x.nome===u||x.id===u})[0]; return l?(l.curto||l.nome):u; }
+function hojeISO(){
+  const d=new Date(Date.now()-new Date().getTimezoneOffset()*60000);
+  return d.toISOString().slice(0,10);
+}
+async function porta(nome,dados){
+  const r=await fetch(SB+'rpc/'+nome,{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:tok(),p_dados:dados||{}})});
+  if(!r.ok){let m='';try{const j=await r.json();m=(j&&(j.message||j.hint))||''}catch(e){}throw new Error(m||('porta '+r.status))}
+  return await r.json();
+}
+function dist(m){
+  if(m===null||m===undefined)return '';
+  return (m<1000)?(m+' m'):((m/1000).toFixed(1)+' km');
+}
+function ondeTxt(l){
+  if(!l.vivo_onde)return '<span class="m" style="display:inline">—</span>';
+  var d=dist(l.vivo_dist_m), q=(l.vivo_fila==='na fila'?'na fila':(l.vivo_fila==='disponivel'?'disponível':'indisponível'));
+  var cor, ico;
+  if(l.vivo_onde==='no patio'){cor='#4ade80';ico='🟢 no pátio'}
+  else if(l.vivo_onde==='na rua'){cor='#fbbf24';ico='🛵 na rua'}
+  else {cor='#8a897e';ico='⚪ longe'}
+  return '<span style="color:'+cor+';font-weight:700">'+ico+'</span>'+
+         '<div class="m">'+(d?esc(d)+' · ':'')+esc(q)+' · visto '+esc(l.vivo_visto||'')+'</div>';
+}
+/* com o GPS do TrackEat parado, "o sistema nao viu" seria alarme falso: o sistema nem estava olhando */
+function gpsParado(){ return !!(D&&D.gps_parado) }
+function linhaDe(i){ return (D&&D.linhas&&D.linhas[i])||null }
+async function marcar(u,e,t,hora,desf){
+  try{ await porta('chegada_marcar',{dia:(DIA||(D&&D.dia)||hojeISO()),unidade:u,entregador:e,turno:t,hora:hora||null,desfazer:!!desf}); }
+  catch(err){ alert('Não deu para anotar: '+(err&&err.message?err.message:'tente de novo')); return; }
+  boot();
+}
+function chegou(i){ const l=linhaDe(i); if(l)marcar(l.unidade,l.entregador,l.n_turno,null,false) }
+function outraHora(i){
+  const l=linhaDe(i); if(!l)return;
+  const h=prompt('Que horas '+l.entregador+' chegou? Escreva assim: 18:05', l.anotado_txt||'');
+  if(!h)return;
+  const t=String(h).trim();
+  if(!/^[0-9]{1,2}:[0-9]{2}$/.test(t)){ alert('Escreva a hora assim: 18:05'); return }
+  marcar(l.unidade,l.entregador,l.n_turno,t,false);
+}
+function apagar(i){
+  const l=linhaDe(i); if(!l)return;
+  if(confirm('Apagar a anotação de '+l.entregador+'?'))marcar(l.unidade,l.entregador,l.n_turno,null,true);
+}
+
+function grpTit(titulo, n, id){
+  var k=titulo.indexOf(' '), em=k>0?titulo.slice(0,k):'', tx=k>0?titulo.slice(k+1):titulo;
+  return '<div class="grp"'+(id?' id="'+id+'"':'')+'><span class="em">'+em+'</span><h2>'+tx+'</h2>'+(n!=null?'<span class="ct">'+n+'</span>':'')+'</div>';
+}
+function vaiPara(id){ var e=document.getElementById(id); if(e&&e.scrollIntoView) e.scrollIntoView({behavior:'smooth',block:'start'}); }
+/* Cada cartao e uma tabela de uma linha (data-cdm-livre) para a anotacao do portal.js aparecer;
+   a chave da anotacao e "Loja | Motoboy | Escala". */
+/* O banco devolve por turno: direito, garantido_perdido, limite_txt e, so para o dono, a hora que o motoboy
+   entrou na fila do patio no TrackEat (chegou_txt / chegou_fonte) e o atraso. A regra e a mesma do pagamento. */
+/* a tolerancia vem do banco (motoboy_param via chegada_conferir); sem ela a tela nao inventa numero */
+function tolMin(){ return (D&&D.tolerancia!=null)?esc(String(D.tolerancia)):'—'; }
+/* rango_excecao = combinado da gerencia (motoboy_excecao_rango); aguarda_balcao = quem nao e dono so ve o veredito
+   depois de anotar a chegada (o banco esconde antes); com o GPS parado, "nao chegou" vira "sem GPS". */
+/* O cartao mostra so a hora que chegou e dois botoes. Os botoes ja vem marcados pela REGRA do banco (escala x chegada,
+   tolerancia de motoboy_param, combinados de motoboy_excecao_rango = direito 'rango_excecao').
+   Quem muda escreve o motivo; vai para motoboy_direito_manual pela porta chegada_direito_marcar e volta em
+   garantido_manual / rango_manual. Garantido vale o DIA (o mesmo em todos os turnos); rango vale o TURNO.
+   Clicar de volta no que a regra diz apaga a mudanca (valor null). So da para mudar hoje e ontem (o banco confere). */
+function regraGarantido(l){ return !(l.garantido_perdido || l.direito==='perdeu' || l.direito==='rango_excecao'); }
+function regraRango(l){ return l.direito!=='perdeu'; }
+function valeGarantido(l){ return (l.garantido_manual===true||l.garantido_manual===false) ? l.garantido_manual : regraGarantido(l); }
+function valeRango(l){ return (l.rango_manual===true||l.rango_manual===false) ? l.rango_manual : regraRango(l); }
+/* a hora que aparece: o dono ve a do sistema (fila do TrackEat, GPS ou 1a entrega); o balcao ve a que ele anotou */
+function horaChegou(l, dono){ return (dono && l.chegou_txt) ? l.chegou_txt : (l.anotado_txt || ''); }
+/* os botoes so aparecem depois que ele chegou e a regra ja tem veredito */
+function temBotoes(l, dono){
+  return !!horaChegou(l, dono) && ['ok','perdeu','rango_excecao','sem_prova','fora','no_prazo'].indexOf(l.direito)>=0;
+}
+function podeMudar(){
+  if(!D||!D.dia||!D.hoje) return false;
+  var d=(new Date(D.hoje+'T12:00:00') - new Date(D.dia+'T12:00:00'))/86400000;
+  return d>=0 && d<=1;
+}
+function porQue(l, dono){
+  var d=l.direito, a=l.atraso_min, tol=tolMin();
+  var quanto=(dono && a!=null) ? (a<=0 ? 'chegou antes da escala' : 'chegou '+a+' min depois da escala') : '';
+  if(d==='ok') return l.garantido_perdido ? (quanto?quanto+' · ':'')+'o garantido do dia já caiu em outro turno' : (quanto||'chegou no prazo');
+  if(d==='rango_excecao') return (quanto?quanto+' · ':'')+'passou de '+tol+' min, mas tem <b>combinado com a gerência</b>: fica com o rango';
+  if(d==='perdeu') return (quanto||'chegou depois de '+esc(l.limite_txt||''))+' · passou de '+tol+' min';
+  if(d==='sem_prova') return 'sem prova do GPS: não se corta';
+  if(d==='fora') return 'fora da escala: sem horário combinado, não se corta';
+  if(d==='no_prazo') return 'dentro do prazo (até '+esc(l.limite_txt||'')+')';
+  return '';
+}
+function mudadoPor(l){
+  var t=[];
+  if(l.garantido_manual===true||l.garantido_manual===false)
+    t.push('✋ garantido mudado por <b>'+esc(l.garantido_quem||'?')+'</b>: '+esc(l.garantido_motivo||''));
+  if(l.rango_manual===true||l.rango_manual===false)
+    t.push('✋ rango mudado por <b>'+esc(l.rango_quem||'?')+'</b>: '+esc(l.rango_motivo||''));
+  return t.join('<br>');
+}
+function seg(i, campo, vale, sim, nao){
+  var dis=podeMudar()?'':' disabled title="Só dá para mudar hoje e ontem"';
+  return '<div class="seg">'+
+    '<button class="'+(vale?'on-ok':'')+'"'+dis+' onclick="muda('+i+',&quot;'+campo+'&quot;,true)">'+sim+'</button>'+
+    '<button class="'+(vale?'':'on-bad')+'"'+dis+' onclick="muda('+i+',&quot;'+campo+'&quot;,false)">'+nao+'</button></div>';
+}
+async function muda(i, campo, val){
+  var l=linhaDe(i); if(!l) return;
+  var regra=(campo==='garantido') ? regraGarantido(l) : regraRango(l);
+  var vale=(campo==='garantido') ? valeGarantido(l) : valeRango(l);
+  if(val===vale) return;
+  var dados={dia:(DIA||(D&&D.dia)||hojeISO()), unidade:l.unidade, entregador:l.entregador, turno:l.n_turno, campo:campo, valor:null};
+  if(val!==regra){
+    var m=prompt('Por que '+l.entregador+' fica '+(val?'COM':'SEM')+' '+campo+(campo==='garantido'?' no dia':' neste turno')+'? Escreva o motivo:','');
+    if(m===null) return;
+    m=String(m).trim();
+    if(m.length<3){ alert('Escreva o motivo (pelo menos 3 letras).'); return }
+    dados.valor=val; dados.motivo=m;
+  }
+  try{ await porta('chegada_direito_marcar', dados); }
+  catch(err){ alert('Não deu para gravar: '+(err&&err.message?err.message:'tente de novo')); return; }
+  boot();
+}
+/* quem faz dois turnos aparece num cartao so: o rango do outro turno fica numa linha de baixo, com o botao dele */
+function outrosTurnos(l, dono){
+  var L=(D&&D.linhas)||[], h='';
+  L.forEach(function(o, j){
+    if(o.unidade!==l.unidade || o.entregador!==l.entregador || o.n_turno===l.n_turno || !o.na_escala) return;
+    h+='<div class="rs ot"><span>'+o.n_turno+'º turno (escala '+esc(o.escala_txt||'—')+')'+
+       (horaChegou(o,dono)?' · chegou <b>'+esc(horaChegou(o,dono))+'</b>':' · ainda não anotado')+'</span>'+
+       (temBotoes(o,dono) ? seg(j,'rango',valeRango(o),'🍔 com rango','sem rango') : '')+'</div>';
+  });
+  return h;
+}
+function cartaoChegada(l, i, mostraOnde, dono, marcaEscala){
+  var hora=horaChegou(l, dono), bt=temBotoes(l, dono);
+  var g=valeGarantido(l), r=valeRango(l);
+  var cls = !bt ? '' : (g&&r ? 'ok' : (!g&&!r ? 'bad' : ''));
+  var balcao = (dono && l.chegou_txt && l.anotado_txt && l.anotado_txt!==l.chegou_txt)
+      ? ' · balcão anotou '+esc(l.anotado_txt) : '';
+  var pq=bt?porQue(l, dono):'', mud=bt?mudadoPor(l):'';
+  return '<table class="vv '+cls+'" data-cdm-livre><tr data-cdm-chave="'+esc(l.unidade+' | '+l.entregador+' | '+(l.escala_txt||'—'))+'">'+
+    '<td class="hrc"><div class="hr">'+(hora?esc(hora):'—')+'</div><div class="ha">'+(hora?'chegou':'não chegou')+'</div></td>'+
+    '<td><div class="tt">'+esc(l.entregador)+
+        (l.n_turno>1?' <span class="pill p-off">'+l.n_turno+'º turno</span>':'')+
+        (l.na_escala?(marcaEscala?' <span class="pill p-ok">na escala</span>':''):' <span class="pill p-warn">fora da escala</span>')+'</div>'+
+      '<div class="lj"><b>'+esc(l.unidade)+'</b>'+(l.escala_txt?' · escala '+esc(l.escala_txt):'')+balcao+'</div>'+
+      (pq?'<div class="rs">'+pq+'</div>':'')+
+      (mud?'<div class="rs mud">'+mud+'</div>':'')+
+      outrosTurnos(l, dono)+
+      (mostraOnde?'<div class="rs">'+ondeTxt(l)+'</div>':'')+
+    '</td>'+
+    '<td class="sit">'+
+      (bt
+        ? seg(i,'garantido',g,'✅ com garantido','sem garantido')+seg(i,'rango',r,'🍔 com rango','sem rango')+
+          (l.anotado_txt?'<div class="m">balcão '+esc(l.anotado_txt)+' · <a href="#" onclick="outraHora('+i+');return false">trocar hora</a> · <a href="#" onclick="apagar('+i+');return false">apagar</a></div>'
+                        :'<div class="m"><a href="#" onclick="outraHora('+i+');return false">anotar a hora do balcão</a></div>')
+        : (l.anotado_txt
+            ? '<div class="m">balcão '+esc(l.anotado_txt)+'</div><button class="mini" onclick="outraHora('+i+')">trocar</button> <button class="mini" onclick="apagar('+i+')">apagar</button>'
+            : '<button class="mini" onclick="chegou('+i+')">Chegou agora</button> <button class="mini" onclick="outraHora('+i+')">outra hora</button>'))+
+    '</td></tr></table>';
+}
+function bloco(titulo, pares, mostraOnde, dono, vazio, marcaEscala, id){
+  if(!pares.length)return grpTit(titulo,null,id)+'<div class="c"><div class="vazio">'+vazio+'</div></div>';
+  return grpTit(titulo,pares.length,id)+'<div class="vv-lista">'+
+    pares.map(function(par){ return cartaoChegada(par[0], par[1], mostraOnde, dono, marcaEscala); }).join('')+'</div>';
+}
+
+/* uma linha por pessoa: quem faz dois turnos aparece no turno que falta anotar (ou no ultimo) */
+function umPorPessoa(pares){
+  var vistos={}, fora=[];
+  /* o turno que FALTA ANOTAR fica no cartao, para o balcao ter o botao "Chegou agora". So entre dois turnos iguais
+     (os dois anotados ou os dois sem anotar) fica o que ja tem veredito. O outro turno aparece numa linha do cartao. */
+  var peso=function(l){ return (l.direito==='ok'||l.direito==='perdeu'||l.direito==='sem_prova'||l.direito==='rango_excecao')?2:(l.direito==='no_prazo'?1:0); };
+  pares.forEach(function(p){
+    var k=p[0].unidade+'|'+p[0].entregador;
+    if(!(k in vistos)){ vistos[k]=fora.length; fora.push(p); return }
+    var atual=fora[vistos[k]][0], novo=p[0];
+    if(atual.anotado_txt && !novo.anotado_txt) fora[vistos[k]]=p;
+    else if(!atual.anotado_txt===!novo.anotado_txt && (peso(novo)>peso(atual) || (peso(novo)===peso(atual) && atual.anotado_txt))) fora[vistos[k]]=p;
+  });
+  return fora;
+}
+function desenha(){
+  if(D===false){ $('app').innerHTML='<div class="c"><b>Não deu para carregar.</b><div class="m">Entre no portal de novo e tente outra vez.</div></div>'; return }
+  if(!D){ $('app').innerHTML='<div class="load">Juntando a escala com quem está com o aplicativo ligado…</div>'; return }
+  const dono=!!D.dono, L=D.linhas||[], P=D.placar||{}, vivo=!!D.ao_vivo, gp=gpsParado();
+  topoDireita(D.dia, D.hoje);
+  let h='<div class="lojas"><span class="rot">LOJA</span>'+
+    '<button class="chip'+(UNI===''?' on':'')+'" onclick="UNI=&quot;&quot;;boot()">Todas</button>'+
+    (PORTAL_CFG.lojas||[]).map(function(lj){
+      return '<button class="chip'+(UNI===lj.nome?' on':'')+'" data-loja="'+esc(lj.id)+'" onclick="UNI=&quot;'+esc(lj.nome)+'&quot;;boot()">'+esc(lj.nome)+'</button>';
+    }).join('')+
+    '</div>'+
+    '<div class="explica">Anote a <b>hora que o motoboy chegou</b>. Os botões de <b>garantido</b> e <b>rango</b> já vêm marcados pela regra (chegou mais de <b>'+tolMin()+' min</b> depois da escala perde o rango do turno e o garantido do dia; sem prova do GPS, não se corta) e pelos combinados da gerência. Precisa mudar? Clique no outro botão e escreva o motivo. <b>O que ficar marcado aqui é o que o Pagar Motoboys paga</b> (dá para mudar hoje e ontem).'+(vivo?' A tela se atualiza sozinha a cada minuto.':'')+'</div>';
+
+  /* o mesmo placar de antes, agora em quadros; clicar leva ate a lista */
+  var q=function(cls,em,t,v,qs,alvo){
+    return '<div class="card '+cls+'"'+(alvo?' onclick="vaiPara(&quot;'+alvo+'&quot;)" title="Clique para ir até a lista"':'')+'>'+
+      '<div class="t">'+em+' '+t+'</div><div class="v">'+v+'</div>'+(qs?'<div class="qs">'+qs+'</div>':'')+'</div>';
+  };
+  /* sem sinal do TrackEat: ninguem com o aplicativo ligado (antes do 1o motoboy) ou integracao parada */
+  if(gp) h+='<div class="gpsparado">⚠️ <b>Sem sinal de GPS do TrackEat'+(D.gps_ultimo?'; último dado em '+esc(D.gps_ultimo):'')+'.</b> '+
+     'Antes do primeiro motoboy ligar o aplicativo é normal. Em horário de movimento, avise: a integração com o TrackEat pode ter parado. '+
+     'A tela não sabe quem está rodando nem a hora que o sistema viu cada um — por isso não aparece "o sistema não viu". '+
+     'A anotação do balcão continua valendo: anote normalmente.</div>';
+  var semGps=function(em,t){ return '<div class="card sd"><div class="t">'+em+' '+t+'</div><div class="v">—</div><div class="qs">sem GPS: TrackEat sem sinal</div></div>'; };
+  var an=P.anotados||0, tu=P.turnos||0;
+  h+='<div class="cards">'+q(an<tu?'atencao':'bem','✍️','Anotados pelo balcão',an+'/'+tu,an<tu?(tu-an)+' turno(s) sem a hora do balcão':'todos anotados',vivo?'b_rodando':'b_escala');
+  /* quem tem direito ao garantido e ao rango (escala x fila do TrackEat); os quadros contam o que VALE
+     (regra + mudanca da equipe), turno a turno */
+  if(!gp){
+    var med=L.filter(function(l){ return temBotoes(l, dono); });
+    var cg=med.filter(function(l){ return valeGarantido(l)&&valeRango(l); }).length;
+    var sr=med.filter(function(l){ return !valeRango(l); }).length;
+    var sg={}; med.forEach(function(l){ if(!valeGarantido(l)) sg[l.unidade+'|'+l.entregador]=1; });
+    var nsg=Object.keys(sg).length;
+    h+=q('bem','✅','Com garantido e rango',cg,'turno(s) de quem já chegou',vivo?'b_rodando':'b_escala')+
+       q(sr?'mal':(nsg?'atencao':'bem'),'❌','Sem rango',sr,
+         nsg ? nsg+' pessoa(s) sem o garantido do dia' : (!dono && an<tu) ? 'entre os turnos já anotados' : 'todos com garantido',
+         vivo?'b_rodando':'b_escala');
+  }
+  if(vivo && gp){
+    h+=semGps('🟢','Rodando agora')+semGps('📌','Fora da escala')+semGps('📵','App ligado e parado')+semGps('⚪','Escalado sem sinal');
+  }else if(vivo){
+    var fe=P.fora_escala||0, pa=P.parado||0, ss=P.sem_sinal||0;
+    h+=q('','🟢','Rodando agora',(P.rodando||0),'no pátio, na fila ou na rua','b_rodando')+
+       q(fe?'atencao':'bem','📌','Fora da escala',fe,fe?'rodando sem estar na escala':'todo mundo é da escala','b_rodando')+
+       q(pa?'atencao':'bem','📵','App ligado e parado',pa,pa?'fora da fila, sem se mexer':'ninguém parado',pa?'b_parados':'')+
+       q(ss?'mal':'bem','⚪','Escalado sem sinal',ss,ss?'na escala e sem o aplicativo ligado':'todos com o aplicativo ligado','b_semsinal');
+  }
+  h+='</div>';
+
+  if(!L.length){
+    h+='<div class="c"><div class="vazio">ninguém na escala deste dia e ninguém com o aplicativo ligado</div></div>';
+    $('app').innerHTML=h; return;
+  }
+  const pares=L.map(function(l,i){return [l,i]});
+  if(!vivo || gp){
+    h+=bloco('📋 A escala do dia', umPorPessoa(pares), false, dono, 'ninguém na escala deste dia', false, 'b_escala');
+  }else{
+    h+=bloco('🟢 Rodando agora', umPorPessoa(pares.filter(function(p){return p[0].vivo_rodando})), true, dono,
+             'ninguém rodando neste minuto', true, 'b_rodando');
+    const parados=umPorPessoa(pares.filter(function(p){return p[0].vivo_onde && !p[0].vivo_rodando}));
+    if(parados.length)h+=bloco('📵 Aplicativo ligado, mas parado', parados, true, dono, '', true, 'b_parados');
+    h+=bloco('⚪ Escalado e sem sinal', umPorPessoa(pares.filter(function(p){return !p[0].vivo_onde && p[0].na_escala})), false, dono,
+             'todo mundo da escala está com o aplicativo ligado 🎉', false, 'b_semsinal');
+    const sobra=pares.filter(function(p){return !p[0].vivo_onde && !p[0].na_escala});
+    if(sobra.length)h+=bloco('📝 Anotado pelo balcão, fora da escala', sobra, false, dono, '');
+  }
+  if(!dono){
+    h+='<div class="aviso">Anote a hora que <b>você viu</b> a pessoa entrar. Não existe resposta certa para copiar aqui — é o seu olho que vale. Depois de anotar, aparecem os botões de garantido e rango.</div>';
+  }
+  $('app').innerHTML=avisoHtml()+h;
+}
+
+function desligaTimer(){ if(TIMER){clearInterval(TIMER);TIMER=null} }
+function ligaTimer(){
+  desligaTimer();
+  if(D&&D.ao_vivo&&!document.hidden)TIMER=setInterval(function(){puxa(true)},60000);
+}
+/* o relogio so corre com a tela na frente: sai da aba, para de buscar */
+document.addEventListener('visibilitychange',function(){ if(document.hidden)desligaTimer(); else ligaTimer(); });
+window.addEventListener('pagehide',desligaTimer);
+async function puxa(silencioso){
+  if(!silencioso){D=null;desenha()}
+  try{ D=await porta('chegada_conferir',{dia:(DIA||null),unidade:UNI||null}); }
+  catch(e){ D=false; placar('<span class="pl" style="border-color:rgba(230,103,103,.5);color:#ff9a9a">'+esc((e&&e.message)||'erro')+'</span>'); desenha(); return }
+  const P=D.placar||{};
+  placar((D.ao_vivo?'<span class="pl" style="border-color:rgba(230,103,103,.5)"><b style="color:#ff9a9a">● ao vivo</b> · atualiza a cada minuto</span>':'<span class="pl">Dia <b>'+esc(D.dia||'')+'</b></span>')+
+    '<span class="pl"><b>'+(P.anotados||0)+'</b> de <b>'+(P.turnos||0)+'</b> anotados</span>'+
+    '<span class="pl">Loja <b>'+esc(UNI||'Todas')+'</b></span>'+
+    '<span class="pl">lido <b>'+esc(D.agora||'')+'</b></span>');
+  await puxaAviso();
+  desenha();
+  ligaTimer();
+}
+function placar(h){ var p=$('placar'); if(p) p.innerHTML=h; }
+function topoDireita(dia, hoje){
+  var pe=$('per'); if(!pe) return;
+  pe.innerHTML='<input type="date" value="'+esc(dia||DIA||hojeISO())+'" max="'+esc(hoje||hojeISO())+'" onchange="DIA=this.value;boot()" title="Dia">'+
+    '<button class="b" onclick="boot()" title="Ler de novo">↻ Atualizar</button>';
+}
+function boot(){ if(!$('per').innerHTML) topoDireita(); puxa(false) }
+
+/* ===== porta unica do portal ===== */
+const CDMMODS=['chegada','qualidade'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'chegada'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(ok)boot()});
+</script>
+<script src="../assets/portal.js?v=3"></script>
+</body>
+</html>

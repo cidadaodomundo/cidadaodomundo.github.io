@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../config.js" data-demo="telas/motoboys.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Motoboys · Portal de Gestão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cdm-ui.css?v=4">
+<!-- O que cada motoboy precisa ter para rodar (MEI, CNH, moto, contrato, Pix) e o que falta pedir.
+     Dados: porta motoboys_consulta (fichas e documentos dos motoboys; entregas dos ultimos 30 dias do TrackEat; Pix do cadastro do pagamento). -->
+<style>
+.intro{color:var(--text2);font-size:14px;line-height:1.5;margin:-4px 0 14px}
+.pedir{background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:14px 15px;margin-bottom:18px}
+.pedir h2{font-family:'Anton',Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:19px;letter-spacing:.02em;margin-bottom:10px}
+.pq{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line);font-size:14px;line-height:1.45}
+.pq:first-of-type{border-top:0}
+.pq .ic{flex:0 0 26px;font-size:18px;line-height:1.2}
+.pq .tt{flex:0 0 150px;font-weight:800}
+.pq .qm{color:var(--text2)}
+.pq .qm b{color:var(--text);font-weight:700}
+.pq .qm .nmx{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+.rd{color:var(--text2);font-size:13px}
+.rd b{color:var(--text)}
+.docs{display:flex;flex-direction:column;gap:5px}
+.dl{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:8px 10px;font-size:13.5px}
+button.dl:hover{border-color:var(--text2)}
+.dl .di{flex:0 0 22px;font-size:16px;text-align:center}
+.dl .dn{flex:0 0 72px;font-weight:800}
+.dl .dx{flex:1;min-width:0;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dl .ds{flex:0 0 auto;font-size:12px;font-weight:800;border-radius:9px;padding:3px 8px}
+.s-ok{background:rgba(37,163,95,.15);color:#7fe0aa}
+.s-pasta{background:rgba(201,133,0,.16);color:#e5be6d}
+.s-atencao{background:rgba(229,140,40,.18);color:#f3a95b}
+.s-falta{background:rgba(230,103,103,.15);color:#ff9a9a}
+.s-nao_sei{background:var(--s3);color:var(--text2)}
+.c.falta{border-left:4px solid var(--bad)}
+.c.pronto{border-left:4px solid var(--ok)}
+.c.fora{opacity:.6}
+.leg{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+.leg span{font-size:12px;font-weight:800;border-radius:9px;padding:3px 8px}
+.ult{color:var(--muted);font-size:11.5px;margin-top:4px}
+@media (max-width:640px){.pq{flex-wrap:wrap}.pq .tt{flex:1 1 auto}.pq .qm{flex:1 1 100%;padding-left:36px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>🛵 Motoboys</h1>
+      <div class="placar" id="placar"><span class="pl">Carregando…</span></div>
+    </div>
+    <div class="rt">
+      <a class="volta" href="../index.html">← Portal</a>
+      <button class="novo" id="b_novo" onclick="abreFicha(null)">➕ Novo motoboy</button>
+    </div>
+  </div>
+  <div class="intro">Para rodar com a gente, cada motoboy precisa ter: <b>MEI ativo</b>, <b>CNH com categoria A</b>, <b>documento da moto em dia</b>, <b>contrato assinado</b> e <b>chave Pix</b> para receber.</div>
+
+  <div id="pedir"></div>
+  <div class="chips" id="chips"></div>
+  <div class="busca"><span class="lupa">🔎</span><input id="q" placeholder="Procurar pelo nome…" oninput="pinta()"></div>
+  <div id="app"><div class="vazio"><span class="em">🛵</span>Carregando…</div></div>
+  <div class="rod" id="rod"></div>
+</div>
+
+<dialog id="dlg_doc">
+  <div class="dh"><h3 id="dd_tit">Documento</h3><button class="x" onclick="fecha('dlg_doc')" aria-label="Fechar">✕</button></div>
+  <div class="db">
+    <div class="f"><label for="dd_sit">📌 Situação</label><select id="dd_sit"></select></div>
+    <div class="cp2">
+      <div class="f"><label for="dd_num" id="dd_num_l">Número</label><input id="dd_num" maxlength="60"></div>
+      <div class="f" id="dd_val_f"><label for="dd_val">📅 Vence em</label><input id="dd_val" type="date"></div>
+    </div>
+    <div class="f"><label for="dd_det">📝 O que se sabe</label><textarea id="dd_det" maxlength="400" placeholder="Ex.: entregou a cópia na loja em 26/10, conferido"></textarea></div>
+    <div class="ult" id="dd_ult"></div>
+  </div>
+  <div class="df">
+    <button class="bx" onclick="fecha('dlg_doc')">Cancelar</button>
+    <button class="sal" id="dd_sal" onclick="salvaDoc()">💾 Salvar</button>
+  </div>
+</dialog>
+
+<dialog id="dlg_fic">
+  <div class="dh"><h3 id="df_tit">Novo motoboy</h3><button class="x" onclick="fecha('dlg_fic')" aria-label="Fechar">✕</button></div>
+  <div class="db">
+    <div class="f"><label for="df_nome">👤 Nome completo</label><input id="df_nome" maxlength="120" placeholder="Ex.: Nome e sobrenome completos"></div>
+    <div class="cp2">
+      <div class="f"><label for="df_loja">🏠 Loja</label><select id="df_loja"></select></div>
+      <div class="f"><label for="df_tipo">🏷️ Como roda</label><select id="df_tipo"><option value="fixo">Fixo</option><option value="extra">Extra (chamado de vez em quando)</option><option value="teste">Em teste</option></select></div>
+    </div>
+    <div class="f" id="df_tk_f"><label for="df_tk">📱 Nome dele no TrackEat</label><input id="df_tk" maxlength="80" placeholder="Igual aparece no TrackEat, para contar as entregas">
+      <div class="dica">Deixe em branco se não souber.</div></div>
+    <div class="f"><label for="df_obs">📝 Observação</label><input id="df_obs" maxlength="300" placeholder="Ex.: roda só no almoço"></div>
+    <div class="f chk" id="df_at_f"><label><input type="checkbox" id="df_at"> Ainda roda com a gente</label></div>
+  </div>
+  <div class="df">
+    <button class="bx" onclick="fecha('dlg_fic')">Cancelar</button>
+    <button class="sal" id="df_sal" onclick="salvaFicha()">💾 Salvar</button>
+  </div>
+</dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+const SB=PORTAL_CFG.rest;
+const KEY=PORTAL_CFG.chave;
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const br=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'';
+const brc=s=>s?br(s).slice(0,5):'';
+const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
+
+const DOCS=[
+  {k:'mei',n:'MEI',e:'🧾',num:'🧾 CNPJ do MEI',val:false},
+  {k:'cnh',n:'CNH',e:'🪪',num:'🪪 Categoria (precisa ter A)',val:true},
+  {k:'moto',n:'Moto',e:'🏍️',num:'🏍️ Placa',val:false},
+  {k:'contrato',n:'Contrato',e:'📄',num:'📄 Número ou observação',val:false}
+];
+const SIT={
+  ok:{r:'✅ Visto',l:'✅ Visto — o documento foi conferido'},
+  pasta:{r:'🟡 Na pasta',l:'🟡 Na pasta — contrato feito, ainda não visto aqui'},
+  atencao:{r:'⚠️ Conferir',l:'⚠️ Conferir — visto, mas tem um ponto para olhar'},
+  falta:{r:'🔴 Falta',l:'🔴 Falta — precisa pedir para ele'},
+  nao_sei:{r:'❔ Não sei',l:'❔ Não sei — ninguém conferiu ainda'}
+};
+/* lojas vem do config.js; a ficha guarda o nome da loja (aceita tambem o id) */
+const LOJAS=(PORTAL_CFG.lojas||[]).map(function(l){return l.nome});
+const ICL={};LOJAS.forEach(function(l,i){ICL[l]=['🟢','🔵','🟣','🟠','🔴','🟡','🟤','⚪'][i%8]});
+function nomeLoja(x){const l=(PORTAL_CFG.lojas||[]).find(function(y){return y.id===x||y.nome===x||y.curto===x});return l?l.nome:(x||'')}
+(function(){const s=$('df_loja');if(s)s.innerHTML=LOJAS.map(function(l){return '<option>'+esc(l)+'</option>'}).join('')})();
+
+let FICHAS=[],SEM=[],QUEM='',PODE=false,FILTRO='todas',EDOC=null,EFIC=null;
+
+async function porta(acao,dados){
+  const r=await fetch(SB+'rpc/motoboys_consulta',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:tok(),p_acao:acao,p_dados:dados||{}})});
+  if(!r.ok)throw new Error('porta '+r.status);
+  return await r.json();
+}
+
+let tt=null;
+function aviso(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on')},2600)}
+function n(v){return Number(v||0).toLocaleString('pt-BR')}
+function hoje(){const d=new Date();d.setHours(0,0,0,0);return d}
+
+/* situacao que vale (regra de exemplo, configuravel): CNH vencida vira falta, vencendo em 60 dias vira conferir */
+function sitDoc(f,k){
+  const d=(f.docs||{})[k]||{situacao:'nao_sei'};
+  let s=d.situacao||'nao_sei',extra='';
+  if(k==='cnh'&&d.validade){
+    const v=new Date(d.validade+'T00:00:00'),dias=Math.round((v-hoje())/864e5);
+    if(dias<0){s='falta';extra='vencida em '+br(d.validade)}
+    else if(dias<=60){if(s==='ok'||s==='pasta')s='atencao';extra='vence em '+br(d.validade)}
+  }
+  return {s:s,d:d,extra:extra};
+}
+function pendencias(f){
+  const o=[];
+  DOCS.forEach(function(x){const r=sitDoc(f,x.k);if(r.s==='falta')o.push(x.k)});
+  if(f.pix===false)o.push('pix');
+  return o;
+}
+/* conferido = os 4 documentos vistos e Pix cadastrado; so_pasta = nada para pedir, mas algum documento so na pasta do contrato */
+function pronto(f){
+  return DOCS.every(function(x){return sitDoc(f,x.k).s==='ok'})&&f.pix===true;
+}
+function soPasta(f){
+  return !pronto(f)&&DOCS.every(function(x){const s=sitDoc(f,x.k).s;return s==='ok'||s==='pasta'})&&f.pix===true;
+}
+
+function pintaPlacar(){
+  const at=FICHAS.filter(function(f){return f.ativo});
+  const pr=at.filter(pronto).length,sp=at.filter(soPasta).length,pe=at.filter(function(f){return pendencias(f).length}).length;
+  $('placar').innerHTML='<span class="pl">👥 <b>'+at.length+'</b> com ficha</span>'+
+    '<span class="pl">✅ <b>'+pr+'</b> com tudo conferido</span>'+
+    '<span class="pl">🟡 <b>'+sp+'</b> com contrato, documentos na pasta</span>'+
+    '<span class="pl">🔴 <b>'+pe+'</b> com coisa para pedir</span>'+
+    '<span class="pl">❓ <b>'+SEM.length+'</b> rodaram sem ficha</span>';
+}
+
+/* primeiro nome; se outro motoboy tem o mesmo primeiro nome, junta o ultimo sobrenome */
+function nomeCurto(f){const p=String(f.nome).split(' ');
+  const rep=p.length>1&&FICHAS.some(function(o){return o.id!==f.id&&String(o.nome).split(' ')[0]===p[0]});
+  return p[0]+(rep?' '+p[p.length-1]:'')}
+
+function pintaPedir(){
+  const at=FICHAS.filter(function(f){return f.ativo});
+  const linha=function(ic,tt,lst){
+    if(!lst.length)return '';
+    return '<div class="pq"><span class="ic">'+ic+'</span><span class="tt">'+tt+'</span><span class="qm">'+
+      lst.map(function(x){return '<b class="nmx" data-ir="'+x.id+'">'+esc(nomeCurto(x))+'</b>'}).join(', ')+'</span></div>';
+  };
+  let h='';
+  DOCS.forEach(function(x){
+    h+=linha(x.e,'Pedir '+(x.k==='moto'?'documento da moto':x.k==='contrato'?'contrato':x.n),at.filter(function(f){return sitDoc(f,x.k).s==='falta'}));
+  });
+  h+=linha('💸','Pedir chave Pix',at.filter(function(f){return f.pix===false}));
+  const conf=[];
+  at.forEach(function(f){DOCS.forEach(function(x){if(sitDoc(f,x.k).s==='atencao')conf.push({f:f,x:x})})});
+  if(conf.length)h+='<div class="pq"><span class="ic">⚠️</span><span class="tt">Conferir</span><span class="qm">'+
+    conf.map(function(c){return '<b class="nmx" data-ir="'+c.f.id+'">'+esc(nomeCurto(c.f))+'</b> ('+esc(c.x.n.toLowerCase())+')'}).join(', ')+'</span></div>';
+  const nsei=at.filter(function(f){return DOCS.some(function(x){return sitDoc(f,x.k).s==='nao_sei'})});
+  h+=linha('❔','Ninguém conferiu',nsei);
+  if(SEM.length)h+='<div class="pq"><span class="ic">❓</span><span class="tt">Rodaram sem ficha</span><span class="qm">'+
+    SEM.map(function(s){return '<b>'+esc(s.nome)+'</b> ('+esc(s.loja)+', '+n(s.entregas)+' entregas)'}).join(', ')+
+    ' — veja no fim da página</span></div>';
+  $('pedir').innerHTML=h?'<div class="pedir"><h2>📋 O que precisamos pedir</h2>'+h+'</div>':
+    '<div class="pedir"><h2>📋 O que precisamos pedir</h2><div class="pq"><span class="ic">🎉</span><span class="qm">Nada! Todos com tudo em ordem.</span></div></div>';
+}
+
+function pintaChips(){
+  const at=FICHAS.filter(function(f){return f.ativo});
+  const fs=[{k:'todas',e:'🛵',r:'Todas',c:at.length}]
+    .concat(LOJAS.map(function(l){return {k:l,e:ICL[l],r:l,c:at.filter(function(f){return f.loja===l}).length}}))
+    .concat([{k:'pend',e:'🔴',r:'Com coisa para pedir',c:at.filter(function(f){return pendencias(f).length}).length},
+             {k:'parado',e:'💤',r:'Não rodou em 30 dias',c:at.filter(function(f){return !f.entregas}).length},
+             {k:'fora',e:'🚪',r:'Não roda mais',c:FICHAS.filter(function(f){return !f.ativo}).length}]);
+  $('chips').innerHTML=fs.filter(function(f){return f.k!=='fora'||f.c}).map(function(f){
+    return '<button class="chip'+(FILTRO===f.k?' on':'')+'" data-f="'+esc(f.k)+'"><span class="em">'+f.e+'</span>'+esc(f.r)+'<span class="ct">'+f.c+'</span></button>';
+  }).join('');
+}
+function passa(f){
+  if(FILTRO==='fora')return !f.ativo;
+  if(!f.ativo)return false;
+  if(FILTRO==='todas')return true;
+  if(FILTRO==='pend')return pendencias(f).length>0;
+  if(FILTRO==='parado')return !f.entregas;
+  return f.loja===FILTRO;
+}
+
+function linhaDoc(f,x){
+  const r=sitDoc(f,x.k),d=r.d;
+  const bits=[];
+  if(d.numero)bits.push(d.numero);
+  if(r.extra)bits.push(r.extra);else if(d.validade)bits.push('vence '+br(d.validade));
+  if(!bits.length&&d.detalhe&&(r.s==='falta'||r.s==='atencao'))bits.push(d.detalhe);
+  const tag=PODE?'button':'div';
+  return '<'+tag+' class="dl" '+(PODE?'data-doc="'+f.id+'|'+x.k+'" ':'')+'title="'+esc(d.detalhe||'')+'"><span class="di">'+x.e+'</span><span class="dn">'+x.n+'</span>'+
+    '<span class="dx">'+esc(bits.join(' · '))+'</span><span class="ds s-'+r.s+'">'+SIT[r.s].r+'</span></'+tag+'>';
+}
+function linhaPix(f){
+  const s=f.pix===true?'ok':f.pix===false?'falta':'nao_sei';
+  const t=f.pix===true?'cadastrada no pagamento':f.pix===false?'sem chave no cadastro do pagamento':'não está no cadastro do pagamento';
+  return '<div class="dl"><span class="di">💸</span><span class="dn">Pix</span><span class="dx">'+t+'</span><span class="ds s-'+s+'">'+
+    (s==='ok'?'✅ Tem':s==='falta'?'🔴 Falta':'❔ Não sei')+'</span></div>';
+}
+
+function cartao(f){
+  const pe=pendencias(f),ok=pronto(f);
+  let rd;
+  if(f.entregas){
+    const onde=(f.onde||[]).map(function(o){return o.loja+' '+n(o.n)}).join(' · ');
+    rd='🛵 <b>'+n(f.entregas)+'</b> entregas nos últimos 30 dias · última em <b>'+brc(f.ultima)+'</b>'+((f.onde||[]).length>1?'<br>'+esc(onde):'');
+  }else rd='💤 Não rodou nos últimos 30 dias';
+  const tipo={fixo:'Fixo',extra:'Extra',teste:'Em teste'}[f.tipo]||f.tipo;
+  let h='<div class="c'+(!f.ativo?' fora':pe.length?' falta':ok?' pronto':'')+'" id="f'+f.id+'">'+
+    '<div class="ch"><div class="av">🛵</div><div><div class="nm">'+esc(f.nome)+'</div><div class="st">'+esc(tipo)+' · '+esc(f.loja)+(f.ativo?'':' · não roda mais')+'</div></div>'+
+    (PODE?'<button class="ed" data-fic="'+f.id+'" title="Mudar nome, loja ou observação">✏️</button>':'')+'</div>'+
+    '<div class="rd">'+rd+'</div>'+
+    '<div class="docs">'+DOCS.map(function(x){return linhaDoc(f,x)}).join('')+linhaPix(f)+'</div>';
+  if(f.obs)h+='<div class="faz">'+esc(f.obs)+'</div>';
+  if(ok)h+='<div class="tags"><span class="tg verde">✅ Tudo conferido para rodar</span></div>';
+  else if(soPasta(f))h+='<div class="tags"><span class="tg ambar">🟡 Contrato feito · conferir os documentos na pasta</span></div>';
+  else if(pe.length)h+='<div class="tags"><span class="tg verm">🔴 Pedir: '+esc(pe.map(function(k){return k==='pix'?'Pix':DOCS.find(function(x){return x.k===k}).n}).join(', '))+'</span></div>';
+  return h+'</div>';
+}
+
+function pinta(){
+  const q=($('q').value||'').trim().toLowerCase();
+  const lista=FICHAS.filter(function(f){return passa(f)&&(!q||String(f.nome).toLowerCase().indexOf(q)>=0)});
+  let h='';
+  LOJAS.forEach(function(l){
+    const g=lista.filter(function(f){return f.loja===l}).sort(function(a,b){return String(a.nome).localeCompare(String(b.nome),'pt-BR')});
+    if(!g.length)return;
+    h+='<div class="grp"><span class="em">'+ICL[l]+'</span><h2>'+esc(l)+'</h2><span class="ct">'+g.length+'</span></div>'+
+       '<div class="grade">'+g.map(cartao).join('')+'</div>';
+  });
+  if(!h)h='<div class="vazio"><span class="em">🤷</span>Ninguém por aqui. Toque em <b>Todas</b> ou limpe a busca.</div>';
+  if(SEM.length&&FILTRO!=='fora'&&!q){
+    h+='<div class="grp"><span class="em">❓</span><h2>Rodaram e não têm ficha</h2><span class="ct">'+SEM.length+'</span></div>'+
+      '<div class="grade">'+SEM.map(function(s,i){
+        return '<div class="c"><div class="ch"><div class="av">❓</div><div><div class="nm">'+esc(s.nome)+'</div><div class="st">Nome no TrackEat · '+esc(s.loja)+'</div></div></div>'+
+          '<div class="rd">🛵 <b>'+n(s.entregas)+'</b> entregas nos últimos 30 dias · última em <b>'+brc(s.ultima)+'</b></div>'+
+          '<div class="faz">Rodou com a gente e ninguém sabe se tem MEI, CNH, documento da moto e contrato.</div>'+
+          (PODE?'<div class="acs"><button class="bt mini" data-novo="'+i+'">➕ Criar a ficha dele</button></div>':'')+'</div>';
+      }).join('')+'</div>';
+  }
+  $('app').innerHTML=h;
+}
+
+/* ---- janela do documento ---- */
+function abreDoc(id,k){
+  const f=FICHAS.find(function(x){return x.id===id});if(!f)return;
+  const x=DOCS.find(function(y){return y.k===k}),d=(f.docs||{})[k]||{situacao:'nao_sei'};
+  EDOC={id:id,k:k};
+  $('dd_tit').textContent=x.e+' '+x.n+' · '+nomeCurto(f);
+  $('dd_sit').innerHTML=Object.keys(SIT).map(function(s){return '<option value="'+s+'">'+SIT[s].l+'</option>'}).join('');
+  $('dd_sit').value=d.situacao||'nao_sei';
+  $('dd_num_l').textContent=x.num;
+  $('dd_num').value=d.numero||'';
+  $('dd_val_f').style.display=x.val?'':'none';
+  $('dd_val').value=d.validade||'';
+  $('dd_det').value=d.detalhe||'';
+  $('dd_ult').textContent=d.quando?('Última mudança: '+d.quando+(d.quem?' · '+d.quem:'')+(d.fonte?' · de onde veio: '+d.fonte:'')):'';
+  $('dd_sal').disabled=false;
+  const g=$('dlg_doc');if(g.showModal)g.showModal();else g.setAttribute('open','');
+}
+async function salvaDoc(){
+  if(!EDOC||$('dd_sal').disabled)return;
+  $('dd_sal').disabled=true;
+  try{
+    await porta('doc',{ficha_id:EDOC.id,item:EDOC.k,situacao:$('dd_sit').value,numero:$('dd_num').value.trim(),
+      validade:$('dd_val_f').style.display==='none'?'':$('dd_val').value,detalhe:$('dd_det').value.trim()});
+    fecha('dlg_doc');await boot();aviso('✅ Guardado!');
+  }catch(e){$('dd_sal').disabled=false;aviso('😕 Não deu para salvar. Entre no portal de novo e tente outra vez.')}
+}
+
+/* ---- janela da ficha ---- */
+function abreFicha(id,pre){
+  const f=id==null?null:FICHAS.find(function(x){return x.id===id});
+  EFIC=f?f.id:null;
+  $('df_tit').textContent=f?'✏️ '+nomeCurto(f):'➕ Novo motoboy';
+  $('df_nome').value=f?f.nome:(pre?pre.nome:'');
+  $('df_loja').value=f?f.loja:(pre?pre.loja:(LOJAS[0]||''));
+  $('df_tipo').value=f?f.tipo:'fixo';
+  $('df_tk').value=pre?pre.nome:'';
+  $('df_tk_f').style.display=f?'none':'';
+  $('df_obs').value=f?(f.obs||''):'';
+  $('df_at').checked=f?!!f.ativo:true;
+  $('df_at_f').style.display=f?'':'none';
+  $('df_sal').disabled=false;
+  const g=$('dlg_fic');if(g.showModal)g.showModal();else g.setAttribute('open','');
+  setTimeout(function(){$('df_nome').focus()},30);
+}
+async function salvaFicha(){
+  if($('df_sal').disabled)return;
+  const nome=$('df_nome').value.trim();
+  if(!nome){aviso('✋ Escreva o nome');$('df_nome').focus();return}
+  const dados={nome:nome,loja:$('df_loja').value,tipo:$('df_tipo').value,obs:$('df_obs').value.trim()};
+  if(EFIC!=null){dados.id=EFIC;dados.ativo=$('df_at').checked}else dados.nome_trackeat=$('df_tk').value.trim();
+  $('df_sal').disabled=true;
+  try{await porta('ficha',dados);fecha('dlg_fic');await boot();aviso(EFIC!=null?'✅ Ficha atualizada!':'🎉 Ficha criada!')}
+  catch(e){$('df_sal').disabled=false;aviso('😕 Não deu para salvar. Entre no portal de novo e tente outra vez.')}
+}
+function fecha(i){const d=$(i);if(d.close)d.close();else d.removeAttribute('open')}
+
+document.addEventListener('click',function(ev){
+  const f=ev.target.closest('[data-f]');
+  if(f){FILTRO=f.getAttribute('data-f');pintaChips();pinta();return}
+  const d=ev.target.closest('[data-doc]');
+  if(d){const p=d.getAttribute('data-doc').split('|');abreDoc(Number(p[0]),p[1]);return}
+  const e=ev.target.closest('[data-fic]');
+  if(e){abreFicha(Number(e.getAttribute('data-fic')));return}
+  const nv=ev.target.closest('[data-novo]');
+  if(nv){abreFicha(null,SEM[Number(nv.getAttribute('data-novo'))]);return}
+  const ir=ev.target.closest('[data-ir]');
+  if(ir){
+    const id=Number(ir.getAttribute('data-ir'));
+    if(FILTRO!=='todas'){FILTRO='todas';$('q').value='';pintaChips();pinta()}
+    const el=$('f'+id);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('dest');setTimeout(function(){el.classList.remove('dest')},2200)}
+  }
+});
+
+async function boot(){
+  let j;
+  try{j=await porta('listar',{})}
+  catch(e){$('app').innerHTML='<div class="vazio"><span class="em">🔌</span>Não deu para carregar. Entre no portal de novo.</div>';return}
+  FICHAS=j.fichas||[];SEM=j.sem_ficha||[];QUEM=j.quem||'';PODE=!!j.pode_editar;
+  FICHAS.forEach(function(f){f.loja=nomeLoja(f.loja);(f.onde||[]).forEach(function(o){o.loja=nomeLoja(o.loja)})});
+  SEM.forEach(function(s){s.loja=nomeLoja(s.loja)});
+  $('b_novo').style.display=PODE?'':'none';
+  pintaPlacar();pintaPedir();pintaChips();pinta();
+  $('rod').innerHTML='<b>Como ler as cores</b><div class="leg">'+
+    Object.keys(SIT).map(function(s){return '<span class="s-'+s+'">'+SIT[s].l+'</span>'}).join('')+'</div><br>'+
+    'A ficha de cada motoboy é preenchida aqui pela equipe, conforme ele entrega os documentos. '+
+    'As entregas são do TrackEat, nos últimos 30 dias, sem as reprovadas. A chave Pix vem do cadastro do pagamento dos motoboys. '+
+    'Recebeu um documento? Toque na linha dele no cartão e mude a situação.'+
+    '<br>Lido em '+esc(j.gerado_em||'')+(QUEM?' · você está como <b>'+esc(QUEM)+'</b>':'')+'.';
+}
+
+/* ===== porta unica do portal ===== */
+const CDMMODS=['motoboys'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'motoboys'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(ok)boot()});
+</script>
+<script src="../assets/portal.js?v=3"></script>
+</body>
+</html>

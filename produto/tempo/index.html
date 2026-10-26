@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../config.js" data-demo="telas/tempo.js"></script>
+<script src="../assets/chaves.js?v=1"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Tempo de Entrega · Portal de Gestão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cdm-ui.css?v=4">
+<style>
+/* Tela de balcao: os numeros ficam em quadros e tocar num quadro leva ate a lista dele
+   (as listas ficam sempre abertas). */
+:root{--azul:#4d9de0;--gold:#e0a81c}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:7px 11px;font-size:13px;font-weight:700}
+button.b:hover{border-color:var(--text2)}
+.lojas{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 14px}
+.lojas .rot{color:var(--muted);font-size:12px;font-weight:800;margin-right:2px}
+.lojas .chip{padding:7px 13px}
+.load{color:var(--muted);padding:40px 10px;text-align:center}
+.m{color:var(--muted);font-size:11.5px;margin-top:10px;line-height:1.65}
+.nota{color:var(--muted);font-size:12px;margin-top:8px;line-height:1.5}
+
+/* quadros */
+.quadros{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.quadros>*{min-width:0}
+.quadros.tres{grid-template-columns:repeat(3,minmax(0,1fr))}
+.quadros.sete{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.q{background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:14px 15px;text-align:left;color:var(--text);font-family:inherit;display:flex;flex-direction:column;gap:3px;transition:border-color .15s,transform .08s}
+button.q:hover{border-color:#5a5952}
+button.q:active{transform:scale(.98)}
+div.q{cursor:default}
+.q .qt{font-size:13px;font-weight:800;color:var(--text2);display:flex;align-items:center;gap:6px;line-height:1.3}
+.q .qt .em{font-size:17px}
+.q .qn{font-family:'Anton',Impact,sans-serif;font-size:42px;line-height:1.05;word-break:break-word}
+.q .qn span{font-family:'Barlow',sans-serif;font-size:16px;font-weight:700;color:var(--muted);margin-left:3px}
+.q .qs{color:var(--muted);font-size:12px;font-weight:600;line-height:1.35}
+.quadros.tres .q .qn{font-size:52px}
+.q.mal{border-left:4px solid var(--bad)}
+.q.mal .qn{color:#ff8a8a}
+.q.aviso{border-left:4px solid var(--warn)}
+.q.aviso .qn{color:var(--warn)}
+.q.bem .qn{color:#7fe0aa}
+.q.sd{border-style:dashed}
+.q.sd .qn{color:var(--muted)}
+.q.neutro .qn{color:var(--text)}
+.q.on{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand) inset}
+/* o quadro "a conta pede" pega a cor da decisao (vermelho sobe, azul desce, verde fica, cinza sem dado) */
+.vermelho .q.alvo{border-left:4px solid var(--bad);animation:pisca 1.1s ease-in-out infinite}
+.vermelho .q.alvo .qn{color:#ff8a8a}
+.azul .q.alvo{border-left:4px solid var(--azul)}
+.azul .q.alvo .qn{color:#8cc4f2}
+.verde .q.alvo .qn{color:#7fe0aa}
+.cinza .q.alvo{border-style:dashed}
+.cinza .q.alvo .qn{color:var(--muted)}
+@keyframes pisca{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* aviso do que fazer (sempre a vista) */
+.acao{border-radius:16px;padding:16px 18px;font-size:17px;font-weight:800;margin:12px 0 0;line-height:1.45}
+.acao .p{display:block;font-size:13.5px;font-weight:600;margin-top:7px;opacity:.9}
+.a-sobe{background:rgba(230,103,103,.14);border:1px solid var(--bad);border-left-width:4px;color:#ffbcbc}
+.a-desce{background:rgba(77,157,224,.14);border:1px solid var(--azul);border-left-width:4px;color:#bcdcff}
+.a-ok{background:rgba(37,163,95,.14);border:1px solid var(--ok);border-left-width:4px;color:#b6f0d0}
+.a-cego{background:rgba(138,137,126,.14);border:1px dashed var(--muted);color:var(--text2)}
+.moto{border-radius:16px;padding:14px 18px;margin:10px 0 0;line-height:1.5;background:rgba(224,168,28,.12);border:1px solid var(--gold);border-left-width:4px;color:#ffe7ab;font-size:15.5px;font-weight:700}
+.moto .p{display:block;font-size:13.5px;font-weight:600;margin-top:7px;opacity:.9}
+
+/* listas que os quadros abrem (ficam sempre a vista; o quadro so leva ate elas e acende) */
+.painel{margin-top:22px}
+.painel .ph{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:10px}
+.painel .ph h3{font-family:'Anton',Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:19px;letter-spacing:.02em}
+.painel .ph .ct{color:var(--muted);font-size:13px;font-weight:600}
+.painel .ph .fecha{margin-left:auto;display:none}
+.painel.on .ph .fecha{display:inline-block}
+.painel .caixa{transition:border-color .15s,box-shadow .15s}
+.painel.on .caixa{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand) inset}
+.lista{background:var(--s1);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.it{padding:11px 14px;border-bottom:1px solid var(--line);font-size:13.5px}
+.it:last-child{border-bottom:none}
+.it .l1{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.it .l1 b{font-weight:800}
+.it .m{color:var(--muted);font-size:12.5px;margin-top:0}
+.it.pend{border-left:4px solid var(--bad)}
+.it.gh{background:var(--s2);padding:8px 14px}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums}
+.p-bad{background:rgba(230,103,103,.15);color:#ff9a9a}
+.p-warn{background:rgba(201,133,0,.16);color:var(--warn)}
+.p-ok{background:rgba(37,163,95,.15);color:#7fe0aa}
+.p-off{background:var(--s3);color:var(--text2)}
+.vz{color:var(--muted);font-size:14px;padding:18px 14px;text-align:center}
+
+/* dia, hora e loja aberta (cabecalho do banco) */
+.cdmcab{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:12px 15px;margin:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cdmdia{font-family:'Barlow Condensed',sans-serif;font-size:21px;font-weight:700;letter-spacing:.02em}
+.cdmabe,.cdmfec,.cdmsem{border-radius:999px;padding:5px 12px;font-size:13px;font-weight:700}
+.cdmabe{background:rgba(37,163,95,.15);color:#7fe0aa}
+.cdmfec{background:rgba(230,103,103,.18);color:#ff9a9a;font-weight:800}
+.cdmsem{background:rgba(201,133,0,.16);color:var(--warn)}
+.parado{background:var(--s1);border:1.5px dashed #4a4943;color:var(--text2);border-radius:13px;padding:12px 16px;margin-bottom:14px;font-size:14px;font-weight:600;line-height:1.5}
+
+body.alarme{animation:fundoAl .9s ease-in-out infinite alternate;min-height:100vh}
+@keyframes fundoAl{from{background:var(--s0)}to{background:#4a0a12}}
+.sil{position:fixed;right:14px;bottom:14px;z-index:99;background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:10px 14px;font-weight:800;cursor:pointer;display:none}
+.somaviso{position:fixed;left:0;right:0;bottom:0;background:#c8102e;color:#fff;font-weight:800;text-align:center;padding:12px;z-index:98;display:none}
+
+/* motoboys ao vivo, logo abaixo dos quadros */
+.mbs{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:14px 16px;overflow-x:auto}
+.mbs table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:540px}
+.mbs th{text-align:left;color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;font-weight:700;padding:0 10px 9px 0;border-bottom:1px solid var(--line)}
+.mbs td{padding:11px 10px;border-bottom:1px solid var(--line);color:var(--text2)}
+.mbs td:first-child,.mbs th:first-child{padding-left:0}
+.mbs tr:last-child td{border-bottom:0}
+.mbs .nome{color:var(--text);font-weight:600}
+.mbs .pin{color:#7fe0aa}
+.mbs .rua{color:var(--brand)}
+.mbs .vazio{color:var(--muted);font-size:14px;padding:6px 0;text-align:left}
+.mbs .prox{margin:0 0 12px;font-weight:700;color:#7fe0aa;font-size:14px}
+.mbs .reg{color:var(--muted);font-size:11.5px;margin-top:10px;line-height:1.4}
+.mbs .sin{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:middle}
+.mbs .sin-v{background:var(--ok);box-shadow:0 0 0 3px rgba(37,163,95,.18)}
+.mbs .sin-r{background:var(--bad);box-shadow:0 0 0 3px rgba(230,103,103,.18)}
+.mbs .sin-n{background:transparent;box-shadow:none}
+.mbs .leg{color:var(--muted);font-size:11.5px;margin-top:10px}
+
+/* a conta linha por linha */
+.regua{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+.regua table{width:100%;border-collapse:collapse;font-size:13.5px}
+.regua td{padding:7px 4px;border-bottom:1px solid var(--line);color:var(--text2)}
+.regua td:last-child{text-align:right;font-weight:800;color:var(--text);white-space:nowrap}
+.regua tr:last-child td{border-bottom:none}
+.regua tr.aqui td{background:rgba(224,168,28,.13);color:#ffe7ab}
+
+/* caixa de recado da equipe */
+.sug{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+.sug .ex{color:var(--muted);font-size:12.5px;margin-bottom:12px;line-height:1.5}
+.sug input,.sug textarea{width:100%;box-sizing:border-box;background:var(--s2);border:1px solid var(--line);border-radius:11px;color:var(--text);font:inherit;font-size:14px;padding:10px 12px;margin-bottom:8px}
+.sug input:focus,.sug textarea:focus{outline:none;border-color:var(--text2)}
+.sug textarea{min-height:74px;resize:vertical}
+.sug .bt{flex:none;display:inline-block;background:var(--brand);color:var(--brand-ink);border:0;border-radius:12px;padding:11px 18px;font-weight:800;font-size:14px;cursor:pointer}
+.sug .av{display:block;flex:none;width:auto;height:auto;background:none;border-radius:0;font-size:13px;margin-top:9px;min-height:18px;color:#7fe0aa}
+.sug .av.ruim{color:#ff8f8f}
+.sug ul{list-style:none;margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.sug li{padding:10px 0;border-bottom:1px solid var(--line);font-size:13.5px;color:var(--text2);line-height:1.5}
+.sug li:last-child{border-bottom:0}
+.sug li b{color:var(--text)}
+.sug .qd{color:var(--muted);font-size:11.5px}
+.sug .st{display:inline-block;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;font-weight:800;border-radius:999px;padding:2px 8px;margin:0 0 0 6px}
+.sug .st.novo{background:rgba(224,168,28,.18);color:#ffe7ab}
+.sug .st.lido{background:rgba(255,255,255,.08);color:var(--muted)}
+.sug .st.feito{background:rgba(37,163,95,.18);color:#9ce3b6}
+.sug .st.descartado{background:rgba(255,255,255,.06);color:var(--muted)}
+.sug .rp{display:block;margin-top:5px;color:#ffe7ab;font-size:12.5px}
+.sug .dn{margin-top:6px}
+.sug .dn button{background:var(--s2);border:1px solid var(--line);color:var(--text2);border-radius:10px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;margin-right:6px}
+.sug .dn button:hover{border-color:var(--text2)}
+
+@media (max-width:640px){
+  .quadros{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .quadros.tres,.quadros.sete{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .quadros.tres .alvo{grid-column:1/-1;order:-1}
+  .q .qn,.quadros.tres .q .qn{font-size:34px}
+  .acao{font-size:15.5px;padding:14px 15px}
+  .lojas{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+  .lojas::-webkit-scrollbar{display:none}
+  .lojas .chip{flex:0 0 auto}
+}
+/* cartoes (mesmo desenho da Fila e do Resolver hoje) */
+.vv-lista{display:grid;gap:10px}
+.vv-lista.duas{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
+.vv-lista>*{min-width:0}
+div.vv{background:var(--s1);border:1px solid var(--line);border-left:5px solid var(--warn);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px}
+div.vv.ok{border-left-color:var(--ok)}
+div.vv.bad{border-left-color:var(--bad);background:rgba(230,103,103,.06)}
+div.vv.off{border-left-color:var(--muted)}
+.vv .hr{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;line-height:1;white-space:nowrap}
+.vv .ha{color:var(--muted);font-size:11.5px;margin-top:3px}
+.vv .tt{font-size:17px;font-weight:800;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vv .lj{color:var(--text2);font-size:13px;margin-top:2px}
+.vv .rs{margin-top:6px;font-size:12px;color:var(--muted)}
+.vv .vit{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 0;border-top:1px solid var(--line);font-size:13px;margin-top:6px}
+.vv .vit .p{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;line-height:1}
+.vv .vit .h{color:var(--muted);font-size:12px}
+.vv .vit .m{margin-left:auto;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;white-space:nowrap;line-height:1}
+.vv .vit .m{color:var(--text);margin-top:0}
+.vv .vit.late .m{color:#ff8a8a}
+.vv .vit .dd{color:var(--text2);font-size:12px;font-weight:700;white-space:nowrap}
+.vv .vit .dd.pp{color:#7fe0aa}
+.vv .vit .dd.lg{color:var(--warn)}
+.vv .pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:800;white-space:nowrap}
+.vv .p-ok{background:rgba(47,174,106,.15);color:#7fe0aa}
+.vv .p-bad{background:rgba(230,103,103,.15);color:#ff9a9a}
+.vv .p-warn{background:rgba(201,133,0,.16);color:var(--warn)}
+.vv .p-off{background:var(--s3);color:var(--text2)}
+.vv .sin{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:middle}
+.vv .sin-v{background:var(--ok);box-shadow:0 0 0 3px rgba(47,174,106,.18)}
+.vv .sin-r{background:var(--bad);box-shadow:0 0 0 3px rgba(230,103,103,.18)}
+.vv .sin-n{display:none}
+.mbs .prox{margin:0 0 10px;font-weight:800;color:#7fe0aa;font-size:14.5px}
+.mbs .reg{color:var(--muted);font-size:12px;margin-top:10px;line-height:1.45}
+.mbs .vazio{font-size:14px}
+.mbs .leg .sin{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.mbs .leg .sin-v{background:var(--ok)}
+.mbs .leg .sin-r{background:var(--bad)}
+@media (max-width:640px){div.vv{grid-template-columns:62px minmax(0,1fr);gap:8px;padding:12px 10px}.vv .hr{font-size:19px}.vv-lista.duas{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="top">
+  <div>
+    <h1>⏱ Tempo de Entrega</h1>
+    <div class="placar" id="placar"><span class="pl" id="sub">Quanto prometer ao cliente agora</span><span id="plx" style="display:contents"></span></div>
+  </div>
+  <div class="rt"><button class="b" onclick="location.reload()">↻ Atualizar</button></div>
+</div>
+<div class="lojas" id="lojas"><span class="rot">LOJA</span></div>
+<div id="app"><div class="load">Carregando…</div></div>
+</div>
+<button id="sil" class="sil" onclick="silAte=Date.now()+15*60000;document.body.classList.remove('alarme');if(apitador){clearInterval(apitador);apitador=null}">⏸ Pausar o vermelho 15 min</button>
+<div id="somaviso" class="somaviso">🔊 Toque na tela UMA VEZ para ligar o som do alarme</div>
+
+<script>
+const SB=PORTAL_CFG.rest;
+const KEY=PORTAL_CFG.chave;
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+async function rpc(nome,corpo){
+  try{
+    const r=await fetch(SB+'rpc/'+nome,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify(corpo)});
+    return r.ok?await r.json():null;
+  }catch(e){return null}
+}
+
+function cdmCab(d){
+  var s='';
+  var hr=d.loja_horario?(' · '+d.loja_horario):'';
+  if(d.loja_status==='fechada'){s='<div class="cdmfec">🔴 A LOJA ESTÁ FECHADA no iFood'+(d.loja_horario?(' — hoje o horário é '+d.loja_horario):'')+'</div>';}
+  else if(d.loja_status==='aberta'){s='<div class="cdmabe">🟢 Loja aberta no iFood'+hr+'</div>';}
+  else if(!d.loja_status){var q=Number(d.loja_status_ha_min||0);var qt=q>=2880?(Math.round(q/1440)+' dias'):(q>=120?(Math.round(q/60)+' horas'):(q+' minutos'));s='<div class="cdmsem">⚠️ Não sei dizer se a loja está aberta — esse dado não é lido há '+qt+'</div>';}
+  return (d.aviso?'<div class="parado">ⓘ '+esc(d.aviso)+'</div>':'')+
+    '<div class="cdmcab"><div class="cdmdia">'+esc(d.agora_dia||d.agora||'')+'</div>'+s+'</div>';
+}
+function cdmRetrato(d){
+  var p=d.pedidos||[];
+  var cab=function(tit,ct){return '<div class="painel" id="sec_ret"><div class="ph"><h3>📦 '+tit+'</h3>'+(ct?'<span class="ct">'+ct+'</span>':'')+'<button class="b fecha" data-fecha="1">fechar ✕</button></div>';};
+  if(!p.length) return cab('O que está acontecendo agora','')+'<div class="lista caixa"><div class="vz">'+((d.cego===true&&d.loja_status!=='fechada')?'Sem dado ao vivo — não dá para saber quem está com pedido na mão':'Ninguém com pedido na mão agora')+'</div></div></div>';
+  var por={},ordem=[];
+  p.forEach(function(x){var k=x.entregador?x.entregador:'— ainda sem motoboy';if(!por[k]){por[k]=[];ordem.push(k)}por[k].push(x)});
+  /* um cartao por motoboy (ou "ainda sem motoboy"), com o pedido mais antigo em destaque */
+  var h=cab('O que está acontecendo agora',p.length+' pedido'+(p.length>1?'s':'')+' · um cartão por motoboy')+'<div class="vv-lista duas">';
+  ordem.forEach(function(k){
+    var ms=por[k].map(function(x){return Number(x.min);}).filter(function(n){return isFinite(n);}), mx=ms.length?Math.max.apply(null,ms):null;
+    h+='<div class="vv '+(mx==null?'off':(mx>=60?'bad':(mx>=45?'':'off')))+'"><div><div class="hr">'+(mx==null?'—':mx)+'</div><div class="ha">min, o mais antigo</div></div><div>'+
+      '<div class="tt">'+esc(k)+' <span class="pill p-off">'+por[k].length+' '+(por[k].length===1?'pedido':'pedidos')+'</span></div>'+
+      por[k].map(function(x){
+        return '<div class="vit'+(x.min>=60?' late':'')+'"><span class="p">'+esc(x.pedido)+'</span><span class="h">'+esc(x.etapa)+' · entrou '+esc(x.entrou)+'</span><span class="m">'+esc(x.min)+' min</span></div>';
+      }).join('')+
+    '</div></div>';
+  });
+  return h+'</div></div>';
+}
+/* Quadro com alvo vira botao: tocar acende o quadro e a lista dele e rola ate ela.
+   A lista nao some ao fechar (tela de balcao, tudo continua a vista). */
+let ABERTO=null;
+function qB(o){
+  var miolo='<div class="qt"><span class="em">'+o.em+'</span>'+o.t+'</div><div class="qn">'+o.n+'</div><div class="qs">'+o.s+'</div>';
+  if(!o.alvo) return '<div class="q '+o.k+'">'+miolo+'</div>';
+  return '<button class="q '+o.k+'" data-q="'+o.id+'" data-alvo="'+o.alvo+'" title="Toque para ir até a lista">'+miolo+'</button>';
+}
+function marcaAberto(){
+  var alvo=null;
+  document.querySelectorAll('#app [data-q]').forEach(function(b){var on=(b.getAttribute('data-q')===ABERTO);b.classList.toggle('on',on);if(on)alvo=b.getAttribute('data-alvo')});
+  document.querySelectorAll('#app .painel[id]').forEach(function(p){p.classList.toggle('on',p.id===alvo)});
+}
+function abreQ(id){
+  ABERTO=(ABERTO===id?null:id);
+  marcaAberto();
+  if(!ABERTO) return;
+  var b=document.querySelector('#app [data-q="'+ABERTO+'"]'), p=b?$(b.getAttribute('data-alvo')):null;
+  if(p&&p.scrollIntoView) p.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function ligaQuadros(){
+  var a=$('app');
+  a.querySelectorAll('[data-q]').forEach(function(b){b.onclick=function(){abreQ(b.getAttribute('data-q'))}});
+  a.querySelectorAll('[data-fecha]').forEach(function(b){b.onclick=function(){ABERTO=null;marcaAberto()}});
+  marcaAberto();
+}
+function pinta(d){
+  const prom=Number(d.prometido||0), sug=Number(d.sugerido||0), dif=sug-prom;
+  const clima=String(d.clima||'seco'), ppm=d.por_motoboy, lim=Number(d.limite_por_motoboy||5.5);
+  const motos=Number(d.motoboys||0);
+  const prontos=Number(d.prontos_sem_motoboy||0), antigo=Number(d.mais_antigo_min||0), parados=Number(d.parados||0);
+  /* O Gestor de Pedidos e lido 1x por hora: quando o numero de parados vem de la,
+     a tela diz de quando e o numero. */
+  const gwMin=(d.gw_atraso_min==null?null:Number(d.gw_atraso_min));
+  const vemDoGW=String(d.parados_fonte||'').indexOf('passaram da hora')>=0;
+  const idadeGW=(vemDoGW&&gwMin!=null)?' — lido há '+gwMin+' min no Gestor de Pedidos, pode já ter mudado':'';
+
+  const pAtual=d.preset_atual||null, pSug=d.preset_sugerido||null, pDe=d.preset_sugerido_de, pAte=d.preset_sugerido_ate, aco=d.acao||null;
+  const presets=Array.isArray(d.presets)?d.presets:[];
+  const faixa=(n,de,ate)=>'<b>'+esc(n)+'</b> ('+de+'–'+ate+' min)';
+  const onde='Onde: Gestor de Pedidos → Ajustes → Gestão de lojas → Gerenciar pré-configurações → escolha a faixa → Salvar.';
+
+  let acao,cls;
+  if(aco==='subir'&&pSug){acao='<div class="acao a-sobe">🔺 TROQUE para '+faixa(pSug,pDe,pAte)+'<span class="p">'+esc(d.motivo)+'. A conta pede '+sug+' min; hoje está '+(pAtual?'na '+esc(pAtual):'em '+prom+' min')+' e o cliente enxerga '+(prom+10)+'. '+onde+'</span></div>';cls='vermelho'}
+  else if(aco==='baixar'&&pSug){acao='<div class="acao a-desce">🔻 Dá para VOLTAR para '+faixa(pSug,pDe,pAte)+'<span class="p">'+esc(d.motivo)+'. Está em '+prom+' e a conta pede '+sug+' — tempo alto à toa espanta cliente. Confira daqui a meia hora antes de mexer. '+onde+'</span></div>';cls='azul'}
+  else if(aco==='fica'){acao='<div class="acao a-ok">✅ Fique na '+esc(pAtual||pSug||(prom+' min'))+'<span class="p">'+esc(d.motivo)+'.</span></div>';cls='verde'}
+  else if(dif>4){acao='<div class="acao a-sobe">🔺 SUBA o tempo para '+sug+' minutos<span class="p">'+esc(d.motivo)+'. Hoje está em '+prom+', e o cliente enxerga '+(prom+10)+'.</span></div>';cls='vermelho'}
+  else if(dif<-8){acao='<div class="acao a-desce">🔻 Dá para BAIXAR para '+sug+' minutos<span class="p">'+esc(d.motivo)+'. Está em '+prom+' e a conta pede '+sug+' — tempo alto à toa espanta cliente.</span></div>';cls='azul'}
+  else{acao='<div class="acao a-ok">✅ Está bom assim<span class="p">'+esc(d.motivo)+'.</span></div>';cls='verde'}
+
+  if(parados>0&&Number(d.pedidos_hora||0)>0&&(aco==='subir'||sug>prom+4)){cls='vermelho';acao='<div class="acao a-sobe">🛵 A FILA NÃO ESTÁ ANDANDO — '+motos+' motoboy'+(motos===1?'':'s')+' na rua hoje<span class="p">'+(prontos>0?prontos+' pedido'+(prontos===1?'':'s')+' pronto'+(prontos===1?'':'s')+' esperando quem leve':parados+' pedido'+(parados===1?'':'s')+' já passou da hora prometida'+idadeGW)+'. Não dá para chamar mais ninguém no meio do turno — com quem está na rua, o jeito é '+(pSug&&aco==='subir'?'trocar para '+faixa(pSug,pDe,pAte):'subir para a próxima faixa')+' enquanto a prateleira não baixa.</span></div>';}
+  else if(parados>0&&Number(d.pedidos_hora||0)>0){cls='azul';acao='<div class="acao a-desce">⏸ A FILA NÃO ESTÁ ANDANDO — mas o tempo que você promete já cobre<span class="p">'+(prontos>0?prontos+' pedido'+(prontos===1?'':'s')+' pronto'+(prontos===1?'':'s')+' esperando quem leve':parados+' pedido'+(parados===1?'':'s')+' já passou da hora'+idadeGW)+', com '+motos+' motoboy'+(motos===1?'':'s')+' na rua hoje. Você promete '+prom+' min e a conta pede '+sug+' — a faixa não precisa mexer agora. O gargalo é a retirada: veja quem saiu para rota longa antes de baixar o tempo.</span></div>';}
+  /* Sem fonte ao vivo atualizada (cego) ou com a loja fechada, a tela nao pinta verde:
+     fica cinza e diz por que. */
+  const cego=(d.cego===true||d.cor==='cinza');
+  const nv=function(v){return cego?'—':v;};
+  if(cego){
+    cls='cinza';
+    if(d.loja_status==='fechada'){acao='<div class="acao a-cego">🔒 Loja fechada no iFood — nada a decidir agora<span class="p">A faixa fica como está até a loja abrir.</span></div>';}
+    else{acao='<div class="acao a-cego">⚪ SEM DADO AO VIVO — não dá para dizer se o tempo sobe ou desce<span class="p">'+esc(d.cego_motivo||'as fontes ao vivo não atualizaram')+'. A faixa segue '+(pAtual?'na '+esc(pAtual):'em '+prom+' min')+'. Até o dado voltar, decida olhando o Gestor de Pedidos do iFood.</span></div>';}
+  }
+let moto='';
+  if(parados>0&&Number(d.pedidos_hora||0)>0){
+    moto='<div class="moto">🛵 '+motos+' motoboy'+(motos===1?'':'s')+' na rua agora — a conta é feita com quem está trabalhando hoje.'+
+      '<span class="p">'+(ppm==null?'':'Está saindo '+ppm+' pedido por motoboy na última hora. ')+'Não entra gente nova no meio do turno: o único botão que existe de verdade é a faixa do iFood, e o aviso acima diz se ela precisa mexer.</span></div>';
+  } else if(prontos>=10){
+    moto='<div class="moto">🛵 '+prontos+' pedidos prontos parados esperando quem leve.'+
+      '<span class="p">O ritmo de entrada está bom ('+ppm+' por motoboy), mas a comida está esfriando no balcão. Vale olhar se alguém saiu para uma rota longa.</span></div>';
+  }
+
+  if(cego) moto='';
+  /* quadros; quadro com lista leva ate ela (data-alvo) */
+  const un=function(v,u){return cego?'—':v+'<span>'+u+'</span>';};
+  const p80=Number(d.preparo_p80||0), chMm=Number(d.chuva_mm||0);
+  let h='<div class="grp"><span class="em">⏱</span><h2>A faixa do iFood</h2><span class="ct">quanto prometer ao cliente agora</span></div>'+
+   '<div class="'+cls+'">'+
+   '<div class="quadros tres">'+
+    qB({id:'prom',alvo:'sec_regua',em:'🕒',t:(pAtual?(/^faixa/i.test(pAtual)?'':'Faixa ')+esc(pAtual)+' no iFood':'Prometido no iFood'),n:prom+'<span>min</span>',s:'o cliente enxerga '+(prom+10)+' min',k:'neutro'})+
+    qB({id:'alvo',alvo:'sec_regua',em:'🎯',t:(pSug?'A faixa que a conta pede':'A conta pede'),n:(pSug?esc(pSug):sug+'<span>min</span>'),s:(pSug?'a conta pede '+sug+' min · faixa '+pDe+'–'+pAte:'cobre 8 de cada 10 pedidos'),k:'alvo neutro'})+
+    qB({id:'ppm',alvo:'sec_mbs',em:'🛵',t:'Pedidos por motoboy',n:(ppm==null||cego?'—':esc(String(ppm))),s:esc(clima)+' · o limite hoje é '+lim,k:(ppm==null||cego?'sd':'neutro')})+
+   '</div>'+acao+moto+'</div>';
+
+  h+='<div class="grp"><span class="em">🛵</span><h2>Movimento agora</h2><span class="ct">toque num quadro para ir até a lista dele</span></div>'+
+   '<div class="quadros sete">'+
+    qB({id:'motos',alvo:'sec_mbs',em:'🛵',t:'Motoboys na rua hoje',n:nv(motos),s:'a conta usa quem está na rua hoje',k:(cego?'sd':'neutro')})+
+    qB({id:'phora',em:'📥',t:'Pedidos na última hora',n:nv(Number(d.pedidos_hora||0)),s:'o que entrou de pedido',k:(cego?'sd':'neutro')})+
+    qB({id:'prontos',alvo:'sec_ret',em:'🥡',t:'Prontos esperando motoboy',n:nv(prontos),s:'pedido pronto parado no balcão',k:(cego?'sd':(prontos>=10?'mal':(prontos>=5?'aviso':(prontos===0?'bem':'neutro'))))})+
+    qB({id:'cozinha',alvo:'sec_ret',em:'🍳',t:'Na fila da cozinha',n:nv(Number(d.esperando_cozinha||0)),s:'esperando a cozinha',k:(cego?'sd':'neutro')})+
+    qB({id:'preparo',em:'⏲',t:'Preparo',n:un(p80,'min'),s:'tempo de preparo da cozinha',k:(cego?'sd':(p80>22?'aviso':'neutro'))})+
+    qB({id:'antigo',alvo:'sec_ret',em:'⌛',t:'O pedido mais antigo',n:un(antigo,'min'),s:'há quanto tempo entrou',k:(cego?'sd':(antigo>90?'mal':'neutro'))})+
+    qB({id:'chuva',alvo:'sec_regua',em:'🌧',t:'Chuva agora',n:chMm.toFixed(1)+'<span>mm</span>',s:Number(d.chuva_prob||0)+'% de chance',k:(chMm>=1?'aviso':'neutro')})+
+  '</div>';
+
+  /* Quantas entregas faltam para cada motoboy e quando ele fica livre de novo.
+     A conta vem do banco, com a mediana do TrackEat da loja. */
+  var mbProx = function(lst){
+    var c = lst.filter(function(m){return m.livre && m.livre_min!=null;});
+    if(!c.length) return '';
+    c.sort(function(a,b){return a.livre_min-b.livre_min;});
+    var p = c[0];
+    return '<div class="prox">🟢 '+(p.livre==='agora'?'Livre agora: ':'Próximo motoboy livre: ~'+esc(p.livre)+' — ')+esc(p.motoboy)+'</div>';
+  };
+  var mbRegua = function(r){
+    if(!r) return '';
+    return '<div class="reg">Livre ~ é estimativa: '+esc(String(r.ida_min))+' min até a 1ª entrega, '+esc(String(r.entre_min))+' min entre uma entrega e outra e '+
+      esc(String(r.volta_min))+' min de volta (mediana do TrackEat desta loja, '+esc(String(r.amostra))+' entregas dos últimos '+esc(String(r.dias))+' dias). A volta usa o mesmo tempo da ida.</div>';
+  };
+  /* motoboys logo abaixo dos quadros */
+  var mb = Array.isArray(d.motoboys_lista)?d.motoboys_lista:[];
+  /* Bolinha vermelha = com entrega na mao; verde = ja entregou e esta voltando ou na loja.
+     So mostra o que o TrackEat sabe. Quando o TrackEat nao tem o motoboy, faltam vem nulo
+     e nao se acende bolinha nenhuma (verde sem dado seria dizer que ele esta livre sem saber). */
+  var mbSinal = function(m){
+    if(m.faltam === null || m.faltam === undefined) return '<span class="sin sin-n" title="o TrackEat não tem este motoboy agora"></span>';
+    return (m.faltam > 0)
+      ? '<span class="sin sin-r" title="com entrega na mão"></span>'
+      : '<span class="sin sin-v" title="sem entrega na mão agora"></span>';
+  };
+  var mbLegenda = function(lst){
+    var naosei = lst.some(function(m){ return m.faltam === null || m.faltam === undefined; });
+    return '<div class="leg"><span class="sin sin-r"></span>com entrega na mão'+
+      ' &nbsp;·&nbsp; <span class="sin sin-v"></span>sem entrega na mão agora'+
+      (naosei ? ' &nbsp;·&nbsp; sem bolinha: este motoboy não aparece no TrackEat agora' : '')+'</div>';
+  };
+  h+='<div class="painel" id="sec_mbs"><div class="ph"><h3>🛵 Quem está com o aplicativo ligado neste minuto</h3>'+(mb.length?'<span class="ct">'+mb.length+' motoboy'+(mb.length===1?'':'s')+'</span>':'')+'<button class="b fecha" data-fecha="1">fechar ✕</button></div>'+
+    '<div class="mbs caixa">'+mbProx(mb)+
+    (mb.length
+      /* um cartao por motoboy, igual a Fila e ao Resolver hoje */
+      ? '<div class="vv-lista duas">'+mb.map(function(m){
+          var livre=(m.livre==='agora'), naosei=(m.faltam===null||m.faltam===undefined), cls=naosei?'off':((m.faltam>0)?'':(livre||m.no_patio?'ok':'off'));
+          return '<div class="vv '+cls+'"><div><div class="hr">'+(livre?'agora':(m.livre?'~'+esc(m.livre):'—'))+'</div><div class="ha">livre</div></div><div>'+
+            '<div class="tt">'+mbSinal(m)+esc(m.motoboy)+' <span class="pill '+(m.no_patio?'p-ok':'p-warn')+'">'+(m.no_patio?'🟢 ':'🛵 ')+esc(m.onde)+'</span></div>'+
+            '<div class="lj">'+(m.dist?esc(m.dist)+' da loja · ':'')+esc(m.situacao||'')+'</div>'+
+            '<div class="rs">'+(naosei?'o TrackEat não tem este motoboy agora':(m.faltam>0?'<b style="color:var(--text)">'+esc(String(m.faltam))+'</b> '+(m.faltam==1?'entrega na mão':'entregas na mão'):'sem entrega na mão'))+
+              ' · app '+esc(m.app||'—')+' · visto '+esc(m.visto||'—')+'</div>'+
+          '</div></div>';
+        }).join('')+'</div>'+mbLegenda(mb)+mbRegua(d.motoboys_regua)
+      : '<div class="vazio">'+((d.cego===true&&d.loja_status!=='fechada')?'Sem dado ao vivo do aplicativo dos motoboys — não dá para saber quem está na rua.':'Nenhum motoboy com o aplicativo ligado nos últimos 30 minutos.')+'</div>')+
+   '</div></div>';
+  h+=cdmRetrato(d);
+
+  /* caixa onde a equipe do delivery escreve o que mudar nesta tela */
+  var sg = Array.isArray(d.sugestoes)?d.sugestoes:[];
+  var dono = d.sou_dono===true;
+  var hSug='<div class="painel"><div class="ph"><h3>✍ O que dá para melhorar aqui</h3></div><div class="sug">'+
+    '<div class="ex">Escreveu aqui, o dono lê. Diga o que esta tela está mostrando errado, o que falta nela, ou o que atrapalha o seu turno. Este recado é da loja '+esc(nomeLoja(UNI))+'.</div>'+
+    '<input id="sugQuem" maxlength="40" placeholder="Seu nome">'+
+    '<textarea id="sugTxt" maxlength="800" placeholder="Ex.: a tela conta motoboy que já foi embora"></textarea>'+
+    '<button class="bt" onclick="sugEnviar()">Enviar</button>'+
+    '<div class="av" id="sugAviso"></div>'+
+    (sg.length
+      ? '<ul>'+sg.map(function(s){return '<li><b>'+esc(s.quem||'sem nome')+'</b> <span class="qd">'+esc(s.quando)+'</span>'+
+          '<span class="st '+esc(s.status)+'">'+esc(s.status)+'</span><br>'+esc(s.texto)+
+          (s.resposta?'<span class="rp">↳ '+esc(s.resposta)+'</span>':'')+
+          (dono?'<div class="dn"><button onclick="sugAcao('+s.id+',\'lido\')">marcar lido</button>'+
+                '<button onclick="sugAcao('+s.id+',\'feito\')">já resolvi</button>'+
+                '<button onclick="sugAcao('+s.id+',\'descartado\')">descartar</button></div>':'')+
+        '</li>'}).join('')+'</ul>'
+      : '<div class="ex" style="margin-top:12px">Ninguém escreveu nada nos últimos 21 dias.</div>')+
+   '</div></div>';
+
+  const nOu=(v)=>(v===null||v===undefined||v==='')?'—':v;
+  const rBase=d.regua_base, rClima=Number(d.regua_add_clima||0), rCarga=Number(d.regua_add_carga||0);
+  const rP80=d.real_p80, rN=Number(d.real_n||0), rFonte=d.real_fonte||null;
+  h+='<div class="painel" id="sec_regua"><div class="ph"><h3>🧮 De onde saem os '+sug+' min</h3><span class="ct">a conta de agora, linha por linha</span><button class="b fecha" data-fecha="1">fechar ✕</button></div><div class="regua caixa"><table>'+
+   '<tr><td>'+esc(String(d.dia_semana||'').toLowerCase())+' no '+esc(d.turno||'')+', em dia seco — o histórico desta loja</td><td>'+nOu(rBase)+' min</td></tr>'+
+   '<tr class="'+(rClima>0?'aqui':'')+'"><td>tempo agora: '+esc(clima)+'</td><td>'+(rClima>0?'+'+rClima:'0')+' min</td></tr>'+
+   '<tr class="'+(rCarga>0?'aqui':'')+'"><td>'+(parados>0?parados+' pedido'+(parados===1?'':'s')+' parado'+(parados===1?'':'s')+(d.parados_fonte?' ('+esc(d.parados_fonte)+(vemDoGW&&gwMin!=null?', lido há '+gwMin+' min':'')+')':''):'nada parado agora')+'</td><td>'+(rCarga>0?'+'+rCarga:'0')+' min</td></tr>'+
+   '<tr class="aqui"><td><b>a conta pede</b></td><td>'+sug+' min</td></tr>'+
+   ((rP80!=null&&rFonte)?'<tr><td>teto do que saiu de verdade nos últimos 120 min — 8 de cada 10 pedidos chegaram em até isso ('+rN+' pedidos, pelo '+esc(rFonte)+')</td><td>'+rP80+' min</td></tr>':'')+
+   '</table>'+
+   (presets.length?'<div class="m"><b>As faixas salvas no iFood</b> — a loja só troca entre elas, não digita minuto: '+presets.map(p=>(p.nome===pAtual?'<b>▶ ':'')+esc(p.nome)+' '+p.de+'–'+p.ate+(p.nome===pAtual?' (agora)</b>':'')).join(' · ')+'.</div>':'')+
+   '<div class="m"><b>A conta trabalha com os motoboys que estão escalados hoje.</b> Não existe chamar gente de fora no meio do turno, então esta tela não pede isso: quando a prateleira não anda, o botão que existe de verdade é a faixa do iFood. Cada linha da tabela acima sai do banco na hora — não há número digitado à mão aqui.<br><br>'+
+   'Onde mudar: no Gestor de Pedidos do iFood, em <b>Ajustes → Gestão de lojas → Gerenciar pré-configurações</b> — escolha a faixa e salve. Faixa nova se cria no Portal do Parceiro.</div></div></div>';
+  h+=hSug;
+
+  h+='<div class="rod">Atualizado às '+esc(d.agora)+'. A tela se atualiza sozinha de 3 em 3 minutos. <b>Quando fica vermelha, ela pisca e apita</b> a cada 10 segundos até a situação resolver (o botão no canto pausa o vermelho e o apito por 15 minutos). Na primeira vez, toque uma vez na tela para liberar o som. O iFood dá <b>10 minutos de tolerância</b> em cima do que você promete — por isso os '+(prom||44)+' min viram '+((prom||44)+10)+' na conta do cliente, e é essa a régua usada aqui. O "prometido" é lido automaticamente na configuração do iFood, uma vez por hora — uma mudança feita agora pode levar até 1 hora para aparecer aqui. Todas as lojas aparecem aqui — escolha no alto da tela.'+(window.CDM_FOODY===false?'':' O dado de pedido e de motoboy vem do Foody e do TrackEat, conforme o que estiver respondendo em cada loja.')+'</div>';
+
+  h = cdmCab(d) + h;
+  var px=$('plx');
+  if(px) px.innerHTML='<span class="pl">Faixa agora <b>'+(pAtual?esc(pAtual)+' · ':'')+prom+' min</b></span>'+
+    '<span class="pl"'+(cls==='vermelho'?' style="border-color:rgba(230,103,103,.5)"':'')+'>A conta pede <b'+(cls==='vermelho'?' style="color:#ff9a9a"':'')+'>'+sug+' min</b></span>'+
+    '<span class="pl">lido <b>'+esc(d.agora)+'</b></span>';
+  $('app').innerHTML=h;
+  ligaQuadros();
+  try{var _q=$('sugQuem'), _t=$('sugTxt');
+      if(_q){_q.value=sugRascunhoQuem; _q.oninput=function(){sugRascunhoQuem=this.value}}
+      if(_t){_t.value=sugRascunhoTxt;  _t.oninput=function(){sugRascunhoTxt=this.value}}}catch(e){}
+  alarme(cls==='vermelho');
+}
+
+let sugRascunhoQuem='', sugRascunhoTxt='';
+async function sugEnviar(){
+  var q=$('sugQuem'), t=$('sugTxt'), av=$('sugAviso');
+  if(!t||!av) return;
+  var txt=(t.value||'').trim();
+  if(txt.length<5){av.className='av ruim';av.textContent='Escreva pelo menos uma frase.';return}
+  av.className='av'; av.textContent='Mandando…';
+  var r=await rpc('delivery_sugestao_gravar',{p_token:cdmTok(),p_unidade:nomeLoja(UNI),p_quem:(q?q.value:''),p_texto:txt});
+  if(r&&r.ok){av.className='av';av.textContent='Recado enviado. Obrigado!';sugRascunhoTxt='';t.value='';boot()}
+  else{av.className='av ruim';av.textContent=(r&&r.erro)?r.erro:'Não consegui enviar agora. Tente de novo.'}
+}
+async function sugAcao(id,st){
+  var av=$('sugAviso'); if(av){av.className='av';av.textContent='Salvando…'}
+  var r=await rpc('delivery_sugestao_acao',{p_token:cdmTok(),p_id:id,p_status:st});
+  if(r&&r.ok){boot()} else if(av){av.className='av ruim';av.textContent=(r&&r.erro)?r.erro:'Não consegui salvar.'}
+}
+let AC=null,somOk=false,silAte=0,apitador=null;
+function ligaSom(){try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();somOk=true;var av=document.getElementById('somaviso');if(av)av.style.display='none';}catch(e){}}
+/* O apito so toca com a tela VERMELHA, depois do primeiro toque na tela (regra dos navegadores), a cada 10s,
+   e para sozinho quando sai o vermelho, quando a aba esconde ou quando aperta Pausar 15 min. */
+function apita(){if(!somOk||!AC)return;if(Date.now()<silAte)return;try{var t=AC.currentTime;var o=AC.createOscillator(),g=AC.createGain();o.type='square';o.frequency.value=880;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.5,t+0.05);g.gain.exponentialRampToValueAtTime(0.0001,t+0.55);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+0.6);var o2=AC.createOscillator(),g2=AC.createGain();o2.type='square';o2.frequency.value=660;g2.gain.setValueAtTime(0.0001,t+0.6);g2.gain.exponentialRampToValueAtTime(0.5,t+0.65);g2.gain.exponentialRampToValueAtTime(0.0001,t+1.15);o2.connect(g2);g2.connect(AC.destination);o2.start(t+0.6);o2.stop(t+1.2);}catch(e){}}
+function alarme(liga){if(Date.now()<silAte)liga=false;document.body.classList.toggle('alarme',liga);var b=document.getElementById('sil');if(b)b.style.display=liga?'block':'none';var av=document.getElementById('somaviso');if(av)av.style.display=(liga&&!somOk)?'block':'none';if(liga&&somOk){if(!apitador){apita();apitador=setInterval(apita,10000)}}else if(apitador){clearInterval(apitador);apitador=null}}
+try{if(navigator.wakeLock)navigator.wakeLock.request('screen').catch(function(){})}catch(e){}
+function cdmPrimeiroToque(){ligaSom();if(somOk){['click','touchstart','keydown'].forEach(function(ev){document.removeEventListener(ev,cdmPrimeiroToque)});if(document.body.classList.contains('alarme')&&!apitador){apita();apitador=setInterval(apita,10000)}}}
+['click','touchstart','keydown'].forEach(function(ev){document.addEventListener(ev,cdmPrimeiroToque,{passive:true})});
+/* seletor de loja: as lojas vem do config.js (PORTAL_CFG.lojas); UNI guarda o id da loja escolhida.
+   Ao banco vai o nome da loja (p_unidade). Aceita ?loja=ID no endereco. */
+var LOJAS=Array.isArray(PORTAL_CFG.lojas)?PORTAL_CFG.lojas:[];
+function lojaDe(id){ for(var i=0;i<LOJAS.length;i++) if(LOJAS[i].id===id) return LOJAS[i]; return null; }
+function nomeLoja(id){ var l=lojaDe(id); return l?l.nome:String(id||''); }
+let UNI=LOJAS.length?LOJAS[0].id:'';
+try{var _u=localStorage.getItem('cdm_tempo_uni'); if(lojaDe(_u)) UNI=_u;}catch(e){}
+try{var _ql=new URLSearchParams(location.search).get('loja'); if(lojaDe(_ql)) UNI=_ql;}catch(e){}
+(function(){
+  var el=$('lojas'); if(!el) return;
+  el.innerHTML='<span class="rot">LOJA</span>'+LOJAS.map(function(l){
+    return '<button class="chip" data-u="'+esc(l.id)+'" onclick="trocaLoja(&quot;'+esc(l.id)+'&quot;)">'+esc(l.nome)+'</button>';
+  }).join('');
+  if(LOJAS.length<2) el.style.display='none';
+})();
+function pintaLojas(){
+  var bs=document.querySelectorAll('#lojas [data-u]');
+  for(var i=0;i<bs.length;i++){ bs[i].classList.toggle('on', bs[i].getAttribute('data-u')===UNI); }
+  var s=$('sub'); if(s) s.innerHTML='Loja <b>'+esc(nomeLoja(UNI))+'</b> — quanto prometer ao cliente agora';
+}
+function trocaLoja(u){
+  UNI=u; try{localStorage.setItem('cdm_tempo_uni',u)}catch(e){}
+  var px=$('plx'); if(px) px.innerHTML='';
+  pintaLojas();
+  $('app').innerHTML='<div class="load">Carregando '+esc(nomeLoja(u))+'…</div>';
+  boot();
+}
+async function boot(){
+  const t=cdmTok();
+  pintaLojas();
+  const d=await rpc('delivery_tempo',{p_token:t,p_unidade:nomeLoja(UNI)});
+  if(!d){$('app').innerHTML='<div class="load">Não consegui ler agora. Clique em Atualizar.</div>';return}
+  pinta(d);
+}
+
+/* ===== porta unica do portal ===== */
+const CDMMODS=['tempo'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'tempo'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(ok){boot();var cdmT=setInterval(boot,180000);document.addEventListener('visibilitychange',function(){if(document.hidden){clearInterval(cdmT);cdmT=null;if(apitador){clearInterval(apitador);apitador=null}}else if(!cdmT){boot();cdmT=setInterval(boot,180000)}})}});
+</script>
+<script src="../assets/portal.js?v=3"></script>
+</body>
+</html>

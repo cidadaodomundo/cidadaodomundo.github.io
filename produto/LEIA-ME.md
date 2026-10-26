@@ -125,7 +125,7 @@ Três caminhos, do mais simples ao mais completo:
 
 ## 6. O que ficou de fora desta cópia (de propósito)
 
-* **Tudo de WhatsApp** — telas de leitura de grupos, ligação de números, respostas sugeridas,
+* **Tudo de aplicativo de mensagens** — telas de leitura de grupos e conversas, ligação de números, respostas sugeridas,
   botões de mandar mensagem, e qualquer texto vindo de conversa.
 * **Telas pessoais ou internas do restaurante de origem** — agenda pessoal do dono, roteiro de
   obra do sistema, mapa interno dos robôs, telas feitas para uma pessoa específica, telas de uma
