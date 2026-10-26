@@ -3,7 +3,8 @@
            rpc cozinha_tv_dia (tabela dos erros de um dia da meta), tabelas tv_meta_google e
            google_fato_avaliacao (meta de avaliacoes novas no Google) e a funcao guardar-foto-chat
            (acao ver = fotos de um pedido; acao carrossel = fotos dos erros da semana).
-   Erros, notas e avaliacoes saem de MUNDO.pedidos (os mesmos pedidos das outras telas).
+   Erros, notas e avaliacoes saem de MUNDO.pedidos (os mesmos pedidos das outras telas); as avaliacoes do
+   iFood saem de MUNDO.avaliacoesIfood (a mesma conta da tela Avaliacoes do dia) e as marcas de MUNDO.marcas.
    Um erro "ao vivo" aparece com NOVO quando a tela abre no horario de movimento, e outro a cada
    40 min (no maximo 2 por dia), para mostrar o aviso de erro novo. As fotos sao desenhos de exemplo. */
 (function () {
@@ -30,13 +31,11 @@
   function um(lista, x) { return lista[Math.min(lista.length - 1, Math.floor(x * lista.length))]; }
   function sorteios(r, n) { var a = []; for (var i = 0; i < n; i++) a.push(r()); return a; }
 
-  /* ---------------- marcas virtuais (inventadas a partir da marca do config) ---------------- */
-  var BASE = C.marca || 'Burger Modelo';
-  var MARCAS = [BASE, BASE + ' Veggie', BASE + ' Smash', BASE + ' Marmitas'];
-  function marcaIdx(p) { var h = M.hash('marca|' + p.id) % 10; return h < 5 ? 0 : h < 7 ? 1 : h < 9 ? 2 : 3; }
-  function marcaDe(p, L, semVeggie) {
-    var i = marcaIdx(p); if (semVeggie && i === 1) i = 0;   /* carne crua/passada nunca e da marca vegetariana */
-    var m = MARCAS[i] + ' - ' + L.nome;
+  /* ---------------- marcas no iFood (a lista unica de MUNDO.marcas; cada pedido tem sempre a mesma marca) ---------------- */
+  function marcaDe(p, L, semFrango) {
+    var mc = M.marcaDoPedido(p);
+    if (semFrango && mc.id === 'frango') mc = M.marcas[0];   /* carne crua/passada nunca e da marca de frango */
+    var m = mc.nome + ' - ' + L.nome;
     return M.hash('caixa|' + p.id) % 3 === 0 ? m.toUpperCase() : m;   /* o iFood escreve cada marca de um jeito */
   }
 
@@ -44,9 +43,9 @@
   function idx(L) { return M.lojas.indexOf(L); }
   function regra(L) {
     var i = idx(L);
-    if (i === 0) return { teto: 14, verde: 2, dias: 5, google: 30, nota: 4.6 };
-    if (i === 1) return { teto: 12, verde: 2, dias: 5, proxima: true, nota: 4.5 };
-    return { teto: null, verde: 2, dias: 5, desde: true, nota: 4.7 };
+    if (i === 0) return { teto: 16, verde: 3, dias: 4, google: 25, nota: 4.6 };
+    if (i === 1) return { teto: 10, verde: 3, dias: 4, proxima: true, nota: 4.5 };
+    return { teto: null, verde: 3, dias: 4, desde: true, nota: 4.7 };
   }
 
   /* ---------------- codigo da TV de cada loja ---------------- */
@@ -62,21 +61,18 @@
   }
   function podeTv(papel) { var ok = D.papeis && D.papeis[papel]; return !ok || ok.indexOf('tv') >= 0; }
 
-  /* ---------------- avaliacoes do iFood (as notas que ja estao em MUNDO.pedidos) ---------------- */
-  var AV = {};
-  function notasDoDia(L, dia) {   /* avaliacoes dos pedidos feitos neste dia */
-    var k = L.id + '|' + dia;
-    if (AV[k]) return AV[k];
-    var r = M.pedidos(dia, L.id).filter(function (p) { return p.nota != null && !p.cancelado; }).map(function (p) {
-      return { p: p, nota: p.nota, disse: p.comentario || '', avaliou: M.somaDias(p.dia, M.hash('av|' + p.id) % 10 < 7 ? 1 : 2), marca: marcaDe(p, L), mi: marcaIdx(p) };
-    });
-    if (dia < M.hoje()) AV[k] = r;
-    return r;
+  /* ---------------- avaliacoes do iFood: a conta e a do MUNDO (MUNDO.avaliacoesIfood), ----------------
+     a mesma da tela Avaliacoes do dia, para os totais, a media e as notas ruins baterem */
+  function daTv(a, L) {
+    return { p: a.p, nota: a.nota, disse: a.disse, avaliou: a.avaliou, marca: marcaDe(a.p, L), mi: M.marcas.indexOf(a.marca) };
+  }
+  function notasDoDia(L, dia) {   /* avaliacoes dos pedidos feitos neste dia (so as que o iFood ja liberou) */
+    return M.avaliacoesIfood(dia, L.id, { por: 'pedido' }).lista.map(function (a) { return daTv(a, L); });
   }
   function chegadas(L, de, ate) {   /* avaliacoes que o iFood liberou entre de e ate */
     var r = [];
-    M.intervalo(M.somaDias(de, -2), ate).forEach(function (d) {
-      notasDoDia(L, d).forEach(function (a) { if (a.avaliou >= de && a.avaliou <= ate && a.avaliou <= M.hoje()) r.push(a); });
+    M.intervalo(de, ate).forEach(function (d) {
+      M.avaliacoesIfood(d, L.id).lista.forEach(function (a) { r.push(daTv(a, L)); });
     });
     return r;
   }
@@ -321,7 +317,7 @@
   }
   function proxima(L) {
     var R = regra(L); if (!R.proxima) return null;
-    return { a_partir: M.br(M.somaDias(sabado(diaOp()), 7)), teto: 10, verde_ate: 2, google_meta: 20 };
+    return { a_partir: M.br(M.somaDias(sabado(diaOp()), 7)), teto: 8, verde_ate: 2, google_meta: 15 };
   }
 
   function melhorar(L) {
@@ -360,10 +356,8 @@
   }
 
   function avaliacoes(L) {
-    var hoje = M.hoje(), lista = chegadas(L, M.somaDias(hoje, -2), hoje);
+    var hoje = M.hoje(), lista = chegadas(L, M.somaDias(hoje, -2), hoje), deHoje = M.avaliacoesIfood(hoje, L.id);
     lista.sort(function (a, b) { return a.avaliou < b.avaliou ? 1 : a.avaliou > b.avaliou ? -1 : b.p.min_pedido - a.p.min_pedido; });
-    var deHoje = lista.filter(function (a) { return a.avaliou === hoje; });
-    var mh = media(deHoje);
     function card(a) {
       return { nota: a.nota, dia: M.br(a.avaliou), pedido: a.p.numero_ifood || String(a.p.numero), pedido_dia: M.br(a.p.dia), marca: a.marca, tags: tags(a.disse), disse: a.disse };
     }
@@ -371,7 +365,7 @@
     var bom = lista.filter(function (a) { return a.nota === 5 && a.disse; })[0];
     var ult = lista.length ? lista[0].avaliou : null;
     return {
-      hoje: { n: deHoje.length, media: mh == null ? null : arred(mh, 1), ruins: deHoje.filter(function (a) { return a.nota <= 3; }).length },
+      hoje: { n: deHoje.n, media: deHoje.media, ruins: deHoje.ruins },
       atraso_dias: ult ? Math.round((Date.parse(hoje) - Date.parse(ult)) / 864e5) : null,
       ultima: ult ? M.br(ult) : null,
       lido_em: M.hm(Math.max(0, agoraReal() - 6)),
@@ -395,7 +389,7 @@
       if (aberto && comeco > ag - 3) return;   /* a pausa de hoje ainda nao aconteceu */
       for (var k = 0; k < nm; k++) {
         itens.push({
-          item: c.nome, marca: MARCAS[(k + M.hash(c.id)) % MARCAS.length] + ' - ' + L.nome,
+          item: c.nome, marca: M.marcas[(k + M.hash(c.id)) % M.marcas.length].nome + ' - ' + L.nome,
           minutos: aberto ? ag - comeco + k * 4 : dias * 1440 + k * 30,
           resolvido: !aberto, o_que: oque
         });
@@ -417,7 +411,7 @@
     var p30 = periodo(L), porMarca = {};
     p30.forEach(function (a) { (porMarca[a.mi] || (porMarca[a.mi] = [])).push(a); });
     var marcas = Object.keys(porMarca).map(function (mi) {
-      var l = porMarca[mi]; return { marca: MARCAS[mi] + ' - ' + L.nome, n: l.length, media: arred(media(l), 2) };
+      var l = porMarca[mi]; return { marca: M.marcas[mi].nome + ' - ' + L.nome, n: l.length, media: arred(media(l), 2) };
     }).sort(function (a, b) { return b.n - a.n; });
     var lojas = M.lojas.map(function (Lx) { return { loja: Lx.nome, media: arred(media(Lx === L ? p30 : periodo(Lx)) || 0, 2) }; })
       .sort(function (a, b) { return b.media - a.media; });
@@ -480,8 +474,8 @@
     var dia = String(b.p_dia || '').slice(0, 10), hoje = diaOp();
     var ed = errosDia(L, dia);
     var R = regra(L);
-    var pedDia = notasDoDia(L, dia).filter(function (a) { return a.avaliou <= M.hoje(); });
-    var mi = media(pedDia);
+    var av = M.avaliacoesIfood(dia, L.id, { por: 'pedido' });   /* so as que o iFood ja liberou */
+    var pedDia = av.lista.map(function (a) { return daTv(a, L); });
     var ruins = pedDia.filter(function (a) { return a.nota <= 3; }).sort(function (a, b) { return a.p.min_pedido - b.p.min_pedido; }).map(function (a) {
       return { hora: a.p.hora_pedido, nota: a.nota, tags: tags(a.disse), marca: a.marca, pedido: a.p.numero_ifood || String(a.p.numero),
         disse: a.disse, avaliou: M.br(a.avaliou), qual: deComida(a.disse) };
@@ -497,7 +491,7 @@
       conta: ed.conta.map(linha), fora: ed.fora.map(function (f) { return { hora: f.hora, nao_conta: f.nao_conta, titulo: f.titulo, disse: f.disse, pedido: f.pedido }; }),
       expedicao: ed.exp.map(linha),
       avaliacoes: {
-        ifood: { n: pedDia.length, media: mi == null ? null : arred(mi, 1), ruins: ruins },
+        ifood: { n: av.n, media: av.media, ruins: ruins },
         google: lg ? { total: lg.atual.num_avaliacoes, nota: lg.atual.nota, novas: lg.antes ? lg.atual.num_avaliacoes - lg.antes.num_avaliacoes : null,
           coleta: M.br(dia), recentes: recentesGoogle(L, dia) } : null
       }

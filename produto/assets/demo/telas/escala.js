@@ -16,9 +16,10 @@
 
   /* ---------------- regra de exemplo (configuravel) ---------------- */
   var REGRA = {
-    alvoSeco: 4,          /* entregas por motoboy-hora no seco */
-    alvoChuva: 3.4,       /* na chuva */
-    alvoForte: 3,         /* na chuva forte */
+    alvoSeco: 3.5,        /* entregas por motoboy-hora no seco */
+    alvoChuva: 3,         /* na chuva */
+    alvoForte: 2.5,       /* na chuva forte */
+    complementoAbaixo: 3, /* abaixo disto (entregas por motoboy-hora) a loja paga complemento */
     tolerancia: 10,       /* minutos depois do combinado para contar como atrasado */
     muitoAtraso: 30,      /* acima disto: muito atrasado */
     valorHora: 10,        /* custo previsto por motoboy-hora (so o dono ve) */
@@ -142,7 +143,7 @@
       var media = hist.length ? cont[T.turno] / hist.length : 0;
       var cl = climaTurno(dia, T);
       var almoco = T.turno === 'Almoço';
-      var fator = cl === 'Chuva forte' ? (almoco ? 1.3 : 1.18) : cl === 'Chuva' ? (almoco ? 1.2 : 1.12) : cl === 'Garoa' ? 1.05 : 1;
+      var fator = cl === 'Chuva forte' ? (almoco ? 1.25 : 1.15) : cl === 'Chuva' ? (almoco ? 1.15 : 1.1) : cl === 'Garoa' ? 1.05 : 1;
       var alvo = cl === 'Chuva forte' ? REGRA.alvoForte : cl === 'Chuva' ? REGRA.alvoChuva : REGRA.alvoSeco;
       var ent = Math.round(media * fator);
       var sug = ent > 0 ? Math.max(1, Math.ceil(ent / (alvo * T.h))) : 0;
@@ -323,7 +324,7 @@
           };
           if (ctx.admin) {
             o.custo_prev = M.arred(s.sug * s.h_cada * REGRA.valorHora + s.ent_prev * REGRA.taxaMedia);
-            o.complemento_prev = M.arred(Math.max(0, 3.5 * s.sug * s.h_cada - s.ent_prev) * REGRA.taxaMedia);
+            o.complemento_prev = M.arred(Math.max(0, REGRA.complementoAbaixo * s.sug * s.h_cada - s.ent_prev) * REGRA.taxaMedia);
           }
           out.push(o);
         });

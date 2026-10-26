@@ -40,7 +40,7 @@
      quem cuida (g = gerente da loja, c = cozinha, e = escritorio), por onde chegou, criada ha (dias),
      valor combinado (R$), contato do cliente, observacoes [dias atras, hora, autor (G = gerente), texto] */
   var BASE = [
-    [0, 'Happy hour de fim de ano do Escritório Contábil Exemplo — 120 ' + prato(0) + ' e ' + prato(10), 2, '19:00', 120, 'confirmada', 'g', 'telefone', 9, 6240,
+    [0, 'Happy hour de aniversário do Escritório Contábil Exemplo — 120 ' + prato(0) + ' e ' + prato(10), 2, '19:00', 120, 'confirmada', 'g', 'telefone', 9, 6240,
       'Recepção do Escritório Contábil Exemplo · (00) 90000-4120',
       [[9, '10:12', 'G', 'Cliente pediu orçamento para 120 pessoas.'], [6, '15:40', 'Escritório', 'Sinal de 50% recebido.'],
        [1, '11:05', 'G', 'Confirmado: entrega às 19h, molhos à parte e guardanapos extras.']]],
@@ -51,7 +51,7 @@
       'Recepção da Academia Exemplo · (00) 90000-2245',
       [[6, '18:30', 'G', 'Cliente passou na loja e combinou o cardápio.'], [3, '14:00', 'Escritório', 'Pagamento total recebido.'],
        [0, '10:10', 'Cozinha', 'Pães e carnes separados para a produção.']]],
-    [1, 'Treinamento da Construtora Exemplo — 35 marmitas de ' + prato(15), 1, '12:00', 35, 'confirmada', 'g', 'telefone', 4, 1050,
+    [1, 'Treinamento da Construtora Exemplo — 35 refeições de ' + prato(15), 1, '12:00', 35, 'confirmada', 'g', 'telefone', 4, 1050,
       'Departamento pessoal da Construtora Exemplo · (00) 3000-2035',
       [[4, '16:00', 'G', 'Entregar no canteiro de obras, portão 2.'], [1, '10:30', 'G', 'Confirmado por telefone.']]],
     [2, 'Reunião do Condomínio Exemplo — 30 porções de ' + prato(13) + ' e ' + prato(12), 3, '19:30', 30, 'anotada', null, 'telefone', 1, 780,

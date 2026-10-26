@@ -2,13 +2,13 @@
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="../config.js" data-demo="telas/ponto.js"></script>
 <title>Painel RH · Portal de Gestão</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&family=Figtree:wght@400;500;600;700&family=Roboto+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <style>
-:root{--brand:#E0A81C;--brand-ink:#111110;--bg:#0b0e14;--surface:#141922;--surface2:#1b2230;--line:#242d3d;--text:#e8edf4;--muted:#8b95a5;
+:root{--brand:#F47B3C;--brand-ink:#111110;--bg:#0b0e14;--surface:#141922;--surface2:#1b2230;--line:#242d3d;--text:#e8edf4;--muted:#8b95a5;
 --serio:#e05252;--grave:#e8833a;--infra:#d4b43a;--verbal:#4a90d9;--conf:#6b7686;--sem:#37b46c;
 --adv:#c0392b;--atest:#8e6bc9;--folga:#3aa6a0;}
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:'Barlow',-apple-system,'Segoe UI',Roboto,sans-serif;padding:18px;max-width:1240px;margin:0 auto;font-size:14px}
+body{background:var(--bg);color:var(--text);font-family:'Figtree',-apple-system,'Segoe UI',Roboto,sans-serif;padding:18px;max-width:1240px;margin:0 auto;font-size:14px}
 header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding-bottom:14px;border-bottom:2px solid var(--brand);margin-bottom:14px}
 .brand{display:flex;align-items:center;gap:12px}
 .logo{width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,var(--brand),#a87b0f);display:grid;place-items:center;font-weight:800;font-size:15px;color:var(--brand-ink);overflow:hidden}
@@ -146,7 +146,7 @@ h1{font-size:17px;font-weight:800}
 /* identidade visual */
 .gatebox button,.view.active,.logo,.steps li::before{color:var(--brand-ink)}
 h1,.gatebox h1{font-weight:400}
-h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.01em;line-height:1.06}
+h1{font-family:'Oswald',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.01em;line-height:1.06}
 
 /* celular: filas de aba quebram linha ate 900px; o resto so em tela estreita */
 @media (max-width:900px){.views,.tabs,.abas,.fil,.pes,.filtros,.chips,.lojas,.periodos{display:flex;flex-wrap:wrap;gap:6px;width:auto;max-width:100%;min-width:0}.views>*,.tabs>*,.abas>*,.fil>*,.pes>*{flex:0 0 auto;max-width:100%}}@media (max-width:640px){body{padding-left:12px;padding-right:12px}table{display:block;width:max-content;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}h1{font-size:clamp(18px,6.2vw,26px);word-break:break-word}img,svg,canvas,iframe{max-width:100%}}
@@ -319,16 +319,23 @@ const EL={ADVERTENCIA:'📄 ADVERTÊNCIA',SUSPENSAO:'⛔ SUSPENSÃO',ATESTADO:'�
 const KL={TOTAL:'Funcionários',SERIO:'Sério',GRAVE:'Grave',INFRACAO:'Falta de batida',VERBAL:'Orientação',CONFERIR:'Conferir',SEM:'Sem ocorrência'};
 const W={SERIO:3,GRAVE:2,INFRACAO:2,VERBAL:1};
 const ACAO={
-SERIO:'RH: aplicar ADVERTÊNCIA formal assinada — política da empresa: intervalo suprimido é falta GRAVE (Art. 71 CLT). Garantir que a pausa seja cumprida integralmente. Reincidência → nova advertência / suspensão.',
-GRAVE:'RH: verificar com o gestor se a extra foi autorizada. Autorizada → pagar +50% ou compensar (banco de horas). Não autorizada → orientação escrita ao funcionário.',
-INFRACAO:'RH: ajustar a marcação no sistema de ponto com justificativa. 1ª vez → orientação escrita; reincidência → advertência formal assinada (modelo no Guia).',
-VERBAL:'RH: orientar verbalmente sobre o intervalo e registrar a conversa (data + assunto).',
+SERIO:'RH: intervalo menor que o mínimo (Art. 71 CLT). Garantir que a pausa seja cumprida e registrar a conversa; a medida (orientação ou advertência) segue a política da sua empresa.',
+GRAVE:'RH: verificar com o gestor se a extra foi autorizada. Autorizada → pagar ou compensar no banco de horas. Não autorizada → orientar o funcionário.',
+INFRACAO:'RH: ajustar a marcação no sistema de ponto com justificativa e orientar o funcionário; se repetir, seguir a política da sua empresa (modelo de advertência no Guia).',
+VERBAL:'RH: orientar sobre o intervalo e registrar a conversa (data + assunto).',
 CONFERIR:'RH: conferir antes de qualquer medida — escala real do dia, horário oficial no cadastro e se há férias/atestado/folga registrados. Só depois tratar como ocorrência.'};
 const MESES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 let ALL=[],MEN=[],EVT=[],DAYS=[],DI=0,UNIT='Todas',FILT=null,VIEW='day';
 let OCCAT=[],OCPER='30d',OCLOJA='Todas',OCTIPO=(function(){try{return sessionStorage.getItem('pdg_rh_tipo')||'FALTA'}catch(e){return 'FALTA'}})();
 const $=id=>document.getElementById(id);
 const fmt=m=>m==null?'—':Math.floor(m/60)+'h'+String(m%60).padStart(2,'0');
+/* linha das marcacoes do cartao: as batidas (parte protegida, rh_consulta) ou, sem elas, entrada e saida do espelho */
+const hm5=t=>t?String(t).slice(0,5):'';
+function mkLinha(r){
+  if(r.marcacoes_txt)return '<div class="mk">🕒 '+String(r.marcacoes_txt).replace(/[&<>"]/g,'')+'</div>';
+  if(!r.entrada)return '';
+  return '<div class="mk">🕒 entrada '+hm5(r.entrada)+(r.saida?' · saída '+hm5(r.saida)+(r.saida_dia_seguinte?' (dia seguinte)':''):'')+(r.n_marcacoes?' <span style="color:var(--muted)">· '+r.n_marcacoes+' de 4 marcações</span>':'')+'</div>';
+}
 const title=n=>n.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
 const br=d=>{const[y,m,dd]=d.split('-');return dd+'/'+m+'/'+y};
 const isConf=c=>c==='CONFERIR';
@@ -346,8 +353,8 @@ async function loadAll(){
       rhRPC('categorias',{})
     ]);
     if(!Array.isArray(ALL))ALL=[];if(!Array.isArray(MEN))MEN=[];if(!Array.isArray(EVT))EVT=[];if(!Array.isArray(OCCAT))OCCAT=[];
-    const DET={};(ESP||[]).forEach(e=>{DET[e.nome+'|'+e.data]=e.detalhe});
-    ALL.forEach(r=>{r.detalhe=DET[r.nome+'|'+r.data]||null});
+    const DET={};(ESP||[]).forEach(e=>{DET[e.nome+'|'+e.data]=e});
+    ALL.forEach(r=>{const e=DET[r.nome+'|'+r.data]||{};r.detalhe=e.detalhe||null;r.marcacoes_txt=e.marcacoes_txt||null});
     EVT.sort((a,b)=>String(a.data).localeCompare(String(b.data)));
     DAYS=[...new Set(ALL.map(r=>r.data))].sort();
     DI=DAYS.length-1;
@@ -515,7 +522,7 @@ function renderDay(){
     return `<div class="card" style="--cc:${C[NV(r)]}" onclick="openModal('${r.nome.replace(/'/g,"\\'")}')">
       <div class="chead"><div><div class="cname">${title(r.nome)}</div><div class="cunit">${r.unidade}</div></div>
       <span class="badge">${L[NV(r)]}</span>${NV(r)!=='SEM'&&r.tag?`<span class="cunit" style="margin-left:6px">${r.tag}</span>`:''}</div>
-      <div class="mk">🕒 <span style="color:var(--muted)">marcações não disponíveis nesta tela</span></div>
+      ${mkLinha(r)}
       <div class="jr">líq ${fmt(r.jornada_liquida_min)} · int ${r.intervalo_real_min??'—'}min · contr ${fmt(r.jornada_contratada_min)}${r.extra_min?' · +'+r.extra_min+'min':''}</div>
       ${r.detalhe?`<div class="det">▸ ${r.detalhe}</div>`:(RH_SEM_SENHA?`<div class="det" style="color:var(--muted)">▸ entre com a senha para ver o detalhe</div>`:'')}
       ${acao}
@@ -690,7 +697,7 @@ Empresa                          Colaborador(a)
 <li>Lançar como evento no sistema de ponto (eventos da equipe) com anexo, e arquivar na gestão de documentos.</li>
 <li>Atestado válido <b>abona</b> as horas/dias — não desconta, não conta como falta.</li>
 <li>Suspeita de atestado irregular? Não recusar de imediato: a empresa pode submeter a médico próprio/convênio. Recusa exige fundamento.</li>
-<li>Atestados em excesso (ex.: 9 em 2 meses): não é punível por si — mas convocar conversa de acompanhamento, verificar se há afastamento INSS a caminho (>15 dias contínuos → perícia).</li>
+<li>Atestados em excesso (ex.: vários no mesmo mês): não é punível por si — mas convocar conversa de acompanhamento, verificar se há afastamento INSS a caminho (>15 dias contínuos → perícia).</li>
 </ol>
 </div></div>
 
@@ -874,7 +881,7 @@ async function opRPC(acao,dados){
     headers:Object.assign({'Content-Type':'application/json'},H),
     body:JSON.stringify({p_cred:rhTok(),p_acao:acao,p_dados:dados||{}})});
   let j=null;try{j=await r.json()}catch(e){}
-  if(!r.ok)throw new Error((j&&j.message)||('nao deu para falar com o banco (HTTP '+r.status+')'));
+  if(!r.ok)throw new Error((j&&j.message)||('não deu para falar com o banco (HTTP '+r.status+')'));
   return j;
 }
 function cartEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
@@ -884,13 +891,13 @@ async function cartHistorico(nome,uni){
   alvo.innerHTML='<div class="loading" style="padding:10px 0">Carregando a comanda…</div>';
   let j=null;
   try{j=await opRPC('cartoes',{unidade:CART.uni})}
-  catch(e){alvo.innerHTML='<h3>🍽 Comanda do Saipos</h3><div class="det" style="padding:0 0 8px">Nao consegui ler as comandas: '+cartEsc(e.message)+'</div>';return}
+  catch(e){alvo.innerHTML='<h3>🍽 Comanda do Saipos</h3><div class="det" style="padding:0 0 8px">Não consegui ler as comandas: '+cartEsc(e.message)+'</div>';return}
   CART.lista=Array.isArray(j&&j.cartoes)?j.cartoes:[];
   CART.equipe=Array.isArray(j&&j.equipe)?j.equipe:[];
   const p=CART.equipe.filter(function(x){return normN(x.nome)===normN(nome)})[0]||null;
   CART.pessoa=p;
   let h='<h3>🍽 Comanda do Saipos</h3>';
-  if(!p){alvo.innerHTML=h+'<div class="det" style="padding:0 0 8px">Esta pessoa nao esta no cadastro ativo desta loja — nao da para ligar comanda.</div>';return}
+  if(!p){alvo.innerHTML=h+'<div class="det" style="padding:0 0 8px">Esta pessoa não está no cadastro ativo desta loja — não dá para ligar comanda.</div>';return}
   const minhas=CART.lista.filter(function(c){return String(c.funcionario_id)===String(p.id)});
   if(minhas.length){
     h+='<div class="mmgrid">'+minhas.map(function(c){
@@ -900,14 +907,14 @@ async function cartHistorico(nome,uni){
         +(c.recado?'<br>📝 <b>'+cartEsc(c.recado)+'</b>'+(c.recado_por?' <span class="mmesq">— '+cartEsc(c.recado_por)+'</span>':''):'')
         +(c.observacao?'<br>'+cartEsc(c.observacao):'')+'</div></div>'}).join('')+'</div>';
   }else{
-    h+='<div class="det" style="padding:0 0 8px">Sem comanda ligada. Enquanto nao tiver uma, a refeicao desta pessoa nao cruza com o Saipos.</div>';
+    h+='<div class="det" style="padding:0 0 8px">Sem comanda ligada. Enquanto não tiver uma, a refeição desta pessoa não cruza com o Saipos.</div>';
   }
   const livres=CART.lista.filter(function(c){return !c.funcionario_id&&c.unidade===p.unidade});
   h+='<div class="det" style="padding:6px 0 10px">'
     +'<select id="cartsel" style="padding:6px;margin-right:6px"><option value="">— comanda solta desta loja —</option>'
     +livres.map(function(c){return '<option value="'+cartEsc(c.codigo)+'">'+cartEsc(c.codigo)+' · '+cartEsc(c.nome||'sem nome')+'</option>'}).join('')
     +'</select>'
-    +'<input id="cartnum" type="number" placeholder="ou o numero" style="padding:6px;width:130px;margin-right:6px">'
+    +'<input id="cartnum" type="number" placeholder="ou o número" style="padding:6px;width:130px;margin-right:6px">'
     +'<button onclick="cartLigar()" style="padding:6px 10px;cursor:pointer">Ligar a esta pessoa</button>'
     +'<div id="cartmsg" style="margin-top:6px"></div></div>';
   alvo.innerHTML=h;
@@ -916,7 +923,7 @@ async function cartLigar(){
   const p=CART.pessoa; if(!p)return;
   const sel=$('cartsel'),num=$('cartnum'),msg=$('cartmsg');
   const cod=(num&&num.value?String(num.value):'')||(sel?sel.value:'');
-  if(!cod){if(msg){msg.style.color='#e66767';msg.textContent='Escolha uma comanda ou digite o numero.'}return}
+  if(!cod){if(msg){msg.style.color='#e66767';msg.textContent='Escolha uma comanda ou digite o número.'}return}
   const ja=CART.lista.filter(function(c){return String(c.codigo)===String(cod)&&c.unidade===p.unidade})[0]||null;
   if(ja&&ja.funcionario_id&&String(ja.funcionario_id)!==String(p.id)){
     const dono=(CART.equipe.filter(function(x){return String(x.id)===String(ja.funcionario_id)})[0]||{}).nome||('ficha '+ja.funcionario_id);
@@ -928,7 +935,7 @@ async function cartLigar(){
       funcionario_id:String(p.id),tipo:'funcionario',ativo:true,observacao:(ja&&ja.observacao)||null}]});
     await cartHistorico(p.nome,p.unidade);
     const m2=$('cartmsg'); if(m2){m2.style.color='#2fae6a';m2.textContent='✅ Comanda '+cod+' ligada a '+p.nome+'.'}
-  }catch(e){const m3=$('cartmsg'); if(m3){m3.style.color='#e66767';m3.textContent='Nao deu: '+e.message}}
+  }catch(e){const m3=$('cartmsg'); if(m3){m3.style.color='#e66767';m3.textContent='Não deu: '+e.message}}
 }
 async function refHistorico(nome){
   const alvo=$('mmeal'); if(!alvo)return;

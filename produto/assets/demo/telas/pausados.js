@@ -9,8 +9,8 @@
   if (!window.DEMO) return;
   var D = window.DEMO, M = window.MUNDO, C = window.PORTAL_CFG;
 
-  /* marcas virtuais de exemplo (as mesmas do Resolver hoje) */
-  var MARCAS = [C.marca || 'Burger Modelo', 'Smash da Esquina', 'Casa do Frango'];
+  /* marcas no iFood: a lista unica de MUNDO.marcas (as mesmas do Resolver hoje) */
+  var MARCAS = M.marcas.map(function (m) { return m.nome; });
 
   /* ---------------- utilitarios ---------------- */
   function lerLS(k, padrao) { try { var v = localStorage.getItem('demo_resolver_' + k); return v ? JSON.parse(v) : padrao; } catch (e) { return padrao; } }

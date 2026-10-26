@@ -31,16 +31,16 @@
     return v;
   }
 
-  /* ---------------- lojas no iFood (uma marca principal e uma marca extra por loja) ---------------- */
-  var MARCA = C.marca || 'Restaurante';
-  var MARCAS = [MARCA, MARCA + ' Express'];
+  /* ---------------- lojas no iFood (cada loja vende com as marcas de MUNDO.marcas; a primeira e a principal) ---------------- */
+  var MARCAS = M.marcas.map(function (m) { return m.nome; });
   var DIM = [];
   M.lojas.forEach(function (l) {
-    DIM.push({ id_loja: 'ifood-' + l.id, nome: MARCAS[0] + ' · ' + l.nome, unidade: l.nome, loja: l.id, marca: 0 });
-    DIM.push({ id_loja: 'ifood-' + l.id + '-2', nome: MARCAS[1] + ' · ' + l.nome, unidade: l.nome, loja: l.id, marca: 1 });
+    MARCAS.forEach(function (nm, i) {
+      DIM.push({ id_loja: 'ifood-' + l.id + (i ? '-' + (i + 1) : ''), nome: nm + ' · ' + l.nome, unidade: l.nome, loja: l.id, marca: i });
+    });
   });
-  function marcaDo(p) { return (M.hash('marca|' + p.id) % 10) < 3 ? 1 : 0; }
-  function idLojaDo(p) { return 'ifood-' + p.loja + (marcaDo(p) ? '-2' : ''); }
+  function marcaDo(p) { return M.marcas.indexOf(M.marcaDoPedido(p)); }   /* a mesma marca do pedido em todas as telas */
+  function idLojaDo(p) { var i = marcaDo(p); return 'ifood-' + p.loja + (i ? '-' + (i + 1) : ''); }
   function idPedido(p) { return String(100000000 + (M.hash('idp|' + p.id) % 900000000)); }
   function idSaipos(p) { return String(40000 + (M.hash('saipos|' + p.id) % 50000)); }
   /* pedido sem Codigo de Coleta: no iFood, poucos */
@@ -462,7 +462,7 @@
   });
 
   /* pagamento dos entregadores por bloco (protegido por senha; valores em R$ so para o dono) */
-  var REGRA = { hora: 20, horaFds: 25, taxaBase: 5, taxaKm: 1.2, hDia: 4, hNoite: 5.5 };  /* regra de exemplo, configuravel */
+  var REGRA = { hora: 18, horaFds: 22, taxaBase: 5, taxaKm: 1.2, hDia: 4, hNoite: 5.5 };  /* regra de exemplo, configuravel */
   function taxaMoto(p) { return Math.round((REGRA.taxaBase + REGRA.taxaKm * Number(p.distancia_km || 0)) * 2) / 2; }
   var cachePg = {};
   function pagamentoDia(dia) {
@@ -488,6 +488,7 @@
       return {
         id_loja: 'ifood-' + o.loja, unidade: o.unidade, dia_operacional: dia, bloco: o.bloco, entregador: o.entregador,
         horas_escala: hEsc, entregas: o.entregas, atrasos: o.atrasos,
+        valor_hora: vh, fim_de_semana: fds(dia),   /* a tela escreve a regra com este valor */
         taxas: brl(o.taxas),
         pagar_por_escala: brl(Math.max(o.taxas, (hEsc || 0) * vh)),
         pagar_por_entregas: brl(Math.max(o.taxas, hEnt * vh))
@@ -501,7 +502,7 @@
     fechados(36).forEach(function (dia) {
       pagamentoDia(dia).forEach(function (o) {
         var x = junta({}, o);
-        if (!ctx.admin) { x.taxas = null; x.pagar_por_escala = null; x.pagar_por_entregas = null; }
+        if (!ctx.admin) { x.taxas = null; x.pagar_por_escala = null; x.pagar_por_entregas = null; x.valor_hora = null; }
         out.push(x);
       });
     });

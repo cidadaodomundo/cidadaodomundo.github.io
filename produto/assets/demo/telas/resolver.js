@@ -10,8 +10,8 @@
   if (!window.DEMO) return;
   var D = window.DEMO, M = window.MUNDO, C = window.PORTAL_CFG;
 
-  /* marcas virtuais de exemplo (a mesma cozinha vende com mais de um nome no iFood) */
-  var MARCAS = [C.marca || 'Burger Modelo', 'Smash da Esquina', 'Casa do Frango'];
+  /* marcas no iFood (a mesma cozinha vende com mais de um nome): a lista unica de MUNDO.marcas */
+  var MARCAS = M.marcas.map(function (m) { return m.nome; });
   var MOT_GER = ['Resolvido com o cliente', 'Ja estava certo', 'Nao era problema nosso', 'Combinado com a equipe'];
   var MOT_REE = ['Faltou item na sacola', 'Cliente pediu de novo', 'Saiu junto, sem corrida a mais', 'Cozinha refez o pedido'];
 
@@ -61,7 +61,7 @@
   /* modelos de "Errado no pedido": familia, tipo, o que o cliente escreveu, categoria do item, extras */
   var ERRADOS = [
     { familia: 'BEBIDA', tipo: 'Item faltando', disse: 'Faltou a bebida que eu pedi.', cat: 'Bebidas' },
-    { familia: 'BEBIDA', tipo: 'Pedido errado', disse: 'O suco veio de outro sabor.', cat: 'Bebidas' },
+    { familia: 'BEBIDA', tipo: 'Pedido errado', disse: 'Veio outra bebida, não a que eu pedi.', cat: 'Bebidas' },
     { familia: 'SOBREMESA', tipo: 'Item faltando', disse: 'A sobremesa não veio no pedido.', cat: 'Sobremesas' },
     { familia: 'COMIDA', tipo: 'Pedido errado', disse: 'Pedi sem cebola e veio com cebola.', cat: 'Burgers' },
     { familia: 'COMIDA', tipo: 'Item faltando', disse: 'Faltou o acompanhamento.', cat: 'Acompanhamentos' },
@@ -81,7 +81,9 @@
     var passado = dia < hojeOp();
     var mbs = {}; M.motoboys.forEach(function (m) { mbs[m.id] = m; });
     M.pedidos(dia, L.id).forEach(function (p) {
-      var r = M.rng('resolver|' + p.id), x = r(), marca = M.escolhe(r, MARCAS);
+      var r = M.rng('resolver|' + p.id), x = r();
+      r();   /* este sorteio escolhia a marca: fica, para o resto do sorteio nao mudar (o Cancelados anda igual) */
+      var marca = M.marcaDoPedido(p).nome;   /* a marca do pedido e a mesma em todas as telas */
       /* ja resolvido? dias passados quase sempre; hoje, so o que tem mais de hora e meia */
       function fechou(min) { return passado ? r() < 0.85 : (ag - min > 90 && r() < 0.5); }
       function base(tipo, min) {

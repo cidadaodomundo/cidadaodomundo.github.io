@@ -2,14 +2,14 @@
    Quadro usado no Inicio (hub), na tela avaliacoes/ e dentro da Central Salao.
    Simula: rpc inicio_avaliacoes (quando hoje|ontem; por loja: foto da fachada, iFood, Google; Accon sem leitura)
    e a funcao guardar-foto-chat (acao 'ver': fotos que o cliente mandou no pedido avaliado).
-   iFood: as notas que ja estao em MUNDO.pedidos, com a mesma regra de chegada da TV da Cozinha
-   (o iFood libera a avaliacao 1 ou 2 dias depois do pedido). Google: as mesmas leituras diarias da
+   iFood: MUNDO.avaliacoesIfood, a mesma conta da TV da Cozinha (o iFood libera a avaliacao 1 ou 2 dias
+   depois do pedido; marcas de MUNDO.marcas). Google: as mesmas leituras diarias da
    TV da Cozinha e da Central Salao. Fotos sao desenhos ilustrativos. */
 (function () {
   'use strict';
   if (!window.DEMO || !window.MUNDO) return;
   var D = window.DEMO, M = window.MUNDO, C = window.PORTAL_CFG || {};
-  var BASE = C.marca || 'Restaurante';
+  var BASE = M.marcas[0].nome;   /* a marca principal (MUNDO.marcas) */
 
   function idx(L) { return M.lojas.indexOf(L); }
   function xml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
@@ -18,29 +18,12 @@
   function hex8(n) { var s = (n >>> 0).toString(16); while (s.length < 8) s = '0' + s; return s; }
   function nomes(cat) { return M.cardapio.filter(function (c) { return c.categoria === cat; }).map(function (c) { return c.nome; }); }
 
-  /* ---------------- marcas virtuais (as mesmas da TV da Cozinha) ---------------- */
-  var MARCAS = [BASE, BASE + ' Veggie', BASE + ' Smash', BASE + ' Marmitas'];
-  function marcaIdx(p) { var h = M.hash('marca|' + p.id) % 10; return h < 5 ? 0 : h < 7 ? 1 : h < 9 ? 2 : 3; }
-
-  /* ---------------- iFood: avaliacoes que chegaram num dia ---------------- */
+  /* ---------------- iFood: avaliacoes que chegaram num dia ----------------
+     a conta e a do MUNDO (MUNDO.avaliacoesIfood), a mesma da TV da Cozinha: totais, media e notas ruins batem */
   var UUIDS = {};
   function uuidDe(p) {
     var s = hex8(M.hash('u1|' + p.id)) + hex8(M.hash('u2|' + p.id)) + hex8(M.hash('u3|' + p.id)) + hex8(M.hash('u4|' + p.id));
     return s.slice(0, 8) + '-' + s.slice(8, 12) + '-4' + s.slice(13, 16) + '-' + s.slice(16, 20) + '-' + s.slice(20, 32);
-  }
-  function chegaDia(p) { return M.somaDias(p.dia, M.hash('av|' + p.id) % 10 < 7 ? 1 : 2); }
-  function chegaMin(p) { return 7 * 60 + M.hash('avmin|' + p.id) % (15 * 60); }   /* entre 07:00 e 21:59 */
-  function chegadas(L, dia) {
-    var hoje = M.hoje(), agora = M.minutosAgora(), r = [];
-    [M.somaDias(dia, -2), M.somaDias(dia, -1)].forEach(function (d) {
-      M.pedidos(d, L.id).forEach(function (p) {
-        if (p.nota == null || p.cancelado || chegaDia(p) !== dia) return;
-        var min = chegaMin(p);
-        if (dia === hoje && min > agora) return;
-        r.push({ p: p, min: min });
-      });
-    });
-    return r;
   }
   var BONS = ['Sabor', 'Embalagem caprichada', 'Entrega rápida', 'Bem servido', 'Temperatura certa'];
   function tags(a) {
@@ -63,13 +46,12 @@
     return h % 6 === 0;
   }
   function blocoIfood(L, dia) {
-    var lista = chegadas(L, dia), notas = [0, 0, 0, 0, 0], soma = 0, semResp = 0;
-    var itens = lista.map(function (a) {
-      notas[a.p.nota - 1]++; soma += a.p.nota;
+    var av = M.avaliacoesIfood(dia, L.id), semResp = 0;
+    var itens = av.lista.map(function (a) {
       var sr = semResposta(a, dia); if (sr) semResp++;
       var u = uuidDe(a.p); UUIDS[u] = a.p;
       return {
-        uuid: u, nota: a.p.nota, marca: MARCAS[marcaIdx(a.p)], pedido_em: M.br(a.p.dia) + ' ' + a.p.hora_pedido,
+        uuid: u, nota: a.p.nota, marca: a.marca.nome, pedido_em: M.br(a.p.dia) + ' ' + a.p.hora_pedido,
         sem_resposta: sr, texto: a.p.comentario || '', tags: tags(a), _min: a.min
       };
     });
@@ -77,8 +59,8 @@
     itens.sort(function (x, y) { return x.nota - y.nota || (y.texto ? 1 : 0) - (x.texto ? 1 : 0) || y._min - x._min; });
     itens = itens.slice(0, 25).map(function (x) { delete x._min; return x; });
     return {
-      n: lista.length, media: lista.length ? M.arred(soma / lista.length, 2) : null, notas: notas,
-      itens: itens, sem_resposta: semResp, ontem: chegadas(L, M.somaDias(dia, -1)).length
+      n: av.n, media: av.media, notas: av.notas.slice(),
+      itens: itens, sem_resposta: semResp, ontem: M.avaliacoesIfood(M.somaDias(dia, -1), L.id).n
     };
   }
 
@@ -156,7 +138,7 @@
   /* fachada desenhada sem tamanho fixo: preenche a caixa da foto. Caixa alta (computador, uma loja so):
      a fachada inteira no meio, com a parede acima e a calcada abaixo. Caixa larga (celular): corta no letreiro. */
   function fotoFachada(L) {
-    var i = idx(L), cor = (C.cores && C.cores.brand) || '#E0A81C', parede = PAREDES[i % PAREDES.length];
+    var i = idx(L), cor = (C.cores && C.cores.brand) || '#F47B3C', parede = PAREDES[i % PAREDES.length];
     var nome = BASE.toUpperCase(), larg = Math.min(108, nome.length * 9);
     var listras = '', janelas = '';
     for (var k = 0; k < 7; k++) listras += '<rect x="' + (14 + k * 32) + '" y="262" width="16" height="30" fill="#ffffff" opacity=".22"/>';
@@ -222,7 +204,7 @@
       lojas: M.lojas.map(function (L) {
         return {
           unidade: L.nome, id_loja: L.id,
-          foto: idx(L) % 3 === 2 ? null : fotoFachada(L),   /* uma loja sem foto: aparece o logo */
+          foto: fotoFachada(L),   /* toda loja com a fachada ilustrada (sem foto, a tela mostra o logo) */
           ifood: blocoIfood(L, dia), google: blocoGoogle(L, dia)
         };
       })

@@ -3,6 +3,7 @@
    pagamento_dupla_consulta, pagamento_dupla_decidir, fechamento_deles_do_dia, maquininha_conferir,
    maquininha_extrato, pagamento_varrer, pagamento_sem_par, cobranca_marcar e prova_painel.
    Motoboys de MUNDO.motoboys, entregas de MUNDO.pedidos. As regras de pagamento sao exemplo.
+   Valor em R$ so sai para o dono e o escritorio (podeVer); para os outros a porta manda null.
    Marcacoes feitas na tela ficam guardadas so neste navegador (localStorage, prefixo demo_). */
 (function () {
   'use strict';
@@ -11,11 +12,13 @@
 
   /* ---------------- regra de exemplo (configuravel) ---------------- */
   var REGRA = {
-    hora: 20, horaFds: 25,             /* R$ por hora de escala */
-    pisoAlmoco: 80, pisoJantar: 100,   /* piso do turno fora da escala */
+    hora: 18, horaFds: 22,             /* R$ por hora de escala */
+    pisoAlmoco: 70, pisoJantar: 90,    /* piso do turno fora da escala */
     hAlmoco: 4, hJantar: 5,            /* horas de escala de cada turno */
     iniAlmoco: 660, iniJantar: 1080,   /* 11:00 e 18:00 */
-    tolerancia: 30,                    /* minutos de atraso antes de perder o garantido */
+    corteTurno: 960,                   /* 16:00: quem chega a partir daqui roda o jantar */
+    jantarDepois: 1200,                /* 20:00: entrega depois disso tambem conta o jantar */
+    tolerancia: 20,                    /* minutos de atraso antes de perder o garantido */
     taxaBase: 6, taxaKm: 1.8           /* taxa da entrega para o motoboy */
   };
   var SEM = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
@@ -78,12 +81,12 @@
         var primeira = Math.min.apply(null, lp.map(function (p) { return p.min_saida; }));
         var ultima = ent.length ? Math.max.apply(null, ent.map(function (p) { return p.min_entrega; })) : null;
         var taxas = soma(lp, taxaMoto);
-        var ini = primeira >= 900 ? REGRA.iniJantar : REGRA.iniAlmoco;
+        var ini = primeira >= REGRA.corteTurno ? REGRA.iniJantar : REGRA.iniAlmoco;
         var folga = primeira - 3 - ini;
         var temGps = r() < 0.9;
-        var atraso = (r() < 0.14 && folga > 34) ? M.entre(r, 31, Math.min(58, folga)) : Math.min(M.entre(r, -18, 9), folga);
+        var atraso = (r() < 0.14 && folga > REGRA.tolerancia + 4) ? M.entre(r, REGRA.tolerancia + 1, Math.min(REGRA.tolerancia + 28, folga)) : Math.min(M.entre(r, -18, 9), folga);
         var cheg = ini + atraso;
-        var almoco = cheg < 900, jantar = cheg >= 900 || (ultima != null && ultima >= 1140);
+        var almoco = cheg < REGRA.corteTurno, jantar = cheg >= REGRA.corteTurno || (ultima != null && ultima >= REGRA.jantarDepois);
         var turnos = (almoco ? 1 : 0) + (jantar ? 1 : 0);
         var semEscala = r() < 0.08, faltou = !semEscala && r() < 0.04;
         /* sem escala no dia nao ha hora combinada: nao existe atraso para cortar */
@@ -122,7 +125,7 @@
           horas_escala: horasEsc, valor_hora: vh,
           garantido: garantido, garantido_valido: gVal, garantido_calc: gCalc,
           garantido_fonte: gFonte, garantido_quem: gQuem, garantido_motivo: gMotivo, rango_notas: rango,
-          fonte_garantido: semEscala ? 'sem escala: piso do turno' : (faltou ? 'escala · faltou ao reforço das 19h da escala (não entra)' : 'escala'),
+          fonte_garantido: semEscala ? 'sem escala: piso do turno' : (faltou ? 'escala · faltou a um reforço da escala (não entra)' : 'escala'),
           direito_refeicoes: direito, lanches: lanches, lanche_produto: lanches > 0 ? item.nome : null, lanche_preco: item.preco,
           cobrar_refeicao: cobrar, lanche_sem_preco: semPreco, ajustes: aj, motivos: motivos,
           chave_pix: mb.pix_ok ? chavePix(mb.id) : null,
@@ -132,7 +135,7 @@
         fechaConta(m);
         var av = [];
         if (semEscala) av.push('Não estava na escala do dia: o garantido é o piso de cada turno rodado.');
-        if (faltou) av.push('Estava na escala também para um reforço às 19h e não apareceu: esse turno não entra.');
+        if (faltou) av.push('Estava na escala também para um reforço à noite e não apareceu: esse turno não entra.');
         if (atrasado && !garantido) av.push('Chegou ' + atraso + ' min depois do combinado (carimbo de GPS): ficou sem o garantido de ' + rs(gCalc) + ' e sem o lanche daquele turno.');
         if (cobrar > 0) av.push('Pegou ' + lanches + ' lanche(s) e tinha direito a ' + direito + ': o extra é descontado pelo preço de cardápio.');
         if (!av.length && r() < 0.3 && gVal > taxas) av.push('Rodou ' + (turnos > 1 ? 'almoço e jantar' : (almoco ? 'o almoço' : 'o jantar')) + '. Garantido de ' + rs(gVal) + '; as ' + lp.length + ' entregas renderam ' + rs(taxas) + '.');
@@ -206,16 +209,20 @@
     var linhas = b.linhas.map(function (m) {
       var o = copia(m);
       delete o.chegada_min; delete o.ultima_min; delete o.lanche_preco;
-      if (!ve) o.chave_pix = null;
-      if (!ve && !planilhaLida(dia, m.loja)) {
-        o.escondido = true;
+      /* valor em R$ so para o dono e o escritorio: para os outros a chave vai vazia */
+      o.escondido = !ve;
+      if (!ve) {
+        o.chave_pix = null; o.aviso = null; o.valor_hora = null;
         ['pagar', 'taxas', 'garantido_valido', 'garantido_calc', 'cobrar_refeicao', 'ajustes'].forEach(function (k) { o[k] = null; });
-      } else o.escondido = false;
+      }
       return o;
     });
+    var tot = totais(linhas);
+    if (!ve) { tot.pagar = null; tot.cobrado_total = null; }
     return {
       dia: dia, dia_texto: M.br(dia), dia_semana: SEM[M.diaSemana(dia)], fim_de_semana: fds(dia), agora: agoraTxt(),
-      linhas: linhas, totais: totais(linhas),
+      valor_hora: ve ? (fds(dia) ? REGRA.horaFds : REGRA.hora) : null, ve_valores: ve,
+      linhas: linhas, totais: tot,
       lanches_sem_dono: ve ? b.semDono.map(function (x) { return { unidade: x.unidade, numero_venda: x.numero_venda, produto: x.produto, id_sale: x.id_sale }; }) : [],
       candidatos: b.candidatos, pode_apontar: ve, ve_pix: ve, tolerancia_min: REGRA.tolerancia
     };
@@ -245,8 +252,8 @@
     return { ok: true };
   });
 
-  D.rpc('pagamento_motoboy_consulta', function (b) {
-    var ate = b.p_ate || ontem(), de = b.p_de || M.somaDias(ate, -6);
+  D.rpc('pagamento_motoboy_consulta', function (b, ctx) {
+    var ate = b.p_ate || ontem(), de = b.p_de || M.somaDias(ate, -6), ve = podeVer(ctx);
     var dias = M.intervalo(de, ate).slice(0, 62), l = [];
     dias.forEach(function (d) { l = l.concat(comMods(d).linhas); });
     var gente = {};
@@ -254,8 +261,7 @@
     return {
       de: M.br(de), ate: M.br(ate), de_iso: de, ate_iso: ate, agora: agoraTxt(),
       resumo: {
-        total: soma(l, function (m) { return m.pagar; }),
-        total_antigo: soma(l, function (m) { return (m.horas_escala || 0) * REGRA.hora - m.cobrar_refeicao; }),
+        total: ve ? soma(l, function (m) { return m.pagar; }) : null,
         pagamentos: l.length, motoboys: Object.keys(gente).length,
         sem_hora: l.filter(function (m) { return m.horas == null; }).length,
         sem_pix: l.filter(function (m) { return !m.chave_pix; }).length
@@ -275,8 +281,8 @@
     var o = { kind: kind, valor: b.pagar, entregas: b.entregas, taxas: b.taxas, pendentes: 0, reprovadas: 0,
               c_entregas: 0, c_garantido: 0, c_lanche: 0, c_ajustes: 0, c_desconto: 0,
               nome: r() < 0.15 ? b.apelido : b.entregador };
-    if (kind === 'diaria') { var mais = fds(dia) ? 25 : 20; o.valor = arr(b.pagar + mais); o.c_garantido = -mais; }
-    else if (kind === 'menos') { o.valor = arr(b.pagar - 20); o.c_garantido = 20; }
+    if (kind === 'diaria') { var mais = fds(dia) ? REGRA.horaFds : REGRA.hora; o.valor = arr(b.pagar + mais); o.c_garantido = -mais; }
+    else if (kind === 'menos') { o.valor = arr(b.pagar - REGRA.hora); o.c_garantido = REGRA.hora; }
     else if (kind === 'pendente') { o.pendentes = 1; o.entregas = b.entregas - 1; o.taxas = arr(b.taxas - fee); if (!gWins) { o.valor = arr(b.pagar - Math.min(fee, b.taxas - b.garantido_valido)); o.c_entregas = arr(b.pagar - o.valor); } }
     else if (kind === 'reprovada') { o.reprovadas = 1; o.entregas = b.entregas + 1; o.taxas = arr(b.taxas + fee); if (!gWins) { o.valor = arr(b.pagar + fee); o.c_entregas = -fee; } }
     else if (kind === 'lanche') { o.valor = arr(b.pagar + b.cobrar_refeicao); o.c_lanche = b.cobrar_refeicao; }
@@ -287,8 +293,8 @@
 
   var MAQ_TXT = { NAO_COBROU: 'não cobrou na porta', SEM_COBRANCA_LONGE: 'sem cobrança e GPS longe', SEM_COBRANCA_SEM_GPS: 'sem cobrança e sem GPS' };
 
-  D.rpc('fechamento_deles_do_dia', function (b) {
-    var dia = b.p_dia || ontem();
+  D.rpc('fechamento_deles_do_dia', function (b, ctx) {
+    var dia = b.p_dia || ontem(), ve = podeVer(ctx);
     var lidas = M.lojas.filter(function (L) { return planilhaLida(dia, L.id); });
     if (!lidas.length) return { tem: false, linhas: [], totais: {}, maquininha: {} };
     var base = baseDia(dia), mods = comMods(dia), vh = fds(dia) ? REGRA.horaFds : REGRA.hora;
@@ -337,6 +343,10 @@
       refeicoes: soma(linhas, function (x) { return x.refeicoes; })
     };
     t.dif = arr(t.nosso - t.deles);
+    if (!ve) {   /* valor em R$ so para o dono e o escritorio */
+      linhas.forEach(function (x) { ['deles_pagar', 'nosso_pagar', 'dif', 'taxas', 'lanche_cobrado', 'garantido', 'garantido_calc'].forEach(function (k) { if (k in x) x[k] = null; }); });
+      t.deles = null; t.nosso = null; t.dif = null; vh = null;
+    }
     return { tem: true, dia: dia, linhas: linhas, totais: t, valor_hora: vh, maquininha: maq,
              com_hora_exata: linhas.filter(function (x) { return x.hora_exata; }).length };
   });
@@ -432,8 +442,8 @@
     }];
   }
 
-  D.rpc('pagamento_dupla_consulta', function (b) {
-    var d = b.p_dados || {}, h = hojeOp();
+  D.rpc('pagamento_dupla_consulta', function (b, ctx) {
+    var d = b.p_dados || {}, h = hojeOp(), ve = podeVer(ctx);
     var inicio = M.somaDias(h, -30);
     var ate = d.ate && d.ate < h ? d.ate : h, de = d.de || M.somaDias(h, -20);
     if (de < inicio) de = inicio;
@@ -465,6 +475,11 @@
       else if (v.indexOf('PAGAR UMA') === 0) R.aprovado_no_track++;
     });
     R.valor_ainda_em_jogo = arr(R.valor_ainda_em_jogo);
+    if (!ve) {   /* valor em R$ so para o dono e o escritorio */
+      R.valor_ainda_em_jogo = null;
+      linhas.forEach(function (l) { l.valor_1 = null; l.valor_2 = null; l.valor_desconto = null; });
+      reprov.forEach(function (x) { x.valor = null; x.pago = null; });
+    }
     var a = M.agoraISO(), min = M.minutosAgora();
     return { resumo: R, linhas: linhas, reprovadas: reprov, inicio: inicio,
              cache_em: M.ts(a.slice(0, 10), min - (min % 60) + 2), repetida_janela_min: 40, repetida_raio_m: 60 };
@@ -481,7 +496,7 @@
                entregador: par ? par.entregador_2 : null, desconto: desconto };
     gravarLS('dupla', dec);
     var msg = d.decisao === 'nao_pagar' ? (desconto > 0 ? 'Anotado.' : 'Anotado, sem desconto: o garantido do dia já cobria esta corrida.') :(d.decisao === 'pagar_duas' ? 'anotado: as duas corridas entram no pagamento.' : 'anotado como reprovada no TrackEat.');
-    return { ok: true, msg: msg, desconto: desconto, dia_ja_pago: d.dia <= M.somaDias(hojeOp(), -2) };
+    return { ok: true, msg: msg, desconto: podeVer(ctx) ? desconto : null, tem_desconto: desconto > 0, dia_ja_pago: d.dia <= M.somaDias(hojeOp(), -2) };
   });
 
   /* ---------------- maquininha ---------------- */
@@ -677,14 +692,14 @@
   function faixa(d) { d = Math.abs(d); return d < 0.01 ? 'centavo' : (d <= 1 ? 'ate R$1' : (d <= 10 ? 'ate R$10' : 'acima de R$10')); }
   D.rpc('prova_painel', function (b, ctx) {
     if (!podeVer(ctx)) throw D.erro(403, 'só o dono e o escritório veem a prova real', '42501');
-    var h = hojeOp(), on = M.somaDias(h, -1), de = M.somaDias(h, -12), ate = M.somaDias(h, 1);
-    var antesOficial = M.minutosAgora() < 545;
+    var h = hojeOp(), on = M.somaDias(h, -1), de = M.somaDias(h, -8), ate = M.somaDias(h, 1);
+    var antesOficial = M.minutosAgora() < 480;   /* lacre oficial: 08:00 (exemplo, configuravel) */
     var linhas = [], lacres = [], planilhas = [], alertas = [];
     var esperando = 0, semDono = 0;
     M.intervalo(de, on).forEach(function (dia) {
       var base = baseDia(dia), oficial = !(dia === on && antesOficial);
-      lacres.push({ dia: dia, tipo: 'PREVIA', n: 12, primeiro: '22:00', ultimo: '03:30', codigo: hex('lacre-p|' + dia, 6) });
-      if (oficial) lacres.push({ dia: dia, tipo: 'OFICIAL', primeiro: '09:05', codigo: hex('lacre|' + dia, 6) });
+      lacres.push({ dia: dia, tipo: 'PREVIA', n: 6, primeiro: '23:00', ultimo: '04:00', codigo: hex('lacre-p|' + dia, 6) });
+      if (oficial) lacres.push({ dia: dia, tipo: 'OFICIAL', primeiro: '08:00', codigo: hex('lacre|' + dia, 6) });
       M.lojas.forEach(function (L) { planilhas.push({ dia: dia, unidade: L.nome, status: statusPlanilha(dia, L.id) }); });
       base.linhas.forEach(function (m) {
         var r = M.rng('prova|' + dia + '|' + m.motoboy_id);
@@ -729,9 +744,9 @@
         }
       }
     });
-    /* hoje, depois das 22h: lacres da noite */
-    if (M.minutosAgora() >= 1320) {
-      lacres.push({ dia: h, tipo: 'PREVIA', n: Math.floor((M.minutosAgora() - 1320) / 30) + 1, primeiro: '22:00', ultimo: M.hm(M.minutosAgora() - (M.minutosAgora() % 30)), codigo: hex('lacre-p|' + h, 6) });
+    /* hoje, depois das 23h: lacres da noite (de hora em hora, exemplo) */
+    if (M.minutosAgora() >= 1380) {
+      lacres.push({ dia: h, tipo: 'PREVIA', n: Math.floor((M.minutosAgora() - 1380) / 60) + 1, primeiro: '23:00', ultimo: M.hm(M.minutosAgora() - (M.minutosAgora() % 60)), codigo: hex('lacre-p|' + h, 6) });
       baseDia(h).linhas.forEach(function (m) {
         linhas.push({ dia: h, pessoa: m.entregador, lojas: m.unidade, lacre_tipo: 'PREVIA', nosso: m.pagar, deles: null, pago: null, pix_status: 'esperando o banco', faixa: 'so no sistema', pix: [] });
       });
@@ -745,10 +760,9 @@
     var totN = arr(comp * (185 + rc() * 20)), lastOf = lacres.filter(function (l) { return l.tipo === 'OFICIAL'; }).pop();
     return {
       hoje: h, agora: agoraTxt(),
-      janela: { de: de, ate: ate, de_texto: M.br(de), ate_texto: M.br(ate), dias_total: 14, dia_n: 12, terminou: false },
+      janela: { de: de, ate: ate, de_texto: M.br(de), ate_texto: M.br(ate), dias_total: 10, dia_n: 8, terminou: false },
       linhas: linhas, lacres: lacres, planilhas: planilhas, alertas: alertas,
       calibracao: { de_texto: M.br(M.somaDias(de, -21)), ate_texto: M.br(M.somaDias(de, -1)),
-                    antiga: { comparaveis: comp, bate: Math.round(comp * 0.52) },
                     nova: { comparaveis: comp, bate: Math.round(comp * 0.9), total_nosso: totN, total_casa: arr(totN * 1.035) } },
       cadeia: { ok: true, na_prova: lacres.length, calibracao: 21, ultimo_codigo: lastOf ? lastOf.codigo : '—' }
     };

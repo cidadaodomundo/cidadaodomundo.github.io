@@ -66,11 +66,22 @@
     for (var i = 0; i < 4 && resto.length; i++) SEM_COMANDA[tira(resto).id] = true;
   })();
 
+  /* afastamentos de agora: as mesmas pessoas e datas da Central do RH (telas/rh.js, AFAST_BASE), para as duas telas
+     mostrarem a mesma coisa (nesses dias nao ha batida) */
+  var AFAST = {};
+  (function () {
+    var comuns = M.equipe.filter(function (p) { return !p.cargo_confianca && !p.experiencia; });
+    function daLoja(L, n) { var l = L ? comuns.filter(function (p) { return p.loja === L.id; }) : []; return l.length ? l[n % l.length] : null; }
+    var a = daLoja(M.lojas[0], 2), b = daLoja(M.lojas[1], 1);
+    if (a) AFAST[a.id] = { desde: M.dia(-9), ate: M.dia(11), cat: 'FERIAS', tag: 'férias', txt: 'Férias registradas no RH — sem marcação no período.' };
+    if (b) AFAST[b.id] = { desde: M.dia(-1), ate: M.dia(2), cat: 'ATESTADO', tag: 'atestado', txt: 'Atestado registrado no RH — horas abonadas.' };
+  })();
+
   /* ---------------- espelho diario (fato_espelho_dia) ---------------- */
   var ESP = null, INFO = {};
   function espelho() {
     if (ESP) return ESP;
-    var linhas = [], porPessoa = {}, det = {}, seq = 0;
+    var linhas = [], porPessoa = {}, det = {}, mk = {}, seq = 0;
     var dias = M.intervalo(DE, ONTEM);
     M.equipe.forEach(function (p) {
       var hz = contrDe(p), lst = porPessoa[p.id] = [];
@@ -78,6 +89,8 @@
       dias.forEach(function (dia) {
         if (dia < p.admissao) return;
         var b = M.batidas(p, dia);
+        var af = AFAST[p.id] && AFAST[p.id].desde <= dia && dia <= AFAST[p.id].ate ? AFAST[p.id] : null;
+        if (af) b = { dia: dia, situacao: af.cat, batidas: [] };
         if (b.situacao === 'FOLGA') return;
         var rz = M.rng('just|' + p.id + '|' + dia), aut = rz() < pAut, troca = rz() < pTroca;
         var notas = [], temExtra = false;
@@ -89,7 +102,9 @@
           categoria: 'OK', tag: null, nivel: 'SEM', importado_em: M.ts(M.somaDias(dia, 1), 8 * 60 + 5), ativo: true
         };
         var achados = [], d = null;
-        if (b.situacao === 'FALTA') {
+        if (af) {
+          r.categoria = af.cat; r.tag = af.tag; d = af.txt;
+        } else if (b.situacao === 'FALTA') {
           achados.push(['CONFERIR', 'FALTA_A_CONFIRMAR', 'sem marcação', 'Nenhuma marcação no dia — conferir folga de escala, férias ou atestado antes de tratar como falta.']);
         } else if (b.situacao === 'ATESTADO') {
           r.categoria = 'ATESTADO'; r.tag = 'atestado';
@@ -138,12 +153,27 @@
         }
         INFO[r.id] = { achados: achados, b: b, extra: temExtra, aut: temExtra && aut };
         if (d) det[r.nome + '|' + dia] = d;
+        if (b.batidas && b.batidas.length) mk[r.nome + '|' + dia] = b.batidas.join(' ');   /* as batidas do dia (parte protegida) */
         lst.push(r); linhas.push(r);
       });
     });
-    ESP = { linhas: linhas, porPessoa: porPessoa, det: det };
+    ESP = { linhas: linhas, porPessoa: porPessoa, det: det, mk: mk };
     return ESP;
   }
+  /* a mesma classificacao do dia para a Central do RH (telas/rh.js) e o Um olho no negocio usarem, quando
+     esta tela de demonstracao esta carregada junto: assim as telas mostram o mesmo status para a mesma pessoa */
+  window.DEMO_PONTO = {
+    dia: function (funcionarioId, dia) {
+      var e = espelho(), l = e.porPessoa[funcionarioId] || [];
+      for (var i = 0; i < l.length; i++) if (l[i].data === dia) {
+        var r = l[i], k = r.nome + '|' + dia, inf = INFO[r.id] || {};
+        return { nivel: r.nivel, categoria: r.categoria, tag: r.tag, detalhe: e.det[k] || '', marcacoes_txt: e.mk[k] || '',
+                 jornada_liquida_min: r.jornada_liquida_min, intervalo_real_min: r.intervalo_real_min, extra_min: r.extra_min,
+                 jornada_contratada_min: r.jornada_contratada_min, troca: (inf.achados || []).length === 0 && r.categoria === 'TROCA_DE_ESCALA' };
+      }
+      return null;
+    }
+  };
   function temAchado(r, nivel) { return (INFO[r.id].achados || []).some(function (a) { return a[0] === nivel; }); }
 
   /* ---------------- ex-funcionarios e registros antigos com nome pela metade ---------------- */
@@ -424,10 +454,11 @@
     var de = d.de || '2000-01-01', ate = d.ate || '2099-12-31';
     if (a === 'eventos') return eventos().filter(function (e) { return e.data >= de && e.data <= ate; });
     if (a === 'espelho') {
-      var det = espelho().det, l = [];
-      Object.keys(det).forEach(function (k) {
+      var det = espelho().det, mk = espelho().mk, l = [], ks = {};
+      Object.keys(det).concat(Object.keys(mk)).forEach(function (k) {
+        if (ks[k]) return; ks[k] = 1;
         var i = k.lastIndexOf('|'), dia = k.slice(i + 1);
-        if (dia >= de && dia <= ate) l.push({ nome: k.slice(0, i), data: dia, detalhe: det[k] });
+        if (dia >= de && dia <= ate) l.push({ nome: k.slice(0, i), data: dia, detalhe: det[k] || null, marcacoes_txt: mk[k] || null });
       });
       return l;
     }

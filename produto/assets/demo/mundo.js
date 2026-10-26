@@ -15,6 +15,9 @@
      MUNDO.freelas               -> taxas/freelancers
      MUNDO.cardapio              -> itens do cardapio
      MUNDO.pedidos(dia, lojaId)  -> pedidos de delivery do dia (hoje: so ate agora)
+     MUNDO.marcas                -> marcas no iFood [{id,nome,peso}] (a primeira e a do config)
+     MUNDO.marcaDoPedido(p)      -> a marca daquele pedido (sempre a mesma em todas as telas)
+     MUNDO.avaliacoesIfood(dia, lojaId) -> avaliacoes do iFood que chegaram no dia {n, media, ruins, notas, lista}
      MUNDO.salao(dia, lojaId)    -> resumo do salao/balcao do dia
      MUNDO.batidas(pessoa, dia)  -> batidas de ponto
      MUNDO.rng('semente')        -> sorteador repetivel: r() devolve 0..1
@@ -310,6 +313,69 @@
     return lista;
   }
 
+  /* ---------------- marcas no iFood (inventadas) ----------------
+     A mesma cozinha vende no iFood com mais de um nome. A primeira e a marca do config.js; as outras sao
+     exemplos. Todas as telas usam ESTA lista (cada uma escreve "<marca> · <loja>" do seu jeito) e cada
+     pedido do iFood e sempre da mesma marca em todas as telas (marcaDoPedido). peso = parte dos pedidos. */
+  var marcas = [
+    { id: 'principal', nome: C.marca || 'Restaurante', peso: 66 },
+    { id: 'smash', nome: 'Smash Express', peso: 22 },
+    { id: 'frango', nome: 'Frango & Cia', peso: 12 }
+  ];
+  function marcaDoPedido(p) {
+    if (!p || p.canal !== 'ifood') return marcas[0];
+    var tot = 0, i;
+    for (i = 0; i < marcas.length; i++) tot += marcas[i].peso || 1;
+    var x = hash('marca|' + p.id) % tot;
+    for (i = 0; i < marcas.length; i++) { x -= marcas[i].peso || 1; if (x < 0) return marcas[i]; }
+    return marcas[0];
+  }
+
+  /* ---------------- avaliacoes do iFood ----------------
+     Pedido do iFood nao cancelado que recebeu nota (p.nota). O iFood libera a avaliacao 1 ou 2 dias depois
+     do pedido, entre 07:00 e 21:59. TV da Cozinha, Avaliacoes do dia e Central Cozinha contam por aqui,
+     para os totais, a media e as notas ruins baterem entre as telas.
+       avaliacoesIfood(dia, lojaId)                  -> as que o iFood liberou neste dia (hoje: so as que ja chegaram)
+       avaliacoesIfood(dia, lojaId, {por:'pedido'})  -> as dos pedidos feitos neste dia (so as que ja chegaram)
+     Devolve { dia, loja, n, media (2 casas; null sem nota), ruins (nota ate 3), notas: [qtd de 1 a 5 estrelas],
+               lista: [{ p, nota, disse, marca, avaliou, min }] }. Sem lojaId: todas as lojas. */
+  function chegadaAval(p) {
+    return { dia: somaDias(p.dia, hash('av|' + p.id) % 10 < 7 ? 1 : 2), min: 7 * 60 + hash('avmin|' + p.id) % (15 * 60) };
+  }
+  var cacheAv = {};
+  function notasDosPedidos(diaPedido, L) {   /* todas as notas dos pedidos de um dia, com o dia e a hora em que chegam */
+    var k = diaPedido + '|' + L.id;
+    if (cacheAv[k]) return cacheAv[k];
+    var l = [];
+    pedidos(diaPedido, L.id).forEach(function (p) {
+      if (p.nota == null || p.cancelado) return;
+      var c = chegadaAval(p);
+      l.push({ p: p, nota: p.nota, disse: p.comentario || '', marca: marcaDoPedido(p), avaliou: c.dia, min: c.min });
+    });
+    if (diaPedido < somaDias(hoje(), -1)) cacheAv[k] = l;   /* dia fechado: os pedidos nao mudam mais */
+    return l;
+  }
+  function avaliacoesIfood(diaIso, lojaId, op) {
+    diaIso = diaIso || hoje();
+    var porPedido = !!(op && op.por === 'pedido'), L = loja(lojaId);
+    var alvo = lojaId == null || lojaId === '' ? lojas : (L ? [L] : []);
+    var h = hoje(), ag = minutosAgora(), lista = [];
+    var dias = porPedido ? [diaIso] : [somaDias(diaIso, -2), somaDias(diaIso, -1)];
+    alvo.forEach(function (Lx) {
+      dias.forEach(function (d) {
+        notasDosPedidos(d, Lx).forEach(function (a) {
+          if (!porPedido && a.avaliou !== diaIso) return;
+          if (a.avaliou > h || (a.avaliou === h && a.min > ag)) return;   /* ainda nao chegou */
+          lista.push(a);
+        });
+      });
+    });
+    var notas = [0, 0, 0, 0, 0], soma = 0, ruins = 0;
+    lista.forEach(function (a) { notas[a.nota - 1]++; soma += a.nota; if (a.nota <= 3) ruins++; });
+    return { dia: diaIso, loja: L ? L.id : null, n: lista.length, media: lista.length ? arred(soma / lista.length, 2) : null,
+             ruins: ruins, notas: notas, lista: lista };
+  }
+
   function comStatus(p, agora) {
     var o = {}; for (var k in p) o[k] = p[k];
     var st;
@@ -368,6 +434,7 @@
     lojas: lojas, loja: loja, equipe: equipe, motoboys: motoboys, freelas: freelas, cardapio: cardapio,
     ruas: RUAS, bairros: BAIRROS, iniciais: iniciais, motivosCancelamento: MOTIVOS_CANCEL,
     pedidos: pedidos, salao: salao, batidas: batidas,
+    marcas: marcas, marcaDoPedido: marcaDoPedido, avaliacoesIfood: avaliacoesIfood,
     pessoa: function (id) { for (var i = 0; i < equipe.length; i++) if (equipe[i].id === +id) return equipe[i]; return null; }
   };
 })();

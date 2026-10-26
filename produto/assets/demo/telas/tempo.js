@@ -15,7 +15,7 @@
     { nome: 'Faixa 1', de: 30, ate: 40 }, { nome: 'Faixa 2', de: 40, ate: 50 },
     { nome: 'Faixa 3', de: 50, ate: 60 }, { nome: 'Faixa 4', de: 60, ate: 70 }
   ];
-  var LIMITE_POR_MOTOBOY = 5.5;   /* pedidos por motoboy por hora (regra de exemplo, configuravel) */
+  var LIMITE_POR_MOTOBOY = 5;     /* pedidos por motoboy por hora (regra de exemplo, configuravel) */
 
   /* ---------------- utilidades ---------------- */
   function km(a, b) {

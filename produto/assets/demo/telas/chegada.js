@@ -11,7 +11,7 @@
 
   /* ---------------- regra de exemplo (configuravel) ---------------- */
   var REGRA = {
-    tolerancia: 30,                 /* min depois da escala: perde o rango do turno e o garantido do dia */
+    tolerancia: 20,                 /* min depois da escala (regra de exemplo, configuravel): perde a refeicao do turno e o garantido do dia */
     avisoMin: 150, avisoMax: 600,   /* janela (metros do cliente) para avisar que o motoboy esta chegando */
     portaParado: 3,                 /* min parado na porta para virar alerta vermelho */
     portaFoto: 8                    /* min na porta antes de poder tirar a foto e seguir */
@@ -120,7 +120,7 @@
             garantido_manual: null, garantido_quem: null, garantido_motivo: null,
             rango_manual: null, rango_quem: null, rango_motivo: null,
             vivo_onde: null, vivo_dist_m: null, vivo_fila: null, vivo_visto: null, vivo_rodando: false,
-            _ini: t.ini, _fim: t.fim + c.extra, _viu: viu, _sis: sis
+            _ini: t.ini, _fim: t.fim + c.extra, _fimEsc: t.fim, _viu: viu, _sis: sis
           };
           if (viu) {
             var chance = (!c.gps || gp) ? 0.95 : 0.86;
@@ -277,7 +277,7 @@
       rodando: pessoas(function (l) { return l.vivo_rodando; }),
       fora_escala: pessoas(function (l) { return l.vivo_rodando && !l.na_escala; }),
       parado: pessoas(function (l) { return l.vivo_onde && !l.vivo_rodando; }),
-      sem_sinal: pessoas(function (l) { return !l.vivo_onde && l.na_escala; })
+      sem_sinal: pessoas(function (l) { return !l.vivo_onde && l.na_escala && l._ini <= r.ag && r.ag < l._fimEsc; })   /* so quem esta no horario do turno agora */
     };
     base.linhas = L.map(copia);
     return base;

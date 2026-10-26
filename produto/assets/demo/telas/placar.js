@@ -29,7 +29,7 @@
   function r1(x) { return x == null ? null : Math.round(x * 10) / 10; }
   function ehDelivery(p) { return p.canal !== 'retirada'; }
   function numPed(p) { return p.numero_ifood || String(p.numero); }
-  var MARCAS = [C.marca, 'Smash Express', 'Marmita da Casa'];   /* marcas de exemplo no iFood */
+  var MARCAS = M.marcas.map(function (m) { return m.nome; });   /* marcas no iFood: a lista unica de MUNDO.marcas */
 
   /* culpa de cada motivo de cancelamento do MUNDO */
   var CULPA = { 'Cliente desistiu': 'cliente', 'Endereço fora da área': 'cliente', 'Item indisponível': 'loja', 'Demora na entrega': 'loja', 'Pedido em duplicidade': 'outros', 'Problema no pagamento': 'outros' };
@@ -322,15 +322,16 @@
     var recMot = [], recL = [], avT = [], avM = [], avR = [], neg = [], cMot = [], cLis = [], parL = [], chegL = [], semL = [], casos = [];
     var semanas = [1, 2, 3, 4].map(function (n) { return M.somaDias(ontem, -7 * n); });
     var FAIXAS = [['1) Almoço (11h às 15h)', 660, 900], ['2) Tarde (15h às 18h)', 900, 1080], ['3) Noite (18h às 21h)', 1080, 1260], ['4) Fim da noite (21h à 0h)', 1260, 1500]];
-    function marcaDe(p) { var x = M.rng('marca|' + p.id)(); return x < 0.7 ? 0 : x < 0.9 ? 1 : 2; }
+    function marcaDe(p) { return M.marcas.indexOf(M.marcaDoPedido(p)); }   /* a mesma marca do pedido em todas as telas */
     LOJAS.forEach(function (l, li) {
       var dd = placarDia(ontem, l, ontem), ps = dd.lista, ok = ps.filter(function (p) { return !p.cancelado; });
       var r = M.rng('placar-det|' + ontem + '|' + l);
       var ifd = ok.filter(function (p) { return p.canal === 'ifood'; });
       /* marcas */
-      var cont = [0, 0, 0]; ifd.forEach(function (p) { cont[marcaDe(p)]++; });
-      if (li === 2) { cont[0] += cont[2]; cont[2] = 0; }   /* exemplo de alerta: uma marca sem venda */
-      var base = [0, 0, 0];
+      var cont = MARCAS.map(function () { return 0; }); ifd.forEach(function (p) { cont[marcaDe(p)]++; });
+      var ul = MARCAS.length - 1;
+      if (li === 2 && ul > 0) { cont[0] += cont[ul]; cont[ul] = 0; }   /* exemplo de alerta: uma marca sem venda */
+      var base = MARCAS.map(function () { return 0; });
       semanas.forEach(function (d) { placarDia(d, l, ontem).lista.forEach(function (p) { if (!p.cancelado && p.canal === 'ifood') base[marcaDe(p)]++; }); });
       MARCAS.forEach(function (n, i) { marcas.push({ loja: l, marca: n, pedidos: cont[i], pedidos_media4: base[i] / 4 }); });
       conf.push({ loja: l, api_ifood: ifd.length, saipos_ifood: ifd.length });

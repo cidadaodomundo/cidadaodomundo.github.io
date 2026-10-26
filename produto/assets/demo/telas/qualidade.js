@@ -46,9 +46,9 @@
   function dinheiro(ctx, v) { return ctx.admin ? M.arred(v) : undefined; }
   function semDinheiro(ctx, o, chaves) { if (!ctx.admin) chaves.forEach(function (k) { delete o[k]; }); return o; }
 
-  /* marcas de exemplo no iFood (uma loja pode vender com mais de uma marca) */
-  var MARCAS = [C.marca, 'Smash Express', 'Marmita da Casa'];
-  function marcaIdx(p) { if (p.canal !== 'ifood') return 0; var h = M.hash('marca|' + p.id) % 100; return h < 68 ? 0 : (h < 88 ? 1 : 2); }
+  /* marcas no iFood (uma loja pode vender com mais de uma marca): a lista unica de MUNDO.marcas */
+  var MARCAS = M.marcas.map(function (m) { return m.nome; });
+  function marcaIdx(p) { return M.marcas.indexOf(M.marcaDoPedido(p)); }   /* a mesma marca do pedido em todas as telas */
   function marcaDe(p) { return MARCAS[marcaIdx(p)]; }
   function marcaIfood(idx, L) {   /* nome como o iFood mostra (com a loja no fim) */
     if (idx === 1) return (MARCAS[1] + ' ' + L.curto).toUpperCase();
@@ -216,7 +216,7 @@
   /* ================= qualidade_consulta ================= */
   var PAUSADOS = [
     ['Costela Desfiada', 0, 'iFood', 9], ['Milkshake Morango', 1, 'iFood', 3], ['Petit Gâteau', 0, 'Cardápio próprio', 1],
-    ['Veggie Grão-de-Bico', 2, 'iFood', 12], ['Suco Natural 500 ml', 1, 'iFood', 0]
+    ['Frango Crocante', 2, 'iFood', 12], ['Suco Natural 500 ml', 1, 'iFood', 0]
   ];
   D.rpc('qualidade_consulta', function (b, ctx) {
     var q = b.p_dados || {}, P = periodo(q.periodo, q.dias), lojas = lojasDe(q.unidade);

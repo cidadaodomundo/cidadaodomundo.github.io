@@ -25,16 +25,16 @@
   function canalNome(p) { return p.canal === 'ifood' ? 'iFood' : p.canal === 'proprio' ? 'Cardápio próprio' : 'Retirada no balcão'; }
   function brl(v) { return Math.round(v * 100) / 100; }
 
-  /* ---------------- lojas no iFood (uma marca principal e uma marca extra por loja) ---------------- */
-  var MARCA = C.marca || 'Restaurante';
-  var MARCAS = [MARCA, MARCA + ' Express'];
+  /* ---------------- lojas no iFood (cada loja vende com as marcas de MUNDO.marcas; a primeira e a principal) ---------------- */
+  var MARCAS = M.marcas.map(function (m) { return m.nome; });
   var DIM = [];
   M.lojas.forEach(function (l) {
-    DIM.push({ id_loja: 'ifood-' + l.id, nome: MARCAS[0] + ' · ' + l.nome, unidade: l.nome, loja: l.id, marca: 0 });
-    DIM.push({ id_loja: 'ifood-' + l.id + '-2', nome: MARCAS[1] + ' · ' + l.nome, unidade: l.nome, loja: l.id, marca: 1 });
+    MARCAS.forEach(function (nm, i) {
+      DIM.push({ id_loja: 'ifood-' + l.id + (i ? '-' + (i + 1) : ''), nome: nm + ' · ' + l.nome, unidade: l.nome, loja: l.id, marca: i });
+    });
   });
-  function marcaDo(p) { return (M.hash('marca|' + p.id) % 10) < 3 ? 1 : 0; }
-  function idLojaDo(p) { return 'ifood-' + p.loja + (marcaDo(p) ? '-2' : ''); }
+  function marcaDo(p) { return M.marcas.indexOf(M.marcaDoPedido(p)); }   /* a mesma marca do pedido em todas as telas */
+  function idLojaDo(p) { var i = marcaDo(p); return 'ifood-' + p.loja + (i ? '-' + (i + 1) : ''); }
   function idPedido(p) { return String(100000000 + (M.hash('idp|' + p.id) % 900000000)); }
   /* pedido sem Codigo de Coleta: canal proprio nunca tem; no iFood, poucos */
   function semCodigo(p) { return p.canal === 'proprio' || (p.canal === 'ifood' && (M.hash('sc|' + p.id) % 100) < 4); }
@@ -422,8 +422,39 @@
     return out;
   });
 
-  /* ---------------- itens pausados no cardapio online ---------------- */
-  D.tabela('cardapio_pausado', function () {
+  /* ---------------- itens pausados no cardapio online ----------------
+     Sai da mesma lista da tela Produtos pausados (telas/pausados.js, carregada junto nesta tela): os mesmos
+     itens, lojas e marcas, com o dia em que pausaram. Sem ela, uma lista de exemplo. */
+  function pausadosDaTela(j) {
+    var h = M.minutosAgora() < 300 ? M.dia(-1) : M.hoje(), ag = M.minutosAgora() + (M.minutosAgora() < 300 ? 1440 : 0), out = [], porItem = {};
+    (j.linhas || []).forEach(function (x) {
+      if (!x.aberta) return;   /* o que ja voltou ao ar nao esta pausado */
+      var k = x.unidade + '|' + x.item, o = porItem[k];   /* um item por loja, com as marcas juntas (como na tela Produtos pausados) */
+      if (o) { if (o.marca.split(', ').indexOf(x.marca) < 0) o.marca += ', ' + x.marca; return; }
+      o = porItem[k] = { canal: 'iFood', unidade: x.unidade, marca: x.marca, item: x.item, tipo: x.tipo === 'Complemento' ? 'Complemento' : 'Produto',
+                 estado: 'Pausado', primeiro_visto: M.somaDias(h, Math.floor((ag - (+x.minutos || 0)) / 1440)), visto_em: h };
+      out.push(o);
+    });
+    (j.accon || []).forEach(function (x) {
+      out.push({ canal: 'Accon', unidade: x.unidade, marca: x.marca, item: x.item, tipo: x.tipo === 'Complemento' ? 'Complemento' : 'Produto',
+                 estado: x.estado === 'escondido' ? 'Escondido' : 'Pausado', primeiro_visto: M.somaDias(h, -(+x.dias || 0)), visto_em: h });
+    });
+    (j.tablet || []).forEach(function (x) {   /* o tablet de mesa fica de fora pelo filtro da tela */
+      out.push({ canal: 'Goomer', unidade: x.unidade, marca: x.marca, item: x.item, tipo: 'Produto', estado: x.estado === 'escondido' ? 'Escondido' : 'Pausado',
+                 primeiro_visto: M.somaDias(h, -(+x.dias || 0)), visto_em: h });
+    });
+    return out;
+  }
+  D.tabela('cardapio_pausado', function (ctx) {
+    if (D.tem('rpc', 'pausados_consulta')) {
+      return fetch(C.rest + 'rpc/pausados_consulta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ p_token: ctx.token }) })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) { return j ? pausadosDaTela(j) : pausadosExemplo(); })
+        .catch(function () { return pausadosExemplo(); });
+    }
+    return pausadosExemplo();
+  });
+  function pausadosExemplo() {
     var hojeOp = new Date(Date.now() - 7 * 36e5).toISOString().slice(0, 10); /* mesmo "hoje" da tela */
     var r = M.rng('pausados|' + hojeOp);
     var out = [];
@@ -444,7 +475,7 @@
     /* o tablet de mesa aparece em outra tela; aqui o filtro da tela deixa de fora */
     out.push({ canal: 'Goomer', unidade: M.lojas[0].nome, marca: MARCAS[0], item: M.cardapio[20].nome, tipo: 'Produto', estado: 'Pausado', primeiro_visto: hojeOp, visto_em: hojeOp });
     return out;
-  });
+  }
 
   /* ---------------- Saipos: status das vendas ---------------- */
   D.tabela('saipos_venda_status', function () {

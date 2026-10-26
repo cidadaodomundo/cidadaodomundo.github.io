@@ -11,7 +11,6 @@
   var D = window.DEMO, M = window.MUNDO, C = window.PORTAL_CFG;
 
   /* mesmas listas de exemplo da tela Resolver hoje (o sorteio precisa andar igual) */
-  var MARCAS = [C.marca || 'Burger Modelo', 'Smash da Esquina', 'Casa do Frango'];
   var MOT_GER = ['Resolvido com o cliente', 'Ja estava certo', 'Nao era problema nosso', 'Combinado com a equipe'];
   var NEGOC = ['O lanche chegou frio.', 'Veio faltando um item.', 'O pedido atrasou muito.', 'A batata veio murcha.'];
   var ACENTO = { 'Ja estava certo': 'Já estava certo', 'Nao era problema nosso': 'Não era problema nosso' };
@@ -60,7 +59,9 @@
     var xs = M.equipe.filter(function (x) { return x.loja === L.id && (x.setor === 'Delivery' || x.cargo === 'Gerente da loja'); });
     return xs.length ? M.escolhe(r, xs).apelido : gerente(L);
   }
-  function turnoDe(min) { var m = min % 1440; if (m >= 600 && m < 1080) return 'dia'; if (m >= 1080 || m <= 140) return 'noite'; return 'fora'; }
+  /* turnos de exemplo (configuraveis): dia 11h-18h, noite 18h-1h; o que passa da meia-noite ate 1h conta na noite anterior */
+  var TURNOS_TXT = { dia: '11h–18h', noite: '18h–1h', fora: '1h–11h', vira: '1h' };
+  function turnoDe(min) { var m = min % 1440; if (m >= 660 && m < 1080) return 'dia'; if (m >= 1080 || m < 60) return 'noite'; return 'fora'; }
   function dowDe(dia) { var d = M.diaSemana(dia); return d === 0 ? 7 : d; }
   function periodo(per) {
     var h = hojeOp();
@@ -85,7 +86,9 @@
     M.pedidos(dia, L.id).forEach(function (p) {
       if (p.canal !== 'ifood') return;
       /* mesmo sorteio do Resolver hoje: x, marca e, se for o caso, o "resolvido" */
-      var r = M.rng('resolver|' + p.id), x = r(), marca = M.escolhe(r, MARCAS);
+      var r = M.rng('resolver|' + p.id), x = r();
+      r();   /* o sorteio que escolhia a marca continua aqui, igual ao Resolver hoje */
+      var marca = M.marcaDoPedido(p).nome;   /* marca de MUNDO.marcas: a mesma em todas as telas */
       var q = M.rng('cancelados|' + p.id);
       function fechou(min) {
         var ok = passado ? r() < 0.85 : (ag - min > 90 && r() < 0.5);
@@ -276,7 +279,7 @@
       periodo: { ini: M.br(dias[0]), fim: M.br(dias[dias.length - 1]) },
       resumo: R,
       motivos_inteiro: lista(mi), motivos_parcial: mpl,
-      turnos: [tu.dia, tu.noite, tu.fora],
+      turnos: [tu.dia, tu.noite, tu.fora], turnos_txt: TURNOS_TXT,
       culpa: lista(cu), quem: qml,
       semana: Object.keys(se).map(function (k) { return se[k]; }).sort(function (a, b) { return a.dow - b.dow; }),
       marcas: Object.keys(ma).map(function (k) { return ma[k]; }).sort(function (a, b) { return (b.inteiros + b.parciais) - (a.inteiros + a.parciais); }),

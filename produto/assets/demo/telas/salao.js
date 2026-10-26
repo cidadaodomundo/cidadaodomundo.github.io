@@ -50,7 +50,7 @@
       if (/Chapeiro/.test(c)) return 'Chapa';
       if (/Líder/.test(c)) return 'Chapa, Montagem de burgers';
       if (/Auxiliar/.test(c)) return 'Produção/Cozinha (apoio), Fritadeira';
-      return 'Montagem de burgers, Montagem de marmitas/pratos';
+      return 'Montagem de burgers, Pratos e porções';
     }
     if (p.setor === 'Delivery') return /Expedi/.test(c) ? 'Separação de pacotes/expedição' : 'Separação de pacotes/expedição, Atendimento/Caixa';
     if (p.setor === 'Limpeza') return 'Limpeza';

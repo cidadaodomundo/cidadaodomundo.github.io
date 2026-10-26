@@ -5,7 +5,8 @@
      painel_hoje_feito {p_token, p_tarefa} -> {ok:true}  (a tarefa some da fila ate o fim do dia)
    Os alertas saem dos mesmos dados das outras telas: vendas de ontem (MUNDO.pedidos + MUNDO.salao) contra a
    media dos 4 mesmos dias da semana, prazo de entrega de hoje contra os ultimos 28 dias, ponto de ontem
-   (MUNDO.batidas, sem nomes e sem cargo de confianca), cancelamentos e notas baixas de ontem.
+   (a mesma classificacao do Painel RH, tabela fato_espelho_dia de telas/ponto.js, sem nomes), cancelamentos e
+   notas baixas de ontem.
    Itens pausados no iFood vem da porta pausados_consulta quando ela esta carregada (telas/pausados.js);
    contas a vencer vem da porta contas_pagar_consulta quando ela esta carregada (telas/contas.js).
    Limites dos alertas: regra de exemplo, configuravel. Valores em R$ so para o dono (ctx.admin). */
@@ -107,6 +108,39 @@
       texto: 'Ontem (' + M.br(ontem) + '): ' + lista + '. Os nomes ficam no Painel RH; quem tem cargo de confiança não entra na conta.',
       tela: 'Painel RH'
     };
+  }
+
+  /* ponto de ontem com a MESMA classificacao do Painel RH (tabela fato_espelho_dia, quando telas/ponto.js esta carregada):
+     os casos e as lojas do alerta sao os que o Painel RH mostra. Sem a tabela, cai na conta simples de alertaPonto. */
+  function alertasPonto(ontem) {
+    if (!DEMO.tem('tabela', 'fato_espelho_dia')) {
+      var l = []; M.lojas.forEach(function (L) { var a = alertaPonto(L, ontem); if (a) l.push(a); });
+      return Promise.resolve(l);
+    }
+    return fetch(C.rest + 'fato_espelho_dia?ativo=eq.true&data=eq.' + ontem + '&select=unidade,nivel', {
+      headers: { apikey: C.chave, Authorization: 'Bearer ' + C.chave }
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (rows) {
+      var out = [];
+      M.lojas.forEach(function (L) {
+        var c = { SERIO: 0, GRAVE: 0, INFRACAO: 0, CONFERIR: 0 };
+        (rows || []).forEach(function (x) { if (x.unidade === L.nome && c[x.nivel] != null) c[x.nivel]++; });
+        var casos = c.SERIO + c.GRAVE + c.INFRACAO + c.CONFERIR;
+        if (casos < 2 && !c.SERIO) return;
+        var partes = [];
+        if (c.SERIO) partes.push(plural(c.SERIO, 'sério (intervalo abaixo do mínimo)', 'sérios (intervalo abaixo do mínimo)'));
+        if (c.GRAVE) partes.push(plural(c.GRAVE, 'grave (hora extra sem autorização)', 'graves (hora extra sem autorização)'));
+        if (c.INFRACAO) partes.push(plural(c.INFRACAO, 'batida faltando', 'batidas faltando'));
+        if (c.CONFERIR) partes.push(plural(c.CONFERIR, 'para conferir (falta ou atraso)', 'para conferir (falta ou atraso)'));
+        var lista = partes.length > 1 ? partes.slice(0, -1).join(', ') + ' e ' + partes[partes.length - 1] : partes[0];
+        out.push({
+          grave: (c.SERIO >= 1 || c.GRAVE >= 2) ? 1 : 0, area: 'Ponto',
+          titulo: L.nome + ': ' + plural(casos, 'caso', 'casos') + ' no ponto de ontem',
+          texto: 'Ontem (' + M.br(ontem) + '): ' + lista + '. Os nomes ficam no Painel RH, com a mesma classificação.',
+          tela: 'Painel RH'
+        });
+      });
+      return out;
+    }).catch(function () { return []; });
   }
 
   function alertaCancel(L, ontem) {
@@ -230,7 +264,7 @@
   /* ---------------- fila do dia ---------------- */
   function fila(ontem, notasRuins) {
     var ag = M.minutosAgora(), r = M.rng('hoje-fila|' + hojeOp());
-    var lj = M.lojas[M.entre(r, 0, M.lojas.length - 1)];
+    var lj = M.lojas[Math.min(1, M.lojas.length - 1)];   /* a mesma loja do chamado "Fritadeira não esquenta" da Manutenção */
     var orc1 = M.entre(r, 5, 8) * 100 + 80, orc2 = orc1 + M.entre(r, 2, 4) * 100 + 60;
     var f = [
       { quem: 'dono', tarefa: 'folha', titulo: 'Dar o ok na prévia da folha do mês', detalhe: 'O escritório deixou a prévia pronta, com horas extras e faltas conferidas. Falta só a sua aprovação.' },
@@ -257,13 +291,14 @@
       if (v.alerta) alertas.push(v.alerta);
     });
     M.lojas.forEach(function (L) { var a = alertaPrazo(L, dia); if (a) alertas.push(a); });
-    M.lojas.forEach(function (L) { var a = alertaPonto(L, ontem); if (a) alertas.push(a); });
+    var posPonto = alertas.length;   /* o ponto entra aqui (vem da tabela do Painel RH, logo abaixo) */
     M.lojas.forEach(function (L) { var a = alertaCancel(L, ontem); if (a) alertas.push(a); });
     M.lojas.forEach(function (L) {
       notasRuins += M.pedidos(ontem, L.id).filter(function (p) { return p.nota != null && p.nota <= 2; }).length;
       var a = alertaNotas(L, ontem); if (a) alertas.push(a);
     });
-    return Promise.all([alertaPausados(ctx), alertaContas(ctx, admin)]).then(function (extra) {
+    return Promise.all([alertaPausados(ctx), alertaContas(ctx, admin), alertasPonto(ontem)]).then(function (extra) {
+      Array.prototype.splice.apply(alertas, [posPonto, 0].concat(extra[2] || []));
       if (extra[0]) alertas.unshift(extra[0]);
       if (extra[1]) alertas.push(extra[1]);
       var dev = totMedia ? (totOntem / totMedia - 1) * 100 : 0;

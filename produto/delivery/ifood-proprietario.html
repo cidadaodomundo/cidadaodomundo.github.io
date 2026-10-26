@@ -6,17 +6,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>iFood · Qualidade · Portal de Gestão</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>/* supabase-js so com banco de verdade; em demonstracao fica o cliente minimo (sbMini) */
+if(!PORTAL_CFG.demo)document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"><\/script>');</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&family=Figtree:wght@400;500;600;700&family=Roboto+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <style>
-  :root{--brand:#E0A81C;--brand-ink:#111110;
+  :root{--brand:#F47B3C;--brand-ink:#111110;
     --bg:#0f1216; --panel:#171b21; --panel2:#1e242c; --line:#2a323c;
     --txt:#e6eaf0; --mut:#95a1b2; --acc:#4aa3ff;
     --bad:#e5484d; --warn:#f5a623; --ok:#3fb27f; --neu:#7c8aa0;
   }
   *{margin:0;padding:0}
-  body{background:var(--bg);color:var(--txt);font-family:'Barlow','Segoe UI',system-ui,Arial,sans-serif;font-size:14px}
+  body{background:var(--bg);color:var(--txt);font-family:'Figtree','Segoe UI',system-ui,Arial,sans-serif;font-size:14px}
   .wrap{max-width:1180px;margin:0 auto;padding:18px 14px 60px}
   h1{font-size:19px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .sub{color:var(--mut);font-size:12.5px;margin-top:3px}
@@ -53,7 +54,7 @@
 
 /* tipografia do titulo */
 h1,.gatebox h1{font-weight:400}
-h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.01em;line-height:1.06}
+h1{font-family:'Oswald',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.01em;line-height:1.06}
 
 /* celular: filas de abas quebram linha ate 900px; tabelas rolam na horizontal em tela estreita */
 @media (max-width:900px){.views,.tabs,.abas,.fil,.pes,.filtros,.chips,.lojas,.periodos{display:flex;flex-wrap:wrap;gap:6px;width:auto;max-width:100%;min-width:0}.views>*,.tabs>*,.abas>*,.fil>*,.pes>*{flex:0 0 auto;max-width:100%}}@media (max-width:640px){body{padding-left:12px;padding-right:12px}table{display:block;width:max-content;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}h1{font-size:clamp(18px,6.2vw,26px);word-break:break-word}img,svg,canvas,iframe{max-width:100%}}
@@ -116,7 +117,7 @@ function sbMini(rest,key){
   };return b}
   return{from,rpc(n,a){return fetch(rest+"rpc/"+n,{method:"POST",headers:H(),body:JSON.stringify(a||{})}).then(resp)}};
 }
-const sb=(typeof supabase!=="undefined"&&supabase.createClient)?supabase.createClient(SUPABASE_URL,SUPABASE_KEY):sbMini(PORTAL_CFG.rest,SUPABASE_KEY);
+const sb=(!PORTAL_CFG.demo&&typeof supabase!=="undefined"&&supabase.createClient)?supabase.createClient(SUPABASE_URL,SUPABASE_KEY):sbMini(PORTAL_CFG.rest,SUPABASE_KEY);
 document.getElementById("marca").textContent=PORTAL_CFG.marca||"Restaurante";
 document.getElementById("lkponto").href=PORTAL_CFG.url("ponto/");
 
@@ -161,8 +162,8 @@ async function fetchMoto(){
 }
 function motoForm(m){
   var h="<div class=\"panel\" style=\"max-width:420px\">";
-  h+="<div style=\"font-weight:600;margin-bottom:6px\">Area restrita</div>";
-  h+="<div class=\"muted\" style=\"font-size:13px;margin-bottom:10px\">O pagamento dos entregadores so abre com senha."+(PORTAL_CFG.demo?" Na demonstracao, a senha e <b>demo</b>.":"")+"</div>";
+  h+="<div style=\"font-weight:600;margin-bottom:6px\">Área restrita</div>";
+  h+="<div class=\"muted\" style=\"font-size:13px;margin-bottom:10px\">O pagamento dos entregadores só abre com senha."+(PORTAL_CFG.demo?" Na demonstração, a senha é <b>demo</b>.":"")+"</div>";
   h+="<input id=\"motopw\" type=\"password\" autocomplete=\"off\" placeholder=\"Senha\" onkeydown=\"if(event.key=='Enter')motoEntrar()\" style=\"width:100%;padding:8px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--txt)\">";
   h+="<div style=\"margin-top:10px\"><button onclick=\"motoEntrar()\" style=\"padding:8px 16px;border-radius:6px;border:0;background:var(--acc);color:#0d1117;font-weight:bold;cursor:pointer\">Entrar</button></div>";
   h+="<div id=\"motomsg\" class=\"muted\" style=\"font-size:12px;margin-top:8px\">"+(m||"")+"</div></div>";
@@ -173,7 +174,7 @@ async function motoEntrar(){
   var v=(el.value||"").trim(); if(!v){return}
   var msg=document.getElementById("motomsg"); if(msg)msg.textContent="Conferindo...";
   var r=await sb.rpc("foody_pagamento_motoboy",{p_senha:v});
-  if(r.error){if(msg)msg.textContent="Senha invalida.";return}
+  if(r.error){if(msg)msg.textContent="Senha inválida.";return}
   sessionStorage.setItem("pdg_moto_pw",v);
   MOTO=r.data||[];
   render();
@@ -262,9 +263,9 @@ function irDia(v){F.d1=v;F.d2=v;render()}
 function semanaFechada(){var f=_ultimoDia();var d=new Date(f+'T12:00:00');d.setDate(d.getDate()-6);F.d1=_isoD(d);F.d2=f;render()}
 function botoesDia(){
   var host=document.getElementById('unidades'); if(!host)return;
-  var w=document.getElementById('cmdow');
-  if(!w){w=document.createElement('div');w.id='cmdow';w.className='bar';w.style.cssText='gap:6px;flex-wrap:wrap';host.parentNode.insertBefore(w,host.nextSibling)}
-  var NM=["Dom","Seg","Ter","Qua","Qui","Sex","Sab"],h='';
+  var w=document.getElementById('pdgdow');
+  if(!w){w=document.createElement('div');w.id='pdgdow';w.className='bar';w.style.cssText='gap:6px;flex-wrap:wrap';host.parentNode.insertBefore(w,host.nextSibling)}
+  var NM=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"],h='';
   for(var i=0;i<7;i++){
     var d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-i);
     var v=_isoD(d),ok=_diaTem(v),sel=(F.d1===v&&F.d2===v)?' on':'';
@@ -274,13 +275,13 @@ function botoesDia(){
   h+='<span class="chip" style="cursor:pointer" onclick="semanaFechada()">Semana fechada</span>';
   w.innerHTML=h;
 }
-function carimbo(){var el=document.getElementById('upinfo');if(!el)return;if(!el.getAttribute('data-base'))el.setAttribute('data-base',el.textContent||'');var n=new Date();var hh=('0'+n.getHours()).slice(-2),mm=('0'+n.getMinutes()).slice(-2);el.textContent=el.getAttribute('data-base')+' · atualizado as '+hh+':'+mm}
-function _estilo(){if(document.getElementById('cmfont'))return;var st=document.createElement('style');st.id='cmfont';st.textContent='body,button,input,select,textarea,span,div,td,th,h1,h2,h3,p{font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}.bar input[type=date]{display:none!important}';document.head.appendChild(st)}
+function carimbo(){var el=document.getElementById('upinfo');if(!el)return;if(!el.getAttribute('data-base'))el.setAttribute('data-base',el.textContent||'');var n=new Date();var hh=('0'+n.getHours()).slice(-2),mm=('0'+n.getMinutes()).slice(-2);el.textContent=el.getAttribute('data-base')+' · atualizado às '+hh+':'+mm}
+function _estilo(){if(document.getElementById('pdgfont'))return;var st=document.createElement('style');st.id='pdgfont';st.textContent='button,input,select,textarea{font-family:inherit}.bar input[type=date]{display:none!important}';document.head.appendChild(st)}
 function escondeMoto(){
   _estilo();botoesDia();carimbo();
   Array.prototype.forEach.call(document.querySelectorAll('.bar .muted'),function(el){if((el.textContent||'').trim()==='até')el.style.display='none'});
   var c7=document.querySelector('.bar .chip[data-d="7"]');
-  if(c7&&!c7.getAttribute('data-cm')){c7.setAttribute('data-cm','1');c7.onclick=function(){semanaFechada()}}
+  if(c7&&!c7.getAttribute('data-pdg')){c7.setAttribute('data-pdg','1');c7.onclick=function(){semanaFechada()}}
   if(window.PDG_FOODY===false){var t0=document.getElementById('tabs');if(t0)Array.prototype.forEach.call(t0.children,function(el){var k=el.getAttribute('data-t');if(k==='entregas'||k==='moto')el.style.display='none'});}
   if(!SEMMOTO)return;
   var t=document.getElementById('tabs');
@@ -297,8 +298,8 @@ function render(){
   const vCanc=f.canc.reduce((s,r)=>s+(+r.valor_cancelamento||0),0);
   const evit=f.neg.filter(r=>r.cancelamento_evitado).length;
   document.getElementById("kpis").innerHTML=[
-    ["Nota média no período",nota?`<span class="stars">★ ${nota.toFixed(2)}</span>`:"–",f.aval.length+" avaliações"],
-    ["Cancelamentos",f.canc.length,fmtBRL(vCanc)+" perdidos"],
+    ["Nota média no período",nota?`<span class="stars">★ ${nota.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}</span>`:"–",f.aval.length+" avaliações"],
+    ["Cancelamentos",f.canc.length,fmtBRL(vCanc)==="—"?"no período":fmtBRL(vCanc)+" perdidos"],
     ["Chamados / negociações",f.neg.length,evit+" cancelamentos evitados"],
     ["Notas baixas (1–3)",f.aval.filter(r=>r.nota<=3).length,"de "+f.aval.length+" avaliações"],
   ].map(([l,v,s])=>`<div class="card"><div class="lbl">${l}</div><div class="big">${v}</div><div class="muted" style="font-size:12px">${s}</div></div>`).join("");
@@ -311,17 +312,56 @@ function render(){
 }
 
 let _charts=[];
-function newChart(id,cfg){const el=document.getElementById(id);if(!el)return;if(typeof Chart==="undefined"){el.outerHTML='<div class="muted" style="padding:30px 10px;text-align:center;font-size:12.5px">Gráfico indisponível: a biblioteca de gráficos não carregou (sem internet?). Os números abaixo continuam valendo.</div>';return;}_charts.push(new Chart(el,cfg));}
+/* grafico simples em SVG quando a biblioteca de graficos nao carrega (sem internet, CDN bloqueado) */
+function miniGrafico(el,cfg){
+  var e=function(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")};
+  var nf=function(v){return Number(v).toLocaleString("pt-BR",{maximumFractionDigits:2})};
+  var d=cfg.data||{},L=d.labels||[],DS=d.datasets||[],o=cfg.options||{},sc=o.scales||{};
+  var ehBarra=function(s){return s.type==="bar"||(cfg.type==="bar"&&!s.type)};
+  if(o.indexAxis==="y"){
+    var s0=DS[0]||{data:[]},mx=Math.max.apply(null,[1].concat(s0.data.map(function(v){return +v||0})));
+    var ehRS=/^R\$/.test(s0.label||""),vf=function(v){return ehRS?"R$ "+Number(v).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):nf(v)};
+    el.outerHTML='<div style="padding:4px 2px;overflow:auto;height:100%">'+L.map(function(l,i){var v=+s0.data[i]||0;
+      return '<div style="margin:6px 0;font-size:12px"><div style="display:flex;justify-content:space-between;gap:8px"><span>'+e(l)+'</span><span class="muted">'+vf(v)+'</span></div>'+
+        '<div style="height:7px;background:var(--panel2);border-radius:4px;margin-top:3px"><div style="height:100%;width:'+(100*v/mx).toFixed(1)+'%;background:'+(s0.backgroundColor||"var(--bad)")+';border-radius:4px"></div></div></div>'}).join("")+'</div>';
+    return;
+  }
+  var W=640,H=230,pl=40,pr=40,pt=12,pb=26,n=L.length,iw=W-pl-pr,ih=H-pt-pb,nb=DS.filter(ehBarra).length;
+  var xi=function(i){return nb?pl+iw*(i+.5)/Math.max(1,n):pl+(n>1?iw*i/(n-1):iw/2)};
+  var eixo=function(id){var a=sc[id]||{},vs=[];DS.forEach(function(s){if((s.yAxisID||"y")===id)s.data.forEach(function(v){if(v!=null&&!isNaN(+v))vs.push(+v)})});
+    var mn=a.min!=null?a.min:Math.min.apply(null,[0].concat(vs)),mxx=a.max!=null?a.max:Math.max.apply(null,[1].concat(vs));if(mxx<=mn)mxx=mn+1;return{mn:mn,mx:mxx}};
+  var E={y:eixo("y")};if(DS.some(function(s){return s.yAxisID==="y2"}))E.y2=eixo("y2");
+  var yv=function(id,v){var a=E[id]||E.y;return pt+ih-ih*(v-a.mn)/(a.mx-a.mn)};
+  var g='';
+  [0,.5,1].forEach(function(f){var y=pt+ih-ih*f;g+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+y+'" y2="'+y+'" style="stroke:var(--line)"/>';
+    g+='<text x="'+(pl-6)+'" y="'+(y+4)+'" text-anchor="end" style="fill:var(--mut);font-size:11px">'+nf(E.y.mn+(E.y.mx-E.y.mn)*f)+'</text>';
+    if(E.y2)g+='<text x="'+(W-pr+6)+'" y="'+(y+4)+'" style="fill:var(--mut);font-size:11px">'+nf(E.y2.mn+(E.y2.mx-E.y2.mn)*f)+'</text>'});
+  var passo=Math.max(1,Math.ceil(n/10));
+  L.forEach(function(l,i){if(i%passo===0)g+='<text x="'+xi(i)+'" y="'+(H-8)+'" text-anchor="middle" style="fill:var(--mut);font-size:11px">'+e(l)+'</text>'});
+  var bi=0;
+  DS.filter(ehBarra).forEach(function(s){var id=s.yAxisID||"y",a=E[id]||E.y,bw=Math.max(2,iw/Math.max(1,n)*.6/nb),k=bi++;
+    s.data.forEach(function(v,i){if(v==null||isNaN(+v))return;var y=yv(id,+v),y0=yv(id,Math.max(a.mn,0));
+      g+='<rect x="'+(xi(i)-bw*nb/2+k*bw).toFixed(1)+'" y="'+Math.min(y,y0).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.abs(y0-y).toFixed(1)+'" fill="'+(s.backgroundColor||s.borderColor||"#888")+'" stroke="'+(s.borderColor||"none")+'"/>'})});
+  DS.filter(function(s){return !ehBarra(s)}).forEach(function(s){var id=s.yAxisID||"y",c=s.borderColor||"#888",pts=[];
+    s.data.forEach(function(v,i){if(v!=null&&!isNaN(+v))pts.push([xi(i).toFixed(1),yv(id,+v).toFixed(1)])});
+    if(pts.length)g+='<polyline points="'+pts.map(function(p){return p.join(",")}).join(" ")+'" fill="none" stroke="'+c+'" stroke-width="2"'+(s.borderDash?' stroke-dasharray="'+s.borderDash.join(" ")+'"':'')+'/>';
+    pts.forEach(function(p){g+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="2.5" fill="'+c+'"/>'})});
+  var leg='<div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;font-size:11.5px;color:var(--mut);margin-top:4px">'+DS.map(function(s){
+    return '<span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;background:'+(s.borderColor||s.backgroundColor||"#888")+'"></i>'+e(s.label)+'</span>'}).join("")+'</div>';
+  var dentro=el.parentNode&&el.parentNode.classList&&el.parentNode.classList.contains("cwrap");
+  el.outerHTML='<div style="'+(dentro?'height:100%;display:flex;flex-direction:column':'')+'"><svg viewBox="0 0 '+W+' '+H+'" style="width:100%;'+(dentro?'flex:1;min-height:0':'height:auto')+'" role="img" aria-label="gráfico">'+g+'</svg>'+leg+'</div>';
+}
+function newChart(id,cfg){const el=document.getElementById(id);if(!el)return;if(typeof Chart==="undefined"){miniGrafico(el,cfg);return;}_charts.push(new Chart(el,cfg));}
 function clearCharts(){_charts.forEach(c=>c.destroy());_charts=[];}
 function setContent(html){clearCharts();document.getElementById("content").innerHTML=html;}
 
 function rEntregas(f){
-  var R=f.entr; if(!R.length){setContent("<div class=\"panel muted\">Sem pedidos do iFood no periodo.</div>");return;}
+  var R=f.entr; if(!R.length){setContent("<div class=\"panel muted\">Sem pedidos do iFood no período.</div>");return;}
   var S=function(k){return R.reduce(function(a,r){return a+(+r[k]||0)},0)};
   var ped=S("pedidos"),ok=S("no_prazo"),atr=S("atrasados"),sc=S("sem_codigo"),okF=S("no_prazo_foody");
-  var pc=function(a,b){return b?(100*a/b).toFixed(1):"-"};
+  var pc=function(a,b){return b?(100*a/b).toFixed(1).replace(".",","):"-"};
   var n=0,t=0; R.forEach(function(r){if(r.atraso_medio_min!=null&&r.atrasados>0){t+=(+r.atraso_medio_min)*(+r.atrasados);n+=(+r.atrasados);}});
-  var med=n?(t/n).toFixed(1):"-";
+  var med=n?(t/n).toFixed(1).replace(".",","):"-";
   var pior=R.reduce(function(m,r){return Math.max(m,+r.pior_atraso_min||0)},0);
   var cor=function(p){return p>=90?"var(--ok)":p>=75?"var(--warn)":"var(--bad)"};
   var pD={}; R.forEach(function(r){var d=r.dia_operacional;pD[d]=pD[d]||{p:0,o:0,f:0};pD[d].p+=+r.pedidos||0;pD[d].o+=+r.no_prazo||0;pD[d].f+=+r.no_prazo_foody||0;});
@@ -329,20 +369,20 @@ function rEntregas(f){
   var pT={}; R.forEach(function(r){var k=r.turno||"-";pT[k]=pT[k]||{p:0,o:0,a:0,s:0};pT[k].p+=+r.pedidos||0;pT[k].o+=+r.no_prazo||0;pT[k].a+=+r.atrasados||0;pT[k].s+=+r.sem_codigo||0;});
   var h="<div class=\"cards\">";
   h+="<div class=\"card\"><div class=\"lbl\">No prazo &mdash; promessa real</div><div class=\"big\" style=\"color:"+cor(ped?100*ok/ped:0)+"\">"+pc(ok,ped)+"%</div><div class=\"muted\" style=\"font-size:12px\">"+ok+" de "+ped+" pedidos iFood</div></div>";
-  h+="<div class=\"card\"><div class=\"lbl\">No prazo &mdash; prazo do Foody</div><div class=\"big\" style=\"color:var(--neu)\">"+pc(okF,ped)+"%</div><div class=\"muted\" style=\"font-size:12px\">a hora padrao, que inflava o numero</div></div>";
-  h+="<div class=\"card\"><div class=\"lbl\">Atrasados</div><div class=\"big\" style=\"color:var(--bad)\">"+atr+"</div><div class=\"muted\" style=\"font-size:12px\">media "+med+" min &middot; pior "+(pior?pior.toFixed(0)+" min":"-")+"</div></div>";
-  h+="<div class=\"card\"><div class=\"lbl\">Sem codigo de coleta</div><div class=\"big\" style=\"color:"+(sc?"var(--warn)":"var(--ok)")+"\">"+sc+"</div><div class=\"muted\" style=\"font-size:12px\">indicio, precisa conferir</div></div></div>";
+  h+="<div class=\"card\"><div class=\"lbl\">No prazo &mdash; prazo do Foody</div><div class=\"big\" style=\"color:var(--neu)\">"+pc(okF,ped)+"%</div><div class=\"muted\" style=\"font-size:12px\">a hora padrão, que inflava o número</div></div>";
+  h+="<div class=\"card\"><div class=\"lbl\">Atrasados</div><div class=\"big\" style=\"color:var(--bad)\">"+atr+"</div><div class=\"muted\" style=\"font-size:12px\">média "+med+" min &middot; pior "+(pior?pior.toFixed(0)+" min":"-")+"</div></div>";
+  h+="<div class=\"card\"><div class=\"lbl\">Sem código de coleta</div><div class=\"big\" style=\"color:"+(sc?"var(--warn)":"var(--ok)")+"\">"+sc+"</div><div class=\"muted\" style=\"font-size:12px\">indício, precisa conferir</div></div></div>";
   h+="<div class=\"panel\" style=\"margin-top:14px\"><div class=\"lbl\" style=\"margin-bottom:8px\">Quanto atrasou</div>";
-  [["ate 10 min","atraso_ate_10","var(--warn)"],["de 10 a 30 min","atraso_10_30","var(--bad)"],["mais de 30 min","atraso_mais_30","var(--bad)"]].forEach(function(x){
+  [["até 10 min","atraso_ate_10","var(--warn)"],["de 10 a 30 min","atraso_10_30","var(--bad)"],["mais de 30 min","atraso_mais_30","var(--bad)"]].forEach(function(x){
     var v=S(x[1]),p=atr?100*v/atr:0;
     h+="<div style=\"margin:6px 0\"><div style=\"display:flex;justify-content:space-between;font-size:13px\"><span>"+x[0]+"</span><span class=\"muted\">"+v+" &middot; "+p.toFixed(0)+"%</span></div><div style=\"height:7px;background:var(--panel2);border-radius:4px;margin-top:3px\"><div style=\"height:100%;width:"+p+"%;background:"+x[2]+";border-radius:4px\"></div></div></div>";});
   h+="</div>";
-  h+="<div class=\"panel\" style=\"margin-top:14px\"><div class=\"lbl\" style=\"margin-bottom:8px\">Por turno <button onclick='pdgAtrasadas(this)' style='margin-left:10px;font-size:11px;padding:2px 9px;border-radius:999px;border:1px solid var(--mut);background:transparent;color:inherit;cursor:pointer'>ver pedidos atrasados</button></div><table style=\"width:100%;border-collapse:collapse;font-size:13px\"><tr style=\"color:var(--mut);text-align:left\"><th style=\"padding:6px 4px\">Turno</th><th>Pedidos</th><th>No prazo</th><th>Atrasados</th><th>Sem codigo</th><th>%</th></tr>";
+  h+="<div class=\"panel\" style=\"margin-top:14px\"><div class=\"lbl\" style=\"margin-bottom:8px\">Por turno <button onclick='pdgAtrasadas(this)' style='margin-left:10px;font-size:11px;padding:2px 9px;border-radius:999px;border:1px solid var(--mut);background:transparent;color:inherit;cursor:pointer'>ver pedidos atrasados</button></div><table style=\"width:100%;border-collapse:collapse;font-size:13px\"><tr style=\"color:var(--mut);text-align:left\"><th style=\"padding:6px 4px\">Turno</th><th>Pedidos</th><th>No prazo</th><th>Atrasados</th><th>Sem código</th><th>%</th></tr>";
   Object.keys(pT).sort(function(a,b){return pT[b].p-pT[a].p}).forEach(function(k){var v=pT[k],p=v.p?100*v.o/v.p:0;
-    h+="<tr style=\"border-top:1px solid var(--line)\"><td style=\"padding:6px 4px\">"+k+"</td><td>"+v.p+"</td><td>"+v.o+"</td><td>"+v.a+"</td><td>"+v.s+"</td><td style=\"color:"+cor(p)+"\">"+p.toFixed(1)+"%</td></tr>";});
+    h+="<tr style=\"border-top:1px solid var(--line)\"><td style=\"padding:6px 4px\">"+k+"</td><td>"+v.p+"</td><td>"+v.o+"</td><td>"+v.a+"</td><td>"+v.s+"</td><td style=\"color:"+cor(p)+"\">"+p.toFixed(1).replace(".",",")+"%</td></tr>";});
   h+="</table></div>";
   h+="<div class=\"panel\" style=\"margin-top:14px\"><div class=\"lbl\" style=\"margin-bottom:8px\">Dia a dia &mdash; % no prazo</div><canvas id=\"ch1\" height=\"90\"></canvas></div>";
-  h+="<div class=\"panel muted\" style=\"margin-top:14px;font-size:12.5px;line-height:1.5\"><b>So pedidos do iFood.</b> Accon, telefone e balcao ficam de fora. O prazo e o que o iFood prometeu ao cliente, lido da observacao do pedido &mdash; nao a hora padrao do Foody. <b>Sem codigo de coleta</b> e indicio de que o codigo nao foi registrado, nao prova: confira antes de cobrar alguem.</div>";
+  h+="<div class=\"panel muted\" style=\"margin-top:14px;font-size:12.5px;line-height:1.5\"><b>Só pedidos do iFood.</b> Accon, telefone e balcão ficam de fora. O prazo é o que o iFood prometeu ao cliente, lido da observação do pedido &mdash; não a hora padrão do Foody. <b>Sem código de coleta</b> é indício de que o código não foi registrado, não prova: confira antes de cobrar alguém.</div>";
   setContent(h);
   newChart("ch1",{type:"line",data:{labels:dias.map(function(d){return d.slice(8,10)+"/"+d.slice(5,7)}),datasets:[
     {label:"Promessa real",data:dias.map(function(d){return pD[d].p?+(100*pD[d].o/pD[d].p).toFixed(1):null}),borderColor:"#4aa3ff",backgroundColor:"rgba(74,163,255,.15)",tension:.3,fill:true},
@@ -351,7 +391,7 @@ function rEntregas(f){
 }
 
 function rMoto(f){
-  var R=f.moto; if(!motoPw()){setContent(motoForm(""));return;} if(!R.length){setContent("<div class=\"panel muted\">Sem dados de pagamento. Sem lancamentos no periodo escolhido.</div>");return;}
+  var R=f.moto; if(!motoPw()){setContent(motoForm(""));return;} if(!R.length){setContent("<div class=\"panel muted\">Sem dados de pagamento. Sem lançamentos no período escolhido.</div>");return;}
   var brl=function(v){return (function(){try{return sessionStorage.getItem("pdg_admin")==="1"}catch(e){return false}})()?("R$ "+(+v||0).toFixed(2).replace(".",",")):"—"};
   var tE=R.reduce(function(a,r){return a+(+r.pagar_por_entregas||0)},0);
   var tS=R.reduce(function(a,r){return a+(+r.pagar_por_escala||0)},0);
@@ -360,15 +400,18 @@ function rMoto(f){
   var h="<div class=\"cards\">";
   h+="<div class=\"card\"><div class=\"lbl\">A pagar &mdash; base escala</div><div class=\"big\">"+brl(tS)+"</div><div class=\"muted\" style=\"font-size:12px\">garantido pelas horas combinadas</div></div>";
   h+="<div class=\"card\"><div class=\"lbl\">A pagar &mdash; base entregas</div><div class=\"big\">"+brl(tE)+"</div><div class=\"muted\" style=\"font-size:12px\">garantido pelo tempo entre entregas</div></div>";
-  h+="<div class=\"card\"><div class=\"lbl\">Diferenca</div><div class=\"big\" style=\"color:"+((tS-tE)>0?"var(--warn)":"var(--ok)")+"\">"+brl(tS-tE)+"</div><div class=\"muted\" style=\"font-size:12px\">quanto a base muda no total</div></div>";
-  h+="<div class=\"card\"><div class=\"lbl\">So taxas de entrega</div><div class=\"big\" style=\"color:var(--neu)\">"+brl(tx)+"</div><div class=\"muted\" style=\"font-size:12px\">sem aplicar o garantido</div></div></div>";
+  h+="<div class=\"card\"><div class=\"lbl\">Diferença</div><div class=\"big\" style=\"color:"+((tS-tE)>0?"var(--warn)":"var(--ok)")+"\">"+brl(tS-tE)+"</div><div class=\"muted\" style=\"font-size:12px\">quanto a base muda no total</div></div>";
+  h+="<div class=\"card\"><div class=\"lbl\">Só taxas de entrega</div><div class=\"big\" style=\"color:var(--neu)\">"+brl(tx)+"</div><div class=\"muted\" style=\"font-size:12px\">sem aplicar o garantido</div></div></div>";
   dias.forEach(function(d){
     var Lr=R.filter(function(r){return r.dia_operacional===d}).sort(function(a,b){return (a.unidade+a.bloco+a.entregador).localeCompare(b.unidade+b.bloco+b.entregador)});
     var sd=Lr.reduce(function(a,r){return a+(+r.pagar_por_escala||0)},0);
     h+="<div class=\"panel\" style=\"margin-top:14px\"><div class=\"lbl\" style=\"margin-bottom:8px\">"+d.slice(8,10)+"/"+d.slice(5,7)+" &mdash; total "+brl(sd)+"</div><table style=\"width:100%;border-collapse:collapse;font-size:13px\"><tr style=\"color:var(--mut);text-align:left\"><th style=\"padding:6px 4px\">Loja</th><th>Bloco</th><th>Entregador</th><th>Escala</th><th>Entregas</th><th>Taxas</th><th>Pagar (escala)</th><th>Pagar (entregas)</th><th>Atrasos</th></tr>";
-    Lr.forEach(function(r){ h+="<tr style=\"border-top:1px solid var(--line)\"><td style=\"padding:6px 4px\">"+r.unidade+"</td><td>"+r.bloco+"</td><td>"+r.entregador+"</td><td>"+(r.horas_escala!=null?(+r.horas_escala).toFixed(1)+"h":"-")+"</td><td>"+r.entregas+"</td><td>"+brl(r.taxas)+"</td><td><b>"+brl(r.pagar_por_escala)+"</b></td><td class=\"muted\">"+brl(r.pagar_por_entregas)+"</td><td style=\"color:"+((+r.atrasos>0)?"var(--bad)":"var(--mut)")+"\">"+r.atrasos+"</td></tr>";});
+    Lr.forEach(function(r){ h+="<tr style=\"border-top:1px solid var(--line)\"><td style=\"padding:6px 4px\">"+r.unidade+"</td><td>"+r.bloco+"</td><td>"+r.entregador+"</td><td>"+(r.horas_escala!=null?(+r.horas_escala).toFixed(1).replace(".",",")+"h":"-")+"</td><td>"+r.entregas+"</td><td>"+brl(r.taxas)+"</td><td><b>"+brl(r.pagar_por_escala)+"</b></td><td class=\"muted\">"+brl(r.pagar_por_entregas)+"</td><td style=\"color:"+((+r.atrasos>0)?"var(--bad)":"var(--mut)")+"\">"+r.atrasos+"</td></tr>";});
     h+="</table></div>";});
-  h+="<div class=\"panel muted\" style=\"margin-top:14px;font-size:12.5px;line-height:1.5\">"+((function(){try{return sessionStorage.getItem("pdg_admin")==="1"}catch(e){return false}})()?"<b>Garantido por loja (regra de exemplo, configuravel).</b> Por hora de escala: R$ 20 em dia de semana e R$ 25 no fim de semana. Paga-se sempre o maior entre as taxas e o garantido.":"<b>Garantido por loja.</b> Cada loja tem um valor minimo por bloco de trabalho. Paga-se sempre o maior entre as taxas e o garantido.")+"<br><b>As duas bases.</b> Escala usa as horas combinadas; entregas usa o tempo entre a primeira e a ultima entrega. Compare alguns dias antes de fixar a regra.<br><b>Atrasos aparecem como informacao</b>, sem desconto automatico.</div>";
+  /* valor da hora: o que a porta devolve (so para o dono) */
+  var vhS=null,vhF=null; R.forEach(function(r){if(r.valor_hora==null)return;if(r.fim_de_semana){if(vhF==null)vhF=+r.valor_hora}else if(vhS==null)vhS=+r.valor_hora});
+  var vhTxt=[vhS!=null?"R$ "+String(vhS).replace(".",",")+" em dia de semana":"",vhF!=null?"R$ "+String(vhF).replace(".",",")+" no fim de semana":""].filter(Boolean).join(" e ");
+  h+="<div class=\"panel muted\" style=\"margin-top:14px;font-size:12.5px;line-height:1.5\">"+((function(){try{return sessionStorage.getItem("pdg_admin")==="1"}catch(e){return false}})()?"<b>Garantido por loja (regra de exemplo, configurável).</b> "+(vhTxt?"Por hora de escala: "+vhTxt+". ":"")+"Paga-se sempre o maior entre as taxas e o garantido.":"<b>Garantido por loja.</b> Cada loja tem um valor mínimo por bloco de trabalho. Paga-se sempre o maior entre as taxas e o garantido.")+"<br><b>As duas bases.</b> Escala usa as horas combinadas; entregas usa o tempo entre a primeira e a última entrega. Compare alguns dias antes de fixar a regra.<br><b>Atrasos aparecem como informação</b>, sem desconto automático.</div>";
   setContent(h);
 }
 
@@ -464,7 +507,7 @@ function rSuper(){
   const rows=atual.sort((a,b)=>(b.nivel||0)-(a.nivel||0)).map(r=>{
     const p=proxDe(r.id_loja);
     const sobe=p&&r.nivel!=null&&p.nivel!=null?(p.nivel>r.nivel?" ⬆️":p.nivel<r.nivel?" ⬇️":""):"";
-    return`<tr><td>${lojaNome(r.id_loja)}</td><td>${nivelPill(r)}</td><td>${nivelPill(p)}${sobe}</td><td>${r.media_avaliacoes??"–"}</td><td>${fmtPct(+r.pct_cancelamento)}</td><td>${fmtPct(+r.pct_chamados)}</td><td class="muted">${(p||r).plano_acao||"–"}</td></tr>`;
+    return`<tr><td>${lojaNome(r.id_loja)}</td><td>${nivelPill(r)}</td><td>${nivelPill(p)}${sobe}</td><td>${r.media_avaliacoes!=null?String(r.media_avaliacoes).replace(".",","):"–"}</td><td>${fmtPct(+r.pct_cancelamento)}</td><td>${fmtPct(+r.pct_chamados)}</td><td class="muted">${(p||r).plano_acao||"–"}</td></tr>`;
   }).join("");
   const nSuper=atual.filter(r=>r.e_super).length;
   const nSuperProx=prox.filter(r=>r.e_super).length;
@@ -537,14 +580,14 @@ async function pdgAtrasadas(btn){
     var R=res.data||[], tot=res.count!=null?res.count:R.length;
     btn.textContent="esconder atrasados";
     if(!R.length){
-      pai.insertAdjacentHTML("afterend",'<div class="panel" id="pdgatr" style="margin-top:14px"><div class="muted">Nenhum pedido atrasado no periodo e nas lojas selecionadas.</div></div>');
+      pai.insertAdjacentHTML("afterend",'<div class="panel" id="pdgatr" style="margin-top:14px"><div class="muted">Nenhum pedido atrasado no período e nas lojas selecionadas.</div></div>');
       return;
     }
     var dBR=function(d){return d?String(d).slice(8,10)+"/"+String(d).slice(5,7):"–"};
     var hr=function(x){return x?String(x).slice(11,16):""};
     var cor=function(m){return m>30?"var(--bad)":m>10?"var(--warn)":"inherit"};
     var h='<div class="panel" id="pdgatr" style="margin-top:14px">';
-    h+='<div class="lbl" style="margin-bottom:8px">Pedidos atrasados · '+tot+' no periodo';
+    h+='<div class="lbl" style="margin-bottom:8px">Pedidos atrasados · '+tot+' no período';
     if(tot>R.length) h+=' <span class="muted">(mostrando os '+R.length+' piores)</span>';
     h+='</div>';
     h+='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
@@ -563,12 +606,12 @@ async function pdgAtrasadas(btn){
        + '</tr>';
     });
     h+='</table></div>';
-    h+='<div class="muted" style="font-size:11px;margin-top:8px">Em <b>Prometido</b>, o horario entre parenteses e a hora em que o pedido entrou; em <b>Atraso</b>, a hora em que ele deveria ter chegado. O til (~) marca prazo estimado por raio, quando o iFood nao mandou a promessa. Atrasado = entregue depois da promessa, com 1 minuto de tolerancia — por isso o total pode diferir em alguns pedidos da tabela Por turno, que usa o atraso cru. Clique em qualquer cabecalho para reordenar.</div>';
+    h+='<div class="muted" style="font-size:11px;margin-top:8px">Em <b>Prometido</b>, o horário entre parênteses é a hora em que o pedido entrou; em <b>Atraso</b>, a hora em que ele deveria ter chegado. O til (~) marca prazo estimado por raio, quando o iFood não mandou a promessa. Atrasado = entregue depois da promessa, com 1 minuto de tolerância — por isso o total pode diferir em alguns pedidos da tabela Por turno, que usa o atraso cru. Clique em qualquer cabeçalho para reordenar.</div>';
     h+='</div>';
     pai.insertAdjacentHTML("afterend",h);
   }catch(e){
     btn.textContent="ver pedidos atrasados";
-    pai.insertAdjacentHTML("afterend",'<div class="panel" id="pdgatr" style="margin-top:14px"><div class="muted">Nao consegui carregar a lista: '+(e&&e.message?e.message:e)+'</div></div>');
+    pai.insertAdjacentHTML("afterend",'<div class="panel" id="pdgatr" style="margin-top:14px"><div class="muted">Não consegui carregar a lista: '+(e&&e.message?e.message:e)+'</div></div>');
   }
 }
 

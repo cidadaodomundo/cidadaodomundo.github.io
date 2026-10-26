@@ -28,13 +28,12 @@
   function um(lista, x) { return lista[Math.min(lista.length - 1, Math.floor(x * lista.length))]; }
   function sorteios(r, n) { var a = []; for (var i = 0; i < n; i++) a.push(r()); return a; }
 
-  /* ---------------- marcas virtuais (as mesmas da TV da Cozinha) ---------------- */
-  var BASE = C.marca || 'Burger Modelo';
-  var MARCAS_TV = [BASE, BASE + ' Veggie', BASE + ' Smash', BASE + ' Marmitas'];
-  function marcaIdx(p) { var h = M.hash('marca|' + p.id) % 10; return h < 5 ? 0 : h < 7 ? 1 : h < 9 ? 2 : 3; }
-  function marcaDe(p, L, semVeggie) {
-    var i = marcaIdx(p); if (semVeggie && i === 1) i = 0;
-    var m = MARCAS_TV[i] + ' - ' + L.nome;
+  /* ---------------- marcas no iFood (MUNDO.marcas, as mesmas da TV da Cozinha) ---------------- */
+  var BASE = M.marcas[0].nome;
+  function marcaDe(p, L, semFrango) {
+    var mc = M.marcaDoPedido(p);
+    if (semFrango && mc.id === 'frango') mc = M.marcas[0];   /* carne crua/passada nunca e da marca de frango */
+    var m = mc.nome + ' - ' + L.nome;
     return M.hash('caixa|' + p.id) % 3 === 0 ? m.toUpperCase() : m;
   }
 
@@ -202,21 +201,13 @@
     return res;
   }
 
-  /* ---------------- avaliacoes do iFood (as notas que ja estao em MUNDO.pedidos) ---------------- */
-  var AV = {};
-  function notasDoDia(L, dia) {   /* avaliacoes dos pedidos feitos neste dia; o iFood libera 1 ou 2 dias depois */
-    var k = L.id + '|' + dia;
-    if (AV[k]) return AV[k];
-    var r = M.pedidos(dia, L.id).filter(function (p) { return p.nota != null && !p.cancelado; }).map(function (p) {
-      return { p: p, nota: p.nota, disse: p.comentario || '', avaliou: M.somaDias(p.dia, M.hash('av|' + p.id) % 10 < 7 ? 1 : 2), marca: marcaDe(p, L) };
-    });
-    if (dia < M.hoje()) AV[k] = r;
-    return r;
-  }
-  function chegadas(L, de, ate) {   /* avaliacoes que o iFood liberou entre de e ate */
+  /* ---------------- avaliacoes do iFood (MUNDO.avaliacoesIfood: a mesma conta da TV e das Avaliacoes do dia) ---------------- */
+  function chegadas(L, de, ate) {   /* avaliacoes que o iFood liberou entre de e ate; o iFood libera 1 ou 2 dias depois */
     var r = [];
-    M.intervalo(M.somaDias(de, -2), ate).forEach(function (d) {
-      notasDoDia(L, d).forEach(function (a) { if (a.avaliou >= de && a.avaliou <= ate && a.avaliou <= M.hoje()) r.push(a); });
+    M.intervalo(de, ate).forEach(function (d) {
+      M.avaliacoesIfood(d, L.id).lista.forEach(function (a) {
+        r.push({ p: a.p, nota: a.nota, disse: a.disse, avaliou: a.avaliou, marca: marcaDe(a.p, L) });
+      });
     });
     return r;
   }
@@ -278,7 +269,7 @@
      2. ITENS FORA DO AR — mesmo sorteio de Produtos pausados / Resolver hoje (telas/pausados.js),
         com as respostas gravadas na mesma gaveta do navegador (demo_resolver_pausas)
      ===================================================================== */
-  var MARCAS_PZ = [C.marca || 'Burger Modelo', 'Smash da Esquina', 'Casa do Frango'];
+  var MARCAS_PZ = M.marcas.map(function (m) { return m.nome; });   /* a lista unica do MUNDO */
   function lerLS(k, padrao) { try { var v = localStorage.getItem('demo_resolver_' + k); return v ? JSON.parse(v) : padrao; } catch (e) { return padrao; } }
   function hojeOp() { return M.minutosAgora() < 300 ? M.dia(-1) : M.hoje(); }
   function quando(dia, min) { var t = M.ts(dia, min); return M.br(t.slice(0, 10)) + ' ' + t.slice(11, 16); }

@@ -118,6 +118,18 @@
       combinado: null, motivo_doc: null, resposta: null
     };
     var r = M.rng('rh-esp|' + p.id + '|' + dia);
+    /* com a tela de demonstracao do Painel RH carregada junto (telas/ponto.js), o status do dia e o MESMO de la
+       (inclusive ferias e atestado de agora, que o Painel RH tambem conhece) */
+    var pr = window.DEMO_PONTO && !p.desligado_base ? window.DEMO_PONTO.dia(p.id, dia) : null;
+    if (pr) {
+      base.nivel = pr.nivel; base.categoria = pr.categoria === 'FALTA_A_CONFIRMAR' ? 'FALTA' : pr.categoria; base.tag = pr.tag || '';
+      base.detalhe = pr.detalhe; base.marcacoes_txt = pr.marcacoes_txt;
+      base.jornada_liquida_min = pr.jornada_liquida_min; base.intervalo_real_min = pr.intervalo_real_min; base.extra_min = pr.extra_min;
+      base.jornada_contratada_min = pr.jornada_contratada_min;
+      if (pr.categoria === 'ATESTADO') base.motivo_doc = 'Atestado médico entregue ao escritório.';
+      if (pr.troca) base.combinado = 'Troca de escala combinada com a gerência';
+      return base;
+    }
     var af = afastadoNoDia(p, dia);
     if (af) { base.categoria = 'SEM_MARCACAO'; base.nivel = 'CONFERIR'; base.tag = 'sem marcações'; base.detalhe = 'Nenhuma batida — ' + af.motivo.toLowerCase() + ' registrado(a) no sistema de RH.'; return base; }
     var b = M.batidas(p, dia);
@@ -371,7 +383,7 @@
       if (/Chapeiro/.test(c)) return 'Chapa';
       if (/Líder/.test(c)) return 'Chapa, Montagem de burgers';
       if (/Auxiliar/.test(c)) return 'Produção/Cozinha (apoio), Fritadeira';
-      return 'Montagem de burgers, Montagem de marmitas/pratos';
+      return 'Montagem de burgers, Pratos e porções';
     }
     if (p.setor === 'Delivery') return /Expedi/.test(c) ? 'Separação de pacotes/expedição' : 'Separação de pacotes/expedição, Atendimento/Caixa';
     if (p.setor === 'Limpeza') return 'Limpeza';
