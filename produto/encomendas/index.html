@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../config.js" data-demo="telas/encomendas.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Encomendas Grandes · Portal de Gestão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cdm-ui.css?v=4">
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>📦 Encomendas Grandes</h1>
+      <div class="placar" id="placar"><span class="pl">Carregando…</span></div>
+    </div>
+    <div class="rt">
+      <a class="volta" href="../index.html">← Portal</a>
+      <button class="bx" onclick="boot(true)" title="Buscar de novo">🔄 Atualizar</button>
+      <button class="novo" onclick="abre(null)">➕ Nova encomenda</button>
+    </div>
+  </div>
+
+  <div class="chips" id="chips"></div>
+  <div class="busca"><span class="lupa">🔎</span><input id="q" placeholder="Procurar: evento, hambúrguer, 170 pessoas, nome de quem cuida…" oninput="pinta()"></div>
+  <div id="app"><div class="vazio"><span class="em">📦</span>Carregando…</div></div>
+</div>
+
+<dialog id="dlg">
+  <div class="dh"><h3 id="d_tit">Nova encomenda</h3><button class="x" onclick="fecha()" aria-label="Fechar">✕</button></div>
+  <div class="db">
+    <div class="f"><label for="d_desc">📦 O que é a encomenda</label><textarea id="d_desc" placeholder="Ex.: Happy hour corporativo — 170 hambúrgueres e fritas" maxlength="300"></textarea></div>
+    <div class="cp2">
+      <div class="f"><label for="d_dt">📅 Dia da entrega</label><input id="d_dt" type="date"><div class="dica">Deixe vazio se ainda vai combinar.</div></div>
+      <div class="f"><label for="d_hora">⏰ Hora</label><input id="d_hora" type="time"></div>
+    </div>
+    <div class="cp2">
+      <div class="f"><label for="d_unid">📍 Loja</label><select id="d_unid"></select></div>
+      <div class="f"><label for="d_qtd">👥 Quantidade (pessoas ou itens)</label><input id="d_qtd" inputmode="numeric" placeholder="Ex.: 170" maxlength="7"></div>
+    </div>
+    <div class="cp2">
+      <div class="f"><label for="d_resp">👤 Quem cuida</label><input id="d_resp" placeholder="Ex.: gerente da loja" maxlength="60"></div>
+      <div class="f" id="d_sit_f"><label for="d_sit">🚦 Situação</label><select id="d_sit">
+        <option value="anotada">📝 Anotada</option><option value="confirmada">✅ Confirmada</option>
+        <option value="em_producao">🍳 Em produção</option><option value="entregue">📦 Entregue</option><option value="cancelada">🚫 Cancelada</option></select></div>
+    </div>
+    <div class="f"><label for="d_cont">📞 Contato do cliente</label><input id="d_cont" placeholder="Nome e telefone" maxlength="200">
+      <div class="dica" id="d_cont_dica">Fica guardado fora da tela. Só aparece no botão 📞 Ver contato.</div></div>
+    <div class="f" id="d_valor_f" style="display:none"><label for="d_valor">💰 Valor combinado (R$) — só o dono vê</label><input id="d_valor" inputmode="decimal" placeholder="Ex.: 4500" maxlength="12"></div>
+    <div class="f"><label for="d_obs">📝 Observação</label><input id="d_obs" placeholder="Ex.: sem cebola · pagar 50% antes" maxlength="400"></div>
+  </div>
+  <div class="df">
+    <button class="bx" onclick="fecha()">Cancelar</button>
+    <button class="sal" id="d_sal" onclick="salva()">💾 Salvar</button>
+  </div>
+</dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+const SB=PORTAL_CFG.rest;
+const KEY=PORTAL_CFG.chave;
+const H={apikey:KEY,Authorization:'Bearer '+KEY};
+const $=i=>document.getElementById(i);
+function lojaNome(x){if(!x)return '';const s=String(x).toLowerCase();const l=(PORTAL_CFG.lojas||[]).find(function(l){return l.id===s||l.nome.toLowerCase()===s||String(l.curto||'').toLowerCase()===s});return l?l.nome:''}
+/* tela de uma loja so: ?loja=id ou ?u=Nome da loja */
+let SOLOJA=null;try{const _q=new URLSearchParams(location.search);const _u=lojaNome(_q.get('loja')||_q.get('u'));if(_u)SOLOJA=_u}catch(e){}
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const br=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'';
+function hojeISO(){return new Date().toLocaleDateString('sv-SE')}
+function difDias(d){return Math.round((new Date(d+'T00:00:00')-new Date(hojeISO()+'T00:00:00'))/86400000)}
+function faltam(d){const n=difDias(d);
+  return n<0?'passou há '+(-n)+' dia'+(n<-1?'s':''):(n===0?'É HOJE':(n===1?'é amanhã':'faltam '+n+' dias'))}
+const ehDono=()=>{try{return sessionStorage.getItem('cdm_admin')==='1'}catch(e){return false}};
+
+/* lojas vem do config.js; "A definir" marca a encomenda que ainda nao tem loja */
+const LOJAS=(PORTAL_CFG.lojas||[]).map(function(l){return l.nome}).concat(['A definir']);
+const ST={anotada:['📝','Anotada','ambar'],confirmada:['✅','Confirmada','verde'],em_producao:['🍳','Em produção','verde'],entregue:['📦','Entregue','cinza'],cancelada:['🚫','Cancelada','cinza']};
+const PROX={anotada:['confirmada','✅','Confirmar'],confirmada:['em_producao','🍳','Em produção'],em_producao:['entregue','📦','Entregue']};
+const ABERTA=function(r){return r.status!=='entregue'&&r.status!=='cancelada'};
+/* aberta com data antes de hoje sai da lista principal e vai para o bloco "Já passaram" */
+const PASSOU=function(r){return ABERTA(r)&&!!r.data_entrega&&r.data_entrega<hojeISO()};
+const VIGENTE=function(r){return ABERTA(r)&&!PASSOU(r)};
+
+let ROWS=[],FILTRO='',EDITA=null;
+
+async function get(q){const r=await fetch(SB+q,{headers:H});if(!r.ok)throw new Error('leitura '+r.status);return await r.json()}
+async function acao(a,dados){
+  const r=await fetch(SB+'rpc/encomenda_acao',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:cdmTok(),p_acao:a,p_dados:dados||{}})});
+  if(!r.ok){let m='não deu certo';try{const j=await r.json();if(j&&j.message)m=j.message}catch(e){}throw new Error(m)}
+  return await r.json();
+}
+let tt=null;
+function aviso(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on')},2800)}
+const OK={confirmada:'✅ Encomenda confirmada',em_producao:'🍳 Em produção!',entregue:'📦 Entregue! Saiu da lista',assumir:'👤 Agora ela é sua'};
+async function faz(a,dados,ok,btn){
+  try{if(btn)btn.disabled=true;await acao(a,dados);await boot();aviso(ok||'✅ Feito')}
+  catch(e){if(btn)btn.disabled=false;aviso('😕 Não consegui gravar: '+e.message)}
+}
+async function anotar(id){
+  const el=document.querySelector('[data-nota="'+id+'"]');if(!el)return;
+  const t=el.value.trim();if(!t){el.focus();return}
+  el.disabled=true;
+  try{await acao('anotar',{id:id,texto:t});await boot();aviso('📝 Observação gravada')}
+  catch(e){el.disabled=false;aviso('😕 Não deu para gravar a observação.')}
+}
+async function contato(id,btn){
+  try{btn.disabled=true;const j=await acao('contato',{id:id});btn.disabled=false;
+    const c=j&&j.contato;if(!c){aviso('📵 Não tem contato guardado nesta encomenda');return}
+    prompt('Contato do cliente (copie):',c);
+  }catch(e){btn.disabled=false;aviso('😕 Não deu para buscar o contato.')}
+}
+
+function historico(obs){
+  const p=String(obs||'').split(' | ').map(function(s){return s.trim()}).filter(Boolean);
+  if(!p.length)return '';
+  const ult=p.slice(-2),antes=p.slice(0,-2);
+  let h='<div class="hist">';
+  if(antes.length)h+='<details><summary>🕘 ver '+antes.length+' anotação(ões) antiga(s)</summary>'+antes.map(function(x){return '<div class="ln">'+esc(x)+'</div>'}).join('')+'</details>';
+  return h+ult.map(function(x){return '<div class="ln">💬 '+esc(x)+'</div>'}).join('')+'</div>';
+}
+
+function pintaChips(){
+  const ab=ROWS.filter(VIGENTE);
+  const lojas=SOLOJA?[]:LOJAS.filter(function(u){return ab.some(function(r){return r.unidade===u})});
+  ab.forEach(function(r){if(!SOLOJA&&lojas.indexOf(r.unidade)<0)lojas.push(r.unidade)});
+  const conta=function(f){return ab.filter(f).length};
+  const fs=[{k:'',e:'📦',r:'Todas',n:ab.length},
+            {k:'semdono',e:'🔴',r:'Sem dono',n:conta(function(r){return !r.responsavel})}]
+    .concat(lojas.map(function(u){return {k:'u:'+u,e:u==='A definir'?'❔':'🏪',r:u,n:conta(function(r){return r.unidade===u})}}));
+  $('chips').innerHTML=fs.map(function(f){
+    return '<button class="chip'+(FILTRO===f.k?' on':'')+'" data-f="'+esc(f.k)+'"><span class="em">'+f.e+'</span>'+esc(f.r)+'<span class="ct">'+f.n+'</span></button>';
+  }).join('');
+}
+function passa(r){
+  if(!FILTRO)return true;
+  if(FILTRO==='semdono')return !r.responsavel;
+  if(FILTRO.indexOf('u:')===0)return r.unidade===FILTRO.slice(2);
+  return true;
+}
+function bate(r,q){return !q||[r.descricao,r.unidade,r.responsavel,r.obs,r.origem,r.qtd_itens].join(' ').toLowerCase().indexOf(q)>=0}
+
+function quando(r){
+  if(!r.data_entrega)return '📅 data a combinar';
+  return (difDias(r.data_entrega)<=2&&difDias(r.data_entrega)>=0?'🔥 ':'📅 ')+faltam(r.data_entrega)+' · '+br(r.data_entrega)+(r.hora?' às '+String(r.hora).slice(0,5):'');
+}
+function cartao(r){
+  const s=ST[r.status]||ST.anotada,nx=PROX[r.status];
+  const perto=r.data_entrega&&difDias(r.data_entrega)<=2&&difDias(r.data_entrega)>=0;
+  let h='<div class="c'+(perto?' dest':'')+(!ABERTA(r)?' feito':'')+'">'+
+    '<div class="ch"><div class="av">'+s[0]+'</div>'+
+      '<div><div class="nm">'+esc(r.descricao)+'</div><div class="st">'+quando(r)+'</div></div>'+
+      '<button class="ed" data-ed="'+r.id+'" title="Mudar esta encomenda">✏️ Editar</button></div>'+
+    '<div class="tags"><span class="tg '+s[2]+'">'+s[0]+' '+s[1]+'</span>'+
+      '<span class="tg cinza">'+(r.unidade==='A definir'?'❔ Loja a definir':'🏪 '+esc(r.unidade))+'</span>'+
+      (r.qtd_itens?'<span class="tg cinza">👥 '+esc(r.qtd_itens)+'</span>':'')+
+      (r.responsavel?'<span class="tg verde">👤 '+esc(r.responsavel)+'</span>':(ABERTA(r)?'<span class="tg verm">🔴 Sem dono</span>':''))+
+      (r.valor!=null&&ehDono()?'<span class="tg ambar">💰 R$ '+Number(r.valor).toLocaleString('pt-BR',{minimumFractionDigits:Number(r.valor)%1?2:0,maximumFractionDigits:2})+'</span>':'')+'</div>';
+  h+=historico(r.obs);
+  if(ABERTA(r)){
+    h+='<div class="anota"><input data-nota="'+r.id+'" placeholder="📝 Observação (Enter grava)" maxlength="400">'+
+       '<button class="bt mini" data-grava="'+r.id+'">Gravar</button></div>';
+    h+='<div class="acs">'+
+      (!r.responsavel?'<button class="bt res" data-a="assumir" data-id="'+r.id+'"><span class="ic">👤</span>Assumir</button>':'')+
+      (nx?'<button class="bt '+(r.responsavel?'res':'lig')+'" data-a="situacao" data-st="'+nx[0]+'" data-id="'+r.id+'"><span class="ic">'+nx[1]+'</span>'+nx[2]+'</button>':'')+
+      '<button class="bt lig" data-cont="'+r.id+'"><span class="ic">📞</span>Ver contato</button>'+
+      '<button class="bt lig" data-a="fechar" data-id="'+r.id+'"><span class="ic">✔️</span>Fechar</button></div>';
+  }
+  h+='<div class="rodc">🗓️ Anotada em '+br(r.criado_em)+' · veio do '+esc(r.origem||'?')+'</div>';
+  return h+'</div>';
+}
+
+function grupo(em,titulo,l){
+  if(!l.length)return '';
+  return '<div class="grp"><span class="em">'+em+'</span><h2>'+esc(titulo)+'</h2><span class="ct">'+l.length+'</span></div><div class="grade">'+l.map(cartao).join('')+'</div>';
+}
+function pinta(){
+  const q=($('q').value||'').trim().toLowerCase();
+  const vis=ROWS.filter(function(r){return passa(r)&&bate(r,q)});
+  const abertas=vis.filter(VIGENTE);
+  const passadas=vis.filter(PASSOU).sort(function(a,b){return String(b.data_entrega).localeCompare(String(a.data_entrega))});
+  PASSADAS=passadas.map(function(r){return r.id});
+  const resto=abertas;
+  const semData=resto.filter(function(r){return !r.data_entrega});
+  const comData=resto.filter(function(r){return r.data_entrega}).sort(function(a,b){return String(a.data_entrega+(a.hora||'')).localeCompare(String(b.data_entrega+(b.hora||'')))});
+  const semana=comData.filter(function(r){return difDias(r.data_entrega)<=7});
+  const depois=comData.filter(function(r){return difDias(r.data_entrega)>7});
+  const hist=vis.filter(function(r){return !ABERTA(r)}).sort(function(a,b){return String(b.data_entrega||b.criado_em).localeCompare(String(a.data_entrega||a.criado_em))});
+  let h='';
+  if(!abertas.length)h+='<div class="vazio"><span class="em">🎉</span>'+(passadas.length?'Nenhuma encomenda para vir nesse filtro. Embaixo estão as que já passaram e continuam abertas.':(ROWS.length?'Nada aberto nesse filtro.':'Nenhuma encomenda aberta.'))+'</div>';
+  h+=grupo('⏰','Próximos 7 dias',semana)+grupo('📆','Mais pra frente',depois)+grupo('📅','Data a combinar',semData);
+  if(passadas.length)h+='<details class="mais"><summary>⌛ Já passaram — feche as que já aconteceram ('+passadas.length+')</summary>'+
+    '<div class="acs" style="margin:10px 0"><button class="bt res" data-fecha-todas="1"><span class="ic">✔️</span>Fechar todas as que já passaram</button></div>'+
+    '<div class="grade">'+passadas.map(cartao).join('')+'</div></details>';
+  if(hist.length)h+='<details class="mais"><summary>🕘 Histórico recente ('+hist.length+')</summary><div class="grade">'+hist.map(cartao).join('')+'</div></details>';
+  h+='<div class="aviso2">📝 Anote aqui toda encomenda grande que chegar por telefone, balcão, e-mail ou site, no botão <b>➕ Nova encomenda</b>. '+
+     'Encomenda <b>🔴 Sem dono</b> precisa de alguém que toque em <b>👤 Assumir</b>. O contato do cliente fica guardado fora da tela, no botão <b>📞 Ver contato</b>.</div>';
+  $('app').innerHTML=h;
+}
+
+/* ---- janela de editar / nova encomenda ---- */
+function abre(id){
+  const r=id==null?null:ROWS.find(function(x){return x.id===id});
+  EDITA=r?r.id:null;
+  const lojas=SOLOJA?[SOLOJA]:LOJAS.slice();if(r&&lojas.indexOf(r.unidade)<0)lojas.push(r.unidade);
+  $('d_unid').innerHTML=lojas.map(function(u){return '<option value="'+esc(u)+'">'+(u==='A definir'?'❔ A definir':'🏪 '+esc(u))+'</option>'}).join('');
+  $('d_tit').textContent=r?'✏️ Editar encomenda':'➕ Nova encomenda';
+  $('d_desc').value=r?(r.descricao||''):'';
+  $('d_dt').value=r&&r.data_entrega?String(r.data_entrega).slice(0,10):'';
+  $('d_hora').value=r&&r.hora?String(r.hora).slice(0,5):'';
+  $('d_unid').value=r?r.unidade:(SOLOJA||(FILTRO.indexOf('u:')===0?FILTRO.slice(2):'A definir'));
+  $('d_qtd').value=r&&r.qtd_itens?r.qtd_itens:'';
+  $('d_resp').value=r?(r.responsavel||''):'';
+  $('d_sit').value=r?(r.status||'anotada'):'anotada';
+  $('d_sit_f').style.display=r?'':'none';
+  $('d_cont').value='';
+  $('d_cont').placeholder=r?'Deixe vazio para manter o que já está guardado':'Nome e telefone';
+  $('d_valor_f').style.display=ehDono()?'':'none';
+  $('d_valor').value=r&&r.valor!=null?r.valor:'';
+  $('d_obs').value='';
+  $('d_sal').disabled=false;
+  const d=$('dlg');
+  if(d.showModal)d.showModal();else d.setAttribute('open','');
+  setTimeout(function(){$('d_desc').focus()},30);
+}
+function fecha(){const d=$('dlg');if(d.close)d.close();else d.removeAttribute('open')}
+
+async function salva(){
+  if($('d_sal').disabled)return;
+  const desc=$('d_desc').value.trim();
+  if(!desc){aviso('✋ Escreva o que é a encomenda');$('d_desc').focus();return}
+  const dados={descricao:desc,data_entrega:$('d_dt').value,hora:$('d_hora').value,unidade:$('d_unid').value,
+    qtd_itens:$('d_qtd').value.trim(),responsavel:$('d_resp').value.trim(),obs:$('d_obs').value.trim()};
+  const ct=$('d_cont').value.trim();if(ct)dados.contato=ct;
+  if(ehDono())dados.valor=$('d_valor').value.trim().replace(/\./g,'').replace(',','.');
+  $('d_sal').disabled=true;
+  try{
+    const novo=EDITA==null;
+    if(novo){const r=await acao('novo',dados);if(r&&r.id)EDITA=r.id}
+    else{
+      const r0=ROWS.find(function(x){return x.id===EDITA});
+      dados.id=EDITA;await acao('editar',dados);
+      const st=$('d_sit').value;
+      if(r0&&st!==r0.status)await acao('situacao',{id:EDITA,status:st});
+    }
+    fecha();
+    await boot();
+    aviso(novo?'🎉 Encomenda anotada!':'✅ Encomenda atualizada!');
+  }catch(e){
+    $('d_sal').disabled=false;
+    aviso('😕 Não deu para salvar: '+e.message);
+  }
+}
+
+/* ---- fechar de uma vez as que já passaram ---- */
+let PASSADAS=[];
+async function fechaTodas(btn){
+  const ids=PASSADAS.slice();
+  if(!ids.length)return;
+  if(!confirm('Fechar as '+ids.length+' encomendas com data que já passou? Elas saem da lista (ficam no histórico).'))return;
+  btn.disabled=true;let ok=0;
+  for(const id of ids){try{await acao('situacao',{id:id,status:'entregue'});ok++}catch(e){}}
+  await boot();aviso('✔️ '+ok+' de '+ids.length+' fechadas');
+}
+/* ---- cliques ---- */
+document.addEventListener('click',function(ev){
+  const t=ev.target.closest('[data-f],[data-ed],[data-a],[data-grava],[data-cont],[data-fecha-todas]');
+  if(!t)return;
+  const id=Number(t.getAttribute('data-id')||t.getAttribute('data-ed')||t.getAttribute('data-grava')||t.getAttribute('data-cont'));
+  if(t.hasAttribute('data-fecha-todas')){fechaTodas(t);return}
+  if(t.hasAttribute('data-f')){FILTRO=t.getAttribute('data-f');pintaChips();pinta()}
+  else if(t.hasAttribute('data-ed'))abre(id);
+  else if(t.hasAttribute('data-grava'))anotar(id);
+  else if(t.hasAttribute('data-cont'))contato(id,t);
+  else if(t.hasAttribute('data-a')){
+    const a=t.getAttribute('data-a');
+    if(a==='fechar'){if(!confirm('Fechar esta encomenda? Ela sai da lista (fica no histórico).'))return;faz('situacao',{id:id,status:'entregue'},'✔️ Fechada! Saiu da lista',t);return}
+    if(a==='situacao'){const st=t.getAttribute('data-st');faz('situacao',{id:id,status:st},OK[st],t)}
+    else faz(a,{id:id},OK[a],t);
+  }
+});
+document.addEventListener('keydown',function(ev){
+  const el=ev.target;
+  if(ev.key==='Enter'&&el.hasAttribute&&el.hasAttribute('data-nota')){ev.preventDefault();anotar(Number(el.getAttribute('data-nota')))}
+});
+$('dlg').addEventListener('keydown',function(ev){if(ev.key==='Enter'&&ev.target.tagName==='INPUT'){ev.preventDefault();salva()}});
+
+async function boot(manual){
+  const d0=new Date();d0.setDate(d0.getDate()-14);const corte=d0.toLocaleDateString('sv-SE');
+  let rows;
+  try{
+    rows=await get('encomenda?select=id,unidade,data_entrega,hora,descricao,qtd_itens,status,responsavel,origem,criado_em,obs'+
+      '&or=(data_entrega.gte.'+corte+',status.in.(anotada,confirmada,em_producao))&order=data_entrega.asc.nullsfirst&limit=150');
+  }catch(e){
+    $('app').innerHTML='<div class="vazio"><span class="em">🔌</span>Não deu para carregar as encomendas. Entre no portal de novo.</div>';
+    return;
+  }
+  try{if(ehDono()){const _r=await fetch(SB+'rpc/dinheiro_consulta',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_token:cdmTok(),p_acao:'encomenda'})});if(_r.ok){const _m=(await _r.json())||[];const _k={};_m.forEach(function(x){_k[x.id]=x.valor});rows.forEach(function(r){if(_k[r.id]!=null)r.valor=_k[r.id]})}}}catch(e){}
+  ROWS=SOLOJA?rows.filter(function(r){return r.unidade===SOLOJA}):rows;
+  const ab=ROWS.filter(VIGENTE);
+  const sd=ab.filter(function(r){return !r.responsavel}).length;
+  const prox=ab.filter(function(r){return r.data_entrega&&difDias(r.data_entrega)>=0&&difDias(r.data_entrega)<=7}).length;
+  $('placar').innerHTML='<span class="pl">📦 <b>'+ab.length+'</b> abertas</span>'+
+    '<span class="pl">🔴 <b>'+sd+'</b> sem dono</span><span class="pl">⏰ <b>'+prox+'</b> nos próximos 7 dias</span>'+(SOLOJA?'<span class="pl">🏪 '+esc(SOLOJA)+'</span>':'');
+  pintaChips();
+  pinta();
+  if(manual)aviso('🔄 Atualizado');
+}
+
+/* ===== porta unica do portal: sessao por usuario ===== */
+const CDMMODS=['encomendas'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'encomendas'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(ok)boot()});
+</script>
+<script src="../assets/portal.js?v=3"></script>
+</body>
+</html>

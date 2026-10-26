@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head>
+<script src="../config.js" data-demo="telas/rhcaixa.js telas/folha.js telas/rescisao.js"></script><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simular rescisão · Portal de Gestão</title>
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--brand:#E0A81C;--brand-ink:#111110;--bg:#0b0e14;--surface:#141922;--surface2:#1b2230;--line:#242d3d;--text:#e8edf4;--muted:#8b95a5;
+--ok:#37b46c;--warn:#e8833a;--dang:#e05252;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Barlow',-apple-system,'Segoe UI',Roboto,sans-serif;padding:18px;max-width:1100px;margin:0 auto;font-size:14px}
+header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding-bottom:14px;border-bottom:2px solid var(--brand);margin-bottom:14px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:42px;height:42px;border-radius:10px;object-fit:contain;display:block;flex:0 0 auto}
+h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.01em;line-height:1.06;font-size:17px}
+.sub{color:var(--muted);font-size:12px;margin-top:2px}
+.btn{background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 14px;font-size:12.5px;cursor:pointer;font-weight:600}
+.btn:hover{border-color:var(--brand)}
+.btn.pri{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.abas{display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:4px;width:max-content;margin-bottom:14px;flex-wrap:wrap}
+.aba{border:none;background:none;color:var(--muted);font-weight:700;font-size:13px;padding:8px 16px;border-radius:8px;cursor:pointer}
+.aba.on{background:var(--brand);color:var(--brand-ink)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;align-items:end}
+label{display:block;font-size:11.5px;color:var(--muted);font-weight:600;margin-bottom:4px}
+select,input,textarea{background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:8px 10px;font-size:13px;outline:none;width:100%;font-family:inherit}
+select:focus,input:focus,textarea:focus{border-color:var(--brand)}
+details{margin-top:12px}
+summary{cursor:pointer;color:var(--muted);font-size:12.5px;font-weight:600}
+.horas{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px}
+.det{font-size:11.5px;color:var(--muted);line-height:1.5}
+.pessoa{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.nome{font-weight:700;font-size:16px}
+.linha{font-size:12.5px;color:#b6c2d4;margin-top:3px}
+.liq{text-align:right}
+.liq .v{font-family:'Anton',Impact,sans-serif;font-size:30px;color:var(--brand)}
+.tot{display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-end;font-size:12.5px;color:var(--muted)}
+.tot b{color:var(--text)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:7px 8px;border-bottom:1px solid #1c2331;vertical-align:top}
+td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+tr.grp td{color:var(--brand);font-weight:700;font-size:11.5px;text-transform:uppercase;padding-top:12px;border-bottom:none}
+.p{color:#7fe0a8}.d{color:#f0a0a0}
+.como{font-size:11px;color:var(--muted)}
+.aviso{background:#2a1e14;border:1px solid #4a2c18;color:var(--warn);border-radius:10px;padding:9px 13px;font-size:12.5px;margin-bottom:8px;line-height:1.45}
+.info{background:#14202a;border:1px solid #1e3a4a;color:#9fd0ee;border-radius:10px;padding:10px 14px;font-size:12.5px;margin-bottom:14px;line-height:1.5}
+.vazio{text-align:center;color:var(--muted);padding:40px 16px;line-height:1.6}
+.erro{background:#3a1418;border:1px solid #6b1e26;color:#f0a0a0;border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:12px}
+.emp{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.quit{opacity:.55}
+@media (max-width:900px){.abas{display:flex;flex-wrap:wrap;gap:6px;width:auto;max-width:100%}}
+@media (max-width:640px){body{padding-left:12px;padding-right:12px}table{display:block;width:max-content;max-width:100%;overflow-x:auto}h1{font-size:clamp(18px,6.2vw,26px)}.liq{text-align:left}.tot{justify-content:flex-start}}
+@media print{body{background:#fff;color:#000}.noprint,header .btn,.abas{display:none!important}.card{border-color:#ccc;background:#fff}td,th{color:#000;border-color:#ddd}.p,.d,.como,.linha,.det{color:#333}.liq .v{color:#000}.aviso{background:#fff;color:#000;border-color:#ccc}}
+</style></head><body>
+
+<header>
+  <div class="brand"><img class="logo" alt="">
+    <div><h1>🧮 Simular rescisão</h1><div class="sub" id="sub">carregando…</div></div>
+  </div>
+  <div><button class="btn" onclick="window.print()">🖨 Imprimir</button></div>
+</header>
+
+<div class="info noprint">Antes de desligar alguém, veja aqui <b>quanto vai custar</b> e compare com o cálculo da contabilidade. Usa a <b>última folha da contabilidade</b> (salário, médias, adiantamento, vale-transporte), as <b>horas do Flash</b> do mês e os <b>empréstimos da empresa</b> cadastrados na outra aba. É uma <b>estimativa</b>: quem fecha o valor oficial é a contabilidade.</div>
+
+<div class="abas noprint">
+  <button class="aba on" id="a_sim" onclick="verAba('sim')">🧮 Simular</button>
+  <button class="aba" id="a_emp" onclick="verAba('emp')">💸 Empréstimos da empresa</button>
+</div>
+
+<div id="v_sim">
+  <div class="card noprint">
+    <div class="form">
+      <div><label>Pessoa</label><select id="f_nome"><option value="">carregando…</option></select></div>
+      <div><label>Último dia de trabalho</label><input type="date" id="f_data"></div>
+      <div><label>Quem quer encerrar?</label><select id="f_motivo" onchange="ajustaAviso()">
+        <option value="pedido">O funcionário pediu as contas</option>
+        <option value="sem_justa_causa">A empresa vai demitir (sem justa causa)</option>
+        <option value="justa_causa">A empresa vai demitir por justa causa</option>
+        <option value="acordo">Acordo entre os dois</option>
+        <option value="experiencia">Contrato de experiência</option>
+      </select></div>
+      <div><label id="l_aviso">E o aviso prévio?</label><select id="f_aviso" onchange="ajustaExtra()"></select></div>
+      <div id="x_dias" style="display:none"><label>Quantos dias do aviso ele trabalhou?</label><input id="f_dias" inputmode="numeric" placeholder="ex.: 10"></div>
+      <div id="x_fimctr" style="display:none"><label>Último dia previsto no contrato de experiência (se ficar vazio, uso o prazo máximo da experiência)</label><input type="date" id="f_fimctr"></div>
+      <div><button class="btn pri" style="width:100%" onclick="simular()">Calcular</button></div>
+    </div>
+    <details>
+      <summary>✏️ Digitar as horas do mês (só se o Flash estiver errado ou faltando)</summary>
+      <div class="det" style="margin-top:6px">Aceita 7:16 ou 7,27. Se preencher qualquer campo, o cálculo usa o que você digitou no lugar do Flash.</div>
+      <div class="horas">
+        <div><label>Hora extra (dia normal)</label><input id="h_he70" placeholder="0:00"></div>
+        <div><label>Hora extra (domingo e feriado)</label><input id="h_he100" placeholder="0:00"></div>
+        <div><label>Adicional noturno</label><input id="h_not" placeholder="0:00"></div>
+        <div><label>Faltas</label><input id="h_falt" placeholder="0:00"></div>
+        <div><label>Faltas parciais (atrasos)</label><input id="h_fparc" placeholder="0:00"></div>
+      </div>
+    </details>
+  </div>
+  <div id="res"><div class="vazio">Escolha a pessoa, a data e o motivo e clique em <b>Calcular</b>.</div></div>
+</div>
+
+<div id="v_emp" style="display:none">
+  <div class="card">
+    <div class="det" style="margin-bottom:10px">Dinheiro que a <b>empresa</b> emprestou para a pessoa (não é o consignado do banco). O que estiver em aberto entra sozinho como desconto na simulação.</div>
+    <div class="form">
+      <div><label>Pessoa</label><select id="e_nome"></select></div>
+      <div><label>Valor (R$)</label><input id="e_valor" inputmode="decimal" placeholder="500,00"></div>
+      <div><label>Data</label><input type="date" id="e_data"></div>
+      <div><label>Como foi pago</label><select id="e_forma"><option>PIX</option><option>Dinheiro</option><option>Transferência</option><option>Outro</option></select></div>
+      <div style="grid-column:1/-1"><label>Observação</label><input id="e_obs" placeholder="ex.: combinado descontar na rescisão"></div>
+      <div><button class="btn pri" style="width:100%" onclick="novoEmp()">Cadastrar empréstimo</button></div>
+    </div>
+    <div class="det" id="e_msg" style="margin-top:8px"></div>
+  </div>
+  <div id="emps"><div class="vazio">Carregando…</div></div>
+</div>
+
+<script>
+const SB=PORTAL_CFG.rest;
+const KEY=PORTAL_CFG.chave;
+/* logo e marca do cliente (config.js) */
+document.querySelectorAll('img.logo').forEach(function(i){i.src=PORTAL_CFG.logoUrl;i.alt=PORTAL_CFG.marca});
+const H={apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'};
+const CDMMODS=['rescisao'];
+let PESSOAS=[];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const br=d=>d?String(d).slice(0,10).split('-').reverse().join('/'):'—';
+const rs=v=>(v==null||v==='')?'':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+function hoje(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:H,body:JSON.stringify({p_token:t,p_tela:'rescisao'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  $('sub').textContent='você entrou como '+(j.nome||j.usuario);
+  return true;
+}
+async function porta(acao,dados){
+  const r=await fetch(SB+'rpc/rh_rescisao_porta',{method:'POST',headers:H,
+    body:JSON.stringify({p_senha:cdmTok(),p_acao:acao,p_dados:dados||{}})});
+  const j=await r.json().catch(function(){return null});
+  if(!r.ok){throw new Error((j&&(j.message||j.hint))||('erro '+r.status))}
+  return j;
+}
+function verAba(a){
+  ['sim','emp'].forEach(function(x){$('a_'+x).classList.toggle('on',x===a);$('v_'+x).style.display=(x===a)?'':'none'});
+  if(a==='emp')carregaEmp();
+}
+/* "Quem quer encerrar?" + a segunda pergunta de cada caso */
+function ajustaAviso(){
+  const m=$('f_motivo').value, s=$('f_aviso');
+  const ops={
+    pedido:[['cumprido','Vai cumprir o aviso (trabalha os dias)'],['descontado','Não quer cumprir — a empresa desconta'],
+            ['parcial','Cumpriu só uma parte do aviso'],['dispensado','A empresa libera do aviso, sem desconto']],
+    sem_justa_causa:[['indenizado','Aviso indenizado (paga e a pessoa não trabalha)'],['trabalhado','Aviso trabalhado (a pessoa trabalha os dias)']],
+    justa_causa:[['','Não tem aviso prévio']],
+    acordo:[['indenizado','Aviso pela metade, indenizado']],
+    experiencia:[['fim_experiencia','Termina no último dia do contrato'],['exp_antecipada_empresa','A empresa encerra antes do fim'],
+                 ['exp_antecipada_empregado','O funcionário sai antes do fim']]}[m]||[];
+  $('l_aviso').textContent=(m==='experiencia')?'Como termina a experiência?':'E o aviso prévio?';
+  s.innerHTML=ops.map(function(o){return '<option value="'+o[0]+'">'+o[1]+'</option>'}).join('');
+  ajustaExtra();
+}
+function ajustaExtra(){
+  const m=$('f_motivo').value, a=$('f_aviso').value;
+  $('x_dias').style.display=(m==='pedido'&&a==='parcial')?'':'none';
+  $('x_fimctr').style.display=(m==='experiencia'&&a!=='fim_experiencia')?'':'none';
+}
+/* traduz o formulario para o que o banco entende: motivo, aviso e opcoes */
+function escolha(){
+  const m=$('f_motivo').value, a=$('f_aviso').value, op={};
+  if(m==='experiencia'){
+    if(a!=='fim_experiencia'&&$('f_fimctr').value)op.fim_contrato=$('f_fimctr').value;
+    return {motivo:a,aviso:'',opcoes:op};
+  }
+  if(m==='pedido'&&a==='parcial')op.dias_cumpridos=parseInt($('f_dias').value,10)||0;
+  return {motivo:m,aviso:a,opcoes:op};
+}
+function horasNum(v){
+  v=String(v||'').trim(); if(!v)return null;
+  if(v.indexOf(':')>=0){const p=v.split(':');return (parseInt(p[0],10)||0)+(parseInt(p[1],10)||0)/60}
+  const n=parseFloat(v.replace(',','.')); return isNaN(n)?null:n;
+}
+async function boot(){
+  $('f_data').value=hoje(); $('e_data').value=hoje(); ajustaAviso();
+  try{
+    PESSOAS=await porta('pessoas',{});
+    const op='<option value="">— escolher —</option>'+PESSOAS.map(function(p){
+      return '<option value="'+esc(p.nome)+'">'+esc(p.nome)+' · '+esc(p.cargo||'')+'</option>'}).join('');
+    $('f_nome').innerHTML=op; $('e_nome').innerHTML=op;
+  }catch(e){$('res').innerHTML='<div class="erro">'+esc(e.message)+'</div>'}
+}
+async function simular(){
+  const nome=$('f_nome').value, data=$('f_data').value;
+  if(!nome||!data){alert('Escolha a pessoa e a data.');return}
+  const hs={he70_h:horasNum($('h_he70').value),he100_h:horasNum($('h_he100').value),noturno_h:horasNum($('h_not').value),
+            faltas_h:horasNum($('h_falt').value),faltas_parcial_h:horasNum($('h_fparc').value)};
+  const temH=Object.keys(hs).some(function(k){return hs[k]!=null});
+  Object.keys(hs).forEach(function(k){if(hs[k]==null)delete hs[k]});
+  $('res').innerHTML='<div class="vazio">Calculando…</div>';
+  try{
+    const es=escolha();
+    if($('f_motivo').value==='pedido'&&$('f_aviso').value==='parcial'&&!$('f_dias').value){alert('Diga quantos dias do aviso ele trabalhou.');$('res').innerHTML='';return}
+    const j=await porta('simular',{nome:nome,data:data,motivo:es.motivo,aviso:es.aviso,opcoes:es.opcoes,horas:temH?hs:null});
+    $('res').innerHTML=desenha(j);
+  }catch(e){$('res').innerHTML='<div class="erro">'+esc(e.message)+'</div>'}
+}
+/* o banco escreve sem acento; aqui volta o acento das palavras que aparecem */
+const ACENTO=[[/\bSalario\b/g,'Salário'],[/\bsalario\b/g,'salário'],[/\bprevio\b/g,'prévio'],[/\bPrevio\b/g,'Prévio'],[/13o\b/g,'13º'],
+  [/\bFerias\b/g,'Férias'],[/\bferias\b/g,'férias'],[/\bEmprestimo\b/g,'Empréstimo'],[/\bemprestimo\b/g,'empréstimo'],
+  [/\bmes\b/g,'mês'],[/\bMedia\b/g,'Média'],[/\bmedia\b/g,'média'],[/\bmedias\b/g,'médias'],[/\buteis\b/g,'úteis'],
+  [/\bgratificacao\b/g,'gratificação'],[/\bprojecao\b/g,'projeção'],[/\bterco\b/g,'terço'],[/\bnao\b/g,'não'],[/\bNao\b/g,'Não'],
+  [/\bATENCAO\b/g,'ATENÇÃO'],[/\brescisao\b/g,'rescisão'],[/\bdemissao\b/g,'demissão'],[/\bexperiencia\b/g,'experiência'],
+  [/\bvoce\b/g,'você'],[/\bate\b/g,'até'],[/\besta (dentro|no)\b/g,'está $1'],[/\bperiodo\b/g,'período'],[/\bperiodos\b/g,'períodos'],
+  [/\bcalculo\b/g,'cálculo'],[/\bmes\(es\)/g,'mês(es)'],[/\bpar\. 5\b/g,'§5º'],[/\bconcessao\b/g,'concessão'],[/\bsao\b/g,'são'],
+  [/\bIndenizacao\b/g,'Indenização'],[/\bFuncionario\b/g,'Funcionário'],[/\bDemissao\b/g,'Demissão'],
+  [/\bprejuizo\b/g,'prejuízo'],[/\breducao\b/g,'redução'],[/\badvertencia\(s\)/g,'advertência(s)'],[/\bsuspensao\(oes\)/g,'suspensão(ões)'],
+  [/\bJustica\b/g,'Justiça'],[/\bE opcional\b/g,'É opcional'],[/\bja\b/g,'já'],[/\bultimos\b/g,'últimos'],[/\bpeca\b/g,'peça'],[/\bsaida\b/g,'saída'],[/\bultima\b/g,'última'],[/\bultimo\b/g,'último']];
+function ac(s){s=String(s==null?'':s);ACENTO.forEach(function(a){s=s.replace(a[0],a[1])});return s}
+const MOT={sem_justa_causa:'Demissão sem justa causa',pedido:'Pedido de demissão',acordo:'Acordo entre os dois',fim_experiencia:'Fim da experiência',
+  justa_causa:'Justa causa',exp_antecipada_empresa:'Empresa encerrou a experiência antes',exp_antecipada_empregado:'Funcionário saiu antes do fim da experiência'};
+const AV={indenizado:'aviso indenizado',trabalhado:'aviso trabalhado',cumprido:'cumpriu o aviso',descontado:'não cumpriu o aviso',parcial:'cumpriu parte do aviso',dispensado:'liberado do aviso'};
+function desenha(j){
+  const p=j.pessoa||{}, e=j.entrada||{}, t=j.totais||{}, emp=j.empresa||{};
+  let g='', rows='';
+  (j.linhas||[]).forEach(function(l){
+    if(l.g!==g){g=l.g;rows+='<tr class="grp"><td colspan="4">'+esc(ac(g))+'</td></tr>'}
+    rows+='<tr><td>'+esc(ac(l.r))+'<div class="como">'+esc(ac(l.como||''))+'</div></td><td>'+esc(l.ref||'')+'</td>'
+      +'<td class="n p">'+(l.p!=null?rs(l.p):'')+'</td><td class="n d">'+(l.d!=null?rs(l.d):'')+'</td></tr>';
+  });
+  const avs=(j.avisos||[]).map(function(a){return '<div class="aviso">'+esc(ac(a))+'</div>'}).join('');
+  return '<div class="card"><div class="pessoa"><div>'
+      +'<div class="nome">'+esc(p.nome)+'</div>'
+      +'<div class="linha">'+esc(p.cargo||'')+' · '+esc(p.empresa||'')+'</div>'
+      +'<div class="linha">Admissão '+br(p.admissao)+' · '+(p.anos_de_casa||0)+' ano(s) de casa · salário '+rs(p.salario)+'</div>'
+      +'<div class="linha">'+esc(MOT[e.motivo]||e.motivo)+(AV[e.aviso]?' · '+AV[e.aviso]:'')+' · saída '+br(e.data)
+        +(e.dias_aviso?' · aviso '+e.dias_aviso+' dias':'')+(e.projecao?' · projeção até '+br(e.projecao):'')+'</div>'
+      +'<div class="det">horas do mês: '+esc(ac(e.horas_de||'—'))+'</div>'
+    +'</div><div class="liq"><div class="det">a pessoa recebe (estimativa)</div><div class="v">'+rs(t.liquido)+'</div>'
+      +'<div class="tot"><span>proventos <b>'+rs(t.proventos)+'</b></span><span>descontos <b>'+rs(t.descontos)+'</b></span></div></div></div></div>'
+    +'<div class="card"><table><thead><tr><th>O quê</th><th>Ref.</th><th style="text-align:right">Recebe</th><th style="text-align:right">Desconta</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+    +'<div class="card"><div class="nome" style="font-size:14px">Custo da empresa além do líquido</div>'
+      +'<div class="linha">FGTS desta rescisão ('+esc(emp.fgts_pct)+'%): <b>'+rs(emp.fgts_rescisao)+'</b>'
+      +(emp.multa_pct>0?' · multa de '+emp.multa_pct+'% do FGTS: <b>~'+rs(emp.multa_estimada)+'</b> (saldo estimado ~'+rs(emp.saldo_fgts_estimado)+')':' · sem multa do FGTS')+'</div>'
+      +'<div class="det">'+esc(ac(emp.como||''))+'</div></div>'
+    +(avs?'<div class="card"><div class="nome" style="font-size:14px;margin-bottom:8px">⚠ Confira antes de decidir</div>'+avs+'</div>':'');
+}
+async function carregaEmp(){
+  $('emps').innerHTML='<div class="vazio">Carregando…</div>';
+  try{
+    const l=await porta('emprestimos',{});
+    if(!Array.isArray(l)||!l.length){$('emps').innerHTML='<div class="vazio">Nenhum empréstimo cadastrado.</div>';return}
+    $('emps').innerHTML=l.map(function(x){
+      const q=!!x.quitado_em;
+      return '<div class="card'+(q?' quit':'')+'"><div class="emp"><div>'
+        +'<div class="nome" style="font-size:14px">'+esc(x.nome)+' · '+rs(x.valor)+'</div>'
+        +'<div class="linha">'+br(x.data)+(x.forma?' · '+esc(x.forma):'')+(q?' · ✅ quitado em '+br(x.quitado_em):' · em aberto')+'</div>'
+        +(x.obs?'<div class="det">'+esc(x.obs)+'</div>':'')
+        +(x.origem?'<div class="det">origem: '+esc(x.origem)+(x.criado_por?' · cadastrado por '+esc(x.criado_por):'')+'</div>':'')
+        +'</div>'+(q?'':'<button class="btn" onclick="quitar('+x.id+')">Marcar como quitado</button>')+'</div></div>';
+    }).join('');
+  }catch(e){$('emps').innerHTML='<div class="erro">'+esc(e.message)+'</div>'}
+}
+async function novoEmp(){
+  const nome=$('e_nome').value, valor=parseFloat(String($('e_valor').value).replace(/\./g,'').replace(',','.')), data=$('e_data').value;
+  if(!nome||!(valor>0)||!data){$('e_msg').textContent='Preencha pessoa, valor e data.';return}
+  if(!confirm('Cadastrar empréstimo de '+rs(valor)+' para '+nome+'?'))return;
+  try{
+    await porta('emprestimo_novo',{nome:nome,valor:valor,data:data,forma:$('e_forma').value,obs:$('e_obs').value});
+    $('e_msg').textContent='✅ Cadastrado.'; $('e_valor').value=''; $('e_obs').value=''; carregaEmp();
+  }catch(e){$('e_msg').textContent=e.message}
+}
+async function quitar(id){
+  if(!confirm('Marcar este empréstimo como quitado? Ele deixa de ser descontado na simulação.'))return;
+  try{await porta('emprestimo_quitar',{id:id});carregaEmp()}catch(e){alert(e.message)}
+}
+cdmGuarda().then(function(ok){if(ok)boot()});
+</script><script src="../assets/portal.js?v=3"></script>
+</body></html>

@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../config.js" data-demo="telas/manutencao.js telas/prestadores.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Manutenção · Portal de Gestão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cdm-ui.css?v=4">
+<style>
+/* sugestao de prestador no cartao e lista de prestadores */
+.sug{background:#14201a;border:1px solid #2f5a40;color:#cfe9d8;border-radius:13px;padding:10px 12px;font-size:13.5px;line-height:1.45;display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.pc-bts{display:flex;gap:6px;flex-wrap:wrap}
+.pc-bts a,.pc-bts button{text-decoration:none}
+.pc-sem{color:#9a9a92;font-size:12.5px}
+.pc-av{color:#e6d9a8;font-size:12.5px}
+.pr-set{font-weight:800;margin:12px 0 6px;font-size:15px}
+.pr{border:1px solid #3a3a34;border-radius:12px;padding:10px 12px;margin-bottom:8px;display:flex;flex-direction:column;gap:5px}
+.pr .nm{font-weight:700}
+.pr.ruim{opacity:.6}
+/* abas: Chamados e Quem conserta */
+[hidden]{display:none!important}
+.abas{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.aba{background:var(--s1);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:8px 16px;font:inherit;font-weight:700;font-size:14.5px;cursor:pointer}
+.aba.on{background:var(--brand);border-color:var(--brand);color:var(--s0)}
+.aba:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+#pg_qc iframe{width:100%;height:80vh;min-height:620px;border:0;border-radius:10px;background:var(--s0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>🔧 Manutenção</h1>
+      <div class="placar" id="placar"><span class="pl">Carregando…</span></div>
+    </div>
+    <div class="rt">
+      <a class="volta" href="../index.html">← Portal</a>
+      <button class="bx" onclick="boot(true)" title="Buscar de novo">🔄 Atualizar</button>
+      <button class="bx" onclick="abrePrest('')" title="Telefones de quem conserta">📞 Prestadores</button>
+      <button class="novo" onclick="abre(null)">➕ Novo chamado</button>
+    </div>
+  </div>
+
+  <div class="abas" id="abas" hidden>
+    <button class="aba on" id="ab_ch" onclick="aba('ch')">🔧 Chamados</button>
+    <button class="aba" id="ab_qc" onclick="aba('qc')">📞 Quem conserta</button>
+  </div>
+  <div id="pg_ch">
+  <div class="chips" id="chips"></div>
+  <div class="busca"><span class="lupa">🔎</span><input id="q" placeholder="O que quebrou? freezer, pia, chapa, tomada…" oninput="pinta()"></div>
+  <div id="app"><div class="vazio"><span class="em">🔧</span>Carregando…</div></div>
+  </div>
+  <div id="pg_qc" hidden></div>
+</div>
+
+<dialog id="dlg">
+  <div class="dh"><h3 id="d_tit">Novo chamado</h3><button class="x" onclick="fecha()" aria-label="Fechar">✕</button></div>
+  <div class="db">
+    <div class="f"><label for="d_item">🔧 O que quebrou</label><input id="d_item" placeholder="Ex.: Freezer da cozinha" maxlength="120"></div>
+    <div class="cp2">
+      <div class="f"><label for="d_unid">📍 Loja</label><select id="d_unid"></select></div>
+      <div class="f"><label for="d_prio">🚦 Prioridade</label><select id="d_prio"></select></div>
+    </div>
+    <div class="f" id="d_sit_f"><label for="d_sit">📅 Situação</label><select id="d_sit"><option value="aberto">🛠️ Aberto</option><option value="agendado">📅 Agendado (técnico já marcado)</option></select></div>
+    <div class="f"><label for="d_desc">📝 Detalhe</label><textarea id="d_desc" placeholder="O que está acontecendo, desde quando, quem viu…" maxlength="600"></textarea></div>
+  </div>
+  <div class="df">
+    <button class="bx" onclick="fecha()">Cancelar</button>
+    <button class="sal" id="d_sal" onclick="salva()">💾 Salvar</button>
+  </div>
+</dialog>
+<dialog id="dlgP">
+  <div class="dh"><h3 id="p_tit">📞 Prestadores de serviço</h3><button class="x" onclick="fechaPrest()" aria-label="Fechar">✕</button></div>
+  <div class="db" id="p_corpo"></div>
+  <div class="df"><span id="p_link"></span><button class="bx" onclick="fechaPrest()">Fechar</button></div>
+</dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+const SB=PORTAL_CFG.rest;
+const KEY=PORTAL_CFG.chave;
+const H={apikey:KEY,Authorization:'Bearer '+KEY};
+const $=i=>document.getElementById(i);
+/* lojas vem do config.js; "Todas" marca o chamado que vale para todas as lojas */
+const LOJAS=(PORTAL_CFG.lojas||[]).map(function(l){return l.nome}).concat(['Todas']);
+function lojaNome(x){if(!x)return '';const s=String(x).toLowerCase();const l=(PORTAL_CFG.lojas||[]).find(function(l){return l.id===s||l.nome.toLowerCase()===s||String(l.curto||'').toLowerCase()===s});return l?l.nome:''}
+/* tela de uma loja so: ?u=Nome da loja ou ?loja=id */
+let SOLOJA=null;try{const _q=new URLSearchParams(location.search);const _u=lojaNome(_q.get('u')||_q.get('loja'));if(_u)SOLOJA=_u}catch(e){}
+let FILTRO=SOLOJA||'';
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const br=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'';
+function dias(d){const h=new Date();h.setHours(0,0,0,0);const n=Math.round((h-new Date(String(d).slice(0,10)+'T00:00:00'))/86400000);return n<=0?'hoje':(n+' dia'+(n>1?'s':''))}
+const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
+
+const PRI={urgente:['🔴','Urgente','verm'],normal:['🟡','Normal','ambar'],quando_der:['⚪','Quando der','cinza']};
+const ORD={urgente:0,normal:1,quando_der:2};
+/* icone e setor da Quem conserta, adivinhados pelo nome do que quebrou */
+const TIPOS=[
+  [/freez|geladeir|refriger|c[aâ]mara|chopp|gelo|resfri/i,'❄️','Refrigeração e câmara fria'],
+  [/\bled\b|luz|l[aâ]mpada|tomada|disjunt|el[eé]tric|fia[cç]|quadro|energia|curto/i,'⚡','Elétrica'],
+  [/telhad|toldo|goteir|chuva|infiltr|parede|porta|janela|piso|forro|pintur/i,'🏠','Telhado e obra'],
+  [/\bpia\b|torneira|vaz|\bcano|[aá]gua|esgoto|ralo|descarga|\bvaso|banheir|tanque|entup/i,'🚿','Hidráulica e faz-tudo'],
+  [/coifa|exaust/i,'💨','Coifa e exaustão'],
+  [/forno|micro/i,'♨️','Forno e micro-ondas'],
+  [/fog[aã]o|chapa|broiler|\bg[aá]s\b|botij/i,'🔥','Gás e chapa'],
+  [/fritadeir|banho.?maria|seladora|liquidific|moedor|m[aá]quina/i,'🍳','Equipamentos de cozinha'],
+  [/ar.?condic|split/i,'🌬️','Ar-condicionado'],
+  [/gordura|fossa|limpez/i,'🧽','Limpeza pesada'],
+  [/internet|wi.?fi|\btv\b|televis|\bsom\b|caixa de som|computador|impressora|tablet|celular|interfone|\bapp\b/i,'📺',null]];
+/* nome de loja nao conta para adivinhar o setor */
+const RE_LOJAS=(function(){const n=(PORTAL_CFG.lojas||[]).map(function(l){return String(l.nome).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}).filter(Boolean);return n.length?new RegExp(n.join('|'),'gi'):null})();
+function tipo(r){
+  const limpa=function(t){return RE_LOJAS?String(t||'').replace(RE_LOJAS,' '):String(t||'')};
+  for(const t of [limpa(r.item),limpa(r.descricao)]){for(const x of TIPOS){if(x[0].test(t))return x}}
+  return [null,'🔧',null];
+}
+/* na tela da loja (?u= ou ?loja=) os botoes de cima separam por assunto e os cartoes ficam em blocos por assunto.
+   O assunto e o mesmo setor do icone do cartao. */
+function assunto(r){const t=tipo(r);return t[2]||(t[1]==='📺'?'Aparelhos, TV e internet':'Outros')}
+
+let ROWS=[],EDITA=null,MODS=[];
+
+/* Lista de prestadores: porta prestador_consulta (so leitura aqui). A sugestao do cartao e o prestador do mesmo setor do icone,
+   pulando quem esta marcado "nao recomendado", e primeiro quem foi chamado por ultimo (coluna ultima). */
+let PREST=null;
+async function carregaPrest(){
+  try{
+    const r=await fetch(SB+'rpc/prestador_consulta',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({p_token:tok(),p_acao:'listar',p_dados:{}})});
+    PREST=r.ok?((await r.json()).gente||[]):[];
+  }catch(e){PREST=[]}
+}
+function naoRecom(p){return /n[aã]o recomend/i.test(p.aviso||'')}
+function semTeste(p){return /(n[aã]o|nunca) foi testad|sem servi[cç]o confirmad/i.test(p.aviso||'')}
+function doSetor(s){return (PREST||[]).filter(function(p){return p.setor===s}).sort(function(a,b){return naoRecom(a)-naoRecom(b)||semTeste(a)-semTeste(b)||String(b.ultima||'').localeCompare(String(a.ultima||''))||a.id-b.id})}
+function contato(p){
+  if(!p.telefone)return '<span class="pc-sem">📇 '+(p.numero_com?'número com '+esc(p.numero_com):'sem telefone cadastrado')+'</span>';
+  const d=String(p.telefone).replace(/\D/g,'');
+  return '<a class="bt mini" href="tel:+55'+d+'">📞 '+esc(p.telefone)+'</a>';
+}
+function sugestao(r){
+  const s=tipo(r)[2];if(!s||!PREST)return '';
+  const l=doSetor(s).filter(function(p){return !naoRecom(p)});if(!l.length)return '';
+  const p=l[0],nOut=doSetor(s).length-1;
+  return '<div class="sug"><div>💡 Sugestão: chamar <b>'+esc(p.nome)+'</b> <span class="pc-sem">· '+esc(s)+'</span></div>'+
+    (p.aviso?'<div class="pc-av">⚠️ '+esc(p.aviso)+'</div>':'')+
+    '<div class="pc-bts">'+contato(p)+(nOut>0?'<button class="bt mini" data-prest="'+esc(s)+'">Ver outros ('+nOut+')</button>':'')+'</div></div>';
+}
+function abrePrest(s){
+  const l=(PREST||[]).filter(function(p){return !s||p.setor===s});
+  const g={};l.forEach(function(p){(g[p.setor]=g[p.setor]||[]).push(p)});
+  let h='';
+  if(!PREST||!PREST.length)h='<div class="pc-sem">Não deu para carregar a lista de prestadores.</div>';
+  else if(!l.length)h='<div class="pc-sem">Nenhum prestador cadastrado para '+esc(s)+'.</div>';
+  Object.keys(g).sort(function(a,b){return a.localeCompare(b,'pt-BR')}).forEach(function(k){
+    h+='<div class="pr-set">'+(TIPOS.filter(function(x){return x[2]===k}).map(function(x){return x[1]})[0]||'🔧')+' '+esc(k)+'</div>'+
+      doSetor(k).map(function(p){
+        return '<div class="pr'+(naoRecom(p)?' ruim':'')+'"><div class="nm">'+esc(p.nome)+'</div>'+
+          (p.faz?'<div class="pc-sem">'+esc(p.faz)+'</div>':'')+
+          (p.aviso?'<div class="pc-av">⚠️ '+esc(p.aviso)+'</div>':'')+
+          '<div class="pc-bts">'+contato(p)+'</div></div>';
+      }).join('');
+  });
+  $('p_tit').textContent='📞 '+(s?'Quem conserta · '+s:'Prestadores de serviço');
+  $('p_corpo').innerHTML=h+(s?'<div style="margin-top:10px"><button class="bt mini" data-prest="">Ver todos os prestadores</button></div>':'');
+  $('p_link').innerHTML=MODS.indexOf('prestadores')>=0?'<a class="volta" href="#" onclick="fechaPrest();aba(\'qc\');return false">✏️ Editar a lista</a>':'';
+  const d=$('dlgP');if(d.showModal&&!d.open)d.showModal();else d.setAttribute('open','');
+}
+/* A aba Quem conserta carrega a propria tela de prestadores (prestadores/?embed=1) uma vez so; nao tem timer. */
+function aba(k){
+  const qc=k==='qc';
+  $('ab_ch').classList.toggle('on',!qc);$('ab_qc').classList.toggle('on',qc);
+  $('pg_ch').hidden=qc;$('pg_qc').hidden=!qc;
+  if(qc&&!$('pg_qc').firstChild)$('pg_qc').innerHTML='<iframe src="'+esc(PORTAL_CFG.url('prestadores/?embed=1'))+'" title="Quem conserta"></iframe>';
+}
+function fechaPrest(){const d=$('dlgP');if(d.close)d.close();else d.removeAttribute('open')}
+document.addEventListener('click',function(ev){const b=ev.target.closest('[data-prest]');if(b)abrePrest(b.getAttribute('data-prest'))});
+
+async function get(q){const r=await fetch(SB+q,{headers:H});if(!r.ok)throw new Error('leitura '+r.status);return await r.json()}
+async function acao(a,dados){
+  const r=await fetch(SB+'rpc/manutencao_acao',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:tok(),p_acao:a,p_dados:dados||{}})});
+  if(!r.ok)throw new Error('porta '+r.status);
+  return await r.json();
+}
+let tt=null;
+function aviso(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on')},2400)}
+async function faz(a,dados,ok){
+  try{await acao(a,dados);await boot();if(ok)aviso(ok)}
+  catch(e){aviso('😕 Não deu para gravar. Entre no portal de novo e tente outra vez.')}
+}
+function resolver(id,v){
+  if(v&&!confirm('Marcar este chamado como RESOLVIDO?'))return;
+  if(!v&&!confirm('Reabrir este chamado?'))return;
+  faz('resolver',{id:id,feito:v},v?'✅ Resolvido! Boa!':'↩️ Chamado reaberto');
+}
+async function anotar(id){
+  const el=document.querySelector('[data-nota="'+id+'"]');if(!el)return;
+  const t=el.value.trim();if(!t){el.focus();return}
+  el.disabled=true;
+  try{await acao('anotar',{id:id,texto:t});await boot();aviso('📝 Observação gravada')}
+  catch(e){el.disabled=false;aviso('😕 Não deu para gravar a observação.')}
+}
+
+function historico(obs){
+  const p=String(obs||'').split(' | ').map(function(s){return s.trim()}).filter(Boolean);
+  if(!p.length)return '';
+  const ult=p.slice(-2),antes=p.slice(0,-2);
+  let h='<div class="hist">';
+  if(antes.length)h+='<details><summary>🕘 ver '+antes.length+' anotação(ões) antiga(s)</summary>'+antes.map(function(x){return '<div class="ln">'+esc(x)+'</div>'}).join('')+'</details>';
+  return h+ult.map(function(x){return '<div class="ln">💬 '+esc(x)+'</div>'}).join('')+'</div>';
+}
+
+function pintaChips(){
+  if(SOLOJA){
+    const ab0=ROWS.filter(function(r){return r.status!=='resolvido'}),cnt={},ic={};
+    ab0.forEach(function(r){const a=assunto(r);cnt[a]=(cnt[a]||0)+1;ic[a]=tipo(r)[1]});
+    if(FILTRO.indexOf('__a:')===0&&!cnt[FILTRO.slice(4)])FILTRO=SOLOJA; /* o assunto zerou: volta para Todos */
+    const ks=Object.keys(cnt).sort(function(a,b){return (a==='Outros')-(b==='Outros')||cnt[b]-cnt[a]||a.localeCompare(b,'pt-BR')});
+    const fs0=[{k:SOLOJA,e:'📋',r:'Todos',n:ab0.length}].concat(ks.map(function(a){return {k:'__a:'+a,e:ic[a],r:a,n:cnt[a]}}))
+      .concat([{k:'__urg',e:'🔴',r:'Só urgentes',n:ab0.filter(function(r){return r.prioridade==='urgente'}).length}]);
+    $('chips').innerHTML=fs0.map(function(f){
+      return '<button class="chip'+(FILTRO===f.k?' on':'')+'" data-f="'+esc(f.k)+'"><span class="em">'+f.e+'</span>'+esc(f.r)+'<span class="ct">'+f.n+'</span></button>';
+    }).join('');
+    return;
+  }
+  const ab=ROWS.filter(function(r){return r.status!=='resolvido'});
+  const fs=[{k:'',e:'📍',r:'Todas as lojas',n:ab.length}]
+    .concat(LOJAS.filter(function(u){return u!=='Todas'}).map(function(u){return {k:u,e:'🏪',r:u,n:ab.filter(function(r){return r.unidade===u||r.unidade==='Todas'}).length}}))
+    .concat([{k:'__urg',e:'🔴',r:'Só urgentes',n:ab.filter(function(r){return r.prioridade==='urgente'}).length}]);
+  $('chips').innerHTML=fs.map(function(f){
+    return '<button class="chip'+(FILTRO===f.k?' on':'')+'" data-f="'+esc(f.k)+'"><span class="em">'+f.e+'</span>'+esc(f.r)+'<span class="ct">'+f.n+'</span></button>';
+  }).join('');
+}
+function passa(r){
+  if(!FILTRO)return true;
+  if(FILTRO==='__urg')return r.prioridade==='urgente';
+  if(FILTRO.indexOf('__a:')===0)return assunto(r)===FILTRO.slice(4);
+  return r.unidade===FILTRO||r.unidade==='Todas';
+}
+function bate(r,q){return !q||[r.item,r.descricao,r.unidade,r.obs,r.origem].join(' ').toLowerCase().indexOf(q)>=0}
+
+function cartao(r){
+  const p=PRI[r.prioridade]||PRI.normal,tp=tipo(r);
+  let h='<div class="c'+(r.prioridade==='urgente'?' urg':'')+'">'+
+    '<div class="ch"><div class="av">'+tp[1]+'</div>'+
+      '<div><div class="nm">'+esc(r.item)+'</div><div class="st">aberto '+(dias(r.aberto_em)==='hoje'?'hoje':'há '+dias(r.aberto_em))+' ('+br(r.aberto_em)+')'+(r.origem?' · por '+esc(r.origem):'')+'</div></div>'+
+      '<button class="ed" data-ed="'+r.id+'" title="Mudar este chamado">✏️ Editar</button></div>'+
+    '<div class="tags"><span class="tg '+p[2]+'">'+p[0]+' '+p[1]+'</span>'+
+      (r.status==='agendado'?'<span class="tg verde">📅 Agendado</span>':'')+
+      (r.unidade==='Todas'?'<span class="tg cinza">📍 Todas as lojas</span>':'')+'</div>';
+  if(r.descricao)h+='<div class="faz">'+esc(r.descricao)+'</div>';
+  h+=sugestao(r);
+  if(r.robo_aviso){
+    h+='<div class="robo"><div>🤖 '+esc(r.robo_aviso)+'</div><div class="bts">'+
+      '<button class="bt mini" data-res="'+r.id+'">✅ Já resolvido</button>'+
+      '<button class="bt mini" data-nc="'+r.id+'">🙅 Não é conserto</button>'+
+      '<button class="bt mini" data-cf="'+r.id+'">🛠️ Ainda aberto</button></div></div>';
+  }
+  h+=historico(r.obs);
+  /* na tela da loja, qualquer chamado pode sair com "Nao e manutencao" ou ser excluido da tela */
+  if(SOLOJA)h+='<div class="bts" style="margin:6px 0">'+(r.robo_aviso?'':'<button class="bt mini" data-nc="'+r.id+'">🙅 Não é manutenção</button>')+'<button class="bt mini" data-ex="'+r.id+'">🗑 Excluir</button></div>';
+  h+='<div class="anota"><input data-nota="'+r.id+'" placeholder="📝 Observação (Enter grava)" maxlength="400">'+
+     '<button class="bt mini" data-grava="'+r.id+'">Gravar</button></div>';
+  h+='<div class="acs"><button class="bt res" data-res="'+r.id+'"><span class="ic">✅</span>Resolvido</button>'+
+     '<button class="bt lig" data-prest="'+esc(tp[2]||'')+'"><span class="ic">📞</span>Quem conserta</button></div>';
+  return h+'</div>';
+}
+function cartaoFeito(r){
+  const tp=tipo(r);
+  return '<div class="c feito"><div class="ch"><div class="av">'+tp[1]+'</div>'+
+    '<div><div class="nm">'+esc(r.item)+'</div><div class="st">'+esc(r.unidade)+'</div></div>'+
+    '<button class="ed" data-reabre="'+r.id+'" title="Reabrir este chamado">↩️ Reabrir</button></div>'+
+    '<div class="tags">'+(SOLOJA&&/excluiu da tela/i.test(String(r.obs||'').split(' | ').pop())?'<span class="tg cinza">🗑 Excluído · '+br(r.resolvido_em)+'</span>':SOLOJA&&/n[aã]o era conserto/i.test(r.obs||'')?'<span class="tg cinza">🙅 Não era manutenção · '+br(r.resolvido_em)+'</span>':'<span class="tg verde">✅ Resolvido em '+br(r.resolvido_em)+'</span>')+'</div>'+
+    historico(r.obs)+'</div>';
+}
+
+function pinta(){
+  const q=($('q').value||'').trim().toLowerCase();
+  const abertos=ROWS.filter(function(r){return r.status!=='resolvido'&&passa(r)&&bate(r,q)})
+    .sort(function(a,b){return (ORD[a.prioridade]??1)-(ORD[b.prioridade]??1)||String(a.aberto_em).localeCompare(String(b.aberto_em))||(a.id-b.id)});
+  /* na tela da loja, so o que foi resolvido nos ultimos 7 dias */
+  const corte=SOLOJA?(function(){const d=new Date(Date.now()-3*3600e3-7*86400e3);return d.toISOString().slice(0,10)})():'';
+  const feitos=ROWS.filter(function(r){return r.status==='resolvido'&&passa(r)&&bate(r,q)&&(!corte||String(r.resolvido_em||'')>=corte)})
+    .sort(function(a,b){return String(b.resolvido_em).localeCompare(String(a.resolvido_em))}).slice(0,30);
+  let h='';
+  if(!abertos.length){
+    h+='<div class="vazio"><span class="em">🎉</span>Nenhum chamado aberto aqui.</div>';
+  }else{
+    const grupos={};
+    abertos.forEach(function(r){const g=SOLOJA?assunto(r):r.unidade;(grupos[g]=grupos[g]||[]).push(r)});
+    Object.keys(grupos).sort(function(a,b){return SOLOJA?((a==='Outros')-(b==='Outros')||grupos[b].length-grupos[a].length||a.localeCompare(b,'pt-BR')):a.localeCompare(b,'pt-BR')}).forEach(function(u){
+      const l=grupos[u];
+      h+='<div class="grp"><span class="em">'+(SOLOJA?tipo(l[0])[1]:(u==='Todas'?'📍':'🏪'))+'</span><h2>'+esc(u==='Todas'&&!SOLOJA?'Todas as lojas':u)+'</h2><span class="ct">'+l.length+' aberto'+(l.length>1?'s':'')+'</span></div>'+
+        '<div class="grade">'+l.map(cartao).join('')+'</div>';
+    });
+  }
+  if(feitos.length){
+    h+='<details class="mais"><summary>✅ Resolvidos recentes ('+feitos.length+')</summary><div class="grade">'+feitos.map(cartaoFeito).join('')+'</div></details>';
+  }
+  h+='<div class="aviso2">✅ <b>Resolvido</b> fecha o chamado. Toda observação e toda edição ficam gravadas com o seu nome e a hora. '+
+     'Chamado parado há muitos dias sem observação ganha um 🤖 aviso automático para alguém conferir. Precisa chamar alguém? <b>📞 Quem conserta</b> abre a lista de telefones já no setor certo.</div>';
+  $('app').innerHTML=h;
+}
+
+/* ---- janela de editar / novo chamado ---- */
+function abre(id){
+  const r=id==null?null:ROWS.find(function(x){return x.id===id});
+  EDITA=r?r.id:null;
+  const lojas=SOLOJA?(r?[r.unidade]:[SOLOJA]):LOJAS.slice();if(r&&lojas.indexOf(r.unidade)<0)lojas.push(r.unidade);
+  $('d_unid').innerHTML=(r||SOLOJA?'':'<option value="">Escolha a loja…</option>')+lojas.map(function(u){return '<option value="'+esc(u)+'">'+(u==='Todas'?'📍 Todas as lojas':'🏪 '+esc(u))+'</option>'}).join('');
+  $('d_prio').innerHTML=Object.keys(PRI).map(function(k){return '<option value="'+k+'">'+PRI[k][0]+' '+PRI[k][1]+'</option>'}).join('');
+  $('d_tit').textContent=r?'✏️ Editar chamado':'➕ Novo chamado';
+  $('d_item').value=r?r.item:'';
+  $('d_unid').value=r?r.unidade:(SOLOJA||(LOJAS.indexOf(FILTRO)>=0?FILTRO:''));
+  $('d_prio').value=r?(PRI[r.prioridade]?r.prioridade:'normal'):'normal';
+  $('d_sit').value=r&&r.status==='agendado'?'agendado':'aberto';
+  $('d_sit_f').style.display=r?'':'none';
+  $('d_desc').value=r?(r.descricao||''):'';
+  $('d_sal').disabled=false;
+  const d=$('dlg');
+  if(d.showModal)d.showModal();else d.setAttribute('open','');
+  setTimeout(function(){$('d_item').focus()},30);
+}
+function fecha(){const d=$('dlg');if(d.close)d.close();else d.removeAttribute('open')}
+
+async function salva(){
+  if($('d_sal').disabled)return;
+  const it=$('d_item').value.trim(),u=$('d_unid').value;
+  if(!it){aviso('✋ Escreva o que quebrou');$('d_item').focus();return}
+  if(!u){aviso('✋ Escolha a loja');$('d_unid').focus();return}
+  const dados={item:it,unidade:u,prioridade:$('d_prio').value,descricao:$('d_desc').value.trim()};
+  $('d_sal').disabled=true;
+  try{
+    if(EDITA!=null){
+      const r=ROWS.find(function(x){return x.id===EDITA});
+      dados.id=EDITA;
+      await acao('editar',dados);
+      const sit=$('d_sit').value;
+      if(r&&sit!==(r.status==='agendado'?'agendado':'aberto'))await acao('situacao',{id:EDITA,status:sit});
+    }else{
+      const r=await acao('novo',dados);
+      if(r&&r.id)EDITA=r.id;
+    }
+    const novo=!ROWS.some(function(x){return x.id===EDITA});
+    fecha();
+    await boot();
+    aviso(novo?'🎉 Chamado aberto!':'✅ Chamado atualizado!');
+  }catch(e){
+    $('d_sal').disabled=false;
+    aviso('😕 Não deu para salvar. Entre no portal de novo e tente outra vez.');
+  }
+}
+
+/* ---- cliques ---- */
+document.addEventListener('click',function(ev){
+  const t=ev.target.closest('[data-f],[data-ed],[data-res],[data-nc],[data-ex],[data-cf],[data-grava],[data-reabre]');
+  if(!t)return;
+  const n=function(k){return Number(t.getAttribute(k))};
+  if(t.hasAttribute('data-f')){FILTRO=t.getAttribute('data-f');pintaChips();pinta()}
+  else if(t.hasAttribute('data-ed'))abre(n('data-ed'));
+  else if(t.hasAttribute('data-res'))resolver(n('data-res'),true);
+  else if(t.hasAttribute('data-reabre'))resolver(n('data-reabre'),false);
+  else if(t.hasAttribute('data-nc')){
+    /* na tela da loja o botao fica em todo cartao, entao pergunta antes; na tela geral e um clique so */
+    if(SOLOJA){const it=(ROWS.find(function(x){return x.id===n('data-nc')})||{}).item||'este chamado';
+      if(!confirm('Tirar "'+it+'" da lista?\n\nUse só quando NÃO é coisa de manutenção (recado, pergunta, aberto por engano).\nSe errar: abra "Resolvidos recentes" e toque em Reabrir (fica lá por 7 dias).'))return}
+    faz('nao_conserto',{id:n('data-nc')},'🙅 Saiu da lista: não era conserto')}
+  else if(t.hasAttribute('data-ex')){
+    const it=(ROWS.find(function(x){return x.id===n('data-ex')})||{}).item||'este chamado';
+    if(!confirm('Excluir "'+it+'" da tela?\n\nO quadro sai daqui e fica guardado com o seu nome.\nSe errar: abra "Resolvidos recentes" e toque em Reabrir (fica lá por 7 dias).'))return;
+    faz('excluir',{id:n('data-ex')},'🗑 Excluído da tela')}
+  else if(t.hasAttribute('data-cf'))faz('confirmar',{id:n('data-cf')},'🛠️ Ok, continua aberto');
+  else if(t.hasAttribute('data-grava'))anotar(n('data-grava'));
+});
+document.addEventListener('keydown',function(ev){
+  const el=ev.target;
+  if(ev.key==='Enter'&&el.hasAttribute&&el.hasAttribute('data-nota')){ev.preventDefault();anotar(Number(el.getAttribute('data-nota')))}
+});
+$('dlg').addEventListener('keydown',function(ev){if(ev.key==='Enter'&&ev.target.tagName==='INPUT'){ev.preventDefault();salva()}});
+
+async function boot(manual){
+  const pp=(PREST&&PREST.length)?null:carregaPrest();
+  try{
+    ROWS=await get('manutencao_chamado?select=id,unidade,item,descricao,prioridade,status,origem,aberto_em,resolvido_em,obs,robo_aviso&or=(status.neq.resolvido,resolvido_em.gte.'+(function(){const d=new Date(Date.now()-3*3600e3-90*86400e3);return d.toISOString().slice(0,10)})()+')'+
+      (SOLOJA?'&unidade=eq.'+encodeURIComponent(SOLOJA):'')+'&order=aberto_em.desc,id.desc&limit=300');
+  }catch(e){
+    $('app').innerHTML='<div class="vazio"><span class="em">🔌</span>Não deu para carregar os chamados. Entre no portal de novo.</div>';
+    return;
+  }
+  if(pp)await pp;
+  /* a tela da loja mostra so o que e da loja, sem os chamados de "Todas" */
+  if(SOLOJA)ROWS=ROWS.filter(function(r){return r.unidade===SOLOJA});
+  const ab=ROWS.filter(function(r){return r.status!=='resolvido'});
+  const urg=ab.filter(function(r){return r.prioridade==='urgente'}).length;
+  const ag=ab.filter(function(r){return r.status==='agendado'}).length;
+  const rb=ab.filter(function(r){return r.robo_aviso}).length;
+  $('placar').innerHTML='<span class="pl">🛠️ <b>'+ab.length+'</b> abertos</span><span class="pl">🔴 <b>'+urg+'</b> urgentes</span>'+
+    '<span class="pl">📅 <b>'+ag+'</b> agendados</span>'+(rb?'<span class="pl">🤖 <b>'+rb+'</b> para conferir</span>':'')+
+    (SOLOJA?'<span class="pl">🏪 '+esc(SOLOJA)+'</span>':'');
+  pintaChips();
+  pinta();
+  if(manual)aviso('🔄 Atualizado');
+}
+
+/* ===== porta unica do portal: sessao por usuario ===== */
+const CDMMODS=['manutencao'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'manutencao'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  MODS=ms.map(function(m){return m&&m.id});
+  /* a aba Quem conserta aparece para quem pode editar a lista (modulo prestadores) */
+  var ab=document.getElementById('abas');if(ab)ab.hidden=MODS.indexOf('prestadores')<0;
+  try{if(MODS.indexOf('prestadores')>=0&&new URLSearchParams(location.search).get('aba')==='qc')aba('qc')}catch(e){}
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(ok)boot()});
+</script>
+<script src="../assets/portal.js?v=3"></script>
+</body>
+</html>

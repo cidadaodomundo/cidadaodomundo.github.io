@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../config.js" data-demo="telas/freelas.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Banco de Taxas e Freelas · Portal de Gestão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cdm-ui.css?v=4">
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1 id="tit">🤝 Banco de Taxas e Freelas</h1>
+      <div class="placar" id="placar"><span class="pl">Carregando…</span></div>
+    </div>
+    <div class="rt">
+      <a class="volta" href="../index.html">← Portal</a>
+      <button class="novo" onclick="abre(null)">➕ Nova pessoa</button>
+    </div>
+  </div>
+
+  <div class="chips" id="lojas" style="display:none"></div>
+  <div class="chips" id="chips"></div>
+  <div class="busca"><span class="lupa">🔎</span><input id="q" placeholder="Procurar: chapeiro, garçonete, bairro, nome…" oninput="pinta()"></div>
+  <div id="app"><div class="vazio"><span class="em">🤝</span>Carregando…</div></div>
+  <div class="rod" id="rod"></div>
+</div>
+
+<dialog id="dlg">
+  <div class="dh"><h3 id="d_tit">Nova pessoa</h3><button class="x" onclick="fecha()" aria-label="Fechar">✕</button></div>
+  <div class="db">
+    <div class="f"><label for="d_nome">👤 Nome</label><input id="d_nome" placeholder="Nome de quem se ofereceu" maxlength="120"></div>
+    <div class="cp2">
+      <div class="f"><label for="d_tel">📱 Telefone</label><input id="d_tel" inputmode="tel" placeholder="00 90000-0000" maxlength="25" oninput="mascara(this)"></div>
+      <div class="f"><label for="d_tel2">📱 Outro telefone</label><input id="d_tel2" inputmode="tel" placeholder="se tiver" maxlength="25" oninput="mascara(this)"></div>
+    </div>
+    <div class="cp2">
+      <div class="f"><label for="d_setor">🏷️ Área</label><select id="d_setor"></select></div>
+      <div class="f"><label for="d_tipo">📋 Quer taxa ou vaga fixa?</label><select id="d_tipo"></select></div>
+    </div>
+    <div class="f"><label for="d_loja">🏪 Para qual loja</label><select id="d_loja"></select></div>
+    <div class="f"><label for="d_quer">🎯 O que quer fazer</label><input id="d_quer" placeholder="Ex.: chapeiro, garçonete, auxiliar" maxlength="200"></div>
+    <div class="f"><label for="d_obs">📝 Observação</label><textarea id="d_obs" placeholder="Onde mora, disponibilidade, quem indicou, experiência…" maxlength="800"></textarea></div>
+    <div class="f chk"><label><input type="checkbox" id="d_dest"> ⭐ Ligar primeiro (aparece em destaque)</label></div>
+  </div>
+  <div class="df">
+    <button class="bx tira" id="d_tira" onclick="tira()">🗑️ Tirar da lista</button>
+    <button class="bx" onclick="fecha()">Cancelar</button>
+    <button class="sal" id="d_sal" onclick="salva()">💾 Salvar</button>
+  </div>
+</dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+const SB=PORTAL_CFG.rest;
+const KEY=PORTAL_CFG.chave;
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const br=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'';
+const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
+
+const SETORES=[['Cozinha','👨‍🍳'],['Atendimento e salão','🍽️'],['Bar','🍺'],['Entrega','🛵'],['Não disse a área','❔']];
+const NOMES=SETORES.map(function(s){return s[0]});
+const TIPOS=[['Taxa','🤝','verde'],['Vaga fixa','📌','ambar'],['Não identificado','❔','cinza']];
+function icone(s){const x=SETORES.find(function(y){return y[0]===s});return x?x[1]:'👤'}
+function tipoTag(t){const x=TIPOS.find(function(y){return y[0]===t})||['Não identificado','❔','cinza'];
+  return '<span class="tg '+x[2]+'">'+x[1]+' '+esc(t||x[0])+'</span>'}
+function ordemSetor(s){const i=NOMES.indexOf(s);return i<0?99:i}
+
+let GENTE=[],QUEM='',FILTRO='taxa',EDITA=null;
+
+/* ---- loja: ?loja=id (ou ?u=Nome da loja) abre o banco so daquela loja; lojas vem do config.js ---- */
+const LOJAS=(PORTAL_CFG.lojas||[]).map(function(l){return [l.nome,l.id]});
+const LOJA=(function(){try{const q=new URLSearchParams(location.search);const c=String(q.get('loja')||q.get('u')||'').toLowerCase();const x=LOJAS.find(function(l){return l[1]===c||l[0].toLowerCase()===c});return x?x[0]:''}catch(e){return ''}})();
+let VERLOJA=!!LOJA;
+/* na loja aparece so quem foi cadastrado para ela */
+function daLoja(p){return p.loja===LOJA}
+function base(){return VERLOJA?GENTE.filter(daLoja):GENTE}
+function pintaLojas(){
+  return; /* a lista da loja mostra so a loja, sem o botao Todas as lojas */
+  const n1=GENTE.filter(daLoja).length;
+  $('lojas').style.display='';
+  $('lojas').innerHTML=
+    '<button class="chip'+(VERLOJA?' on':'')+'" data-lj="1"><span class="em">🏪</span>'+esc(LOJA)+'<span class="ct">'+n1+'</span></button>'+
+    '<button class="chip'+(!VERLOJA?' on':'')+'" data-lj="0"><span class="em">🌎</span>Todas as lojas<span class="ct">'+GENTE.length+'</span></button>';
+}
+
+async function porta(acao,dados){
+  const r=await fetch(SB+'rpc/freela_consulta',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:tok(),p_acao:acao,p_dados:dados||{}})});
+  if(!r.ok)throw new Error('porta '+r.status);
+  return await r.json();
+}
+
+function digitos(t){return String(t||'').replace(/\D/g,'')}
+function liga(t){const d=digitos(t);return d.length>=10?'tel:+55'+d:''}
+function mascara(el){
+  const d=digitos(el.value).slice(0,11);
+  if(d.length<3){el.value=d;return}
+  const dd=d.slice(0,2),r=d.slice(2),c=r.length>8?5:4;
+  el.value=dd+' '+(r.length>c?r.slice(0,c)+'-'+r.slice(c):r);
+}
+let tt=null;
+function aviso(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on')},2400)}
+
+function pintaChips(){
+  const G=base();
+  const usados=NOMES.filter(function(s){return G.some(function(p){return p.setor===s})});
+  G.forEach(function(p){if(usados.indexOf(p.setor)<0)usados.push(p.setor)});
+  const conta=function(f){return G.filter(f).length};
+  const fs=[{k:'taxa',e:'🤝',r:'Só quem quer taxa',n:conta(function(p){return p.tipo==='Taxa'})},
+            {k:'todos',e:'👥',r:'Todos',n:G.length}]
+    .concat(usados.map(function(s){return {k:s,e:icone(s),r:s,n:conta(function(p){return p.setor===s})}}))
+    .concat([{k:'semtel',e:'📵',r:'Sem telefone',n:conta(function(p){return !p.telefone})}]);
+  $('chips').innerHTML=fs.map(function(f){
+    return '<button class="chip'+(FILTRO===f.k?' on':'')+'" data-f="'+esc(f.k)+'"><span class="em">'+f.e+'</span>'+esc(f.r)+'<span class="ct">'+f.n+'</span></button>';
+  }).join('');
+}
+
+function passa(p){
+  if(VERLOJA&&!daLoja(p))return false;
+  if(FILTRO==='taxa')return p.tipo==='Taxa';
+  if(FILTRO==='todos')return true;
+  if(FILTRO==='semtel')return !p.telefone;
+  return p.setor===FILTRO;
+}
+
+function cartao(p){
+  const l=liga(p.telefone);
+  let h='<div class="c'+(p.destaque?' dest':'')+'">'+
+    '<div class="ch"><div class="av">'+icone(p.setor)+'</div>'+
+      '<div><div class="nm">'+esc(p.nome)+'</div><div class="st">'+esc(p.quer||'não disse o que quer')+'</div></div>'+
+      '<button class="ed" data-ed="'+p.id+'" title="Mudar esta pessoa">✏️ Editar</button></div>';
+  h+='<div class="tags">'+(p.destaque?'<span class="tg ambar">⭐ Ligar primeiro</span>':'')+tipoTag(p.tipo)+
+    (p.loja?'<span class="tg cinza">🏪 '+esc(p.loja)+'</span>':'')+'</div>';
+  if(p.telefone)h+='<button class="tel" data-cp="'+esc(p.telefone)+'" title="Copiar o número">'+esc(p.telefone)+'<span class="cp">📋 copiar</span></button>';
+  if(p.telefone2){
+    const l2=liga(p.telefone2);
+    h+='<div class="tel2">📱 Outro número: <b>'+esc(p.telefone2)+'</b>'+(l2?' · <a href="'+l2+'">📞 Ligar</a>':'')+'</div>';
+  }
+  if(p.obs)h+='<div class="faz">'+esc(p.obs)+'</div>';
+  if(p.telefone){
+    h+='<div class="acs">'+
+      (l?'<a class="bt lig" href="'+l+'"><span class="ic">📞</span>Ligar</a>':'')+
+    '</div>';
+  }else{
+    h+='<div class="sem"><span>📵 Sem telefone — veja a observação</span>'+
+       '<button class="bt por" data-ed="'+p.id+'" data-foco="tel">➕ Pôr o número</button></div>';
+  }
+  h+='<div class="rodc">'+(p.desde?'🗓️ Chegou em '+esc(br(p.desde)):'')+(p.desde&&p.origem?' · ':'')+esc(p.origem||'')+'</div>';
+  return h+'</div>';
+}
+
+function pinta(){
+  const q=($('q').value||'').trim().toLowerCase();
+  const lista=GENTE.filter(function(p){
+    if(!passa(p))return false;
+    if(!q)return true;
+    return [p.nome,p.quer,p.obs,p.setor,p.origem,p.telefone,p.telefone2,p.tipo,p.loja].join(' ').toLowerCase().indexOf(q)>=0;
+  }).sort(function(a,b){
+    return ordemSetor(a.setor)-ordemSetor(b.setor)||String(a.setor).localeCompare(String(b.setor),'pt-BR')||
+      ((b.destaque?1:0)-(a.destaque?1:0))||String(b.desde||'').localeCompare(String(a.desde||''));
+  });
+  if(!lista.length&&VERLOJA&&!base().length){
+    $('app').innerHTML='<div class="vazio"><span class="em">🤝</span>Ainda ninguém na lista do '+esc(LOJA)+'.<br>Quem se oferecer para taxa ou freela, cadastre no botão <b>➕ Nova pessoa</b>.</div>';
+    return;
+  }
+  if(!lista.length){
+    $('app').innerHTML='<div class="vazio"><span class="em">🤷</span>Ninguém nesse filtro. Toque em <b>Todos</b> ou limpe a busca.</div>';
+    return;
+  }
+  const grupos=[];
+  lista.forEach(function(p){
+    const g=grupos.length&&grupos[grupos.length-1].s===p.setor?grupos[grupos.length-1]:null;
+    if(g)g.l.push(p);else grupos.push({s:p.setor,l:[p]});
+  });
+  $('app').innerHTML=grupos.map(function(g){
+    return '<div class="grp"><span class="em">'+icone(g.s)+'</span><h2>'+esc(g.s)+'</h2><span class="ct">'+g.l.length+'</span></div>'+
+      '<div class="grade">'+g.l.map(cartao).join('')+'</div>';
+  }).join('');
+}
+
+/* ---- janela de editar / nova pessoa ---- */
+function abre(id,foco){
+  const p=id==null?null:GENTE.find(function(x){return x.id===id});
+  EDITA=p?p.id:null;
+  const ops=NOMES.slice();
+  GENTE.forEach(function(x){if(x.setor&&ops.indexOf(x.setor)<0)ops.push(x.setor)});
+  $('d_setor').innerHTML=ops.map(function(s){return '<option value="'+esc(s)+'">'+icone(s)+' '+esc(s)+'</option>'}).join('');
+  $('d_loja').innerHTML='<option value="">🌎 Qualquer loja</option>'+LOJAS.map(function(l){return '<option value="'+esc(l[0])+'">🏪 '+esc(l[0])+'</option>'}).join('');
+  $('d_loja').value=LOJA||(p?(p.loja||''):'');
+  $('d_loja').closest('.f').style.display=LOJA?'none':'';
+  $('d_tipo').innerHTML=TIPOS.map(function(t){return '<option value="'+esc(t[0])+'">'+t[1]+' '+esc(t[0])+'</option>'}).join('');
+  $('d_tit').textContent=p?'✏️ Editar pessoa':'➕ Nova pessoa';
+  $('d_nome').value=p?p.nome:'';
+  $('d_tel').value=p?(p.telefone||''):'';
+  $('d_tel2').value=p?(p.telefone2||''):'';
+  $('d_setor').value=p?p.setor:(ops.indexOf(FILTRO)>=0?FILTRO:'Não disse a área');
+  $('d_tipo').value=p?(p.tipo||'Não identificado'):'Taxa';
+  $('d_quer').value=p?(p.quer||''):'';
+  $('d_obs').value=p?(p.obs||''):'';
+  $('d_dest').checked=!!(p&&p.destaque);
+  $('d_tira').style.display=p?'':'none';
+  $('d_sal').disabled=false;
+  const d=$('dlg');
+  if(d.showModal)d.showModal();else d.setAttribute('open','');
+  setTimeout(function(){(foco==='tel'?$('d_tel'):$('d_nome')).focus()},30);
+}
+function fecha(){const d=$('dlg');if(d.close)d.close();else d.removeAttribute('open')}
+
+async function salva(){
+  if($('d_sal').disabled)return;
+  const nome=$('d_nome').value.trim();
+  if(!nome){aviso('✋ Escreva pelo menos o nome');$('d_nome').focus();return}
+  const tel=$('d_tel').value.trim(),tel2=$('d_tel2').value.trim();
+  if(tel&&digitos(tel).length<10){aviso('✋ Telefone curto: ponha o DDD, ex.: 00 90000-0000');$('d_tel').focus();return}
+  if(tel2&&digitos(tel2).length<10){aviso('✋ O outro telefone ficou curto: ponha o DDD');$('d_tel2').focus();return}
+  const dados={nome:nome,telefone:tel,telefone2:tel2,setor:$('d_setor').value,tipo:$('d_tipo').value,
+    quer:$('d_quer').value.trim(),obs:$('d_obs').value.trim(),destaque:$('d_dest').checked,loja:$('d_loja').value};
+  $('d_sal').disabled=true;
+  try{
+    if(EDITA!=null){dados.id=EDITA;await porta('editar',dados)}
+    else{
+      const r=await porta('adicionar',dados);
+      if(dados.destaque&&r&&r.id){EDITA=r.id;dados.id=r.id;await porta('editar',dados)}
+    }
+    fecha();
+    await boot();
+    aviso(EDITA!=null?'✅ Pessoa atualizada!':'🎉 Pessoa adicionada!');
+  }catch(e){
+    $('d_sal').disabled=false;
+    aviso('😕 Não deu para salvar. Entre no portal de novo e tente outra vez.');
+  }
+}
+
+async function tira(){
+  if(EDITA==null)return;
+  if(!confirm('Tirar essa pessoa da lista? Ela sai da tela, mas continua guardada.'))return;
+  try{await porta('arquivar',{id:EDITA});fecha();await boot();aviso('🗑️ Saiu da lista')}
+  catch(e){aviso('😕 Não deu para tirar da lista.')}
+}
+
+/* ---- cliques ---- */
+document.addEventListener('click',function(ev){
+  const f=ev.target.closest('[data-f]');
+  if(f){FILTRO=f.getAttribute('data-f');pintaChips();pinta();return}
+  const lj=ev.target.closest('[data-lj]');
+  if(lj){VERLOJA=lj.getAttribute('data-lj')==='1';pintaLojas();pintaChips();pinta();pintaPlacar();return}
+  const e=ev.target.closest('[data-ed]');
+  if(e){abre(Number(e.getAttribute('data-ed')),e.getAttribute('data-foco'));return}
+  const c=ev.target.closest('[data-cp]');
+  if(c){
+    const t=c.getAttribute('data-cp');
+    const ok=function(){aviso('📋 Número copiado: '+t)};
+    try{navigator.clipboard.writeText(t).then(ok,function(){prompt('Copie o número:',t)})}catch(x){prompt('Copie o número:',t)}
+  }
+});
+$('dlg').addEventListener('keydown',function(ev){if(ev.key==='Enter'&&ev.target.tagName==='INPUT'&&ev.target.type!=='checkbox'){ev.preventDefault();salva()}});
+
+async function boot(){
+  try{
+    const j=await porta('listar',{});
+    GENTE=j.gente||[];QUEM=j.quem||'';
+  }catch(e){
+    $('app').innerHTML='<div class="vazio"><span class="em">🔌</span>Não deu para carregar a lista. Entre no portal de novo.</div>';
+    return;
+  }
+  pintaPlacar();
+  $('rod').innerHTML='Quem se oferecer por telefone, no balcão ou por indicação entra aqui pelo botão <b>➕ Nova pessoa</b> — assim a lista nunca mais envelhece. '+
+    'Mudou alguma coisa? Toque em <b>✏️ Editar</b> no cartão.'+
+    (QUEM?'<br>Você está como <b>'+esc(QUEM)+'</b>.':'');
+  pintaLojas();
+  pintaChips();
+  pinta();
+}
+function pintaPlacar(){
+  const G=base();
+  const t=G.filter(function(p){return p.tipo==='Taxa'}).length;
+  const st=G.filter(function(p){return !p.telefone}).length;
+  $('placar').innerHTML='<span class="pl">👥 <b>'+G.length+'</b> pessoas</span><span class="pl">🤝 <b>'+t+'</b> querem taxa</span>'+
+    '<span class="pl">📵 <b>'+st+'</b> sem telefone</span>';
+}
+if(LOJA){$('tit').textContent='🤝 Taxas e Freelas · '+LOJA;document.title='Taxas e Freelas · '+LOJA+' · '+(PORTAL_CFG.produto||'Portal de Gestão')}
+
+/* ===== porta unica do portal ===== */
+const CDMMODS=['freelas'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'freelas'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(ok)boot()});
+</script>
+<script src="../assets/portal.js?v=3"></script>
+</body>
+</html>

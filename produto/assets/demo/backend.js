@@ -68,7 +68,7 @@
   })();
 
   function ctxDe(url, metodo, cabecalhos, corpo) {
-    var tok = (corpo && (corpo.p_token || corpo.p_cred || corpo.token_portal)) || lerToken();
+    var tok = (corpo && (corpo.p_token || corpo.p_cred || corpo.token_portal || corpo.p_senha)) || lerToken();
     var papel = papelDoToken(tok) || papelDoToken(lerToken()) || 'dono';
     var u = USUARIOS[papel];
     return {
@@ -118,6 +118,18 @@
     }
     return neg ? !ok : ok;
   }
+  /* separa por virgula, mas nao dentro de parenteses: in.(a,b) */
+  function dividir(txt) {
+    var r = [], nivel = 0, atual = '';
+    for (var i = 0; i < txt.length; i++) {
+      var c = txt.charAt(i);
+      if (c === '(') nivel++;
+      if (c === ')') nivel--;
+      if (c === ',' && nivel === 0) { r.push(atual); atual = ''; } else atual += c;
+    }
+    if (atual) r.push(atual);
+    return r;
+  }
   function aplicarConsulta(linhas, params) {
     var reservados = { select: 1, order: 1, limit: 1, offset: 1, or: 1, and: 1 };
     var r = (linhas || []).slice();
@@ -127,7 +139,7 @@
     });
     var or = params.get('or');
     if (or) {
-      var partes = or.replace(/^\(|\)$/g, '').split(',');
+      var partes = dividir(or.replace(/^\(|\)$/g, ''));
       r = r.filter(function (l) {
         return partes.some(function (pp) {
           var i = pp.indexOf('.');
@@ -139,16 +151,25 @@
     if (ord) {
       var chaves = ord.split(',').map(function (s) {
         var t = s.split('.');
-        return { c: t[0], desc: t.indexOf('desc') > 0, nf: t.indexOf('nullsfirst') > 0 };
+        var desc = t.indexOf('desc') > 0;
+        /* padrao do PostgREST: asc = nulos no fim; desc = nulos no comeco */
+        var nf = t.indexOf('nullsfirst') > 0 ? true : t.indexOf('nullslast') > 0 ? false : desc;
+        return { c: t[0], desc: desc, nf: nf };
       });
       r.sort(function (a, b) {
         for (var i = 0; i < chaves.length; i++) {
-          var k = chaves[i], d = cmp(a[k.c], b[k.c]);
+          var k = chaves[i], x = a[k.c], y = b[k.c];
+          if (x == null || y == null) {
+            if (x == null && y == null) continue;
+            return (x == null) === k.nf ? -1 : 1;
+          }
+          var d = cmp(x, y);
           if (d) return k.desc ? -d : d;
         }
         return 0;
       });
     }
+    var total = r.length;
     var off = +params.get('offset') || 0, lim = params.get('limit');
     if (off) r = r.slice(off);
     if (lim != null) r = r.slice(0, +lim);
@@ -165,6 +186,7 @@
         return o;
       });
     }
+    r.total = total;
     return r;
   }
 
@@ -244,7 +266,8 @@
             var prefer = String(cab.prefer || '');
             var acc = String(cab.accept || '');
             if (acc.indexOf('application/vnd.pgrst.object+json') >= 0) return resposta(r.length ? 200 : 406, r[0] || null);
-            return resposta(200, r, /count=/.test(prefer) ? { 'Content-Range': '0-' + Math.max(0, r.length - 1) + '/' + r.length } : null);
+            var ini = +u.searchParams.get('offset') || 0;
+            return resposta(200, r, /count=/.test(prefer) ? { 'Content-Range': (r.length ? ini + '-' + (ini + r.length - 1) : '*') + '/' + r.total } : null);
           });
         }
         anotaFalta('caminho', caminho);

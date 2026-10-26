@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><script src="../config.js" data-demo="telas/rh.js"></script><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Escala do Dia · Portal de Gestão</title>
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0b0e14">
+<style>
+:root{--brand:#E0A81C;--bg:#0b0e14;--surface:#141922;--surface2:#1b2230;--line:#242d3d;--text:#e8edf4;--muted:#8b95a5;--sem:#37b46c;--err:#e05252;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Roboto,sans-serif;padding:18px;max-width:760px;margin:0 auto;font-size:14px}
+header{display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:2px solid var(--brand);margin-bottom:14px}
+.logo{width:42px;height:42px;border-radius:10px;object-fit:contain;display:block;flex:0 0 auto}
+h1{font-size:17px;font-weight:800}
+.sub{color:var(--muted);font-size:12px;margin-top:2px}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+select,input[type=date]{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--text);font-size:14px;outline:none}
+select:focus,input:focus{border-color:var(--brand)}
+.fcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px}
+.finfo{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+.poswrap{display:flex;flex-wrap:wrap;gap:6px}
+.poschip{background:var(--surface2);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:6px 11px;font-size:12px;cursor:pointer;font-weight:600}
+.poschip.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink,#111)}
+.fname{font-weight:700;font-size:13.5px}
+.fhor{color:var(--muted);font-size:11px}
+.fcard select{min-width:210px}
+.btn{background:var(--brand);border:none;color:var(--brand-ink,#111);border-radius:10px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;width:100%;margin-top:12px}
+.btn:disabled{opacity:.5}
+.ok{background:#122419;color:var(--sem);border:1px solid #1c3b28;border-radius:10px;padding:12px;margin-top:12px;font-weight:700;display:none}
+.err{background:#2a1518;color:var(--err);border:1px solid #4a1c22;border-radius:10px;padding:12px;margin-top:12px;font-weight:700;display:none}
+.loading{text-align:center;color:var(--muted);padding:40px 0}
+.hoje{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--muted);margin-bottom:12px;display:none}
+#gate{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center}
+.gatebox{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:34px;width:340px;text-align:center}
+.gatebox input{width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:11px 14px;color:var(--text);font-size:14px;outline:none;margin:14px 0 10px;text-align:center}
+.gatebox button{width:100%;background:var(--brand);border:none;color:var(--brand-ink,#111);border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer}
+.gerr{color:var(--err);font-size:12px;min-height:16px;margin-top:8px}
+.tsec{font-weight:800;font-size:13px;color:var(--brand);margin:16px 0 8px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.tsec:first-child{margin-top:4px}
+.sbh{font-weight:800;font-size:14px;margin:18px 0 2px;display:flex;justify-content:space-between;align-items:center}
+.afast{display:inline-block;background:rgba(142,107,201,.14);border:1px solid rgba(142,107,201,.4);color:#b79ee6;border-radius:999px;padding:5px 11px;font-size:11.5px;font-weight:700}
+.tcnt{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:1px 8px;font-size:11px;color:var(--muted)}
+</style></head><body>
+<div id="gate" style="display:none"><div class="gatebox">
+  <img class="logo" style="margin:0 auto 12px" alt="">
+  <h1>Escala do Dia</h1>
+  <div class="sub">Acesso restrito — entre pelo portal para ver esta tela.</div>
+  <button style="margin-top:14px" onclick="location.href=PORTAL_CFG.url('index.html')">Ir para o portal</button>
+</div></div>
+<header>
+  <img class="logo" alt="">
+  <div><h1>Escala do Dia — Posições</h1><div class="sub">Marque todas as funções que cada pessoa cobre hoje — pode ser mais de uma.</div></div>
+</header>
+<div class="row">
+  <select id="loja">
+    <option value="">Escolha a loja…</option>
+  </select>
+  <input type="date" id="dia">
+</div>
+<div class="hoje" id="hoje"></div>
+<div id="setores" class="poswrap" style="margin:0 0 10px"></div>
+<div id="lista"><div class="loading">Escolha a loja pra carregar a equipe…</div></div>
+<button class="btn" id="salvar" onclick="salvar()" disabled>💾 Salvar escala</button>
+<div class="ok" id="okmsg">✅ Escala salva! Obrigado — isso ajuda a medir a qualidade por posição.</div>
+<div class="err" id="errmsg"></div>
+<script>
+const SB=PORTAL_CFG.rest;
+async function escRPC(acao,dados){const t=(function(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}})();if(!t)throw new Error('Entre pelo portal para usar a escala.');const r=await fetch(SB+'rpc/escala_consulta',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify({p_cred:t,p_acao:acao,p_dados:dados||{}})});const j=await r.json().catch(function(){return null});if(!r.ok)throw new Error((j&&j.message)||('HTTP '+r.status));return j}
+const KEY=PORTAL_CFG.chave;
+const H={apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'};
+/* acesso: so com a sessao do portal (o token fica na sessao do navegador) */
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+if(!cdmTok())document.getElementById('gate').style.display='flex';
+/* logo e marca do cliente (config.js) */
+document.querySelectorAll('img.logo').forEach(function(i){i.src=PORTAL_CFG.logoUrl;i.alt=PORTAL_CFG.marca});
+/* ?u=Loja (ou ?loja=) trava a tela numa loja so; aceita o nome, o id ou a sigla do config */
+function lojaDoParam(v){v=String(v||'').trim().toLowerCase();if(!v)return '';
+  const l=(PORTAL_CFG.lojas||[]).filter(function(x){return [x.id,x.nome,x.curto].some(function(k){return String(k||'').toLowerCase()===v})})[0];
+  return l?l.nome:'';}
+/* posicoes de exemplo, configuravel */
+const POS=['Chapa','Fritadeira','Montagem de burgers','Montagem de marmitas/pratos','Separação de pacotes/expedição','Atendimento/Caixa','Produção/Cozinha (apoio)','Limpeza','Delivery/Entregas','Gerência','FOLGA','Falta/Ausente'];
+const $=id=>document.getElementById(id);
+const _qs=new URLSearchParams(location.search);
+const LOJAFIX=lojaDoParam(_qs.get('u'));
+const SOLOJA=!!LOJAFIX;
+$('loja').insertAdjacentHTML('beforeend',(PORTAL_CFG.lojas||[]).map(function(l){return '<option>'+l.nome+'</option>'}).join(''));
+const HOJE=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
+/* ordem preferida dos setores; setor que nao estiver aqui entra no fim, com o proprio nome */
+const BLOCOS=['Gerência','Cozinha','Salão','Caixa','Bar','Delivery','Produção','Estoque','Limpeza','Escritório'];
+const blocoDe=s=>s||'Outros';
+let SETOR='Todos';
+function setSetor(s){SETOR=s;
+  document.querySelectorAll('#setores .poschip').forEach(function(b){b.classList.toggle('on',b.dataset.s===s)});
+  document.querySelectorAll('#lista .sblk').forEach(function(d){d.style.display=(s==='Todos'||d.dataset.setor===s)?'':'none'});}
+function barraSetores(){var ex=[];
+  document.querySelectorAll('#lista .sblk').forEach(function(d){ex.push(d.dataset.setor)});
+  $('setores').innerHTML=['Todos'].concat(ex).map(function(s){return '<button type="button" class="poschip" data-s="'+s+'" onclick="setSetor(\''+s+'\')">'+s+'</button>';}).join('');
+  setSetor(ex.indexOf(SETOR)>=0?SETOR:'Todos');}
+const hhmm=t=>t?String(t).slice(0,5):'';
+const dbr=d=>d?String(d).slice(0,10).split('-').reverse().join('/'):'';
+let ARRERR=0;
+function arrOk(r,q){if(Array.isArray(r))return r;ARRERR++;try{console.error('[rh/escala] falha ao carregar '+q,(r&&(r.message||r.hint||r.code))||r)}catch(e){}return[]}
+const horDe=f=>(f.entrada&&f.saida)?hhmm(f.entrada)+'–'+hhmm(f.saida):'';
+const afastado=f=>!!f.afastado_desde&&(!f.afastado_ate||f.afastado_ate>=HOJE());
+const titulo=n=>n.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
+$('dia').value=HOJE();
+if(SOLOJA){const _s=$('loja');_s.innerHTML='<option>'+LOJAFIX+'</option>';_s.value=LOJAFIX;_s.style.display='none';const _b=document.createElement('span');_b.textContent='🏪 '+LOJAFIX;_b.style.cssText='display:inline-block;background:var(--surface2);border:1px solid var(--brand);border-radius:10px;padding:9px 12px;font-weight:800;font-size:13px';_s.parentNode.insertBefore(_b,_s);setTimeout(carregar,50);}
+else{const LOCK=lojaDoParam(new URLSearchParams(location.search).get('loja'));if(LOCK){$('loja').value=LOCK;setTimeout(carregar,50);}}
+let EQUIPE=[];
+$('loja').addEventListener('change',carregar);
+$('dia').addEventListener('change',carregar);
+async function carregar(){
+  const loja=SOLOJA?LOJAFIX:$('loja').value; if(!loja){return}
+  $('lista').innerHTML='<div class="loading">Carregando equipe…</div>';
+  $('okmsg').style.display='none';$('errmsg').style.display='none';ARRERR=0;
+  try{
+    EQUIPE=arrOk(await fetch(SB+'dim_funcionario?ativo=eq.true&unidade=eq.'+encodeURIComponent(loja)+'&select=nome,setor,noturno,entrada,saida,afastado_desde,afastado_ate&order=nome.asc',{headers:H}).then(r=>r.json()),'equipe');
+    EQUIPE.sort((a,b)=>((a.entrada||'99')<(b.entrada||'99')?-1:1));
+    const ja=arrOk(await escRPC('posicao',{data:$('dia').value,unidade:loja}),'escala do dia');
+    const mapa={};ja.forEach(r=>mapa[r.nome]=r.posicao);
+    if(ja.length){$('hoje').style.display='block';$('hoje').textContent='ℹ Já existe escala lançada para este dia — ao salvar, você atualiza.'}else{$('hoje').style.display='none'}
+    if(!EQUIPE.length){$('lista').innerHTML='<div class="loading">'+(ARRERR?'Não foi possível carregar este bloco. Recarregue a página.':'Nenhum funcionário ativo cadastrado nesta loja.')+'</div>';$('salvar').disabled=true;return}
+    $('lista').innerHTML=escBlocos(EQUIPE,mapa);
+    barraSetores();
+    $('salvar').disabled=false;
+  }catch(e){$('lista').innerHTML='<div class="loading">Erro ao carregar: '+e.message+'</div>'}
+}
+function escBlocos(eq,mapa){
+  if(!eq.length)return '<div class="loading">Nenhum funcionário ativo cadastrado nesta loja.</div>';
+  let html='';
+  const _bl=BLOCOS.concat([...new Set(eq.map(f=>blocoDe(f.setor)))].filter(b=>BLOCOS.indexOf(b)<0).sort());
+  _bl.forEach(b=>{
+    const doB=eq.filter(f=>blocoDe(f.setor)===b);
+    if(!doB.length)return;
+    html+='<div class="sblk" data-setor="'+b+'"><div class="sbh"><span>'+b+'</span><span class="tcnt">'+doB.length+'</span></div>';
+    [[false,'☀️ Dia'],[true,'🌙 Noite']].forEach(t=>{
+      const pes=doB.filter(f=>!!f.noturno===t[0]);
+      if(!pes.length)return;
+      html+='<div class="tsec">'+t[1]+' <span class="tcnt">'+pes.length+'</span></div>';
+      pes.forEach(f=>{
+        const i=eq.indexOf(f);
+        const marc=(mapa[f.nome]||'').split(', ').filter(Boolean);
+        const corpo=afastado(f)
+          ?'<span class="afast">⚕️ Afastado'+(f.afastado_desde?' desde '+dbr(f.afastado_desde):'')+(f.afastado_ate?' até '+dbr(f.afastado_ate):'')+'</span>'
+          :'<div class="poswrap" data-i="'+i+'">'+POS.map(p=>'<button type="button" class="poschip'+(marc.indexOf(p)>=0?' on':'')+'" onclick="this.classList.toggle(\'on\')">'+p+'</button>').join('')+'</div>';
+        html+='<div class="fcard"><div class="finfo"><div class="fname">'+titulo(f.nome)+'</div><div class="fhor">'+horDe(f)+'</div></div>'+corpo+'</div>';
+      });
+    });
+    html+='</div>';
+  });
+  return html;
+}
+async function salvar(){
+  const loja=SOLOJA?LOJAFIX:$('loja').value, dia=$('dia').value;
+  const rows=[];
+  EQUIPE.forEach((f,i)=>{if(afastado(f))return;const ch=[...document.querySelectorAll('.poswrap[data-i="'+i+'"] .poschip.on')].map(b=>b.textContent);if(ch.length)rows.push({data:dia,unidade:loja,nome:f.nome,posicao:ch.join(', '),turno:f.noturno?'Noite':'Dia',lancado_por:'painel-escala'})});
+  if(!rows.length){$('errmsg').textContent='Marque a posição de pelo menos uma pessoa.';$('errmsg').style.display='block';return}
+  $('salvar').disabled=true;
+  try{
+    await escRPC('salvar_posicao',{linhas:rows});
+    $('okmsg').style.display='block';$('errmsg').style.display='none';
+  }catch(e){$('errmsg').textContent='Erro ao salvar: '+e.message;$('errmsg').style.display='block'}
+  $('salvar').disabled=false;
+}
+</script></body></html>

@@ -1,0 +1,1844 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<script src="../config.js" data-demo="telas/placar.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Placar do Delivery · Portal de Gestão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Placar do Delivery: painel escuro, números em Anton; verde-água é a cor do delivery; vermelho e verde só para o que piorou ou melhorou.
+   R$ só aparece quando o servidor diz que quem abriu é o dono. */
+:root{
+  --s0:#111110;--s1:#1a1a19;--s2:#232321;--s3:#2c2c29;--line:#34332f;
+  --text:#fbfaf5;--text2:#c3c2b7;--muted:#8a897e;
+  --ouro:#E0A81C;--ouro-ink:#111110;--ouro-vela:rgba(224,168,28,.16);
+  --deliv:#5aa9a0;--deliv-vela:rgba(90,169,160,.16);
+  --l1:#E0A81C;--l2:#5aa9a0;--l3:#9c8fd0;--l4:#d9826b;--l5:#6fa3d9;--l6:#b5c46a;
+  --bad:#e66767;--bad-vela:rgba(230,103,103,.14);--ok:#3fb877;--warn:#e5be6d;--warn-vela:rgba(229,190,109,.13);
+  --f-num:'Anton',Impact,'Arial Black',sans-serif;
+  --f-body:'Barlow','Segoe UI',system-ui,-apple-system,sans-serif;
+  --f-cond:'Barlow Condensed','Arial Narrow',sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}   /* seção escondida some mesmo com display:grid/flex próprio */
+html,body{background:var(--s0)}
+body{color:var(--text);font-family:var(--f-body);font-size:15px;line-height:1.45;padding-inline:16px;padding-block:20px 40px}
+.wrap{max-width:1120px;margin:0 auto;display:grid;gap:22px}
+.wrap>*{min-width:0}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--ouro);outline-offset:2px}
+a{color:var(--deliv)}
+.num{font-variant-numeric:tabular-nums}
+
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;border-bottom:1px solid var(--line);padding-bottom:14px}
+h1{font-family:var(--f-num);font-weight:400;font-size:clamp(30px,6vw,46px);letter-spacing:.5px;line-height:1;margin:0;text-transform:uppercase;text-wrap:balance}
+h1 em{font-style:normal;color:var(--deliv)}
+.fonte{font-family:var(--f-cond);font-size:14px;color:var(--muted);letter-spacing:.3px;text-align:right}
+.fonte b{color:var(--text2);font-weight:600}
+.aviso{background:#3a1f1f;border:1px solid var(--bad);color:#ffd9d9;border-radius:8px;padding:10px 14px;font-weight:600}
+.parados{background:var(--s1);border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:8px;padding:10px 14px;font-size:14px;color:var(--text2);display:grid;gap:4px}
+.parados b{color:var(--warn);font-weight:600}
+
+.ctl{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}
+/* Os 4 botões de período: cada um traz o número de pedidos e, no rodapé, o período anterior */
+.pers{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.per{display:grid;gap:2px;text-align:left;background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0}
+.per:disabled{opacity:.45;cursor:default}
+.per[aria-pressed="true"]{border-color:var(--deliv);box-shadow:inset 0 0 0 1px var(--deliv);background:var(--deliv-vela)}
+.per .pn{font-family:var(--f-num);font-size:20px;letter-spacing:.4px;text-transform:uppercase;line-height:1.1}
+.per[aria-pressed="true"] .pn{color:var(--deliv)}
+.per .ps{font-family:var(--f-cond);font-size:13px;color:var(--muted)}
+.per .pv{font-weight:600;font-size:15px}
+.ft{display:block;font-style:normal;font-family:var(--f-cond);font-weight:600;font-size:13px;line-height:1.25;white-space:normal}
+.ft.up{color:var(--ok)} .ft.down{color:var(--bad)} .ft.flat{color:var(--muted)}
+.compara{font-size:14px;color:var(--text2)}
+.compara b{color:var(--text)}
+.compara .obs{color:var(--warn)}
+.vivo{background:var(--s1);border:1px solid var(--line);border-left:4px solid var(--deliv);border-radius:8px;padding:8px 12px;font-size:14px;color:var(--text2)}
+.mini{background:var(--s2);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-weight:600;font-size:13px;color:var(--text2)}
+.agora{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ag{background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:2px;align-content:start}
+.ag b{font-family:var(--f-num);font-weight:400;font-size:26px;line-height:1.1}
+.ag b.r{color:var(--bad)}
+.ag span{font-size:13px;color:var(--text2)}
+.grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.lbl{font-family:var(--f-cond);font-size:13px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-right:4px}
+.chip{background:var(--s2);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600;font-size:14px}
+.chip[aria-pressed="true"]{background:var(--deliv);border-color:var(--deliv);color:var(--ouro-ink)}
+.chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.dia{display:flex;align-items:center;gap:6px}
+.dia button{background:var(--s2);border:1px solid var(--line);border-radius:8px;width:36px;height:34px;font-size:18px;line-height:1}
+.dia button:disabled{opacity:.35;cursor:default}
+.dia select{background:var(--s2);color:var(--text);border:1px solid var(--line);border-radius:8px;height:34px;padding:0 10px;font:600 14px var(--f-body)}
+
+.placar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.pl{background:var(--s1);padding:16px 18px;display:grid;gap:4px;align-content:start;min-width:0}
+.pl .k{font-family:var(--f-cond);font-size:13px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted)}
+.pl .v{font-family:var(--f-num);font-size:clamp(26px,4.4vw,40px);line-height:1.05;letter-spacing:.3px;overflow-wrap:anywhere}
+.pl .v.ouro{color:var(--ouro)} .pl .v.bad{color:var(--bad)} .pl .v.deliv{color:var(--deliv)} .pl .v.cinza{color:var(--muted)}
+.pl .s{font-size:13px;color:var(--text2)}
+.delta{font-family:var(--f-cond);font-weight:600;font-size:14px;white-space:nowrap}
+.up{color:var(--ok)} .down{color:var(--bad)} .flat{color:var(--muted)}
+
+h2{font-family:var(--f-cond);font-weight:700;font-size:15px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text2);margin:0 0 10px;text-wrap:balance}
+h2 small{font-weight:500;letter-spacing:.5px;text-transform:none;color:var(--muted);font-size:14px}
+
+/* O que melhorar: lista de chamados, a faixa da esquerda diz a gravidade */
+.acoes{display:grid;gap:8px}
+.ac{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;background:var(--s1);border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:10px;padding:12px 14px}
+.ac.verm{border-left-color:var(--bad)}
+.ac.info{border-left-color:var(--muted)}
+.ac .tag{grid-row:span 2;align-self:start;font-family:var(--f-cond);font-weight:700;font-size:12px;letter-spacing:1px;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--warn-vela);color:var(--warn);white-space:nowrap}
+.ac.verm .tag{background:var(--bad-vela);color:var(--bad)}
+.ac.info .tag{background:var(--s3);color:var(--text2)}
+.ac .t{font-weight:600}
+.ac .d{font-size:14px;color:var(--text2);display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline}
+.ac .d a{font-family:var(--f-cond);font-weight:600;font-size:14px;text-decoration:none;border-bottom:1px solid currentColor;white-space:nowrap}
+.vazio{color:var(--muted);font-size:14px;padding:4px 2px}
+.mais{background:none;border:1px dashed var(--line);border-radius:10px;padding:8px 12px;color:var(--text2);font-weight:600;font-size:14px;justify-self:start}
+
+.lojas{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:start}
+.loja{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px;align-content:start;min-width:0}
+.loja h3{margin:0;font-family:var(--f-num);font-weight:400;font-size:24px;letter-spacing:.4px;text-transform:uppercase;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.loja h3 small{font-family:var(--f-cond);font-size:13px;color:var(--muted);letter-spacing:1px;text-align:right}
+.loja.off{background:transparent;border-style:dashed}
+.loja.off h3{color:var(--muted)}
+.bloco{display:grid;gap:5px;border-top:1px solid var(--line);padding-top:10px}
+.bloco .bt{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.bloco .bt span{font-family:var(--f-cond);font-size:13px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted)}
+.bloco .bt a{font-family:var(--f-cond);font-size:13px;text-decoration:none;white-space:nowrap}
+.ln{display:flex;justify-content:space-between;gap:10px;font-size:14px}
+.ln > span:first-child{color:var(--text2);min-width:0}
+.ln b{font-weight:700;text-align:right;white-space:nowrap}
+.ln .vv{display:grid;justify-items:end;gap:0}
+.ln .vv .ft{font-size:12px}
+.ln.ruim b{color:var(--bad)}
+.ln.cinza b{color:var(--muted);font-weight:500}
+.semdado{color:var(--muted);font-size:14px}
+
+.det{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;align-items:start}
+.cx{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:8px;align-content:start;min-width:0}
+.cx h3{margin:0;font-family:var(--f-cond);font-weight:700;font-size:15px;letter-spacing:1px;text-transform:uppercase;color:var(--text);display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.cx h3 a{font-size:13px;font-weight:600;text-transform:none;letter-spacing:.2px;text-decoration:none;white-space:nowrap}
+.cx ul{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+.cx li{font-size:14px;color:var(--text2);display:grid;gap:1px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.cx li:last-child{border-bottom:0;padding-bottom:0}
+.cx li b{color:var(--text);font-weight:600}
+.cx li i{font-style:normal;color:var(--muted);font-size:13px}
+.cx .nota{font-size:13px;color:var(--muted)}
+.horas{display:flex;gap:2px;height:70px}
+.horas .col{flex:1;min-width:0;position:relative;height:100%}
+.horas .bar{position:absolute;left:0;right:0;bottom:0;background:var(--deliv);border-radius:2px 2px 0 0}
+.horas .mk{position:absolute;left:-1px;right:-1px;border-top:2px dashed var(--text)}
+.hx{display:flex;gap:2px;font:500 10px var(--f-cond);color:var(--muted)}
+.hx span{flex:1;text-align:center;min-width:0}
+
+.graf{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:12px 12px 8px;display:grid;gap:8px}
+.graf svg{display:block;width:100%;height:auto}
+.graf .ax{fill:var(--muted);font:500 11px var(--f-cond)}
+.graf .gl{stroke:var(--line);stroke-width:1}
+.graf .sel{fill:var(--deliv-vela)}
+.graf rect.hit{fill:transparent;cursor:pointer}
+.leg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--text2)}
+.leg span::before{content:"";display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:6px;vertical-align:3px;background:var(--c)}
+
+.tab{overflow-x:auto;background:var(--s1);border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:14px}
+.tab table{min-width:900px!important}
+.tab th,.tab td{white-space:nowrap!important}
+th,td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-family:var(--f-cond);font-weight:600;text-transform:uppercase;letter-spacing:1px;font-size:12px;color:var(--muted);background:var(--s2)}
+td:first-child,th:first-child{text-align:left}
+tbody tr{cursor:default}
+tbody tr:hover td{background:var(--s2)}
+tbody tr.on td{background:var(--deliv-vela)}
+td.r{color:var(--bad)} td.z{color:var(--muted)}
+
+.fim{font-size:13px;color:var(--muted);display:grid;gap:6px;max-width:80ch}
+.fim b{color:var(--text2)}
+/* versão do dono: 6 placas (dinheiro na frente) e o seletor de mês */
+.placar.seis{grid-template-columns:repeat(3,minmax(0,1fr))}
+.mesl{display:flex;align-items:center;gap:6px}
+.mesl select{background:var(--s2);color:var(--text);border:1px solid var(--line);border-radius:8px;height:34px;padding:0 10px;font:600 14px var(--f-body);max-width:100%}
+.mesl select.on{border-color:var(--deliv);box-shadow:inset 0 0 0 1px var(--deliv)}
+.per .pv small{display:block;font-weight:500;font-size:13px;color:var(--text2)}
+/* erros do dia: contagem por tipo e a lista pedido a pedido */
+.erros{display:grid;gap:10px}
+.eg{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.ec{background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:2px;align-content:start}
+.ec b{font-family:var(--f-num);font-weight:400;font-size:24px;line-height:1.1}
+.ec b.r{color:var(--bad)}
+.ec span{font-size:13px;color:var(--text2)}
+.ec.zero b{color:var(--muted)}
+.el{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:6px}
+.el ul{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+.el li{font-size:14px;color:var(--text2);display:grid;gap:1px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.el li:last-child{border-bottom:0;padding-bottom:0}
+.el li b{color:var(--text);font-weight:600}
+.el li i{font-style:normal;color:var(--muted);font-size:13px}
+.el .nota{font-size:13px;color:var(--muted)}
+@media (max-width:760px){.placar.seis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:760px){.placar,.pers{grid-template-columns:repeat(2,minmax(0,1fr))}.fonte{text-align:left}}
+@media (max-width:420px){.lojas,.det{grid-template-columns:minmax(0,1fr)}}
+/* ---- portal: selo ao vivo, fontes lidas e os blocos novos (tempos, agora, prazo, cancelados, erros) ---- */
+.vivobar{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-family:var(--f-cond);font-size:13px;color:var(--text2)}
+.selo{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;background:var(--s1);font-weight:600;color:var(--text)}
+.selo i{width:8px;height:8px;border-radius:50%;background:var(--ok);display:inline-block}
+.selo.velho{border-color:var(--bad);color:#ffd9d9}.selo.velho i{background:var(--bad)}
+.selo.espera i{background:var(--muted)}
+.lidos{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;min-width:0}
+.lidos .lbl{margin-right:0}
+.lido{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:2px 8px;background:var(--s2);border:1px solid var(--line);white-space:nowrap}
+.lido::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.lido.ok::before{background:var(--ok)} .lido.warn::before{background:var(--warn)} .lido.bad::before{background:var(--bad)}
+.lido.bad{color:#ffd9d9;border-color:rgba(230,103,103,.5)}
+.blk{display:grid;gap:8px}
+.blk>.nota,.nota2{font-size:13px;color:var(--muted)}
+.tempos{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.tempos .pl{padding:12px 14px}
+.tempos .pl .v{font-size:clamp(24px,3.6vw,36px)}
+.tempos .pl .p9{font-family:var(--f-cond);font-size:13px;color:var(--text2)}
+.duo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+.duo>*{min-width:0}
+.ec .sb{font-size:13px;color:var(--text2)}
+.ec.g{border-left:4px solid var(--line)}
+.ec.coz{border-left-color:var(--ouro)} .ec.del{border-left-color:var(--deliv)} .ec.cla{border-left-color:var(--muted)}
+.ec small.din{display:block;font-size:13px;color:var(--ouro);font-weight:600}
+.agora .ag small{font-size:12px;color:var(--muted)}
+.ag b.w{color:var(--warn)}
+.listas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:start}
+.listas>*{min-width:0}
+.el h4{margin:0;font-family:var(--f-cond);font-weight:700;font-size:14px;letter-spacing:1px;text-transform:uppercase;color:var(--text2)}
+.el li{overflow-wrap:anywhere}
+.copia{display:grid;gap:6px}
+#prazoApi,#cancApi,#errosApi{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+#cancApi{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+@media (max-width:760px){#cancApi{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}}
+.copia textarea{width:100%;min-height:90px;background:var(--s2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px;font:13px var(--f-body)}
+@media (max-width:900px){.tempos{grid-template-columns:repeat(3,minmax(0,1fr))}.listas{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){.duo{grid-template-columns:minmax(0,1fr)}.agora{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.tempos{grid-template-columns:repeat(2,minmax(0,1fr))}.tempos .pl:last-child{grid-column:1/-1}}
+/* celular: o valor do mês não pode quebrar no meio do número */
+@media (max-width:520px){.placar .pl{padding:12px 12px}.placar .pl .v{font-size:clamp(20px,6vw,26px)}}
+/* número + unidade sem quebrar ("antes 14 min"); tempo do iFood por loja; erro repetido em cinza; fonte de evento / fora do horário em cinza */
+.nw{white-space:nowrap}
+i.ft span.nw,.ag b span.nw,.ag small span.nw{font-size:inherit;color:inherit;font-weight:inherit;font-family:inherit}   /* o span só segura a quebra: cor e tamanho são os de quem está em volta */
+.ag b.tl{font-size:20px;line-height:1.2}
+.el li.rep b,.el li.rep i,.el li.sl b,.el li.sl i{color:var(--muted)}
+.el li.rep b,.el li.sl b{font-weight:500}
+.el h4 .repn{font-size:12px;letter-spacing:0;text-transform:none;font-weight:600;color:var(--muted)}
+.lido.ev,.lido.fora{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Placar do <em>Delivery</em></h1>
+    <div class="fonte" id="fonte">Carregando…</div>
+  </header>
+  <div class="vivobar" id="vivobar" hidden>
+    <span class="selo espera" id="selo"><i></i>esperando a leitura ao vivo</span>
+    <span class="lidos" id="lidos"></span>
+  </div>
+  <div class="aviso" id="aviso" hidden></div>
+  <div class="parados" id="parados" hidden></div>
+
+  <div class="pers" id="pers" role="group" aria-label="Período"></div>
+  <div class="ctl">
+    <div class="grp" id="lojasel" role="group" aria-label="Loja">
+      <span class="lbl">Loja</span>
+      <button class="chip" data-l="t">Todas</button>
+    </div>
+    <label class="mesl" id="mesBox" hidden><span class="lbl">Escolher o mês</span><select id="mesSel"></select></label>
+    <button class="mini" id="atualizar" type="button">Atualizar agora</button>
+  </div>
+  <div class="compara" id="compara"></div>
+  <div class="vivo" id="vivo" hidden></div>
+
+  <section class="placar" id="placar" aria-live="polite"><div class="pl"><div class="k">Placar do Delivery</div><div class="s">Carregando os números…</div></div></section>
+
+  <section class="blk" id="secAgora" hidden>
+    <h2 id="tAgora">🛵 Agora</h2>
+    <div class="agora" id="agora"></div>
+  </section>
+
+  <section class="blk" id="secTempos" hidden>
+    <h2 id="tTempos">⏱ Tempos</h2>
+    <div class="tempos" id="tempos"></div>
+    <div class="nota" id="nTempos"></div>
+  </section>
+
+  <div class="duo" id="secDuo" hidden>
+    <section class="blk">
+      <h2 id="tPrazoApi">✅ Prazo</h2>
+      <div class="eg" id="prazoApi"></div>
+      <div class="nota" id="nPrazoApi"></div>
+    </section>
+    <section class="blk">
+      <h2 id="tCancApi">🚫 Cancelados</h2>
+      <div class="eg" id="cancApi"></div>
+      <div class="nota" id="nCancApi"></div>
+    </section>
+  </div>
+  <section class="blk" id="secListaCanc" hidden>
+    <div class="el" id="listaCanc"></div>
+  </section>
+
+  <section class="blk" id="secErrosApi" hidden>
+    <h2 id="tErrosApi">🍳 Erros cozinha × 🥤 delivery</h2>
+    <div class="eg" id="errosApi"></div>
+    <div id="listaErros"></div>
+    <div class="nota" id="nErrosApi"></div>
+  </section>
+
+  <section>
+    <h2 id="tAcoes">O que melhorar</h2>
+    <div class="acoes" id="acoes"></div>
+  </section>
+
+  <section id="secErros">
+    <h2 id="tErros">Cancelamentos e reclamações</h2>
+    <div class="erros" id="erros"></div>
+  </section>
+
+  <section>
+    <h2 id="tLojas">Por loja</h2>
+    <div class="lojas" id="lojas"></div>
+  </section>
+
+  <section id="secDet">
+    <h2 id="tDet">O detalhe de ontem</h2>
+    <div class="det" id="det"></div>
+  </section>
+
+  <section>
+    <h2 id="tGraf">Dia a dia</h2>
+    <div class="grp" id="gsel" role="group" aria-label="O que mostrar no gráfico" style="margin-bottom:10px"></div>
+    <div class="graf" id="graf"></div>
+  </section>
+
+  <section>
+    <h2 id="tTab">Últimos 21 dias</h2>
+    <div class="tab"><table id="tabela" data-cdm-livre data-cdm-sem-nota></table></div>
+  </section>
+
+  <section class="fim" id="fim"></section>
+</div>
+<script>
+/* O placar inteiro. D = window.PLACAR_DELIVERY (histórico do placar + linhas "vivo.*" da API do iFood por dia e loja).
+   DONO vem do servidor (porta placar_delivery_portal): só o dono vê R$, e a versão da equipe nem recebe as chaves de dinheiro.
+   As lojas vêm de PORTAL_CFG.lojas (chave = id da loja). Devolve {vivo: fn} para a porta mandar o "hoje" e os blocos ao vivo. */
+function placarIniciar(D, DONO){
+  DONO = DONO === true;
+  var LOJAS = PORTAL_CFG.lojas.map(function(x){ return x.id; });
+  var NOME = {}, COR = {}, CURTO = {};
+  PORTAL_CFG.lojas.forEach(function(x,i){ NOME[x.id]=x.nome; CURTO[x.id]=x.curto||x.nome; COR[x.id]='var(--l'+(i%6+1)+')'; });
+  function nomeL(l){ return NOME[l]||l; }
+  // botões de loja: um por loja do config
+  (function(){
+    var ls=document.getElementById('lojasel'); if(!ls || ls.dataset.feito) return; ls.dataset.feito='1';
+    PORTAL_CFG.lojas.forEach(function(x){ var b=document.createElement('button'); b.className='chip'; b.type='button'; b.dataset.l=x.id; b.innerHTML='<span class="dot" style="background:'+COR[x.id]+'"></span>'; b.appendChild(document.createTextNode(x.nome)); ls.appendChild(b); });
+  })();
+  var PORTAL = PORTAL_CFG.url('index.html');   // as outras telas do portal abrem no lugar do portal inteiro
+  var TELA = {
+    qualidade:{u:PORTAL+'#qualidade', n:'Como fomos · Qualidade'},
+    resolver:{u:PORTAL+'#resolver', n:'Resolver hoje'},
+    pausados:{u:PORTAL+'#pausados', n:'Produtos pausados'},
+    tempo:{u:PORTAL+'#tempo', n:'Tempo de Entrega'},
+    fila:{u:PORTAL+'#fila', n:'Fila de Pedidos'},
+    turno:{u:PORTAL+'#turno', n:'Turno do Delivery'},
+    escala:{u:PORTAL+'#escala', n:'Escala & Clima'},
+    chegada:{u:PORTAL+'#chegada', n:'Chegada do dia'},
+    pagamento:{u:PORTAL+'#pagamento', n:'Pagar Motoboys'},
+    cobranca:{u:PORTAL+'#cobranca', n:'Cobrança na Porta'},
+    parceiro:{u:'https://portal.ifood.com.br/', n:'Portal do Parceiro iFood', fora:1}
+  };
+  function link(t,txt){ var x=TELA[t]; var fora=!!x.fora; return '<a href="'+x.u+'" target="'+(fora?'_blank':'_top')+'"'+(fora?' rel="noopener"':'')+'>'+esc(txt||x.n)+' ↗</a>'; }
+
+  if(!D || !D.linhas || !D.linhas.length || !D.chaves){
+    document.getElementById('placar').innerHTML='<div class="pl"><div class="k">Sem dados</div><div class="s">O banco ainda não tem o histórico do placar guardado. Abra de novo em alguns minutos.</div></div>';
+    document.getElementById('fonte').textContent='';
+    return null;
+  }
+
+  // ---------- dados por dia ----------
+  var K={}; D.chaves.forEach(function(c,i){ K[c]=i; });
+  var idx={}, dias=[];
+  D.linhas.forEach(function(r){ if(!idx[r[0]]){ idx[r[0]]={}; dias.push(r[0]); } idx[r[0]][r[1]]=r[2]; });
+  dias.sort();
+  var ONTEM = D.ontem, ultimo = dias[dias.length-1];
+  // o histórico da API do iFood (tabela placar_delivery_dia_extra) entra nas mesmas linhas com chaves "vivo.<nome>"
+  var EXTRA_INI = (function(){ var i=D.chaves.indexOf('vivo.pedidos_api'); if(i<0) return null; var m=null; D.linhas.forEach(function(r){ var y=r[2][i]; if(y!=null && (m==null || r[0]<m)) m=r[0]; }); return m; })();
+  var DET = D.det || {};
+  // "Hoje até agora" e "ontem até a mesma hora" entram como dois dias de mentira, 'H' e 'H0', com as mesmas chaves do placar diário
+  var HJ = null;
+  function carregaHoje(h){
+    if(!h || !h.lojas || !h.dia || !h.ate) return false;
+    HJ = h; idx.H = {}; idx.H0 = {};
+    LOJAS.forEach(function(l){
+      var x=h.lojas[l]; if(!x) return;
+      [['H',x.hoje],['H0',x.ontem]].forEach(function(p){
+        var o=p[1]; if(!o) return;
+        // prazo de hoje: entregues + os que já passaram da hora prometida e ainda não foram entregues (senão o atraso só aparece depois)
+        var ase=o.atrasados_sem_entrega||0, den=(o.medidos||0)+ase;
+        var m={
+          'vendas.pedidos_delivery':o.pedidos, 'vendas.pedidos_ifood':o.pedidos_ifood,
+          'vendas.vendido_delivery':o.vendido, 'vendas.vendido_ifood':o.vendido_ifood,
+          'vendas.vendido_fora_ifood': (o.vendido!=null && o.vendido_ifood!=null) ? o.vendido-o.vendido_ifood : null,
+          'vendas.pedidos_fora_ifood': (o.pedidos!=null && o.pedidos_ifood!=null) ? o.pedidos-o.pedidos_ifood : null,
+          'prazo.pedidos_medidos':den, 'prazo.pedidos_no_prazo':o.no_prazo,
+          'prazo.pct_no_prazo': den>0 ? o.no_prazo/den*100 : null,
+          'prazo.pedidos_atrasados': den>0 ? den-o.no_prazo : null,
+          'prazo.atrasados_mais_30min': den>0 ? o.atr30 : null,
+          'cancelamentos.cancelados_total':o.cancelados, 'cancelamentos.pedidos_delivery':(o.pedidos||0)+(o.cancelados||0),
+          'clientes.reclam_ifood':o.reclam, 'clientes.reclam_atraso_cancelar':o.reclam_atraso,
+          'hoje.atrasados_sem_entrega':o.atrasados_sem_entrega
+        };
+        if(p[0]==='H'){ m['loja_ifood.itens_pausados_fim_dia']=x.pausados_agora; m['loja_ifood.faixa_tempo_max_min']=x.tempo_ifood_maior_hoje; m['hoje.tempo_agora']=x.tempo_ifood_agora; }
+        idx[p[0]][l]=m;
+      });
+    });
+    return true;
+  }
+  carregaHoje(D.hoje);
+  // ---------- blocos ao vivo (porta parte 'vivo'): medidas M de hoje e de ontem até a mesma hora, o "agora" e as listas ----------
+  var VV = null, AG = {}, FONTES = null, FONTES_EM = null, FONTES_TIPO = null, FONTES_FALHA = null, GERADO = null, VINC = false;
+  // leitura ao vivo incompleta (sem vivo.lojas ou de outro dia): nada do vivo anterior fica na tela (VINC avisa "números de hoje podem estar velhos")
+  function zeraVivo(){ VV = null; AG = {}; FONTES = null; FONTES_EM = null; FONTES_TIPO = null; FONTES_FALHA = null; GERADO = null; }
+  function carregaVivo(r){
+    if(!r || !r.vivo || !r.vivo.lojas || !HJ || r.dia!==HJ.dia){ zeraVivo(); VINC = true; return false; }
+    VINC = false;
+    VV = r.vivo; AG = {}; FONTES = r.fontes || null; FONTES_EM = r.fontes_em || null; FONTES_TIPO = r.fontes_tipo || null; GERADO = r.gerado || null;
+    // fontes_falha {fonte:"HH:MI"}: o banco viu FALHA da leitura mais nova que o último OK (últimos 30 min) — a bolinha fica vermelha "falhou às HH:MI"
+    FONTES_FALHA = r.fontes_falha && typeof r.fontes_falha==='object' ? r.fontes_falha : null;
+    LOJAS.forEach(function(l){
+      var x=VV.lojas[l]; if(!x) return;
+      [['H',x.hoje],['H0',x.ontem]].forEach(function(p){
+        var o=p[1]; if(!o) return;
+        idx[p[0]][l]=idx[p[0]][l]||{};
+        Object.keys(o).forEach(function(k){ if(o[k]==null || typeof o[k]==='object') return; idx[p[0]][l]['vivo.'+k]=o[k]; });
+        // base da taxa de cancelamento do Hoje pelo mesmo critério do bloco 🚫 (pedidos do Saipos + cancelados da API e do Saipos)
+        if(o.cancelados!=null) idx[p[0]][l]['vivo.pedidos_mais_canc']=(+(idx[p[0]][l]['vendas.pedidos_delivery']||0))+(+o.cancelados);
+      });
+      if(x.agora){ AG[l]=x.agora;
+        // "passaram da hora e não foram entregues" de agora pela API do iFood: o Por loja usa este (o mesmo do 🛵 Agora); o do placar antigo só sem o ao vivo
+        if(x.agora.atrasados_sem_entrega!=null){ idx.H[l]=idx.H[l]||{}; idx.H[l]['vivo.ag_atras']=x.agora.atrasados_sem_entrega; }
+      }
+    });
+    return true;
+  }
+  function v(d,l,k){
+    if(k.slice(0,4)==='hib.') return hib(d,l,k.slice(4));
+    if(k.slice(0,4)==='hbc.') return hbc(d,l,k.slice(4));
+    var x=idx[d]&&idx[d][l]; if(!x) return null;
+    if(!Array.isArray(x)){ var z=x[k]; return z==null?null:+z; }
+    var i=K[k]; if(i==null) return null; var y=x[i]; return (y==null)?null:+y;
+  }
+  function abriu(d,l){ var p=v(d,l,'vendas.pedidos_delivery'); return p!=null && p>0; }
+  // prazo: onde o dia (ou o hoje) tem a API do iFood, a conta é a do bloco ✅ Prazo (entregue × prometido); antes disso, a do Gestor do iFood
+  var HIB_API={medidos:'vivo.prazo_medidos', no_prazo:'vivo.prazo_no_prazo', atrasados:'vivo.prazo_atrasados', atr30:'vivo.prazo_atr30'};
+  var HIB_GW={medidos:'prazo.pedidos_medidos', no_prazo:'prazo.pedidos_no_prazo', atrasados:'prazo.pedidos_atrasados', atr30:'prazo.atrasados_mais_30min'};
+  function prazoApi(d,l){ return v(d,l,'vivo.pedidos_api')!=null && v(d,l,'vivo.prazo_medidos')!=null; }
+  function hib(d,l,n){
+    var api=prazoApi(d,l);
+    if(n==='api') return api?1:0;
+    if(n==='pct'){ if(!api) return v(d,l,'prazo.pct_no_prazo'); var md=v(d,l,'vivo.prazo_medidos'), ok=v(d,l,'vivo.prazo_no_prazo'); return md>0 && ok!=null ? ok/md*100 : null; }
+    return v(d,l,(api?HIB_API:HIB_GW)[n]);
+  }
+  // de onde veio o prazo de um conjunto de células (só as que têm medida): 'api', 'gw', 'misto' ou null
+  function fontePrazo(C){ var a=0,g=0; C.forEach(function(x){ if(v(x[0],x[1],'hib.pct')==null) return; if(prazoApi(x[0],x[1])) a++; else g++; }); return a&&g ? 'misto' : a ? 'api' : g ? 'gw' : null; }
+  // cancelados: onde o dia (ou o hoje) tem a API do iFood, a conta é a do bloco 🚫 Cancelados (API e Saipos); antes disso, a do placar (Saipos e Gestor do iFood).
+  // Assim o quadro de cima, o Por loja, a tabela e o gráfico dizem o mesmo número do 🚫 no mesmo período.
+  var HBC_API={tot:'vivo.cancelados', loja:'vivo.cancel_culpa_loja', cli:'vivo.cancel_cliente', val:'vivo.valor_cancelado'};
+  var HBC_PL={tot:'cancelamentos.cancelados_total', loja:'cancelamentos.cancel_culpa_loja', cli:'cancelamentos.cancel_culpa_cliente', val:'vendas.valor_cancelado'};
+  function cancApi(d,l){ return v(d,l,'vivo.pedidos_api')!=null && v(d,l,'vivo.cancelados')!=null; }
+  function hbc(d,l,n){
+    var api=cancApi(d,l);
+    if(n==='base'){ if(!api) return v(d,l,'cancelamentos.pedidos_delivery'); return (v(d,l,'vendas.pedidos_delivery')||0)+v(d,l,'vivo.cancelados'); }   // mesma base do 🚫 (pedidos do Saipos + cancelados)
+    return v(d,l,(api?HBC_API:HBC_PL)[n]);
+  }
+  // de onde veio o número de cancelados de um conjunto de células: 'api', 'pl' (placar antigo), 'misto' ou null
+  function fonteCanc(C){ var a=0,g=0; C.forEach(function(x){ if(hbc(x[0],x[1],'tot')==null) return; if(cancApi(x[0],x[1])) a++; else g++; }); return a&&g ? 'misto' : a ? 'api' : g ? 'pl' : null; }
+  var PRIMEIRO = dias.filter(function(d){ return LOJAS.some(function(l){ return abriu(d,l); }); })[0] || ONTEM;   // 1º dia do histórico com venda
+  // 1º dia do histórico com valor numa chave (nada de data digitada na tela): só vale como "começou em" se for depois do 1º dia com venda
+  function primeiroCom(k){ var d0=dias.filter(function(d){ return LOJAS.some(function(l){ return v(d,l,k)!=null; }); })[0]; return d0 && d0>PRIMEIRO ? d0 : null; }
+  var RECLAM_INI = primeiroCom('clientes.reclam_ifood'), PRAZO_INI = primeiroCom('prazo.pedidos_medidos');
+
+  // ---------- formatos ----------
+  var int = new Intl.NumberFormat('pt-BR');
+  var dec1 = new Intl.NumberFormat('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
+  var brl = new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+  var brl2 = new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:2});
+  var MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  var SEM=['dom','seg','ter','qua','qui','sex','sáb'];
+  var SEMX=['domingos','segundas','terças','quartas','quintas','sextas','sábados'];
+  function dt(s){ var p=s.split('-'); return new Date(+p[0],+p[1]-1,+p[2]); }
+  function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function addDias(s,n){ var d=dt(s); d.setDate(d.getDate()+n); return iso(d); }
+  function dm(s){ var d=dt(s); return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'); }
+  function rot(s){ return SEM[dt(s).getDay()]+' '+dm(s); }
+  // texto que vem do banco: na versão da equipe, valor em dinheiro que sobrou num texto (inclusive o "R$ —" da máscara do banco) vira [valor]
+  function esc(s){ s=String(s==null?'':s); if(!DONO) s=s.replace(/R\$\s?(—|-?[\d.,]*\d)?/g,'[valor]'); return s.replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function fmt(x,un){
+    if(x==null || isNaN(x)) return '—';
+    if(un==='%') return dec1.format(x)+'%';
+    if(un==='R$') return brl.format(x);
+    if(un==='R$c') return brl2.format(x);
+    if(un==='min') return int.format(Math.round(x))+' min';
+    if(un==='nota') return dec1.format(x);
+    if(un==='d1') return dec1.format(x);
+    return int.format(Math.round(x));
+  }
+  function juntaE(a){ return a.length<2 ? a.join('') : a.slice(0,-1).join(', ')+' e '+a[a.length-1]; }   // "A, B e C"
+  function fmtRef(x,un){ if(un==='n' && Math.round(x)!==x) return dec1.format(x); return fmt(x,un); }
+
+  // ---------- relógio do restaurante, horário de Brasília (a página pode ser aberta em qualquer fuso) ----------
+  function agoraLoc(){
+    try{
+      var p={}; new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).forEach(function(x){ p[x.type]=x.value; });
+      return new Date(+p.year,+p.month-1,+p.day,(+p.hour)%24,+p.minute);
+    }catch(e){ var d=new Date(); return new Date(d.getTime()+(d.getTimezoneOffset()-180)*60000); }
+  }
+  function diaOp(){ var a=agoraLoc(); a.setHours(a.getHours()-5); return iso(a); }   // o dia de operação começa às 5h
+  // um "HH:MM" do hoje na hora local (de 0h a 4h59 já é a madrugada seguinte)
+  function quandoHJ(hhmm){ var p=String(hhmm||'').split(':'); if(p.length<2 || !HJ) return null; var d=dt(HJ.dia); if(+p[0]<5) d.setDate(d.getDate()+1); d.setHours(+p[0],+p[1]); return d; }
+  function idadeMin(hhmm){ var q=quandoHJ(hhmm); return q ? (agoraLoc()-q)/60000 : null; }
+  function tempoTxt(min){ min=Math.max(0,Math.round(min)); return min<60 ? min+' min' : Math.floor(min/60)+'h'+(min%60?String(min%60).padStart(2,'0'):''); }
+  // o "hoje" guardado só vale se for do dia de operação de agora (senão é a foto de outro dia)
+  function hojeVale(){ return !!(HJ && HJ.dia===diaOp()); }
+
+  // ---------- métricas (sem nenhum valor em R$) ----------
+  // t: soma | razao (n/dn) | pond (média pesada por w) | ultimo (último dia do período) | max
+  // cond: só conta loja/dia que tem essa chave (ex.: prazo só onde houve medida)
+  var M = {
+    vendido:{r:'Vendido no delivery', un:'R$', bom:1, t:'soma', k:'vendas.vendido_delivery'},
+    v_ifood:{r:'· pelo iFood', un:'R$', bom:0, t:'soma', k:'vendas.vendido_ifood'},
+    v_site:{r:'· pelo site próprio', un:'R$', bom:1, t:'soma', k:'vendas.vendido_fora_ifood'},
+    ticket:{r:'Ticket médio', un:'R$c', bom:1, t:'razao', n:'vendas.vendido_delivery', dn:'vendas.pedidos_delivery'},
+    v_cancel:{r:'Valor dos cancelados', un:'R$', bom:-1, t:'soma', k:'hbc.val', hbc:1},
+    v_cancel_loja:{r:'· por culpa da loja (pago pelo cliente no iFood)', un:'R$', bom:-1, t:'soma', k:'cancelamentos.valor_cancel_culpa_loja'},
+    v_devolvido:{r:'Devolvido ao cliente (parcial)', un:'R$c', bom:-1, t:'soma', k:'cancelamentos.valor_devolvido_parcial'},
+    pedidos:{r:'Pedidos de delivery', un:'n', bom:1, t:'soma', k:'vendas.pedidos_delivery'},
+    p_ifood:{r:'· pelo iFood', un:'n', bom:0, t:'soma', k:'vendas.pedidos_ifood'},
+    p_site:{r:'· pelo site próprio', un:'n', bom:1, t:'soma', k:'vendas.pedidos_fora_ifood'},
+    almoco:{r:'Pedidos do dia (até 18h)', un:'n', bom:1, t:'soma', k:'vendas.pedidos_almoco'},
+    noite:{r:'Pedidos da noite', un:'n', bom:1, t:'soma', k:'vendas.pedidos_noite'},
+    prazo:{r:'No prazo', un:'%', bom:1, t:'razao', n:'hib.no_prazo', dn:'hib.medidos', mult:100, cond:'hib.pct', hib:1},
+    medidos:{r:'Entregas medidas', un:'n', bom:0, t:'soma', k:'hib.medidos', cond:'hib.pct', hib:1},
+    atrasados:{r:'Atrasaram', un:'n', bom:-1, t:'soma', k:'hib.atrasados', cond:'hib.pct', hib:1},
+    atr30:{r:'Mais de 30 min atrasados', un:'n', bom:-1, t:'soma', k:'hib.atr30', cond:'hib.pct', hib:1},
+    sem_baixa:{r:'Entregas sem baixa no iFood (3 h+)', un:'n', bom:-1, t:'soma', k:'prazo.pedidos_sem_baixa_3h', cond:'prazo.pct_no_prazo'},
+    t_total:{r:'Do pedido à entrega (tempo do meio)', un:'min', bom:-1, t:'pond', k:'prazo.tempo_total_mediana_min', w:'prazo.pedidos_medidos'},
+    t_sair:{r:'Até sair da loja (tempo do meio)', un:'min', bom:-1, t:'pond', k:'prazo.tempo_ate_sair_mediana_min', w:'prazo.pedidos_medidos'},
+    t_rua:{r:'Na rua (tempo do meio)', un:'min', bom:-1, t:'pond', k:'prazo.tempo_rua_mediana_min', w:'prazo.pedidos_medidos'},
+    t_prom:{r:'Prazo prometido (tempo do meio)', un:'min', bom:0, t:'pond', k:'prazo.prazo_prometido_mediana_min', w:'prazo.pedidos_medidos'},
+    faixa:{r:'Tempo mostrado no iFood (média)', un:'min', bom:-1, t:'pond', k:'loja_ifood.faixa_tempo_media_min', w:'vendas.pedidos_delivery'},
+    faixa_max:{r:'Maior tempo mostrado no iFood', un:'min', bom:-1, t:'max', k:'loja_ifood.faixa_tempo_max_min'},
+    faixa_acima:{r:'Horas com tempo acima do padrão', un:'%', bom:-1, pts:1, t:'pond', k:'loja_ifood.pct_horas_faixa_acima_padrao', w:'vendas.pedidos_delivery'},
+    cancel:{r:'Cancelados', un:'n', bom:-1, t:'soma', k:'hbc.tot', hbc:1},
+    taxa:{r:'Taxa de cancelamento', un:'%', bom:-1, pts:1, t:'razao', n:'hbc.tot', dn:'hbc.base', mult:100, hbc:1},
+    c_loja:{r:'Por culpa da loja', un:'n', bom:-1, t:'soma', k:'hbc.loja', hbc:1},
+    c_atraso:{r:'· por atraso', un:'n', bom:-1, t:'soma', k:'cancelamentos.cancel_por_atraso'},
+    c_errado:{r:'· pedido errado ou ruim', un:'n', bom:-1, t:'soma', k:'cancelamentos.cancel_pedido_errado'},
+    c_item:{r:'· item em falta', un:'n', bom:-1, t:'soma', k:'cancelamentos.cancel_item_indisponivel'},
+    c_moto:{r:'· faltou motoboy', un:'n', bom:-1, t:'soma', k:'cancelamentos.cancel_sem_motoboy'},
+    c_cliente:{r:'Por causa do cliente', un:'n', bom:-1, t:'soma', k:'hbc.cli', hbc:1},
+    parciais:{r:'Item devolvido (parcial)', un:'n', bom:-1, t:'soma', k:'cancelamentos.parciais_ifood'},
+    sacola:{r:'Esqueceram na sacola', un:'n', bom:-1, t:'soma', k:'cancelamentos.esquecido_na_sacola'},
+    reclam:{r:'Reclamações no iFood', un:'n', bom:-1, t:'soma', k:'clientes.reclam_ifood'},
+    reclam100:{r:'Reclamações a cada 100 pedidos', un:'d1', bom:-1, t:'razao', n:'clientes.reclam_ifood', dn:'vendas.pedidos_ifood', mult:100, cond:'clientes.reclam_ifood'},
+    r_atraso:{r:'· pediu para cancelar por atraso', un:'n', bom:-1, t:'soma', k:'clientes.reclam_atraso_cancelar'},
+    r_pedido:{r:'· reclamou da comida ou de itens', un:'n', bom:-1, t:'soma', k:'clientes.reclam_problema_pedido'},
+    r_semresp:{r:'· loja não respondeu (o iFood decidiu)', un:'n', bom:-1, t:'soma', k:'clientes.reclam_sem_resposta_loja'},
+    chat_sr:{r:'Chat: cliente sem resposta', un:'n', bom:-1, t:'soma', k:'loja_ifood.chat_sem_resposta'},
+    aval_n:{r:'Avaliações recebidas', un:'n', bom:0, t:'soma', k:'clientes.aval_qtd'},
+    nota:{r:'Nota média no iFood', un:'nota', bom:1, pts:1, t:'pond', k:'clientes.aval_nota_media', w:'clientes.aval_qtd'},
+    ruins:{r:'Notas 1 e 2', un:'n', bom:-1, t:'soma', k:'clientes.aval_notas_1_2'},
+    pausados:{r:'Itens pausados no fim do dia', un:'n', bom:-1, t:'ultimo', k:'loja_ifood.itens_pausados_fim_dia'},
+    pausas:{r:'Pausados durante o dia', un:'n', bom:-1, t:'soma', k:'loja_ifood.pausas_novas'},
+    chegou_tarde:{r:'Chegaram 30 min+ depois da escala', un:'n', bom:-1, t:'soma', k:'motoboys.chegadas_atrasadas_anotacao'},
+    sem_anot:{r:'Turnos da escala sem chegada anotada', un:'n', bom:-1, t:'soma', k:'motoboys.turnos_sem_anotacao'},
+    escalados:{r:'Turnos na escala', un:'n', bom:0, t:'soma', k:'motoboys.turnos_escalados'},
+    ent_moto:{r:'Entregas por motoboy (estimativa)', un:'d1', bom:0, t:'razao', n:'motoboys.entregas_saipos', dn:'motoboys.motoboys_anotados_chegada', cond:'motoboys.entregas_por_motoboy_estimada'},
+    porta:{r:'Pagos na porta', un:'n', bom:0, t:'soma', k:'motoboys.porta_entregas'},
+    porta_prob:{r:'Cobrança na porta com problema', un:'n', bom:-1, t:'soma', ks:['motoboys.porta_sem_cobranca','motoboys.porta_so_a_comida','motoboys.porta_cobrou_a_mais','motoboys.porta_nao_cobrou_confirmado']},
+    rede_espera:{r:'Cartões esperando a Rede', un:'n', bom:0, t:'soma', k:'motoboys.porta_aguardando_rede'},
+    agora_atras:{r:'Passaram da hora prometida e não foram entregues', un:'n', bom:-1, t:'soma', k:'hoje.atrasados_sem_entrega'},
+    ag_atras:{r:'Passaram da hora prometida e não foram entregues (agora, pela API do iFood)', un:'n', bom:-1, t:'soma', k:'vivo.ag_atras'},
+    // ---- pela API do iFood (chaves vivo.*): tempos, prazo, cancelados, parciais e erros. "api" = só existe desde o 1º dia da API ----
+    // tempos: tempo do meio (mediana) de cada dia; vários dias ou lojas = junta pelo número de pedidos medidos
+    tz_coz:{r:'Cozinha (até apertar PRONTO)', un:'min', bom:-1, t:'pond', k:'vivo.t_cozinha_med', w:'vivo.t_cozinha_n', api:1, cond:'vivo.pedidos_api'},
+    tz_coz90:{r:'Cozinha p90', un:'min', bom:-1, t:'pond', k:'vivo.t_cozinha_p90', w:'vivo.t_cozinha_n', api:1, cond:'vivo.pedidos_api'},
+    tz_est:{r:'Parado pronto na estufa', un:'min', bom:-1, t:'pond', k:'vivo.t_estufa_med', w:'vivo.t_estufa_n', api:1, cond:'vivo.pedidos_api'},
+    tz_est90:{r:'Estufa p90', un:'min', bom:-1, t:'pond', k:'vivo.t_estufa_p90', w:'vivo.t_estufa_n', api:1, cond:'vivo.pedidos_api'},
+    tz_loja:{r:'Na loja (entrou até sair)', un:'min', bom:-1, t:'pond', k:'vivo.t_loja_med', w:'vivo.t_loja_n', api:1, cond:'vivo.pedidos_api'},
+    tz_loja90:{r:'Na loja p90', un:'min', bom:-1, t:'pond', k:'vivo.t_loja_p90', w:'vivo.t_loja_n', api:1, cond:'vivo.pedidos_api'},
+    tz_ent:{r:'Entrega (saiu até entregar)', un:'min', bom:-1, t:'pond', k:'vivo.t_entrega_med', w:'vivo.t_entrega_n', api:1, cond:'vivo.pedidos_api'},
+    tz_ent90:{r:'Entrega p90', un:'min', bom:-1, t:'pond', k:'vivo.t_entrega_p90', w:'vivo.t_entrega_n', api:1, cond:'vivo.pedidos_api'},
+    tz_tot:{r:'Total (pedido até entregar)', un:'min', bom:-1, t:'pond', k:'vivo.t_total_med', w:'vivo.t_total_n', api:1, cond:'vivo.pedidos_api'},
+    tz_tot90:{r:'Total p90', un:'min', bom:-1, t:'pond', k:'vivo.t_total_p90', w:'vivo.t_total_n', api:1, cond:'vivo.pedidos_api'},
+    tz_coz_n:{r:'Pedidos com PRONTO no Saipos', un:'n', bom:0, t:'soma', k:'vivo.t_cozinha_n', api:1, cond:'vivo.pedidos_api'},
+    tz_est_n:{r:'Pedidos medidos na estufa', un:'n', bom:0, t:'soma', k:'vivo.t_estufa_n', api:1, cond:'vivo.pedidos_api'},
+    tz_est_neg:{r:'PRONTO marcado depois da saída', un:'n', bom:-1, t:'soma', k:'vivo.t_estufa_neg', api:1, cond:'vivo.pedidos_api'},
+    tz_loja_n:{r:'Pedidos medidos na loja', un:'n', bom:0, t:'soma', k:'vivo.t_loja_n', api:1, cond:'vivo.pedidos_api'},
+    tz_ent_n:{r:'Entregas medidas', un:'n', bom:0, t:'soma', k:'vivo.t_entrega_n', api:1, cond:'vivo.pedidos_api'},
+    tz_tot_n:{r:'Pedidos medidos do começo ao fim', un:'n', bom:0, t:'soma', k:'vivo.t_total_n', api:1, cond:'vivo.pedidos_api'},
+    api_ped:{r:'Pedidos de entrega na API do iFood', un:'n', bom:1, t:'soma', k:'vivo.pedidos_api', api:1, cond:'vivo.pedidos_api'},
+    pa_med:{r:'Entregas medidas (API)', un:'n', bom:0, t:'soma', k:'vivo.prazo_medidos', api:1, cond:'vivo.pedidos_api'},
+    pa_ok:{r:'Chegaram no tempo', un:'n', bom:1, t:'soma', k:'vivo.prazo_no_prazo', api:1, cond:'vivo.pedidos_api'},
+    pa_pct:{r:'Chegaram no tempo (API)', un:'%', bom:1, t:'razao', n:'vivo.prazo_no_prazo', dn:'vivo.prazo_medidos', mult:100, api:1, cond:'vivo.pedidos_api'},
+    pa_atr:{r:'Atrasados (API)', un:'n', bom:-1, t:'soma', k:'vivo.prazo_atrasados', api:1, cond:'vivo.pedidos_api'},
+    pa_atr30:{r:'Mais de 30 min atrasados (API)', un:'n', bom:-1, t:'soma', k:'vivo.prazo_atr30', api:1, cond:'vivo.pedidos_api'},
+    ca_tot:{r:'Cancelados (API e Saipos)', un:'n', bom:-1, t:'soma', k:'vivo.cancelados', api:1, cond:'vivo.pedidos_api'},
+    ca_taxa:{r:'Taxa de cancelamento', un:'%', bom:-1, pts:1, t:'razao', n:'vivo.cancelados', dn:'vivo.pedidos_mais_canc', mult:100, api:1, cond:'vivo.pedidos_api'},
+    ca_loja:{r:'Cancelados por culpa da loja', un:'n', bom:-1, t:'soma', k:'vivo.cancel_culpa_loja', api:1, cond:'vivo.pedidos_api'},
+    ca_cli:{r:'· por causa do cliente', un:'n', bom:-1, t:'soma', k:'vivo.cancel_cliente', api:1, cond:'vivo.pedidos_api'},
+    ca_out:{r:'· outros motivos', un:'n', bom:-1, t:'soma', k:'vivo.cancel_outros', api:1, cond:'vivo.pedidos_api'},
+    ca_val:{r:'Valor dos cancelados', un:'R$', bom:-1, t:'soma', k:'vivo.valor_cancelado', api:1, cond:'vivo.pedidos_api'},
+    ca_parc:{r:'Cancelamento parcial (item devolvido)', un:'n', bom:-1, t:'soma', k:'vivo.parciais', api:1, cond:'vivo.pedidos_api'},
+    ca_parc_val:{r:'Devolvido nos parciais', un:'R$c', bom:-1, t:'soma', k:'vivo.valor_parcial', api:1, cond:'vivo.pedidos_api'},
+    ca_reclam:{r:'Reclamações de item no iFood', un:'n', bom:-1, t:'soma', k:'vivo.reclam_item', api:1, cond:'vivo.pedidos_api'},
+    er_coz:{r:'Erros cozinha', un:'n', bom:-1, t:'soma', k:'vivo.erros_cozinha', api:1, cond:'vivo.pedidos_api'},
+    er_del:{r:'Erros delivery', un:'n', bom:-1, t:'soma', k:'vivo.erros_delivery', api:1, cond:'vivo.pedidos_api'},
+    er_cla:{r:'Erros a classificar', un:'n', bom:-1, t:'soma', k:'vivo.erros_classificar', api:1, cond:'vivo.pedidos_api'},
+    er_fora:{r:'Não é erro da casa', un:'n', bom:0, t:'soma', k:'vivo.erros_fora', api:1, cond:'vivo.pedidos_api'},
+    tempo_agora:{r:'Tempo mostrado no iFood agora', un:'min', bom:-1, t:'max', k:'hoje.tempo_agora'}
+  };
+  var AVAL={nota:1,ruins:1,aval_n:1};
+  function celulas(Ds,L){ var c=[]; Ds.forEach(function(d){ L.forEach(function(l){ c.push([d,l]); }); }); return c; }
+  function aggC(m,C){
+    var s=M[m];
+    if(s.t==='soma'){ var t=null; C.forEach(function(x){ if(s.cond && v(x[0],x[1],s.cond)==null) return; (s.ks||[s.k]).forEach(function(k){ var y=v(x[0],x[1],k); if(y!=null) t=(t||0)+y; }); }); return t; }
+    if(s.t==='razao'){ var n=0,dn=0,tem=false; C.forEach(function(x){ if(s.cond && v(x[0],x[1],s.cond)==null) return; var a=v(x[0],x[1],s.n), b=v(x[0],x[1],s.dn); if(a!=null && b!=null && b>0){ n+=a; dn+=b; tem=true; } }); return tem? n/dn*(s.mult||1) : null; }
+    if(s.t==='pond'){ var n2=0,w=0,tem2=false; C.forEach(function(x){ var a=v(x[0],x[1],s.k), p=v(x[0],x[1],s.w); if(a!=null && p!=null && p>0){ n2+=a*p; w+=p; tem2=true; } }); return tem2? n2/w : null; }
+    if(s.t==='ultimo'){ var ds=[]; C.forEach(function(x){ if(ds.indexOf(x[0])<0) ds.push(x[0]); }); for(var i=ds.length-1;i>=0;i--){ var t2=null; C.forEach(function(x){ if(x[0]!==ds[i]) return; var y=v(x[0],x[1],s.k); if(y!=null) t2=(t2||0)+y; }); if(t2!=null) return t2; } return null; }
+    if(s.t==='max'){ var mx=null; C.forEach(function(x){ var y=v(x[0],x[1],s.k); if(y!=null && (mx==null || y>mx)) mx=y; }); return mx; }
+    return null;
+  }
+  function agg(m,Ds,L){ return aggC(m,celulas(Ds,L)); }
+  Object.keys(M).forEach(function(m){ M[m].f=function(d,L){ return agg(m,[d],L); }; });
+
+  // ---------- períodos: Hoje · Ontem · Semana · Mês, sempre contra o período anterior do mesmo tamanho ----------
+  function faixa(a,b){ var out=[], d=a; while(d<=b){ out.push(d); d=addDias(d,1); } return out; }
+  function fimMes(ano,mes){ return new Date(ano,mes,0).getDate(); }  // mes 1-12
+  function periodo(p){
+    if(p==='hoje'){
+      var ate = HJ ? HJ.ate : '—';
+      return {D:['H'], A:['H0'], rot:'hoje até '+ate, rotA:'ontem até '+ate, sub:'até '+ate};
+    }
+    if(p==='ontem'){ var a0=addDias(ONTEM,-1); return {D:[ONTEM], A:[a0], rot:rot(ONTEM), rotA:rot(a0), sub:rot(ONTEM)}; }
+    if(p==='semana'){
+      var seg=addDias(ONTEM,-((dt(ONTEM).getDay()+6)%7)), Ds=faixa(seg,ONTEM);
+      var As=Ds.map(function(d){ return addDias(d,-7); });
+      return {D:Ds, A:As, rot:Ds.length>1? rot(seg)+' a '+rot(ONTEM) : rot(seg), rotA:As.length>1? rot(As[0])+' a '+rot(As[As.length-1]) : rot(As[0]), sub:Ds.length>1? dm(seg)+' a '+dm(ONTEM) : dm(seg)};
+    }
+    if(p.slice(0,2)==='m:') return periodoMes(p.slice(2));
+    var d1=ONTEM.slice(0,8)+'01', Dm=faixa(d1,ONTEM);
+    var y=+ONTEM.slice(0,4), mo=+ONTEM.slice(5,7), py=mo===1?y-1:y, pm=mo===1?12:mo-1;
+    var n=Math.min(Dm.length, fimMes(py,pm)), pa=py+'-'+String(pm).padStart(2,'0')+'-01';
+    var Am=faixa(pa, addDias(pa,n-1));
+    if(Dm.length===1) return {D:Dm, A:Am, rot:rot(d1), rotA:rot(Am[0]), sub:dm(d1)};
+    return {D:Dm, A:Am, rot:dm(d1)+' a '+dm(ONTEM), rotA:dm(Am[0])+' a '+dm(Am[Am.length-1]), sub:dm(d1)+' a '+dm(ONTEM)};
+  }
+  // um mês inteiro escolhido no seletor (o mês de agora vai só até ontem), contra o mês anterior dia com dia
+  function nomeMes(ym){ return MESES[+ym.slice(5,7)-1]+' de '+ym.slice(0,4); }
+  function periodoMes(ym){
+    var y=+ym.slice(0,4), mo=+ym.slice(5,7), ini=ym+'-01', fim=ym+'-'+String(fimMes(y,mo)).padStart(2,'0');
+    if(fim>ONTEM) fim=ONTEM;
+    var Dm=faixa(ini,fim), py=mo===1?y-1:y, pm=mo===1?12:mo-1, pa=py+'-'+String(pm).padStart(2,'0')+'-01';
+    var n=Math.min(Dm.length, fimMes(py,pm)), Am=faixa(pa, addDias(pa,n-1));
+    var d0=dias.filter(function(d){ return d.slice(0,7)===ym && LOJAS.some(function(l){ return abriu(d,l); }); })[0], parcial = d0 && d0>ini ? ' (o histórico começa em '+dm(d0)+')' : '';
+    return {D:Dm, A:Am, rot:nomeMes(ym)+(fim<ym+'-'+String(fimMes(y,mo)).padStart(2,'0')?' (até '+dm(fim)+')':'')+parcial, rotA:nomeMes(pa.slice(0,7))+(n<fimMes(py,pm)?' (até '+dm(Am[Am.length-1])+')':''), sub:dm(ini)+' a '+dm(fim), mes:ym};
+  }
+  // meses que têm dia no histórico (do mais novo para o mais velho)
+  function mesesComDado(){ var o=[]; dias.forEach(function(d){ var ym=d.slice(0,7); if(o.indexOf(ym)<0 && LOJAS.some(function(l){ return abriu(d,l); })) o.push(ym); }); return o.sort().reverse(); }
+  function lojasNo(Ds){ return Lsel().filter(function(l){ return Ds.some(function(d){ return abriu(d,l); }); }); }
+  // ---------- comparação com o período anterior ----------
+  // Justa: dia com dia (1º com 1º, 2º com 2º...) e só a loja que vendeu nos dois dias do par.
+  // Loja fechada de um lado sai da conta dos dois lados, e o rodapé avisa ("só ...").
+  function pares(P){ var n=Math.min(P.D.length,P.A.length), o=[]; for(var i=0;i<n;i++) o.push([P.D[i],P.A[i]]); return o; }
+  // candidata: a loja vendeu nesse dia e tem a chave de condição (cond)
+  function celCand(m,d,l){
+    if(!abriu(d,l)) return false;
+    var s=M[m]; if(s.cond && v(d,l,s.cond)==null) return false;
+    if(AVAL[m] && d!=='H' && d!=='H0' && avalIncompleta(d,l)) return false;
+    return true;
+  }
+  // entra na conta: candidata E com o valor da própria medida (senão um lado junta lojas que o outro não tem e o "antes" mente)
+  function temValor(m,d,l){
+    var s=M[m];
+    if(s.t==='pond') return v(d,l,s.k)!=null && (v(d,l,s.w)||0)>0;
+    if(s.t==='razao') return v(d,l,s.n)!=null && (v(d,l,s.dn)||0)>0;
+    return true;
+  }
+  function celOk(m,d,l){ return celCand(m,d,l) && temValor(m,d,l); }
+  // Lref: as lojas escolhidas na tela; loja que vendeu antes e agora não também tira a comparação do "todas"
+  function compara(m,P,L,Lref){
+    var s=M[m], aval=AVAL[m] && P.D.length>1;
+    var CD=celulas(P.D,L); if(aval) CD=CD.filter(function(x){ return !avalIncompleta(x[0],x[1]); });
+    var r={a0:aggC(m,CD), a:null, b:null, nota:'', fech:false, rotB:'antes', semAval:aval && CD.length<celulas(P.D,L).length};
+    if(r.a0==null) return r;
+    if(s.t==='ultimo'){   // foto do fim do período (itens pausados): última foto contra última foto
+      var DA=P.A;
+      if(P.D[0]==='H'){ DA=[ONTEM]; r.rotB=(ONTEM===addDias(HJ.dia,-1)?'ontem':rot(ONTEM))+' no fim do dia'; }
+      r.a=r.a0; r.b=agg(m,DA,L); return r;
+    }
+    var CA=[], CB=[], lojas={}, candL={}, diasP={}, diasT={}, cand=0;
+    CD.forEach(function(x){ if(celOk(m,x[0],x[1])) diasT[x[0]]=1; });
+    pares(P).forEach(function(p){ L.forEach(function(l){
+      if(!celCand(m,p[0],l)) return; candL[l]=1;   // loja que abriu mas não tem a medida: fica fora dos DOIS lados e o rodapé diz "só ..."
+      if(!celOk(m,p[0],l)) return; cand++;
+      if(celOk(m,p[1],l)){ CA.push([p[0],l]); CB.push([p[1],l]); lojas[l]=1; diasP[p[0]]=1; }
+    }); });
+    if(!CA.length){ r.semHist = P.A[0]!=='H0' && P.A.every(function(d){ return d<PRIMEIRO; }); r.fech = !r.semHist && !L.some(function(l){ return P.A.some(function(d){ return abriu(d,l); }); }); r.semApi = !!(s.api && P.A[0]!=='H0' && (!EXTRA_INI || P.A.every(function(d){ return d<EXTRA_INI; }))); return r; }
+    r.a=aggC(m,CA); r.b=aggC(m,CB);
+    if(s.hib){ var fa=fontePrazo(CA), fb=fontePrazo(CB); if(fa!==fb) r.rotB='antes ('+(fb==='api'?'API do iFood':fb==='gw'?'Gestor do iFood':'API e Gestor')+')'; }
+    if(s.hbc){ var ga=fonteCanc(CA), gb=fonteCanc(CB); if(ga!==gb) r.rotB='antes ('+(gb==='api'?'API do iFood':gb==='pl'?'Saipos e Gestor':'API, Saipos e Gestor')+')'; }
+    var Lc=L.filter(function(l){ return lojas[l]; }), nT=Object.keys(diasT).length, nP=Object.keys(diasP).length;
+    var fora=(Lref||L).filter(function(l){ return L.indexOf(l)<0 && P.A.some(function(d){ return abriu(d,l); }); });
+    // loja que entrou no número grande sem par na comparação (ex.: cancelado numa loja sem venda no Saipos hoje): o rodapé também diz "só ..."
+    var semPar=L.filter(function(l){ if(lojas[l]) return false; var y=aggC(m,CD.filter(function(x){ return x[1]===l; })); return y!=null && y!==0; });
+    var notas=[];
+    if(Lc.length<Object.keys(candL).length || fora.length || semPar.length) notas.push('só '+juntaE(Lc.map(function(l){ return CURTO[l]; })));
+    if(nP<nT) notas.push(nP+' de '+nT+' dias');
+    if(!notas.length && CA.length<cand) notas.push('só dias com venda nos dois');
+    r.nota=notas.join(', ');
+    return r;
+  }
+  function variacao(m,a,b){
+    var s=M[m], dif=a-b, txt, cls='flat';
+    if(fmtRef(a,s.un)===fmtRef(b,s.un)) return {txt:'igual', cls:cls};
+    if(s.un==='%'||s.pts) txt=(dif>0?'▲ ':'▼ ')+dec1.format(Math.abs(dif))+(s.un==='%'?' pontos':'');
+    else if(s.un==='min') txt=(dif>0?'▲ ':'▼ ')+int.format(Math.abs(Math.round(a)-Math.round(b)))+' min';   // a diferença dos números que aparecem (17 contra 18 = ▼ 1 min)
+    else if(b===0 || (s.un==='n' && Math.abs(b)<10)) txt=(dif>0?'+':'−')+fmtRef(Math.abs(dif),s.un==='n'?'n':s.un);
+    else { var pc=Math.round(dif/Math.abs(b)*100); txt= pc===0 ? 'quase igual' : (dif>0?'▲ ':'▼ ')+int.format(Math.abs(pc))+'%'; if(pc===0) return {txt:txt, cls:cls}; }
+    if(s.bom) cls=(dif>0)===(s.bom>0)?'up':'down';
+    return {txt:txt, cls:cls};
+  }
+  function nw(t){ return '<span class="nw">'+t+'</span>'; }   // "antes 14 min" não quebra no meio
+  // rodapé de cada número: a variação e o número do período anterior
+  function rodape(m,c){
+    var s=M[m];
+    if(!c || c.a0==null) return '';
+    if(c.semApi) return '<i class="ft flat">antes: sem dado ('+(EXTRA_INI?'a API do iFood começou em '+dm(EXTRA_INI):'histórico da API do iFood ainda não gravado')+')</i>';
+    if(c.semHist) return '<i class="ft flat">antes: sem histórico</i>';
+    if(c.fech) return '<i class="ft flat">antes: sem venda</i>';
+    if(c.a==null || c.b==null) return '<i class="ft flat">antes: '+(s.cond?'sem medida':'sem dado')+'</i>';
+    if(c.nota && c.a===0 && c.b===0 && c.a0) return '<i class="ft flat">antes: sem comparação (o número é de loja que não abriu antes)</i>';
+    var x=variacao(m,c.a,c.b), ant=c.rotB+' '+nw(fmtRef(c.b,s.un)), xt=nw(x.txt);   // só número + unidade ficam juntos ("14 min", "R$ 5.898"); o resto quebra normal
+    if(!c.nota) return '<i class="ft '+x.cls+'">'+xt+' · '+ant+'</i>';
+    var ag = fmt(c.a,s.un)!==fmt(c.a0,s.un) ? 'agora '+nw(fmtRef(c.a,s.un))+', ' : '';
+    var nt = c.nota.replace(/(\d+ de \d+ dias)/,'<span class="nw">$1</span>');   // "4 de 5 dias" não se parte
+    return '<i class="ft '+x.cls+'">'+xt+' · '+nt+': '+ag+ant+'</i>';
+  }
+
+  // ---------- "normal": o mesmo dia da semana nas semanas anteriores (usado só no "O que melhorar") ----------
+  // Feriado vende como domingo: feriado se compara com domingos e nunca entra como dia normal.
+  // Lista de exemplo (feriados nacionais); cada restaurante acrescenta os feriados da sua cidade.
+  var FERIADO={'2026-09-07':'Independência','2026-10-12':'N. Sra. Aparecida','2026-11-02':'Finados','2026-11-15':'Proclamação','2026-11-20':'Consciência Negra','2026-12-25':'Natal','2027-01-01':'Ano Novo'};
+  function baseDias(d){
+    var out=[], ini=d;
+    if(FERIADO[d]){ var w0=dt(d).getDay(); ini=addDias(d,-(w0===0?7:w0)); out.push(ini); for(var i=1;i<4;i++) out.push(addDias(ini,-7*i)); }
+    else for(var j=1;j<=4;j++) out.push(addDias(d,-7*j));
+    return out.filter(function(x){ return !FERIADO[x]; });
+  }
+  function ultimos(n,d){ var w=dt(d).getDay(); return ((w===0||w===6)?'dos últimos ':'das últimas ')+n+' '+SEMX[w]; }
+  function base(m,d,L){
+    var Lb=L.filter(function(l){ return M[m].f(d,[l])!=null; });
+    if(!Lb.length) return null;
+    var out=[];
+    baseDias(d).forEach(function(dd){
+      var ok=Lb.every(function(l){ return abriu(dd,l) && M[m].f(dd,[l])!=null && !(m==='ent_moto' && (v(dd,l,'motoboys.turnos_sem_anotacao')||0)>0); });
+      if(!ok) return;
+      var y=M[m].f(dd,Lb); if(y!=null) out.push({d:dd,v:y});
+    });
+    if(!out.length) return null;
+    var vs=out.map(function(o){return o.v;});
+    return {n:vs.length, media:vs.reduce(function(a,b){return a+b;},0)/vs.length, max:Math.max.apply(null,vs), min:Math.min.apply(null,vs), dias:out};
+  }
+  // avaliações chegam com 1-2 dias de atraso: dia com menos da metade do menor normal = ainda chegando
+  function avalIncompleta(d,l){ var q=v(d,l,'clientes.aval_qtd'); if(q==null) return true; var b=base('aval_n',d,[l]); return !!(b && q<0.5*b.min); }
+
+  // ---------- estado ----------
+  var st={p:'hoje', loja:'t', g:'pedidos'};
+  var MEMKEY = DONO ? 'cdm_placar_dono' : 'cdm_placar';
+  if(DONO) st.g='vendido';
+  try{ var mem=JSON.parse(localStorage.getItem(MEMKEY)||'{}'); if(mem.loja && (mem.loja==='t' || LOJAS.indexOf(mem.loja)>=0)) st.loja=mem.loja; if(mem.g) st.g=mem.g; }catch(e){}   // o período não fica guardado: o placar ao vivo sempre abre no Hoje
+  var AUTO_ONTEM=false;   // abriu no Hoje mas o hoje guardado ainda não vale: mostra Ontem e volta para o Hoje quando a leitura ao vivo chegar
+  if(st.p==='hoje' && !hojeVale()){ st.p='ontem'; AUTO_ONTEM=true; }
+  if(st.p.slice(0,2)==='m:' && (!DONO || mesesComDado().indexOf(st.p.slice(2))<0 || st.p.slice(2)===ONTEM.slice(0,7))) st.p = st.p.slice(2)===ONTEM.slice(0,7) ? 'mes' : 'ontem';
+  if(!DONO && st.g==='vendido') st.g='pedidos';
+  function Lsel(){ return st.loja==='t' ? LOJAS.slice() : [st.loja]; }
+
+  // ---------- detalhe de ontem (só existe para o último dia) ----------
+  function det(f,k){ var x=DET[f]; return x && x[k]!=null ? x[k] : null; }
+  function lista(f,k){ var x=det(f,k); return Array.isArray(x)?x:[]; }
+  function daLoja(arr){ return st.loja==='t' ? arr : arr.filter(function(o){ return o.loja===st.loja; }); }
+  function temDet(){ return true; }  // as listas de detalhe são sempre de ontem
+  function parseDM(s,ano){ var m=String(s||'').match(/(\d{2})\/(\d{2})/); if(!m) return null; return ano+'-'+m[2]+'-'+m[1]; }
+  // Saipos atrasado: a API do iFood viu pedido e o Saipos ainda não trouxe (ou trouxe bem menos)
+  function saiposAtrasado(d,l){
+    if(d==='H'){ var x=HJ && HJ.lojas[l], f=x ? x.saipos_faltando||0 : 0; return f>=3 ? {falta:f} : null; }
+    var api=v(d,l,'vendas.pedidos_ifood_api'), sp=v(d,l,'vendas.pedidos_ifood');
+    if(api!=null && api>0 && (sp==null || api-sp>3)) return {api:api, sp:sp||0};
+    if(d===ONTEM){ var c=lista('vendas','conferencia_ifood').filter(function(o){ return o.loja===l; })[0]; if(c && c.api_ifood>0 && c.api_ifood-c.saipos_ifood>3) return {api:c.api_ifood, sp:c.saipos_ifood}; }
+    return null;
+  }
+  var REDE_ATE = (function(){ var fp=det('motoboys','fontes_paradas'); return fp && fp.rede_ate ? parseDM(fp.rede_ate, ONTEM.slice(0,4)) : null; })();
+  function semRede(d){ return REDE_ATE && d>REDE_ATE; }
+  // GPS dos motoboys (TrackEat): a data vem do banco (fontes_paradas) e a frase só aparece se o GPS parou antes de ontem
+  var GPS_ATE = (function(){ var fp=det('motoboys','fontes_paradas'); var x=fp && (fp.trackeat_gps_ate || fp.trackeat_entregas_ate); var d=x ? parseDM(x, ONTEM.slice(0,4)) : null; return d && d<ONTEM ? d : null; })();
+
+  // ---------- o que melhorar: regras sem meta fixa (sempre contra o mesmo dia da semana) ----------
+  function pl(n,s,p){ return int.format(n)+' '+(n===1?s:p); }
+  function ref(b,qual,un){ var x=qual==='max'?b.max:b.media; return b.n===1 ? 'em '+rot(b.dias[0].d)+' foi '+fmtRef(x,un) : (qual==='max'?'o máximo':'a média')+' '+ultimos(b.n,b.dias[0].d)+' foi '+fmtRef(x,un); }
+  function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+  function acoes(d){
+    var out=[];
+    function add(nivel,loja,t,dd,telas,curto,ord){ out.push({n:nivel,l:loja,t:t,d:dd||'',telas:telas||[],c:curto||t,o:ord==null?50:ord}); return out[out.length-1]; }
+    function acima(m,l,minimo){ var a=M[m].f(d,[l]); if(a==null || a<(minimo==null?1:minimo)) return null; var b=base(m,d,[l]); if(!b) return null; return a>b.max ? {a:a,b:b} : null; }
+    function acimaClaro(m,l){ var x=acima(m,l,0); return x && x.a-x.b.media>=3 && x.a>=1.1*x.b.media ? x : null; }
+    var hoje=temDet();
+    var noDet = hoje ? ' A lista está no detalhe abaixo.' : '';
+
+    LOJAS.forEach(function(l){
+      if(st.loja!=='t' && st.loja!==l) return;
+      var c=CURTO[l];
+      var atr=saiposAtrasado(d,l);
+      if(atr) add('verm',l,'O Saipos ainda não trouxe o dia todo','O iFood registrou '+atr.api+' pedidos e o Saipos '+atr.sp+'. Os números de venda desta loja estão incompletos; olhe de novo mais tarde.',[],c+': Saipos ainda sem o dia todo (iFood '+atr.api+' pedidos, Saipos '+atr.sp+'), numeros de venda incompletos',0);
+      if(abriu(d,l)){
+        // pedidos
+        var vv=M.pedidos.f(d,[l]), bv=base('pedidos',d,[l]);
+        if(!atr && vv!=null && bv && bv.n>=2 && vv<0.85*bv.media){
+          var pc=Math.round((1-vv/bv.media)*100), pior=vv<bv.min;
+          var vrs=''; if(DONO){ var vr=M.vendido.f(d,[l]), bvr=base('vendido',d,[l]); if(vr!=null) vrs=' Vendido '+fmt(vr,'R$')+(bvr?' (normal '+fmt(bvr.media,'R$')+')':'')+'.'; }
+          add(pior?'verm':'amar',l,'Vieram '+pc+'% menos pedidos que o normal',pl(vv,'pedido','pedidos')+'; '+ref(bv,'media','n')+(pior?'; o pior dessas semanas':'')+'.'+vrs+' Ver se alguma marca ficou fechada ou com item pausado.',['pausados','qualidade'],c+': '+pc+'% menos pedidos que o normal',pior?10:40);
+        }
+        if(hoje){
+          lista('vendas','marcas').filter(function(o){ return o.loja===l && o.pedidos_media4!=null; }).forEach(function(o){
+            if(o.pedidos===0 && o.pedidos_media4>=2) add('amar',l,'A marca '+o.marca+' não vendeu nada','Normal: '+dec1.format(o.pedidos_media4)+' pedidos nesse dia da semana. Ver se está aberta e com cardápio no iFood.',['pausados'],c+': marca '+o.marca+' nao vendeu nada (normal '+dec1.format(o.pedidos_media4)+')',38);
+            else if(o.pedidos>0 && o.pedidos_media4>=5 && o.pedidos<=0.5*o.pedidos_media4) add('amar',l,'A marca '+o.marca+' vendeu metade do normal ou menos',o.pedidos+' pedidos; normal '+dec1.format(o.pedidos_media4)+'. Ver se está aberta e com cardápio no iFood.',['pausados'],c+': marca '+o.marca+' vendeu '+o.pedidos+' (normal '+dec1.format(o.pedidos_media4)+')',39);
+          });
+        }
+        // prazo
+        var pz=M.prazo.f(d,[l]), bp=base('prazo',d,[l]);
+        var cob=v(d,l,'prazo.cobertura_medicao_pct');
+        if(pz==null && cob!=null && cob<90){
+          add('info',l,'Prazo de '+rot(d)+' sem medida','O robô do Gestor do iFood leu só '+dec1.format(cob)+'% dos pedidos.',['qualidade'],null,90);
+        } else if(pz!=null && bp && ((bp.n>=2 && pz<bp.min) || pz<bp.media-5)){
+          var fx=null, por='';
+          if(hoje){
+            fx=lista('prazo','atraso_por_faixa_horario').filter(function(o){ return o.loja===l && o.medidos>=5; }).sort(function(a,b){ return a.pct_no_prazo-b.pct_no_prazo; })[0];
+            if(fx) por=' Pior horário: '+String(fx.faixa).replace(/^\d\)\s*/,'')+', só '+dec1.format(fx.pct_no_prazo)+'% no prazo, '+int.format(Math.round(fx.ate_sair_mediana_min))+' min até sair da loja.';
+          }
+          var ts=acimaClaro('t_sair',l), tr=acimaClaro('t_rua',l), onde='';
+          if(ts && !tr) onde=' O atraso foi antes de sair (cozinha ou espera do motoboy): '+fmt(ts.a,'min')+' até sair, normal '+fmt(ts.b.media,'min')+'.';
+          else if(tr && !ts) onde=' O atraso foi na rua: '+fmt(tr.a,'min')+' na rua, normal '+fmt(tr.b.media,'min')+'.';
+          else if(ts && tr) onde=' Atrasou na loja ('+fmt(ts.a,'min')+' até sair) e na rua ('+fmt(tr.a,'min')+').';
+          var forte = bp.n>=2 && pz<bp.min;
+          add(forte?'verm':'amar',l,'Só '+dec1.format(pz)+'% dos pedidos chegaram no prazo',cap(ref(bp,'media','%'))+(forte?' (o pior dessas semanas)':(bp.n===1?' (só há essa semana para comparar)':''))+'.'+por+onde,['qualidade','tempo'],c+': so '+dec1.format(pz)+'% no prazo ('+(bp.n===1?dm(bp.dias[0].d)+': ':'normal ')+dec1.format(bp.media)+'%)'+(fx?' - pior horario '+String(fx.faixa).replace(/^\d\)\s*/,''):''),forte?5:15);
+        }
+        var a30=acima('atr30',l,1);
+        if(a30){ var sb0=M.sem_baixa.f(d,[l])||0; add('amar',l,pl(a30.a,'pedido chegou','pedidos chegaram')+' com mais de 30 min de atraso',(sb0?'Desses, '+pl(sb0,'é entrega','são entregas')+' sem baixa no iFood (o atraso real não se sabe). ':'')+cap(ref(a30.b,'max','n'))+'.'+noDet,['resolver','qualidade'],c+': '+pl(a30.a,'pedido','pedidos')+' com 30+ min de atraso',35); }
+        var sb=acima('sem_baixa',l,1);
+        if(sb) add('amar',l,pl(sb.a,'entrega','entregas')+' sem baixa no iFood','Contaram como atraso. Cobrar do motoboy o código na entrega.',['turno'],c+': '+pl(sb.a,'entrega','entregas')+' sem baixa no iFood',60);
+        var fm=acima('faixa_max',l,1), fa=acima('faixa_acima',l,0.1);
+        if(fm || fa){
+          var leit=hoje ? (lista('loja_ifood','faixa_de_tempo_ontem').filter(function(o){ return o.loja===l; })[0]||{}).leituras_hora_a_hora : '';
+          add('amar',l,'O tempo de entrega no iFood subiu até '+fmt(M.faixa_max.f(d,[l]),'min'),(fa? dec1.format(fa.a)+'% das horas acima do padrão (antes, '+ref(fa.b,'max','%')+'). ':'')+(leit?'Leituras: '+leit+'.':''),['tempo'],c+': tempo no iFood chegou a '+fmt(M.faixa_max.f(d,[l]),'min'),45);
+        }
+        // reclamações (com histórico curto, compara com todos os dias anteriores)
+        var ra=M.r_atraso.f(d,[l]);
+        if(ra){
+          var br=base('r_atraso',d,[l]), curto=false;
+          if(!br){ var prev=dias.filter(function(x){ return x<d && abriu(x,l) && M.r_atraso.f(x,[l])!=null; }).map(function(x){ return M.r_atraso.f(x,[l]); }); if(prev.length){ br={n:prev.length,max:Math.max.apply(null,prev)}; curto=true; } }
+          if(br && ra>br.max){
+            var vir=hoje ? lista('clientes','reclamacoes_ifood_ontem_motivos').filter(function(o){ return o.loja===l && /atraso/.test(o.tipo); }).reduce(function(a,o){ return a+(o.viraram_cancelamento||0); },0) : 0;
+            add('amar',l,pl(ra,'cliente pediu','clientes pediram')+' para cancelar ou nova previsão por atraso',(vir? pl(vir,'virou','viraram')+' cancelamento. ':'')+(curto?'Histórico curto'+(RECLAM_INI?' (a leitura começou em '+dm(RECLAM_INI)+')':'')+': o maior antes foi '+br.max+'.':cap(ref(br,'max','n'))+'.'),['qualidade','fila'],c+': '+pl(ra,'cliente reclamou','clientes reclamaram')+' de atraso no iFood',22);
+          }
+        }
+        var rp=M.r_pedido.f(d,[l]); if(rp) add('amar',l,pl(rp,'cliente reclamou','clientes reclamaram')+' da comida ou de item faltando','Reforçar a conferência da sacola.'+noDet,['resolver'],c+': '+pl(rp,'reclamacao','reclamacoes')+' de item faltando ou errado',33);
+        var rs=M.r_semresp.f(d,[l]); if(rs) add('verm',l,'A loja não respondeu '+pl(rs,'reclamação','reclamações')+' no iFood','O iFood decidiu sozinho. Alguém precisa olhar a tela de pedidos no pico.',['fila'],c+': '+pl(rs,'reclamacao','reclamacoes')+' sem resposta da loja',12);
+        var cs=acima('chat_sr',l,1); if(cs) add('amar',l,pl(cs.a,'cliente escreveu','clientes escreveram')+' no chat e ninguém respondeu',cap(ref(cs.b,'max','n'))+'.',['resolver'],c+': '+pl(cs.a,'cliente','clientes')+' sem resposta no chat',30);
+        // motoboys
+        var ct=acima('chegou_tarde',l,1);
+        if(ct){ var nomes=hoje? lista('motoboys','chegadas_atrasadas').filter(function(o){ return o.loja===l; }).map(function(o){ return o.motoboy+' '+o.minutos+' min'; }).join(', '):''; add('amar',l,pl(ct.a,'motoboy chegou','motoboys chegaram')+' 30 min ou mais depois da escala',(nomes?nomes+'. ':'')+'Pela hora anotada no balcão'+(GPS_ATE?' (sem GPS desde '+dm(GPS_ATE)+', não é prova)':'')+'.',['chegada'],c+': '+pl(ct.a,'motoboy chegou','motoboys chegaram')+' 30+ min '+(ct.a>1?'atrasados':'atrasado'),55); }
+        var sa=M.sem_anot.f(d,[l]); if(sa) add('amar',l,pl(sa,'turno','turnos')+' da escala sem hora de chegada anotada','Faltou o motoboy ou o balcão esqueceu de anotar.',['chegada'],c+': '+pl(sa,'turno','turnos')+' sem chegada anotada',55);
+        if(hoje && M.escalados.f(d,[l])==null){
+          var ea=det('motoboys','fontes_paradas'); ea=ea&&ea.escala_ate? ea.escala_ate[l] : null;
+          add('amar',l,'A loja abriu sem escala de motoboys no sistema',ea?'A escala dessa loja vai só até '+ea+'.':'',['escala'],c+': abriu sem escala de motoboys no sistema',58);
+        }
+        if(!semRede(d) && !M.rede_espera.f(d,[l])){ var pp=acima('porta_prob',l,1); if(pp) add('amar',l,pl(pp.a,'cobrança','cobranças')+' na porta com problema','Não cobrou, cobrou só a comida ou cobrou a mais.',['cobranca'],c+': '+pl(pp.a,'cobranca','cobrancas')+' na porta com problema',40); }
+        var pz2=acima('pausados',l,1); if(pz2) add('info',l,'Mais itens pausados que o normal: '+pz2.a,cap(ref(pz2.b,'max','n'))+'.',['pausados'],null,75);
+        var pn=acima('pausas',l,1); if(pn) add('amar',l,'Acabou mais coisa que o normal: '+pn.a+' itens pausados durante o dia','Reforçar produção e estoque desses itens para hoje.',['pausados'],c+': acabou mais coisa que o normal ('+pn.a+' itens)',46);
+      }
+      // cancelamentos (valem também quando o Saipos não tem venda: pode ser loja aberta no iFood com a cozinha fechada)
+      var cl=acima('c_loja',l,1);
+      if(!abriu(d,l) && !atr && M.c_loja.f(d,[l])) cl={a:M.c_loja.f(d,[l]), b:null};
+      if(cl){
+        var mot=hoje ? lista('cancelamentos','motivos').filter(function(o){ return o.loja===l && o.responsavel==='loja'; }).map(function(o){ return o.qtd+' '+String(o.motivo).toLowerCase(); }).join(', ') : '';
+        var fech = !abriu(d,l);
+        add('verm',l,pl(cl.a,'pedido cancelado','pedidos cancelados')+' por culpa da loja'+(fech?' num dia sem venda no Saipos':''),(fech?'A loja pode ter ficado aberta no iFood com a cozinha fechada.':cap(ref(cl.b,'max','n'))+'.')+(mot?' Motivos: '+mot+'.':''),['qualidade'],c+': '+pl(cl.a,'cancelado','cancelados')+' por culpa da loja'+(fech?' com a loja sem venda':'')+(mot?' ('+mot+')':''),8);
+      }
+      if(abriu(d,l)){
+        var ci=M.c_item.f(d,[l]); if(ci) add('amar',l,pl(ci,'pedido cancelado','pedidos cancelados')+' por item em falta','Pausar o item no iFood antes de acabar, não depois.',['pausados'],c+': '+pl(ci,'cancelado','cancelados')+' por item em falta',20);
+        var cm=M.c_moto.f(d,[l]); if(cm) add('amar',l,'Faltou motoboy: '+pl(cm,'pedido cancelado','pedidos cancelados'),'Rever a escala deste dia da semana.',['escala','turno'],c+': faltou motoboy ('+pl(cm,'cancelado','cancelados')+')',20);
+        var ce=M.c_errado.f(d,[l]); if(ce) add('amar',l,pl(ce,'pedido errado ou ruim virou','pedidos errados ou ruins viraram')+' cancelamento','Mostrar o pedido para a cozinha do turno.',['resolver','qualidade'],c+': '+pl(ce,'cancelado','cancelados')+' por pedido errado',20);
+        var sc=acima('sacola',l,1); if(sc) add('amar',l,'Item ficou fora da sacola '+pl(sc.a,'vez','vezes'),'Conferir bebida, sobremesa e adicionais antes de fechar a sacola. Antes, '+ref(sc.b,'max','n')+'.',['resolver'],c+': item esquecido na sacola '+pl(sc.a,'vez','vezes'),25);
+        var tx=acima('taxa',l,0.01); if(tx && (M.cancel.f(d,[l])||0)>=2) add('amar',l,'Cancelamento acima do normal: '+dec1.format(tx.a)+'%',cap(ref(tx.b,'max','%'))+'.',['qualidade'],c+': cancelamento '+dec1.format(tx.a)+'%',50);
+        var nend=v(d,l,'cancelamentos.cancel_endereco_cliente')||0, en=acima('c_cliente',l,2); if(en && nend>=2) add('info',l,nend+' cancelados por endereço incompleto ou cliente que não atende','Antes de cancelar, chamar o cliente no chat do iFood e esperar alguns minutos.',['qualidade'],null,70);
+      }
+      // fotos de agora (valem mesmo com a loja fechada) — só no dia de ontem
+      if(hoje){
+        var av=lista('clientes','avaliacoes_sem_resposta_total').filter(function(o){ return o.loja===l; })[0];
+        if(av && av.abertas>0 && av.mais_antiga_dias>=5){
+          var hojeG=String(D.gerado||'').slice(0,10), lsa=lista('clientes','avaliacoes_sem_resposta_mais_antigas').filter(function(o){ return o.loja===l; });
+          var ult=lsa.filter(function(o){ return o.ultimo_dia_aprox; }).map(function(o){ return o.ultimo_dia_aprox; }).sort()[0];
+          // o último dia para responder vem do banco (ultimo_dia_aprox); sem ele, diz só há quanto tempo está aberta (nada de prazo do iFood digitado)
+          var resta = ult && hojeG ? Math.round((dt(ult)-dt(hojeG))/864e5) : null;
+          var ruins=lsa.filter(function(o){ return o.nota<=2; }).length;
+          var quando = resta==null ? 'a mais antiga está aberta há '+pl(av.mais_antiga_dias,'dia','dias') : resta<=0 ? 'a mais antiga vence hoje' : resta===1 ? 'a mais antiga vence amanhã' : 'a mais antiga vence em '+resta+' dias';
+          var x=add(resta!=null && resta<=1?'verm':'amar',l,'Responder '+pl(av.abertas,'avaliação','avaliações')+' no iFood',quando.charAt(0).toUpperCase()+quando.slice(1)+'.'+(ruins?' Entre as mais antigas, '+pl(ruins,'tem','têm')+' nota 1 ou 2: responder essas primeiro.':''),['parceiro'],c+': responder '+pl(av.abertas,'avaliacao','avaliacoes')+' no iFood ('+quando.replace('ã','a')+')',resta!=null && resta<=1?3:25);
+          x.tipo='aval'; x.qtd=av.abertas; x.quando=quando;
+        }
+        var pf=lista('loja_ifood','pausados_fim_do_dia').filter(function(o){ return o.loja===l && o.tipo==='Item principal'; });
+        var velhos=pf.map(function(o){ return {o:o, d:parseDM(o.desde,d.slice(0,4))}; }).filter(function(x){ return x.d && x.d<d; }).sort(function(a,b){ return a.d.localeCompare(b.d); });
+        if(velhos.length){
+          add('amar',l,pl(velhos.length,'prato ou lanche','pratos ou lanches')+' fora do ar desde antes de '+rot(d),'O mais antigo: '+velhos[0].o.item+', pausado desde '+velhos[0].o.desde+'.'+(velhos.length>1?' Outros: '+velhos.slice(1,3).map(function(x){ return x.o.item; }).join(', ')+(velhos.length>3?'…':'')+'.':'')+' Decidir se volta ou sai do cardápio.',['pausados'],c+': '+pl(velhos.length,'prato','pratos')+' fora do ar ha mais de 1 dia',48);
+        }
+      }
+    });
+
+    // ao vivo (só quando o "hoje" foi lido há menos de 45 min)
+    if(hojeVale()){
+      var idade=idadeMin(HJ.ate);
+      if(idade!=null && idade<45) Lsel().forEach(function(l){
+        var n=AG[l] && AG[l].atrasados_sem_entrega!=null ? +AG[l].atrasados_sem_entrega : v('H',l,'hoje.atrasados_sem_entrega');   // pela API do iFood quando o ao vivo chegou
+        if(n) add('verm',l,'Agora ('+HJ.ate+'): '+pl(n,'pedido passou','pedidos passaram')+' da hora prometida e '+(n===1?'não foi entregue':'não foram entregues'),'Olhar a fila e a saída dos motoboys já. Se a fila está longa, subir o tempo no iFood.',['fila','tempo'],CURTO[l]+' agora: '+pl(n,'pedido atrasado','pedidos atrasados')+' sem entrega',1);
+      });
+    }
+    // gerais (só do último dia)
+    if(hoje){
+      var tot=0, mais=null, porL={};
+      Lsel().forEach(function(l){ dias.forEach(function(dd){ var a=v(dd,l,'motoboys.cobranca_casos_abertos')||0, b=v(dd,l,'motoboys.cobranca_em_processo')||0; if(a+b>0){ tot+=a+b; porL[l]=(porL[l]||0)+a+b; if(!mais||dd<mais) mais=dd; } }); });
+      if(tot) add('amar',st.loja==='t'?'':st.loja,pl(tot,'caso','casos')+' de cobrança na porta esperando resposta',(st.loja==='t'?LOJAS.filter(function(l){ return porL[l]; }).map(function(l){ return CURTO[l]+' '+porL[l]; }).join(', ')+'. ':'')+'O mais antigo é de '+dm(mais)+'.'+(GPS_ATE?' Sem GPS desde '+dm(GPS_ATE)+', o caso vem sem o nome do motoboy.':''),['cobranca'],'cobranca na porta: '+pl(tot,'caso','casos')+' esperando resposta (desde '+dm(mais)+')',42);
+      var sa2=daLoja(lista('cancelamentos','ifood_cancelado_saipos_aberto'));
+      if(sa2.length) add('amar',st.loja==='t'?'':st.loja,pl(sa2.length,'pedido cancelado no iFood continua aberto','pedidos cancelados no iFood continuam abertos')+' no Saipos','Cancelar também no Saipos: o faturamento está contando esses pedidos.',['qualidade'],pl(sa2.length,'cancelado','cancelados')+' no iFood ainda abertos no Saipos',44);
+    }
+    var ord={verm:0,amar:1,info:2};
+    out.sort(function(a,b){ return ord[a.n]-ord[b.n] || a.o-b.o || LOJAS.indexOf(a.l)-LOJAS.indexOf(b.l); });
+    return out;
+  }
+
+  // =====================================================================================
+  // Blocos ao vivo: selo, fontes lidas, Agora, Tempos, Prazo, Cancelados e Erros
+  // cozinha × delivery × a classificar. Hoje = porta parte 'vivo' (hoje contra ontem até a mesma hora);
+  // Ontem/Semana/Mês = linhas "vivo.*" do histórico da API do iFood (sem dia → "—" e o motivo).
+  // =====================================================================================
+  var FMT_HMS = (function(){ try{ return new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}); }catch(e){ return null; } })();
+  function hmsDe(d){ try{ return FMT_HMS ? FMT_HMS.format(d) : ''; }catch(e){ return ''; } }
+  function agoraLocS(){ var a=agoraLoc(); a.setSeconds(new Date().getSeconds()); return a; }
+  function parseLocal(s){ var m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/); return m ? new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+(m[6]||0)) : null; }
+  function hms(s){ var m=String(s||'').match(/[T ](\d{2}:\d{2}(?::\d{2})?)/); return m ? m[1] : ''; }
+  // idade em minutos de um "HH:MM" de hoje na hora local (se for maior que agora, foi ontem)
+  function idadeHM(s){ var m=String(s||'').match(/(\d{1,2}):(\d{2})/); if(!m) return null; var a=agoraLoc(), d=a.getHours()*60+a.getMinutes()-(+m[1]*60+(+m[2])); if(d<-5) d+=1440; return Math.max(0,d); }
+  function hhmm(s){ var m=String(s||'').match(/(\d{1,2}:\d{2})/); return m ? m[1] : ''; }
+
+  // ---------- selo "ao vivo · montado às" e a fileira "lido às" de cada fonte ----------
+  // cadência esperada de cada fonte (minutos): é com ela que a bolinha fica verde (até 2x), amarela (até 4x) ou vermelha
+  var CAD = {api_ifood:[1,'API iFood','API do iFood (pedidos e eventos)'], espelho_gw:[1,'Gestor','Gestor do iFood (espelho da API)'], saipos_vendas:[15,'Saipos','Saipos vendas'], saipos_itens:[10,'PRONTO','Saipos itens (hora do PRONTO)'],
+             tempo_ifood:[60,'tempo iFood','tempo mostrado no iFood'], cardapio:[5,'cardápio','cardápio do iFood'], chat_ifood:[60,'chat','chat do iFood']};
+  var VEST = {conf:null, erro:''};
+  // fonte de "evento" (chat): a hora é a da última mensagem, não a de uma leitura; fica cinza e nunca vermelha.
+  // O banco manda fontes_tipo {fonte:"leitura"|"evento"}; sem ele, o chat conta como evento.
+  var TIPO_PADRAO = {chat_ifood:'evento'};
+  function tipoFonte(k){ var t=FONTES_TIPO && FONTES_TIPO[k]; return t || TIPO_PADRAO[k] || 'leitura'; }
+  // horário em que cada fonte é lida (hora local, em minutos desde 0h; fim depois da meia-noite = madrugada seguinte).
+  // Fora dele a bolinha fica cinza ("fora do horário de leitura"); logo depois de abrir a janela a idade conta a partir da abertura.
+  var JANELA = {saipos_vendas:[10*60, (24+3)*60], saipos_itens:[10*60, (24+4)*60], tempo_ifood:[11*60, 24*60]};
+  function minDia(){ var a=agoraLoc(), m=a.getHours()*60+a.getMinutes(); return m<5*60 ? m+24*60 : m; }   // dia de operação: 0h–4h59 = 24h–28h59
+  function foraJanela(k){ var j=JANELA[k]; if(!j) return false; var m=minDia(); return m<j[0] || m>=j[1]; }
+  function desdeJanela(k){ var j=JANELA[k]; return j ? minDia()-j[0] : null; }
+  // idade (min) da leitura de uma fonte: pela data completa de "fontes_em" (não erra na virada do dia), senão pelo HH:MM
+  function idadeFonte(k,l){
+    var e=FONTES_EM && FONTES_EM[k]; if(l!=null) e = e && typeof e==='object' ? e[l] : null;
+    var d=e ? parseLocal(e) : null; if(d) return Math.max(0,(agoraLocS()-d)/60000);
+    var f=FONTES && FONTES[k]; if(l!=null) f = f && typeof f==='object' ? f[l] : null;
+    var h=hhmm(f); return h ? idadeHM(h) : null;
+  }
+  // lojas (das escolhidas, com venda hoje) cujo PRONTO do Saipos (itens) não chega há mais de 4x a cadência: o "pronto" de hoje não é confiável
+  function prontoParado(Ls){
+    if(!FONTES) return [];
+    return (Ls||Lsel()).filter(function(l){ var id=idadeFonte('saipos_itens',l); return id==null || id>4*CAD.saipos_itens[0]; });
+  }
+  function lidoItens(Ls){ var f=FONTES && FONTES.saipos_itens; if(!f || typeof f!=='object') return []; return (Ls||Lsel()).map(function(l){ var h=hhmm(f[l]); return h ? CURTO[l]+' '+h : null; }).filter(Boolean); }
+  // hora da falha mandada pelo banco (fontes_falha): {fonte:"HH:MI"} ou, para fonte por loja, {fonte:{loja:"HH:MI"}}
+  function falhaFonte(k,l){ var f=FONTES_FALHA && FONTES_FALHA[k]; if(f && typeof f==='object') f = l!=null ? f[l] : null; return hhmm(f); }
+  function lidoChip(nome,s,cad,longo,idade,k,l){
+    var h=hhmm(s), fh=k ? falhaFonte(k,l) : '';
+    if(fh) return '<span class="lido bad" title="'+esc(longo||nome)+': a leitura falhou às '+esc(fh)+(h?' (última leitura registrada às '+esc(h)+')':'')+'; os números desta fonte podem estar parados">'+esc(nome)+' falhou às '+esc(fh)+'</span>';
+    if(k && tipoFonte(k)==='evento') return '<span class="lido ev" title="'+esc(longo||nome)+': última mensagem às '+esc(h||'—')+' (hora de mensagem, não de leitura: não fica vermelha)">'+esc(nome)+': última mensagem às '+esc(h||'—')+'</span>';
+    if(k && foraJanela(k)) return '<span class="lido fora" title="'+esc(longo||nome)+': fora do horário de leitura'+(h?'; última leitura às '+esc(h):'')+'">'+esc(nome)+(h?' '+esc(h):'')+' · fora do horário de leitura</span>';
+    if(!h) return '<span class="lido" title="'+esc(longo||nome)+': sem leitura">'+esc(nome)+' —</span>';
+    var id=(idade!=null?idade:idadeHM(h)), dj=k ? desdeJanela(k) : null;
+    if(id!=null && dj!=null && dj>=0 && dj<id) id=dj;   // a janela acabou de abrir: o atraso conta da abertura, não da última leitura da noite
+    var cls = id==null ? '' : id<=2*cad ? 'ok' : id<=4*cad ? 'warn' : 'bad';
+    return '<span class="lido '+cls+'" title="'+esc(longo||nome)+': lido às '+esc(h)+(id!=null?' (há '+esc(tempoTxt(id))+')':'')+'; o normal é a cada '+cad+' min'+(cls==='bad'?' — a leitura atrasou':'')+'">'+esc(nome)+' '+esc(h)+'</span>';
+  }
+  function renderVivoBar(e){
+    if(e){ if(e.conf){ VEST.conf=e.conf; VEST.erro=''; } if(e.erro) VEST.erro=e.erro; }
+    document.getElementById('vivobar').hidden=false;
+    var se=document.getElementById('selo');
+    if(!GERADO){
+      se.className='selo '+(VEST.erro||VINC?'velho':'espera');
+      se.innerHTML='<i></i>'+(VINC ? 'leitura ao vivo incompleta — números de hoje podem estar velhos'+(VEST.conf?' · conferido às '+esc(hmsDe(VEST.conf)):'') : VEST.erro ? 'sem leitura ao vivo ('+esc(VEST.erro)+'); aparece a última foto guardada' : 'esperando a leitura ao vivo');
+    } else {
+      // o banco só regrava o placar quando algo muda: "montado às" antigo pode ser só calmaria; mais de 15 min (fora das 4h, quando o banco não remonta) fica vermelho
+      var g=parseLocal(GERADO), agora=agoraLocS(), idade = g ? (agora-g)/60000 : null, madrugada = agora.getHours()===4;
+      var calmo = idade!=null && idade>=3, velho = idade!=null && idade>15 && !madrugada;
+      se.className='selo'+(velho||VEST.erro?' velho':'');
+      se.innerHTML='<i></i>ao vivo · montado às '+esc(hms(GERADO))+(calmo?' · sem mudança há '+esc(tempoTxt(idade))+(madrugada?' (fora do horário de leitura o banco não remonta)':velho?' (o banco pode ter parado de remontar)':''):'')+(VEST.conf?' · conferido às '+esc(hmsDe(VEST.conf)):'')+(VEST.erro?' · a última leitura falhou ('+esc(VEST.erro)+')':'');
+    }
+    var f=FONTES, h='';
+    if(f){
+      h='<span class="lbl">lido às</span>';
+      ['api_ifood','espelho_gw'].forEach(function(k){ if(k in f) h+=lidoChip(CAD[k][1],f[k],CAD[k][0],CAD[k][2],idadeFonte(k),k); });
+      ['saipos_vendas','saipos_itens'].forEach(function(k){ var x=f[k]; if(!x || typeof x!=='object') return; Lsel().forEach(function(l){ h+=lidoChip(CAD[k][1]+' '+CURTO[l],x[l],CAD[k][0],CAD[k][2]+' '+nomeL(l),idadeFonte(k,l),k,l); }); });
+      ['tempo_ifood','cardapio','chat_ifood'].forEach(function(k){ if(k in f) h+=lidoChip(CAD[k][1],f[k],CAD[k][0],CAD[k][2],idadeFonte(k),k); });
+    }
+    document.getElementById('lidos').innerHTML=h;
+  }
+
+  // ---------- ajudantes dos blocos ----------
+  function somaAg(k){ var t=null; Lsel().forEach(function(l){ var x=AG[l]; if(x && x[k]!=null && !isNaN(+x[k])) t=(t||0)+(+x[k]); }); return t; }
+  function maiorAg(k){ var m=null; Lsel().forEach(function(l){ var x=AG[l]; if(x && x[k]!=null && !isNaN(+x[k]) && (m==null || +x[k]>m)) m=+x[k]; }); return m; }
+  // por que o número não existe (nunca deixa a caixa vazia sem dizer o motivo)
+  function semApiTxt(P,L){
+    if(P.D[0]==='H') return VV ? (L.length ? 'nenhum pedido medido ainda hoje' : 'sem venda hoje até agora') : VINC ? 'leitura ao vivo incompleta' : 'esperando a leitura ao vivo';
+    if(!EXTRA_INI) return 'o histórico da API do iFood ainda não foi gravado';
+    if(P.D.every(function(d){ return d<EXTRA_INI; })) return 'a API do iFood começou em '+dm(EXTRA_INI);
+    if(!L.length) return 'sem venda neste período';
+    return 'sem pedido medido neste período';
+  }
+  // período com parte dos dias antes da API, ou dia em que a API começou depois das 5h
+  function coberturaApi(P){
+    if(P.D[0]==='H' || !EXTRA_INI) return '';
+    var Ls=Lsel(), com=P.D.filter(function(d){ return Ls.some(function(l){ return v(d,l,'vivo.pedidos_api')!=null; }); }), n=[];
+    if(com.length && com.length<P.D.length) n.push('Só '+pl(com.length,'dia','dias')+' de '+P.D.length+' têm a API do iFood (começou em '+dm(EXTRA_INI)+').');
+    var parc=[]; P.D.forEach(function(d){ Ls.forEach(function(l){ if(v(d,l,'vivo.parcial')) parc.push(CURTO[l]+' '+dm(d)); }); });
+    if(parc.length) n.push('Dia parcial (a API começou depois das 5h): '+parc.join(', ')+'.');
+    return n.join(' ');
+  }
+  // texto de lista: sem telefone nem CPF, valor em dinheiro tirado para quem não é dono, no máximo 140 letras
+  function limpaTxt(s){
+    s=String(s==null?'':s).replace(/\s+/g,' ').trim();
+    s=s.replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g,'[cpf]').replace(/(\+?55\s?)?\(?\b\d{2}\)?\s?9?\d{4}[-\s.]?\d{4}\b/g,'[telefone]');
+    if(!DONO) s=s.replace(/R\$\s?(—|-?[\d.,]*\d)?/g,'[valor]');   // a equipe não vê nem o "R$ —" que o banco deixa no texto
+    if(s.length>140) s=s.slice(0,140).replace(/\s+\S*$/,'')+'…';
+    return s;
+  }
+  function chaveHora(o){ var h=String(o.hora||'99:99'); return (h<'05:00'?'1':'0')+h; }
+  function porHora(a,b){ return chaveHora(a).localeCompare(chaveHora(b)); }
+  function dinheiroDe(o,ks){ if(!DONO) return null; for(var i=0;i<ks.length;i++){ var x=o[ks[i]]; if(x!=null && x!=='' && !isNaN(+x)) return +x; } return null; }
+  function cardN(c,m,sing,plur,subs,din){
+    var a=c.a0; subs=(subs||[]).filter(Boolean);
+    return '<div class="ec'+(a?'':' zero')+'"><b class="num'+(a?' r':'')+'">'+fmt(a,'n')+'</b><span>'+esc(a===1?sing:plur)+'</span>'+(subs.length?'<span class="sb">'+esc(subs.join(' · '))+'</span>':'')+(din?'<small class="din">'+esc(din)+'</small>':'')+rodape(m,c)+'</div>';
+  }
+  function semCard(txt){ return '<div class="ec zero"><b class="num">—</b><span>'+esc(txt)+'</span></div>'; }
+  // período com parte dos dias antes da API (ex.: o mês): o título dos blocos da API diz os dias que entram, para o número não parecer o do mês inteiro
+  function titPer(P){
+    var t=esc(P.rot);
+    if(P.D[0]!=='H' && EXTRA_INI){ var Ls=Lsel(), com=P.D.filter(function(d){ return Ls.some(function(l){ return v(d,l,'vivo.pedidos_api')!=null; }); });
+      if(com.length && com.length<P.D.length) t=esc(com.length>1 ? dm(com[0])+' a '+dm(com[com.length-1]) : rot(com[0]))+' (só os dias com a API do iFood)'; }
+    return t+(st.loja==='t'?'':' · '+esc(nomeL(st.loja)));
+  }
+
+  // ---------- 🛵 Agora (só no Hoje) ----------
+  function renderAgora(){
+    var sec=document.getElementById('secAgora');
+    if(st.p!=='hoje' || !hojeVale()){ sec.hidden=true; return; }
+    sec.hidden=false;
+    var Lt=Lsel(), P=periodo('hoje'), temAg=Lt.some(function(l){ return AG[l]; });
+    var quando = VV && GERADO ? hms(GERADO).slice(0,5) : HJ.ate;
+    document.getElementById('tAgora').innerHTML='🛵 Agora <small>às '+esc(quando)+(st.loja==='t'?' · todas as lojas':' · '+esc(nomeL(st.loja)))+'</small>';
+    var h='';
+    if(temAg){
+      var ep=somaAg('em_preparo'), pe=somaAg('prontos_esperando'), pa=maiorAg('pronto_mais_antigo_min'), nr=somaAg('na_rua'), at=somaAg('atrasados_sem_entrega');
+      var Lv=Lt.filter(function(l){ return AG[l]; }), par=prontoParado(Lv), li=lidoItens(par), semPronto=par.length && par.length===Lv.length;
+      var parTxt='o PRONTO do Saipos não chega'+(li.length?' desde '+li.join(', '):'');
+      h+='<div class="ag"><b class="num">'+fmt(ep,'n')+'</b><span>em preparo</span><small>'+(par.length ? 'entrou e ainda não saiu; sem o PRONTO do Saipos'+(semPronto?'':' em '+esc(par.map(function(l){ return CURTO[l]; }).join(', ')))+', conta também os que já estão prontos' : 'entrou e ainda não está pronto nem saiu')+'</small></div>';
+      if(semPronto) h+='<div class="ag"><b class="num" style="color:var(--muted)">—</b><span>prontos esperando motoboy</span><small>'+esc(parTxt)+'</small></div>';
+      else h+='<div class="ag"><b class="num'+(pe?' w':'')+'">'+fmt(pe,'n')+'</b><span>prontos esperando motoboy'+(pe && pa!=null ? ' · o mais antigo há '+esc(tempoTxt(pa)) : '')+'</span><small>'+(par.length ? 'PRONTO no Saipos e ainda não saiu (fora '+esc(par.map(function(l){ return CURTO[l]; }).join(', '))+': '+esc(parTxt)+')' : 'PRONTO no Saipos e ainda não saiu')+'</small></div>';
+      h+='<div class="ag"><b class="num">'+fmt(nr,'n')+'</b><span>na rua</span><small>saiu e ainda não foi entregue</small></div>';
+      h+='<div class="ag"><b class="num'+(at?' r':'')+'">'+fmt(at,'n')+'</b><span>passaram da hora prometida e não foram entregues</span><small>pela API do iFood</small></div>';
+    } else {
+      var ca=compara('agora_atras',P,lojasNo(P.D),Lt);
+      h+='<div class="ag"><b class="num'+(ca.a0?' r':'')+'">'+fmt(ca.a0||0,'n')+'</b><span>passaram da hora prometida e não foram entregues às '+esc(HJ.ate)+'</span>'+rodape('agora_atras',ca)+'</div>';
+      h+='<div class="ag"><b class="num" style="color:var(--muted)">—</b><span>em preparo, prontos e na rua</span><small>'+esc(VV ? 'a leitura ao vivo não trouxe esta loja' : VINC ? 'leitura ao vivo incompleta — números de hoje podem estar velhos' : 'esperando a leitura ao vivo')+'</small></div>';
+    }
+    var cp=compara('pausados',P,Lt);
+    // tempo mostrado no iFood: um número por loja, cada um com a hora em que foi lido (nada de "o maior" com a hora de outra loja)
+    var tf=Lt.map(function(l){ var x=HJ.lojas[l]||{}; return x.tempo_ifood_agora!=null ? {l:l, t:+x.tempo_ifood_agora, h:x.tempo_ifood_lido_as||'', mx:x.tempo_ifood_maior_hoje} : null; }).filter(Boolean);
+    if(!tf.length) h+='<div class="ag"><b class="num" style="color:var(--muted)">—</b><span>tempo mostrado no iFood</span><small>sem leitura do tempo do iFood hoje</small></div>';
+    else {
+      var um=tf.length===1 && Lt.length===1, hs=tf.map(function(x){ return x.h; }), mesmaH=hs.every(function(x){ return x===hs[0]; });
+      var nums=tf.map(function(x){ return '<span class="nw">'+(um?'':esc(CURTO[x.l])+' ')+int.format(Math.round(x.t))+' min</span>'; }).join(' · ');   // cada loja inteira ("NOR 64 min"): pode ir para a linha de baixo, mas não se parte
+      var lid = mesmaH ? (hs[0]?'lido às '+esc(hs[0]):'') : 'lido às '+tf.map(function(x){ return '<span class="nw">'+esc(CURTO[x.l])+' '+esc(x.h||'—')+'</span>'; }).join(' · ');
+      var mxs=tf.filter(function(x){ return x.mx!=null; }).map(function(x){ return '<span class="nw">'+(um?'':esc(CURTO[x.l])+' ')+int.format(Math.round(+x.mx))+' min</span>'; });
+      h+='<div class="ag"><b class="num'+(um?'':' tl')+'">'+nums+'</b><span>tempo mostrado no iFood'+(lid?' · '+lid:'')+'</span>'+(mxs.length?'<small>maior hoje: '+mxs.join(' · ')+'</small>':'')+'</div>';
+    }
+    h+='<div class="ag"><b class="num">'+fmt(cp.a0,'n')+'</b><span>itens pausados no iFood agora</span>'+rodape('pausados',cp)+'</div>';
+    document.getElementById('agora').innerHTML=h;
+  }
+
+  // ---------- ⏱ Tempos (menos é melhor: vermelho quando sobe) ----------
+  var TEMPOS=[['tz_coz','tz_coz90','tz_coz_n','Cozinha','até apertar PRONTO'],['tz_est','tz_est90','tz_est_n','Parado pronto','na estufa, do PRONTO até sair'],
+              ['tz_loja','tz_loja90','tz_loja_n','Na loja','do pedido até sair'],['tz_ent','tz_ent90','tz_ent_n','Entrega','da saída até entregar'],['tz_tot','tz_tot90','tz_tot_n','Total','do pedido até entregar']];
+  function renderTempos(){
+    var P=periodo(st.p), L=lojasNo(P.D), multi=P.D.length>1 || L.length>1, motivo=semApiTxt(P,L);
+    var hjP=P.D[0]==='H', parT = hjP && VV && L.length ? prontoParado(L) : [], liT=lidoItens(L);
+    var motPronto = parT.length ? 'o PRONTO do Saipos ainda não chegou hoje'+(liT.length?' (lido às '+liT.join(', ')+')':'') : motivo;
+    document.getElementById('secTempos').hidden=false;
+    var junta = P.D.length>1 && L.length>1 ? 'lojas e dias' : P.D.length>1 ? 'dias' : 'lojas';
+    document.getElementById('tTempos').innerHTML='⏱ Tempos (menos é melhor) <small>'+titPer(P)+' · número grande = tempo do meio (metade dos pedidos levou menos)'+(multi?' · juntando '+junta+' pelo número de pedidos':'')+'</small>';
+    document.getElementById('tempos').innerHTML=TEMPOS.map(function(x){
+      var c=L.length ? compara(x[0],P,L,Lsel()) : {a0:null}, a=c.a0, p9=L.length ? agg(x[1],P.D,L) : null, n=L.length ? agg(x[2],P.D,L) : null;
+      var mot=(x[0]==='tz_coz' || x[0]==='tz_est') ? motPronto : motivo;
+      return '<div class="pl"><div class="k">'+esc(x[3])+'</div><div class="v '+(a==null?'cinza':'deliv')+' num">'+fmt(a,'min')+'</div>'+
+        '<div class="p9">'+(a==null ? esc(mot) : (p9!=null?'9 em cada 10 '+nw('em até '+fmt(p9,'min'))+' · ':'')+nw(pl(n||0,'pedido','pedidos')))+'</div><div class="s">'+esc(x[4])+'</div>'+(a!=null?'<div class="s">'+rodape(x[0],c)+'</div>':'')+'</div>';
+    }).join('');
+    var n=[], lido = st.p==='hoje' ? lidoItens() : [];
+    n.push('Cozinha = hora em que apertaram PRONTO no Saipos'+(lido.length?' (lido às '+lido.join(', ')+')':'')+'; loja que aperta PRONTO em lote mostra o PRONTO depois da hora real.');
+    var neg=L.length ? agg('tz_est_neg',P.D,L) : null; if(neg) n.push(pl(neg,'pedido teve','pedidos tiveram')+' o PRONTO marcado depois da saída e '+(neg===1?'ficou':'ficaram')+' fora da estufa.');
+    var cob=coberturaApi(P); if(cob) n.push(cob);
+    document.getElementById('nTempos').textContent=n.join(' ');
+  }
+
+  // ---------- ✅ Prazo pela API do iFood ----------
+  function renderPrazoApi(){
+    var P=periodo(st.p), L=lojasNo(P.D), Ls=Lsel();
+    document.getElementById('secDuo').hidden=false;
+    document.getElementById('tPrazoApi').innerHTML='✅ Prazo <small>pela API do iFood · '+titPer(P)+'</small>';
+    var c=L.length ? compara('pa_pct',P,L,Ls) : {a0:null}, h='';
+    if(c.a0==null) h=semCard(semApiTxt(P,L));
+    else {
+      var med=agg('pa_med',P.D,L), ok=agg('pa_ok',P.D,L), ca=compara('pa_atr',P,L,Ls), c3=compara('pa_atr30',P,L,Ls);
+      h+='<div class="ec"><b class="num" style="color:var(--deliv)">'+fmt(c.a0,'%')+'</b><span>chegaram no tempo: '+fmt(ok,'n')+' de '+pl(med||0,'entrega medida','entregas medidas')+'</span>'+rodape('pa_pct',c)+'</div>';
+      h+=cardN(ca,'pa_atr','atrasou','atrasaram');
+      h+=cardN(c3,'pa_atr30','com mais de 30 min de atraso','com mais de 30 min de atraso');
+    }
+    document.getElementById('prazoApi').innerHTML=h;
+    var fpz=fontePrazo(celulas(P.D,L));
+    var n=['Hora da entrega contra a hora prometida ao cliente, pela API do iFood (sem os cancelados).'];
+    if(fpz==='api') n.push('O "No prazo" do quadro de cima usa esta mesma conta.');
+    else if(fpz==='misto') n.push('O "No prazo" do quadro de cima usa esta mesma conta nos dias com a API; nos dias antes dela, o Gestor do iFood.');
+    else if(fpz==='gw') n.push('O "No prazo" do quadro de cima, neste período, é do Gestor do iFood'+(P.D[0]==='H' ? ' (a leitura ao vivo da API não chegou).' : EXTRA_INI ? ' (a API do iFood começou em '+dm(EXTRA_INI)+').' : '.'));
+    if(st.p==='hoje'){ var at=somaAg('atrasados_sem_entrega'); if(at) n.push(pl(at,'pedido já passou','pedidos já passaram')+' da hora e ainda não '+(at===1?'foi entregue':'foram entregues')+': só '+(at===1?'entra':'entram')+' aqui depois da entrega.'); }
+    var cob=coberturaApi(P); if(cob) n.push(cob);
+    document.getElementById('nPrazoApi').textContent=n.join(' ');
+  }
+
+  // ---------- 🚫 Cancelados e parciais (R$ só para o dono, nunca no rodapé de comparação) ----------
+  function renderCancApi(){
+    var P=periodo(st.p), Ls=Lsel(), hj=P.D[0]==='H', h='';
+    document.getElementById('tCancApi').innerHTML='🚫 Cancelados <small>API do iFood e Saipos · '+titPer(P)+'</small>';
+    var ct=compara('ca_tot',P,Ls,Ls);
+    if(ct.a0==null) h=semCard(semApiTxt(P,lojasNo(P.D)));
+    else {
+      var cl0=compara('ca_loja',P,Ls,Ls), cp=compara('ca_parc',P,Ls,Ls), cr=compara('ca_reclam',P,Ls,Ls), cli=agg('ca_cli',P.D,Ls), out=agg('ca_out',P.D,Ls);
+      var vt = DONO ? agg('ca_val',P.D,Ls) : null, vp = DONO ? agg('ca_parc_val',P.D,Ls) : null;
+      h+=cardN(ct,'ca_tot','cancelado','cancelados',[cl0.a0!=null?fmt(cl0.a0,'n')+' culpa da loja':null, cli!=null?fmt(cli,'n')+' do cliente':null, out!=null?fmt(out,'n')+' outros':null], vt ? fmt(vt,'R$')+' no total dos pedidos cancelados' : '');
+      h+=cardN(cl0,'ca_loja','por culpa da loja','por culpa da loja');
+      h+=cardN(cp,'ca_parc','cancelamento parcial (item devolvido)','cancelamentos parciais (item devolvido)',[], vp ? fmt(vp,'R$c')+' devolvidos' : '');
+      h+=cardN(cr,'ca_reclam','reclamação de item no iFood','reclamações de item no iFood',['o cliente pediu a devolução de um item, qualquer desfecho']);
+    }
+    document.getElementById('cancApi').innerHTML=h;
+    var n=['Cancelados = pedidos de entrega cancelados no iFood (API) e no Saipos (site e telefone). Parcial = o iFood devolveu parte do pedido ao cliente.'];
+    var cob=coberturaApi(P); if(cob) n.push(cob);
+    document.getElementById('nCancApi').textContent=n.join(' ');
+    // lista pedido a pedido de hoje
+    var sec=document.getElementById('secListaCanc');
+    if(!hj || !VV){ sec.hidden=true; return; }
+    var lc=daLoja(VV.cancelados||[]).slice().sort(porHora), lp=daLoja(VV.parciais||[]).slice().sort(porHora);
+    var li2=lc.map(function(o){ var val=dinheiroDe(o,['valor','valor_cancelado']);
+      return '<li><b>'+cl(o.loja)+nPed(o)+(o.hora?' · '+esc(o.hora):'')+' · cancelado: '+esc(limpaTxt(o.motivo||'sem motivo'))+'</b><i>'+esc([o.culpa?(CULPA[o.culpa]||'culpa: '+o.culpa):null, o.quem?(QUEM[String(o.quem).toUpperCase()]||null):null, o.origem||o.fonte||null, val!=null?fmt(val,'R$c'):null, o.texto && o.texto!==o.motivo ? limpaTxt(o.texto) : null].filter(Boolean).join(' · '))+'</i></li>'; })
+      .concat(lp.map(function(o){ var val=dinheiroDe(o,['valor','valor_parcial','valor_devolvido']);
+      return '<li><b>'+cl(o.loja)+nPed(o)+(o.hora?' · '+esc(o.hora):'')+' · parcial: '+esc(limpaTxt(o.item||o.itens||'item não informado'))+'</b><i>'+esc([o.motivo?limpaTxt(o.motivo):null, o.desfecho||null, val!=null?fmt(val,'R$c')+' devolvidos':null].filter(Boolean).join(' · '))+'</i></li>'; }));
+    sec.hidden=false;
+    document.getElementById('listaCanc').innerHTML='<h4>Cancelados e parciais de hoje, pedido a pedido</h4>'+(li2.length?'<ul>'+li2.slice(0,20).join('')+'</ul>'+(li2.length>20?'<div class="nota">e mais '+(li2.length-20)+'.</div>':''):'<div class="nota">Nenhum até agora.</div>');
+  }
+
+  // ---------- 🍳 Erros cozinha × 🥤 delivery × ❓ a classificar (e "fora", pequeno) ----------
+  var GRUPOS=[['er_coz','cozinha','🍳 Erros cozinha','coz','comida: errado, adicional, faltou comida, cru, queimado, porção, embalagem, frio'],
+              ['er_del','delivery','🥤 Erros delivery','del','bebida e sobremesa'],
+              ['er_cla','classificar','❓ A classificar','cla','sem item e sem texto que diga o item']];
+  function nPed(o){ return o.pedido!=null && o.pedido!=='' ? '#'+esc(o.pedido) : 'sem nº do pedido'; }
+  var CULPA={loja:'culpa da loja',cliente:'culpa do cliente',outros:'outros motivos'};
+  var QUEM={CONSUMER:'o cliente pediu',RESTAURANT:'a loja cancelou',IFOOD:'o iFood cancelou',LOGISTIC:'a entrega do iFood cancelou',LOGISTICS:'a entrega do iFood cancelou'};
+  // de onde veio o erro, curto: "API iFood (reclamação de item) + Chat iFood + Gestor Web" → "visto em: API, chat, Gestor"
+  var FONTE_CURTA={'API iFood (reclamação de item)':'API','API iFood':'API','Chat iFood':'chat','Gestor Web':'Gestor','Gestor Web (cancelamento)':'Gestor','Negociação iFood':'negociação','Central Cozinha':'Central'};
+  function fonteCurta(f){ if(!f) return null; var a=[]; String(f).split(' + ').forEach(function(x){ x=x.trim(); var c=FONTE_CURTA[x]||x; if(c && a.indexOf(c)<0) a.push(c); }); return a.length ? 'visto em: '+a.join(', ') : null; }
+  // "repetido": true = o banco achou o mesmo erro já contado num pedido da mesma loja (registro sem nº de pedido): aparece em cinza e não soma
+  function ehRep(o){ return o && o.repetido!=null && o.repetido!==false && o.repetido!==''; }
+  function pedidoRepetido(o,E){
+    var x = o.repetido_de!=null ? o.repetido_de : o.repete!=null ? o.repete : (typeof o.repetido==='string' || typeof o.repetido==='number') ? o.repetido : null;
+    if(x!=null && x!=='') return String(x);
+    // sem o número no dado: o pedido da mesma loja e do mesmo grupo (com nº e contado) da mesma categoria, ou que divide uma palavra do texto
+    var cand=(E||[]).filter(function(e){ return !ehRep(e) && e.loja===o.loja && e.grupo===o.grupo && e.pedido!=null && e.pedido!==''; });
+    var mc=cand.filter(function(e){ return o.cat && e.cat===o.cat; });
+    // palavras de 5+ letras pelas 5 primeiras (batata = batatas, maionese = maioneses), sem as palavras de toda reclamação (pedido, faltou, cliente...)
+    var PARAR={pedid:1,clien:1,ifood:1,falto:1,falta:1,outro:1,outra:1,gente:1,valor:1,reemb:1,apena:1,probl:1,produ:1,estav:1,quase:1,sacol:1,entre:1,unida:1,ofere:1,aceit:1,accei:1,respo:1,obrig:1,porqu:1,quand:1,todos:1,todas:1,nenhu:1,ainda:1,depoi:1,antes:1,agora:1,ontem:1,mesmo:1,certo:1,errad:1,vieram:1,veio:1,detal:1,itens:1};
+    var pal=function(t){ return (String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').match(/[a-z]{5,}/g)||[]).map(function(w){ return w.slice(0,5); }).filter(function(w){ return !PARAR[w]; }); }, po=pal((o.item||'')+' '+(o.texto||''));
+    var mp=cand.filter(function(e){ var pe=pal((e.item||'')+' '+(e.texto||'')); return po.some(function(w){ return pe.indexOf(w)>=0; }); });
+    var u = mp.length===1 ? mp[0] : mc.length===1 ? mc[0] : null;
+    return u ? String(u.pedido) : null;
+  }
+  // "sem loja" = o número do pedido não está na API nem no Saipos: o banco não soma em loja nenhuma; aparece só em Todas, em cinza, e não soma no título
+  function semLoja(o){ return o && LOJAS.indexOf(o.loja)<0; }
+  function liErro(o,E){
+    var rep=ehRep(o), pr=rep ? pedidoRepetido(o,E) : null, sl=!rep && semLoja(o);
+    return '<li'+(rep?' class="rep"':sl?' class="sl"':'')+'><b>'+cl(o.loja)+nPed(o)+(o.hora?' · '+esc(o.hora):'')+' · '+esc(limpaTxt(o.rotulo||o.cat||'erro'))+(rep?' (repetido — já contado '+(pr?'no pedido #'+esc(pr):'em outro pedido da lista')+')':sl?' (sem loja — o número não foi achado no iFood nem no Saipos; não soma)':'')+'</b><i>'+esc([o.item?'item: '+limpaTxt(o.item):null, o.texto?limpaTxt(o.texto):null, fonteCurta(o.fonte)].filter(Boolean).join(' · '))+'</i></li>';
+  }
+  function renderErrosApi(){
+    var P=periodo(st.p), Ls=Lsel(), hj=P.D[0]==='H', h='';
+    document.getElementById('secErrosApi').hidden=false;
+    document.getElementById('tErrosApi').innerHTML='🍳 Erros cozinha × 🥤 delivery <small>'+titPer(P)+'</small>';
+    var c0=compara('er_coz',P,Ls,Ls);
+    if(c0.a0==null) h=semCard(semApiTxt(P,lojasNo(P.D)));
+    else h=GRUPOS.map(function(g){ var c=compara(g[0],P,Ls,Ls), a=c.a0;
+      return '<div class="ec g '+g[3]+(a?'':' zero')+'"><b class="num'+(a && g[0]!=='er_cla'?' r':'')+'">'+fmt(a,'n')+'</b><span>'+esc(g[2])+'</span><span class="sb">'+esc(g[4])+'</span>'+rodape(g[0],c)+'</div>'; }).join('');
+    document.getElementById('errosApi').innerHTML=h;
+    var lh='';
+    if(hj && VV){
+      var E=daLoja(VV.erros||[]);
+      lh='<div class="listas">'+GRUPOS.map(function(g){
+        var doG=E.filter(function(o){ return o.grupo===g[1]; }), conta=doG.filter(function(o){ return !ehRep(o) && !semLoja(o); }).sort(porHora), reps=doG.filter(ehRep).sort(porHora), sls=doG.filter(function(o){ return !ehRep(o) && semLoja(o); }).sort(porHora), it=conta.concat(reps,sls);   // os repetidos e os sem loja vão no fim, em cinza
+        var nao=[reps.length?reps.length+' repetido'+(reps.length>1?'s':''):null, sls.length?sls.length+' sem loja':null].filter(Boolean), nn=reps.length+sls.length;
+        return '<div class="el"><h4>'+esc(g[2].replace(/^(\S+) Erros /,'$1 '))+' · '+conta.length+(nn?' <small class="repn">(+'+nao.join(' e ')+', não soma'+(nn>1?'m':'')+')</small>':'')+'</h4>'+(it.length ? '<ul>'+it.slice(0,12).map(function(o){ return liErro(o,E); }).join('')+'</ul>'+(it.length>12?'<div class="nota">e mais '+(it.length-12)+'.</div>':'') : '<div class="nota">Nenhum até agora.</div>')+'</div>'; }).join('')+'</div>';
+      var fora=E.filter(function(o){ return o.grupo==='fora'; }).sort(porHora);
+      if(fora.length) lh+='<div class="nota2">Fora da conta (não é erro da casa): '+fora.map(function(o){ var t=limpaTxt(String(o.texto||'').replace(/^[^:]{0,40}\):\s*/,'')); if(t.length>70) t=t.slice(0,70).replace(/\s+\S*$/,'')+'…'; return cl(o.loja)+nPed(o)+' ('+esc(t||limpaTxt(o.rotulo||o.cat||''))+')'; }).join(' · ')+'.</div>';
+    } else if(!hj) lh='<div class="nota2">A lista pedido a pedido é a de hoje (botão Hoje). Aqui ficam as contagens de cada dia.</div>';
+    document.getElementById('listaErros').innerHTML=lh;
+    var n=[], nf = c0.a0!=null && !(hj && VV) ? agg('er_fora',P.D,Ls) : null;   // no Hoje a lista de "fora" já aparece acima
+    if(nf) n.push('Fora da conta (não é erro da casa): '+fmt(nf,'n')+'.');
+    n.push('Delivery = bebida e sobremesa. Cozinha = todo o resto ligado à comida. A classificar = sem item e sem texto que diga o item. Pedido com item dos dois lados conta um em cada lado.');
+    var cob=coberturaApi(P); if(cob) n.push(cob);
+    document.getElementById('nErrosApi').textContent=n.join(' ');
+  }
+  // linhas do "Por loja" com os tempos, o prazo e os erros pela API do iFood
+  function linhasApi(P,l){
+    return [ln('tz_coz',P,l,{esconde:1}),ln('tz_est',P,l,{esconde:1}),ln('tz_loja',P,l,{esconde:1}),ln('tz_ent',P,l,{esconde:1}),ln('tz_tot',P,l,{esconde:1}),
+            ln('er_coz',P,l,{esconde:1}),ln('er_del',P,l,{esconde:1}),ln('er_cla',P,l,{esconde:1})];
+  }
+
+  // ---------- topo ----------
+  function renderFonte(){
+    var g=D.gerado||'', gd=g.slice(0,10), gh=g.slice(11,16);
+    var hj = hojeVale() ? ' · hoje até <b>'+esc(HJ.ate)+'</b>'+(VV?' (ao vivo, de minuto em minuto)':'') : ' · ainda sem leitura de hoje';
+    document.getElementById('fonte').innerHTML=(DONO?'<b>Versão do dono (com R$)</b> · ':'')+'iFood, Saipos e leituras automáticas do portal · histórico montado <b>'+esc(dm(gd)+' '+gh)+'</b>'+hj+'<br>cada número compara com o período anterior do mesmo tamanho';
+    var av=document.getElementById('aviso'), msgs=[];
+    var esper=addDias(diaOp(),-1);
+    if(ONTEM<esper) msgs.push('Atenção: o último dia fechado aqui é '+rot(ONTEM)+'. O de '+rot(esper)+(agoraLoc().getHours()<6 ? ' entra logo cedo, quando o banco fecha o dia.' : ' ainda não entrou (a atualização da manhã pode ter falhado).'));
+    var er=Object.keys(D.erros||{});
+    if(er.length) msgs.push('Parte do placar não carregou ('+er.join(', ')+'). Os outros números estão certos.');
+    av.hidden=!msgs.length; av.textContent=msgs.join(' ');
+    var fp=det('motoboys','fontes_paradas')||{}, p=[];
+    // robô que parou antes de virar o dia: o que veio dele depois disso não entrou
+    var fc=det('cancelamentos','fontes')||{}, NOMEF={gestor_web_ultimo:['Gestor do iFood','prazo, conversas e cancelados do Gestor'],saipos_ultimo:['Saipos','pedidos e valores'],api_ifood_ultimo:['API do iFood','pedidos, cancelados e reclamações da API']};
+    Object.keys(NOMEF).forEach(function(k){ var x=fc[k]; if(!x) return; var dd=parseDM(x,gd.slice(0,4)); if(dd && dd<gd) p.push('<div><b>'+NOMEF[k][0]+' lido só até '+esc(x)+'</b>: '+NOMEF[k][1]+' depois disso não entraram (robô parado ou atrasado).</div>'); });
+    // só avisa se as entregas do TrackEat pararam antes de ontem
+    if(fp.trackeat_entregas_ate && parseDM(fp.trackeat_entregas_ate,ONTEM.slice(0,4))<ONTEM) p.push('<div><b>Motoboy sem app e sem GPS desde '+esc(fp.trackeat_entregas_ate)+'</b> (o robô do TrackEat pode ter parado — avise): não dá para contar entregas por motoboy, provar atraso pelo GPS, achar corrida em dobro nem reentrega.</div>');
+    if(fp.fechamento_motoboys_ate) p.push('<div><b>Planilha dos motoboys só até '+esc(fp.fechamento_motoboys_ate)+'</b>: o pagamento fica sem conferência.</div>');
+    if(fp.rede_ate && parseDM(fp.rede_ate,ONTEM.slice(0,4))<ONTEM) p.push('<div><b>Rede (maquininha) só até '+esc(fp.rede_ate)+'</b>: a cobrança na porta dos dias seguintes ainda não foi conferida.</div>');
+    var ej=fp.escala_ate||{}, semEsc=LOJAS.filter(function(l){ return ej[l] && parseDM(ej[l],ONTEM.slice(0,4))<ONTEM; });
+    if(semEsc.length) p.push('<div><b>Escala de motoboys</b> no sistema: '+semEsc.map(function(l){ return esc(nomeL(l))+' só até '+esc(ej[l]); }).join(' · ')+'.</div>');
+    var pd=document.getElementById('parados'); pd.hidden=!p.length; pd.innerHTML=p.join('');
+  }
+
+  // ---------- botões de período (cada um com o número principal e o "antes" no rodapé) ----------
+  var PERS=[['hoje','Hoje'],['ontem','Ontem'],['semana','Semana'],['mes','Mês']];
+  function renderCtl(){
+    var h=PERS.map(function(x){
+      var dis = x[0]==='hoje' && !hojeVale();
+      if(dis) return '<button class="per" data-p="hoje" aria-pressed="false" disabled><span class="pn">Hoje</span><span class="ps">a partir das 5h</span><span class="pv">ainda sem leitura de hoje</span></button>';
+      var P=periodo(x[0]), Lp=lojasNo(P.D), mp=DONO?'vendido':'pedidos', c=Lp.length ? compara(mp,P,Lp,Lsel()) : null, np=Lp.length ? agg('pedidos',P.D,Lp) : null;
+      if(DONO && c && c.a0==null && np){ mp='pedidos'; c=compara('pedidos',P,Lp,Lsel()); }   // "hoje" antigo, sem R$
+      var pe = !c || !np ? 'sem venda' : (DONO && mp==='vendido') ? fmt(c.a0,'R$')+'<small>'+pl(np,'pedido','pedidos')+'</small>' : pl(np,'pedido','pedidos');
+      return '<button class="per" data-p="'+x[0]+'" aria-pressed="'+(st.p===x[0])+'"><span class="pn">'+x[1]+'</span><span class="ps">'+esc(P.sub)+'</span><span class="pv">'+pe+'</span>'+(c?rodape(mp,c):'')+'</button>';
+    }).join('');
+    document.getElementById('pers').innerHTML=h;
+    [].forEach.call(document.querySelectorAll('#pers .per'),function(b){ b.addEventListener('click',function(){ st.p=b.dataset.p; AUTO_ONTEM=false; tudo(); }); });
+    [].forEach.call(document.querySelectorAll('#lojasel .chip'),function(b){ b.setAttribute('aria-pressed', b.dataset.l===st.loja); });
+    if(DONO){   // seletor de mês (só na versão do dono)
+      var mb=document.getElementById('mesBox'), ms=document.getElementById('mesSel'), atual=ONTEM.slice(0,7);
+      mb.hidden=false;
+      ms.innerHTML='<option value="">mês…</option>'+mesesComDado().map(function(ym){ var on=(st.p==='m:'+ym)||(st.p==='mes'&&ym===atual); return '<option value="'+ym+'"'+(on?' selected':'')+'>'+esc(cap(nomeMes(ym)))+(ym===atual?' (até ontem)':'')+'</option>'; }).join('');
+      ms.classList.toggle('on', st.p.slice(0,2)==='m:' || st.p==='mes');
+    }
+    var P=periodo(st.p);
+    var Lp=lojasNo(P.D), fa=Lp.filter(function(l){ return !P.A.some(function(d){ return abriu(d,l); }); });
+    var txt='Mostrando <b>'+esc(P.rot)+'</b> · comparando com <b>'+esc(P.rotA)+'</b>'+(st.p==='hoje'?' (o dia começa às 5h)':'');
+    var fb=Lsel().filter(function(l){ return Lp.indexOf(l)<0 && P.A.some(function(d){ return abriu(d,l); }); });
+    if(fb.length) txt+='. <span class="obs">'+esc(juntaE(fb.map(function(l){ return CURTO[l]; })))+' '+(fb.length>1?'venderam':'vendeu')+' '+(st.p==='hoje'?'':'em ')+esc(P.rotA)+' e não '+(st.p==='hoje'?'hoje':'em '+esc(P.rot))+': '+(fb.length>1?'ficam':'fica')+' fora da comparação.</span>';
+    var semHist = st.p!=='hoje' && P.A.every(function(d){ return d<PRIMEIRO; });
+    if(semHist) txt+='. <span class="obs">Não há histórico de '+esc(P.rotA)+' (o histórico começa em '+esc(dm(PRIMEIRO))+'): sem comparação.</span>';
+    else if(fa.length) txt+='. <span class="obs">'+esc(juntaE(fa.map(function(l){ return CURTO[l]; })))+' não '+(fa.length>1?'tiveram':'teve')+' venda '+(st.p==='hoje'?'':'em ')+esc(P.rotA)+': '+(fa.length>1?'ficam':'fica')+' fora da comparação'+(fa.length<Lp.length?' (o rodapé avisa com "só …")':'')+'.</span>';
+    if(st.p==='hoje'){
+      var id=idadeMin(HJ.ate), x0=HJ.lojas[Lsel()[0]]||{};
+      var sp=Lsel().map(function(l){ var x=HJ.lojas[l]; return x && x.saipos_lido_as ? CURTO[l]+' '+x.saipos_lido_as : null; }).filter(Boolean);
+      txt+='<br>Foto das <b>'+esc(HJ.ate)+'</b>'+(id!=null && id>=1 ? ' (há '+tempoTxt(id)+')' : '')+(sp.length?' · último pedido que chegou do Saipos: '+esc(sp.join(', ')):'')+(x0.tempo_ifood_lido_as?' · tempo do iFood lido às '+esc(x0.tempo_ifood_lido_as):'');
+      if(id!=null && id>30) txt+=' <span class="obs">Foto de mais de 30 min: toque em "Atualizar o hoje".</span>';
+      var falta=Lsel().map(function(l){ var a=saiposAtrasado('H',l); return a ? CURTO[l]+' '+a.falta : null; }).filter(Boolean);
+      if(falta.length) txt+=' <span class="obs">Saipos atrasado: pedidos do iFood feitos há mais de 30 min que ainda não chegaram no Saipos ('+esc(falta.join(', '))+'). Os pedidos de hoje estão incompletos.</span>';
+      var lt=idadeMin(x0.tempo_ifood_lido_as); if(lt!=null && lt-(id||0)>75) txt+=' <span class="obs">O tempo do iFood não é lido desde '+esc(x0.tempo_ifood_lido_as)+'.</span>';
+    }
+    document.getElementById('compara').innerHTML=txt;
+  }
+
+  // ---------- placar ----------
+  // prazo sem medida: diz o motivo em vez de sumir (robô do Gestor do iFood parado ou atrasado)
+  function semMedidaTxt(P,L){
+    if(P.D[0]==='H'){ if(L.some(function(l){ return prazoApi('H',l); })) return 'nada entregue ainda'; var pi=agg('p_ifood',['H'],L)||0; return pi>=5 ? 'sem medida: o robô do Gestor do iFood não trouxe as entregas de hoje' : 'nada entregue ainda'; }
+    var cobs=[]; P.D.forEach(function(d){ L.forEach(function(l){ var c=v(d,l,'prazo.cobertura_medicao_pct'); if(c!=null) cobs.push(c); }); });
+    if(!cobs.length) return 'sem medida neste período';
+    var lo=Math.round(Math.min.apply(null,cobs)), hi=Math.round(Math.max.apply(null,cobs));
+    return 'sem medida: o robô do Gestor do iFood leu só '+(lo===hi?lo:lo+' a '+hi)+'% dos pedidos';
+  }
+  // de onde veio o prazo do período (o rodapé diz a fonte; com a API é a mesma conta do bloco ✅ Prazo)
+  function fontePrazoTxt(P,L){
+    var f=fontePrazo(celulas(P.D,L));
+    if(f==='api') return 'pela API do iFood (igual ao ✅ Prazo)';
+    if(f==='gw') return 'pelo Gestor do iFood';
+    if(f==='misto'){ var d0=P.D.filter(function(d){ return L.some(function(l){ return v(d,l,'hib.pct')!=null && prazoApi(d,l); }); })[0]; return 'pela API do iFood'+(d0?' desde '+dm(d0):'')+'; antes, pelo Gestor do iFood'; }
+    return '';
+  }
+  function fonteCancTxt(P,L){
+    var f=fonteCanc(celulas(P.D,L));
+    if(f==='api') return 'pela API do iFood e Saipos (igual ao 🚫 Cancelados)';
+    if(f==='pl') return 'pelo Saipos e Gestor do iFood';
+    if(f==='misto'){ var d0=P.D.filter(function(d){ return L.some(function(l){ return cancApi(d,l); }); })[0]; return 'pela API do iFood'+(d0?' desde '+dm(d0):'')+'; antes, pelo Saipos e Gestor do iFood'; }
+    return '';
+  }
+  function tile(m,P,L,classe,extra,rot){
+    var c=compara(m,P,L,Lsel()), a=c.a0;
+    return '<div class="pl"><div class="k">'+esc(rot||M[m].r)+'</div><div class="v '+(a==null || (a===0 && classe==='bad')?'cinza':classe)+' num">'+fmt(a,M[m].un)+'</div><div class="s">'+rodape(m,c)+'</div>'+(extra?'<div class="s">'+extra+'</div>':'')+'</div>';
+  }
+  function renderPlacar(){
+    var P=periodo(st.p), L=lojasNo(P.D), h='';
+    var titLoja = st.loja==='t' ? '' : ' · '+nomeL(st.loja);
+    if(st.p==='hoje' && !L.length) L=[];
+    var atr = st.p==='ontem' ? Lsel().map(function(l){ var a=saiposAtrasado(ONTEM,l); return a? CURTO[l]+' (iFood '+a.api+', Saipos '+a.sp+')' : null; }).filter(Boolean)
+            : st.p==='hoje' ? Lsel().map(function(l){ var a=saiposAtrasado('H',l); return a? CURTO[l]+' ('+pl(a.falta,'pedido do iFood','pedidos do iFood')+' de mais de 30 min ainda fora)' : null; }).filter(Boolean) : [];
+    var aviso = atr.length ? '<div class="pl" style="grid-column:1/-1;background:#3a1f1f"><div class="k" style="color:#ffd9d9">Saipos atrasado</div><div class="s" style="color:#ffd9d9">O Saipos ainda não trouxe o dia todo: '+esc(atr.join(' · '))+'. Os números de pedido estão incompletos.</div></div>' : '';
+    if(!L.length){
+      document.getElementById('placar').className='placar';
+      document.getElementById('placar').innerHTML=aviso+'<div class="pl" style="grid-column:1/-1"><div class="k">'+esc(P.rot+titLoja)+'</div><div class="v cinza">Sem venda</div><div class="s">Nenhuma entrega no Saipos '+(st.p==='hoje'?'hoje até '+esc(HJ.ate):'neste período')+'.</div></div>';
+      return;
+    }
+    var pz=agg('prazo',P.D,L);
+    document.getElementById('placar').className='placar'+(DONO?' seis':'');
+    if(DONO){
+      var vi=agg('v_ifood',P.D,L), vs=agg('v_site',P.D,L);
+      h+=tile('vendido',P,L,'ouro', vi==null ? 'só entregas, sem os cancelados (Saipos)' : fmt(vi,'R$')+' pelo iFood · '+fmt(vs,'R$')+' pelo site');
+      h+=tile('ticket',P,L,'ouro', 'valor médio de cada pedido entregue');
+    }
+    h+=tile('pedidos',P,L,'deliv', st.p==='hoje' ? 'desde as '+esc(HJ.desde)+' · '+fmt(agg('p_ifood',P.D,L),'n')+' pelo iFood' : fmt(agg('p_ifood',P.D,L),'n')+' pelo iFood · '+fmt(agg('p_site',P.D,L),'n')+' pelo site');
+    var hjApi = st.p==='hoje' && L.some(function(l){ return prazoApi('H',l); });
+    var ase = st.p==='hoje' ? (hjApi && VV ? somaAg('atrasados_sem_entrega') : agg('agora_atras',['H'],L))||0 : 0;
+    var subPz = pz==null ? semMedidaTxt(P,L)
+      : hjApi ? fmt(agg('atrasados',P.D,L),'n')+' de '+pl(agg('medidos',P.D,L)||0,'entregue','entregues')+' atrasaram · '+fmt(agg('atr30',P.D,L)||0,'n')+' com mais de 30 min'+(ase?' · '+pl(ase,'passou','passaram')+' da hora e ainda não '+(ase===1?'foi entregue':'foram entregues'):'')
+      : fmt(agg('atrasados',P.D,L),'n')+' de '+fmt(agg('medidos',P.D,L),'n')+' atrasaram'+(st.p==='hoje' ? (ase?' (conta '+pl(ase,'que ainda não foi entregue','que ainda não foram entregues')+')':'')+' · '+pl(agg('atr30',P.D,L)||0,'entregue','entregues')+' com mais de 30 min' : ' · '+fmt(agg('atr30',P.D,L),'n')+' com mais de 30 min');
+    var fpt = pz==null ? '' : fontePrazoTxt(P,L);
+    h+=tile('prazo',P,L,'deliv', subPz+(fpt?' · '+fpt:''));
+    var Lc=Lsel();   // cancelados: as mesmas lojas do 🚫 Cancelados (todas as escolhidas; cancelado conta mesmo em loja sem venda no Saipos)
+    if(st.p==='hoje' && VV && agg('ca_tot',['H'],Lc)!=null){
+      // Hoje com a leitura ao vivo: o mesmo critério do bloco 🚫 Cancelados (ontem cortado na mesma hora), para não ter dois números
+      var cl2=agg('ca_loja',['H'],Lc), vc2 = DONO ? agg('ca_val',['H'],Lc) : null, tx2=agg('ca_taxa',['H'],Lc);
+      h+=tile('ca_tot',P,Lc,'bad', (tx2!=null?fmt(tx2,'%')+' dos pedidos':'')+(cl2!=null?(tx2!=null?' · ':'')+fmt(cl2,'n')+' por culpa da loja':'')+(vc2?' · '+fmt(vc2,'R$')+' cancelados':'')+' · igual ao 🚫 Cancelados', 'Cancelados');
+    } else {
+      // dias com a API do iFood: a mesma conta do 🚫 Cancelados; antes disso, a do placar (o rodapé diz a fonte)
+      var cl=agg('c_loja',P.D,Lc);
+      var vc = DONO ? agg('v_cancel',P.D,Lc) : null, fct=fonteCancTxt(P,Lc);
+      h+=tile('cancel',P,Lc,'bad', fmt(agg('taxa',P.D,Lc),'%')+' dos pedidos'+(cl!=null?' · '+fmt(cl,'n')+' por culpa da loja':'')+(vc?' · '+fmt(vc,'R$')+' cancelados':'')+(fct?' · '+fct:''));
+    }
+    var rc=agg('reclam',P.D,L);
+    h+=tile('reclam',P,L,'bad', rc==null ? (RECLAM_INI && P.D.every(function(d){ return d==='H' || d==='H0' || d<RECLAM_INI; }) ? 'a leitura começou em '+dm(RECLAM_INI) : 'sem leitura neste período') : fmt(agg('r_atraso',P.D,L),'n')+' por atraso · '+fmt(agg('reclam100',P.D,L),'d1')+' a cada 100 pedidos do iFood');
+    document.getElementById('placar').innerHTML=aviso+h;
+  }
+
+  // ---------- o que melhorar ----------
+  var verTodas=false;
+  function juntaAval(a){
+    var av=a.filter(function(x){ return x.tipo==='aval'; });
+    if(av.length<2) return a;
+    var urg=av.some(function(x){ return x.n==='verm'; }), q=av.map(function(x){ return CURTO[x.l]+' '+x.qtd; }).join(', ');
+    var tot=av.reduce(function(s,x){ return s+x.qtd; },0);
+    var j={n:urg?'verm':'amar',l:'',t:'Responder '+tot+' avaliações no iFood ('+q+')',d:av.map(function(x){ return CURTO[x.l]+': '+x.quando; }).join(' · ')+'. Responder antes do prazo do iFood; as de nota 1 e 2 primeiro.',telas:['parceiro'],c:'responder '+tot+' avaliacoes no iFood ('+q+'; '+av[0].quando+')',o:Math.min.apply(null,av.map(function(x){ return x.o; }))};
+    var out=a.filter(function(x){ return x.tipo!=='aval'; }); out.push(j);
+    var ord={verm:0,amar:1,info:2};
+    out.sort(function(p,q2){ return ord[p.n]-ord[q2.n] || p.o-q2.o; });
+    return out;
+  }
+  function renderAcoes(){
+    var a=juntaAval(acoes(ONTEM)), el=document.getElementById('acoes');
+    document.getElementById('tAcoes').innerHTML='O que melhorar hoje <small>a partir de '+esc(rot(ONTEM))+', comparado com o normal desse dia da semana</small>';
+    if(!a.length){ el.innerHTML='<div class="vazio">Nada fora do normal.</div>'; return; }
+    var lim=verTodas? a.length : 8;
+    var h=a.slice(0,lim).map(function(x){
+      var tag = x.n==='verm'?'urgente':x.n==='amar'?'melhorar':'saber';
+      return '<div class="ac '+x.n+'"><span class="tag">'+tag+'</span><div class="t">'+(x.l?esc(CURTO[x.l]||x.l)+' · ':'')+esc(x.t)+'</div><div class="d"><span>'+esc(x.d)+'</span>'+x.telas.map(function(t){ return link(t); }).join('')+'</div></div>';
+    }).join('');
+    if(a.length>lim) h+='<button class="mais" id="maisAc">Ver mais '+(a.length-lim)+' avisos</button>';
+    el.innerHTML=h;
+    var b=document.getElementById('maisAc'); if(b) b.addEventListener('click',function(){ verTodas=true; renderAcoes(); });
+  }
+
+  // ---------- erros do dia: por tipo (com o período anterior) e a lista pedido a pedido do último dia fechado ----------
+  function valorDe(o,ks){ for(var i=0;i<ks.length;i++){ var x=o[ks[i]]; if(x!=null && x!=='' && !isNaN(+x)) return +x; } return null; }
+  function renderErros(){
+    var P=periodo(st.p), Ls=Lsel(), L=lojasNo(P.D), el=document.getElementById('erros'), hj=P.D[0]==='H';
+    document.getElementById('secErros').hidden = hj && !!VV;   // hoje: os quadros ao vivo (Cancelados e Erros) já mostram tudo, de minuto em minuto
+    // fontes de cada número: cancelados = API do iFood nos dias com a API (antes, Saipos e Gestor); motivos = Saipos e Gestor;
+    // itens devolvidos = relatório e Gestor do iFood; reclamações = API do iFood (eventos de reclamação)
+    var fcE=fonteCanc(celulas(P.D,Ls)), d0E=P.D.filter(function(d){ return Ls.some(function(l){ return cancApi(d,l); }); })[0];
+    var fontesE=[fcE==='api' ? 'cancelados: API do iFood e Saipos' : fcE==='pl' ? 'cancelados: Saipos e Gestor do iFood' : fcE==='misto' ? 'cancelados: API do iFood'+(d0E?' desde '+dm(d0E):'')+', antes Saipos e Gestor' : null];
+    if(!hj) fontesE.push('motivos: Saipos e Gestor', 'itens devolvidos: relatório e Gestor do iFood');
+    fontesE.push('reclamações: API do iFood');
+    document.getElementById('tErros').innerHTML='Cancelamentos e reclamações '+(P.D.length===1?'do dia':'do período')+' <small>'+esc(P.rot)+(st.loja==='t'?'':' · '+esc(nomeL(st.loja)))+' · '+esc(fontesE.filter(Boolean).join('; '))+'</small>';
+    // erros contam em todas as lojas escolhidas: cancelamento do iFood num dia sem venda no Saipos também é erro
+    var zeros=[], cards='';
+    function sub(lista){ return lista.map(function(x){ var n=agg(x[0],P.D,Ls); return n ? pl(n,x[1],x[2]) : null; }).filter(Boolean); }
+    function card(m,sing,plur,extra,vm){
+      var c=compara(m,P,Ls,Ls); if(c.a0==null) return;
+      if(!c.a0 && !c.b){ zeros.push(plur); return; }
+      var vv = DONO && vm ? agg(vm,P.D,Ls) : null;
+      cards+='<div class="ec'+(c.a0?'':' zero')+'"><b class="num'+(c.a0?' r':'')+'">'+fmt(c.a0,'n')+'</b><span>'+esc(c.a0===1?sing:plur)+(extra&&extra.length?' ('+esc(extra.join(', '))+')':'')+(vv?' · '+esc(fmt(vv,M[vm].un))+(vm==='v_cancel_loja'?' pagos pelo cliente':' devolvidos'):'')+'</span>'+rodape(m,c)+'</div>';
+    }
+    if(hj){
+      card('cancel','cancelado até agora','cancelados até agora');
+      card('reclam','reclamação no iFood até agora','reclamações no iFood até agora', sub([['r_atraso','por atraso','por atraso']]));
+    } else {
+      card('c_loja','cancelado por culpa da loja','cancelados por culpa da loja', sub([['c_atraso','atraso','atrasos'],['c_errado','pedido errado','pedidos errados'],['c_item','item em falta','itens em falta'],['c_moto','falta de motoboy','falta de motoboy']]), 'v_cancel_loja');
+      card('parciais','item devolvido (cancelamento parcial)','itens devolvidos (cancelamento parcial)', sub([['sacola','esquecido na sacola','esquecidos na sacola']]), 'v_devolvido');
+      card('r_pedido','cliente reclamou da comida ou de item faltando (qualquer reclamação depois da entrega)','clientes reclamaram da comida ou de item faltando (qualquer reclamação depois da entrega)');
+    }
+    var h=(cards?'<div class="eg">'+cards+'</div>':'')+(zeros.length?'<div class="nota" style="font-size:13px;color:var(--muted)">Nenhum: '+esc(juntaE(zeros))+'.</div>':'');
+    if(!cards && !zeros.length) h='<div class="vazio">'+(L.length?'Sem erro registrado neste período.':'Sem venda neste período.')+'</div>';
+    if(P.D.length===1 && P.D[0]===ONTEM){
+      // pedido a pedido, um pedido por linha (loja + número), na ordem do dia de operação (madrugada no fim)
+      var it={}, ord=[];
+      function pega(o){ var k=o.loja+'|'+o.pedido; if(!it[k]){ it[k]={loja:o.loja, pedido:o.pedido, hp:null, he:null, t:[], d:[]}; ord.push(k); } return it[k]; }
+      function curta(s,n){ s=String(s||'').replace(/\s+/g,' ').trim(); var p=s.split(' ; '); s=p.filter(function(x,i){ return p.indexOf(x)===i; }).join(' ; '); if(s.length<=n) return s; return s.slice(0,n).replace(/\s+\S*$/,'')+'…'; }
+      daLoja(lista('cancelamentos','cancelados')).forEach(function(o){
+        var x=pega(o), val = DONO ? valorDe(o,['valor']) : null; x.hp=x.hp||o.hora;
+        x.t.push('cancelado: '+(o.motivo||'sem motivo')); x.d.push('culpa: '+(o.responsavel||'não se sabe')+(val!=null?' · '+fmt(val,'R$c')+' pago pelo cliente':'')+(o.texto && o.texto!==o.motivo?' · '+curta(o.texto,110):''));
+      });
+      daLoja(lista('cancelamentos','parciais')).forEach(function(o){
+        var x=pega(o), val = DONO ? valorDe(o,['valor_devolvido']) : null; x.hp=x.hp||o.hora;
+        x.t.push('item devolvido'+(o.esquecido_na_sacola?' (esqueceram na sacola)':'')); x.d.push(curta(o.o_que_faltou,150)+(val!=null?' · '+fmt(val,'R$c')+' devolvidos':''));
+      });
+      daLoja(lista('clientes','reclamacoes_ifood_ontem')).filter(function(o){ return !/atraso/.test(o.tipo||''); }).forEach(function(o){
+        var x=pega(o), mot=o.motivo && o.motivo!=='—' ? curta(o.motivo,120) : ''; x.he=x.he||o.hora;
+        if(!x.t.length) x.t.push('reclamação: '+(o.tipo||''));
+        x.d.push('reclamação às '+(o.hora||'?')+(x.d.length||!mot?'':': '+mot)+(o.resultado?' → '+o.resultado:''));
+      });
+      daLoja(lista('clientes','negociacoes_tela_ontem')).forEach(function(o){
+        var k=o.loja+'|'+o.pedido; if(it[k]) return;
+        var x=pega(o); x.he=o.hora; x.t.push('negociação no iFood: '+(o.motivo||'')); x.d.push([o.resposta_loja,o.resposta_cliente].filter(Boolean).join(' · '));
+      });
+      function chave(x){ var h=x.hp||x.he||'99:99'; return (h<'05:00'?'1':'0')+h; }
+      var L2=ord.map(function(k){ return it[k]; }).sort(function(a,b){ return chave(a).localeCompare(chave(b)); });
+      var lim=15, ul=L2.slice(0,lim).map(function(x){ return '<li><b>'+(st.loja==='t'?esc(CURTO[x.loja]||x.loja)+' · ':'')+'#'+esc(x.pedido)+' · '+esc(x.t.join(' + '))+'</b><i>'+(x.hp?'pedido às '+esc(x.hp)+' · ':'')+esc(x.d.filter(Boolean).join(' · '))+'</i></li>'; }).join('');
+      var fc=det('cancelamentos','fontes')||{}, avisos=[];
+      if(fc.relatorio_ifood_ate && fc.relatorio_ifood_ate<ONTEM) avisos.push('O relatório do iFood deste dia ainda não chegou (costuma chegar no fim da tarde do dia seguinte): itens devolvidos e motivos ainda podem aparecer.');
+      var cobs=Lsel().map(function(l){ var c=v(ONTEM,l,'prazo.cobertura_medicao_pct'); return c!=null && c<90 ? CURTO[l]+' '+Math.round(c)+'%' : null; }).filter(Boolean);
+      if(cobs.length) avisos.push('O robô do Gestor do iFood leu só parte dos pedidos ('+cobs.join(', ')+'); o que ele não leu vem só pela API do iFood.');
+      h+='<div class="el">'+(L2.length?'<ul>'+ul+'</ul>':'<div class="nota">Nenhum pedido com erro registrado.</div>')+(L2.length>lim?'<div class="nota">e mais '+(L2.length-lim)+'.</div>':'')+'<div class="nota">Pedido a pedido de '+esc(rot(ONTEM))+'. Fontes: iFood (API e Gestor) e Saipos. '+esc(avisos.join(' '))+' '+link('qualidade','Ver na tela Qualidade')+'</div></div>';
+    } else if(hj){
+      h+='<div class="nota" style="font-size:13px;color:var(--muted)">Hoje só tem o total por aqui. Quando a leitura ao vivo chega, o motivo de cada cancelamento e os erros de hoje aparecem nos quadros 🚫 Cancelados e 🍳 Erros, lá em cima.</div>';
+    } else {
+      h+='<div class="nota" style="font-size:13px;color:var(--muted)">A lista pedido a pedido é do último dia fechado: toque em "Ontem".</div>';
+    }
+    el.innerHTML=h;
+  }
+  // ---------- por loja ----------
+  var PORTA={porta_prob:1,rede_espera:1};
+  function ln(m,P,l,opt){
+    opt=opt||{};
+    var c=compara(m,P,[l]), a=c.a0;
+    if(a==null && opt.esconde) return '';
+    if(!a && opt.esconde0) return '';
+    if(a===0 && /^·/.test(M[m].r)) return '';
+    if(AVAL[m] && P.D.length===1 && P.D[0]!=='H' && avalIncompleta(P.D[0],l)) return '<div class="ln cinza"><span>'+esc(M[m].r)+'</span><span class="vv"><b class="num">ainda chegando</b></span></div>';
+    if(PORTA[m] && P.D.every(function(d){ return semRede(d); })) return '<div class="ln cinza"><span>'+esc(M[m].r)+'</span><span class="vv"><b class="num">Rede só até '+dm(REDE_ATE)+'</b></span></div>';
+    var r=opt.r||M[m].r; if(P.D.length>1) r = r.replace('(tempo do meio)','(juntando os dias)');
+    if(c.semAval) r+=' (sem os dias que ainda estão chegando)';
+    var cls = a==null ? 'cinza' : ((a===0 && M[m].bom===-1)?'cinza':'');
+    return '<div class="ln '+cls+'"><span>'+esc(r)+'</span><span class="vv"><b class="num">'+(a==null?(opt.vazio||'sem dado'):fmt(a,M[m].un))+'</b>'+(a!=null && !opt.semRodape?rodape(m,c):'')+'</span></div>';
+  }
+  // "No prazo (API do iFood)" / "(Gestor do iFood)": a fonte do número desta loja no período
+  function rotPrazo(P,l){ var f=fontePrazo(celulas(P.D,[l])); return 'No prazo'+(f==='api'?' (API do iFood)':f==='gw'?' (Gestor do iFood)':f==='misto'?' (API e Gestor)':''); }
+  function bloco(tit,tela,linhas){ var c=linhas.join(''); return c ? '<div class="bloco"><div class="bt"><span>'+esc(tit)+'</span>'+(tela?link(tela):'')+'</div>'+c+'</div>' : ''; }
+  function renderLojas(){
+    var P=periodo(st.p);
+    document.getElementById('tLojas').innerHTML='Por loja · '+esc(P.rot)+' <small>embaixo de cada número: o período anterior ('+esc(P.rotA)+')</small>';
+    var h=Lsel().map(function(l){
+      var ab=P.D.some(function(d){ return abriu(d,l); });
+      var fechAntes = ab && !P.A.some(function(d){ return abriu(d,l); });
+      if(!ab){
+        var hj=st.p==='hoje';
+        var snap=[ln('pausados',P,l,{esconde:1,r:hj?'Itens pausados agora':null})];
+        var canc=[ln('cancel',P,l,{esconde0:1,semRodape:1}),ln('c_loja',P,l,{esconde0:1,semRodape:1})].join('');
+        var atr = st.p==='ontem' ? saiposAtrasado(ONTEM,l) : hj ? saiposAtrasado('H',l) : null;
+        var p0 = hj ? v('H0',l,'vendas.pedidos_delivery') : null;
+        var msg = atr ? (hj ? 'O iFood tem '+pl(atr.falta,'pedido','pedidos')+' de mais de 30 min que ainda não chegaram no Saipos. Os números desta loja estão incompletos.' : 'O iFood registrou '+atr.api+' pedidos, mas o Saipos ainda não trouxe as vendas. Os números desta loja estão incompletos.')
+                : hj ? 'Nenhuma entrega no Saipos hoje até '+esc(HJ.ate)+(p0?' (ontem até essa hora: '+pl(p0,'pedido','pedidos')+')':'')+'.'
+                : 'Nenhuma entrega no Saipos em '+esc(P.rot)+'.';
+        return '<div class="loja off"><h3>'+esc(nomeL(l))+'<small>'+(atr?'saipos atrasado':'sem venda')+'</small></h3><div class="semdado">'+msg+'</div>'+(canc?bloco('Cancelados no iFood mesmo assim','qualidade',[canc]):'')+bloco('O que continua valendo','pausados',snap)+'</div>';
+      }
+      var pe=agg('pedidos',P.D,[l]);
+      // dias do período com a API do iFood nesta loja: com eles, os tempos são só os da API (os do Gestor medem a mesma coisa e somem)
+      var diasApi=P.D.filter(function(d){ return d!=='H' && d!=='H0' && v(d,l,'vivo.pedidos_api')!=null; }), apiL=diasApi.length>0;
+      var titApi='Tempos pela API do iFood'+(apiL && P.D.some(function(d){ return d<diasApi[0]; }) ? ' · só '+(diasApi.length>1 ? dm(diasApi[0])+' a '+dm(diasApi[diasApi.length-1]) : dm(diasApi[0])) : '');
+      var tGw = apiL ? [] : [ln('t_total',P,l,{esconde:1,r:'Do pedido à entrega (tempo do meio) · Gestor do iFood'}),ln('t_sair',P,l,{esconde:1,r:'Até sair da loja (tempo do meio) · Gestor do iFood'}),ln('t_rua',P,l,{esconde:1,r:'Na rua (tempo do meio) · Gestor do iFood'})];
+      var lin = st.p==='hoje' ? [
+          bloco('Pedidos','',[DONO?ln('vendido',P,l,{esconde:1}):'',DONO?ln('ticket',P,l,{esconde:1}):'',ln('pedidos',P,l),ln('p_ifood',P,l,{esconde:1})]),
+          bloco('Prazo','fila',[ln('prazo',P,l,{vazio:semMedidaTxt(P,[l]).replace(/: .*/,''),r:rotPrazo(P,l)}),ln('atrasados',P,l,{esconde:1,r:prazoApi('H',l)?'Entregues atrasados':'Atrasaram (conta os ainda sem entrega)'}),ln('atr30',P,l,{esconde:1,r:'Entregues com mais de 30 min de atraso'}),(VV && v('H',l,'vivo.ag_atras')!=null ? ln('ag_atras',P,l,{esconde:1,semRodape:1}) : ln('agora_atras',P,l,{esconde:1})),ln('tempo_agora',P,l,{esconde:1,semRodape:1}),ln('faixa_max',P,l,{esconde:1,semRodape:1,r:'Maior tempo mostrado no iFood hoje'})]),
+          bloco('Tempos pela API do iFood','',linhasApi(P,l)),
+          bloco('Cancelamentos e reclamações','qualidade',[VV && v('H',l,'vivo.cancelados')!=null ? ln('ca_tot',P,l,{r:'Cancelados'}) : ln('cancel',P,l),ln('reclam',P,l),ln('r_atraso',P,l,{esconde:1})]),
+          bloco('Cardápio no iFood','pausados',[ln('pausados',P,l,{esconde:1,r:'Itens pausados agora'})])
+        ] : [
+          bloco('Pedidos','',[DONO?ln('vendido',P,l):'',DONO?ln('v_site',P,l,{esconde:1}):'',DONO?ln('ticket',P,l,{esconde:1}):'',ln('pedidos',P,l),ln('p_site',P,l,{esconde:1}),ln('almoco',P,l),ln('noite',P,l)]),
+          bloco(titApi,'',linhasApi(P,l)),
+          bloco('Prazo e tempo','qualidade',[ln('prazo',P,l,{r:rotPrazo(P,l),vazio:semMedidaTxt(P,[l]).replace(/: o robô do Gestor do iFood leu só /,' (Gestor leu ').replace(/ dos pedidos$/,')').replace(' neste período','')}),ln('atr30',P,l,{esconde:1}),ln('sem_baixa',P,l,{esconde:1})].concat(tGw,[ln('t_prom',P,l,{esconde:1}),ln('faixa',P,l,{esconde:1}),ln('faixa_max',P,l,{esconde:1})])),
+          bloco('Cancelamentos','qualidade',[ln('cancel',P,l),ln('c_loja',P,l,{esconde:1}),ln('c_atraso',P,l,{esconde:1}),ln('c_errado',P,l,{esconde:1}),ln('c_item',P,l,{esconde:1}),ln('c_moto',P,l,{esconde:1}),ln('c_cliente',P,l,{esconde:1}),ln('parciais',P,l,{esconde:1}),ln('sacola',P,l,{esconde:1}),DONO?ln('v_cancel',P,l,{esconde:1}):'',DONO?ln('v_devolvido',P,l,{esconde:1}):'']),
+          bloco('Clientes','resolver',[ln('reclam',P,l,{vazio:RECLAM_INI?'desde '+dm(RECLAM_INI):'sem leitura'}),ln('r_atraso',P,l,{esconde:1}),ln('r_pedido',P,l,{esconde:1}),ln('r_semresp',P,l,{esconde:1}),ln('chat_sr',P,l,{esconde:1}),ln('nota',P,l),ln('ruins',P,l,{esconde:1})]),
+          bloco('Cardápio no iFood','pausados',[ln('pausados',P,l,{esconde:1}),ln('pausas',P,l,{esconde:1})]),
+          bloco('Motoboys e cobrança','chegada',[ln('escalados',P,l,{vazio:'sem escala no sistema'}),ln('chegou_tarde',P,l,{esconde:1}),ln('sem_anot',P,l,{esconde:1}),ln('ent_moto',P,l,{esconde:1}),ln('porta',P,l,{esconde:1}),ln('porta_prob',P,l,{esconde:1}),ln('rede_espera',P,l,{esconde:1})])
+        ];
+      var vl = DONO ? agg('vendido',P.D,[l]) : null;
+      return '<div class="loja"><h3>'+esc(nomeL(l))+'<small>'+(vl!=null?nw(fmt(vl,'R$'))+' · ':'')+nw(pl(pe||0,'pedido','pedidos'))+'</small></h3>'+(fechAntes?'<div class="semdado">A loja não teve venda '+(st.p==='hoje'?'':'em ')+esc(P.rotA)+': os números dela ficam sem comparação.</div>':'')+lin.join('')+'</div>';
+    }).join('');
+    document.getElementById('lojas').innerHTML=h;
+  }
+
+  // ---------- detalhe de ontem ----------
+  function cx(tit,tela,itens,nota){
+    if(!itens.length && !nota) return '';
+    return '<div class="cx"><h3>'+esc(tit)+(tela?link(tela,'abrir'):'')+'</h3>'+(itens.length?'<ul>'+itens.join('')+'</ul>':'')+(nota?'<div class="nota">'+nota+'</div>':'')+'</div>';
+  }
+  function li(a,b){ return '<li><b>'+a+'</b>'+(b?'<i>'+b+'</i>':'')+'</li>'; }
+  function cl(l){ return st.loja==='t' ? esc(CURTO[l]||l)+' · ' : ''; }
+  function renderDet(){
+    document.getElementById('tDet').innerHTML='O detalhe de '+esc(rot(ONTEM))+' <small>pedido a pedido, para agir hoje</small>';
+    var h='';
+    var ppT=daLoja(lista('prazo','piores_pedidos')), pp=ppT.filter(function(o){ return !o.sem_baixa_3h; }).slice(0,8), psb=ppT.filter(function(o){ return o.sem_baixa_3h; });
+    h+=cx('Os pedidos mais atrasados','qualidade',pp.map(function(o){ return li(cl(o.loja)+'#'+esc(o.pedido)+' · '+o.atraso_min+' min de atraso', 'pedido '+esc(o.pedido_as)+', prometido '+esc(o.prometido_as)+', entregue '+esc(o.entregue_as)+' · '+o.ate_sair_min+' min até sair, '+o.na_rua_min+' na rua'); }));
+    h+=cx('Entregas sem baixa no iFood','turno',psb.map(function(o){ return li(cl(o.loja)+'#'+esc(o.pedido)+' · pedido '+esc(o.pedido_as)+', saiu depois de '+o.ate_sair_min+' min', 'o iFood só fechou às '+esc(o.entregue_as)+': o motoboy não marcou a entrega, então o atraso real não se sabe'); }));
+    var semMed=function(l){ var c=v(ONTEM,l,'prazo.cobertura_medicao_pct'); return c!=null && c<90; };
+    var fxT=daLoja(lista('prazo','atraso_por_faixa_horario')), fx=fxT.filter(function(o){ return !semMed(o.loja); }), mud=daLoja(lista('prazo','tempo_configurado_ifood_mudancas'));
+    var fxSem=LOJAS.filter(function(l){ return fxT.some(function(o){ return o.loja===l; }) && semMed(l); });
+    h+=cx('Atraso por horário','tempo',fx.map(function(o){ return li(cl(o.loja)+esc(String(o.faixa).replace(/^\d\)\s*/,''))+': '+dec1.format(o.pct_no_prazo)+'% no prazo', pl(o.medidos,'pedido medido','pedidos medidos')+', '+pl(o.atrasados,'atrasado','atrasados')+' · '+int.format(Math.round(o.ate_sair_mediana_min))+' min até sair, '+int.format(Math.round(o.na_rua_mediana_min))+' na rua'); }), (fxSem.length?'Sem medida em '+juntaE(fxSem.map(function(l){ return CURTO[l]; }))+': o robô do Gestor do iFood leu menos de 90% dos pedidos. ':'')+(mud.length? 'Tempo no iFood ao longo do dia: '+mud.map(function(o){ return (st.loja==='t'?esc(CURTO[o.loja])+' ':'')+esc(o.lido_as)+' '+o.tempo_min+' min'; }).join(' · ') : ''));
+    var ph=det('vendas','pedidos_por_hora')||{};
+    Lsel().forEach(function(l){
+      var arr=ph[l]; if(!arr||!arr.length) return;
+      var hs=arr.slice().sort(function(a,b){ return (a[0]<5?a[0]+24:a[0])-(b[0]<5?b[0]+24:b[0]); });   // dia de operação: 5h ... 23h, 0h ... 4h
+      var mx=Math.max.apply(null,hs.map(function(x){ return Math.max(x[1],x[2]||0); }))||1;
+      var bars=hs.map(function(x){ return '<div class="col" title="'+x[0]+'h: '+x[1]+' pedidos (normal '+dec1.format(x[2]||0)+')"><i class="bar" style="height:'+(x[1]/mx*100).toFixed(1)+'%"></i><i class="mk" style="bottom:'+((x[2]||0)/mx*100).toFixed(1)+'%"></i></div>'; }).join('');
+      var lab=hs.map(function(x){ return '<span>'+x[0]+'</span>'; }).join('');
+      var pico=lista('vendas','hora_pico').filter(function(o){ return o.loja===l; })[0];
+      h+='<div class="cx"><h3>Pedidos por hora · '+esc(CURTO[l])+'</h3><div class="horas">'+bars+'</div><div class="hx">'+lab+'</div><div class="nota">Barra: '+esc(rot(ONTEM))+'. Tracejado: média das 4 '+SEMX[dt(ONTEM).getDay()]+' anteriores.'+(pico?' Pico às '+pico.hora+'h com '+pico.pedidos+' pedidos.':'')+' 0h a 4h são o fim da noite do mesmo dia.</div></div>';
+    });
+    var rm=daLoja(lista('clientes','reclamacoes_ifood_ontem_motivos')), rl=daLoja(lista('clientes','reclamacoes_ifood_ontem')).filter(function(o){ return !/atraso/.test(o.tipo); }).slice(0,6);
+    h+=cx('Reclamações no iFood','resolver',rm.map(function(o){ return li(cl(o.loja)+o.qtd+' · '+esc(o.tipo), (o.viraram_cancelamento? o.viraram_cancelamento+' viraram cancelamento':'')); }).concat(rl.map(function(o){ return li(cl(o.loja)+'#'+esc(o.pedido)+' · '+esc(o.hora)+' · '+esc(o.marca), esc(o.cliente)+': '+esc(String(o.motivo).slice(0,120))+' → '+esc(o.resultado||'')); })));
+    var at=daLoja(lista('clientes','avaliacoes_sem_resposta_total')), am=daLoja(lista('clientes','avaliacoes_sem_resposta_mais_antigas')).slice(0,6), ar=daLoja(lista('clientes','avaliacoes_ruins_ultimos_3_dias'));
+    h+=cx('Avaliações para responder','parceiro',am.map(function(o){ return li(cl(o.loja)+'nota '+o.nota+' · '+esc(o.marca), esc(String(o.comentario||'').slice(0,140))+' · há '+pl(o.dias_em_aberto,'dia','dias')); }), at.length? 'Sem resposta agora: '+at.map(function(o){ return esc(CURTO[o.loja])+' '+o.abertas+' (a mais antiga há '+pl(o.mais_antiga_dias,'dia','dias')+')'; }).join(' · ')+'. Responder antes do prazo do iFood.'+(ar.length?' Notas 1 e 2 nos últimos 3 dias: '+ar.length+'.':'') : '');
+    var pf=daLoja(lista('loja_ifood','pausados_fim_do_dia')), pd=daLoja(lista('loja_ifood','pausas_de_ontem'));
+    var pfo=pf.slice().sort(function(a,b){ return (parseDM(a.desde,ONTEM.slice(0,4))||'').localeCompare(parseDM(b.desde,ONTEM.slice(0,4))||'') || (a.tipo==='Item principal'?-1:1); }).slice(0,8);
+    h+=cx('Cardápio fora do ar no iFood','pausados',pd.map(function(o){ return li(cl(o.loja)+'pausou ontem: '+esc(o.item), esc(o.pausou||'')+(o.voltou?' · '+esc(o.voltou):'')); }).concat(pfo.map(function(o){ return li(cl(o.loja)+esc(o.item)+(o.tipo==='Item principal'?'':' (complemento)'), 'pausado desde '+esc(o.desde)+' · em '+o.marcas+' marca(s)'); })), pf.length? 'No fim do dia: '+LOJAS.filter(function(l){ return st.loja==='t'||l===st.loja; }).map(function(l){ var n=pf.filter(function(o){ return o.loja===l; }).length; return n? esc(CURTO[l])+' '+n : ''; }).filter(Boolean).join(' · ')+' (itens diferentes pausados, sem contar os que saíram do cardápio). O número do cartão da loja é maior porque conta cada marca em separado.' : '');
+    var mk=daLoja(lista('vendas','marcas')).filter(function(o){ return o.pedidos_media4!=null; });
+    h+=cx('Marcas do iFood','pausados',mk.map(function(o){ var bx= o.pedidos_media4>0 && o.pedidos < o.pedidos_media4*0.5; return li(cl(o.loja)+esc(o.marca)+': '+pl(o.pedidos,'pedido','pedidos'), 'normal '+dec1.format(o.pedidos_media4)+(bx?' · metade do normal ou menos':'')); }));
+    var ca=daLoja(lista('motoboys','chegadas_atrasadas')), sa=daLoja(lista('motoboys','escalados_sem_anotacao')), ck=daLoja(lista('motoboys','casos_cobranca_em_aberto')).slice(0,6);
+    var cp=det('motoboys','cobranca_porta_ontem')||{};
+    var res=cp.resumo? Object.keys(cp.resumo).map(function(k){ return cp.resumo[k]+' '+k.toLowerCase().replace(/_/g,' '); }).join(', ') : '';
+    h+=cx('Motoboys e cobrança na porta','cobranca',ca.map(function(o){ return li(cl(o.loja)+esc(o.motoboy)+' chegou '+o.minutos+' min depois', 'escala '+esc(o.escala)+', anotado '+esc(o.anotado)+(o.digitada?' (hora digitada no balcão)':'')); }).concat(sa.map(function(o){ return li(cl(o.loja)+esc(o.motoboy||'')+' sem chegada anotada', esc(o.escala||'')); })).concat(ck.map(function(o){ return li(cl(o.loja)+'caso #'+esc(o.pedido)+' de '+esc(o.dia)+' · '+esc(o.meio||''), esc(String(o.situacao||'').toLowerCase().replace(/_/g,' '))+' · '+esc(o.resultado)); })), (res?'Cobrança na porta de '+esc(rot(ONTEM))+': '+esc(res)+'. ':'')+(cp.rede_ate?'Rede lida até '+esc(cp.rede_ate)+'.':''));
+    document.getElementById('det').innerHTML=h || '<div class="vazio">Sem listas para este dia.</div>';
+  }
+
+  // ---------- gráfico ----------
+  var GS=(DONO?[['vendido','Vendido (R$)'],['ticket','Ticket médio']]:[]).concat([['pedidos','Pedidos'],['prazo','No prazo'],['cancel','Cancelados'],['reclam','Reclamações'],['pausados','Itens pausados']]);
+  function passoBom(x){ if(!(x>0)) return 1; var p=Math.pow(10,Math.floor(Math.log10(x))), m=x/p; return (m<=1?1:m<=2?2:m<=5?5:10)*p; }
+  function rotEixo(g,un){ if(un==='%') return int.format(g)+'%'; if(un==='R$'||un==='R$c') return g>=1000 ? 'R$ '+int.format(g/1000)+' mil' : 'R$ '+int.format(g); if(un==='d1'||un==='nota') return dec1.format(g); return int.format(g); }
+  function renderGsel(){
+    document.getElementById('gsel').innerHTML=GS.map(function(g){ return '<button class="chip" data-g="'+g[0]+'" aria-pressed="'+(st.g===g[0])+'">'+g[1]+'</button>'; }).join('');
+    [].forEach.call(document.querySelectorAll('#gsel .chip'),function(b){ b.addEventListener('click',function(){ st.g=b.dataset.g; tudo(); }); });
+  }
+  function renderGraf(){
+    var m=st.g, mm=M[m], Ls=Lsel(), P=periodo(st.p), doMes=P.D.length>7 && P.D[0]!=='H';
+    var ds=doMes ? P.D.slice() : dias.slice(-35);
+    document.getElementById('tGraf').innerHTML=(m==='pausados'?'Itens pausados no fim de cada dia':esc(mm.r)+' dia a dia')+' <small>'+(doMes ? esc(P.rot) : 'últimos '+ds.length+' dias fechados; a faixa clara é o período escolhido')+'</small>';
+    var series=Ls.map(function(l){ return {l:l, v:ds.map(function(d){ return abriu(d,l)||m==='pausados' ? mm.f(d,[l]) : null; })}; });
+    var all=[]; series.forEach(function(s){ s.v.forEach(function(x){ if(x!=null) all.push(x); }); });
+    if(!all.length){ document.getElementById('graf').innerHTML='<div class="vazio">'+(m==='reclam'&&RECLAM_INI?'As reclamações do iFood só são lidas desde '+dm(RECLAM_INI)+'.':m==='prazo'&&PRAZO_INI?'Sem medida de prazo nestes dias (a primeira medida de prazo é de '+dm(PRAZO_INI)+').':'Sem dado nestes dias.')+'</div>'; return; }
+    var mx=all.length? Math.max.apply(null,all) : 1, topo, passo;
+    if(mm.un==='%'){ topo=100; passo=25; } else { passo=passoBom(mx/4); if(mm.un==='n' && passo<1) passo=1; topo=Math.max(passo,Math.ceil(mx/passo)*passo); }
+    var W=760,H=230,Lp=(mm.un==='R$'||mm.un==='R$c')?62:40,R=10,T=10,B=24, xw=(W-Lp-R)/Math.max(ds.length-1,1);
+    var x=function(i){ return Lp+i*xw; }, y=function(val){ return T+(H-T-B)*(1-val/topo); };
+    var s=['<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(mm.r)+' por dia">'];
+    for(var g=0; g<=topo+1e-9; g+=passo) s.push('<line class="gl" x1="'+Lp+'" x2="'+(W-R)+'" y1="'+y(g)+'" y2="'+y(g)+'"/><text class="ax" x="'+(Lp-6)+'" y="'+(y(g)+4)+'" text-anchor="end">'+rotEixo(g,mm.un)+'</text>');
+    ds.forEach(function(d,i){ if(P.D.indexOf(d)>=0) s.push('<rect class="sel" x="'+(x(i)-xw/2)+'" y="'+T+'" width="'+xw+'" height="'+(H-T-B)+'"/>'); });
+    series.forEach(function(se){
+      var seg=[], segs=[];
+      se.v.forEach(function(val,i){ if(val==null){ if(seg.length) segs.push(seg); seg=[]; } else seg.push(x(i)+','+y(val)); });
+      if(seg.length) segs.push(seg);
+      segs.forEach(function(p){ if(p.length>1) s.push('<polyline fill="none" stroke="'+COR[se.l]+'" stroke-width="2.2" stroke-linejoin="round" points="'+p.join(' ')+'"/>'); });
+      se.v.forEach(function(val,i){ if(val!=null) s.push('<circle cx="'+x(i)+'" cy="'+y(val)+'" r="2.6" fill="'+COR[se.l]+'"/>'); });
+    });
+    ds.forEach(function(d,i){ var dd=dt(d); if(dd.getDay()===1 || i===ds.length-1) s.push('<text class="ax" x="'+x(i)+'" y="'+(H-6)+'" text-anchor="middle">'+dm(d)+'</text>'); });
+    s.push('</svg>');
+    var leg='<div class="leg">'+Ls.map(function(l){ return '<span style="--c:'+COR[l]+'">'+esc(nomeL(l))+'</span>'; }).join('')+'<span style="--c:transparent">sem linha = loja fechada ou sem medida</span></div>';
+    document.getElementById('graf').innerHTML=s.join('')+leg;
+  }
+
+  // ---------- tabela ----------
+  function renderTabela(){
+    var P=periodo(st.p), multi=P.D.length>1 && P.D[0]!=='H', L0=Lsel();
+    var ds=(multi ? P.D.filter(function(d){ return idx[d] && d>=PRIMEIRO; }) : dias.slice(-21)).slice().reverse();
+    var TODAS={cancel:1,c_loja:1,parciais:1,reclam:1,chegou_tarde:1,pausados:1};   // erros contam mesmo em dia sem venda no Saipos
+    document.getElementById('tTab').innerHTML=(multi?'Dia a dia · '+esc(P.rot):'Últimos 21 dias')+(st.loja==='t'?' · todas as lojas somadas':' · '+esc(nomeL(st.loja)));
+    var col=(DONO?[['vendido','Vendido'],['ticket','Ticket']]:[]).concat([['pedidos','Pedidos'],['prazo','No prazo'],['atr30','30+ min'],['cancel','Cancelados'],['c_loja','Culpa loja'],['reclam','Reclamações'],['pausados','Pausados'],['chegou_tarde','Chegou tarde']]);
+    col=col.concat([['parciais','Devolvidos'],['tz_coz','Cozinha'],['tz_tot','Total'],['er_coz','Erros coz.'],['er_del','Erros deliv.']]);
+    var h='<thead><tr><th>Dia</th>'+col.map(function(c){ return '<th>'+c[1]+'</th>'; }).join('')+'</tr></thead><tbody>';
+    if(multi && ds.length){   // total do período no topo
+      h+='<tr class="on"><td><b>Total</b></td>'+col.map(function(c){
+        var C=[]; ds.forEach(function(d){ L0.forEach(function(l){ if(TODAS[c[0]] || abriu(d,l)) C.push([d,l]); }); });
+        var a = c[0]==='pausados' ? null : aggC(c[0],C);
+        return '<td class="num"><b>'+fmt(a,M[c[0]].un)+'</b></td>';
+      }).join('')+'</tr>';
+    }
+    ds.forEach(function(d){
+      var L=L0.filter(function(l){ return abriu(d,l); });
+      h+='<tr><td>'+rot(d)+(FERIADO[d]?' · feriado':'')+'</td>'+col.map(function(c){
+        var Lx = TODAS[c[0]] ? L0 : L;
+        var a = Lx.length ? M[c[0]].f(d,Lx) : null;
+        return '<td class="num '+(a==null||a===0?'z':'')+'">'+fmt(a,M[c[0]].un)+'</td>';
+      }).join('')+'</tr>';
+    });
+    document.getElementById('tabela').innerHTML=h+'</tbody>';
+  }
+
+  // ---------- fim + resumo para copiar ----------
+  function renderFim(){
+    document.getElementById('fim').innerHTML=
+      (DONO ? '<div><b>Versão do dono:</b> com valores em R$ (Saipos, só entregas, sem os cancelados). Quem não é dono abre a mesma tela sem nenhum R$ (o servidor nem manda). O botão "Escolher o mês" mostra qualquer mês do histórico contra o mês anterior, dia com dia.</div>'
+            : '<div><b>Sem valores em dinheiro:</b> esta tela mostra só quantidades, tempos e porcentagens.</div>')+
+      '<div><b>Ao vivo:</b> com a tela aberta e visível, ela pergunta ao banco de minuto em minuto (o banco remonta o placar de minuto em minuto enquanto as lojas funcionam). Com a aba escondida ela para de perguntar e volta quando a aba aparece. O selo no topo diz a hora em que o banco montou o placar; as bolinhas dizem quando cada fonte foi lida (verde = no ritmo esperado, amarelo = um pouco atrasada, vermelho = a leitura atrasou ou falhou, com a hora da falha; cinza = fora do horário de leitura daquela fonte, ou fonte de mensagens, como o chat, em que a hora é a da última mensagem e não a de uma leitura).</div>'+
+      '<div><b>Tempos (API do iFood, desde '+esc(EXTRA_INI?dm(EXTRA_INI):'—')+'):</b> Cozinha = do pedido no Saipos até apertarem PRONTO no Saipos (itens de mais de 30 s; bebida feita na hora fica fora). Parado pronto na estufa = do PRONTO até o pedido sair. Na loja = do pedido até sair. Entrega = da saída até a entrega (código na porta; sem código, a baixa até 90 min depois). Total = do pedido até a entrega. Menos é melhor. O número grande é o tempo do meio: metade dos pedidos levou menos que isso. "9 em cada 10 em até X" quer dizer que 9 de cada 10 pedidos levaram X ou menos. Com várias lojas ou vários dias, cada loja e cada dia pesam pelo número de pedidos. Tempo que sobe aparece em vermelho.</div>'+
+      '<div><b>Erros (regra de exemplo, configurável):</b> 🥤 Delivery = bebida e sobremesa (faltou ou veio errada). 🍳 Cozinha = todo o resto ligado à comida (errado ou trocado, adicional, faltou comida, cru, queimado, ruim, porção, estragado, acabou, embalagem vazou, frio). ❓ A classificar = sem item e sem texto que diga o item (ninguém chuta). Fora = não é erro da casa (unidade errada, pedido duplicado, cliente esqueceu de pedir, endereço). Pedido com item dos dois lados conta um erro em cada lado. Fontes: Gestor do iFood, negociação e chat do iFood, cancelados por culpa da casa e reclamação de item na API do iFood.</div>'+
+      '<div><b>Comparação de cada número:</b> Hoje (desde as 5h) contra ontem até a mesma hora; Ontem contra anteontem; Semana (de segunda até ontem) contra os mesmos dias da semana anterior; Mês (do dia 1 até ontem) contra os mesmos dias do mês anterior. A conta é dia com dia e só com a loja que vendeu nos dois dias: se uma loja estava fechada de um lado, ela sai da comparação e o rodapé avisa ("só '+esc(CURTO[LOJAS[0]]||'')+'"). O "O que melhorar" compara com o normal do mesmo dia da semana, para não dar alarme falso em dia da semana que costuma ser fraco ou com loja fechada.</div>'+
+      '<div><b>Pedidos:</b> Saipos, só entregas. <b>No prazo (quadro de cima):</b> hora da entrega contra a hora prometida ao cliente; nos dias com a API do iFood'+(EXTRA_INI?' (desde '+esc(dm(EXTRA_INI))+')':'')+' é a mesma conta do ✅ Prazo (só entregues); antes disso, pelo Gestor do iFood. O rodapé de cada número diz a fonte. <b>Cancelados:</b> nos dias com a API do iFood, a mesma conta do 🚫 Cancelados (API e Saipos; no Hoje, ontem cortado na mesma hora); antes disso, Saipos e Gestor do iFood. Os motivos (atraso, pedido errado, item em falta, motoboy) vêm do Saipos e do Gestor. <b>Reclamações:</b> pedidos de cancelamento, reembolso ou nova previsão abertos pelo cliente no iFood.</div>'+
+      '<div><b>Fora do placar:</b> tempo de loja fechada no iFood (o sistema guarda só a situação de agora) e Selo Super'+superTxt()+'.</div>'+
+      '<div class="copia"><div><button class="mini" id="copiar" type="button">Copiar resumo de '+esc(rot(ONTEM))+'</button> <span id="copiado"></span></div><textarea id="copiaTxt" readonly hidden aria-label="Resumo para copiar"></textarea></div>';
+    document.getElementById('copiar').addEventListener('click',copiarResumo);
+  }
+  // Selo Super: só diz "leitura parada desde" se o frescor do placar trouxer a fonte parada (a data vem do banco, nunca digitada)
+  function superTxt(){ var f=(D.frescor||[]).filter(function(x){ return Array.isArray(x) && /super/i.test(String(x[0])); })[0]; return f && f[2] && f[2]!=='OK' && /^\d{4}-\d{2}-\d{2}/.test(String(f[1])) ? ' (leitura parada desde '+esc(dm(String(f[1]).slice(0,10)))+')' : ''; }
+  function semAcento(s){ return String(s).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[–—]/g,'-').replace(/\s+/g,' ').trim(); }
+  function resumoTexto(){
+    var d=ONTEM, a0=addDias(d,-1), L=LOJAS.filter(function(l){ return abriu(d,l); });
+    var atr=LOJAS.map(function(l){ var a=saiposAtrasado(d,l); return a? CURTO[l]+' (iFood '+a.api+' pedidos, Saipos '+a.sp+')' : null; }).filter(Boolean);
+    var fechadas=LOJAS.filter(function(l){ return !abriu(d,l) && !saiposAtrasado(d,l); });
+    var p=[];
+    if(atr.length) p.push('ATENCAO: o Saipos ainda nao trouxe o dia todo de '+atr.join(' e ')+'; numeros de pedido incompletos.');
+    p.push('PLACAR DO DELIVERY'+(DONO?' (DONO)':'')+' - '+rot(d)+' (montado '+dm(D.gerado.slice(0,10))+' '+D.gerado.slice(11,16)+'; antes = '+rot(a0)+'):');
+    if(!L.length){ p.push('nenhuma loja com entrega no Saipos.'); }
+    else {
+      var P=periodo('ontem');
+      function an(m){ var c=compara(m,P,L,LOJAS), un=M[m].un; if(c.fech) return ' (antes sem venda)'; if(c.a==null || c.b==null) return ''; if(!c.nota) return ' (antes '+fmtRef(c.b,un)+')'; return fmt(c.a,un)===fmt(c.a0,un) ? ' (antes '+fmtRef(c.b,un)+', '+c.nota+')' : ' ('+c.nota+': '+fmtRef(c.a,un)+' contra '+fmtRef(c.b,un)+' antes)'; }
+      var vd = DONO ? M.vendido.f(d,L) : null;
+      if(vd!=null) p.push(fmt(vd,'R$')+' em '+fmt(M.pedidos.f(d,L),'n')+' pedidos'+an('vendido')+': '+L.map(function(l){ return CURTO[l]+' '+fmt(M.vendido.f(d,[l]),'R$'); }).join(' / ')+(fechadas.length?'; '+fechadas.map(function(l){ return CURTO[l]; }).join(' e ')+' sem venda':'')+'. Ticket '+fmt(M.ticket.f(d,L),'R$c')+'.');
+      else p.push(fmt(M.pedidos.f(d,L),'n')+' pedidos'+an('pedidos')+': '+L.map(function(l){ return CURTO[l]+' '+fmt(M.pedidos.f(d,[l]),'n'); }).join(' / ')+(fechadas.length?'; '+fechadas.map(function(l){ return CURTO[l]; }).join(' e ')+' sem venda':'')+'.');
+      var pz=M.prazo.f(d,L); if(pz!=null) p.push('No prazo '+fmt(pz,'%')+an('prazo')+'.'); else p.push('No prazo '+semMedidaTxt(P,L).replace(/^sem medida: (.*)$/,'sem medida ($1)')+'.');
+      var vcw = DONO ? M.v_cancel.f(d,L) : null;
+      p.push('Cancelados '+fmt(M.cancel.f(d,L),'n')+(vcw?', '+fmt(vcw,'R$'):'')+an('cancel')+', '+fmt(M.c_loja.f(d,L),'n')+' culpa da loja.');
+      var LT=LOJAS, er=[];
+      var mot=[['c_atraso','atraso','atrasos'],['c_errado','pedido errado','pedidos errados'],['c_item','item em falta','itens em falta'],['c_moto','falta de motoboy','falta de motoboy']].map(function(e){ var n=M[e[0]].f(d,LT); return n ? pl(n,e[1],e[2]) : null; }).filter(Boolean);
+      if(mot.length) er.push('culpa da loja por '+mot.join(', '));
+      var np=M.parciais.f(d,LT), ns=M.sacola.f(d,LT), vdv=DONO ? M.v_devolvido.f(d,LT) : null;
+      if(np) er.push(pl(np,'item devolvido','itens devolvidos')+(ns?' ('+(ns===np?(np===1?'esquecido':'todos esquecidos'):pl(ns,'esquecido','esquecidos'))+' na sacola)':'')+(vdv?', '+fmt(vdv,'R$c'):''));
+      var nr=M.r_pedido.f(d,LT); if(nr) er.push(pl(nr,'reclamacao','reclamacoes')+' da comida ou de item faltando');
+      if(er.length) p.push('ERROS: '+er.join('; ')+'.');
+      var rc=M.reclam.f(d,L); if(rc!=null) p.push('Reclamacoes iFood '+fmt(rc,'n')+an('reclam')+'.');
+    }
+    var a=juntaAval(acoes(d)).filter(function(x){ return x.n!=='info' && x.o!==0 && x.o!==1; });
+    if(a.length){ p.push('MELHORAR HOJE: '+a.slice(0,4).map(function(x,i){ return (i+1)+') '+x.c; }).join('; ')+(a.length>4?'; e mais '+(a.length-4):'')+'.'); }
+    else p.push('Nada fora do normal.');
+    var t=semAcento(p.join(' '));
+    var cauda=' Ver tudo: '+PORTAL_CFG.url('index.html')+'#placar';
+    if(t.length>800-cauda.length) t=t.slice(0,800-cauda.length-3).replace(/\s+\S*$/,'')+'...';
+    return t+cauda;
+  }
+
+  // ---------- copiar o resumo (sem envio: quem copia cola onde quiser) ----------
+  function copiarResumo(){
+    var s0=st.loja; st.loja='t'; var txt=resumoTexto(); st.loja=s0;
+    var ok=document.getElementById('copiado'), ta=document.getElementById('copiaTxt');
+    function mostra(){ ta.hidden=false; ta.value=txt; ta.focus(); ta.select(); ok.textContent='selecione e copie o texto abaixo'; }
+    try{ navigator.clipboard.writeText(txt).then(function(){ ok.textContent='copiado'; ta.hidden=true; }, mostra); }catch(e){ mostra(); }
+  }
+  // ---------- "Hoje" ao vivo: a porta placar_delivery_portal (parte 'vivo') entrega o hoje e os blocos novos ----------
+  function mostraVivo(msg){ var el=document.getElementById('vivo'); el.hidden=!msg; el.innerHTML=msg||''; }
+  function recebeVivo(r){
+    if(!r || !r.hoje){ mostraVivo('A leitura ao vivo veio vazia. Aparece a última foto boa.'); return false; }
+    if(!carregaHoje(r.hoje)){ mostraVivo('A leitura ao vivo veio incompleta. Aparece a última foto boa.'); return false; }
+    var vivoOk=carregaVivo(r);
+    if(hojeVale() && AUTO_ONTEM){ st.p='hoje'; AUTO_ONTEM=false; }
+    if(!hojeVale()){ if(st.p==='hoje'){ st.p='ontem'; AUTO_ONTEM=true; } mostraVivo('O banco ainda não tem a leitura de hoje (o dia começa às 5h; a última leitura é de '+esc(dm(HJ.dia))+' às '+esc(HJ.ate)+').'); }
+    else mostraVivo(vivoOk ? '' : 'Leitura ao vivo incompleta — os números de hoje podem estar velhos. A tela tenta de novo no próximo minuto.');
+    renderFonte(); tudo();
+    return true;
+  }
+
+  // ---------- orquestra ----------
+  function tudo(){
+    try{ localStorage.setItem(MEMKEY,JSON.stringify({loja:st.loja,g:st.g,p:st.p})); }catch(e){}
+    renderCtl(); renderVivoBar(); renderPlacar(); renderAgora(); renderTempos(); renderPrazoApi(); renderCancApi(); renderErrosApi(); renderAcoes(); renderErros(); renderLojas(); renderDet(); renderGsel(); renderGraf(); renderTabela();
+  }
+  [].forEach.call(document.querySelectorAll('#lojasel .chip'),function(b){ b.addEventListener('click',function(){ st.loja=b.dataset.l; verTodas=false; tudo(); }); });
+  document.getElementById('mesSel').addEventListener('change',function(e){ var ym=e.target.value; if(!ym) return; st.p = ym===ONTEM.slice(0,7) ? 'mes' : 'm:'+ym; AUTO_ONTEM=false; tudo(); });
+
+  renderFonte(); renderFim(); tudo();
+  // "igual": nada mudou no banco, mas as idades ("há N min", bolinhas das fontes) andam
+  function refresca(){ renderFonte(); tudo(); }
+  return { vivo: recebeVivo, aviso: mostraVivo, selo: renderVivoBar, refresca: refresca };
+}
+
+/* ===== porta única do portal (molde: fila/index.html) =====
+   Ao abrir: placar_delivery_portal {parte:'historico'} (o placar guardado + as linhas da API do iFood por dia e loja).
+   Depois: {parte:'vivo', ja_tenho} de 60 em 60 s, só com a aba visível (aba escondida = relógio parado; volta quando aparece).
+   {"igual":true} = nada mudou no banco desde a última leitura. */
+const SB=PORTAL_CFG.rest;
+const KEY=PORTAL_CFG.chave;
+const CDMMODS=['placar'];
+const MINIMO_MS=60000;   /* regra do portal: nunca buscar no banco com menos de 60 s */
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'placar'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+async function porta(nome,dados){
+  const r=await fetch(SB+'rpc/'+nome,{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:cdmTok(),p_dados:dados})});
+  if(!r.ok){let m='';try{const j=await r.json();m=(j&&(j.message||j.hint))||''}catch(e){}throw new Error(m||('porta '+r.status))}
+  return await r.json();
+}
+
+/* junta o histórico do placar com as linhas da tabela placar_delivery_dia_extra: cada chave da API vira "vivo.<nome>"
+   na mesma linha dia × loja. Linha da API sem dia/loja no placar fica de fora (o placar da manhã ainda não fechou o dia). */
+function mesclaExtra(placar, extra){
+  if(!placar || !Array.isArray(placar.linhas) || !Array.isArray(placar.chaves)) return placar||null;
+  const ek=(extra && Array.isArray(extra.chaves)) ? extra.chaves : [], n0=placar.chaves.length;
+  const out=Object.assign({}, placar);
+  out.chaves=placar.chaves.concat(ek.map(function(k){return 'vivo.'+k}));
+  const pos={};
+  out.linhas=placar.linhas.map(function(r,i){
+    pos[r[0]+'|'+r[1]]=i;
+    const a=(Array.isArray(r[2])?r[2]:[]).slice(0,n0); while(a.length<n0) a.push(null);
+    for(let j=0;j<ek.length;j++) a.push(null);
+    return [r[0],r[1],a];
+  });
+  let fora=0;
+  ((extra && extra.linhas) || []).forEach(function(e){
+    const i=pos[e[0]+'|'+e[1]]; if(i==null){ fora++; return; }
+    const vs=Array.isArray(e[2])?e[2]:[];
+    for(let j=0;j<ek.length;j++) out.linhas[i][2][n0+j]=(vs[j]===undefined?null:vs[j]);
+  });
+  out.extra_fora=fora;
+  return out;
+}
+
+let PLACAR=null, QUANDO=null, ULT=0, T=null, OCUPADO=false, LIBERADO=false, DIA0=null;
+/* dia de operação (05h às 05h, hora local) e a hora de agora em minutos */
+function relogio(){
+  try{ const p={}; new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).forEach(function(x){p[x.type]=x.value});
+    const d=new Date(Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute)); const op=new Date(d.getTime()-5*3600000);
+    return {dia:op.toISOString().slice(0,10), min:(+p.hour)*60+(+p.minute)}; }catch(e){ return {dia:'',min:0}; }
+}
+function erroTela(msg){
+  const el=document.getElementById('placar');
+  el.className='placar';
+  el.innerHTML='<div class="pl" style="grid-column:1/-1"><div class="k">Placar do Delivery</div><div class="v cinza">Sem leitura</div><div class="s">Não deu para abrir o placar agora ('+String(msg).replace(/[&<>"]/g,'')+'). A tela tenta de novo sozinha em 1 minuto.</div></div>';
+  document.getElementById('fonte').textContent='';
+}
+async function abreHistorico(){
+  ULT=Date.now();
+  let h=null;
+  try{ h=await porta('placar_delivery_portal',{parte:'historico'}); }
+  catch(e){ erroTela((e&&e.message)||'erro'); return false; }
+  if(!h || !h.placar){ erroTela('o banco ainda não tem o histórico guardado'); return false; }
+  window.PLACAR_DELIVERY=mesclaExtra(h.placar, h.extra);
+  DIA0=relogio().dia;
+  PLACAR=placarIniciar(window.PLACAR_DELIVERY, h.dono===true);
+  return !!PLACAR;
+}
+async function puxaVivo(){
+  if(!PLACAR || OCUPADO) return;
+  OCUPADO=true; ULT=Date.now();
+  try{
+    const r=await porta('placar_delivery_portal',{parte:'vivo',ja_tenho:QUANDO});
+    if(r && r.igual){ PLACAR.selo({conf:new Date()}); PLACAR.refresca(); }
+    else if(r){ if(r.quando!=null) QUANDO=r.quando; PLACAR.vivo(r); PLACAR.selo({conf:new Date()}); }
+  }catch(e){ PLACAR.selo({erro:(e&&e.message)||'erro'}); }
+  finally{ OCUPADO=false; }
+}
+async function tick(){
+  if(document.hidden) return;
+  /* tela aberta de um dia para o outro: depois das 5h40 (o placar da manhã sai às 5h30) recarrega uma vez para trazer o "ontem" novo */
+  const c=relogio();
+  if(PLACAR && DIA0 && c.dia && c.dia!==DIA0 && c.min>=340){ location.reload(); return; }
+  if(!PLACAR){ if(await abreHistorico()) await puxaVivo(); return; }
+  await puxaVivo();
+}
+function liga(){ if(T || document.hidden) return; T=setInterval(tick,MINIMO_MS); }
+function desliga(){ if(T){ clearInterval(T); T=null; } }
+document.addEventListener('visibilitychange',function(){
+  if(document.hidden){ desliga(); return; }
+  if(!LIBERADO) return;
+  if(Date.now()-ULT>=MINIMO_MS) tick();
+  liga();
+});
+document.getElementById('atualizar').addEventListener('click',function(){
+  const b=this, falta=MINIMO_MS-(Date.now()-ULT);
+  if(falta>0 || OCUPADO){
+    const txt=b.textContent; b.disabled=true;
+    b.textContent='Em dia · a próxima leitura sai sozinha'+(falta>0?' em '+Math.ceil(falta/1000)+' s':'');
+    setTimeout(function(){ b.textContent=txt; b.disabled=false; },4000);   /* só o texto do botão, sem rede */
+    return;
+  }
+  desliga(); tick(); liga();
+});
+cdmGuarda().then(async function(ok){
+  if(!ok) return;
+  LIBERADO=true;
+  if(await abreHistorico()) await puxaVivo();
+  liga();
+});
+</script>
+<script src="../assets/portal.js?v=3"></script>
+</body>
+</html>

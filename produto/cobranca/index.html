@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<script src="../config.js" data-demo="telas/conferencia.js telas/cobranca.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Cobrança na Porta · Portal de Gestão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--s0:#0b0e14;--s1:#141922;--s2:#1b2230;--line:#242d3d;--text:#e8edf4;--muted:#8b95a5;--brand:#E0A81C;--brand-ink:#111110;
+--ok:#37b46c;--bad:#e05252;--warn:#e8833a;--info:#4a90d9;--neutro:#6b7686}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1250px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:12.5px;margin-top:3px;line-height:1.5}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:16px}
+.top .rt{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+button.b.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.abas{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.dianav{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px;background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:9px 12px}
+.dianav input[type=date]{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:7px 10px;font-size:13px;font-family:inherit}
+.dianav .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:700;margin-right:2px}
+.res{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.k{background:var(--s1);border:1px solid var(--line);border-left:4px solid var(--cc,var(--neutro));border-radius:12px;padding:11px 14px;min-width:170px}
+.k .n{font-size:22px;font-weight:800;line-height:1.1}
+.k .t{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:3px;font-weight:700}
+.k .v{font-size:12px;color:var(--text);margin-top:4px}
+.wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:900px}
+th{background:var(--s2);text-align:left;padding:9px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);white-space:nowrap}
+td{padding:9px 10px;border-top:1px solid var(--line);vertical-align:top}
+tr:hover td{background:var(--s1)}
+td.n{text-align:right;white-space:nowrap}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;color:#fff}
+.chips{margin-top:5px;display:flex;gap:4px;flex-wrap:wrap}
+.chip{display:inline-block;padding:2px 7px;border-radius:6px;font-size:10.5px;font-weight:600;background:var(--s2);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.mot{color:var(--muted);font-size:11.5px;margin-top:3px;line-height:1.45}
+.nome{font-weight:600}
+.load,.vazio{padding:26px;text-align:center;color:var(--muted)}
+.aviso{margin-top:16px;background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:13px 15px;font-size:12.5px;color:var(--muted);line-height:1.6}
+.aviso b{color:var(--text)}
+</style>
+</head>
+<body>
+<script>try{if(/[?&]embed=/.test(location.search))document.documentElement.classList.add('embed')}catch(e){}</script>
+<style>html.embed .top>div:first-child{display:none}html.embed body{padding-top:6px}</style>
+<div class="top">
+  <div>
+    <h1>🧾 Cobrança na Porta</h1>
+    <div class="sub">Entrega paga na porta sem dinheiro correspondente. <b>Informação, não acusação</b> — só é levado à equipe o caso já conferido em todas as fontes.</div>
+  </div>
+  <div class="rt">
+    <button class="b on" id="d7">Semana</button>
+    <button class="b" id="d15">15 dias</button>
+    <button class="b" id="d30">30 dias</button>
+  </div>
+</div>
+
+<div class="dianav">
+  <span class="lbl">Um dia só</span>
+  <button class="b" id="diaAnt">◀ dia anterior</button>
+  <input type="date" id="diaSel">
+  <button class="b" id="diaProx">dia seguinte ▶</button>
+  <button class="b" id="diaLimpa">ver o período todo</button>
+  <span class="mot" id="diaTxt"></span>
+</div>
+
+<div class="abas">
+  <button class="b on" id="abaFila">🔎 Esperando resposta</button>
+  <button class="b" id="abaConf">✅ Já conferido</button>
+  <button class="b" id="abaArq">🗄 Comandas antigas</button>
+</div>
+
+<div class="res" id="res"></div>
+<div id="app"><div class="load">Carregando…</div></div>
+
+<div class="aviso" id="rodape"></div>
+
+<script>
+const SB=PORTAL_CFG.rest;
+const KEY=PORTAL_CFG.chave;
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const dinheiro=v=>'R$ '+Number(v||0).toFixed(2).replace('.',',');
+
+var DIAS=7, DIA=null, ABA='fila', D=null;
+
+const CORRES={'cobrado':'var(--ok)','dinheiro':'var(--ok)','balcao':'var(--neutro)','canhoto':'var(--warn)','nao cobrou':'var(--bad)'};
+
+function tok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+
+async function porta(){
+  const r=await fetch(SB+'rpc/cobranca_consulta',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:tok(),p_dados:(DIA?{dia:DIA}:{dias:DIAS})})});
+  if(!r.ok)throw new Error('nao consegui ler a cobranca na porta ('+r.status+')');
+  return await r.json();
+}
+
+function soma(l){var t=0;(l||[]).forEach(function(x){t+=Number(x.valor||0)});return t}
+
+function chips(l){
+  if(!l||!l.length)return '<div class="mot">ninguém procurou ainda</div>';
+  var h='<div class="chips">';
+  l.forEach(function(f){h+='<span class="chip">'+esc(f)+'</span>'});
+  return h+'</div>';
+}
+
+function pintaResumo(){
+  if(!D){$('res').innerHTML='';return}
+  var b=[
+    {t:'Esperando resposta', c:'var(--bad)',    l:D.fila},
+    {t:'Já conferido',       c:'var(--ok)',     l:D.conferido},
+    {t:'Comandas antigas',   c:'var(--neutro)', l:D.arquivado}
+  ];
+  var h='';
+  b.forEach(function(x){
+    var l=x.l||[];
+    h+='<div class="k" style="--cc:'+x.c+'">'
+      +'<div class="n" style="color:'+x.c+'">'+l.length+'</div>'
+      +'<div class="t">'+esc(x.t)+'</div>'
+      +'<div class="v">'+dinheiro(soma(l))+'</div></div>';
+  });
+  $('res').innerHTML=h;
+}
+
+function linhaBase(r){
+  return '<td><b>'+esc(r.dia)+'</b><div class="mot">'+esc(r.unidade)+'</div></td>'
+       + '<td>#'+esc(r.pedido)+'</td>'
+       + '<td><span class="nome">'+esc(r.entregador)+'</span></td>';
+}
+
+function pintaFila(){
+  var l=D.fila||[];
+  if(!l.length)return '<div class="vazio">Nenhuma entrega esperando resposta '+periodoTxt()+'.</div>';
+  var h='<div class="wrap"><table><thead><tr><th>Dia</th><th>Pedido</th><th>Entregador</th><th>Meio</th><th>Cliente</th><th>Hora</th><th class="n">Valor</th><th>Situação · onde já procuramos</th></tr></thead><tbody>';
+  l.forEach(function(r){
+    var sel=r.conferido?'<span class="pill" style="background:var(--warn)">conferido, aguardando explicação</span>'
+            :'<span class="pill" style="background:var(--neutro)">só detectado</span>';
+    h+='<tr>'+linhaBase(r)
+      +'<td>'+esc(r.meio)+'</td>'
+      +'<td>'+esc(r.cliente)+'</td>'
+      +'<td>'+esc(r.hora)+'</td>'
+      +'<td class="n"><b>'+dinheiro(r.valor)+'</b></td>'
+      +'<td>'+sel+'<div class="mot">'+esc(r.situacao)+'</div>'+chips(r.olhamos)+'</td></tr>';
+  });
+  return h+'</tbody></table></div>';
+}
+
+function pintaConf(){
+  var l=D.conferido||[];
+  if(!l.length)return '<div class="vazio">Nada conferido no periodo.</div>';
+  var h='<div class="wrap"><table><thead><tr><th>Dia</th><th>Pedido</th><th>Entregador</th><th class="n">Valor</th><th>Deu no quê · onde procuramos</th><th>Quem · quando</th></tr></thead><tbody>';
+  l.forEach(function(r){
+    var cor=CORRES[r.resultado]||'var(--neutro)';
+    h+='<tr>'+linhaBase(r)
+      +'<td class="n">'+dinheiro(r.valor)+'</td>'
+      +'<td><span class="pill" style="background:'+cor+'">'+esc(r.resultado)+'</span>'+chips(r.olhamos)+'</td>'
+      +'<td>'+esc(r.quem)+'<div class="mot">'+esc(r.quando)+'</div></td></tr>';
+  });
+  return h+'</tbody></table></div>';
+}
+
+function pintaArq(){
+  var l=D.arquivado||[];
+  if(!l.length)return '<div class="vazio">Nenhuma comanda antiga arquivada no periodo.</div>';
+  var h='<div class="wrap"><table><thead><tr><th>Dia</th><th>Pedido</th><th>Entregador</th><th class="n">Valor</th><th>Arquivado em</th></tr></thead><tbody>';
+  l.forEach(function(r){
+    h+='<tr>'+linhaBase(r)
+      +'<td class="n">'+dinheiro(r.valor)+'</td>'
+      +'<td>'+esc(r.arquivado_em)+'</td></tr>';
+  });
+  return h+'</tbody></table></div>';
+}
+
+function pinta(){
+  if(!D){$('app').innerHTML='<div class="load">Carregando…</div>';return}
+  var h='';
+  if(ABA==='fila')h=pintaFila();
+  else if(ABA==='conf')h=pintaConf();
+  else h=pintaArq();
+  $('app').innerHTML=h;
+}
+
+function rodape(){
+  if(!D)return;
+  $('rodape').innerHTML='<b>Como isto funciona.</b> Todo dia de manhã (horário de exemplo, configurável) a varredura roda sozinha e procura o dinheiro de cada entrega paga na porta, nestas fontes: iFood, maquininha (Rede), Pix e extrato, cofre, Saipos e GPS. As etiquetas cinza em cada linha mostram onde já se procurou naquele caso. Só o caso já conferido em todas as fontes é levado à equipe; caso apenas detectado nunca vai.'
+   +'<br><b>O que esta tela não mostra:</b> quando alguém explica um caso, a conferência precisa ser refeita para o resultado mudar aqui. A explicação por extenso de cada conferência também não aparece: ela pode conter nome e endereço de cliente, e por isso não vai para a tela.'
+   +'<br>Mostrando '+periodoTxt()+'. Lido em '+esc(D.agora)+'.';
+}
+
+function periodoTxt(){
+  if(!D)return '';
+  if(D.dia_texto)return 'o dia '+esc(D.dia_texto);
+  return 'de '+esc(D.de_texto)+' a '+esc(D.ate_texto)+' ('+D.dias+' dias)';
+}
+function diaBase(){
+  if(DIA)return DIA;
+  if(D&&D.hoje)return D.hoje;
+  return new Date(Date.now()-3*36e5).toISOString().slice(0,10);
+}
+function pulaDia(n){
+  var d=new Date(diaBase()+'T12:00:00');
+  d.setDate(d.getDate()+n);
+  var novo=d.toISOString().slice(0,10);
+  var hoje=(D&&D.hoje)?D.hoje:novo;
+  if(novo>hoje)novo=hoje;
+  DIA=novo; $('diaSel').value=novo;
+  pintaBotoes(); carrega();
+}
+function pintaBotoes(){
+  ['d7','d15','d30'].forEach(function(o){
+    var lig=(!DIA)&&((o==='d7'&&DIAS===7)||(o==='d15'&&DIAS===15)||(o==='d30'&&DIAS===30));
+    $(o).className='b'+(lig?' on':'');
+  });
+  $('diaTxt').textContent = DIA ? 'mostrando um dia só' : '';
+}
+
+async function carrega(){
+  $('app').innerHTML='<div class="load">Carregando…</div>';
+  try{
+    D=await porta();
+    if(D&&D.dia&&!$('diaSel').value)$('diaSel').value=D.dia;
+    if(D&&D.hoje)$('diaSel').max=D.hoje;
+    pintaResumo();pinta();rodape();
+  }catch(e){
+    $('app').innerHTML='<div class="vazio">'+esc(e.message)+'</div>';
+  }
+}
+
+function boot(){
+  [['d7',7],['d15',15],['d30',30]].forEach(function(p){
+    $(p[0]).onclick=function(){
+      DIAS=p[1]; DIA=null; $('diaSel').value='';
+      pintaBotoes();
+      carrega();
+    };
+  });
+  $('diaAnt').onclick=function(){pulaDia(-1)};
+  $('diaProx').onclick=function(){pulaDia(1)};
+  $('diaSel').onchange=function(){DIA=this.value||null;pintaBotoes();carrega()};
+  $('diaLimpa').onclick=function(){DIA=null;$('diaSel').value='';pintaBotoes();carrega()};
+  var abas=[['abaFila','fila'],['abaConf','conf'],['abaArq','arq']];
+  abas.forEach(function(p){
+    $(p[0]).onclick=function(){
+      ABA=p[1];
+      abas.forEach(function(o){$(o[0]).className='b'+(o[0]===p[0]?' on':'')});
+      pinta();
+    };
+  });
+  carrega();
+}
+
+/* ===== porta unica do portal ===== */
+const CDMMODS=['cobranca'];
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
+async function cdmGuarda(){
+  const t=tok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'cobranca'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(ok)boot()});
+</script>
+<script src="../assets/portal.js?v=3"></script>
+</body>
+</html>

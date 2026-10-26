@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../config.js" data-demo="telas/cancelcaixa.js"></script>
+<script src="../assets/chaves.js?v=1"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Cancelamentos no Caixa · Portal de Gestão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/cdm-ui.css?v=4">
+<style>
+/* Cancelamentos no Caixa: mesmo kit visual das telas de qualidade e de cancelamentos */
+.lojas{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 10px}
+.lojas .rot{min-width:64px;margin-right:2px}
+.rot{color:var(--muted);font-size:12px;font-weight:800;letter-spacing:.3px}
+.per .atu{margin-left:auto}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:7px 11px;font-size:13px;font-weight:700}
+.cx{display:block;background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:12px 15px 14px;margin-bottom:12px;overflow:hidden}
+.cx h2{font-family:'Anton',Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:18px;letter-spacing:.02em;margin-bottom:2px}
+.m{color:var(--muted);font-size:12px;margin-top:3px;line-height:1.5}
+.load{color:var(--muted);padding:40px 10px;text-align:center}
+.aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:13px;padding:11px 14px;font-size:13px;line-height:1.5;margin:0 0 12px}
+.aviso.verm{background:rgba(230,103,103,.10);border-color:rgba(230,103,103,.45);color:#ffc4c4}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800;white-space:nowrap}
+.p-bad{background:rgba(230,103,103,.15);color:#ff9a9a}
+.p-warn{background:rgba(201,133,0,.16);color:var(--warn)}
+.p-ok{background:rgba(37,163,95,.15);color:#7fe0aa}
+.p-off{background:var(--s3);color:var(--text2)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-bottom:12px}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:14px 15px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.card.alerta{border-color:rgba(230,103,103,.6)}
+.card .t{font-size:13px;font-weight:800;color:var(--text2)}
+.card .v{font-family:'Anton',Impact,sans-serif;font-weight:400;font-size:40px;line-height:1.05}
+.card .v small{font-family:'Barlow',sans-serif;font-size:14px;color:var(--muted);font-weight:600;margin-left:6px}
+.card .ln{font-size:13px;color:var(--text2);line-height:1.45}
+.card .ln .pill{white-space:normal}
+.rolar{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:8px -15px -14px}
+table.tb{width:100%;border-collapse:collapse;font-size:13.5px}
+table.tb th{text-align:left;color:var(--muted);font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:10px 10px 9px 0;white-space:nowrap;background:var(--s2)}
+table.tb td{padding:9px 10px 9px 0;border-top:1px solid var(--line);vertical-align:top}
+table.tb th:first-child,table.tb td:first-child{padding-left:15px}
+table.tb th:last-child,table.tb td:last-child{padding-right:15px}
+table.tb tr:nth-child(odd)>td{background:rgba(255,255,255,.018)}
+table.tb th.n,table.tb td.n{text-align:right;white-space:nowrap}
+.cd{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+.u{color:var(--muted);font-size:12px}
+.nm2{white-space:nowrap}
+.ed2{background:transparent;border:1px dashed #56554e;color:var(--muted);border-radius:8px;padding:1px 6px;font-size:11.5px;font-weight:700;margin-left:4px}
+.ed2:hover{color:var(--text);border-color:var(--text2)}
+.pistas{display:flex;gap:4px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="top">
+  <div>
+    <h1>🧾 Cancelamentos no Caixa</h1>
+    <div class="placar" id="placar"><span class="pl">carregando…</span></div>
+  </div>
+</div>
+<div id="filtros"></div>
+<div id="app"><div class="load">Carregando…</div></div>
+<div class="rod" id="rod"></div>
+</div>
+<script>
+const SB=PORTAL_CFG.rest;
+const KEY=PORTAL_CFG.chave;
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
+const ehDono=()=>{try{return sessionStorage.getItem('cdm_admin')==='1'}catch(e){return false}};
+function br(v){return (v==null||!ehDono())?'—':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function lembra(k,v){try{localStorage.setItem('cdm_ccx_'+k,v)}catch(e){}}
+function lido(k,p){try{const v=localStorage.getItem('cdm_ccx_'+k);return v==null?p:v}catch(e){return p}}
+
+const LOJAS=(PORTAL_CFG.lojas||[]).map(function(l){return l.nome});
+const PERIODOS=[['hoje','Hoje'],['ontem','Ontem'],['7','7 dias'],['30','30 dias'],['mes','Este mês']];
+const ABAS=[['itens','📋 Itens cancelados'],['quem','👤 Quem cancelou'],['comandas','🧾 Comandas inteiras']];
+let D=null, PER=lido('per','7'), UNI=lido('uni',''), ABA=lido('aba','itens'), BSEQ=0, REG=[];
+if(!PERIODOS.some(function(p){return p[0]===PER}))PER='7';
+if(UNI&&LOJAS.indexOf(UNI)<0)UNI='';
+if(!ABAS.some(function(a){return a[0]===ABA}))ABA='itens';
+
+async function porta(nome,dados){
+  const r=await fetch(SB+'rpc/'+nome,{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:tok(),p_dados:dados})});
+  if(!r.ok){let m='';try{const j=await r.json();m=(j&&(j.message||j.hint))||''}catch(e){}throw new Error(m||('porta '+r.status))}
+  return await r.json();
+}
+
+/* ===== desenho: funções que recebem D e devolvem HTML ===== */
+function dm(s){if(!s)return '';const p=String(s).slice(0,10).split('-');return p.length===3?p[2]+'/'+p[1]:esc(s)}
+function hm(ts){if(!ts)return '';const d=new Date(ts);if(isNaN(d))return '';
+  return d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+function tempo(m){m=Number(m)||0;if(m<120)return m+' min';const h=Math.floor(m/60);return h+' h'+(m%60?' '+(m%60)+' min':'')}
+function quem(tipo,id,nome,uni){
+  if(id==null)return '<span class="u">—</span>';
+  let h='<span class="nm2">'+(nome?esc(nome):'<span class="u">nº '+esc(id)+'</span>')+'</span>';
+  if(D&&D.pode_nomear){
+    const k=REG.length; REG.push({tipo:tipo,id:id,nome:nome||'',uni:uni||''});
+    h+='<button class="ed2" title="Dar ou trocar o nome" onclick="nomeia('+k+')">✎'+(nome?'':' nome')+'</button>';
+  }
+  return h;
+}
+function senhaTxt(s,id,nome,uni){
+  if(s==='outro')return quem('usuario',id,nome,uni);
+  if(s==='propria')return '<span class="pill p-warn">senha do próprio login</span>';
+  return '<span class="pill p-bad">sem senha</span>';
+}
+function caixa(tit,sub,cab,lin){
+  return '<div class="cx"><h2>'+tit+'</h2>'+(sub?'<div class="m">'+sub+'</div>':'')+
+    '<div class="rolar"><table class="tb" data-cdm-sem-nota><tr>'+cab+'</tr>'+lin+'</table></div></div>';
+}
+function vazio(t){return '<div class="cx"><div class="vazio">'+t+'</div></div>'}
+function placar(){
+  let h='<span class="pl">Salão do Saipos · itens tirados da comanda</span>';
+  if(D){
+    h+='<span class="pl">'+(D.de===D.ate?'dia '+dm(D.de):'de '+dm(D.de)+' a '+dm(D.ate))+'</span>';
+    h+='<span class="pl"><b>'+(D.modo==='dono'?'visão completa':'visão da equipe')+'</b></span>';
+  }
+  return h;
+}
+function filtros(){
+  let h='<div class="lojas per"><span class="rot">PERÍODO</span>';
+  PERIODOS.forEach(function(p){h+='<button class="chip'+(PER===p[0]?' on':'')+'" onclick="vaiPer(\''+p[0]+'\')">'+p[1]+'</button>'});
+  h+='<button class="b atu" onclick="boot()" title="Ler de novo">↻ Atualizar</button></div>';
+  if(D&&D.loja_fixa){
+    h+='<div class="lojas"><span class="rot">LOJA</span><span class="chip on">'+esc(D.loja_fixa)+'</span></div>';
+  }else{
+    h+='<div class="lojas"><span class="rot">LOJA</span><button class="chip'+(UNI===''?' on':'')+'" onclick="vaiUni(-1)">🏠 Todas as lojas</button>';
+    LOJAS.forEach(function(l,i){h+='<button class="chip'+(UNI===l?' on':'')+'" onclick="vaiUni('+i+')">'+esc(l)+'</button>'});
+    h+='</div>';
+  }
+  h+='<div class="lojas"><span class="rot">VER</span>';
+  ABAS.forEach(function(a){h+='<button class="chip'+(ABA===a[0]?' on':'')+'" onclick="vaiAba(\''+a[0]+'\')">'+a[1]+'</button>'});
+  return h+'</div>';
+}
+function avisos(){
+  let h=''; const dono=D.modo==='dono';
+  (D.lojas||[]).forEach(function(l){
+    if(l.itens>0&&l.com_senha===0&&l.senha_propria===0)
+      h+='<div class="aviso verm">🔴 <b>'+esc(l.unidade)+':</b> nenhum dos '+l.itens+(l.itens===1?' item cancelado':' itens cancelados')+' neste período passou por senha'+
+        (dono?' ('+br(l.valor_sem_senha)+')':'')+'. Pelos dados, o Saipos desta loja não está pedindo senha para tirar item da comanda — vale conferir nas configurações do Saipos da loja.</div>';
+    else if(l.sem_senha>0)
+      h+='<div class="aviso">🟡 <b>'+esc(l.unidade)+':</b> '+l.sem_senha+(l.sem_senha===1?' item foi cancelado sem senha':' itens foram cancelados sem senha')+
+        (dono?' ('+br(l.valor_sem_senha)+')':'')+'.</div>';
+    if(l.senha_propria>0)
+      h+='<div class="aviso">🟡 <b>'+esc(l.unidade)+':</b> '+l.senha_propria+(l.senha_propria===1?' item foi liberado':' itens foram liberados')+
+        ' com a senha do mesmo login que cancelou'+(dono?' ('+br(l.valor_senha_propria)+')':'')+' — ninguém de fora conferiu.</div>';
+  });
+  return h;
+}
+function cartoes(){
+  let h='<div class="cards">'; const dono=D.modo==='dono'; const jan=D.regras?D.regras.janela_relancado_min:null;
+  (D.lojas||[]).forEach(function(l){
+    const alerta=l.itens>0&&l.com_senha===0&&l.senha_propria===0;
+    h+='<div class="card'+(alerta?' alerta':'')+'"><div class="t">'+esc(l.unidade)+'</div>'+
+      '<div class="v">'+l.itens+'<small>'+(l.itens===1?'item cancelado':'itens cancelados')+'</small></div>';
+    if(l.unidades!=null&&Number(l.unidades)!==l.itens)h+='<div class="ln">'+String(l.unidades).replace('.',',')+' unidades (a conta do Saipos)</div>';
+    if(dono){
+      h+='<div class="ln"><b>'+br(l.valor)+'</b> em itens tirados da comanda</div>';
+      if(l.relancados>0)h+='<div class="ln">sem os relançados: '+br(l.valor_sem_relancados)+'</div>';
+    }
+    if(l.itens>0){
+      h+='<div class="ln">'+(l.com_senha>0?'<span class="pill p-ok">'+l.com_senha+' com senha de outro login</span> ':'')+
+        (l.senha_propria>0?'<span class="pill p-warn">'+l.senha_propria+' com a própria senha</span> ':'')+
+        (l.sem_senha>0?'<span class="pill p-bad">'+l.sem_senha+' sem senha</span>':'')+'</div>';
+      h+='<div class="ln">'+l.comandas_mexidas+(l.comandas_mexidas===1?' comanda mexida':' comandas mexidas')+
+        (l.relancados>0?' · '+l.relancados+' relançados em até '+jan+' min':'')+'</div>';
+    }
+    if(l.comandas_inteiras>0)h+='<div class="ln">'+l.comandas_inteiras+(l.comandas_inteiras===1?' comanda cancelada inteira':' comandas canceladas inteiras')+
+      (l.comandas_vazias>0?' ('+l.comandas_vazias+(l.comandas_vazias===1?' vazia':' vazias')+')':'')+'</div>';
+    if(l.aguardando_venda>0)h+='<div class="ln"><span class="pill p-warn">'+l.aguardando_venda+(l.aguardando_venda===1?' cancelamento esperando':' cancelamentos esperando')+' a venda chegar do Saipos (fora da conta)</span></div>';
+    if(l.vendas_sem_itens>0)h+='<div class="ln"><span class="pill p-warn">'+l.vendas_sem_itens+(l.vendas_sem_itens===1?' comanda do salão chegou':' comandas do salão chegaram')+' sem os itens</span></div>';
+    h+='<div class="m">'+(l.dados_ate?'Venda mais nova que chegou do Saipos: '+hm(l.dados_ate):'Nenhuma venda chegou do Saipos nos últimos '+(D.regras?D.regras.dias_leitura:'')+' dias')+'</div></div>';
+  });
+  return h+'</div>';
+}
+function tabItens(){
+  const its=D.itens||[]; const todas=!D.unidade; const dono=D.modo==='dono';
+  if(!its.length)return vazio('Nenhum item cancelado no salão neste período.');
+  const cab='<th>Quando</th>'+(todas?'<th>Loja</th>':'')+'<th>Mesa</th><th>Item</th><th class="n">Qtd</th>'+(dono?'<th class="n">R$</th>':'')+
+    '<th>Cancelou</th><th>Senha de</th><th>Motivo</th><th>Pistas</th>';
+  let lin='';
+  its.forEach(function(it){
+    let p='';
+    if(it.comanda_inteira)p+='<span class="pill p-off">comanda inteira</span>';
+    if(it.relancado)p+='<span class="pill p-warn">'+(it.relancado_mesma?'relançado na mesma comanda':'relançado em outra comanda')+'</span>';
+    p+='<span class="pill p-off">'+tempo(it.minutos)+' após lançar</span>';
+    lin+='<tr><td class="cd">'+esc(it.hora)+'</td>'+(todas?'<td>'+esc(it.unidade)+'</td>':'')+'<td>'+esc(it.mesa)+'</td>'+
+      '<td><b>'+esc(it.produto)+'</b>'+(it.complementos?'<div class="u">'+esc(it.complementos)+'</div>':'')+
+      (it.obs?'<div class="u">obs: '+esc(it.obs)+'</div>':'')+
+      '<div class="u">lançado às '+esc(it.lancado)+' por '+quem('usuario',it.lancou,it.lancou_nome,it.unidade)+'</div></td>'+
+      '<td class="n cd">'+esc(String(it.qtd).replace('.',','))+'</td>'+(dono?'<td class="n cd">'+br(it.valor)+'</td>':'')+
+      '<td>'+quem('usuario',it.cancelou,it.cancelou_nome,it.unidade)+'</td>'+
+      '<td>'+senhaTxt(it.senha,it.autorizou,it.autorizou_nome,it.unidade)+'</td>'+
+      '<td>'+(it.motivo==null?'<span class="pill p-off">sem motivo</span>':quem('motivo',it.motivo,it.motivo_nome,it.unidade))+'</td>'+
+      '<td><div class="pistas">'+p+'</div></td></tr>';
+  });
+  const lim=D.regras?D.regras.limite_itens:its.length;
+  return caixa('Itens tirados da comanda','Do mais recente para o mais antigo.'+(D.cortado?' Mostrando os '+lim+' mais recentes de '+D.total_itens+'.':''),cab,lin);
+}
+function tabQuem(){
+  const ps=D.pessoas||[]; const ms=D.motivos||[]; const dono=D.modo==='dono';
+  if(!ps.length)return vazio('Ninguém tirou item da comanda no salão neste período.');
+  let h='';
+  LOJAS.forEach(function(l){
+    const c=ps.filter(function(p){return p.unidade===l&&p.papel==='cancelou'});
+    const a=ps.filter(function(p){return p.unidade===l&&p.papel==='autorizou'});
+    const mo=ms.filter(function(m){return m.unidade===l});
+    if(!c.length&&!a.length)return;
+    let lin='';
+    c.forEach(function(p){
+      let s='';
+      if(p.sem_senha>0)s+='<span class="pill p-bad">'+p.sem_senha+' sem senha</span> ';
+      if(p.senha_propria>0)s+='<span class="pill p-warn">'+p.senha_propria+' com a própria senha</span>';
+      lin+='<tr><td>'+quem('usuario',p.id,p.nome,l)+'</td><td class="n cd">'+p.itens+'</td><td class="n">'+(s||'<span class="u">senha de outro login</span>')+'</td>'+
+      (dono?'<td class="n cd">'+br(p.valor)+'</td>':'')+'</tr>'});
+    h+=caixa(esc(l)+' · quem tirou o item','',
+      '<th>Login do Saipos</th><th class="n">Itens</th><th class="n">Senha</th>'+(dono?'<th class="n">R$</th>':''),lin);
+    if(a.length){
+      lin='';
+      a.forEach(function(p){lin+='<tr><td>'+quem('usuario',p.id,p.nome,l)+'</td><td class="n cd">'+p.itens+'</td><td class="n">'+
+        (p.senha_propria>0?'<span class="pill p-warn">'+p.senha_propria+' no próprio cancelamento</span>':'<span class="u">—</span>')+'</td>'+
+        (dono?'<td class="n cd">'+br(p.valor)+'</td>':'')+'</tr>'});
+      h+=caixa(esc(l)+' · de quem foi a senha','Quem digitou a senha que liberou o cancelamento.',
+        '<th>Login do Saipos</th><th class="n">Itens</th><th class="n">Própria</th>'+(dono?'<th class="n">R$</th>':''),lin);
+    }
+    if(mo.length){
+      lin='';
+      mo.forEach(function(m){lin+='<tr><td>'+(m.id==null?'<span class="pill p-off">sem motivo</span>':quem('motivo',m.id,m.nome,l))+'</td><td class="n cd">'+m.itens+'</td>'+
+        (dono?'<td class="n cd">'+br(m.valor)+'</td>':'')+'</tr>'});
+      h+=caixa(esc(l)+' · motivos','O Saipos manda só o número do motivo.'+(D.pode_nomear?' Toque em ✎ para dar o nome que aparece no Saipos.':''),
+        '<th>Motivo</th><th class="n">Itens</th>'+(dono?'<th class="n">R$</th>':''),lin);
+    }
+  });
+  return h;
+}
+function tabComandas(){
+  const cs=D.comandas||[]; const todas=!D.unidade; const dono=D.modo==='dono';
+  if(!cs.length)return vazio('Nenhuma comanda do salão foi cancelada inteira neste período.');
+  const cab='<th>Cancelada</th>'+(todas?'<th>Loja</th>':'')+'<th>Mesa</th><th>Aberta</th><th class="n">Qtd</th>'+(dono?'<th class="n">R$</th>':'')+'<th>Cancelou</th><th>Senha</th>';
+  const ST={outro:'<span class="pill p-ok">senha de outro login</span>',propria:'<span class="pill p-warn">senha do próprio login</span>',
+    sem:'<span class="pill p-bad">sem senha</span>',misto:'<span class="pill p-warn">misto</span>'};
+  let lin='';
+  cs.forEach(function(c){
+    const vaz=c.linhas===0;
+    const qs=(c.cancelou||[]).map(function(x){return quem('usuario',x.id,x.nome,c.unidade)}).join('<br>');
+    lin+='<tr><td class="cd">'+esc(c.cancelada)+'</td>'+(todas?'<td>'+esc(c.unidade)+'</td>':'')+'<td>'+esc(c.mesa)+'</td>'+
+      '<td class="cd">'+esc(c.aberta)+'</td><td class="n">'+(vaz?'<span class="pill p-off">vazia</span>':'<span class="cd">'+esc(String(c.qtd).replace('.',','))+'</span>')+'</td>'+
+      (dono?'<td class="n cd">'+(vaz?'—':br(c.valor))+'</td>':'')+
+      '<td>'+(qs||'<span class="u">—</span>')+'</td>'+
+      '<td>'+(vaz?'<span class="u">—</span>':(ST[c.senha]||'<span class="u">—</span>'))+'</td></tr>';
+  });
+  const lim=D.regras?D.regras.limite_comandas:cs.length;
+  return caixa('Comandas canceladas inteiras','Os itens destas comandas já aparecem em Itens cancelados — não some as duas listas.'+
+    (D.comandas_cortado?' Mostrando as '+lim+' mais recentes de '+D.comandas_total+'.':''),cab,lin);
+}
+function rodape(){
+  const jan=D&&D.regras?D.regras.janela_relancado_min:null; const fol=D&&D.regras?D.regras.folga_antes_min:null;
+  return 'De onde vem: Saipos, itens das comandas do salão. O cartão de cada loja mostra a hora em que chegou do Saipos a venda mais nova. '+
+    'Troca de mesa não conta como cancelamento. “Relançado” quer dizer que o mesmo produto foi lançado de novo numa comanda do salão entre '+fol+' min antes e '+jan+' min depois do cancelamento (cada lançamento novo vale para um cancelado só) — pode ser correção, troca de preço ou troca de mesa feita apagando o item. '+
+    '“Senha do próprio login” quer dizer que a senha digitada foi a do mesmo login que cancelou. '+
+    'Os nomes são os logins do Saipos (ex.: Caixa Salão, Atendimento), não pessoas: o mesmo login pode ser usado por mais de uma pessoa no turno. '+
+    (D&&D.pode_nomear?'Número sem nome: toque em ✎ para dar o nome — fica guardado para todos, com registro de quem mudou. ':'Número sem nome: só o dono pode dar o nome. ')+
+    'O dia é o dia do turno no Saipos: cancelamento depois da meia-noite conta no dia anterior.'+
+    (D&&D.modo==='dono'?'':' Valores em R$ e a observação do item só aparecem para o dono.');
+}
+function desenha(){
+  REG=[];
+  $('placar').innerHTML=placar();
+  $('filtros').innerHTML=filtros();
+  if(!D)return;
+  let h=avisos()+cartoes();
+  h+=ABA==='quem'?tabQuem():(ABA==='comandas'?tabComandas():tabItens());
+  $('app').innerHTML=h;
+  $('rod').innerHTML=rodape();
+}
+async function nomeia(k){
+  const r=REG[k]; if(!r)return;
+  const rot=r.tipo==='motivo'?'o motivo':'o login';
+  const n=window.prompt('Nome para '+rot+' nº '+r.id+(r.uni?' ('+r.uni+')':'')+'.\nDeixe em branco para apagar o nome.',r.nome||'');
+  if(n===null)return;
+  try{await porta('caixa_cancelamentos',{acao:'nomear',tipo:r.tipo,id:r.id,nome:n,unidade:r.uni||null});boot()}
+  catch(e){alert('Não deu para gravar o nome: '+(e.message||''))}
+}
+async function boot(){
+  const sq=++BSEQ;
+  $('placar').innerHTML=placar(); $('filtros').innerHTML=filtros();
+  $('app').innerHTML='<div class="load">Carregando…</div>';
+  let j=null;
+  try{ j=await porta('caixa_cancelamentos',{periodo:PER,unidade:UNI||null}); }
+  catch(e){
+    if(sq!==BSEQ)return;
+    D=null;
+    $('app').innerHTML='<div class="cx"><b>Não deu para buscar os cancelamentos.</b><div class="m">'+esc(e.message||'')+
+      '<br>Toque em Atualizar. Se continuar, avise que a porta do banco falhou — a tela não está vazia, ela não conseguiu perguntar.</div></div>';
+    return;
+  }
+  if(sq!==BSEQ)return;
+  D=j; desenha();
+}
+function vaiPer(p){PER=p;lembra('per',p);boot()}
+function vaiUni(i){UNI=i<0?'':LOJAS[i];lembra('uni',UNI);boot()}
+function vaiAba(a){ABA=a;lembra('aba',a);if(D)desenha();else boot()}
+
+/* ===== porta unica do portal ===== */
+const CDMMODS=['cancelcaixa'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'cancelcaixa'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+cdmGuarda().then(function(ok){if(ok)boot()});
+</script>
+<script src="../assets/portal.js?v=3"></script>
+</body>
+</html>

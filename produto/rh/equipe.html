@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><script src="../config.js" data-demo="telas/rh.js"></script><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Equipe por Setor · Portal de Gestão</title>
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0b0e14">
+<style>
+:root{--brand:#E0A81C;--bg:#0b0e14;--surface:#141922;--surface2:#1b2230;--line:#242d3d;--text:#e8edf4;--muted:#8b95a5;--sem:#37b46c;--err:#e05252;--dia:#e8a33a;--noite:#7a6ff0}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Roboto,sans-serif;padding:18px;max-width:860px;margin:0 auto;font-size:14px}
+header{display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:2px solid var(--brand);margin-bottom:14px;flex-wrap:wrap}
+.logo{width:42px;height:42px;border-radius:10px;object-fit:contain;display:block;flex:0 0 auto}
+h1{font-size:17px;font-weight:800}
+.sub{color:var(--muted);font-size:12px;margin-top:2px}
+.back{margin-left:auto;color:var(--muted);font-size:12.5px;text-decoration:none;border:1px solid var(--line);border-radius:20px;padding:6px 12px;background:var(--surface)}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--muted)}
+.kpi b{color:var(--text);font-size:15px}
+select{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 12px;color:var(--text);font-size:13px;outline:none}
+.loja{margin-bottom:18px}
+.ltit{font-weight:800;font-size:15px;color:var(--brand-ink,#111);background:linear-gradient(135deg,var(--brand),color-mix(in srgb,var(--brand) 70%,#000));border-radius:10px;padding:9px 14px;display:flex;justify-content:space-between;align-items:center}
+.setor{margin:12px 0 6px;font-weight:800;font-size:12.5px;color:var(--brand);display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:.5px}
+.scount{background:var(--surface2);border:1px solid var(--line);border-radius:20px;padding:1px 8px;font-size:11px;color:var(--muted)}
+.p{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pn{font-weight:700;font-size:13.5px;flex:1;min-width:160px}
+.badge{font-size:10.5px;font-weight:700;border-radius:20px;padding:2px 9px}
+.bdia{background:rgba(232,163,58,.16);color:var(--dia);border:1px solid rgba(232,163,58,.35)}
+.bnoite{background:rgba(122,111,240,.16);color:var(--noite);border:1px solid rgba(122,111,240,.35)}
+.hor{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.folga{font-size:11.5px;color:var(--sem);background:rgba(55,180,108,.12);border:1px solid rgba(55,180,108,.3);border-radius:20px;padding:2px 9px}
+.nofolga{font-size:11px;color:var(--err)}
+.loading{text-align:center;color:var(--muted);padding:40px 0}
+#gate{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center}
+.gatebox{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:34px;width:340px;text-align:center}
+.gatebox input{width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:11px 14px;color:var(--text);font-size:14px;outline:none;margin:14px 0 10px;text-align:center}
+.gatebox button{width:100%;background:var(--brand);border:none;color:var(--brand-ink,#111);border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer}
+.gerr{color:var(--err);font-size:12px;min-height:16px;margin-top:8px}
+</style></head><body>
+<div id="gate" style="display:none"><div class="gatebox">
+  <img class="logo" style="margin:0 auto 12px" alt="">
+  <h1>Equipe por Setor</h1>
+  <div class="sub">Acesso restrito — entre pelo portal para ver esta tela.</div>
+  <button style="margin-top:14px" onclick="location.href=PORTAL_CFG.url('index.html')">Ir para o portal</button>
+</div></div>
+<header>
+  <img class="logo" alt="">
+  <div><h1>👥 Equipe por Setor</h1><div class="sub">Quadro atual por loja e setor — horário, turno e folgas.</div></div>
+  <a class="back" href="./">‹ voltar ao RH</a>
+</header>
+<div class="bar">
+  <select id="fLoja" onchange="render()"><option value="">Todas as lojas</option></select>
+  <select id="fSetor" onchange="render()"><option value="">Todos os setores</option></select>
+  <div class="kpi">Ativos: <b id="kAtivos">–</b></div>
+</div>
+<div id="lista"><div class="loading">Carregando equipe…</div></div>
+<script>
+const SB=PORTAL_CFG.rest;
+const KEY=PORTAL_CFG.chave;
+const H={apikey:KEY,Authorization:'Bearer '+KEY};
+/* acesso: so com a sessao do portal (o token fica na sessao do navegador) */
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+if(!cdmTok())document.getElementById('gate').style.display='flex';
+/* logo e marca do cliente (config.js) */
+document.querySelectorAll('img.logo').forEach(function(i){i.src=PORTAL_CFG.logoUrl;i.alt=PORTAL_CFG.marca});
+/* ?u=Loja (ou ?loja=) trava a tela numa loja so; aceita o nome, o id ou a sigla do config */
+function lojaDoParam(v){v=String(v||'').trim().toLowerCase();if(!v)return '';
+  const l=(PORTAL_CFG.lojas||[]).filter(function(x){return [x.id,x.nome,x.curto].some(function(k){return String(k||'').toLowerCase()===v})})[0];
+  return l?l.nome:'';}
+const $=id=>document.getElementById(id);
+const _qs=new URLSearchParams(location.search);
+const LOJAFIX=lojaDoParam(_qs.get('u'))||lojaDoParam(_qs.get('loja'));
+const SOLOJA=!!LOJAFIX;
+const lojaOrdem={};(PORTAL_CFG.lojas||[]).forEach(function(l,i){lojaOrdem[l.nome]=i});
+$('fLoja').insertAdjacentHTML('beforeend',(PORTAL_CFG.lojas||[]).map(function(l){return '<option>'+l.nome+'</option>'}).join(''));
+if(SOLOJA){const sl=$('fLoja');sl.innerHTML='<option>'+LOJAFIX+'</option>';sl.value=LOJAFIX;sl.disabled=true;sl.style.display='none';const _b=document.createElement('div');_b.className='kpi';_b.innerHTML='<b>🏪 '+LOJAFIX+'</b>';sl.parentNode.insertBefore(_b,sl);}
+function titulo(n){return n.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ')}
+function turnoDe(f){if(!f.entrada)return 'Dia';const h=parseInt(f.entrada.slice(0,2),10);const cruza=f.saida&&f.saida<f.entrada;return (cruza||h>=15)?'Noite':'Dia';}
+function jorn(m){return m?(Math.floor(m/60)+'h'+String(m%60).padStart(2,'0')):''}
+let TEAM=[];
+async function load(){
+  try{
+    TEAM=await fetch(SB+'dim_funcionario?ativo=eq.true'+(SOLOJA?'&unidade=eq.'+encodeURIComponent(LOJAFIX):'')+'&select=nome,unidade,setor,folgas,entrada,saida,jornada_contratada_min&order=unidade.asc,setor.asc,entrada.asc',{headers:H}).then(r=>r.json());
+    $('kAtivos').textContent=TEAM.length;
+    const setores=[...new Set(TEAM.map(f=>f.setor).filter(Boolean))].sort();
+    $('fSetor').innerHTML='<option value="">Todos os setores</option>'+setores.map(s=>`<option>${s}</option>`).join('');
+    render();
+  }catch(e){$('lista').innerHTML='<div class="loading">Erro ao carregar: '+e.message+'</div>'}
+}
+function render(){
+  const fl=SOLOJA?LOJAFIX:$('fLoja').value, fs=$('fSetor').value;
+  let d=TEAM.filter(f=>(!fl||f.unidade===fl)&&(!fs||f.setor===fs));
+  if(!d.length){$('lista').innerHTML='<div class="loading">Nenhum funcionário nesse filtro.</div>';return}
+  const lojas=[...new Set(d.map(f=>f.unidade))].sort((a,b)=>(lojaOrdem[a]??9)-(lojaOrdem[b]??9));
+  let html='';
+  for(const loja of lojas){
+    const doLoja=d.filter(f=>f.unidade===loja);
+    html+=`<div class="loja"><div class="ltit"><span>${loja}</span><span class="scount">${doLoja.length}</span></div>`;
+    const setores=[...new Set(doLoja.map(f=>f.setor||'—'))].sort();
+    for(const s of setores){
+      const pes=doLoja.filter(f=>(f.setor||'—')===s).sort((a,b)=>(a.entrada||'')<(b.entrada||'')?-1:1);
+      html+=`<div class="setor">${s} <span class="scount">${pes.length}</span></div>`;
+      for(const f of pes){
+        const t=turnoDe(f);
+        const hor=(f.entrada&&f.saida)?(f.entrada.slice(0,5)+'–'+f.saida.slice(0,5)):'';
+        const folga=f.folgas?`<span class="folga">🌙 ${f.folgas}</span>`:`<span class="nofolga">sem folga fixa</span>`;
+        html+=`<div class="p"><span class="pn">${titulo(f.nome)}</span>
+          <span class="badge ${t==='Dia'?'bdia':'bnoite'}">${t==='Dia'?'☀️ Dia':'🌙 Noite'}</span>
+          <span class="hor">${hor} · ${jorn(f.jornada_contratada_min)}</span>${folga}</div>`;
+      }
+    }
+    html+='</div>';
+  }
+  $('lista').innerHTML=html;
+}
+load();
+</script></body></html>

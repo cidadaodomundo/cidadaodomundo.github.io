@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../config.js" data-demo="telas/ifood.js telas/cozinha.js"></script>
+<script src="../assets/chaves.js?v=1"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Central Cozinha · Portal de Gestão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#E0A81C;--brand-ink:#111110;--ok:#2fae6a;--bad:#e66767;--warn:#c98500;--gold:#e8c547}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1180px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
+.top .rt{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+button.b.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+h2{font-size:15px;font-weight:800;margin:26px 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+h2 .hint{font-weight:500;font-size:11.5px;color:var(--muted)}
+.sec{margin-bottom:6px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.c{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:16px}
+.c .nm{font-weight:800;font-size:14.5px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:6px}
+.c .nota{font-size:30px;font-weight:800;line-height:1}
+.c .qtd{color:var(--muted);font-size:12px;margin-top:3px}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700}
+.p-ok{background:rgba(47,174,106,.15);color:var(--ok)}
+.p-warn{background:rgba(201,133,0,.15);color:var(--warn)}
+.p-bad{background:rgba(230,103,103,.15);color:var(--bad)}
+.p-off{background:rgba(138,137,126,.15);color:var(--muted)}
+.store{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:16px;margin-bottom:14px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px 10px;text-align:left;font-size:13px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+tr:last-child td{border-bottom:none}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:11px 14px;font-size:12.5px;margin-top:14px}
+.semdado{background:var(--s2);border:1px dashed var(--line);color:var(--muted);border-radius:10px;padding:14px;font-size:12.5px}
+.load{color:var(--muted);padding:30px;text-align:center}
+.bar{background:var(--s2);border-radius:5px;height:9px;overflow:hidden;min-width:70px}
+.bar i{display:block;height:100%;background:var(--brand);color:var(--brand-ink)}
+.dot{width:40px;height:40px;border-radius:11px;background:var(--brand);color:var(--brand-ink);display:grid;place-items:center;font-weight:800;font-size:16px;flex-shrink:0;overflow:hidden}
+.dot img{width:100%;height:100%;object-fit:cover;display:block}
+.abas{display:flex;gap:8px;margin:14px 0 0;border-bottom:1px solid var(--line)}
+.ab{background:none;border:1px solid transparent;color:var(--muted);font:inherit;font-weight:700;font-size:14px;padding:9px 14px;border-radius:9px 9px 0 0;cursor:pointer}
+.ab.on{color:var(--text);background:var(--s1);border-color:var(--line);border-bottom-color:var(--s1);margin-bottom:-1px}
+#ifr-desp{width:100%;border:0;height:calc(100vh - 210px);min-height:560px;display:block}
+
+/* ao vivo: erros do dia */
+.vv-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:-2px 0 10px}
+.vv-bar .b{padding:6px 10px;font-size:12.5px}
+.vv-st{color:var(--muted);font-size:12px}
+.vv-fr{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.vv-fr span{background:var(--s2);border:1px solid var(--line);border-radius:999px;padding:3px 9px;font-size:11px;color:var(--text2)}
+.vv-cats{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
+.vv-cats span{background:var(--s1);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600}
+.vv-lista{display:grid;gap:10px}
+.vv{background:var(--s1);border:1px solid var(--line);border-left:5px solid var(--warn);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:72px 1fr;gap:12px}
+.vv.s-cozinha{border-left-color:var(--bad)}
+.vv.s-expedição{border-left-color:var(--muted)}
+.vv.grave{border-color:var(--bad);background:#2a1716}
+.vv.novo{animation:vvpisca 1.2s ease-in-out 6}
+@keyframes vvpisca{0%,100%{box-shadow:0 0 0 0 rgba(230,103,103,0)}50%{box-shadow:0 0 0 4px rgba(230,103,103,.55)}}
+.vv .hr{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;line-height:1}
+.vv .ha{color:var(--muted);font-size:11.5px;margin-top:3px}
+.vv .tt{font-size:17px;font-weight:800;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vv .lj{color:var(--text2);font-size:13px;margin-top:2px}
+.vv .ds{margin-top:6px;font-size:14px;color:var(--text);font-style:italic}
+.vv .it{margin-top:3px;font-size:12.5px;color:var(--text2)}
+.vv .rs{margin-top:6px;font-size:12px;color:var(--muted)}
+.vv .fn{margin-top:2px;font-size:11px;color:var(--muted)}
+.p-novo{background:var(--bad);color:#fff}
+/* chegou como erro, mas nao conta (mesma triagem da TV): cinza e recolhido */
+.vv-fora{margin-top:12px;background:var(--s1);border:1px dashed var(--line);border-radius:12px;padding:10px 14px;color:var(--muted)}
+.vv-fora summary{cursor:pointer;font-weight:700;font-size:13px;color:var(--text2)}
+.vv-fora table{margin-top:8px}
+.vv-fora td{color:var(--muted);font-size:12.5px;vertical-align:top}
+.vv-fora td.mt{color:var(--warn);font-weight:700}
+.vv-fora td.ds{font-style:italic}
+body.tv{max-width:none;padding:14px 22px;font-size:18px}
+body.tv .top,body.tv .abas,body.tv #app,body.tv .vv-bar .so-pc{display:none}
+body.tv .vv .tt{font-size:24px}
+body.tv .vv .ds{font-size:19px}
+body.tv .vv .hr{font-size:32px}
+body.tv .vv{grid-template-columns:96px 1fr}
+
+/* titulos */
+h1,.gatebox h1{font-weight:400}
+h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.01em;line-height:1.06}
+
+/* celular: filas de aba quebram linha ate 900px; o resto so em tela estreita */
+@media (max-width:900px){.views,.tabs,.abas,.fil,.pes,.filtros,.chips,.lojas,.periodos{display:flex;flex-wrap:wrap;gap:6px;width:auto;max-width:100%;min-width:0}.views>*,.tabs>*,.abas>*,.fil>*,.pes>*{flex:0 0 auto;max-width:100%}}@media (max-width:640px){body{padding-left:12px;padding-right:12px}table{display:block;width:max-content;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}h1{font-size:clamp(18px,6.2vw,26px);word-break:break-word}img,svg,canvas,iframe{max-width:100%}}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div style="display:flex;gap:10px;align-items:center"><div class="dot" id="marcaLogo"></div><div><h1>👨‍🍳 Central Cozinha</h1><div class="sub">preparo, erro, item pausado e o que mais sai</div></div></div>
+  <div class="rt">
+    <span id="filtros"></span>
+    <button class="b" onclick="location.reload()">↻ Atualizar</button>
+  </div>
+</div>
+<div class="abas"><button class="ab on" id="aba-b-cozinha" onclick="mostraAba('cozinha')">👨‍🍳 Cozinha</button><button class="ab" id="aba-b-desp" onclick="mostraAba('desp')">🗑 Desperdício</button></div>
+<div id="pane-cozinha"><div id="vivo"></div><div id="app"><div class="load">Carregando cozinha…</div></div></div>
+<div id="pane-desp" style="display:none"><iframe id="ifr-desp" src="about:blank" title="Desperdicio"></iframe></div>
+
+<script>
+/* logo e nome da marca vem de config.js */
+(function(){var C=window.PORTAL_CFG||{};var d=document.getElementById('marcaLogo');if(!d)return;
+  if(C.logoUrl){var i=document.createElement('img');i.src=C.logoUrl;i.alt=C.marca||'';d.appendChild(i)}
+  else d.textContent=String(C.marca||'').split(/\s+/).map(function(w){return w.charAt(0)}).join('').slice(0,2).toUpperCase()})();
+const SB=PORTAL_CFG.rest;
+const KEY=PORTAL_CFG.chave;
+const H={apikey:KEY,Authorization:'Bearer '+KEY};
+const $=i=>document.getElementById(i);
+const UNI=(PORTAL_CFG.lojas||[]).map(l=>l.nome);
+
+/* id da loja no iFood -> unidade (lido da tabela ifood_dim_loja no boot) */
+const LOJA={};
+
+/* motivo de cancelamento -> de quem e a culpa */
+const CULPA=[
+  {re:/VEIO ERRADO/i,          rot:'Pedido ou item veio errado', onde:'cozinha'},
+  {re:/IMPR[ÓO]PRIO/i,         rot:'Impróprio para consumo',     onde:'cozinha'},
+  {re:/N[ÃA]O FOI ENVIADO/i,   rot:'Item não foi na sacola',     onde:'montagem'},
+  {re:/REVIRADO|VIOLADO/i,     rot:'Pedido revirado ou violado', onde:'montagem'}
+];
+
+let LOJA_SEL='todas';
+let DADO={};
+
+const fmtN = n => (n==null?'—':Number(n).toLocaleString('pt-BR'));
+const fmtR = n => ((n==null||!(function(){try{return sessionStorage.getItem("cdm_admin")==="1"}catch(e){return false}})())?'—':'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
+const fmtM = n => (n==null?'—':Number(n).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' min');
+const dBR  = s => s? String(s).slice(0,10).split('-').reverse().join('/') : '—';
+const diaISO = d => new Date(Date.now()-d*864e5).toISOString().slice(0,10);
+const media = a => a.length? a.reduce((x,y)=>x+y,0)/a.length : null;
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+async function pega(url){
+  try{ const r=await fetch(SB+url,{headers:H}); return r.ok? await r.json() : []; }
+  catch(e){ return []; }
+}
+
+async function boot(){
+  VIVO_PRONTO=true; vivoDesenha(); vivoBusca(); vivoLiga();
+  const d7=diaISO(7), d14=diaISO(14), d30=diaISO(30);
+  pzBusca();
+  const [prep,canc,itens,dims]=await Promise.all([
+    pega('cozinha_vw_preparo_dia?select=unidade,dia_operacional,pedidos,preparo_medio_min&dia_operacional=gte.'+d14),
+    pega('ifood_fato_cancelamento?select=id_loja,data,motivo,valor_cancelamento&data=gte.'+d30),
+    pega('rpc/cozinha_itens_top?p_dias=7'),
+    pega('ifood_dim_loja?select=id_loja,unidade')
+  ]);
+  (dims||[]).forEach(function(d){ if(d&&d.id_loja!=null) LOJA[d.id_loja]=d.unidade; });
+  DADO={prep:prep,canc:canc,itens:itens,d7:d7,d14:d14,d30:d30};
+  filtros();
+  render();
+}
+
+function filtros(){
+  let h='';
+  ['todas'].concat(UNI).forEach(function(u){
+    h+='<button class="b'+(u===LOJA_SEL?' on':'')+'" onclick="setLoja('+JSON.stringify(u).replace(/"/g,'&quot;')+')">'+(u==='todas'?'Todas as lojas':u)+'</button>';
+  });
+  $('filtros').innerHTML=h;
+}
+function setLoja(u){ LOJA_SEL=u; filtros(); render(); vivoDesenha(); }
+
+const daLoja = u => (LOJA_SEL==='todas' || u===LOJA_SEL);
+
+/* ---------- 0. AO VIVO ----------
+   A cozinha fica sabendo do erro na hora em que ele aparece.
+   Porta cozinha_ao_vivo: Gestor Web, chat e negociacao do iFood, SAC, cancelamento por culpa da casa
+   e avaliacao ruim. Busca de 1 em 1 minuto so com a aba Cozinha aberta e a janela visivel;
+   o timer para (clearInterval) ao trocar de aba, esconder a janela ou sair. */
+let VIVO_PRONTO=false, VIVO=null, VIVO_VISTOS=null, VIVO_TIMER=null, VIVO_ONTEM=false, VIVO_ERRO='', VIVO_NOVOS=[];
+let VIVO_SOM=false; try{ VIVO_SOM=localStorage.getItem('cdm_cozinha_som')==='1'; }catch(e){}
+const VIVO_NOVO_MIN=30; /* erro com menos de 30 min ganha a etiqueta NOVO */
+const hhmm = s => { try{ return new Date(s).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'}); }catch(e){ return '—'; } };
+const ddmm = s => { try{ return new Date(s).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',timeZone:'America/Sao_Paulo'}); }catch(e){ return '—'; } };
+const haMin = ts => { const m=Math.max(0,Math.round((Date.now()-ts)/60000)); return m<60? 'há '+m+' min' : 'há '+Math.floor(m/60)+'h'+String(m%60).padStart(2,'0'); };
+
+async function vivoBusca(){
+  try{
+    const r=await fetch(SB+'rpc/cozinha_ao_vivo',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({p_token:cdmTok(),p_dados:{ontem:VIVO_ONTEM}})});
+    if(!r.ok){ VIVO_ERRO='Não consegui ler os erros agora (código '+r.status+'). Tento de novo em 1 minuto.'; vivoDesenha(); return; }
+    const j=await r.json(); VIVO_ERRO='';
+    const lista=j.erros||[];
+    VIVO_NOVOS = (VIVO_VISTOS && !VIVO_ONTEM) ? lista.filter(e=>!VIVO_VISTOS.has(e.k)).map(e=>e.k) : [];
+    VIVO_VISTOS=new Set(lista.map(e=>e.k));
+    VIVO=j; vivoDesenha();
+    if(!VIVO_ONTEM && Date.now()-PZ_T > 270000) pzBusca();
+    const meus=lista.filter(e=>VIVO_NOVOS.indexOf(e.k)>=0 && daLoja(e.loja));
+    if(meus.length) vivoAlerta(meus);
+  }catch(e){ VIVO_ERRO='Sem conexão agora. Tento de novo em 1 minuto.'; vivoDesenha(); }
+}
+function vivoLiga(){ if(!VIVO_TIMER) VIVO_TIMER=setInterval(vivoBusca,60000); }
+function vivoDesliga(){ if(VIVO_TIMER){ clearInterval(VIVO_TIMER); VIVO_TIMER=null; } }
+function vivoAbaCozinha(){ return $('pane-cozinha').style.display!=='none'; }
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible' && vivoAbaCozinha() && VIVO_PRONTO){ vivoBusca(); vivoLiga(); } else vivoDesliga();
+});
+window.addEventListener('pagehide',vivoDesliga);
+window.addEventListener('pageshow',function(){ if(VIVO_PRONTO && vivoAbaCozinha() && document.visibilityState==='visible'){ vivoBusca(); vivoLiga(); } });
+
+function vivoDia(o){ VIVO_ONTEM=!!o; VIVO_VISTOS=null; VIVO=null; vivoDesenha(); vivoBusca(); }
+function vivoSom(){
+  VIVO_SOM=!VIVO_SOM; try{ localStorage.setItem('cdm_cozinha_som',VIVO_SOM?'1':'0'); }catch(e){}
+  if(VIVO_SOM){ apito(); try{ if(window.Notification && Notification.permission==='default') Notification.requestPermission(); }catch(e){} }
+  vivoDesenha();
+}
+function vivoTV(){
+  const on=!document.body.classList.contains('tv'); document.body.classList.toggle('tv',on);
+  try{ if(on && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(function(){});
+       if(!on && document.fullscreenElement) document.exitFullscreen(); }catch(e){}
+  vivoDesenha();
+}
+/* apito: dois osciladores, sem nenhuma chamada de rede */
+function apito(){
+  try{ const C=window.AudioContext||window.webkitAudioContext; if(!C) return; const ac=new C();
+    [0,0.35].forEach(function(t){ const o=ac.createOscillator(), g=ac.createGain(); o.type='square'; o.frequency.value=880;
+      g.gain.value=0.15; o.connect(g); g.connect(ac.destination); o.start(ac.currentTime+t); o.stop(ac.currentTime+t+0.22); });
+    setTimeout(function(){ try{ac.close();}catch(e){} },1500);
+  }catch(e){}
+}
+function vivoAlerta(novos){
+  if(!VIVO_SOM) return;
+  apito();
+  try{ if(window.Notification && Notification.permission==='granted'){
+    novos.slice(0,3).forEach(function(e){ new Notification(e.titulo+' · '+e.loja,{body:(e.pedido?'Pedido '+e.pedido+' · ':'')+(e.disse||'')}); }); } }catch(e){}
+}
+
+function vivoDesenha(){
+  const el=$('vivo'); if(!el) return;
+  const tv=document.body.classList.contains('tv');
+  let h='<div class="sec"><h2>🔴 '+(VIVO_ONTEM?'Erros de ontem':'AO VIVO · erros de hoje')+' <span class="hint">cliente reclamou ou o iFood cancelou por erro da casa · atualiza sozinho a cada 1 minuto</span></h2>';
+  h+='<div class="vv-bar">'
+   + '<button class="b'+(VIVO_ONTEM?'':' on')+'" onclick="vivoDia(false)">Hoje</button>'
+   + '<button class="b'+(VIVO_ONTEM?' on':'')+'" onclick="vivoDia(true)">Ontem</button>'
+   + '<button class="b'+(VIVO_SOM?' on':'')+'" onclick="vivoSom()">'+(VIVO_SOM?'🔔 Som ligado':'🔕 Ligar som')+'</button>'
+   + '<button class="b" onclick="vivoTV()">'+(tv?'✖ Sair do modo TV':'📺 Modo TV')+'</button>'
+   + '<span class="vv-st">'+(VIVO? 'conferido às '+hhmm(VIVO.agora)+' · dia da cozinha '+esc(VIVO.dia)+' (das 6h às 6h)' : 'carregando…')+'</span></div>';
+  if(VIVO_ERRO) h+='<div class="aviso">'+esc(VIVO_ERRO)+'</div>';
+  if(!VIVO){ el.innerHTML=h+'</div>'; return; }
+
+  const f=VIVO.frescor||{};
+  const fr=[['Gestor Web',f.gestor_web],['Chat iFood',f.chat_ifood],['SAC',f.sac],['Negociação iFood',f.negociacao]];
+  h+='<div class="vv-fr"><span style="background:none;border:0;padding-left:0">última novidade de cada fonte:</span>'+fr.map(x=>'<span>'+x[0]+' '+(x[1]?(ddmm(x[1])===ddmm(Date.now())?'':ddmm(x[1])+' ')+hhmm(x[1]):'—')+'</span>').join('')
+   + '<span>Avaliações iFood até '+(f.avaliacao?dBR(f.avaliacao).slice(0,5):'—')+'</span></div>';
+
+  const lista=(VIVO.erros||[]).filter(e=>daLoja(e.loja));
+  const n=s=>lista.filter(e=>e.setor===s).length;
+  const graves=lista.filter(e=>e.grave).length;
+  h+='<div class="cards">'
+   + '<div class="c"><div class="nm">Erros '+(VIVO_ONTEM?'ontem':'hoje')+'</div><div class="nota">'+fmtN(lista.length)+'</div><div class="qtd">'+(graves?'<span class="pill p-bad">🚨 '+graves+' grave'+(graves>1?'s':'')+'</span>':'erros registrados')+'</div></div>'
+   + '<div class="c"><div class="nm">Cozinha <span class="pill p-bad">comida</span></div><div class="nota">'+fmtN(n('cozinha'))+'</div><div class="qtd">a comida saiu errada, crua, ruim, sem adicional ou acabou</div></div>'
+   + '<div class="c"><div class="nm">Montagem <span class="pill p-warn">sacola</span></div><div class="nota">'+fmtN(n('montagem'))+'</div><div class="qtd">faltou coisa na sacola ou a embalagem vazou</div></div>'
+   + (n('expedição')?'<div class="c"><div class="nm">Expedição <span class="pill p-off">saída</span></div><div class="nota">'+fmtN(n('expedição'))+'</div><div class="qtd">chegou frio</div></div>':'')
+   + '</div>';
+
+  const cats={}; lista.forEach(e=>{ cats[e.titulo]=(cats[e.titulo]||0)+1; });
+  const ck=Object.keys(cats).sort((a,b)=>cats[b]-cats[a]);
+  if(ck.length) h+='<div class="vv-cats">'+ck.map(k=>'<span>'+esc(k)+' · '+cats[k]+'</span>').join('')+'</div>';
+
+  if(!lista.length){
+    h+='<div class="semdado">Nenhum erro registrado '+(VIVO_ONTEM?'ontem':'hoje até agora')+(LOJA_SEL==='todas'?'':' em '+esc(LOJA_SEL))+'. Confira acima a última novidade de cada fonte — se alguma parou, o zero pode ser só falta de dado.</div>';
+  }else{
+    h+='<div class="vv-lista">';
+    lista.forEach(function(e){
+      const novo = !VIVO_ONTEM && (VIVO_NOVOS.indexOf(e.k)>=0 || (Date.now()-e.ts) < VIVO_NOVO_MIN*60000);
+      h+='<div class="vv s-'+esc(e.setor)+(e.grave?' grave':'')+(VIVO_NOVOS.indexOf(e.k)>=0?' novo':'')+'">'
+       + '<div><div class="hr">'+esc(e.hora)+'</div><div class="ha">'+(VIVO_ONTEM?'':haMin(e.ts))+'</div></div><div>'
+       + '<div class="tt">'+esc(e.titulo)+(novo?' <span class="pill p-novo">NOVO</span>':'')
+       + ' <span class="pill '+(e.setor==='cozinha'?'p-bad':e.setor==='montagem'?'p-warn':'p-off')+'">'+esc(e.setor)+'</span></div>'
+       + '<div class="lj"><b>'+esc(e.loja)+'</b>'+(e.pedido?' · pedido <b>'+esc(e.pedido)+'</b>':' · sem nº de pedido')+(e.marca?' · '+esc(e.marca):'')+'</div>'
+       + (e.disse?'<div class="ds">“'+esc(e.disse)+'”</div>':'')
+       + (e.item?'<div class="it">Item: '+esc(e.item)+'</div>':'')
+       + '<div class="rs">'+(e.pendente?'<span class="pill p-bad">sem solução registrada</span> ':'')+'Como ficou: '+esc(e.resolveu||'—')+'</div>'
+       + '<div class="fn">Fonte: '+esc(e.fontes||'—')+'</div>'
+       + '</div></div>';
+    });
+    h+='</div>';
+  }
+  /* o que chegou como erro mas NAO conta (repetido, assunto de entrega, pedido do cliente...), com o motivo.
+     Mesma triagem da TV da Cozinha: nao entra em nenhum numero acima, nem na TV, no Placar ou na Fila.
+     Fica recolhido e em cinza, so para conferir. */
+  const fora=(VIVO.fora||[]).filter(e=>daLoja(e.loja));
+  if(fora.length && !tv){
+    h+='<details class="vv-fora"><summary>🚫 Chegou como erro, mas não conta ('+fora.length+')</summary>'
+     + '<div style="font-size:12px;margin-top:6px">Não entra em nenhum número acima — nem na TV, no Placar ou na Fila. Se algum destes foi erro de verdade, avise o administrador do portal.</div>'
+     + '<table><tr><th>Hora</th><th>Por que não conta</th><th>O que chegou</th><th>Loja · pedido</th></tr>'
+     + fora.map(function(e){ return '<tr><td class="n">'+esc(e.hora)+'</td><td class="mt">'+esc(e.nao_conta)+'</td><td class="ds">'+(e.disse?'“'+esc(e.disse)+'”':esc(e.titulo))+'</td><td>'+esc(e.loja)+(e.pedido?' · pedido '+esc(e.pedido):' · sem nº')+'</td></tr>'; }).join('')
+     + '</table></details>';
+  }
+
+  const av=(VIVO.avaliacoes||[]).filter(a=>daLoja(a.loja));
+  if(av.length){
+    h+='<h2>⭐ O que escreveram na avaliação <span class="hint">iFood · notas 1 a 3 com comentário · últimos 7 dias · chegaram até '+(f.avaliacao?dBR(f.avaliacao).slice(0,5):'—')+' — o iFood manda com atraso</span></h2><div class="vv-lista">';
+    av.slice(0,15).forEach(function(a){
+      h+='<div class="vv s-'+esc(a.setor)+(a.grave?' grave':'')+'"><div><div class="hr">'+esc(a.dia)+'</div><div class="ha">nota '+esc(a.nota)+'</div></div><div>'
+       + '<div class="tt">'+esc(a.titulo)+'</div><div class="lj"><b>'+esc(a.loja)+'</b>'+(a.pedido?' · pedido '+esc(a.pedido):'')+'</div>'
+       + '<div class="ds">“'+esc(a.disse)+'”</div></div></div>';
+    });
+    h+='</div>';
+  }
+  if(!tv) h+='<div class="aviso">Quando várias fontes falam do mesmo pedido, o erro aparece uma vez só. Erro registrado sem loja aparece só em Todas as lojas. <b>Cozinha</b> = a comida saiu errada; <b>montagem</b> = faltou coisa na sacola; <b>expedição</b> = chegou frio. O nome do erro é dado pelas palavras do cliente — se algum vier com o nome errado, avise o administrador do portal. O que chegou como erro mas não conta (repetido, assunto de entrega, pedido do cliente) fica no fim, em cinza, com o motivo: é a mesma regra da TV, do Placar e da Fila.</div>';
+  el.innerHTML=h+'</div>';
+}
+
+/* ---------- 1. TEMPO DE PREPARO ---------- */
+/* media ponderada: cada dia pesa pelo numero de pedidos daquele dia */
+function mediaPond(rows){
+  let p=0, s=0;
+  rows.forEach(function(r){
+    const n=Number(r.pedidos||0), m=Number(r.preparo_medio_min);
+    if(n>0 && isFinite(m)){ p+=n; s+=n*m; }
+  });
+  return p? {min:s/p, pedidos:p} : null;
+}
+
+function secPreparo(){
+  const rows=DADO.prep.filter(r=>r.preparo_medio_min!=null && daLoja(r.unidade));
+  let h='<div class="sec"><h2>⏱ Tempo de preparo <span class="hint">do pedido entrar até ficar pronto · últimos 7 dias, comparado com os 7 dias anteriores</span></h2>';
+  if(!rows.length){ return h+'<div class="semdado">Sem dado de preparo no período.'+(window.CDM_FOODY===false?'':' O tempo de preparo vem do sistema de entregas.')+'</div></div>'; }
+
+  const alvo = LOJA_SEL==='todas' ? UNI : [LOJA_SEL];
+  h+='<div class="cards">';
+  alvo.forEach(function(u){
+    const a=mediaPond(rows.filter(r=>r.unidade===u && r.dia_operacional>=DADO.d7));
+    const b=mediaPond(rows.filter(r=>r.unidade===u && r.dia_operacional< DADO.d7));
+    h+='<div class="c"><div class="nm">'+esc(u)+'</div>';
+    if(!a){ h+='<div class="qtd">sem dado no período</div>'; }
+    else{
+      let sel='<span class="pill p-off">sem comparação</span>';
+      if(b){
+        const dif=a.min-b.min;
+        const cl = dif<=-0.5?'p-ok' : dif>=0.5?'p-bad' : 'p-off';
+        const tx = dif<=-0.5?('▼ '+Math.abs(dif).toFixed(1).replace('.',',')+' min mais rápido') : dif>=0.5?('▲ '+dif.toFixed(1).replace('.',',')+' min mais lento') : 'igual';
+        sel='<span class="pill '+cl+'">'+tx+'</span>';
+      }
+      h+='<div class="nota">'+fmtM(a.min)+'</div><div class="qtd">'+fmtN(a.pedidos)+' pedidos · '+sel+'</div>';
+    }
+    h+='</div>';
+  });
+  h+='</div>';
+
+  /* tabela por dia */
+  const dias=[...new Set(rows.filter(r=>r.dia_operacional>=DADO.d7).map(r=>r.dia_operacional))].sort().reverse();
+  const cols = LOJA_SEL==='todas' ? UNI : [LOJA_SEL];
+  h+='<div class="store" style="margin-top:14px"><table><tr><th>Dia</th>'+cols.map(u=>'<th class="n">'+esc(u)+'</th>').join('')+'</tr>';
+  dias.forEach(function(d){
+    h+='<tr><td>'+dBR(d)+'</td>';
+    cols.forEach(function(u){
+      const x=rows.find(r=>r.unidade===u&&r.dia_operacional===d);
+      const m=x? Number(x.preparo_medio_min) : null;
+      h+='<td class="n" data-k="'+(m==null?-1:m.toFixed(1))+'">'+(m==null?'<span style="color:var(--muted)">—</span>':fmtM(m)+' <span style="color:var(--muted);font-size:11px">('+fmtN(x.pedidos)+')</span>')+'</td>';
+    });
+    h+='</tr>';
+  });
+  h+='</table></div>';
+  h+='<div class="aviso">Entre parênteses, quantos pedidos entraram naquele dia naquela loja. A média de 7 dias pesa cada dia pelo movimento dele — dia cheio conta mais que dia fraco.</div>';
+  return h+'</div>';
+}
+
+/* ---------- 2. ERRO DE COZINHA ---------- */
+function secErro(){
+  const ate = DADO.canc.length? DADO.canc.map(r=>r.data).sort().slice(-1)[0] : null;
+  let h='<div class="sec"><h2>🔥 Erro que virou cancelamento <span class="hint">últimos 30 dias · pedido cancelado no iFood por culpa nossa</span></h2>';
+  if(!ate){ return h+'<div class="semdado">Sem dado de cancelamento do iFood no período.</div></div>'; }
+
+  const classifica = function(m){ for(const c of CULPA){ if(c.re.test(m||'')) return c; } return null; };
+  const linhas=[];
+  DADO.canc.forEach(function(r){
+    const c=classifica(r.motivo); if(!c) return;
+    const u=LOJA[r.id_loja]||'—'; if(!daLoja(u)) return;
+    linhas.push({rot:c.rot,onde:c.onde,unidade:u,valor:+(r.valor_cancelamento||0)});
+  });
+
+  const totQ=linhas.length, totV=linhas.reduce((s,x)=>s+x.valor,0);
+  const coz=linhas.filter(x=>x.onde==='cozinha'), mon=linhas.filter(x=>x.onde==='montagem');
+  h+='<div class="cards">'
+   + '<div class="c"><div class="nm">Total</div><div class="nota">'+fmtN(totQ)+'</div><div class="qtd">pedidos · '+fmtR(totV)+' perdidos</div></div>'
+   + '<div class="c"><div class="nm">Cozinha <span class="pill p-bad">comida</span></div><div class="nota">'+fmtN(coz.length)+'</div><div class="qtd">'+fmtR(coz.reduce((s,x)=>s+x.valor,0))+' · veio errado ou impróprio</div></div>'
+   + '<div class="c"><div class="nm">Montagem <span class="pill p-warn">sacola</span></div><div class="nota">'+fmtN(mon.length)+'</div><div class="qtd">'+fmtR(mon.reduce((s,x)=>s+x.valor,0))+' · item ausente ou embalagem violada</div></div>'
+   + '</div>';
+
+  const grupos={};
+  linhas.forEach(function(x){ const k=x.rot+'|'+x.onde; (grupos[k]=grupos[k]||{rot:x.rot,onde:x.onde,n:0,v:0}); grupos[k].n++; grupos[k].v+=x.valor; });
+  const lista=Object.values(grupos).sort((a,b)=>b.n-a.n);
+  h+='<div class="store" style="margin-top:14px"><table><tr><th>O que aconteceu</th><th>Onde</th><th class="n">Pedidos</th><th class="n">Quanto custou</th></tr>';
+  lista.forEach(function(g){
+    h+='<tr><td>'+esc(g.rot)+'</td><td><span class="pill '+(g.onde==='cozinha'?'p-bad':'p-warn')+'">'+g.onde+'</span></td>'
+     + '<td class="n">'+fmtN(g.n)+'</td><td class="n" data-k="'+g.v.toFixed(2)+'">'+fmtR(g.v)+'</td></tr>';
+  });
+  h+='</table></div>';
+
+  const hoje=new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'});
+  if(ate<hoje){
+    h+='<div class="aviso">O iFood publicou os cancelamentos só até <b>'+dBR(ate)+'</b>. Os dias depois disso ainda não chegaram — não são zero, são desconhecidos.</div>';
+  }
+  h+='<div class="aviso">"Item não foi na sacola" fica em <b>montagem</b>, não em cozinha — é a mesma classificação que a Central usa, para as duas telas não se contradizerem. Ficam de fora endereço incompleto, ninguém recebe e problema de pagamento, que não são culpa da casa.</div>';
+  return h+'</div>';
+}
+
+/* ---------- 3. ITEM PAUSADO ----------
+   Mesmo criterio de Resolver hoje > Cardapio pausado. Porta cozinha_pausados (so leitura): iFood pela porta
+   oficial (leitura de 5 em 5 min) + a resposta da loja registrada na anotacao do item, que aparece como prova.
+   Tablet da mesa vem da leitura do Goomer. O site proprio (Accon) fica na tela Produtos pausados.
+   Recarrega junto com o AO VIVO, no maximo a cada 5 min (a fonte nao muda mais rapido que isso). */
+let PZ=null, PZ_T=0, PZ_ERRO='';
+async function pzBusca(){
+  try{
+    const r=await fetch(SB+'rpc/cozinha_pausados',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({p_token:cdmTok(),p_dados:{}})});
+    if(!r.ok){ PZ_ERRO='Não consegui ler os itens fora do ar agora (código '+r.status+').'; }
+    else { PZ=await r.json(); PZ_ERRO=''; PZ_T=Date.now(); }
+  }catch(e){ PZ_ERRO='Sem conexão para ler os itens fora do ar.'; }
+  if(DADO && DADO.d7) render();
+}
+function tempoFora(m){
+  if(m==null) return '?';
+  if(m<60) return m+' min';
+  if(m<1440) return Math.floor(m/60)+'h'+(m%60<10?'0':'')+(m%60);
+  const d=Math.floor(m/1440), h=Math.floor((m%1440)/60);
+  return d+(d===1?' dia':' dias')+(h?' e '+h+'h':'');
+}
+function pzResp(x){
+  const prova = x.prova? '<div style="color:var(--muted);font-size:11px;margin-top:2px">📩 '+esc(x.prova)+'</div>' : '';
+  if(x.resolvido) return '<span class="pill p-ok">✔ '+esc(x.quem||'loja')+'</span> <span style="color:var(--text2);font-size:12px">'+esc(x.em||'')+' · '+esc(x.o_que||'')+'</span>'+prova;
+  if(x.contradito) return '<span class="pill p-bad">⚠️ '+esc(x.quem||'')+(/^Despausar/i.test(x.o_que||'')?' pediu para despausar':' disse que despausou')+' em '+esc(x.em||'')+', mas o iFood ainda mostra pausado</span>'+prova;
+  return '<span class="pill p-bad">sem resposta da loja</span>';
+}
+function secPausado(){
+  let h='<div class="sec"><h2>⏸ Item fora do ar agora <span class="hint">iFood lido pela porta oficial a cada 5 min · com o que a loja respondeu na tela Resolver hoje</span></h2>';
+  if(PZ_ERRO) h+='<div class="aviso">'+esc(PZ_ERRO)+' Tento de novo em alguns minutos.</div>';
+  if(!PZ) return h+(PZ_ERRO?'':'<div class="load">Carregando itens fora do ar…</div>')+'</div>';
+
+  const ifd=(PZ.linhas||[]).filter(x=>x.aberta && daLoja(x.unidade));
+  const tab=(PZ.tablet||[]).filter(x=>daLoja(x.unidade));
+  const semResp=x=>!x.resolvido;
+  const alvo = LOJA_SEL==='todas' ? UNI : [LOJA_SEL];
+  h+='<div class="cards">';
+  alvo.forEach(function(u){
+    const a=ifd.filter(x=>x.unidade===u), s=a.filter(semResp).length, t=tab.filter(x=>x.unidade===u).length;
+    h+='<div class="c"><div class="nm">'+esc(u)+(s?'<span class="pill p-bad">'+s+' sem resposta</span>':(a.length?'<span class="pill p-ok">todos respondidos</span>':''))+'</div>'
+     + '<div class="nota">'+fmtN(a.length)+'</div><div class="qtd">fora do ar no iFood'+(t?' · '+fmtN(t)+' no tablet da mesa':'')+'</div></div>';
+  });
+  h+='</div>';
+
+  const lidoMin=PZ.lido_min==null?null:Number(PZ.lido_min);
+  h+='<div class="aviso">Última leitura do iFood: <b>'+esc(PZ.lido_em||'—')+'</b>'
+   + (lidoMin!=null&&lidoMin>20?' — <b style="color:var(--bad)">a leitura está parada há '+tempoFora(lidoMin)+'</b>, a lista pode estar velha':'')
+   + '. Tablet da mesa lido em <b>'+esc(PZ.tablet_lido||'—')+'</b>. O site próprio (Accon) não entra aqui — veja na tela Produtos pausados.</div>';
+
+  /* sem resposta e "disse que despausou mas continua pausado" primeiro; depois o que esta parado ha mais tempo */
+  const ord=ifd.slice().sort((a,b)=>((a.resolvido?1:0)-(b.resolvido?1:0)) || ((b.minutos||0)-(a.minutos||0)));
+  const MAX=60;
+  h+='<div class="store" style="margin-top:14px"><table><tr><th>Item</th><th>Loja</th><th>Marca</th><th>Fora do ar desde</th><th class="n">Há</th><th>O que a loja disse</th></tr>';
+  ord.slice(0,MAX).forEach(function(x){
+    h+='<tr><td><b>'+esc(x.item)+'</b>'+(x.tipo==='Complemento'?' <span style="color:var(--muted);font-size:10px">complemento</span>':'')+'</td>'
+     + '<td>'+esc(x.unidade)+'</td><td style="color:var(--text2)">'+esc(x.marca||'—')+'</td>'
+     + '<td style="white-space:nowrap">'+(x.minimo?'antes de ':'')+esc(x.pausou||'?')+'</td>'
+     + '<td class="n" data-k="'+(x.minutos==null?-1:x.minutos)+'">'+(x.minimo?'pelo menos ':'')+tempoFora(x.minutos)+'</td>'
+     + '<td style="min-width:220px">'+pzResp(x)+'</td></tr>';
+  });
+  h+='</table></div>';
+  if(ord.length>MAX) h+='<div class="aviso">Mostrando '+MAX+' de '+fmtN(ord.length)+' itens: primeiro os sem resposta da loja, depois os parados há mais tempo. A lista completa, com os botões para responder, está em Resolver hoje › Cardápio pausado.</div>';
+
+  if(tab.length){
+    h+='<h2>📱 Tablet da mesa <span class="hint">itens desligados no tablet (Goomer) · leitura de '+esc(PZ.tablet_lido||'—')+'</span></h2>'
+     + '<div class="store"><table><tr><th>Item</th><th>Loja</th><th>Estado</th><th>Desde</th><th class="n">Há</th></tr>';
+    tab.slice().sort((a,b)=>(b.dias||0)-(a.dias||0)).slice(0,40).forEach(function(x){
+      h+='<tr><td>'+esc(x.item)+'</td><td>'+esc(x.unidade)+'</td><td>'+esc(x.estado)+'</td><td>'+esc(x.desde||'—')+'</td>'
+       + '<td class="n" data-k="'+(x.dias==null?-1:x.dias)+'">'+(x.dias==null?'—':(x.dias===0?'hoje':x.dias+' dia'+(x.dias>1?'s':'')))+'</td></tr>';
+    });
+    h+='</table></div>';
+    if(tab.length>40) h+='<div class="aviso">Mostrando os 40 parados há mais tempo, de '+fmtN(tab.length)+' no tablet.</div>';
+  }
+  return h+'</div>';
+}
+
+/* ---------- 4. O QUE MAIS SAI ---------- */
+function secItens(){
+  let h='<div class="sec"><h2>🍔 O que mais sai <span class="hint">últimos 7 dias · quantidade vendida, para saber o que produzir</span></h2>';
+  const rows=DADO.itens.filter(r=>daLoja(r.unidade));
+  if(!rows.length){ return h+'<div class="semdado">Sem venda por item no período. Isso vem do sistema do caixa (Saipos).</div></div>'; }
+
+  const ate=rows.map(r=>r.dado_ate).filter(Boolean).sort().slice(-1)[0];
+  const g={};
+  rows.forEach(function(r){ g[r.produto]=(g[r.produto]||0)+Number(r.qtd||0); });
+  const lista=Object.keys(g).map(k=>({produto:k,qtd:g[k]})).sort((a,b)=>b.qtd-a.qtd);
+  const maisSaem=lista.slice(0,25);
+  const max=maisSaem.length?maisSaem[0].qtd:1;
+  const total=lista.reduce((s,x)=>s+x.qtd,0);
+
+  h+='<div class="store"><table><tr><th class="n">#</th><th>Item</th><th class="n">Quantidade</th><th style="width:180px">Peso</th></tr>';
+  maisSaem.forEach(function(x,i){
+    const pct=Math.round(x.qtd/max*100);
+    h+='<tr><td class="n" style="color:var(--muted)">'+(i+1)+'</td><td>'+esc(x.produto)+'</td>'
+     + '<td class="n" data-k="'+x.qtd+'">'+fmtN(x.qtd)+'</td>'
+     + '<td><div class="bar"><i style="width:'+pct+'%"></i></div></td></tr>';
+  });
+  h+='</table></div>';
+  h+='<div class="aviso">Lista dos 50 itens que mais saíram em cada loja — aqui somados, '+fmtN(lista.length)+' itens diferentes, '+fmtN(total)+' unidades nos últimos 7 dias. Dado do Saipos até <b>'+dBR(ate)+'</b>. Esta tela mostra só quantidade — preço e faturamento continuam fechados.</div>';
+  return h+'</div>';
+}
+
+function render(){
+  $('app').innerHTML = secPreparo() + secErro() + secPausado() + secItens();
+}
+
+/* ===== porta unica do portal: sessao por usuario ===== */
+const CDMMODS=['cozinha'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'cozinha'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+function mostraAba(q){var d=(q==='desp');
+$('pane-cozinha').style.display=d?'none':'';
+$('pane-desp').style.display=d?'':'none';
+$('aba-b-cozinha').className=d?'ab':'ab on';
+$('aba-b-desp').className=d?'ab on':'ab';
+var fl=$('filtros');if(fl)fl.style.display=d?'none':'';
+if(d)vivoDesliga();else{vivoBusca();vivoLiga();}
+if(d){var f=$('ifr-desp');if(f.getAttribute('src')==='about:blank')f.setAttribute('src',PORTAL_CFG.url('operacao/?embed=1'));}}
+cdmGuarda().then(function(ok){if(ok)boot()});
+</script>
+<script src="../assets/portal.js?v=3"></script>
+</body>
+</html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="../config.js" data-demo="telas/operacao.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#E0A81C">
+<title>Desperdício · Portal de Gestão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--s0:#111110;--s1:#1a1a19;--s2:#232321;--line:#34332f;--text:#fff;--text2:#c3c2b7;--muted:#8a897e;--brand:#E0A81C;--brand-ink:#111110;--ok:#2fae6a;--bad:#e66767;--warn:#c98500}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;padding:18px;max-width:1180px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.top{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:16px}
+.top .rt{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.dot{width:40px;height:40px;border-radius:11px;background:var(--brand);color:var(--brand-ink);display:grid;place-items:center;font-weight:800;font-size:16px;flex-shrink:0;overflow:hidden}
+.dot img{width:100%;height:100%;object-fit:cover;display:block}
+button.b{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+button.b:hover{border-color:var(--muted)}
+button.p{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+button.p:disabled{opacity:.5;cursor:default}
+h2{font-size:15px;font-weight:800;margin:22px 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+h2 .hint{font-weight:500;font-size:11.5px;color:var(--muted)}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:16px;margin-bottom:14px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:6px}
+.kpi{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:14px 16px}
+.kpi .t{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+.kpi .v{font-size:26px;font-weight:800;line-height:1.15;margin-top:4px}
+.kpi .d{color:var(--muted);font-size:11.5px;margin-top:2px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.f label{display:block;color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:4px}
+.f input,.f select,.f textarea{width:100%;background:var(--s2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;color:var(--text);font-size:13.5px;outline:none;font-family:inherit}
+.f input:focus,.f select:focus,.f textarea:focus{border-color:var(--brand)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px 10px;text-align:left;font-size:13px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+tr:last-child td{border-bottom:none}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.wrap{overflow-x:auto}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap}
+.p-ok{background:rgba(47,174,106,.15);color:var(--ok)}
+.p-bad{background:rgba(230,103,103,.15);color:var(--bad)}
+.p-mute{background:var(--s2);color:var(--muted)}
+.aviso{background:#1f1c14;border:1px solid #4a3f22;color:#e6d9a8;border-radius:10px;padding:11px 14px;font-size:12.5px;margin:12px 0}
+.load{color:var(--muted);padding:26px;text-align:center}
+.empty{color:var(--muted);padding:22px;text-align:center;font-size:13px}
+.msg{font-size:12.5px;margin-top:10px;min-height:18px}
+.msg.ok{color:var(--ok)}
+.msg.err{color:var(--bad)}
+.x{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:0 4px}
+.x:hover{color:var(--bad)}
+@media(max-width:640px){body{padding:12px}h1{font-size:19px}}
+
+/* tipografia dos titulos */
+h1,.gatebox h1{font-weight:400}
+h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.01em;line-height:1.06}
+
+/* cabe no celular: filas de aba nunca vazam ate 900px; o resto so em tela estreita */
+@media (max-width:900px){.views,.tabs,.abas,.fil,.pes,.filtros,.chips,.lojas,.periodos{display:flex;flex-wrap:wrap;gap:6px;width:auto;max-width:100%;min-width:0}.views>*,.tabs>*,.abas>*,.fil>*,.pes>*{flex:0 0 auto;max-width:100%}}@media (max-width:640px){body{padding-left:12px;padding-right:12px}table{display:block;width:max-content;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}h1{font-size:clamp(18px,6.2vw,26px);word-break:break-word}img,svg,canvas,iframe{max-width:100%}}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div style="display:flex;gap:10px;align-items:center">
+    <div class="dot" id="marcaLogo"></div>
+    <div><h1>🗑 Desperdício</h1><div class="sub">o que se perdeu, por loja e por motivo</div></div>
+  </div>
+  <div class="rt">
+    <span id="quem" style="color:var(--muted);font-size:12.5px"></span>
+    <button class="b" onclick="location.reload()">↻ Atualizar</button>
+  </div>
+</div>
+
+<div id="conteudo"><div class="load">Carregando…</div></div>
+
+<script>
+/* logo e nome da marca vem de config.js */
+(function(){var C=window.PORTAL_CFG||{};var d=document.getElementById('marcaLogo');if(!d)return;
+  if(C.logoUrl){var i=document.createElement('img');i.src=C.logoUrl;i.alt=C.marca||'';d.appendChild(i)}
+  else d.textContent=String(C.marca||'').split(/\s+/).map(function(w){return w.charAt(0)}).join('').slice(0,2).toUpperCase()})();
+const SB=PORTAL_CFG.rest;
+const KEY=PORTAL_CFG.chave;
+const H={apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'};
+const $=i=>document.getElementById(i);
+var EMBUTIDO=false;try{EMBUTIDO=!!new URLSearchParams(location.search).get('embed')}catch(e){}
+if(EMBUTIDO){var _t=document.querySelector('.top');if(_t)_t.style.display='none';document.body.style.padding='0';document.body.style.maxWidth='none';}
+
+/* ===== porta unica do portal: sessao por usuario ===== */
+const CDMMODS=['operacao','escritorio','cozinha'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmNome(){try{return sessionStorage.getItem('cdm_nome')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace(PORTAL_CFG.url('index.html'))}catch(e){location.replace(PORTAL_CFG.url('index.html'))}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:H,body:JSON.stringify({p_token:t,p_tela:'operacao'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+
+/* ===== base ===== */
+/* lojas vem do config.js */
+const UNI=(PORTAL_CFG.lojas||[]).map(function(l){return l.nome});
+const TURNOS=['Almoço','Tarde','Jantar','Madrugada'];
+const MOTIVOS=['Queimou','Caiu no chão','Erro de pedido','Venceu / estragou','Sobra de produção','Devolução do cliente','Teste / treinamento','Outro'];
+const MEDIDAS=['un','kg','g','L','ml','porção'];
+let DESP=[], RESUMO=[], DIAS=30;
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function iso(d){return d.toISOString().slice(0,10)}
+function br(s){return s?String(s).slice(8,10)+'/'+String(s).slice(5,7):'—'}
+function brl(v){return (v==null||!(function(){try{return sessionStorage.getItem("cdm_admin")==="1"}catch(e){return false}})())?'—':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function num(v){return v==null?'—':Number(v).toLocaleString('pt-BR')}
+function hoje(){return iso(new Date())}
+function diasAtras(n){return iso(new Date(Date.now()-n*864e5))}
+function arrOk(x){return Array.isArray(x)?x:[]}
+function setMsg(id,txt,erro){const e=$(id);if(!e)return;e.className='msg '+(erro?'err':'ok');e.textContent=txt||''}
+
+async function op(acao,dados){
+  const r=await fetch(SB+'rpc/operacao_consulta',{method:'POST',headers:H,
+    body:JSON.stringify({p_cred:cdmTok(),p_acao:acao,p_dados:dados||{}})});
+  let j=null;try{j=await r.json()}catch(e){}
+  if(!r.ok)throw new Error((j&&j.message)||('falha na consulta (HTTP '+r.status+')'));
+  return j;
+}
+
+async function carrega(){
+  $('conteudo').innerHTML='<div class="load">Carregando lançamentos…</div>';
+  try{
+    const p={de:diasAtras(DIAS),ate:hoje()};
+    const r=await Promise.all([op('resumo',p),op('lista',p)]);
+    RESUMO=arrOk(r[0]);DESP=arrOk(r[1]);
+    render();
+  }catch(e){$('conteudo').innerHTML='<div class="empty">'+esc(e.message)+'</div>'}
+}
+
+function render(){
+  let tot=0,evi=0,nl=0;
+  RESUMO.forEach(function(x){tot+=Number(x.custo||0);evi+=Number(x.custo_evitavel||0);nl+=Number(x.lancamentos||0)});
+  const porLoja={},porMotivo={};
+  RESUMO.forEach(function(x){porLoja[x.unidade]=(porLoja[x.unidade]||0)+Number(x.custo||0)});
+  DESP.forEach(function(d){const m=d.motivo||'Sem motivo';
+    porMotivo[m]=porMotivo[m]||{n:0,v:0};porMotivo[m].n++;porMotivo[m].v+=Number(d.custo_total||0)});
+
+  let h='<div class="cards">'+
+    '<div class="kpi"><div class="t">Perdas em '+DIAS+' dias</div><div class="v">'+brl(tot)+'</div><div class="d">'+num(nl)+' lançamento(s)</div></div>'+
+    '<div class="kpi"><div class="t">Era evitável</div><div class="v">'+brl(evi)+'</div><div class="d">'+(tot>0?Math.round(evi/tot*100)+'% do total':'—')+'</div></div>'+
+    '<div class="kpi"><div class="t">Média por dia</div><div class="v">'+brl(tot/DIAS)+'</div><div class="d">últimos '+DIAS+' dias</div></div>'+
+    '</div>';
+
+  h+='<h2>Lançar uma perda</h2><div class="card f"><div class="form">'+
+    '<div><label>Loja</label><select id="d_uni">'+UNI.map(function(u){return '<option>'+esc(u)+'</option>'}).join('')+'</select></div>'+
+    '<div><label>Data</label><input type="date" id="d_data" value="'+hoje()+'"></div>'+
+    '<div><label>Turno</label><select id="d_turno"><option value="">—</option>'+TURNOS.map(function(t){return '<option>'+t+'</option>'}).join('')+'</select></div>'+
+    '<div><label>O que se perdeu</label><input id="d_prod" placeholder="ex: hambúrguer 180g" autocomplete="off"></div>'+
+    '<div><label>Quantidade</label><input id="d_qtd" type="number" step="0.01" min="0" value="1"></div>'+
+    '<div><label>Medida</label><select id="d_med">'+MEDIDAS.map(function(m){return '<option>'+m+'</option>'}).join('')+'</select></div>'+
+    '<div><label>Custo por unidade</label><input id="d_custo" type="number" step="0.01" min="0" placeholder="opcional"></div>'+
+    '<div><label>Motivo</label><select id="d_mot">'+MOTIVOS.map(function(m){return '<option>'+m+'</option>'}).join('')+'</select></div>'+
+    '<div><label>Dava para evitar?</label><select id="d_evi"><option value="1">Sim</option><option value="0">Não</option></select></div>'+
+    '<div style="grid-column:1/-1"><label>Detalhe (opcional)</label><input id="d_det" placeholder="o que aconteceu"></div>'+
+    '</div><div style="margin-top:12px;display:flex;gap:8px;align-items:center">'+
+    '<button class="b p" id="d_btn" onclick="salva()">Lançar perda</button>'+
+    '<span class="msg" id="d_msg"></span></div></div>';
+
+  if(Object.keys(porLoja).length){
+    h+='<h2>Por loja <span class="hint">'+DIAS+' dias</span></h2><div class="card"><div class="wrap"><table><tr><th>Loja</th><th class="n">Perdas</th></tr>';
+    Object.keys(porLoja).sort(function(a,b){return porLoja[b]-porLoja[a]}).forEach(function(u){
+      h+='<tr><td>'+esc(u)+'</td><td class="n">'+brl(porLoja[u])+'</td></tr>';
+    });
+    h+='</table></div></div>';
+  }
+
+  if(Object.keys(porMotivo).length){
+    h+='<h2>Por motivo <span class="hint">onde está escorrendo</span></h2><div class="card"><div class="wrap"><table><tr><th>Motivo</th><th class="n">Vezes</th><th class="n">Custo</th></tr>';
+    Object.keys(porMotivo).sort(function(a,b){return porMotivo[b].v-porMotivo[a].v||porMotivo[b].n-porMotivo[a].n}).forEach(function(m){
+      h+='<tr><td>'+esc(m)+'</td><td class="n">'+num(porMotivo[m].n)+'</td><td class="n">'+(porMotivo[m].v?brl(porMotivo[m].v):'—')+'</td></tr>';
+    });
+    h+='</table></div></div>';
+  }
+
+  h+='<h2>Últimos lançamentos <span class="hint">'+DIAS+' dias · '+num(DESP.length)+' linha(s)</span>'+
+     '<button class="b" style="margin-left:auto" onclick="DIAS=(DIAS===30?90:30);carrega()">'+(DIAS===30?'ver 90 dias':'ver 30 dias')+'</button></h2>';
+  if(!DESP.length){
+    h+='<div class="card"><div class="empty">Nada lançado ainda. Assim que a equipe começar a registrar, os números aparecem aqui em cima.</div></div>';
+  }else{
+    h+='<div class="card"><div class="wrap"><table><tr><th>Dia</th><th>Loja</th><th>Turno</th><th>Item</th><th class="n">Qtd</th><th class="n">Custo</th><th>Motivo</th><th>Evitável</th><th>Quem</th><th></th></tr>';
+    DESP.forEach(function(d){
+      h+='<tr><td>'+br(d.data)+'</td><td>'+esc(d.unidade)+'</td><td>'+esc(d.turno||'—')+'</td>'+
+         '<td>'+esc(d.produto||'—')+(d.detalhe?'<div style="color:var(--muted);font-size:11.5px">'+esc(d.detalhe)+'</div>':'')+'</td>'+
+         '<td class="n">'+num(d.quantidade)+' '+esc(d.medida||'')+'</td>'+
+         '<td class="n">'+(d.custo_total?brl(d.custo_total):'—')+'</td>'+
+         '<td>'+esc(d.motivo||'—')+'</td>'+
+         '<td>'+(d.evitavel?'<span class="pill p-bad">sim</span>':'<span class="pill p-mute">não</span>')+'</td>'+
+         '<td>'+esc(d.lancado_por||'—')+'</td>'+
+         '<td class="n"><button class="x" title="apagar" onclick="apaga('+d.id+')">✕</button></td></tr>';
+    });
+    h+='</table></div></div>';
+  }
+  h+='<div class="aviso">O custo é opcional. Sem ele o lançamento continua valendo para contar quantas vezes aconteceu — só não entra na conta de dinheiro.<br>A refeição da equipe fica na <b>Central do RH</b>, na visão 🍽 Refeição.</div>';
+  $('conteudo').innerHTML=h;
+}
+
+async function salva(){
+  const prod=$('d_prod').value.trim();
+  if(!prod){setMsg('d_msg','Escreva o que se perdeu.',1);return}
+  const qtd=Number($('d_qtd').value||0);
+  if(!(qtd>0)){setMsg('d_msg','A quantidade tem que ser maior que zero.',1);return}
+  $('d_btn').disabled=true;setMsg('d_msg','Salvando…');
+  try{
+    await op('add',{unidade:$('d_uni').value,data:$('d_data').value,turno:$('d_turno').value,
+      produto:prod,quantidade:String(qtd),medida:$('d_med').value,
+      custo_unit:$('d_custo').value||'',motivo:$('d_mot').value,
+      evitavel:$('d_evi').value==='1',detalhe:$('d_det').value.trim(),
+      lancado_por:cdmNome()});
+    await carrega();
+    setMsg('d_msg','✅ Lançado.');
+  }catch(e){setMsg('d_msg',e.message,1)}
+  const b=$('d_btn');if(b)b.disabled=false;
+}
+
+async function apaga(id){
+  if(!confirm('Apagar este lançamento?'))return;
+  try{await op('del',{id:String(id)});await carrega()}
+  catch(e){alert(e.message)}
+}
+
+cdmGuarda().then(function(ok){
+  if(!ok)return;
+  const n=cdmNome();if(n)$('quem').textContent=n;
+  carrega();
+});
+</script>
+<script src="../assets/portal.js?v=3"></script>
+</body>
+</html>
