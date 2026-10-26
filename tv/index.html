@@ -82,6 +82,7 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .dd.vermelho{background:rgba(230,103,103,.18);border-color:var(--bad)}.dd.vermelho .nn{color:var(--bad)}
 .dd.hoje{border-color:var(--brand)}.dd.hoje .sm{color:var(--brand)}
 .dd.falta .nn{color:var(--muted)}
+.dd.naoconta{opacity:.45}.dd.naoconta .nn{color:var(--muted);text-decoration:line-through}   /* 25/10: dia antes de a regra comecar */
 .meta .fr{margin-top:.4em;font-weight:800;font-size:.95em}
 .meta .fr.ok{color:var(--ok)}.meta .fr.nao{color:var(--text2)}
 .meta .ant{color:var(--muted);font-size:.75em;margin-top:.2em}
@@ -507,6 +508,9 @@ function meta(m, px){
   const lim=m.verde_ate, alvo=m.meta_dias;
   let verdes=0, aindaPode=0;
   const cx=m.dias.map(function(d){
+    /* 25/10/2026 (chat-meta-churrasco-sb-24-10) Fabio: "começa a valar a partir de hj": dia antes de semana.conta_desde
+       aparece apagado, com o numero riscado e "não conta", e fica fora da soma (o banco manda d.conta=false) */
+    if(d.conta===false) return '<div class="dd naoconta'+(d.quando!=='falta'?' clica':'')+'"'+(d.quando!=='falta'?' data-dia="'+esc(d.dia)+'" title="Este dia não conta: a regra começou depois" tabindex="0" role="button"':'')+'><div class="sm">'+esc(d.sem)+'</div><div class="nn">'+esc(d.erros==null?'–':d.erros)+'</div><div class="dt">não conta</div></div>';
     let cl='falta', nn='–';
     if(d.quando==='passou'){ cl=d.erros<=lim?'verde':'vermelho'; nn=d.erros; if(d.erros<=lim) verdes++; }
     else if(d.quando==='hoje'){ nn=d.erros; if(d.erros>lim) cl='vermelho hoje'; else { cl='hoje'; aindaPode++; } }
@@ -520,7 +524,7 @@ function meta(m, px){
   const teto=Number(m.teto_semana)||0, G=gooCalc(m), gH=G?G.html:'';
   if(teto){
     let tot=0, sobram=0;
-    m.dias.forEach(function(d){ if(d.quando!=='falta') tot+=Number(d.erros)||0; if(d.quando!=='passou') sobram++; });
+    m.dias.forEach(function(d){ if(d.quando!=='falta'&&d.conta!==false) tot+=Number(d.erros)||0; if(d.quando!=='passou') sobram++; });
     const resta=teto-tot;
     let fr2, cf2='';
     if(tot>teto){ fr2='Passou de '+teto+': esta semana não dá mais ('+tot+' erros). Sábado começa outra.'; cf2='nao'; }
@@ -528,7 +532,7 @@ function meta(m, px){
     else if(!sobram){ fr2='🎉 Meta batida: churrasco no sábado! '+tot+' de '+teto+' erros'; cf2='ok'; }
     else fr2=tot+' de '+teto+' erros · '+(resta===0?'nenhum erro a mais até sexta!':'sobra'+(resta>1?'m ':' ')+resta+' até sexta');
     const a2=m.anterior, at=a2&&a2.total!=null?Number(a2.total):null, tt2=a2&&a2.teto!=null?Number(a2.teto):teto;   /* 24/10: a semana passada com o teto dela */
-    el.innerHTML='<h2>🍖 Meta do churrasco <small>cozinha + delivery juntos'+(PORTAL?' · toque no dia':'')+'</small></h2><div class="rg">'+(G?'até '+esc(teto)+' erros de sáb a sex + '+esc(G.alvo)+' avaliações no Google na semana = churrasco':'até '+esc(teto)+' erros de sáb a sex = churrasco · guia: até '+esc(lim)+' por dia')+'</div>'
+    el.innerHTML='<h2>🍖 Meta do churrasco <small>cozinha + delivery juntos'+(PORTAL?' · toque no dia':'')+'</small></h2><div class="rg">'+(G?'até '+esc(teto)+' erros de sáb a sex + '+esc(G.alvo)+' avaliações no Google na semana = churrasco':'até '+esc(teto)+' erros de sáb a sex = churrasco · guia: até '+esc(lim)+' por dia')+(m.conta_desde?' · contando desde '+esc(m.conta_desde):'')+'</div>'
       +'<div class="dias">'+cx+'</div>'+gH+'<div class="fr '+cf2+'">'+esc(fr2)+'</div>'
       +(a2&&at!=null?'<div class="ant">Semana passada ('+esc(a2.de)+' a '+esc(a2.ate)+'): '+esc(at)+' erro'+(at===1?'':'s')+(at<=tt2?' — 🎉 dentro dos '+esc(tt2):'')+'</div>':'')
       +pxLinha(px);
@@ -961,10 +965,11 @@ function slMeta(){
   const teto=Number(m.teto_semana)||0, lim=m.verde_ate;
   let tot=0, sobram=0;
   const cx=m.dias.map(function(d){
+    if(d.conta===false) return '<div class="dd naoconta"><div class="sm">'+esc(d.sem)+'</div><div class="nn">'+esc(d.erros==null?'–':d.erros)+'</div><div class="dt">não conta</div></div>';   /* 25/10: antes de conta_desde */
     let cl='falta', nn='–';
     if(d.quando==='passou'){ cl=d.erros<=lim?'verde':'vermelho'; nn=d.erros; }
     else if(d.quando==='hoje'){ nn=d.erros; cl=d.erros>lim?'vermelho hoje':'hoje'; }
-    if(d.quando!=='falta') tot+=Number(d.erros)||0;
+    if(d.quando!=='falta'&&d.conta!==false) tot+=Number(d.erros)||0;
     if(d.quando!=='passou') sobram++;
     return '<div class="dd '+cl+'"><div class="sm">'+(d.quando==='hoje'?'HOJE':esc(d.sem))+'</div><div class="nn">'+esc(nn)+'</div><div class="dt">'+esc(d.dia)+'</div></div>';
   }).join('');
