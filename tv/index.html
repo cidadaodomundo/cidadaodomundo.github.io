@@ -50,6 +50,7 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .mc.sem{color:var(--muted);font-weight:600;font-size:1em}
 .e .ds{font-style:italic;margin-top:.3em;font-size:1.05em}
 .e .ds,.e .lj,.p .it{overflow-wrap:anywhere}
+.cam{font-size:.8em;color:var(--text2);margin-top:.35em;line-height:1.35;font-style:normal;overflow-wrap:anywhere}.cam b{color:var(--brand)}.cam small{color:var(--muted)}
 .pl{display:inline-block;border-radius:999px;padding:.1em .6em;font-size:.6em;font-weight:800;text-transform:uppercase;letter-spacing:.03em}
 .p-novo{background:var(--bad);color:#fff}
 .p-coz{background:rgba(230,103,103,.18);color:var(--bad)}
@@ -355,6 +356,42 @@ function falha(msg){
 function liga(){ if(!TIMER) TIMER=setInterval(function(){ busca(false); },60000); }
 function desliga(){ if(TIMER){ clearInterval(TIMER); TIMER=null; } }
 
+/* 28/10/2026 (chat-camera-erros-28-10, obra 139) Fabio: "quero ver se conseguimos sincronizar esses erros de bebidas e
+   sobremesas com as cameras" e escolheu o degrau 1: SO NO PORTAL (a TV da parede fica como esta) cada erro com numero de
+   pedido ganha a linha "qual camera · de que hora a que hora". Horario do iFood e do TrackEat; as cameras de cada loja e
+   setor moram na tabela camera_ponto, lida pela porta cozinha_camera. Pede so o que ainda nao pediu: 1 chamada por erro novo,
+   sem timer proprio (vai junto com o desenho da lista e com a abertura de um dia). */
+const CAM={}, CAM_PEDIU={};
+function camK(e){ return String(e.k||[e.pedido,e.ts||'',e.dia||'',e.hora||''].join('|')); }
+async function camPede(L){
+  if(!PORTAL||!PTOK) return false;
+  const falta=(L||[]).filter(e=>e&&e.pedido&&(e.ts||(e.dia&&e.hora))&&!CAM_PEDIU[camK(e)]).slice(0,40);
+  if(!falta.length) return false;
+  falta.forEach(e=>{ CAM_PEDIU[camK(e)]=1; });   /* nao repete o pedido nem se der erro: recarregar a pagina tenta de novo */
+  try{
+    const itens=falta.map(e=>e.ts?{k:camK(e),pedido:e.pedido,setor:e.setor,ts:e.ts}:{k:camK(e),pedido:e.pedido,setor:e.setor,dia:e.dia,hora:e.hora});
+    const r=await fetch(SB+'rpc/cozinha_camera',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({p_token:PTOK,p_dados:{loja:LOJA,itens:itens}})});
+    if(!r.ok) return false;
+    const j=await r.json();
+    (j.itens||[]).forEach(x=>{ if(x&&x.k) CAM[x.k]=x; });
+    return true;
+  }catch(err){ return false; }
+}
+function camLinha(e){
+  if(!PORTAL||!e||!e.pedido) return '';
+  const x=CAM[camK(e)]; if(!x) return '';
+  if(!x.achou) return '<div class="cam">🎥 Não achei este pedido no iFood perto desse horário, então não sei a hora em que saiu.</div>';
+  const cams=(x.cams||[]).map(c=>esc(c.camera)+' <small>('+esc(c.gravador)+')</small>').join(' · ');
+  const quem=x.quem||'motoboy', hs=['entrou '+x.entrou];
+  if(x.pronto) hs.push('marcado pronto '+x.pronto);
+  if(x.chegou) hs.push(quem+' chegou '+x.chegou);
+  if(x.saiu) hs.push((x.chegou?'pegou ':quem+' pegou ')+x.saiu);
+  return '<div class="cam">🎥 '+(cams||'câmera desta loja ainda não cadastrada')
+    +' · olhe '+(x.ate?'de <b>'+esc(x.entrou)+'</b> a <b>'+esc(x.ate)+'</b>':'a partir de <b>'+esc(x.entrou)+'</b> (a saída ainda não foi marcada)')
+    +'<br><small>'+esc(hs.join(' · '))+'</small></div>';
+}
+
 function desenha(novos){
   const j=DADO; if(!j) return;
   novos=novos||[];
@@ -387,6 +424,7 @@ function desenha(novos){
         +'<div class="tt">'+esc(e.titulo)+(nv?' <span class="pl p-novo">novo</span>':'')+' <span class="pl '+pc+'">'+esc(e.setor)+'</span></div>'
         +'<div class="lj">'+(marcaLoja(e.marca)?'<span class="mc">'+esc(marcaLoja(e.marca))+'</span>':'<span class="mc sem">marca não informada</span>')+' · '+(e.pedido?'pedido <b>'+esc(e.pedido)+'</b>':'sem nº de pedido')+(e.item?' · '+esc(e.item):'')+'</div>'
         +(e.disse?'<div class="ds">“'+esc(e.disse)+'”</div>':'')
+        +camLinha(e)
         +'</div></div>';
     }).join('');
     /* so os cartoes que cabem inteiros na tela; o resto vira "+ N mais cedo" (a linha do "+ N" ja ocupa lugar antes de medir) */
@@ -394,6 +432,7 @@ function desenha(novos){
     const el=$('lista'); while(el.children.length>1 && el.scrollHeight>el.clientHeight+2) el.removeChild(el.lastElementChild);
     const sobra=L.length-el.children.length;
     $('mais').textContent=sobra>0? '+ '+sobra+' erro'+(sobra>1?'s':'')+' mais cedo — lista completa no portal › Central Cozinha' : '';
+    if(PORTAL) camPede(L.slice(0,MAX)).then(function(n){ if(n) desenha([]); });   /* 28/10: a linha da camera chega depois e redesenha 1 vez */
   }
   meta(j.semana, j.regra_proxima);   /* antes da lista de fora do ar: o cartao ocupa espaco na mesma coluna */
   /* fora do ar: junta o mesmo item de varias marcas; sem resposta da loja primeiro */
@@ -812,6 +851,13 @@ async function abreDia(dm){
   const X=Array.isArray(j.expedicao)?j.expedicao:[], AV=j.avaliacoes||{}, IF=AV.ifood||{}, GO=AV.google||null;
   const RU=Array.isArray(IF.ruins)?IF.ruins:[], AQ=RU.filter(r=>r.qual), AO=RU.filter(r=>!r.qual);
   const M=C.filter(e=>!e.qual), Q=C.filter(e=>e.qual).concat(X).sort((a,b)=>String(a.hora).localeCompare(String(b.hora)));
+  /* 28/10/2026 (chat-camera-erros-28-10): no portal, a linha da camera em cada erro do dia. A porta do dia nao manda a hora
+     exata do pedido: vai o dia da cozinha + a hora do cartao, e o banco acha o pedido no iFood ate 5 min dela. */
+  if(PORTAL){
+    M.concat(Q).forEach(e=>{ if(e && !e.ts) e.dia=iso; });
+    await camPede(M.concat(Q));
+    if(eu!==DIA_PEDIDO || !$('info').classList.contains('on')) return;
+  }
   DIA_ISO=iso;
   const cor=j.hoje?(C.length>lim?'var(--bad)':'var(--brand)'):(C.length<=lim?'var(--ok)':'var(--bad)');
   const situ=j.hoje?(C.length>lim?'já passou do limite de '+lim:'até agora (limite '+lim+')'):(C.length<=lim?'dia verde (limite '+lim+')':'dia vermelho (limite '+lim+')');
@@ -825,7 +871,7 @@ async function abreDia(dm){
   const linha=e=>'<tr><td class="hr">'+esc(e.hora)+'</td><td><span class="pl '+(e.setor==='cozinha'?'p-coz':e.setor==='montagem'?'p-mon':'p-exp')+'">'+esc(e.setor)+'</span>'
           +(e.qual?'<br><small style="color:'+(e.na_meta?'var(--bad)':'var(--muted)')+'">'+(e.na_meta?'conta na meta':'não conta na meta')+'</small>':'')+'</td>'
           +'<td><b>'+esc(e.titulo)+'</b>'+(e.item?'<br><small style="color:var(--text2)">'+esc(e.item)+'</small>':'')+'</td>'
-          +'<td>'+mp(e)+'</td>'
+          +'<td>'+mp(e)+camLinha(e)+'</td>'
           +'<td class="ds">'+(e.disse?'“'+esc(e.disse)+'”':'—')+(e.fontes?'<br><small style="font-style:normal;color:var(--muted)">'+esc(e.fontes)+'</small>':'')+'</td>'
           +'<td>'+resolveu(e.resolveu)+'</td></tr>';
   const est=v=>{ const k=Math.max(0,Math.min(5,Number(v)|0)); return '★'.repeat(k)+'☆'.repeat(5-k); };
