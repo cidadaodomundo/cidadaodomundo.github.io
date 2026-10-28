@@ -34,6 +34,11 @@ button.dl:hover{border-color:var(--text2)}
 .s-atencao{background:rgba(229,140,40,.18);color:#f3a95b}
 .s-falta{background:rgba(230,103,103,.15);color:#ff9a9a}
 .s-nao_sei{background:var(--s3);color:var(--text2)}
+.s-emp{background:rgba(80,150,230,.17);color:#8fc1ff}
+.empl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--s2);border:1px solid var(--line);border-radius:11px;padding:8px 10px;font-size:13.5px}
+.empl .tx{flex:1;min-width:0}
+.empl.fim{opacity:.6}
+.sep{border-top:1px solid var(--line);margin:4px 0}
 .c.falta{border-left:4px solid var(--bad)}
 .c.pronto{border-left:4px solid var(--ok)}
 .c.fora{opacity:.6}
@@ -58,6 +63,7 @@ button.dl:hover{border-color:var(--text2)}
   <div class="intro">Para rodar com a gente, cada motoboy precisa ter: <b>MEI ativo</b>, <b>CNH com categoria A</b>, <b>documento da moto em dia</b>, <b>contrato assinado</b> e <b>chave Pix</b> para receber.</div>
 
   <div id="pedir"></div>
+  <div id="termica"></div>
   <div class="chips" id="chips"></div>
   <div class="busca"><span class="lupa">🔎</span><input id="q" placeholder="Procurar pelo nome…" oninput="pinta()"></div>
   <div id="app"><div class="vazio"><span class="em">🛵</span>Carregando…</div></div>
@@ -99,6 +105,38 @@ button.dl:hover{border-color:var(--text2)}
     <button class="sal" id="df_sal" onclick="salvaFicha()">💾 Salvar</button>
   </div>
 </dialog>
+<dialog id="dlg_eq">
+  <div class="dh"><h3 id="eq_tit">Equipamento</h3><button class="x" onclick="fecha('dlg_eq')" aria-label="Fechar">✕</button></div>
+  <div class="db">
+    <div class="cp2">
+      <div class="f"><label for="eq_prot">🧊 Proteção térmica dele</label><select id="eq_prot">
+        <option value="bag">✅ Tem bag térmica</option><option value="vedacao">✅ Tem vedação térmica na caixinha</option>
+        <option value="nenhuma">🔴 Baú sem proteção</option><option value="nao_sei">❔ Não sei</option></select></div>
+      <div class="f"><label for="eq_bau">📦 Tamanho do baú</label><select id="eq_bau">
+        <option value="grande">Grande</option><option value="pequeno">Pequeno</option><option value="nao_sei">Não sei</option></select></div>
+    </div>
+    <div class="cp2">
+      <div class="f"><label for="eq_lit">📏 Litros do baú</label><input id="eq_lit" type="number" min="10" max="300" inputmode="numeric" placeholder="Ex.: 140"></div>
+      <div class="f"><label for="eq_det">📝 Observação</label><input id="eq_det" maxlength="300" placeholder="Ex.: bag preta, cabe pizza"></div>
+    </div>
+    <div class="ult" id="eq_ult"></div>
+    <div class="sep"></div>
+    <div class="f"><label>🤝 O que a casa emprestou para ele</label><div id="eq_emps" class="docs"></div></div>
+    <div class="cp2">
+      <div class="f"><label for="eq_oque">Emprestar agora: o quê</label><input id="eq_oque" maxlength="80" value="Bag térmica"></div>
+      <div class="f"><label for="eq_ident">Qual (número, cor)</label><input id="eq_ident" maxlength="60" placeholder="Ex.: Bag 3, vermelha"></div>
+    </div>
+    <div class="cp2">
+      <div class="f"><label for="eq_data">Desde</label><input id="eq_data" type="date"></div>
+      <div class="f"><label for="eq_obs">Observação</label><input id="eq_obs" maxlength="200" placeholder="Ex.: devolver no fim do mês"></div>
+    </div>
+    <button class="bx" id="eq_emp" onclick="emprestar()">📦 Registrar empréstimo</button>
+  </div>
+  <div class="df">
+    <button class="bx" onclick="fecha('dlg_eq')">Fechar</button>
+    <button class="sal" id="eq_sal" onclick="salvaEq()">💾 Salvar proteção e baú</button>
+  </div>
+</dialog>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -126,7 +164,49 @@ const SIT={
 const LOJAS=['Água Verde','São Braz','Ahú'];
 const ICL={'Água Verde':'🟢','São Braz':'🔵','Ahú':'🟣'};
 
-let FICHAS=[],SEM=[],QUEM='',PODE=false,FILTRO='todas',EDOC=null,EFIC=null;
+let FICHAS=[],SEM=[],QUEM='',PODE=false,FILTRO='todas',EDOC=null,EFIC=null,EEQ=null,HOJE='';
+
+/* protecao termica (28/10/2026): bag ou vedacao do proprio motoboy, ou o que a casa emprestou */
+const PROT={bag:{r:'✅ Bag térmica',s:'ok'},vedacao:{r:'✅ Vedação',s:'ok'},nenhuma:{r:'🔴 Sem proteção',s:'falta'},nao_sei:{r:'❔ Não sei',s:'nao_sei'}};
+const BAU={grande:'Grande',pequeno:'Pequeno',nao_sei:'Não sei'};
+function empAberto(f){return (f.emprestimos||[]).filter(function(e){return !e.devolvido_em})}
+function semProtecao(f){return f.ativo&&f.protecao==='nenhuma'&&!empAberto(f).length}
+function protSit(f){
+  const ea=empAberto(f);
+  if(ea.length)return {s:'emp',r:'🟦 Emprestada',x:ea.map(function(e){return e.o_que+(e.identificacao?' ('+e.identificacao+')':'')+' desde '+brc(e.emprestado_em)}).join(' · ')};
+  const p=PROT[f.protecao]||PROT.nao_sei;
+  return {s:p.s,r:p.r,x:f.protecao==='bag'?'bag térmica dele':f.protecao==='vedacao'?'vedação na caixinha dele':f.protecao==='nenhuma'?'baú sem proteção':''};
+}
+function linhaTerm(f){
+  const r=protSit(f),tag=PODE?'button':'div';
+  return '<'+tag+' class="dl" '+(PODE?'data-eq="'+f.id+'" ':'')+'title="'+esc(f.protecao_detalhe||'')+'"><span class="di">🧊</span><span class="dn">Térmica</span>'+
+    '<span class="dx">'+esc(r.x)+'</span><span class="ds s-'+r.s+'">'+r.r+'</span></'+tag+'>';
+}
+function linhaBau(f){
+  const tag=PODE?'button':'div',s=f.bau==='grande'?'ok':f.bau==='pequeno'?'atencao':'nao_sei';
+  return '<'+tag+' class="dl" '+(PODE?'data-eq="'+f.id+'" ':'')+'><span class="di">📦</span><span class="dn">Baú</span>'+
+    '<span class="dx">'+(f.bau_litros?esc(f.bau_litros)+' litros':'')+'</span><span class="ds s-'+s+'">'+(s==='ok'?'✅ ':s==='atencao'?'⚠️ ':'❔ ')+BAU[f.bau||'nao_sei']+'</span></'+tag+'>';
+}
+function pintaTermica(){
+  const at=FICHAS.filter(function(f){return f.ativo});
+  const nomes=function(l){return l.map(function(f){return '<b class="nmx" data-ir="'+f.id+'">'+esc(nomeCurto(f))+'</b>'}).join(', ')};
+  const linha=function(ic,tt,l,extra){return l.length?'<div class="pq"><span class="ic">'+ic+'</span><span class="tt">'+tt+' ('+l.length+')</span><span class="qm">'+(extra||nomes(l))+'</span></div>':''};
+  const emp=at.filter(function(f){return empAberto(f).length});
+  const sem=at.filter(semProtecao);
+  let h=linha('🎒','Com bag térmica',at.filter(function(f){return f.protecao==='bag'&&!empAberto(f).length}))+
+    linha('🧊','Com vedação na caixinha',at.filter(function(f){return f.protecao==='vedacao'&&!empAberto(f).length}))+
+    linha('🟦','Com bag da casa',emp,emp.map(function(f){return '<b class="nmx" data-ir="'+f.id+'">'+esc(nomeCurto(f))+'</b> ('+esc(protSit(f).x)+')'}).join(', '))+
+    linha('🔴','Sem proteção',sem)+
+    linha('❔','Não sabemos',at.filter(function(f){return f.protecao==='nao_sei'&&!empAberto(f).length}));
+  if(sem.length){
+    h+='<div class="pq"><span class="ic">🛒</span><span class="tt">Bags que faltam</span><span class="qm">Para todos rodarem com proteção faltam <b>'+sem.length+'</b> bag'+(sem.length>1?'s':'')+': '+
+      LOJAS.map(function(l){return esc(l)+' <b>'+sem.filter(function(f){return f.loja===l}).length+'</b>'}).join(' · ')+'</span></div>';
+  }
+  const peq=at.filter(function(f){return f.bau==='pequeno'}),nsb=at.filter(function(f){return f.bau==='nao_sei'});
+  h+=linha('📦','Baú pequeno',peq);
+  if(nsb.length)h+='<div class="pq"><span class="ic">📏</span><span class="tt">Baú sem tamanho anotado ('+nsb.length+')</span><span class="qm">toque na linha <b>📦 Baú</b> do cartão para anotar</span></div>';
+  $('termica').innerHTML='<div class="pedir"><h2>🧊 Proteção térmica e baú</h2>'+h+'</div>';
+}
 
 async function porta(acao,dados){
   const r=await fetch(SB+'rpc/motoboys_consulta',{method:'POST',
@@ -208,6 +288,7 @@ function pintaChips(){
   const fs=[{k:'todas',e:'🛵',r:'Todas',c:at.length}]
     .concat(LOJAS.map(function(l){return {k:l,e:ICL[l],r:l,c:at.filter(function(f){return f.loja===l}).length}}))
     .concat([{k:'pend',e:'🔴',r:'Com coisa para pedir',c:at.filter(function(f){return pendencias(f).length}).length},
+             {k:'semprot',e:'🧊',r:'Sem proteção térmica',c:at.filter(semProtecao).length},
              {k:'parado',e:'💤',r:'Não rodou em 30 dias',c:at.filter(function(f){return !f.entregas}).length},
              {k:'fora',e:'🚪',r:'Não roda mais',c:FICHAS.filter(function(f){return !f.ativo}).length}]);
   $('chips').innerHTML=fs.filter(function(f){return f.k!=='fora'||f.c}).map(function(f){
@@ -219,6 +300,7 @@ function passa(f){
   if(!f.ativo)return false;
   if(FILTRO==='todas')return true;
   if(FILTRO==='pend')return pendencias(f).length>0;
+  if(FILTRO==='semprot')return semProtecao(f);
   if(FILTRO==='parado')return !f.entregas;
   return f.loja===FILTRO;
 }
@@ -252,7 +334,7 @@ function cartao(f){
     '<div class="ch"><div class="av">🛵</div><div><div class="nm">'+esc(f.nome)+'</div><div class="st">'+esc(tipo)+' · '+esc(f.loja)+(f.ativo?'':' · não roda mais')+'</div></div>'+
     (PODE?'<button class="ed" data-fic="'+f.id+'" title="Mudar nome, loja ou observação">✏️</button>':'')+'</div>'+
     '<div class="rd">'+rd+'</div>'+
-    '<div class="docs">'+DOCS.map(function(x){return linhaDoc(f,x)}).join('')+linhaPix(f)+'</div>';
+    '<div class="docs">'+DOCS.map(function(x){return linhaDoc(f,x)}).join('')+linhaPix(f)+linhaTerm(f)+linhaBau(f)+'</div>';
   if(f.obs)h+='<div class="faz">'+esc(f.obs)+'</div>';
   if(ok)h+='<div class="tags"><span class="tg verde">✅ Tudo conferido para rodar</span></div>';
   else if(soPasta(f))h+='<div class="tags"><span class="tg ambar">🟡 Contrato feito · conferir os documentos na pasta</span></div>';
@@ -337,6 +419,49 @@ async function salvaFicha(){
   try{await porta('ficha',dados);fecha('dlg_fic');await boot();aviso(EFIC!=null?'✅ Ficha atualizada!':'🎉 Ficha criada!')}
   catch(e){$('df_sal').disabled=false;aviso('😕 Não deu para salvar. Entre no portal de novo e tente outra vez.')}
 }
+/* ---- janela de equipamento: protecao, bau e emprestimos ---- */
+function abreEq(id){
+  const f=FICHAS.find(function(x){return x.id===id});if(!f)return;
+  EEQ=id;
+  $('eq_tit').textContent='🧊 Equipamento · '+nomeCurto(f);
+  $('eq_prot').value=f.protecao||'nao_sei';
+  $('eq_bau').value=f.bau||'nao_sei';
+  $('eq_lit').value=f.bau_litros||'';
+  $('eq_det').value=f.protecao_detalhe||'';
+  $('eq_ult').textContent=f.equip_quando?('Última mudança: '+f.equip_quando+(f.equip_quem?' · '+f.equip_quem:'')):'';
+  const es=f.emprestimos||[];
+  $('eq_emps').innerHTML=es.length?es.map(function(e){
+    return '<div class="empl'+(e.devolvido_em?' fim':'')+'"><span class="tx">'+esc(e.o_que)+(e.identificacao?' · '+esc(e.identificacao):'')+
+      ' · desde '+esc(br(e.emprestado_em))+(e.devolvido_em?' · devolveu '+esc(br(e.devolvido_em)):'')+(e.obs?' · '+esc(e.obs):'')+'</span>'+
+      (e.devolvido_em?'':'<button class="bt mini" data-dev="'+e.id+'">✅ Devolveu hoje</button>')+'</div>';
+  }).join(''):'<div class="ult">Nada emprestado até agora.</div>';
+  $('eq_oque').value='Bag térmica';$('eq_ident').value='';$('eq_obs').value='';$('eq_data').value=HOJE;
+  $('eq_sal').disabled=false;$('eq_emp').disabled=false;
+  const g=$('dlg_eq');if(g.showModal)g.showModal();else g.setAttribute('open','');
+}
+async function salvaEq(){
+  if(EEQ==null||$('eq_sal').disabled)return;
+  const lit=$('eq_lit').value.trim();
+  if(lit&&(Number(lit)<10||Number(lit)>300)){aviso('✋ Litros entre 10 e 300');$('eq_lit').focus();return}
+  $('eq_sal').disabled=true;
+  try{await porta('equip',{id:EEQ,protecao:$('eq_prot').value,protecao_detalhe:$('eq_det').value.trim(),bau:$('eq_bau').value,bau_litros:lit});
+    fecha('dlg_eq');await boot();aviso('✅ Guardado!')}
+  catch(e){$('eq_sal').disabled=false;aviso('😕 Não deu para salvar. Entre no portal de novo e tente outra vez.')}
+}
+async function emprestar(){
+  if(EEQ==null||$('eq_emp').disabled)return;
+  const oq=$('eq_oque').value.trim();
+  if(!oq){aviso('✋ Escreva o que foi emprestado');$('eq_oque').focus();return}
+  $('eq_emp').disabled=true;
+  try{await porta('emprestar',{ficha_id:EEQ,o_que:oq,identificacao:$('eq_ident').value.trim(),emprestado_em:$('eq_data').value,obs:$('eq_obs').value.trim()});
+    const id=EEQ;await boot();abreEq(id);aviso('📦 Empréstimo registrado!')}
+  catch(e){$('eq_emp').disabled=false;aviso('😕 Não deu para registrar. Entre no portal de novo e tente outra vez.')}
+}
+async function devolver(eid){
+  if(!confirm('Marcar como devolvido hoje?'))return;
+  try{await porta('devolver',{emprestimo_id:eid});const id=EEQ;await boot();if(id!=null)abreEq(id);aviso('✅ Devolução registrada!')}
+  catch(e){aviso('😕 Não deu para registrar a devolução.')}
+}
 function fecha(i){const d=$(i);if(d.close)d.close();else d.removeAttribute('open')}
 
 document.addEventListener('click',function(ev){
@@ -348,6 +473,10 @@ document.addEventListener('click',function(ev){
   if(e){abreFicha(Number(e.getAttribute('data-fic')));return}
   const nv=ev.target.closest('[data-novo]');
   if(nv){abreFicha(null,SEM[Number(nv.getAttribute('data-novo'))]);return}
+  const eq=ev.target.closest('[data-eq]');
+  if(eq){abreEq(Number(eq.getAttribute('data-eq')));return}
+  const dv=ev.target.closest('[data-dev]');
+  if(dv){devolver(Number(dv.getAttribute('data-dev')));return}
   const ir=ev.target.closest('[data-ir]');
   if(ir){
     const id=Number(ir.getAttribute('data-ir'));
@@ -362,12 +491,14 @@ async function boot(){
   catch(e){$('app').innerHTML='<div class="vazio"><span class="em">🔌</span>Não deu para carregar. Entre no portal de novo.</div>';return}
   FICHAS=j.fichas||[];SEM=j.sem_ficha||[];QUEM=j.quem||'';PODE=!!j.pode_editar;
   $('b_novo').style.display=PODE?'':'none';
-  pintaPlacar();pintaPedir();pintaChips();pinta();
+  HOJE=j.hoje||'';
+  pintaPlacar();pintaPedir();pintaTermica();pintaChips();pinta();
   $('rod').innerHTML='<b>Como ler as cores</b><div class="leg">'+
     Object.keys(SIT).map(function(s){return '<span class="s-'+s+'">'+SIT[s].l+'</span>'}).join('')+'</div><br>'+
     'A ficha começou em 26/10/2026 com a lista de contratos que o Alejo mandou no grupo dos motoboys (20/10) e com os documentos que eles mandaram no WhatsApp do SAC. '+
     'As entregas são do TrackEat, nos últimos 30 dias, sem as reprovadas. A chave Pix vem do cadastro do pagamento dos motoboys. '+
-    'Recebeu um documento? Toque na linha dele no cartão e mude a situação.'+
+    'A proteção térmica começou em 28/10/2026 com a planilha do Alejo (21/10) e as respostas do Jaison (21/10) e do Alejo (22/10) no mesmo grupo. '+
+    'Recebeu um documento? Toque na linha dele no cartão e mude a situação. Emprestou uma bag? Toque na linha 🧊 Térmica.'+
     '<br>Lido em '+esc(j.gerado_em||'')+(QUEM?' · você está como <b>'+esc(QUEM)+'</b>':'')+'.';
 }
 
