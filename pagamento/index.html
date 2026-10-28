@@ -475,6 +475,8 @@ async function viewComparar(){
     const pt=function(t2){return '<div style="margin:2px 0">'+t2+'</div>'};
     if(Number(x.deles_entregas||0)!==Number(x.nosso_entregas||0)){
       let m='Ele fez <b>'+num(x.nosso_entregas)+'</b> entregas. A planilha contou <b>'+num(x.deles_entregas)+'</b>.';
+      const md=prMadr(x.madr,Number(x.deles_entregas||0)-Number(x.nosso_entregas||0));
+      if(md) m+=' <span style="color:#fbbf24">'+md+'</span>';
       if(Number(x.pendentes||0)>0) m+=' <span style="color:#fbbf24">'+(Number(x.pendentes)===1?'Uma delas o TrackEat ainda não aprovou.':x.pendentes+' delas o TrackEat ainda não aprovou.')+'</span>';
       if(Number(x.reprovadas||0)>0) m+=' <span style="color:var(--muted)">'+(Number(x.reprovadas)===1?'1 foi marcada como repetida':x.reprovadas+' foram marcadas como repetidas')+' e a gente não paga.</span>';
       p.push(pt(m));
@@ -923,10 +925,34 @@ function prComparavel(x){return x.nosso!=null&&prCasa(x)!=null}
 function prFalta(x){return x.faixa==='so na planilha'||(x.faixa==='so no sistema'&&x.pix_status!=='esperando o banco')}
 function prBate(x){return x.faixa==='centavo'||x.faixa==='ate R$1'}
 function prConta(x){return prComparavel(x)||prFalta(x)}
+// 28/10 regra do Fábio: o turno da casa vai das 10h às 04h do dia seguinte — entrega da madrugada é do turno do dia anterior.
+// m vem da porta (motoboy_madrugada_anterior); só fala quando a planilha tem pelo menos essas entregas a mais.
+function prMadr(m,excesso){
+  if(!m||!(Number(m.n)>0)||Number(m.n)>Number(excesso)) return '';
+  const ontem=prDt(m.turno_de), madr=prDt(prMais(m.turno_de,1)), n=Number(m.n), um=(n===1);
+  const ela=um?'ela':'elas', pagas=um?'já foi paga':'já foram pagas';
+  let t=(n===Number(excesso)?(um?'a entrega a mais da planilha é':'as '+num(n)+' entregas a mais da planilha são'):num(n)+' das '+num(excesso)+' entregas a mais da planilha '+(um?'é':'são'))+
+    ' da madrugada de '+madr+' ('+esc(m.horas||'')+' · '+rs(m.valor)+'). O turno vai das 10h às 04h do dia seguinte: '+
+    (um?'ela é':'elas são')+' do turno de '+ontem+', e o sistema já contou '+ela+' lá.';
+  if(m.pix_ontem!=null&&m.sis_ontem_pagar!=null&&Math.abs(Number(m.pix_ontem)-Number(m.sis_ontem_pagar))<0.01)
+    t+=' O Pix de '+ontem+' ('+rs(m.pix_ontem)+') já pagou o turno de '+ontem+' com '+ela+': pagar de novo é pagar em dobro.';
+  else if(m.plan_ontem_entregas!=null&&m.sis_ontem_entregas!=null&&Number(m.plan_ontem_entregas)>=Number(m.sis_ontem_entregas))
+    t+=' A planilha de '+ontem+' já tinha contado '+ela+' ('+num(m.plan_ontem_entregas)+' entregas): pagar de novo é pagar em dobro.';
+  else if(m.plan_ontem_entregas==null&&m.pix_ontem==null)
+    t+=' Não achei planilha nem Pix de '+ontem+' dessa pessoa: confira se '+pagas+'.';
+  else if(m.plan_ontem_entregas!=null)
+    t+=' A planilha de '+ontem+' contou '+num(m.plan_ontem_entregas)+' entregas e o sistema '+num(m.sis_ontem_entregas||0)+': pode ser que '+(um?'tenha ficado':'tenham ficado')+' de fora lá. Confira antes de descontar.';
+  else
+    t+=' O Pix de '+ontem+' ('+rs(m.pix_ontem)+') não bate com o sistema de '+ontem+' ('+rs(m.sis_ontem_pagar||0)+'): confira se '+pagas+'.';
+  return t.charAt(0).toUpperCase()+t.slice(1);
+}
 function prPorque(x){
   const w=[], dif=function(v){return Math.abs(Number(v||0))>=0.01};
   if(x.nosso!=null&&x.deles!=null){
-    if(dif(x.c_entregas)) w.push('taxas das entregas: o sistema somou '+rs(Math.abs(x.c_entregas))+(x.c_entregas>0?' a mais':' a menos')+' que a planilha (sistema '+rs(x.n_taxas)+' em '+num(x.n_entregas)+' entregas, planilha '+rs(x.d_taxas)+' em '+num(x.d_entregas)+')'+(Number(x.n_entregas)===Number(x.d_entregas)?' · mesmo número de entregas: a diferença está no valor das taxas':''));
+    const ne=Number(x.n_entregas), de=Number(x.d_entregas);
+    if(dif(x.c_entregas)) w.push('taxas das entregas: o sistema somou '+rs(Math.abs(x.c_entregas))+(x.c_entregas>0?' a mais':' a menos')+' que a planilha (sistema '+rs(x.n_taxas)+' em '+num(x.n_entregas)+' entregas, planilha '+rs(x.d_taxas)+' em '+num(x.d_entregas)+')'+(ne===de?' · mesmo número de entregas: a diferença está no valor das taxas':' · número de entregas diferente: a planilha tem '+num(Math.abs(de-ne))+(de>ne?' a mais':' a menos')+' que o sistema'));
+    const md=prMadr(x.madr,de-ne);
+    if(md) w.push(md);
     if(dif(x.c_garantido)) w.push('garantido: o sistema deu '+rs(Math.abs(x.c_garantido))+(x.c_garantido>0?' a mais':' a menos')+' que a planilha'+(x.n_fonte?' · '+esc(x.n_fonte):''));
     if(dif(x.c_lanche)) w.push('lanche cobrado pelo sistema: '+rs(Math.abs(x.c_lanche)));
     if(dif(x.c_ajustes)) w.push('ajuste lançado no sistema: '+rs(x.c_ajustes));
