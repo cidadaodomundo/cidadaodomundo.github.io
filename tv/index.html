@@ -298,6 +298,10 @@ let COD='', DADO=null, VISTOS=null, TIMER=null, ULT_OK=0, SOM=false, BUSCANDO=fa
    Sem ?portal=1 (TV fisica) continua o codigo proprio da TV, como antes. No modo portal vale a mesma trava das outras telas (cdmGuarda + portal.js). */
 const PTOK=(function(){ try{ return sessionStorage.getItem('cdm_token')||''; }catch(e){ return ''; } })();
 const PORTAL=/[?&]portal=1/.test(location.search);
+/* 28/10/2026 (chat-camera-erros-28-10, obra 146) Fabio: "eu quero que essa tela seja de uso exclusivo minha. crie uma aba nova com
+   a versao proprietario e mantenha essa tv da cozinha com a versao antiga". A versao do dono e esta mesma tela aberta pelo botao
+   tv/?portal=1&dono=1 (modulo tvdono, so o Fabio): so ela mostra a linha da camera. O banco confere (cozinha_camera so do dono). */
+const DONO=PORTAL && /[?&]dono=1/.test(location.search);
 /* 15/10/2026 (obra 124, chat-tv-ahu-saobraz-15-10) Fabio: "no ahu coloque tambem a tv da cozinha e no sao braz tambem"
    + "coloque somente ahu no ahu e sao braz somente sao braz". Botao do grupo Ahu = tv/?portal=1&loja=ahu (modulo tvahu) e do
    grupo Sao Braz = &loja=sb (modulo tvsb): a tela fica presa na loja, sem botao das outras. O banco (cozinha_tv_pode) confere. */
@@ -357,14 +361,14 @@ function liga(){ if(!TIMER) TIMER=setInterval(function(){ busca(false); },60000)
 function desliga(){ if(TIMER){ clearInterval(TIMER); TIMER=null; } }
 
 /* 28/10/2026 (chat-camera-erros-28-10, obra 139) Fabio: "quero ver se conseguimos sincronizar esses erros de bebidas e
-   sobremesas com as cameras" e escolheu o degrau 1: SO NO PORTAL (a TV da parede fica como esta) cada erro com numero de
+   sobremesas com as cameras" e escolheu o degrau 1: SO NA VERSAO DO DONO (DONO, obra 146; a TV da parede e a aba de todos ficam como estao) cada erro com numero de
    pedido ganha a linha "qual camera · de que hora a que hora". Horario do iFood e do TrackEat; as cameras de cada loja e
    setor moram na tabela camera_ponto, lida pela porta cozinha_camera. Pede so o que ainda nao pediu: 1 chamada por erro novo,
    sem timer proprio (vai junto com o desenho da lista e com a abertura de um dia). */
 const CAM={}, CAM_PEDIU={};
 function camK(e){ return String(e.k||[e.pedido,e.ts||'',e.dia||'',e.hora||''].join('|')); }
 async function camPede(L){
-  if(!PORTAL||!PTOK) return false;
+  if(!DONO||!PTOK) return false;
   const falta=(L||[]).filter(e=>e&&e.pedido&&(e.ts||(e.dia&&e.hora))&&!CAM_PEDIU[camK(e)]).slice(0,40);
   if(!falta.length) return false;
   falta.forEach(e=>{ CAM_PEDIU[camK(e)]=1; });   /* nao repete o pedido nem se der erro: recarregar a pagina tenta de novo */
@@ -379,7 +383,7 @@ async function camPede(L){
   }catch(err){ return false; }
 }
 function camLinha(e){
-  if(!PORTAL||!e||!e.pedido) return '';
+  if(!DONO||!e||!e.pedido) return '';
   const x=CAM[camK(e)]; if(!x) return '';
   if(!x.achou) return '<div class="cam">🎥 Não achei este pedido no iFood perto desse horário, então não sei a hora em que saiu.</div>';
   const cams=(x.cams||[]).map(c=>esc(c.camera)+' <small>('+esc(c.gravador)+')</small>').join(' · ');
@@ -397,7 +401,7 @@ function desenha(novos){
   novos=novos||[];
   $('loja').textContent=j.loja||'—';
   $('dia').textContent='dia '+(j.dia||'—')+' · das 6h às 6h';
-  $('st').textContent='atualiza sozinho a cada 1 minuto · lido às '+hhmm(j.agora);
+  $('st').textContent='atualiza sozinho a cada 1 minuto · lido às '+hhmm(j.agora)+(DONO?' · versão do dono, com as câmeras':'');
   try{ melhor(j.melhorar); }catch(e){ $('melhor').style.display='none'; }   /* antes das listas: as faixas ocupam altura */
   try{ cli(j.avaliacoes); }catch(e){ CLI=null; $('cli').style.display='none'; }
   /* de quando e cada fonte */
@@ -432,7 +436,7 @@ function desenha(novos){
     const el=$('lista'); while(el.children.length>1 && el.scrollHeight>el.clientHeight+2) el.removeChild(el.lastElementChild);
     const sobra=L.length-el.children.length;
     $('mais').textContent=sobra>0? '+ '+sobra+' erro'+(sobra>1?'s':'')+' mais cedo — lista completa no portal › Central Cozinha' : '';
-    if(PORTAL) camPede(L.slice(0,MAX)).then(function(n){ if(n) desenha(novos); });   /* 28/10: a linha da camera chega depois e redesenha 1 vez (sem perder o selo "novo") */
+    if(DONO) camPede(L.slice(0,MAX)).then(function(n){ if(n) desenha(novos); });   /* 28/10: a linha da camera chega depois e redesenha 1 vez (sem perder o selo "novo") */
   }
   meta(j.semana, j.regra_proxima);   /* antes da lista de fora do ar: o cartao ocupa espaco na mesma coluna */
   /* fora do ar: junta o mesmo item de varias marcas; sem resposta da loja primeiro */
@@ -763,7 +767,7 @@ function montaLojas(){
   });
 }
 /* trava de entrada do modo portal: a mesma das outras telas (copia da Central Cozinha) */
-const CDMMODS=FIXA?['tv',FIXA==='Ahú'?'tvahu':'tvsb']:['tv'];   /* 15/10: botao da loja aceita o modulo da loja */
+const CDMMODS=DONO?['tvdono']:FIXA?['tv',FIXA==='Ahú'?'tvahu':'tvsb']:['tv'];   /* 15/10: botao da loja aceita o modulo da loja */
 function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
 function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
   try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
@@ -851,9 +855,9 @@ async function abreDia(dm){
   const X=Array.isArray(j.expedicao)?j.expedicao:[], AV=j.avaliacoes||{}, IF=AV.ifood||{}, GO=AV.google||null;
   const RU=Array.isArray(IF.ruins)?IF.ruins:[], AQ=RU.filter(r=>r.qual), AO=RU.filter(r=>!r.qual);
   const M=C.filter(e=>!e.qual), Q=C.filter(e=>e.qual).concat(X).sort((a,b)=>String(a.hora).localeCompare(String(b.hora)));
-  /* 28/10/2026 (chat-camera-erros-28-10): no portal, a linha da camera em cada erro do dia. A porta do dia nao manda a hora
+  /* 28/10/2026 (chat-camera-erros-28-10): na versao do dono, a linha da camera em cada erro do dia. A porta do dia nao manda a hora
      exata do pedido: vai o dia da cozinha + a hora do cartao, e o banco acha o pedido no iFood ate 5 min dela. */
-  if(PORTAL){
+  if(DONO){
     M.concat(Q).forEach(e=>{ if(e && !e.ts) e.dia=iso; });
     await camPede(M.concat(Q));
     if(eu!==DIA_PEDIDO || !$('info').classList.contains('on')) return;
