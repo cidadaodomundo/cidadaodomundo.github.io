@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Placar · Expedição · Cidadão do Mundo</title>
+<!-- 28/10/2026 chat-placar-autoatend-28-10 (obra 148): tela da expedição da Água Verde. Fábio: "eles ja ficam logados no portal
+     acho que é valido o portal". Login do portal + módulo 'autoatend' (cdmGuarda + portal.js). Lê/escreve só pela porta
+     placar_portal (DEFINER, portal_pode). Sem nome de cliente, sem valor. A TV do autoatendimento lê o mesmo placar (placar_tv). -->
+<style>
+:root{--fundo:#111;--cartao:#1d1d1d;--linha:#333;--texto:#f2f2f2;--fraco:#9a9a9a;--amarelo:#f5b301;--verde:#2fbf71;--vermelho:#e5484d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fundo);color:var(--texto);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid var(--linha)}
+header h1{font-size:20px;margin:0}
+#estado{font-size:14px;color:var(--fraco)}
+main{display:grid;grid-template-columns:340px 1fr 1fr;gap:16px;padding:16px}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+.caixa{background:var(--cartao);border:1px solid var(--linha);border-radius:14px;padding:14px}
+.caixa h2{margin:0 0 10px;font-size:18px}
+#visor{font-size:48px;font-weight:800;text-align:center;letter-spacing:4px;min-height:64px;background:#000;border-radius:10px;padding:6px;margin-bottom:10px}
+.teclas{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.teclas button{font-size:30px;font-weight:700;padding:18px 0;border-radius:10px;border:0;background:#2b2b2b;color:var(--texto);cursor:pointer}
+.teclas button:active{background:#444}
+.acoes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.acoes button{font-size:18px;font-weight:700;padding:16px 6px;border-radius:10px;border:0;cursor:pointer;color:#111}
+.b-prep{background:var(--amarelo)}.b-pronto{background:var(--verde)}
+.lista{display:flex;flex-wrap:wrap;gap:10px}
+.num{background:#262626;border:2px solid var(--linha);border-radius:12px;padding:10px 14px;min-width:120px;text-align:center;cursor:pointer;user-select:none}
+.num b{display:block;font-size:34px}
+.num small{color:var(--fraco);font-size:13px}
+.prep .num{border-color:var(--amarelo)}.pron .num{border-color:var(--verde)}
+.dica{color:var(--fraco);font-size:13px;margin:8px 0 0}
+.vazio{color:var(--fraco);font-size:15px}
+#menu{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center}
+#menu .caixa{min-width:300px;text-align:center}
+#menu button{display:block;width:100%;font-size:18px;font-weight:700;padding:14px;margin:8px 0;border-radius:10px;border:0;cursor:pointer}
+#erro{display:none;background:var(--vermelho);color:#fff;padding:10px 16px;font-weight:700}
+</style>
+</head>
+<body>
+<div id="erro"></div>
+<header id="topo"><h1>🍔 Placar do Autoatendimento · Expedição</h1><span id="estado">carregando…</span></header>
+<main id="tela">
+  <section class="caixa">
+    <h2>Número da comanda</h2>
+    <div id="visor"></div>
+    <div class="teclas" id="teclas"></div>
+    <div class="acoes">
+      <button class="b-prep" id="bprep">➕ Preparando</button>
+      <button class="b-pronto" id="bpronto">✅ Já está pronto</button>
+    </div>
+    <p class="dica">Digite o número e escolha. Depois é só tocar no número nas colunas ao lado.</p>
+  </section>
+  <section class="caixa prep"><h2>🟡 Preparando</h2><div class="lista" id="lprep"></div>
+    <p class="dica">Toque no número quando o pedido ficar pronto.</p></section>
+  <section class="caixa pron"><h2>🟢 Pronto (na TV)</h2><div class="lista" id="lpron"></div>
+    <p class="dica">Toque quando o cliente retirar. Some sozinho em 20 min.</p></section>
+</main>
+<div id="menu"><div class="caixa">
+  <h2 id="mtit"></h2>
+  <button id="m1" style="background:var(--verde)"></button>
+  <button id="m2" style="background:#555;color:#fff"></button>
+  <button id="m3" style="background:var(--vermelho);color:#fff">🗑 Apagar (digitei errado)</button>
+  <button id="m0" style="background:#222;color:#fff">Fechar</button>
+</div></div>
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const CDMMODS=['autoatend'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch(SB+'rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'autoatend'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+(function(){
+  var visor = '', timer = null, ocupado = false, alvo = null, liberado = false;
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function erro(t){ var e = $('erro'); e.textContent = t || ''; e.style.display = t ? 'block' : 'none'; }
+  function hora(iso){ try { return new Date(iso).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}); } catch(e){ return ''; } }
+
+  function porta(acao, dados){
+    return fetch(SB + 'rpc/placar_portal', {
+      method:'POST',
+      headers:{'apikey':KEY,'Authorization':'Bearer ' + KEY,'Content-Type':'application/json'},
+      body: JSON.stringify({p_token: cdmTok(), p_acao: acao, p_dados: dados || {}})
+    }).then(function(r){
+      if (!r.ok) return r.json().catch(function(){ return {}; }).then(function(j){ throw new Error((j && (j.message || j.hint)) || ('HTTP ' + r.status)); });
+      return r.json();
+    });
+  }
+
+  function desenha(d){
+    if (!d || d.erro) { erro('Erro: ' + (d && d.erro ? d.erro : 'sem resposta')); return; }
+    erro('');
+    $('estado').textContent = 'Atualizado ' + hora(d.agora) + ' · ' + (d.loja || '');
+    $('lprep').innerHTML = d.preparando.length ? d.preparando.map(function(p){
+      return '<div class="num" data-id="' + p.id + '" data-st="preparando" data-n="' + esc(p.numero) + '"><b>' + esc(p.numero) + '</b><small>desde ' + hora(p.desde) + '</small></div>';
+    }).join('') : '<span class="vazio">Nenhum pedido em preparo.</span>';
+    $('lpron').innerHTML = d.pronto.length ? d.pronto.map(function(p){
+      return '<div class="num" data-id="' + p.id + '" data-st="pronto" data-n="' + esc(p.numero) + '"><b>' + esc(p.numero) + '</b><small>pronto ' + hora(p.desde) + '</small></div>';
+    }).join('') : '<span class="vazio">Nenhum pedido pronto.</span>';
+  }
+
+  function carrega(){
+    if (!liberado || ocupado) return;
+    porta('ler').then(desenha).catch(function(e){ erro('Sem conexão com o portal (' + e.message + '). Tentando de novo…'); });
+  }
+  function age(acao, dados){
+    if (!liberado || ocupado) return; ocupado = true;
+    porta(acao, dados).then(function(d){ ocupado = false; desenha(d); })
+      .catch(function(e){ ocupado = false; erro('Não gravou (' + e.message + '). Tente de novo.'); });
+  }
+
+  // teclado
+  var t = $('teclas');
+  ['1','2','3','4','5','6','7','8','9','⌫','0','C'].forEach(function(k){
+    var b = document.createElement('button'); b.textContent = k;
+    b.onclick = function(){
+      if (k === '⌫') visor = visor.slice(0, -1);
+      else if (k === 'C') visor = '';
+      else if (visor.length < 6) visor += k;
+      $('visor').textContent = visor;
+    };
+    t.appendChild(b);
+  });
+  document.addEventListener('keydown', function(ev){
+    if (/^[0-9]$/.test(ev.key) && visor.length < 6) visor += ev.key;
+    else if (ev.key === 'Backspace') visor = visor.slice(0, -1);
+    else if (ev.key === 'Enter' && visor) { age('novo', {numero: visor}); visor = ''; }
+    else return;
+    $('visor').textContent = visor;
+  });
+  $('bprep').onclick = function(){ if (visor) { age('novo', {numero: visor}); visor = ''; $('visor').textContent = ''; } };
+  $('bpronto').onclick = function(){ if (visor) { age('novo_pronto', {numero: visor}); visor = ''; $('visor').textContent = ''; } };
+
+  // toque no número
+  function abreMenu(el){
+    alvo = el; var st = el.getAttribute('data-st');
+    $('mtit').textContent = 'Comanda ' + el.getAttribute('data-n');
+    $('m1').textContent = st === 'preparando' ? '✅ Ficou pronto' : '👋 Cliente retirou';
+    $('m2').textContent = st === 'preparando' ? '👋 Cliente já retirou' : '↩️ Voltar para Preparando';
+    $('menu').style.display = 'flex';
+  }
+  function fecha(){ $('menu').style.display = 'none'; alvo = null; }
+  [$('lprep'), $('lpron')].forEach(function(l){ l.addEventListener('click', function(ev){ var el = ev.target.closest('.num'); if (el) abreMenu(el); }); });
+  $('m1').onclick = function(){ if (!alvo) return; var id = alvo.getAttribute('data-id'); age(alvo.getAttribute('data-st') === 'preparando' ? 'pronto' : 'retirar', {id: id}); fecha(); };
+  $('m2').onclick = function(){ if (!alvo) return; var id = alvo.getAttribute('data-id'); age(alvo.getAttribute('data-st') === 'preparando' ? 'retirar' : 'voltar', {id: id}); fecha(); };
+  $('m3').onclick = function(){ if (!alvo) return; age('apagar', {id: alvo.getAttribute('data-id')}); fecha(); };
+  $('m0').onclick = fecha;
+
+  // atualização de rede: a cada 60 s, desligada (clearInterval) quando a aba some
+  function liga(){ carrega(); para(); timer = setInterval(carrega, 60000); }
+  function para(){ if (timer) { clearInterval(timer); timer = null; } }
+  document.addEventListener('visibilitychange', function(){ if (!liberado) return; if (document.hidden) para(); else liga(); });
+
+  cdmGuarda().then(function(ok){ if (!ok) return; liberado = true; liga(); });
+})();
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>
