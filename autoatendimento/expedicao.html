@@ -31,6 +31,13 @@ main{display:grid;grid-template-columns:340px 1fr 1fr;gap:16px;padding:16px}
 .num small{color:var(--fraco);font-size:13px}
 .prep .num{border-color:var(--amarelo)}.pron .num{border-color:var(--verde)}
 .dica{color:var(--fraco);font-size:13px;margin:8px 0 0}
+#recentes{margin:0 16px 16px}
+.rec{display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--linha);font-size:15px}
+.rec b{font-size:20px;min-width:80px}
+.rec span{flex:1;color:var(--fraco)}
+.rec button{font-size:15px;font-weight:700;padding:8px 14px;border-radius:8px;border:0;cursor:pointer;background:#555;color:#fff}
+#corr{display:none;margin:6px 0}
+#corr input{font-size:28px;width:100%;text-align:center;padding:8px;border-radius:8px;border:0}
 .vazio{color:var(--fraco);font-size:15px}
 #menu{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-start;justify-content:center;padding-top:90px}
 #menu .caixa{min-width:300px;text-align:center}
@@ -57,10 +64,16 @@ main{display:grid;grid-template-columns:340px 1fr 1fr;gap:16px;padding:16px}
   <section class="caixa pron"><h2>🟢 Pronto (na TV)</h2><div class="lista" id="lpron"></div>
     <p class="dica">Toque quando o cliente retirar. Some sozinho em 20 min.</p></section>
 </main>
+<section class="caixa" id="recentes"><h2>↩️ Últimos retirados e cancelados (30 min)</h2><div id="lrec"></div>
+  <p class="dica">Tocou errado? Use Desfazer: o número volta para onde estava.</p></section>
 <div id="menu"><div class="caixa">
   <h2 id="mtit"></h2>
   <button id="m1" style="background:var(--verde)"></button>
   <button id="m2" style="background:#555;color:#fff"></button>
+  <button id="mch" style="background:var(--amarelo)">📣 Chamar de novo na TV</button>
+  <button id="mco" style="background:#2b6cb0;color:#fff">✏️ Corrigir número</button>
+  <div id="corr"><input id="ncorr" inputmode="numeric" maxlength="8"><button id="mcok" style="background:var(--verde)">Salvar número</button></div>
+  <button id="mca" style="background:#8b5a2b;color:#fff">🚫 Cliente cancelou o pedido</button>
   <button id="m3" style="background:var(--vermelho);color:#fff">🗑 Apagar (digitei errado)</button>
   <button id="m0" style="background:#222;color:#fff">Fechar</button>
 </div></div>
@@ -112,6 +125,11 @@ async function cdmGuarda(){
     $('lpron').innerHTML = d.pronto.length ? d.pronto.map(function(p){
       return '<div class="num" data-id="' + p.id + '" data-st="pronto" data-n="' + esc(p.numero) + '"><b>' + esc(p.numero) + '</b><small>pronto ' + hora(p.desde) + '</small></div>';
     }).join('') : '<span class="vazio">Nenhum pedido pronto.</span>';
+    var rotulo = {retirado:'retirado', cliente_cancelou:'cancelado pelo cliente', digitado_errado:'apagado (digitado errado)'};
+    var rec = d.recentes || [];
+    $('lrec').innerHTML = rec.length ? rec.map(function(p){
+      return '<div class="rec"><b>' + esc(p.numero) + '</b><span>' + esc(rotulo[p.motivo || p.status] || p.status) + ' às ' + hora(p.quando) + '</span><button data-des="' + p.id + '">↩️ Desfazer</button></div>';
+    }).join('') : '<span class="vazio">Nada nos últimos 30 minutos.</span>';
   }
 
   function carrega(){
@@ -137,6 +155,7 @@ async function cdmGuarda(){
     t.appendChild(b);
   });
   document.addEventListener('keydown', function(ev){
+    if ($('menu').style.display === 'flex') return;
     if (/^[0-9]$/.test(ev.key) && visor.length < 6) visor += ev.key;
     else if (ev.key === 'Backspace') visor = visor.slice(0, -1);
     else if (ev.key === 'Enter' && visor) { age('novo', {numero: visor}); visor = ''; }
@@ -152,6 +171,8 @@ async function cdmGuarda(){
     $('mtit').textContent = 'Comanda ' + el.getAttribute('data-n');
     $('m1').textContent = st === 'preparando' ? '✅ Ficou pronto' : '👋 Cliente retirou';
     $('m2').textContent = st === 'preparando' ? '👋 Cliente já retirou' : '↩️ Voltar para Preparando';
+    $('mch').style.display = st === 'pronto' ? 'block' : 'none';
+    $('corr').style.display = 'none'; $('ncorr').value = el.getAttribute('data-n');
     $('menu').style.display = 'flex';
   }
   function fecha(){ $('menu').style.display = 'none'; alvo = null; }
@@ -160,6 +181,11 @@ async function cdmGuarda(){
   $('m2').onclick = function(){ if (!alvo) return; var id = alvo.getAttribute('data-id'); age(alvo.getAttribute('data-st') === 'preparando' ? 'retirar' : 'voltar', {id: id}); fecha(); };
   $('m3').onclick = function(){ if (!alvo) return; age('apagar', {id: alvo.getAttribute('data-id')}); fecha(); };
   $('m0').onclick = fecha;
+  $('mch').onclick = function(){ if (!alvo) return; age('chamar', {id: alvo.getAttribute('data-id')}); fecha(); };
+  $('mca').onclick = function(){ if (!alvo) return; age('cancelar', {id: alvo.getAttribute('data-id')}); fecha(); };
+  $('mco').onclick = function(){ $('corr').style.display = 'block'; $('ncorr').focus(); $('ncorr').select(); };
+  $('mcok').onclick = function(){ if (!alvo) return; var n = $('ncorr').value.trim(); if (!n) return; age('corrigir', {id: alvo.getAttribute('data-id'), numero: n}); fecha(); };
+  $('lrec').addEventListener('click', function(ev){ var b = ev.target.closest('button[data-des]'); if (b) age('desfazer', {id: b.getAttribute('data-des')}); });
 
   // atualização de rede: a cada 60 s, desligada (clearInterval) quando a aba some
   function liga(){ carrega(); para(); timer = setInterval(carrega, 60000); }
