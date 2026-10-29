@@ -29,7 +29,10 @@ main{display:grid;grid-template-columns:340px 1fr 1fr;gap:16px;padding:16px}
 .num{background:#262626;border:2px solid var(--linha);border-radius:12px;padding:10px 14px;min-width:120px;text-align:center;cursor:pointer;user-select:none}
 .num b{display:block;font-size:34px}
 .num small{color:var(--fraco);font-size:13px}
-.prep .num{border-color:var(--amarelo)}.pron .num{border-color:var(--verde)}
+.prep .num{border-color:var(--amarelo)}
+.tag{display:inline-block;background:#2b6cb0;color:#fff;font-size:11px;font-weight:800;padding:1px 6px;border-radius:6px;margin-bottom:2px}
+@keyframes novo{0%,100%{box-shadow:0 0 0 0 rgba(245,179,1,0)}50%{box-shadow:0 0 0 8px rgba(245,179,1,.6)}}
+.num.novo{animation:novo 1s 6}.pron .num{border-color:var(--verde)}
 .dica{color:var(--fraco);font-size:13px;margin:8px 0 0}
 #recentes{margin:0 16px 16px}
 .rec{display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--linha);font-size:15px}
@@ -60,7 +63,7 @@ main{display:grid;grid-template-columns:340px 1fr 1fr;gap:16px;padding:16px}
     <p class="dica">Digite o número e escolha. Depois é só tocar no número nas colunas ao lado.</p>
   </section>
   <section class="caixa prep"><h2>🟡 Preparando</h2><div class="lista" id="lprep"></div>
-    <p class="dica">Toque no número quando o pedido ficar pronto.</p></section>
+    <p class="dica">Pedidos do totem entram aqui sozinhos (marca TOTEM, com som). Toque no número quando ficar pronto.</p></section>
   <section class="caixa pron"><h2>🟢 Pronto (na TV)</h2><div class="lista" id="lpron"></div>
     <p class="dica">Toque quando o cliente retirar. Some sozinho em 20 min.</p></section>
 </main>
@@ -98,7 +101,20 @@ async function cdmGuarda(){
   return true;
 }
 (function(){
-  var visor = '', timer = null, ocupado = false, alvo = null, liberado = false;
+  var visor = '', timer = null, ocupado = false, alvo = null, liberado = false, vistos = null;
+  // "ding" quando entra pedido novo do totem (só som, sem rede)
+  function ding(){
+    try {
+      var ctx = new (window.AudioContext || window.webkitAudioContext)(), t0 = ctx.currentTime + 0.05;
+      [[1047,0],[784,0.35]].forEach(function(n){
+        var o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.value = n[0];
+        o.connect(g); g.connect(ctx.destination); var t = t0 + n[1];
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
+        o.start(t); o.stop(t + 1.2);
+      });
+      setTimeout(function(){ try { ctx.close(); } catch(e){} }, 2500);
+    } catch (e) {}
+  }
   function $(id){ return document.getElementById(id); }
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function erro(t){ var e = $('erro'); e.textContent = t || ''; e.style.display = t ? 'block' : 'none'; }
@@ -119,9 +135,14 @@ async function cdmGuarda(){
     if (!d || d.erro) { erro('Erro: ' + (d && d.erro ? d.erro : 'sem resposta')); return; }
     erro('');
     $('estado').textContent = 'Atualizado ' + hora(d.agora) + ' · ' + (d.loja || '');
+    var agoraIds = {}, chegou = false;
+    d.preparando.forEach(function(p){ agoraIds[p.id] = 1; if (vistos && !vistos[p.id] && p.origem === 'totem') chegou = true; });
     $('lprep').innerHTML = d.preparando.length ? d.preparando.map(function(p){
-      return '<div class="num" data-id="' + p.id + '" data-st="preparando" data-n="' + esc(p.numero) + '"><b>' + esc(p.numero) + '</b><small>desde ' + hora(p.desde) + '</small></div>';
+      var novo = vistos && !vistos[p.id] ? ' novo' : '';
+      return '<div class="num' + novo + '" data-id="' + p.id + '" data-st="preparando" data-n="' + esc(p.numero) + '">' + (p.origem === 'totem' ? '<span class="tag">TOTEM</span>' : '') + '<b>' + esc(p.numero) + '</b><small>desde ' + hora(p.desde) + '</small></div>';
     }).join('') : '<span class="vazio">Nenhum pedido em preparo.</span>';
+    if (chegou) ding();
+    vistos = agoraIds;
     $('lpron').innerHTML = d.pronto.length ? d.pronto.map(function(p){
       return '<div class="num" data-id="' + p.id + '" data-st="pronto" data-n="' + esc(p.numero) + '"><b>' + esc(p.numero) + '</b><small>pronto ' + hora(p.desde) + '</small></div>';
     }).join('') : '<span class="vazio">Nenhum pedido pronto.</span>';
