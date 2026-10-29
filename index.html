@@ -16,7 +16,14 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .brand img{width:40px;height:40px;border-radius:9px;object-fit:cover;background:#000}
 .brand b{font-size:15px;font-weight:800;line-height:1.1}
 .brand .s{color:var(--muted);font-size:11px}
-.grp{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;margin:16px 6px 6px}
+.grp{display:flex;align-items:center;gap:8px;color:var(--text2);font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;padding:10px;border-radius:10px;cursor:pointer;user-select:none}
+.grp:hover{background:var(--s2)}
+.grp .gq{margin-left:auto;color:var(--muted);font-weight:600}
+.grp .gs{color:var(--muted);display:inline-block;transition:transform .15s}
+.grp.aberto .gs{transform:rotate(90deg)}
+.grp.tem{color:var(--brand)}
+.gsep{height:1px;background:var(--line);margin:8px 4px}
+.gbody{margin:0 0 6px 10px;padding-left:4px;border-left:1px solid var(--line)}
 .mi{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border-radius:10px;cursor:pointer;color:var(--text2)}
 .mi:hover{background:var(--s2)}
 .mi.on{background:var(--brand);color:var(--brand-ink)}
@@ -179,15 +186,22 @@ async function sair(){
    Quem tem a copia no grupo Hellen nao ve a antiga no Escritorio (o acesso continua: a trava das telas e das portas usa o modulo antigo). */
 const SUBIU_HELLEN={ponto:'hellen_ponto',rhcaixa:'hellen_rhcaixa'};
 function mods(){const tem={};MODULOS.forEach(m=>{tem[m.id]=1});return MODULOS.filter(m=>!(SUBIU_HELLEN[m.id]&&tem[SUBIU_HELLEN[m.id]]))}
+/* 29/10/2026 (chat-menu-sanfona-29-10), pedido do Fabio: "deixe tudo do lado minimizado em baixo do inicio e qdo alguem clicar em cima o negocio abre".
+   Os grupos ficam fechados; clicar no nome abre (um de cada vez). Abrir uma tela deixa o grupo dela aberto; o Inicio fecha tudo. */
+let ABERTO=null;
+function grp(i){const g=GRUPOS[i];ABERTO=(ABERTO===g?null:g);menu()}
 function menu(){
-  let h='<div class="mi'+(ATUAL===null?' on':'')+'" onclick="inicio()"><div class="ic">🏠</div><div><div class="t">Início</div></div></div>';
-  GRUPOS.forEach(g=>{const l=mods().filter(m=>m.grupo===g);if(l.length)h+='<div class="grp">'+g+'</div>'+l.map(mi).join('')});
+  let h='<div class="mi'+(ATUAL===null?' on':'')+'" onclick="inicio()"><div class="ic">🏠</div><div><div class="t">Início</div></div></div><div class="gsep"></div>';
+  GRUPOS.forEach((g,i)=>{const l=mods().filter(m=>m.grupo===g);if(!l.length)return;
+    const ab=ABERTO===g, tem=l.some(m=>m.id===ATUAL);
+    h+='<div class="grp'+(ab?' aberto':'')+(tem?' tem':'')+'" onclick="grp('+i+')"><span>'+esc(g)+'</span><span class="gq">'+l.length+'</span><span class="gs">▸</span></div>';
+    if(ab)h+='<div class="gbody">'+l.map(mi).join('')+'</div>'});
   $('menu').innerHTML=h;
   $('roleLbl').textContent=NOME||'Portal de Gestão';
   $('quem').innerHTML=(NOME?'<span>'+esc(NOME)+'</span>':'')+'<button class="btn" onclick="sair()">Sair</button>';
 }
 function mi(m){return '<div class="mi'+(ATUAL===m.id?' on':'')+'" onclick="abrir(\''+m.id+'\')"><div class="ic">'+(m.icone||'')+'</div><div><div class="t">'+esc(m.nome)+'</div><div class="d">'+esc(DESC[m.id]||'')+'</div></div></div>'}
-function inicio(){ATUAL=null;location.hash='';$('titulo').textContent='Início';$('rt').innerHTML='';
+function inicio(){ATUAL=null;ABERTO=null;location.hash='';$('titulo').textContent='Início';$('rt').innerHTML='';
   let h='<div class="home"><img src="'+LOGO+'"><h1>Portal de Gestão</h1><div class="s">'+esc(NOME)+' — escolha um módulo</div><div id="fresco" style="text-align:center;margin-top:10px"></div><div class="avd" id="avd"></div><div class="cards">';
   const gs=GRUPOS.slice();
   /* 30/09/2026: modulo com grupo comecando por "_" continua ligado (a trava de acesso das telas precisa dele),
@@ -235,7 +249,7 @@ async function carimboFontes(){try{
   }).join('');
 }catch(e){}}
 function abrir(id){const m=MODULOS.find(x=>x.id===id);if(!m)return;
-  ATUAL=id;location.hash=id;$('titulo').textContent=m.icone+' '+m.nome;
+  ATUAL=id;ABERTO=m.grupo;location.hash=id;$('titulo').textContent=m.icone+' '+m.nome;
   URLBASE=m.url;
   $('rt').innerHTML='<button class="btn" onclick="voltar()">← Voltar</button><button class="btn" onclick="recarregar()">↻</button><a class="btn" href="'+m.url+'" target="_blank" rel="noopener">↗ abrir</a>';
   $('view').innerHTML='<iframe id="fr" src="'+m.url+'" allow="fullscreen; screen-wake-lock"></iframe>';
