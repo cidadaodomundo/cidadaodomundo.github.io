@@ -298,7 +298,7 @@ function setView(v){if(v==='cmp'||v==='pag')v='pagar'; VIEW=v;
   $('t_maq').className='tab'+(v==='maq'?' on':'');
   try{$('t_dup').className='tab'+(v==='dup'?' on':'')}catch(e){}
   try{$('t_prova').className='tab'+(v==='prova'?' on':'')}catch(e){}
-  try{$('t_acerto').className='tab'+(v==='acerto'?' on':'')}catch(e){}
+  try{$('t_acerto').className='tab'+(v==='acerto'?' on':'');if(v!=='acerto'&&$('faixa').querySelector('[data-ac]'))$('faixa').innerHTML=''}catch(e){}
   $('t_reg').className='tab'+(v==='reg'?' on':'');
   if(v!=='ag'&&AGT){clearInterval(AGT);AGT=null}
   if(v!=='maq'&&MAQ_TIMER){clearInterval(MAQ_TIMER);MAQ_TIMER=null}
@@ -923,7 +923,11 @@ function acPer(q){
   else {q='sem';AC_DE=iso(new Date(hoje.getTime()-7*864e5));AC_ATE=iso(ontem)}
   AC_Q=q; viewAcerto();
 }
-function acDatas(){const a=$('ac_de').value, b=$('ac_ate').value; if(!a||!b)return; AC_DE=a<=b?a:b; AC_ATE=a<=b?b:a; AC_Q=''; viewAcerto()}
+const AC_TETO=31; // no máximo 31 dias por vez (a porta devolve uma linha por motoboy por dia)
+function acDatas(){const a=$('ac_de').value, b=$('ac_ate').value; if(!a||!b)return; AC_DE=a<=b?a:b; AC_ATE=a<=b?b:a;
+  const ini=new Date(AC_ATE+'T12:00:00'); ini.setDate(ini.getDate()-(AC_TETO-1)); const lim=iso(ini);
+  if(AC_DE<lim){AC_DE=lim;alert('O acerto mostra no máximo '+AC_TETO+' dias por vez. Ficou de '+prDt(AC_DE)+' a '+prDt(AC_ATE)+'.')}
+  AC_Q=''; viewAcerto()}
 function acLoja(u){AC_LOJA=u; viewAcerto()}
 function acAbre(k){AC_ABRE[k]=!AC_ABRE[k]; viewAcerto()}
 // a loja da linha: a do sistema/planilha; quando só existe o Pix, a da conta que pagou
@@ -932,11 +936,12 @@ function acSoma(L){
   const P={};
   L.forEach(function(x){
     const k=x.pessoa||'?';
-    const p=P[k]||(P[k]={pessoa:k,lojas:{},dias:0,ent:0,tax:0,gar:0,lan:0,aju:0,nosso:0,deles:0,temDeles:false,pago:0,temPago:false,difS:0,difP:0,temDif:false,espera:0,semPix:0,linhas:[]});
+    const p=P[k]||(P[k]={pessoa:k,lojas:{},calib:0,previa:0,dias:0,ent:0,tax:0,gar:0,lan:0,aju:0,nosso:0,deles:0,temDeles:false,pago:0,temPago:false,difS:0,difP:0,temDif:false,espera:0,semPix:0,linhas:[]});
     acLojas(x).forEach(function(u){p.lojas[u]=1});
     p.linhas.push(x);
     if(x.nosso!=null){
       const n=Number(x.nosso), t=Number(x.n_taxas||0), la=Number(x.n_lanche||0), aj=Number(x.n_ajustes||0);
+      if(x.lacre_tipo==='EXTRA'||x.lacre_tipo==='RETRO')p.calib++; else if(x.lacre_tipo==='PREVIA')p.previa++;
       p.dias++; p.ent+=Number(x.n_entregas||0); p.tax+=t; p.lan+=la; p.aju+=aj; p.nosso+=n;
       // a pagar = maior entre taxas e garantido, menos lanche, mais ajustes → o que o garantido completou
       p.gar+=Math.max(0,n-t+la-aj);
@@ -959,6 +964,11 @@ function acSit(x){
   if(x.pago!=null)return '<span style="color:var(--muted)">só no Pix — sem entrega no sistema neste dia (acerto, parcela ou outro dia)</span>';
   return '<span style="color:var(--muted)">só na planilha deles</span>';
 }
+function acLacre(x){
+  if(x.nosso==null)return '';
+  const t={OFICIAL:'lacre oficial',FINAL:'lacre final',PREVIA:'prévia da noite — o lacre oficial ainda não saiu',EXTRA:'recálculo de calibração — não foi lacrado no dia',RETRO:'recálculo de calibração — não foi lacrado no dia'}[x.lacre_tipo];
+  return t?'<div style="color:var(--muted);font-size:11px;font-weight:400">'+t+'</div>':'';
+}
 function acPixTxt(x){return (x.pix||[]).map(function(p){return rs(p.valor)+' <span style="color:var(--muted)">em '+prDt(p.data)+'</span>'}).join('<br>')}
 function acCopia(){
   if(!AC)return;
@@ -980,10 +990,13 @@ function viewAcerto(){
   }
   const L=(AC.linhas||[]).filter(function(x){return !AC_LOJA||acLojas(x).indexOf(AC_LOJA)>=0});
   const P=acSoma(L);
-  const T={ent:0,tax:0,gar:0,lan:0,aju:0,nosso:0,deles:0,pago:0,difS:0,difP:0,espera:0,semPix:0,dias:0};
-  P.forEach(function(p){['ent','tax','gar','lan','aju','nosso','deles','pago','difS','difP','espera','semPix','dias'].forEach(function(c){T[c]+=p[c]})});
+  const T={ent:0,tax:0,gar:0,lan:0,aju:0,nosso:0,deles:0,pago:0,difS:0,difP:0,espera:0,semPix:0,dias:0,calib:0,previa:0};
+  P.forEach(function(p){['ent','tax','gar','lan','aju','nosso','deles','pago','difS','difP','espera','semPix','dias','calib','previa'].forEach(function(c){T[c]+=p[c]})});
   const nMoto=P.filter(function(p){return p.dias>0}).length, difT=T.difP-T.difS;
-  $('faixa').innerHTML='';
+  const fx=[];
+  if(T.calib)fx.push('<b>'+num(T.calib)+'</b> dia'+(T.calib>1?'s':'')+' de motoboy deste período não '+(T.calib>1?'têm':'tem')+' lacre do próprio dia: o "A pagar" '+(T.calib>1?'deles':'dele')+' é um recálculo feito depois (calibração). Serve para conferir, não como prova.');
+  if(T.previa)fx.push('<b>'+num(T.previa)+'</b> dia'+(T.previa>1?'s':'')+' de motoboy ainda '+(T.previa>1?'estão':'está')+' com a prévia da noite: o lacre oficial ainda não saiu e o valor pode mudar.');
+  $('faixa').innerHTML=fx.length?'<div class="faixa" data-ac="1">⚠️ '+fx.join('<br>⚠️ ')+'</div>':'';
   $('kpis').innerHTML='<div class="kpis">'+
     kpi('A pagar (sistema)','g',rs(T.nosso),num(nMoto)+' motoboys · '+num(T.ent)+' entregas')+
     kpi('Pago no Pix','',rs(T.pago),'o que saiu da conta das lojas')+
@@ -1012,24 +1025,24 @@ function viewAcerto(){
     h+='<tr style="cursor:pointer" onclick="acAbre(AC_P['+i+'])"><td><b>'+(ab?'▾ ':'▸ ')+esc(sem?p.pessoa.replace('sem dono: ','')+' (nome sem cadastro)':p.pessoa)+'</b></td>'+
       '<td>'+esc(Object.keys(p.lojas).join(' + '))+'</td><td>'+(p.dias||'—')+'</td><td>'+(p.dias?num(p.ent):'—')+'</td>'+
       '<td>'+(p.dias?rs(p.tax):'—')+'</td><td>'+(p.gar>0.005?rs(p.gar):'—')+'</td><td>'+(p.lan>0.005?rs(p.lan):'—')+'</td><td>'+(Math.abs(p.aju)>0.005?rs(p.aju):'—')+'</td>'+
-      '<td><b>'+(p.dias?rs(p.nosso):'—')+'</b></td><td>'+(p.temDeles?rs(p.deles):'—')+'</td><td>'+(p.temPago?rs(p.pago):'—')+'</td><td>'+dif+'</td></tr>';
+      '<td><b>'+(p.dias?rs(p.nosso):'—')+'</b>'+(p.calib||p.previa?'<div style="color:var(--muted);font-size:11px;white-space:normal">'+[p.calib?p.calib+' dia'+(p.calib>1?'s':'')+' de recálculo':'',p.previa?p.previa+' dia'+(p.previa>1?'s':'')+' em prévia':''].filter(Boolean).join(' · ')+'</div>':'')+'</td><td>'+(p.temDeles?rs(p.deles):'—')+'</td><td>'+(p.temPago?rs(p.pago):'—')+'</td><td>'+dif+'</td></tr>';
     if(ab){
       h+='<tr><td colspan="12" style="padding:4px 6px 10px 22px"><table class="enxuta" style="min-width:0"><tr><th>Dia</th><th>Loja</th><th>Entregas</th><th>Valor entregas</th><th>Consumo</th><th>Ajustes</th><th>A pagar</th><th>Planilha deles</th><th>Pix</th><th>Situação</th></tr>'+
         p.linhas.slice().sort(function(a,b){return a.dia<b.dia?-1:1}).map(function(x){
           return '<tr><td>'+prDt(x.dia)+' <span style="color:var(--muted)">'+prSem(x.dia)+'</span></td><td>'+esc(acLojas(x).join(' + '))+'</td>'+
             '<td>'+(x.nosso!=null?num(x.n_entregas):'—')+'</td><td>'+(x.nosso!=null?rs(x.n_taxas):'—')+'</td>'+
             '<td>'+(Number(x.n_lanche||0)>0.005?rs(x.n_lanche):'—')+'</td><td>'+(Math.abs(Number(x.n_ajustes||0))>0.005?rs(x.n_ajustes):'—')+'</td>'+
-            '<td><b>'+(x.nosso!=null?rs(x.nosso):'—')+'</b></td><td>'+(x.deles!=null?rs(x.deles):'—')+'</td><td>'+(acPixTxt(x)||'—')+'</td><td>'+acSit(x)+'</td></tr>'}).join('')+
+            '<td><b>'+(x.nosso!=null?rs(x.nosso):'—')+'</b>'+acLacre(x)+'</td><td>'+(x.deles!=null?rs(x.deles):'—')+'</td><td>'+(acPixTxt(x)||'—')+'</td><td>'+acSit(x)+'</td></tr>'}).join('')+
         '</table></td></tr>';
     }
   });
   h+='<tr><td><b>Total geral</b></td><td></td><td>'+num(T.dias)+'</td><td><b>'+num(T.ent)+'</b></td><td><b>'+rs(T.tax)+'</b></td><td><b>'+rs(T.gar)+'</b></td><td><b>'+rs(T.lan)+'</b></td><td><b>'+rs(T.aju)+'</b></td>'+
     '<td><b>'+rs(T.nosso)+'</b></td><td><b>'+rs(T.deles)+'</b></td><td><b>'+rs(T.pago)+'</b></td><td>'+acDif(difT)+'</td></tr></table></div></div>';
-  h+='<div class="hs">· <b>A pagar</b> é a conta do sistema lacrada às 9h do dia seguinte (o maior entre as taxas e o garantido, menos o consumo, mais os ajustes). <b>Garantido</b> é o quanto o garantido completou acima das taxas.<br>'+
+  h+='<div class="hs">· <b>A pagar</b> é a conta lacrada do sistema (o maior entre as taxas e o garantido, menos o consumo, mais os ajustes). Abrindo o motoboy, cada dia diz de qual lacre o valor saiu. <b>Garantido</b> é o quanto o garantido completou acima das taxas.<br>'+
     '· <b>Pago no Pix</b> é o que saiu da conta Itaú de cada loja. O Pix de um dia sai no dia seguinte, por isso os dias mais recentes ficam "esperando o banco".<br>'+
     '· <b>Pix × sistema</b> só compara os dias que têm os dois. Desconto ou vale feito na hora de pagar aparece aqui.<br>'+
     '· <b>Km rodados e vale</b> da planilha antiga não entram: o sistema não guarda km por motoboy nem adiantamento.<br>'+
-    '· A conta do sistema existe a partir de 23/09/2026; antes disso só aparecem a planilha deles e o Pix.</div>';
+    '· Dia sem conta do sistema mostra só a planilha deles e o Pix. O período vai até '+AC_TETO+' dias por vez.</div>';
   window.AC_P=P.map(function(p){return p.pessoa});
   $('conteudo').innerHTML=h;
 }
