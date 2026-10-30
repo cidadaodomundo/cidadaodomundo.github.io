@@ -57,6 +57,7 @@ th.grupo{border-left:1px solid var(--line)}
 tr.obs td{background:rgba(251,191,36,.06);border-bottom:1px solid var(--line);color:var(--muted);font-size:12px;padding:5px 9px 9px 9px;white-space:normal;line-height:1.55}
 table.enxuta{min-width:0}
 table.enxuta td,table.enxuta th{padding:6px 7px}
+table.ac td:nth-child(n+3){white-space:nowrap}
 td.nome{white-space:normal;min-width:120px;max-width:190px}
 table{border-collapse:collapse;width:100%;font-size:13px;min-width:720px}
 th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
@@ -182,7 +183,7 @@ button.b[disabled]{opacity:.4;cursor:not-allowed}
 <body>
 <div class="top">
   <div><h1>Pagar Motoboys</h1><div class="sub">quanto pagar a cada motoboy, maquininha, corrida em dobro e as regras — esta tela é só sua e da Hellen</div></div>
-  <div class="rt"><span class="rel" id="rel"></span><button class="b" onclick="MQ=null;PD=null;PV=null;if(!PG_EMBED&&$('t_prova').style.display==='none')provaSonda();setView(VIEW)">🔄 Atualizar</button></div>
+  <div class="rt"><span class="rel" id="rel"></span><button class="b" onclick="MQ=null;PD=null;PV=null;AC=null;if(!PG_EMBED&&$('t_prova').style.display==='none')provaSonda();setView(VIEW)">🔄 Atualizar</button></div>
 </div>
 
 <div class="per">
@@ -200,6 +201,7 @@ button.b[disabled]{opacity:.4;cursor:not-allowed}
   <span class="tab on" id="t_pagar" onclick="setView('pagar')">💵 Quanto pagar</span>
   <span class="tab" id="t_maq" onclick="setView('maq')">🧾 Maquininha do dia</span>
   <span class="tab" id="t_dup" onclick="setView('dup')">🔎 Corrida em dobro</span>
+  <span class="tab" id="t_acerto" onclick="setView('acerto')" style="display:none">📒 Acerto</span>
   <span class="tab" id="t_prova" onclick="setView('prova')" style="display:none">🧪 Prova real</span>
   <span class="tab" id="t_reg" onclick="setView('reg')">📜 As regras</span>
 </div>
@@ -296,6 +298,7 @@ function setView(v){if(v==='cmp'||v==='pag')v='pagar'; VIEW=v;
   $('t_maq').className='tab'+(v==='maq'?' on':'');
   try{$('t_dup').className='tab'+(v==='dup'?' on':'')}catch(e){}
   try{$('t_prova').className='tab'+(v==='prova'?' on':'')}catch(e){}
+  try{$('t_acerto').className='tab'+(v==='acerto'?' on':'')}catch(e){}
   $('t_reg').className='tab'+(v==='reg'?' on':'');
   if(v!=='ag'&&AGT){clearInterval(AGT);AGT=null}
   if(v!=='maq'&&MAQ_TIMER){clearInterval(MAQ_TIMER);MAQ_TIMER=null}
@@ -424,7 +427,7 @@ async function viewDup(){
   el.innerHTML=h;
 }
 function viewRegras(){$('kpis').innerHTML='';$('faixa').innerHTML='';$('conteudo').innerHTML=REGRAS_HTML}
-function render(){if(VIEW==='pagar'){viewPagar();return}if(VIEW==='prova'){viewProva();return}if(VIEW==='dup'){viewDup();return}if(VIEW==='cob'){viewCob();return}if(VIEW==='ag'){viewAgora();return}if(VIEW==='maq'){viewMaq();return}if(VIEW==='reg'){viewRegras();return}viewMaq()}
+function render(){if(VIEW==='pagar'){viewPagar();return}if(VIEW==='prova'){viewProva();return}if(VIEW==='acerto'){viewAcerto();return}if(VIEW==='dup'){viewDup();return}if(VIEW==='cob'){viewCob();return}if(VIEW==='ag'){viewAgora();return}if(VIEW==='maq'){viewMaq();return}if(VIEW==='reg'){viewRegras();return}viewMaq()}
 async function viewComparar(){
   $('faixa').innerHTML='';
   if(!PD){ $('conteudo').innerHTML='<div class="empty">Carregando…</div>'; await puxaPagDia(); }
@@ -902,6 +905,135 @@ function viewPagar(){
   $('conteudo').innerHTML=h;
 }
 
+// === 📒 ACERTO — a lista de pagamentos do período, no formato da planilha "Acerto Motoboys" do Neto (30/10) ===
+// mesma porta da Prova real (prova_painel: só o dono e a Hellen), somada por motoboy no período escolhido
+let AC=null, ACK='', AC_DE='', AC_ATE='', AC_Q='sem', AC_LOJA='', AC_ABRE={};
+const AC_CONTA={'ITAU AV 27004-3':'Água Verde','ITAU FF AV 98810-7':'Água Verde','ITAU AHU 99466-7':'Ahú','ITAU SAO BRAZ 99055-5':'São Braz','ITAU FF SÃO BRAZ 98811-5':'São Braz'};
+async function portaAcerto(de,ate){
+  const r=await fetch(SB+'rpc/prova_painel',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:cdmTok(),p_de:de,p_ate:ate})});
+  if(!r.ok){let c='';try{c=(await r.json()).code||''}catch(e){}const er=new Error('porta '+r.status);er.code=c;throw er}
+  return await r.json();
+}
+function acPer(q){
+  const hoje=new Date(), ontem=new Date(hoje.getTime()-864e5);
+  if(q==='mes'){AC_DE=iso(new Date(hoje.getTime()-30*864e5));AC_ATE=iso(ontem)}
+  else if(q==='ant'){const dow=hoje.getDay(), seg=new Date(hoje.getTime()-((dow===0?6:dow-1)+7)*864e5);AC_DE=iso(seg);AC_ATE=iso(new Date(seg.getTime()+6*864e5))}
+  else {q='sem';AC_DE=iso(new Date(hoje.getTime()-7*864e5));AC_ATE=iso(ontem)}
+  AC_Q=q; viewAcerto();
+}
+function acDatas(){const a=$('ac_de').value, b=$('ac_ate').value; if(!a||!b)return; AC_DE=a<=b?a:b; AC_ATE=a<=b?b:a; AC_Q=''; viewAcerto()}
+function acLoja(u){AC_LOJA=u; viewAcerto()}
+function acAbre(k){AC_ABRE[k]=!AC_ABRE[k]; viewAcerto()}
+// a loja da linha: a do sistema/planilha; quando só existe o Pix, a da conta que pagou
+function acLojas(x){if(x.lojas)return String(x.lojas).split('+');const p=(x.pix||[])[0];return p&&AC_CONTA[p.conta]?[AC_CONTA[p.conta]]:[]}
+function acSoma(L){
+  const P={};
+  L.forEach(function(x){
+    const k=x.pessoa||'?';
+    const p=P[k]||(P[k]={pessoa:k,lojas:{},dias:0,ent:0,tax:0,gar:0,lan:0,aju:0,nosso:0,deles:0,temDeles:false,pago:0,temPago:false,difS:0,difP:0,temDif:false,espera:0,semPix:0,linhas:[]});
+    acLojas(x).forEach(function(u){p.lojas[u]=1});
+    p.linhas.push(x);
+    if(x.nosso!=null){
+      const n=Number(x.nosso), t=Number(x.n_taxas||0), la=Number(x.n_lanche||0), aj=Number(x.n_ajustes||0);
+      p.dias++; p.ent+=Number(x.n_entregas||0); p.tax+=t; p.lan+=la; p.aju+=aj; p.nosso+=n;
+      // a pagar = maior entre taxas e garantido, menos lanche, mais ajustes → o que o garantido completou
+      p.gar+=Math.max(0,n-t+la-aj);
+      if(x.pago==null){if(x.pix_status==='esperando o banco')p.espera++;else p.semPix++}
+    }
+    if(x.deles!=null){p.deles+=Number(x.deles);p.temDeles=true}
+    if(x.pago!=null){p.pago+=Number(x.pago);p.temPago=true;if(x.nosso!=null){p.difS+=Number(x.nosso);p.difP+=Number(x.pago);p.temDif=true}}
+  });
+  return Object.keys(P).map(function(k){return P[k]}).sort(function(a,b){
+    const sa=a.pessoa.indexOf('sem dono')===0?1:0, sb=b.pessoa.indexOf('sem dono')===0?1:0;
+    return sa-sb||b.ent-a.ent||b.nosso-a.nosso||b.pago-a.pago});
+}
+function acDif(d){
+  if(Math.abs(d)<0.01)return '<span style="color:var(--ok);font-weight:700">✓ bate</span>';
+  return d>0?'<span style="color:#60a5fa;font-weight:700">Pix '+rs(d)+' a mais</span>':'<span style="color:#fbbf24;font-weight:700">Pix '+rs(-d)+' a menos</span>';
+}
+function acSit(x){
+  if(x.nosso!=null&&x.pago!=null){const d=Number(x.pago)-Number(x.nosso);return acDif(d)}
+  if(x.nosso!=null)return x.pix_status==='esperando o banco'?'<span style="color:var(--muted)">⏳ esperando o banco</span>':'<span style="color:#f87171">⚠️ sem Pix achado</span>';
+  if(x.pago!=null)return '<span style="color:var(--muted)">só no Pix — sem entrega no sistema neste dia (acerto, parcela ou outro dia)</span>';
+  return '<span style="color:var(--muted)">só na planilha deles</span>';
+}
+function acPixTxt(x){return (x.pix||[]).map(function(p){return rs(p.valor)+' <span style="color:var(--muted)">em '+prDt(p.data)+'</span>'}).join('<br>')}
+function acCopia(){
+  if(!AC)return;
+  const P=acSoma((AC.linhas||[]).filter(function(x){return !AC_LOJA||acLojas(x).indexOf(AC_LOJA)>=0}));
+  const f=function(v){return Number(v||0).toFixed(2).replace('.',',')};
+  const t=['Entregador\tLoja\tDias\tEntregas\tValor entregas\tGarantido\tConsumo\tAjustes\tA pagar (sistema)\tPlanilha deles\tPago no Pix'].concat(P.map(function(p){
+    return [p.pessoa,Object.keys(p.lojas).join(' + '),p.dias,p.ent,f(p.tax),f(p.gar),f(p.lan),f(p.aju),f(p.nosso),p.temDeles?f(p.deles):'',p.temPago?f(p.pago):''].join('\t')})).join('\n');
+  try{navigator.clipboard.writeText(t).then(function(){alert('Lista copiada. Cole no Excel ou no Google Planilhas.')},function(){alert('Não deu para copiar sozinho. Selecione a tabela e copie na mão.')})}catch(e){alert('Não deu para copiar sozinho. Selecione a tabela e copie na mão.')}
+}
+function viewAcerto(){
+  if(!AC_DE){acPer(AC_Q||'sem');return}
+  const k=AC_DE+'|'+AC_ATE;
+  if(!AC||ACK!==k){
+    $('kpis').innerHTML='';$('faixa').innerHTML='';
+    $('conteudo').innerHTML='<div class="empty">Carregando o acerto…</div>';
+    portaAcerto(AC_DE,AC_ATE).then(function(j){AC=j;ACK=k;try{$('t_acerto').style.display=''}catch(e){}if(VIEW==='acerto')viewAcerto()})
+      .catch(function(e){$('conteudo').innerHTML='<div class="c">'+(e&&e.code==='42501'?'Só o Fábio e a Hellen veem o acerto.':'Não deu para carregar o acerto. Entre no portal de novo e tente outra vez.')+'</div>'});
+    return;
+  }
+  const L=(AC.linhas||[]).filter(function(x){return !AC_LOJA||acLojas(x).indexOf(AC_LOJA)>=0});
+  const P=acSoma(L);
+  const T={ent:0,tax:0,gar:0,lan:0,aju:0,nosso:0,deles:0,pago:0,difS:0,difP:0,espera:0,semPix:0,dias:0};
+  P.forEach(function(p){['ent','tax','gar','lan','aju','nosso','deles','pago','difS','difP','espera','semPix','dias'].forEach(function(c){T[c]+=p[c]})});
+  const nMoto=P.filter(function(p){return p.dias>0}).length, difT=T.difP-T.difS;
+  $('faixa').innerHTML='';
+  $('kpis').innerHTML='<div class="kpis">'+
+    kpi('A pagar (sistema)','g',rs(T.nosso),num(nMoto)+' motoboys · '+num(T.ent)+' entregas')+
+    kpi('Pago no Pix','',rs(T.pago),'o que saiu da conta das lojas')+
+    kpi('Pix × sistema','',Math.abs(difT)<0.01?'bate':rs(Math.abs(difT))+(difT>0?' a mais':' a menos'),'o Pix comparado ao sistema, só nos dias que têm os dois')+
+    kpi('Esperando o banco','w',num(T.espera),'dia(s) de motoboy sem Pix ainda')+
+  '</div>';
+  const hoje=new Date(), ontem=iso(new Date(hoje.getTime()-864e5));
+  let h='<div class="c"><h3 style="margin:0 0 6px;font-size:16px">📒 Acerto dos motoboys</h3>'+
+    '<div class="hs" style="margin:0 0 10px">A lista de pagamentos do período, no formato da planilha <b>Acerto Motoboys</b>. Cada linha é um motoboy: <b>clique no nome</b> para ver dia a dia o que o sistema mandou pagar, o que a planilha dos meninos pediu e o Pix que saiu.</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">'+
+    '<button class="b'+(AC_Q==='sem'?' on':'')+'" onclick="acPer(\'sem\')">Últimos 7 dias</button>'+
+    '<button class="b'+(AC_Q==='ant'?' on':'')+'" onclick="acPer(\'ant\')">Semana passada (seg a dom)</button>'+
+    '<button class="b'+(AC_Q==='mes'?' on':'')+'" onclick="acPer(\'mes\')">Últimos 30 dias</button>'+
+    '<input type="date" id="ac_de" value="'+esc(AC_DE)+'" max="'+ontem+'"> <span class="rel">até</span> <input type="date" id="ac_ate" value="'+esc(AC_ATE)+'" max="'+ontem+'">'+
+    '<button class="b" onclick="acDatas()">ver</button></div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">'+
+    ['','Água Verde','São Braz','Ahú'].map(function(u){return '<button class="b'+(AC_LOJA===u?' on':'')+'" onclick="acLoja(\''+u+'\')">'+(u||'Todas as lojas')+'</button>'}).join('')+
+    '<button class="b" onclick="acCopia()" style="margin-left:auto">📋 Copiar a lista</button></div></div>';
+  if(!P.length){$('conteudo').innerHTML=h+'<div class="c">Nenhum pagamento de motoboy neste período'+(AC_LOJA?' na '+esc(AC_LOJA):'')+'.</div>';return}
+  h+='<div class="c" style="padding:6px"><div class="wrap"><table class="enxuta ac"><tr><th>Entregador</th><th>Loja</th><th>Dias</th><th>Entregas</th><th>Valor entregas</th><th>Garantido</th><th>Consumo</th><th>Ajustes</th><th>A pagar</th><th>Planilha deles</th><th>Pago no Pix</th><th>Pix × sistema</th></tr>';
+  P.forEach(function(p,i){
+    const ab=!!AC_ABRE[p.pessoa], sem=p.pessoa.indexOf('sem dono')===0, d=p.difP-p.difS;
+    let dif=p.temDif?acDif(d):'<span style="color:var(--muted)">—</span>';
+    const nota=[]; if(p.espera)nota.push(p.espera+' dia'+(p.espera>1?'s':'')+' esperando o banco'); if(p.semPix)nota.push(p.semPix+' dia'+(p.semPix>1?'s':'')+' sem Pix achado');
+    if(nota.length)dif+='<div style="color:var(--muted);font-size:11px">'+nota.join(' · ')+'</div>';
+    h+='<tr style="cursor:pointer" onclick="acAbre(AC_P['+i+'])"><td><b>'+(ab?'▾ ':'▸ ')+esc(sem?p.pessoa.replace('sem dono: ','')+' (nome sem cadastro)':p.pessoa)+'</b></td>'+
+      '<td>'+esc(Object.keys(p.lojas).join(' + '))+'</td><td>'+(p.dias||'—')+'</td><td>'+(p.dias?num(p.ent):'—')+'</td>'+
+      '<td>'+(p.dias?rs(p.tax):'—')+'</td><td>'+(p.gar>0.005?rs(p.gar):'—')+'</td><td>'+(p.lan>0.005?rs(p.lan):'—')+'</td><td>'+(Math.abs(p.aju)>0.005?rs(p.aju):'—')+'</td>'+
+      '<td><b>'+(p.dias?rs(p.nosso):'—')+'</b></td><td>'+(p.temDeles?rs(p.deles):'—')+'</td><td>'+(p.temPago?rs(p.pago):'—')+'</td><td>'+dif+'</td></tr>';
+    if(ab){
+      h+='<tr><td colspan="12" style="padding:4px 6px 10px 22px"><table class="enxuta" style="min-width:0"><tr><th>Dia</th><th>Loja</th><th>Entregas</th><th>Valor entregas</th><th>Consumo</th><th>Ajustes</th><th>A pagar</th><th>Planilha deles</th><th>Pix</th><th>Situação</th></tr>'+
+        p.linhas.slice().sort(function(a,b){return a.dia<b.dia?-1:1}).map(function(x){
+          return '<tr><td>'+prDt(x.dia)+' <span style="color:var(--muted)">'+prSem(x.dia)+'</span></td><td>'+esc(acLojas(x).join(' + '))+'</td>'+
+            '<td>'+(x.nosso!=null?num(x.n_entregas):'—')+'</td><td>'+(x.nosso!=null?rs(x.n_taxas):'—')+'</td>'+
+            '<td>'+(Number(x.n_lanche||0)>0.005?rs(x.n_lanche):'—')+'</td><td>'+(Math.abs(Number(x.n_ajustes||0))>0.005?rs(x.n_ajustes):'—')+'</td>'+
+            '<td><b>'+(x.nosso!=null?rs(x.nosso):'—')+'</b></td><td>'+(x.deles!=null?rs(x.deles):'—')+'</td><td>'+(acPixTxt(x)||'—')+'</td><td>'+acSit(x)+'</td></tr>'}).join('')+
+        '</table></td></tr>';
+    }
+  });
+  h+='<tr><td><b>Total geral</b></td><td></td><td>'+num(T.dias)+'</td><td><b>'+num(T.ent)+'</b></td><td><b>'+rs(T.tax)+'</b></td><td><b>'+rs(T.gar)+'</b></td><td><b>'+rs(T.lan)+'</b></td><td><b>'+rs(T.aju)+'</b></td>'+
+    '<td><b>'+rs(T.nosso)+'</b></td><td><b>'+rs(T.deles)+'</b></td><td><b>'+rs(T.pago)+'</b></td><td>'+acDif(difT)+'</td></tr></table></div></div>';
+  h+='<div class="hs">· <b>A pagar</b> é a conta do sistema lacrada às 9h do dia seguinte (o maior entre as taxas e o garantido, menos o consumo, mais os ajustes). <b>Garantido</b> é o quanto o garantido completou acima das taxas.<br>'+
+    '· <b>Pago no Pix</b> é o que saiu da conta Itaú de cada loja. O Pix de um dia sai no dia seguinte, por isso os dias mais recentes ficam "esperando o banco".<br>'+
+    '· <b>Pix × sistema</b> só compara os dias que têm os dois. Desconto ou vale feito na hora de pagar aparece aqui.<br>'+
+    '· <b>Km rodados e vale</b> da planilha antiga não entram: o sistema não guarda km por motoboy nem adiantamento.<br>'+
+    '· A conta do sistema existe a partir de 23/09/2026; antes disso só aparecem a planilha deles e o Pix.</div>';
+  window.AC_P=P.map(function(p){return p.pessoa});
+  $('conteudo').innerHTML=h;
+}
+
 // === 🧪 PROVA REAL — sistema (lacrado) × planilha deles × Pix que saiu, pessoa por dia (15/10) ===
 let PV=null, PVDIA=null;
 async function portaProva(){
@@ -912,7 +1044,7 @@ async function portaProva(){
   return await r.json();
 }
 // só o dono e a Hellen recebem resposta; para os outros a aba nem aparece
-async function provaSonda(){try{PV=await portaProva();$('t_prova').style.display=''}catch(e){PV=null}}
+async function provaSonda(){try{PV=await portaProva();$('t_prova').style.display='';$('t_acerto').style.display=''}catch(e){PV=null}}
 const PR_SEM=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
 function prDt(iso){const p=String(iso||'').slice(0,10).split('-');return p.length===3?p[2]+'/'+p[1]:''}
 function prSem(iso){const d=new Date(String(iso).slice(0,10)+'T12:00:00');return PR_SEM[d.getDay()]||''}
@@ -1410,7 +1542,7 @@ async function cdmGuarda(){
   if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
-cdmGuarda().then(function(ok){if(!ok)return;try{$('p_sem').parentElement.style.display='none'}catch(e){}var qs=new URLSearchParams(location.search);if(qs.get('aba')==='dup'){try{$('de').value=new Date(Date.now()-21*864e5).toISOString().slice(0,10)}catch(e){}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}}setView('dup');return}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}if(qs.get('loja')!==null)LOJA=qs.get('loja');}else{provaSonda()}if(qs.get('aba')==='prova'&&qs.get('embed')!=='1'){setView('prova');return}setView('pagar');});
+cdmGuarda().then(function(ok){if(!ok)return;try{$('p_sem').parentElement.style.display='none'}catch(e){}var qs=new URLSearchParams(location.search);if(qs.get('aba')==='dup'){try{$('de').value=new Date(Date.now()-21*864e5).toISOString().slice(0,10)}catch(e){}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}}setView('dup');return}if(qs.get('embed')==='1'){try{document.querySelector('.top').style.display='none';document.querySelector('.tabs').style.display='none'}catch(e){}if(qs.get('loja')!==null)LOJA=qs.get('loja');}else{provaSonda()}if(qs.get('aba')==='prova'&&qs.get('embed')!=='1'){setView('prova');return}if(qs.get('aba')==='acerto'&&qs.get('embed')!=='1'){setView('acerto');return}setView('pagar');});
 </script>
 <script src="/assets/portal.js?v=3"></script>
 </body>
