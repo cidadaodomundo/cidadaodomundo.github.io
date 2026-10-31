@@ -225,7 +225,8 @@ button.b:hover{border-color:var(--text2)}
 .rs .leg{margin-top:8px}
 .rs-mk{border-radius:7px;padding:0 5px;font:800 11.5px/17px Barlow,sans-serif;color:#111;white-space:nowrap;border:2px solid #111;box-shadow:0 1px 4px rgba(0,0,0,.7)}
 #sec_mapa .grp .b+.b{margin-left:6px}
-@media (max-width:640px){.rs .pr{padding-left:4px}.rs .cap button{min-width:38px;height:36px}.rs-tx{display:none}}
+.rs-bt{white-space:nowrap}
+@media (max-width:640px){.rs .pr{padding-left:4px}.rs .cap button{min-width:38px;height:36px}.rs-tx{display:none}#sec_mapa .grp.com-rs .ct{display:none}}
 </style>
 </head>
 <body>
@@ -1214,11 +1215,14 @@ function rsCalc(d){
     return {pl:pl,av:a,at:at,sg:sg,atr:atr,nsl:(pl.semLocal||[]).length,fora:(pl.sobra||[]).filter(function(id){return !sl[String(id)];}).length}; };
   try{
     var tudo=rodar(slots.length);
-    /* saidas supostas com teto: se alguem atrasa, refaz com uma saida suposta por pedido (como o aviso diz) */
+    /* saidas supostas com teto: se alguem atrasa, refaz com uma saida suposta por pedido (como o aviso diz)
+       e so fica com ela se baixar o numero de atrasados; senao volta ao teto (nao espalha rota a toa) */
     if(tudo.at>0&&slots.length&&slots[0].suposto&&slots.length<ps.length){
+      var nTeto=slots.length;
       while(slots.length<ps.length) slots.push({t0:0,quem:null,suposto:true});
       for(var q=opts.inicial.length;q<slots.length;q++) opts.inicial.push(gl[q]?gl[q].slice():[]);
-      tudo=rodar(slots.length);
+      var tUm=rodar(slots.length);
+      if(tUm.at<tudo.at) tudo=tUm; else { slots.length=nTeto; opts.inicial.length=nTeto; }
     }
     var mx=slots.length, ok=tudo;
     var serve=function(t){ if(t.fora>tudo.fora||t.at>tudo.at||t.sg>tudo.sg+r.tol) return false;
@@ -1241,9 +1245,12 @@ function rsCalc(d){
       km:a.metros/1000,atrasados:a.atrasados,igual:!!temTE[chave(a.ids.map(String))],
       paradas:a.ids.map(String).map(function(id,i){ var p=porId[id], ch=a.chegadas[i], f=rsNum(p.falta_prom);
         var ps2=(isFinite(f)&&ch-f*60>r.tol)?Math.ceil((ch-f*60)/60):0, pm=rsMin(p.prometido), dm=(pm===null)?0:((Math.round(agora+ch/60)-pm)%1440+1440)%1440;
+        var perto=isFinite(f)&&ch>f*60-120;   /* a hora mostrada so conta quando a conta tambem esta perto do prazo */
+        /* "passa N min" com o mesmo N que a diferenca entre a hora mostrada e a prometida */
+        if(ps2&&perto&&dm>0&&dm<=720) ps2=dm;
         /* "no limite": chega depois da hora prometida mas dentro da tolerancia, ou a hora mostrada ja passa a prometida */
         return {p:p,chega:rsHora(agora+ch/60),passa:ps2,
-          justo:!ps2&&((isFinite(f)&&ch>f*60)||(dm>0&&dm<=720))}; })});
+          justo:!ps2&&((isFinite(f)&&ch>f*60)||(perto&&dm>0&&dm<=720))}; })});
   });
   /* o calculador separa quem ficou de fora por falta de vaga (sobra) de quem tem endereco sem ponto no mapa (semLocal) */
   var semL={}; (plano.semLocal||[]).forEach(function(id){ semL[String(id)]=1; if(porId[String(id)]) r.semPonto.push(porId[String(id)]); });
@@ -1382,8 +1389,8 @@ function desenha(d){
   var noMapa=loja.filter(function(p){return p.lat!=null&&p.lng!=null;}).length+
              rua.reduce(function(a,m){return a+pontosRota(m).length;},0);
   if(noMapa)
-    h+='<div class="sec" id="sec_mapa"><div class="grp"><span class="em">🗺️</span><h2>Mapa dos pedidos</h2><span class="ct">'+noMapa+' pedido'+(noMapa===1?'':'s')+' no mapa</span>'+
-       (temRs?'<button class="b" onclick="rsMapaTroca()" title="mostrar ou esconder no mapa as rotas sugeridas">🧭 '+(RS_MAPA?'esconder':'mostrar')+'<span class="rs-tx"> sugestão</span></button>':'')+
+    h+='<div class="sec" id="sec_mapa"><div class="grp'+(temRs?' com-rs':'')+'"><span class="em">🗺️</span><h2>Mapa dos pedidos</h2><span class="ct">'+noMapa+' pedido'+(noMapa===1?'':'s')+' no mapa</span>'+
+       (temRs?'<button class="b rs-bt" onclick="rsMapaTroca()" title="mostrar ou esconder no mapa as rotas sugeridas">🧭 '+(RS_MAPA?'esconder':'mostrar')+'<span class="rs-tx"> sugestão</span></button>':'')+
        '<button class="b" onclick="mapaTodos()" title="voltar a mostrar todos os pedidos e motoboys">ver todos</button></div>'+
        '<div class="mapao" id="mapao"></div>'+
        '<div class="mapdica">etiqueta com o número do Saipos = pedido na loja: <span class="bola b-vm"></span>em preparo &nbsp;·&nbsp; <span class="bola b-rx"></span>pronto, esperando motoboy &nbsp;·&nbsp; '+
