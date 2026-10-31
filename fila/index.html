@@ -1201,8 +1201,9 @@ function rsCalc(d){
   Object.keys(grTE).forEach(function(g){ temTE[chave(grTE[g])]=1; });
   /* menos motoboys: a conta nao ve a volta ate a loja, entao, solta, espalha os pedidos por todos os motoboys livres.
      Roda com todas as saidas e depois procura (busca binaria) o menor numero de saidas, as que ficam livres primeiro,
-     que nao deixa ninguem a mais sem motoboy, nao tem mais pedidos atrasados e nao faz NENHUM pedido chegar mais que a
-     tolerancia (rota_tolerancia_s) depois do que chegaria com todas as saidas. Pedido sem ponto no mapa (semLocal) nao conta. */
+     que nao deixa ninguem a mais sem motoboy, nao tem mais pedidos atrasados e nao faz NENHUM pedido passar da hora
+     prometida mais que a tolerancia (rota_tolerancia_s) alem do que passaria com todas as saidas (pedido com folga pode
+     chegar mais tarde, sem atrasar). Pedido sem ponto no mapa (semLocal) nao conta. */
   var base={lat:+d.loja.lat,lng:+d.loja.lng}, plano, av;
   var rodar=function(k){ var o={cap:opts.cap,tolS:opts.tolS,travel:opts.travel,inicial:opts.inicial.slice(0,k)};
     var i={deposito:base,slots:slots.slice(0,k).map(function(s){return {t0:s.t0};}),pedidos:ped};
@@ -1212,12 +1213,22 @@ function rsCalc(d){
     (pl.semLocal||[]).forEach(function(id){ sl[String(id)]=1; });
     return {pl:pl,av:a,at:at,sg:sg,atr:atr,nsl:(pl.semLocal||[]).length,fora:(pl.sobra||[]).filter(function(id){return !sl[String(id)];}).length}; };
   try{
-    var mx=slots.length, tudo=rodar(mx), ok=tudo;
+    var tudo=rodar(slots.length);
+    /* saidas supostas com teto: se alguem atrasa, refaz com uma saida suposta por pedido (como o aviso diz) */
+    if(tudo.at>0&&slots.length&&slots[0].suposto&&slots.length<ps.length){
+      while(slots.length<ps.length) slots.push({t0:0,quem:null,suposto:true});
+      for(var q=opts.inicial.length;q<slots.length;q++) opts.inicial.push(gl[q]?gl[q].slice():[]);
+      tudo=rodar(slots.length);
+    }
+    var mx=slots.length, ok=tudo;
     var serve=function(t){ if(t.fora>tudo.fora||t.at>tudo.at||t.sg>tudo.sg+r.tol) return false;
       for(var id in tudo.atr){ if(!(id in t.atr)||t.atr[id]>tudo.atr[id]+r.tol) return false; }
       return true; };
-    var lo=Math.min(mx,Math.max(1,Math.ceil((ps.length-tudo.nsl)/r.cap))), hi=mx;
-    while(lo<hi){ var md=Math.floor((lo+hi)/2), t=rodar(md); if(serve(t)){ ok=t; hi=md; } else lo=md+1; }
+    var lo=Math.min(mx,Math.max(1,Math.ceil((ps.length-tudo.nsl)/r.cap))), hi=mx, achou=false;
+    /* primeiro os 3 menores numeros, um a um (o "serve" nem sempre cresce junto com o numero de saidas); depois, busca binaria */
+    for(var kk=lo;kk<Math.min(hi,lo+3);kk++){ var t1=rodar(kk); if(serve(t1)){ ok=t1; achou=true; break; } }
+    if(!achou){ lo=Math.min(hi,lo+3);
+      while(lo<hi){ var md=Math.floor((lo+hi)/2), t=rodar(md); if(serve(t)){ ok=t; hi=md; } else lo=md+1; } }
     plano=ok.pl; av=ok.av;
   }
   catch(e){ r.erro='A conta falhou neste minuto ('+esc(e&&e.message||e)+'). Tente o botão Atualizar.'; return r; }
@@ -1229,8 +1240,10 @@ function rsCalc(d){
     r.rotas.push({letra:String.fromCharCode(65+n%26),cor:RS_COR[n%RS_COR.length],slot:slots[s],sai:a.sai,
       km:a.metros/1000,atrasados:a.atrasados,igual:!!temTE[chave(a.ids.map(String))],
       paradas:a.ids.map(String).map(function(id,i){ var p=porId[id], ch=a.chegadas[i], f=rsNum(p.falta_prom);
-        return {p:p,chega:rsHora(agora+ch/60),passa:(isFinite(f)&&ch-f*60>r.tol)?Math.ceil((ch-f*60)/60):0,
-          justo:isFinite(f)&&ch>f*60&&ch-f*60<=r.tol}; })});
+        var ps2=(isFinite(f)&&ch-f*60>r.tol)?Math.ceil((ch-f*60)/60):0, pm=rsMin(p.prometido), dm=(pm===null)?0:((Math.round(agora+ch/60)-pm)%1440+1440)%1440;
+        /* "no limite": chega depois da hora prometida mas dentro da tolerancia, ou a hora mostrada ja passa a prometida */
+        return {p:p,chega:rsHora(agora+ch/60),passa:ps2,
+          justo:!ps2&&((isFinite(f)&&ch>f*60)||(dm>0&&dm<=720))}; })});
   });
   /* o calculador separa quem ficou de fora por falta de vaga (sobra) de quem tem endereco sem ponto no mapa (semLocal) */
   var semL={}; (plano.semLocal||[]).forEach(function(id){ semL[String(id)]=1; if(porId[String(id)]) r.semPonto.push(porId[String(id)]); });
@@ -1290,7 +1303,7 @@ function rsNota(r){
   return '<div class="leg">Como a conta funciona: chegada prevista = hora desta atualização + '+esc(String(r.svc))+' s por entrega + '+
     esc(String(r.mk).replace('.',','))+' min por km em linha reta (números do '+esc(r.turno)+', medidos nas entregas da Água Verde no TrackEat e guardados no banco). '+
     'Atrasa = chegada prevista mais de '+esc(String(r.tol))+' s depois da hora prometida. A conta escolhe primeiro <b>ninguém atrasar</b>, depois <b>menos km</b>: '+
-    'usa o menor número de motoboys (cada motoboy a mais é uma volta a mais até a loja) que não faz nenhum pedido chegar mais de '+esc(String(r.tol))+' s depois do que chegaria usando todos, e guarda os outros para os pedidos que ainda vão ficar prontos. '+
+    'usa o menor número de motoboys (cada motoboy a mais é uma volta a mais até a loja) que não faz nenhum pedido passar da hora prometida mais de '+esc(String(r.tol))+' s além do que passaria usando todos (pedido com folga pode chegar mais tarde, sem atrasar), e guarda os outros para os pedidos que ainda vão ficar prontos. '+
     'Parte das rotas que o TrackEat já montou (as que cabem no máximo escolhido) — nunca sugere mais pedidos atrasados que elas na conta. Só entram pedidos prontos. '+
     'Saída "quando X voltar" usa o mesmo "Livre ~" do quadro Motoboys. É estimativa: trânsito, chuva e porta demorada não entram. '+
     'O quadradinho colorido ao lado do pedido é a rota em que ele está hoje no TrackEat.</div>';
@@ -1370,7 +1383,7 @@ function desenha(d){
              rua.reduce(function(a,m){return a+pontosRota(m).length;},0);
   if(noMapa)
     h+='<div class="sec" id="sec_mapa"><div class="grp"><span class="em">🗺️</span><h2>Mapa dos pedidos</h2><span class="ct">'+noMapa+' pedido'+(noMapa===1?'':'s')+' no mapa</span>'+
-       (temRs?'<button class="b" onclick="rsMapaTroca()" title="mostrar ou esconder no mapa as rotas sugeridas">🧭<span class="rs-tx"> '+(RS_MAPA?'esconder sugestão':'mostrar sugestão')+'</span></button>':'')+
+       (temRs?'<button class="b" onclick="rsMapaTroca()" title="mostrar ou esconder no mapa as rotas sugeridas">🧭 '+(RS_MAPA?'esconder':'mostrar')+'<span class="rs-tx"> sugestão</span></button>':'')+
        '<button class="b" onclick="mapaTodos()" title="voltar a mostrar todos os pedidos e motoboys">ver todos</button></div>'+
        '<div class="mapao" id="mapao"></div>'+
        '<div class="mapdica">etiqueta com o número do Saipos = pedido na loja: <span class="bola b-vm"></span>em preparo &nbsp;·&nbsp; <span class="bola b-rx"></span>pronto, esperando motoboy &nbsp;·&nbsp; '+
