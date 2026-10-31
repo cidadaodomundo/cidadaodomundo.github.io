@@ -106,7 +106,7 @@ function painel(cid){
   const R=RESP[cid];
   if(!R||R===1)return '<div class="vazio">Carregando a conversa…</div>';
   if(R.erro)return '<div class="av">Não consegui abrir a conversa: '+esc(R.erro)+'</div>';
-  const ms=(R.msgs||[]).map(m=>'<div class="msg'+(m.de_mim?' nos':'')+'"><div class="h">'+(m.de_mim?'Nós':'Cliente')+' · '+esc(m.hora)+'</div>'+esc(m.texto)+'</div>').join('')||'<div class="vazio">Sem mensagens.</div>';
+  const ms=(R.msgs||[]).map(m=>'<div class="msg'+(m.de_mim?' nos':'')+'"><div class="h">'+(m.de_mim?'Nós':'Cliente')+' · '+esc(m.hora)+'</div>'+esc(m.texto)+'</div>').join('')||'<div class="vazio">Sem mensagens nos últimos 7 dias.</div>';
   const env=(R.envios||[]).map(e=>'<div class="m">'+(e.status==='enviada'?'✅ enviada':e.status==='erro'?'❌ não foi':'⏳ enviando')+' · '+esc(e.hora)+(e.por?' · '+esc(e.por):'')+' — '+esc(e.texto)+(e.erro?' ('+esc(e.erro)+')':'')+'</div>').join('');
   let av='';
   if(!R.tem_chave)av+='<div class="av">⚠️ Falta a <b>chave da página</b> do Facebook e do Instagram. Sem ela o portal ainda não consegue enviar.'
@@ -194,8 +194,9 @@ async function boot(quieto){
   desenha();
   clearTimeout(TIMER);TIMER=document.hidden?null:setTimeout(auto,60000);
 }
-/* com uma conversa do Facebook/Instagram aberta a tela nao se redesenha sozinha (nao tira o cursor de quem esta escrevendo) */
-function auto(){if(Object.keys(RESP).length){clearTimeout(TIMER);TIMER=document.hidden?null:setTimeout(auto,60000);return}boot(true)}
+/* enquanto alguem esta digitando uma resposta, a tela espera o proximo minuto para se redesenhar (nao tira o cursor de quem escreve);
+   fora isso atualiza normal, e a conversa aberta continua aberta com o texto que estava sendo escrito */
+function auto(){const a=document.activeElement;if(a&&a.closest&&a.closest('.resp')){clearTimeout(TIMER);TIMER=document.hidden?null:setTimeout(auto,60000);return}boot(true)}
 document.addEventListener('visibilitychange',function(){if(document.hidden){clearTimeout(TIMER);TIMER=null}else{boot(true)}});
 window.addEventListener('pagehide',function(){clearTimeout(TIMER)});
 
