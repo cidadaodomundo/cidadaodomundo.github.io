@@ -306,6 +306,17 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
 .tg-rsres .ok{color:#8fe3b4}.tg-rsres .mal{color:#ffb0b0}
 .tg-leg .rsl{width:22px;height:0;border-top:4px dotted var(--brand,#E0A81C)}
 @media (max-width:760px){.tg-ctl .tg-rscap button{width:38px;height:38px}.tg-ctl.rs-on > button{display:none}}
+.mm-l.tg-rsnum{background:#111;color:#fff;border:3px solid #fff;font-size:15px;line-height:20px;padding:0 8px;box-shadow:0 0 0 2px #111,0 2px 6px rgba(0,0,0,.6)}
+.rsc-rt{display:flex;align-items:center;gap:8px;padding:10px 4px 4px;font-weight:700;font-size:13.5px;color:var(--text2)}
+.rsc-rt .lt{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:7px;color:#111;font:800 14px Barlow,sans-serif}
+.rsc-at{color:#ffb0b0;font-weight:800}
+.rsc-nums{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:2px 4px 6px}
+.rsc-n{display:inline-block;border-radius:999px;border:2px solid #111;padding:1px 10px;font:800 17px/22px 'Barlow Condensed',Barlow,sans-serif;letter-spacing:.02em;color:#111;cursor:pointer}
+.rsc-n.pron{background:var(--roxo)}
+.rsc-n.prep{background:var(--bad)}
+.rsc-n.passa{box-shadow:0 0 0 3px #e66767}
+.rsc-seta{font-style:normal;color:var(--muted);font-weight:800}
+.rsc-tit{font:700 12.5px 'Barlow Condensed',Barlow,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);padding:12px 4px 2px}
 .tg-mbs{top:10px;right:10px;width:270px;max-height:calc(100% - 90px);display:flex;flex-direction:column}
 .tg-mbs header{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line)}
 .tg-mbs header h4{margin:0;font:700 14.5px 'Barlow Condensed',Barlow,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--text2)}
@@ -2178,8 +2189,12 @@ function tgDesenha(d){
   h+='</div><div class="tg-lista" id="tg_lista_in">';
   if(TEP) h+='<div class="tg-av">⚪ O TrackEat está sem dado desde '+esc(TEP)+' (o robô do TrackEat pode ter parado — avise). Acompanhe pelo Gestor de Pedidos do iFood até ele voltar.</div>';
   if(TG.aba==='rota'&&temRs){
-    h+='<div class="tg-rs"><div style="padding:8px 2px"><button class="b" onclick="rsMapaTroca()">🧭 '+(RS_MAPA?'esconder do mapa':'mostrar no mapa')+'</button></div>'+
-       rsBloco(RS_ULT).replace('id="rs_velho"','id="tg_rs_velho"').replace('id="sec_rs"','id="tg_sec_rs"')+'</div>';
+    /* 31/10/2026, pedido do Fabio: com a rota inteligente, a esquerda mostra so os numeros (roxo = pronto, vermelho = na cozinha);
+       os horarios ficam atras do botao "ver horarios" */
+    h+='<div class="tg-rs"><div style="padding:8px 2px;display:flex;gap:6px;flex-wrap:wrap"><button class="b" onclick="rsMapaTroca()">🧭 '+(RS_MAPA?'esconder do mapa':'mostrar no mapa')+'</button>'+
+       '<button class="b" data-tgrd="'+(TG.rsDet?'0':'1')+'">'+(TG.rsDet?'só os números':'ver horários')+'</button></div>'+
+       (TG.rsDet?rsBloco(RS_ULT).replace('id="rs_velho"','id="tg_rs_velho"').replace('id="sec_rs"','id="tg_sec_rs"')
+                :'<div id="tg_sec_rs"><div class="av" id="tg_rs_velho" style="display:none"></div>'+rsNumeros(RS_ULT,loja)+'</div>')+'</div>';
   }else{
     var foco=function(p){ return !TG.foco||p.motoboy===TG.foco; };
     var sec=function(chave,tit,bola,lista,fn){
@@ -2270,11 +2285,15 @@ function tgDesenha(d){
   var late=function(p){ return (p.falta_prom!=null&&+p.falta_prom<0)||p.atrasado; };
   /* rota inteligente ligada: o que nao esta numa saida sugerida fica apagado, para as linhas das rotas aparecerem */
   var rsFoco=!!(rsLiga&&RS_MAPA&&RS_ULT&&RS_ULT.rotas&&RS_ULT.rotas.length), emRota={};
-  if(rsFoco) RS_ULT.rotas.forEach(function(rt){ rt.paradas.forEach(function(x){ emRota[String(x.p.pedido)]=1; }); });
+  if(rsFoco) RS_ULT.rotas.forEach(function(rt){ rt.paradas.forEach(function(x){ emRota[String(x.p.pedido)]=rt.cor; }); });
   var lr=$('tg_leg_rs'); if(lr) lr.hidden=!rsFoco;
   loja.forEach(function(p){
     if(p.lat==null||p.lng==null) return;
     var id=String(p.pedido), dim=(!!TG.foco&&p.motoboy!==TG.foco)||(rsFoco&&!emRota[id]), cor=p.motoboy&&tgCorG(p.grupo);
+    if(rsFoco&&emRota[id]){   /* rota inteligente: numero branco sobre preto, borda na cor da rota, por cima do resto */
+      mkPed(id,[+p.lat,+p.lng],'<div class="mm-l tg-rsnum'+(TG.sel===id?' tg-selmk':'')+'" style="border-color:'+emRota[id]+'">'+esc(p.pedido)+'</div>',fichaLoja(p),900,false);
+      return;
+    }
     mkPed(id,[+p.lat,+p.lng],'<div class="mm-l '+(p.onde==='preparo'?'mm-prep':'mm-pron')+(late(p)?' late':'')+(TG.sel===id?' tg-selmk':'')+'"'+(cor?' style="border-color:'+cor+';border-width:3px"':'')+'>'+esc(p.pedido)+'</div>',
       fichaLoja(p),late(p)?600:400,dim);
   });
@@ -2360,6 +2379,25 @@ function tgTodos(){
   TG.cam.eachLayer(function(l){ if(l.getLatLng) b.push(l.getLatLng()); });
   if(b.length>1) TG.mp.flyToBounds(L.latLngBounds(b),{duration:.5,maxZoom:15,paddingTopLeft:[150,30],paddingBottomRight:[290,40]});
 }
+/* mini lista da rota inteligente (vista Mapa): cada saida com os numeros na ordem, roxo = pronto; embaixo, os da cozinha em vermelho */
+function rsNumeros(r,loja){
+  if(r.erro) return '<div class="tg-vz">'+r.erro+'</div>';
+  var h='', chip=function(p,cls,extra){ return '<span class="rsc-n '+cls+'" data-ped="'+esc(p.pedido)+'" title="toque para ver os itens">'+esc(p.pedido)+(extra||'')+'</span>'; };
+  if(r.idade!==null&&r.idade>=5) h+='<div class="tg-av">⚠ TrackEat lido há '+r.idade+' min</div>';
+  if(!r.rotas.length) h+='<div class="tg-vz">Nenhum pedido pronto esperando motoboy agora.</div>';
+  r.rotas.forEach(function(rt){
+    var s=rt.slot||{}, sai=s.suposto?'assim que houver motoboy':(rt.sai<=0?'sai agora':'~'+esc(s.livre)+' · '+esc(s.nome||primeiroNome(s.quem)));
+    h+='<div class="rsc-rt"><span class="lt" style="background:'+rt.cor+'">'+rt.letra+'</span><span class="rsc-sai">'+sai+'</span>'+
+       (rt.atrasados?'<span class="rsc-at">⚠ '+rt.atrasados+'</span>':'')+'</div><div class="rsc-nums">'+
+       rt.paradas.map(function(x,i){ return (i?'<i class="rsc-seta">›</i>':'')+chip(x.p,'pron'+(x.passa?' passa':'')); }).join('')+'</div>';
+  });
+  if(r.sobra.length) h+='<div class="rsc-tit">Sem motoboy na conta</div><div class="rsc-nums">'+r.sobra.map(function(p){return chip(p,'pron');}).join('')+'</div>';
+  if(r.semPonto.length) h+='<div class="rsc-tit">Sem endereço no mapa</div><div class="rsc-nums">'+r.semPonto.map(function(p){return chip(p,'pron');}).join('')+'</div>';
+  var coz=(loja||[]).filter(function(p){return p.onde==='preparo';});
+  h+='<div class="rsc-tit">Na cozinha'+(coz.length?' · entram quando ficarem prontos':'')+'</div><div class="rsc-nums">'+
+     (coz.length?coz.map(function(p){return chip(p,'prep');}).join(''):'<span class="tg-vz" style="padding:0">nenhum</span>')+'</div>';
+  return h;
+}
 /* ao ligar a rota inteligente, o mapa se aproxima da loja e das entregas sugeridas */
 function tgRsZoom(){
   if(!TG.mp||!RS_ULT||!RS_ULT.rotas||!RS_ULT.rotas.length) return;
@@ -2380,6 +2418,7 @@ function tgTema(){
 document.addEventListener('click',function(e){
   var t=e.target&&e.target.closest?e.target:null; if(!t||!t.closest('#tg')) return;
   if(t.closest('[data-ped]')) return;   /* numero do Saipos: abre os itens (porta fila_pedido_itens), como na lista */
+  var dd=t.closest('[data-tgrd]'); if(dd){ TG.rsDet=dd.getAttribute('data-tgrd')==='1'; tgDesenha(window.ULT_D); return; }
   if(t.closest('[data-tgrs]')){   /* botao "Criar rota inteligente" do mapa: liga a aba e as linhas da sugestao no mapa */
     TG.aba='rota'; TG.sel=null; TG.foco=null;
     if(!RS_MAPA){ RS_MAPA=true; try{ localStorage.setItem('cdm_fila_rsmapa','1'); }catch(x){} }
