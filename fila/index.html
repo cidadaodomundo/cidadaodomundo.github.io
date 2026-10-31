@@ -305,6 +305,7 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
 .tg-rsres{font:700 12px/1.3 Barlow,sans-serif;color:var(--text2);max-width:230px}
 .tg-rsres .ok{color:#8fe3b4}.tg-rsres .mal{color:#ffb0b0}
 .tg-leg .rsl{width:22px;height:0;border-top:4px dotted var(--brand,#E0A81C)}
+@media (max-width:760px){.tg-ctl .tg-rscap button{width:38px;height:38px}.tg-ctl.rs-on > button{display:none}}
 .tg-mbs{top:10px;right:10px;width:270px;max-height:calc(100% - 90px);display:flex;flex-direction:column}
 .tg-mbs header{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line)}
 .tg-mbs header h4{margin:0;font:700 14.5px 'Barlow Condensed',Barlow,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--text2)}
@@ -2234,18 +2235,22 @@ function tgDesenha(d){
   var rsLiga=temRs&&TG.aba==='rota', rc=$('tg_rs_ctl');
   if(rc){
     if(!temRs) rc.innerHTML='';
-    else if(!rsLiga) rc.innerHTML='<button class="tg-rsbt" data-tgrs="1" title="monta as saídas dos pedidos prontos para ninguém atrasar">🧭 Criar rota inteligente</button>';
+    else if(!rsLiga) rc.innerHTML=(RS_ULT.rotas&&RS_ULT.rotas.length)
+      ?'<button class="tg-rsbt" data-tgrs="1" title="monta as saídas dos pedidos prontos para ninguém atrasar">🧭 Criar rota inteligente</button>'
+      :'<div class="tg-rsres">🧭 Rota inteligente: '+(RS_ULT.erro?'sem sugestão agora (veja a aba Rota sugerida)':'nenhum pronto esperando motoboy agora')+'</div>';
     else {
       var R=RS_ULT, nat=(R.rotas||[]).reduce(function(a,x){return a+x.atrasados;},0), cb='';
       for(var ci=2;ci<=6;ci++) cb+='<button class="'+(ci===R.cap?'on':'')+'" onclick="rsCap('+ci+')" title="no máximo '+ci+' pedidos em cada rota">'+ci+'</button>';
       rc.innerHTML='<button class="tg-rsbt on" data-tga="ped" title="volta ao mapa normal">🧭 Rota inteligente · sair</button>'+
         '<div class="tg-rscap">Máximo<span style="display:flex;gap:4px">'+cb+'</span></div>'+
-        '<div class="tg-rsres">'+(R.erro?'Sem sugestão agora: veja a aba à esquerda.'
+        '<div class="tg-rsres">'+(R.erro?'Sem sugestão agora: veja a aba Rota sugerida.'
           :(!R.rotas.length?'Nenhum pedido pronto esperando motoboy.'
           :R.rotas.length+' saída'+(R.rotas.length===1?'':'s')+' para '+R.prontos+' pronto'+(R.prontos===1?'':'s')+' · '+
-            (nat?'<span class="mal">⚠ '+nat+' pode'+(nat===1?'':'m')+' atrasar</span>':'<span class="ok">✓ ninguém atrasa</span>')))+'</div>';
+            (nat?'<span class="mal">⚠ '+nat+' pode'+(nat===1?'':'m')+' atrasar</span>':'<span class="ok">✓ ninguém atrasa</span>')+
+            ((R.sobra&&R.sobra.length)?' · <span class="mal">'+R.sobra.length+' sem motoboy</span>':'')))+'</div>';
     }
   }
+  var ctlq=document.querySelector('.tg-ctl'); if(ctlq) ctlq.classList.toggle('rs-on',!!rsLiga);
 
   /* --- mapa --- */
   if(!window.L) return;
@@ -2335,7 +2340,7 @@ function tgMapaCria(d){
 }
 function tgSel(id,voar){
   TG.sel=(TG.sel===id&&!voar)?null:id;
-  if(TG.sel&&TG.aba!=='ped') TG.aba='ped';
+  if(TG.sel&&TG.aba!=='ped'&&voar) TG.aba='ped';   /* toque no marcador do mapa com a rota inteligente ligada: continua nela */
   tgDesenha(window.ULT_D);
   var mk=TG.mk[id];
   if(TG.sel&&mk&&voar&&TG.mp) TG.mp.flyTo(mk.getLatLng(),Math.max(TG.mp.getZoom(),15),{duration:.5});
@@ -2343,7 +2348,7 @@ function tgSel(id,voar){
   var c=document.querySelector('.tg-p[data-tgp="'+String(id).replace(/"/g,'')+'"]'); if(c&&!voar&&c.scrollIntoView) c.scrollIntoView({block:'nearest',behavior:'smooth'});
 }
 function tgFoco(n){
-  TG.foco=(TG.foco===n)?null:n; TG.sel=null; tgDesenha(window.ULT_D);
+  TG.foco=(TG.foco===n)?null:n; TG.sel=null; if(TG.foco&&TG.aba==='rota') TG.aba='ped'; tgDesenha(window.ULT_D);
   if(!TG.foco||!TG.mp) return;
   var b=[]; Object.keys(TG.mk).forEach(function(k){ var mk=TG.mk[k]; if(mk.options.opacity>=1) b.push(mk.getLatLng()); });
   TG.cam.eachLayer(function(l){ if(l.getLatLng&&l.options&&l.options.zIndexOffset===1500&&l.options.opacity>=1) b.push(l.getLatLng()); });
@@ -2361,7 +2366,11 @@ function tgRsZoom(){
   var d=window.ULT_D||{}, b=[];
   if(d.loja&&d.loja.lat!=null) b.push([+d.loja.lat,+d.loja.lng]);
   RS_ULT.rotas.forEach(function(rt){ rt.paradas.forEach(function(x){ if(x.p.lat!=null&&x.p.lng!=null) b.push([+x.p.lat,+x.p.lng]); }); });
-  if(b.length>1) TG.mp.flyToBounds(L.latLngBounds(b),{duration:.5,maxZoom:15,paddingTopLeft:[260,40],paddingBottomRight:[290,40]});
+  var el=$('tg_map'), w=el?el.offsetWidth:0, h=el?el.offsetHeight:0, ctl=document.querySelector('.tg-ctl');
+  /* no celular o quadro dos motoboys some e o mapa e estreito: folga so para o quadro de controles, e nunca mais que ~60% do mapa */
+  var tl=w<700?[10,Math.min(Math.round(h*.45),(ctl?ctl.offsetHeight:0)+10)]:[260,40], br=w<700?[10,10]:[290,40];
+  if(tl[0]+br[0]>w*.6){ tl[0]=Math.round(w*.3); br[0]=Math.round(w*.3); }
+  if(b.length>1) TG.mp.flyToBounds(L.latLngBounds(b),{duration:.5,maxZoom:15,paddingTopLeft:tl,paddingBottomRight:br});
 }
 function tgTema(){
   TG.escuro=!TG.escuro; try{ localStorage.setItem('cdm_fila_escuro',TG.escuro?'1':'0'); }catch(e){}
@@ -2371,7 +2380,10 @@ function tgTema(){
 document.addEventListener('click',function(e){
   var t=e.target&&e.target.closest?e.target:null; if(!t||!t.closest('#tg')) return;
   if(t.closest('[data-ped]')) return;   /* numero do Saipos: abre os itens (porta fila_pedido_itens), como na lista */
-  if(t.closest('[data-tgrs]')){ TG.aba='rota'; TG.sel=null; tgDesenha(window.ULT_D); tgRsZoom(); return; }   /* botao "Criar rota inteligente" do mapa */
+  if(t.closest('[data-tgrs]')){   /* botao "Criar rota inteligente" do mapa: liga a aba e as linhas da sugestao no mapa */
+    TG.aba='rota'; TG.sel=null; TG.foco=null;
+    if(!RS_MAPA){ RS_MAPA=true; try{ localStorage.setItem('cdm_fila_rsmapa','1'); }catch(x){} }
+    tgDesenha(window.ULT_D); tgRsZoom(); return; }
   var a=t.closest('[data-tga]'); if(a){ TG.aba=a.getAttribute('data-tga'); tgDesenha(window.ULT_D); return; }
   var f=t.closest('[data-tgf]'); if(f){ TG.filtro=f.getAttribute('data-tgf'); tgDesenha(window.ULT_D); return; }
   if(t.closest('[data-tgx]')){ tgTodos(); return; }
