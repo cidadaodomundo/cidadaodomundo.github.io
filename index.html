@@ -192,7 +192,8 @@ let ABERTO=null;
 function grp(i){const g=GRUPOS[i];ABERTO=(ABERTO===g?null:g);menu()}
 function menu(){
   /* 31/10/2026 (chat-mapa-fila-foody-31-10), pedido do Fabio: o Mapa de Pedidos fica logo abaixo do Inicio, fora dos grupos
-     (modulo com grupo "_topo"), e abre em tela inteira (ver abrir). */
+     (modulo com grupo "_topo"), e abre em tela inteira (ver abrir). Ainda em 31/10 ele pediu o Mapa dentro do grupo Delivery:
+     hoje nenhum modulo usa o _topo (fica pronto para um item fixo abaixo do Inicio, se ele pedir de novo). */
   let h='<div class="mi'+(ATUAL===null?' on':'')+'" onclick="inicio()"><div class="ic">🏠</div><div><div class="t">Início</div></div></div>'+
     mods().filter(m=>m.grupo==='_topo').map(mi).join('')+'<div class="gsep"></div>';
   GRUPOS.forEach((g,i)=>{const l=mods().filter(m=>m.grupo===g);if(!l.length)return;
@@ -252,11 +253,14 @@ async function carimboFontes(){try{
     return '<div style="display:inline-block;margin:3px;padding:6px 12px;border-radius:999px;background:'+cor+';color:'+tx+';font-size:13px">'+(parado?'⛔':'⚠')+' '+esc(nm[x.fonte]||x.fonte)+' — dado até '+esc(d||'nunca')+'</div>';
   }).join('');
 }catch(e){}}
+/* 31/10/2026, pedido do Fabio: "coloque ele dentro da aba do delivery". O Mapa de Pedidos (modulo fila) foi para o grupo
+   Delivery (portal_modulo) e continua abrindo em tela inteira: modulo desta lista abre a tela sozinha, fora do quadro do portal. */
+const TELA_CHEIA={fila:1};
 function abrir(id){const m=MODULOS.find(x=>x.id===id);if(!m)return;
   /* 31/10/2026, pedido do Fabio: "qdo clicar nele some as opcoes do lado e fica somente essa parte na tela inteira, assim como
      no foody". Modulo do grupo _topo abre a tela sozinha, sem o menu e sem o cabecalho do portal (mesma aba, a sessao continua);
      a propria tela tem o botao "← Portal" para voltar. O endereco do portal fica sem #, para o Voltar do navegador nao reabrir. */
-  if(m.grupo==='_topo'){try{history.replaceState(null,'',location.pathname)}catch(e){}location.assign('/'+String(m.url).replace(/^\//,''));return}
+  if(m.grupo==='_topo'||TELA_CHEIA[m.id]){try{history.replaceState(null,'',location.pathname)}catch(e){}location.assign('/'+String(m.url).replace(/^\//,''));return}
   ATUAL=id;ABERTO=m.grupo;location.hash=id;$('titulo').textContent=m.icone+' '+m.nome;
   URLBASE=m.url;
   $('rt').innerHTML='<button class="btn" onclick="voltar()">← Voltar</button><button class="btn" onclick="recarregar()">↻</button><a class="btn" href="'+m.url+'" target="_blank" rel="noopener">↗ abrir</a>';
