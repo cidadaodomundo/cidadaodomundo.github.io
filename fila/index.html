@@ -1208,11 +1208,11 @@ function rsCalc(d){
   var base={lat:+d.loja.lat,lng:+d.loja.lng}, plano, av;
   var rodar=function(k){ var o={cap:opts.cap,tolS:opts.tolS,travel:opts.travel,inicial:opts.inicial.slice(0,k)};
     var i={deposito:base,slots:slots.slice(0,k).map(function(s){return {t0:s.t0};}),pedidos:ped};
-    var pl=window.MotorRota.planejar(i,o), a=window.MotorRota.avaliar(i,pl,o), at=0, sg=0, sl={}, atr={};
+    var pl=window.MotorRota.planejar(i,o), a=window.MotorRota.avaliar(i,pl,o), at=0, sg=0, sl={}, atr={}, sai={}, nrt={};
     a.forEach(function(x){ at+=x.atrasados; sg+=x.segAtraso;
-      x.ids.forEach(function(id,j){ var pz=x.prazos[j]; atr[String(id)]=(pz==null)?0:Math.max(0,x.chegadas[j]-pz); }); });
+      x.ids.forEach(function(id,j){ var pz=x.prazos[j], k=String(id); atr[k]=(pz==null)?0:Math.max(0,x.chegadas[j]-pz); sai[k]=x.sai; nrt[k]=x.ids.length; }); });
     (pl.semLocal||[]).forEach(function(id){ sl[String(id)]=1; });
-    return {pl:pl,av:a,at:at,sg:sg,atr:atr,nsl:(pl.semLocal||[]).length,fora:(pl.sobra||[]).filter(function(id){return !sl[String(id)];}).length}; };
+    return {pl:pl,av:a,at:at,sg:sg,atr:atr,sai:sai,nrt:nrt,nsl:(pl.semLocal||[]).length,fora:(pl.sobra||[]).filter(function(id){return !sl[String(id)];}).length}; };
   try{
     var tudo=rodar(slots.length);
     /* saidas supostas com teto: se alguem atrasa, refaz com uma saida suposta por pedido (como o aviso diz)
@@ -1226,11 +1226,13 @@ function rsCalc(d){
     }
     var mx=slots.length, ok=tudo;
     /* pedido que ja atrasa mesmo com todas as saidas pode ir junto com outros (Fabio, 31/10: "pode juntar os atrasados"):
-       aceita chegar ate uma parada (rota_seg_parada_*) a mais por outro pedido que cabe na rota; os outros, so a tolerancia */
-    var junta=(r.cap-1)*r.svc;
+       sai na mesma hora (nao espera motoboy que volta depois) e aceita chegar ate uma parada (rota_seg_parada_*) a mais
+       por outro pedido da rota em que ficou, mais a tolerancia; os pedidos no horario, so a tolerancia */
     var serve=function(t){ if(t.fora>tudo.fora||t.at>tudo.at) return false;
       for(var id in tudo.atr){ if(!(id in t.atr)) return false;
-        if(t.atr[id]>tudo.atr[id]+r.tol+(tudo.atr[id]>r.tol?junta:0)) return false; }
+        var folga=r.tol;
+        if(tudo.atr[id]>r.tol){ if(t.sai[id]>tudo.sai[id]+r.tol) return false; folga+=(t.nrt[id]-1)*r.svc; }
+        if(t.atr[id]>tudo.atr[id]+folga) return false; }
       return true; };
     var lo=Math.min(mx,Math.max(1,Math.ceil((ps.length-tudo.nsl)/r.cap))), hi=mx, achou=false;
     /* primeiro os 3 menores numeros, um a um (o "serve" nem sempre cresce junto com o numero de saidas); depois, busca binaria */
@@ -1314,8 +1316,8 @@ function rsNota(r){
   return '<div class="leg">Como a conta funciona: chegada prevista = hora desta atualização + '+esc(String(r.svc))+' s por entrega + '+
     esc(String(r.mk).replace('.',','))+' min por km em linha reta (números do '+esc(r.turno)+', medidos nas entregas da Água Verde no TrackEat e guardados no banco). '+
     'Atrasa = chegada prevista mais de '+esc(String(r.tol))+' s depois da hora prometida. A conta escolhe primeiro <b>ninguém atrasar</b>, depois <b>menos km</b>: '+
-    'usa o menor número de motoboys (cada motoboy a mais é uma volta a mais até a loja) que não faz nenhum pedido passar da hora prometida mais de '+esc(String(r.tol))+' s além do que passaria usando todos (pedido com folga pode chegar mais tarde, sem atrasar), e guarda os outros para os pedidos que ainda vão ficar prontos. '+
-    'Pedido que já vai atrasar mesmo com todos os motoboys pode ir junto com outros na mesma rota: aceita chegar até '+esc(String(Math.round((r.cap-1)*r.svc/60)))+' min mais tarde (uma parada de '+esc(String(r.svc))+' s para cada outro pedido que cabe na rota). '+
+    'usa o menor número de motoboys (cada motoboy a mais é uma volta a mais até a loja) que não faz nenhum pedido no horário passar da hora prometida mais de '+esc(String(r.tol))+' s além do que passaria usando todos (pedido com folga pode chegar mais tarde, sem atrasar), e guarda os outros para os pedidos que ainda vão ficar prontos. '+
+    'Pedido que já vai atrasar mesmo com todos os motoboys pode ir junto com outros na mesma rota, saindo na mesma hora: aceita chegar até uma parada ('+esc(String(r.svc))+' s) mais tarde para cada outro pedido da rota dele, mais os mesmos '+esc(String(r.tol))+' s. '+
     'Parte das rotas que o TrackEat já montou (as que cabem no máximo escolhido) — nunca sugere mais pedidos atrasados que elas na conta. Só entram pedidos prontos. '+
     'Saída "quando X voltar" usa o mesmo "Livre ~" do quadro Motoboys. É estimativa: trânsito, chuva e porta demorada não entram. '+
     'O quadradinho colorido ao lado do pedido é a rota em que ele está hoje no TrackEat.</div>';
