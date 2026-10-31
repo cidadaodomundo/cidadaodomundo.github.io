@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#111111">
+<title>Conferência da Sacola · Cidadão do Mundo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* Conferencia da Sacola. v1 07-10-2026 (tablet, previa 4 aprovada). v2 31-10-2026 (obra 123 retomada, Fabio: "Sim, retoma"):
+   TELA GRANDE (TV/monitor que a loja ja tem) vista de 2-3 m, so de olhar; "Conferido" opcional por clique, toque ou
+   teclado (numero + Enter); le o iFood a cada 12 s (o pedido aparece em ~1 min); destaque de BEBIDA, SOBREMESA,
+   MOLHO/POTINHO e BATATA/PORCAO; aviso com som "FULANO SAIU PARA ROTA" (fila de motoboys do TrackEat).
+   "Balcao" agora se chama DELIVERY (Fabio 24/10) — a chave do JSON continua 'balcao'.
+   Visual so escuro, de proposito (cozinha, marca preta). Ouro SO na observacao do cliente. Cor nunca sozinha: sempre com texto.
+   Revisao 31/10: botao de som mostra o estado real e o 1o toque so destrava; aviso de rota nao repete (mesmo grupo do
+   TrackEat / troca de id / mesma saida em 15 min); "NAO CONFERIDO" so quando a equipe usa o Conferido; barra de baixo
+   curta no pico; limite de 10 s na leitura inteira + vigia "TELA PARADA"; so o erro 28000 apaga o codigo; tela pausada
+   pelo dono; relogio e "ha X min" pela hora do banco; faixa do robo do iFood tambem quando o iFood falha. */
+:root{
+  --bg:#111111; --card:#1b1b1a; --card2:#252522; --line:#383631;
+  --fg:#f4f2ec; --mut:#a8a398; --gold:#E0A81C;
+  --ok:#2fae66; --okbg:#10301e; --bad:#e2483d; --badbg:#3a1412; --wait:#3a3524; --cinza:#3a3a38;
+  --bebida:#4aa8ff; --sobremesa:#ff6fb5; --molho:#b18cff; --batata:#ff9f43; --rota:#ff9f1a;
+  --display:"Anton","Oswald","Arial Black",sans-serif;
+  --body:"Barlow",Helvetica,Arial,sans-serif;
+  --cond:"Barlow Condensed","Barlow",Arial,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;margin:0;padding-inline:16px;padding-block:0 32px;overflow-x:hidden}
+.wrap{max-width:1280px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;padding-block:18px 14px;border-bottom:1px solid var(--line)}
+header .tit{flex:1 1 auto;min-width:0}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,4.4vw,44px);line-height:1;margin:0;text-transform:uppercase}
+.sub{font-family:var(--cond);font-weight:600;font-size:15px;letter-spacing:.08em;color:var(--mut);text-transform:uppercase;margin-top:6px;overflow-wrap:anywhere}
+.stats{display:flex;gap:10px;flex-wrap:wrap}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 14px;min-width:96px}
+.stat .n{font-family:var(--display);font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
+.stat .l{font-family:var(--cond);font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.stat.bad .n{color:var(--bad)} .stat.ok .n{color:var(--ok)} .stat.zero .n{color:var(--mut)}
+.ctl{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.tecla{font-family:var(--display);font-size:26px;line-height:1;padding:6px 12px;border-radius:10px;border:2px dashed var(--line);color:var(--mut);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tecla.on{border:2px solid var(--fg);background:var(--fg);color:var(--bg)}
+.tecla small{font-family:var(--cond);font-size:.55em;letter-spacing:.06em;vertical-align:middle}
+@media (max-width:560px){
+  header{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"tit ctl" "stats stats";gap:10px 12px;padding-block:14px 12px}
+  header .tit{grid-area:tit} header .ctl{grid-area:ctl;gap:4px} header .stats{grid-area:stats}
+  h1{font-size:26px}
+  .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .stat{min-width:0;padding:6px 10px}
+  .stat .n{font-size:26px}
+  .stat .l{font-size:12px;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .stat .l .lg,#bt-som .lg{display:none}
+  .relogio{font-size:24px}
+  #bt-som{min-height:40px;padding:6px 10px}
+  .tecla{display:none}
+}
+.relogio{font-family:var(--display);font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
+.bt{font:600 15px var(--body);background:var(--card2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;min-height:40px}
+.bt.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.nota{color:var(--mut);font-size:14px;margin-top:8px}
+.faixa{margin-top:14px;padding:12px 16px;border-radius:12px;background:var(--badbg);border:2px solid var(--bad);color:#ffd9d5;font-weight:700;line-height:1.35}
+.alert{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;margin-top:12px;padding:10px 16px;background:var(--badbg);border:2px solid var(--bad);border-radius:12px}
+.alert .t{font-family:var(--display);font-size:22px;line-height:1.1;text-transform:uppercase;color:#ffd9d5;flex:0 1 auto;max-width:42%;overflow-wrap:anywhere}
+.alert .d{color:#ffd9d5;font-size:15px;line-height:1.35;flex:1 1 320px;min-width:0}
+.alert button{font:600 15px var(--body);background:transparent;color:#fff;border:1px solid #ffb3ab;border-radius:8px;padding:8px 14px;cursor:pointer;min-height:44px;flex:0 0 auto}
+.alert button:disabled,.chip:disabled{opacity:.6}
+.alert .so{color:#ffd9d5;font-size:14px;font-weight:600;opacity:.85;flex:0 0 auto}
+.mais{display:block;width:100%;margin-top:10px;font:700 16px var(--body);background:var(--badbg);color:#ffd9d5;border:2px dashed var(--bad);border-radius:12px;padding:10px 14px;min-height:48px;cursor:pointer;text-align:left}
+@media (max-width:900px){
+  .alert{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 12px}
+  .alert .t{grid-column:1;grid-row:1;max-width:none}
+  .alert button,.alert .so{grid-column:2;grid-row:1}
+  .alert .d{grid-column:1/-1}
+}
+@media (max-width:560px){
+  .alert{padding:8px 12px;gap:4px 10px;margin-top:10px}
+  .alert .t{font-size:19px}
+  .alert button{min-height:40px;padding:6px 10px;font-size:14px}
+  .alert .d{font-size:14px;line-height:1.3}
+  .alert .d .q,.alert .so{display:none}
+}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.chip{font:700 16px var(--body);background:var(--bg);color:var(--fg);border:1px solid var(--mut);border-radius:10px;padding:8px 12px;min-height:44px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.chip small{font-weight:500;color:var(--mut);font-size:14px}
+h2{font-family:var(--cond);font-weight:700;font-size:16px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:24px 0 10px}
+
+/* ---------- SAIU PARA ROTA (faixa do topo) ---------- */
+#rota:empty{display:none}
+.rota{margin-top:12px;border-radius:14px;padding:12px 16px;line-height:1.2}
+.rota.cheia{background:var(--rota);color:#1a1100;animation:entra .5s ease-out 1, pisca 1.1s ease-in-out 6}
+.rota.cheia .rt{font-family:var(--display);font-size:clamp(26px,4vw,52px);text-transform:uppercase;line-height:1.05}
+.rota.cheia .rt small{font-size:.6em;opacity:.8;margin-left:.3em}
+.rota.cheia .rp{display:flex;flex-wrap:wrap;gap:8px 10px;margin-top:8px}
+.rpp{font-family:var(--cond);font-weight:700;font-size:clamp(17px,1.9vw,30px);background:#1a1100;color:#fff;border-radius:10px;padding:4px 12px;letter-spacing:.03em}
+.rpp.nao b.nc{color:#ff8a80;margin-left:.3em}
+.rpp.ok b.nc{color:var(--ok);margin-left:.3em}
+.rpe{font-family:var(--cond);font-weight:700;font-size:clamp(16px,1.6vw,24px);opacity:.85}
+.rota.curta{background:#2a2112;border:2px solid var(--rota);color:#ffd9a8;font-family:var(--cond);font-weight:700;font-size:17px;letter-spacing:.03em;padding:8px 14px}
+.rota.curta b{color:var(--rota);text-transform:uppercase}
+@keyframes pisca{0%,100%{filter:none}50%{filter:brightness(1.35)}}
+@keyframes entra{from{transform:translateY(-12px);opacity:.3}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.rota.cheia,.card.narota{animation:none}}
+
+/* ---------- cartoes ---------- */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(310px,100%),1fr));gap:14px;align-items:start}
+.card{background:var(--card);border:2px solid var(--line);border-radius:14px;overflow:hidden;min-width:0}
+.card.duplo{grid-column:span 2;border-color:var(--fg)}
+@media (max-width:700px){.card.duplo{grid-column:auto}}
+.card.done{border-color:var(--ok);background:var(--okbg)}
+.card.cancel{filter:grayscale(1);opacity:.7;border-color:var(--line)}
+.card.cancel .name{text-decoration:line-through;text-decoration-thickness:2px;color:var(--mut)}
+.card.narota{border-color:var(--rota);box-shadow:0 0 0 3px var(--rota);animation:pisca 1.1s ease-in-out 8}
+.card.acende{box-shadow:0 0 0 4px var(--fg)}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:14px 16px 10px}
+.num{font-family:var(--display);font-size:40px;line-height:.95;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.marca{font-family:var(--cond);font-weight:600;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin-top:4px}
+.selos{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.selo{font-family:var(--cond);font-weight:700;font-size:14px;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:6px;border:1px solid var(--fg);color:var(--fg)}
+.tempo{text-align:right;font-size:14px;color:var(--mut);white-space:nowrap}
+.tempo b{display:block;font-family:var(--display);font-weight:400;font-size:22px;color:var(--fg)}
+.tempo.late b{color:var(--bad)}
+.sairota{margin:0 16px 8px;padding:6px 12px;border-radius:10px;background:var(--rota);color:#1a1100;font-family:var(--display);font-size:20px;text-transform:uppercase;line-height:1.15}
+/* resumo do que se esquece (BEBIDA / SOBREMESA / MOLHO / BATATA), em unidades */
+.lembra{display:flex;flex-wrap:wrap;gap:6px;margin:0 16px 8px}
+.av{font-family:var(--cond);font-weight:700;font-size:17px;letter-spacing:.04em;text-transform:uppercase;padding:3px 10px;border-radius:8px;color:#0b0b0b;line-height:1.25;white-space:nowrap}
+.av b{font-family:var(--display);font-weight:400;font-size:1.15em;margin-right:2px}
+.av-bebida{background:var(--bebida)} .av-sobremesa{background:var(--sobremesa)} .av-molho{background:var(--molho)} .av-batata{background:var(--batata)}
+.cancelado{margin:0 16px 10px;padding:12px 14px;border-radius:10px;background:var(--cinza);color:#fff;font-family:var(--display);font-size:22px;line-height:1.15;text-transform:uppercase}
+.vol{margin:0 16px 4px;padding:8px 14px;background:var(--fg);color:var(--bg);border-radius:10px;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px}
+.vol .big{font-family:var(--display);font-size:26px;line-height:1;text-transform:uppercase}
+.vol .what{font-family:var(--cond);font-weight:700;font-size:16px;letter-spacing:.05em;text-transform:uppercase}
+.obs{margin:10px 16px 0;padding:8px 12px;border:2px solid var(--gold);border-radius:10px;background:rgba(224,168,28,.08)}
+.obs + .obs{margin-top:8px}
+.obs .k{font-family:var(--cond);font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);overflow-wrap:anywhere}
+.obs .v{font-family:var(--display);font-size:20px;line-height:1.15;text-transform:uppercase;margin-top:2px;overflow-wrap:anywhere}
+.packs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:12px;padding:10px 16px 0}
+.pack{border:2px solid var(--line);border-radius:12px;background:var(--card2);overflow:hidden;min-width:0}
+.pack.ok{border-color:var(--ok)}
+.single .pack{border:0;background:none;border-radius:0}
+.single .packs{padding:0;display:block}
+.ph{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line)}
+.ph .p{font-family:var(--display);font-size:18px;text-transform:uppercase;white-space:nowrap}
+.ph .c{font-family:var(--cond);font-weight:700;font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);text-align:right}
+.pack.ok .ph .c{color:var(--ok)}
+.single .ph{display:none}
+ul{list-style:none;margin:0;padding:0}
+li{border-top:1px solid var(--line)} li:first-child{border-top:0}
+.single li:first-child{border-top:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:12px;width:100%;padding:10px 14px;background:none;border:0;color:inherit;font:inherit;text-align:left;cursor:pointer;min-height:52px;-webkit-tap-highlight-color:transparent}
+.row:disabled{cursor:default}
+.row:focus-visible,.go:focus-visible,.bt:focus-visible{outline:3px solid var(--fg);outline-offset:-3px}
+.box{flex:0 0 30px;height:30px;border:2px solid var(--mut);border-radius:8px;display:grid;place-items:center;font-size:19px;font-weight:700;color:transparent}
+.qty{flex:0 0 auto;font-family:var(--display);font-size:20px;min-width:34px;text-align:center;padding:2px 6px;border-radius:6px;background:var(--bg)}
+.qty.many{background:var(--fg);color:var(--bg)}
+.name{flex:1;min-width:0;font-weight:600;font-size:17px;line-height:1.25;overflow-wrap:anywhere}
+.name small{display:block;font-weight:500;font-size:14px;color:var(--mut);text-decoration:none;margin-top:2px}
+.name .det{display:block;font-weight:600;font-size:14px;color:#d9d4c8;margin-top:2px;padding-left:2px}
+.name small.de{font-style:italic;font-size:14px;margin-top:3px}
+.name .rot{display:inline-block;font-family:var(--cond);font-weight:700;font-size:14px;letter-spacing:.05em;padding:1px 7px;border-radius:6px;margin-right:6px;color:#0b0b0b;vertical-align:2px}
+/* linha que se esquece: borda grossa colorida + fundo tingido + texto forte (e sempre o rotulo escrito) */
+.row.av-bebida{border-left:8px solid var(--bebida);background:rgba(74,168,255,.12)}
+.row.av-sobremesa{border-left:8px solid var(--sobremesa);background:rgba(255,111,181,.12)}
+.row.av-molho{border-left:8px solid var(--molho);background:rgba(177,140,255,.13)}
+.row.av-batata{border-left:8px solid var(--batata);background:rgba(255,159,67,.12)}
+.row[class*="av-"] .name{font-weight:700;text-transform:uppercase}
+.row.av-bebida .rot{background:var(--bebida)} .row.av-sobremesa .rot{background:var(--sobremesa)}
+.row.av-molho .rot{background:var(--molho)} .row.av-batata .rot{background:var(--batata)}
+.row.on .name .det{color:var(--mut)}
+.row.on .box{background:var(--ok);border-color:var(--ok);color:#fff}
+.row.on .name{color:var(--mut);text-decoration:line-through;text-decoration-thickness:2px}
+.espera{margin:10px 16px 0;padding:8px 14px;border-radius:10px;background:var(--wait);font-weight:600;line-height:1.35}
+.espera b{font-family:var(--display);font-weight:400;font-size:18px;text-transform:uppercase;display:block}
+.foot{padding:10px 16px 14px}
+.go{width:100%;min-height:52px;border-radius:12px;border:2px solid var(--line);background:var(--card2);color:var(--fg);font-family:var(--display);font-size:20px;text-transform:uppercase;cursor:pointer;padding:8px 12px}
+.go:disabled{opacity:.7;cursor:wait}
+.go.des{min-height:40px;font-size:16px;color:var(--mut);background:none}
+.okfaixa{margin:0 16px 10px;padding:8px 14px;border-radius:10px;background:var(--ok);color:#fff;font-family:var(--display);font-size:22px;text-transform:uppercase}
+.pronto{margin:12px 16px 16px;padding:12px 14px;border-radius:10px;background:var(--okbg);border:2px solid var(--ok);line-height:1.35;font-weight:600}
+.pronto b{display:block;font-family:var(--display);font-weight:400;font-size:22px;text-transform:uppercase;color:#fff}
+.pronto .par{display:block;font-family:var(--display);font-weight:400;font-size:20px;text-transform:uppercase;margin-top:6px}
+.pronto small{display:block;color:var(--fg);font-size:15px;margin-top:4px}
+.falta{margin:12px 16px 16px;padding:10px 14px;border-radius:10px;border:2px dashed var(--line);color:var(--mut);font-weight:600}
+.vazio{padding:24px 16px;border:2px dashed var(--line);border-radius:14px;color:var(--mut);font-size:17px;text-align:center}
+#barra{display:none}
+.regra{margin-top:28px;padding:16px;border:2px solid var(--fg);border-radius:14px}
+.regra h3{font-family:var(--display);font-weight:400;font-size:24px;text-transform:uppercase;margin:0 0 10px}
+.regra ol{margin:0;padding-left:22px;display:grid;gap:8px;line-height:1.45;max-width:75ch}
+.rodape{margin-top:18px;color:var(--mut);font-size:13px;line-height:1.4}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--bad);color:#fff;padding:12px 18px;border-radius:12px;font-weight:700;z-index:30;max-width:calc(100% - 32px);box-shadow:0 6px 24px rgba(0,0,0,.5)}
+.toast.ok{background:var(--ok)}
+/* tela pausada pelo dono (sacola_aparelho.pausado): guarda o codigo e continua perguntando */
+.pausa{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:var(--bg);z-index:35;padding:16px;text-align:center}
+.pausa.on{display:flex}
+.pausa b{display:block;font-family:var(--display);font-weight:400;font-size:clamp(28px,5vw,64px);text-transform:uppercase}
+.pausa span{display:block;color:var(--mut);font-size:clamp(16px,1.6vw,26px);margin-top:12px}
+#som-aviso{position:fixed;left:1em;right:1em;bottom:4.2em;z-index:25;background:var(--bad);color:#fff;font-weight:800;font-size:18px;text-align:center;padding:.5em .8em;border-radius:.5em;animation:pisca 1.2s ease-in-out infinite}
+/* tela do codigo do aparelho (igual a TV) */
+.cod{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:var(--bg);z-index:40;padding:16px}
+.cod.on{display:flex}
+.cod .cx{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px 22px;max-width:460px;width:100%;text-align:center}
+.cod h1{font-size:30px;margin-bottom:10px}
+.cod p{color:var(--mut);margin:0 0 16px;line-height:1.4}
+.cod input{width:100%;font-family:var(--display);font-size:32px;letter-spacing:.15em;text-align:center;text-transform:uppercase;background:var(--bg);color:var(--fg);border:2px solid var(--line);border-radius:10px;padding:8px}
+.cod input:focus{outline:none;border-color:var(--fg)}
+.cod .bt{margin-top:16px;font-size:18px;padding:10px 28px;min-height:52px;background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.cod .err{color:var(--bad);font-weight:700;margin-top:12px;min-height:1.3em}
+
+/* =================== TELA GRANDE (TV/monitor, vista de 2-3 m) ===================
+   Liga com tela:'tv' do aparelho (sacola_aparelho.tela) ou com ?tv=1 no endereco. Tudo em em: cresce com a tela.
+   Sem rolagem: o mais antigo primeiro; o que nao cabe vira a barra de baixo "+N fora da tela". */
+body.tv{font-size:clamp(16px,1.2vw,34px);height:100vh;overflow:hidden;padding:0 .8em;display:flex;flex-direction:column}
+body.tv .wrap{max-width:none;width:100%;flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+body.tv header{flex:0 0 auto;flex-wrap:nowrap;align-items:center;gap:.6em 1em;padding-block:.45em .4em}
+body.tv h1{font-size:1.75em}
+body.tv .sub{font-size:.8em;margin-top:.15em}
+body.tv .stats{flex-wrap:nowrap;gap:.45em}
+body.tv .stat{padding:.25em .7em;min-width:0;border-radius:.45em}
+body.tv .stat .n{font-size:1.9em}
+body.tv .stat .l{font-size:.68em}
+body.tv .ctl{flex-direction:row;align-items:center;gap:.6em}
+body.tv .relogio{font-size:2.2em}
+body.tv .tecla{font-size:1.5em;border-radius:.4em;padding:.15em .45em}
+body.tv #bt-som{font-size:.8em;min-height:0;padding:.35em .6em}
+body.tv #bt-som.on{display:none}
+body.tv .nota,body.tv h2,body.tv .regra,body.tv .rodape{display:none}
+body.tv .faixa{flex:0 0 auto;margin-top:.4em;padding:.4em .8em;font-size:1em;border-radius:.5em}
+body.tv #alertas{flex:0 0 auto}
+body.tv .alert{margin-top:.4em;padding:.4em .8em;border-radius:.5em;gap:.3em 1em}
+body.tv .alert .t{font-size:1.4em}
+body.tv .alert .d{font-size:1em}
+body.tv .alert button{font-size:.9em;min-height:0;padding:.35em .7em}
+body.tv #rota{flex:0 0 auto}
+body.tv .rota{margin-top:.45em;border-radius:.55em;padding:.45em .8em}
+body.tv .rota.cheia .rt{font-size:2.6em}
+body.tv .rpp{font-size:1.35em;border-radius:.4em;padding:.1em .5em}
+body.tv .rpe{font-size:1.2em}
+body.tv .rota.curta{font-size:1.05em;padding:.3em .7em}
+/* revisao 31/10 (teste 1920x1080): em grade, 1 cartao mais alto que a tela escondia TODOS os outros (+17 fora da tela)
+   e cortava o fim dele. Na TV os cartoes correm em COLUNAS (de cima para baixo, depois a coluna seguinte): o cartao
+   comprido continua na coluna do lado e nada some. overflow:clip deixa o cartao se partir (hidden nao deixa). */
+body.tv #grid{flex:1 1 auto;min-height:0;overflow:hidden;margin-top:.5em;display:block;column-width:15.5em;column-gap:.5em;column-fill:auto}
+body.tv #grid>*{break-inside:avoid;margin:0 0 .5em}
+body.tv .card{border-radius:.55em;border-width:.12em;overflow:clip}
+body.tv .card.duplo{grid-column:auto}
+body.tv .top{padding:.45em .6em .3em;gap:.4em}
+body.tv .num{font-size:2.3em}
+body.tv .marca{font-size:.72em;margin-top:.15em}
+body.tv .selo{font-size:.7em;padding:.1em .35em}
+body.tv .tempo{font-size:.72em}
+body.tv .tempo b{font-size:1.35em}
+body.tv .sairota{margin:0 .6em .35em;padding:.2em .5em;font-size:1.05em;border-radius:.4em}
+body.tv .lembra{margin:0 .6em .35em;gap:.3em}
+body.tv .av{font-size:1.05em;padding:.08em .4em;border-radius:.35em}
+body.tv .cancelado{margin:0 .6em .4em;padding:.35em .55em;font-size:1.1em}
+body.tv .vol{margin:0 .6em .25em;padding:.25em .55em;border-radius:.4em}
+body.tv .vol .big{font-size:1.25em}
+body.tv .vol .what{font-size:.8em}
+body.tv .obs{margin:.35em .6em 0;padding:.25em .5em;border-radius:.4em}
+body.tv .obs .k{font-size:.65em}
+body.tv .obs .v{font-size:1.05em}
+body.tv .packs{display:block;padding:.35em .6em 0}
+body.tv .pack{border:0;background:none;border-radius:0}
+body.tv .pack + .pack{margin-top:.25em}
+body.tv .ph{padding:.1em 0;border-bottom:0}
+body.tv .ph .p{display:none}
+body.tv .ph .c{font-size:.68em;text-align:left}
+body.tv li{border-top:1px solid var(--line)}
+body.tv .row{padding:.25em .35em;gap:.4em;min-height:0}
+body.tv .box{flex-basis:1.1em;height:1.1em;font-size:.8em;border-radius:.25em;border-width:.1em}
+body.tv .qty{font-size:1.05em;min-width:1.6em;padding:0 .2em;border-radius:.25em}
+body.tv .name{font-size:.95em;line-height:1.2}
+body.tv .name .det{font-size:.72em;margin-top:0}
+body.tv .name small,body.tv .name small.de{font-size:.68em;margin-top:.05em}
+body.tv .name .rot{font-size:.72em;padding:0 .3em;border-radius:.25em;margin-right:.3em}
+body.tv .row[class*="av-"]{border-left-width:.35em}
+body.tv .row[class*="av-"] .name{font-size:1.05em}
+body.tv .espera{margin:.35em .6em 0;padding:.25em .5em;font-size:.8em;border-radius:.4em}
+body.tv .espera b{font-size:1.1em}
+body.tv .foot{padding:.35em .6em .45em}
+body.tv .go{min-height:0;font-size:.95em;padding:.25em .4em;border-radius:.4em}
+body.tv .vazio{font-size:1.3em;padding:1em;border-radius:.6em}
+body.tv #barra{display:flex;flex:0 0 auto;flex-wrap:nowrap;overflow:hidden;white-space:nowrap;align-items:center;gap:.35em .8em;min-height:2.3em;padding:.3em 0 .35em;border-top:1px solid var(--line);margin-top:.4em}
+#barra .fora{font-family:var(--display);font-size:1.25em;text-transform:uppercase;color:var(--fg)}
+#barra .fora small{font-family:var(--cond);font-size:.65em;color:var(--mut);margin-left:.3em}
+#barra .mais2{font-family:var(--cond);font-weight:700;font-size:.85em;color:var(--mut)}
+#barra .ok{font-family:var(--cond);font-weight:700;font-size:1em;letter-spacing:.04em;text-transform:uppercase;color:var(--ok)}
+#barra .chip{font-size:.85em;min-height:0;padding:.15em .5em;border-radius:.35em}
+#barra .chip.ok{border-color:var(--ok);color:#d6f5e2}
+body.tv .toast{font-size:1.6em;bottom:1em;padding:.4em .9em;border-radius:.4em}
+body.tv #som-aviso{font-size:1.4em;bottom:3.4em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="rota" aria-live="assertive"></div>
+  <header>
+    <div class="tit">
+      <h1 id="titulo">Conferência da sacola</h1>
+      <div class="sub" id="sub">carregando…</div>
+    </div>
+    <div class="stats" aria-live="polite">
+      <div class="stat"><div class="n" id="sA">—</div><div class="l" id="lA">A conferir</div></div>
+      <div class="stat ok"><div class="n" id="sC">—</div><div class="l">Conferidos<span class="lg"> hoje</span></div></div>
+      <div class="stat bad" id="stS"><div class="n" id="sS">—</div><div class="l" id="lS">Saiu faltando<span class="lg"> hoje</span></div></div>
+    </div>
+    <div class="ctl">
+      <div class="tecla" id="tecla" aria-live="polite" title="Digite o número do pedido e aperte Enter para marcar CONFERIDO"><small>Nº + ENTER</small></div>
+      <div class="relogio" id="relogio">--:--</div>
+      <button type="button" class="bt" id="bt-som" aria-label="Ligar som">🔕<span class="lg"> Ligar som</span></button>
+    </div>
+  </header>
+  <div class="nota" id="semBotao" hidden></div>
+
+  <div class="faixa" id="faixaRede" role="status" hidden></div>
+  <div class="faixa" id="faixaRobo" role="status" hidden></div>
+
+  <div id="alertas"></div>
+
+  <h2 id="h2lista">A conferir — o mais antigo primeiro</h2>
+  <div class="grid" id="grid"></div>
+  <div id="barra" aria-live="polite"></div>
+
+  <div class="regra">
+    <h3>Regra da sacola completa</h3>
+    <ol>
+      <li>Quando o pedido junta coisas de mais de um lugar (cozinha do burger, cozinha dos pratos, DELIVERY), a tela mostra em branco: <b>2 LUGARES</b> ou <b>3 LUGARES</b>, e separa o que é de cada um.</li>
+      <li>O que mais se esquece aparece colorido e escrito: <b>🥤 BEBIDA</b>, <b>🍨 SOBREMESA</b>, <b>🫙 MOLHO/POTINHO</b> e <b>🍟 BATATA/PORÇÃO</b>, com a quantidade.</li>
+      <li>Só quando o pedido junta <b>burger e prato</b> (as duas cozinhas): quem termina primeiro põe <b>na estufa, na prateleira "TEM PAR"</b>, com o número do pedido escrito, e a outra cozinha põe a sua parte <b>do lado</b>. Na hora de entregar, tudo vai junto na mesma sacola.</li>
+      <li>Bebida e sobremesa saem do <b>DELIVERY</b> na hora de entregar: não vão para a estufa nem para a "TEM PAR".</li>
+      <li>Quando o motoboy sai da fila para uma rota, a tela mostra em laranja <b>"FULANO SAIU PARA ROTA"</b> com som, e os pedidos dele sobem piscando. Confira a sacola nessa hora.</li>
+      <li><b>Conferido</b> é opcional: clique no botão do cartão ou digite o número do pedido e aperte <b>Enter</b>. Digitar o mesmo número de novo (e Enter duas vezes) desfaz.</li>
+      <li>Se o iFood mostrar que o pedido saiu com uma parte marcada e outra não, a tela fica vermelha na hora para ligar para o motoboy.</li>
+    </ol>
+  </div>
+  <div class="rodape" id="rodape"></div>
+</div>
+
+<div class="toast" id="toast" role="alert" hidden></div>
+<div id="som-aviso" style="display:none">🔇 Som travado — toque na tela ou aperte uma tecla uma vez para o aviso de rota tocar</div>
+
+<div class="pausa" id="pausa" role="status"><div><b>⏸ Tela pausada pelo dono</b><span id="pausa-sub">Ela volta sozinha quando for religada. Não precisa digitar o código.</span></div></div>
+
+<div class="cod" id="cod"><div class="cx">
+  <h1>🛍 Conferência da sacola</h1>
+  <p>Digite o código deste aparelho (8 letras e números). Ele fica guardado: só precisa digitar uma vez.</p>
+  <input id="cod-in" maxlength="9" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX">
+  <div><button type="button" class="bt" id="cod-bt">Entrar</button></div>
+  <div class="err" id="cod-err"></div>
+</div></div>
+
+<script>
+/* Base tecnica da TV da cozinha (tv/index.html): codigo do aparelho em localStorage + #hash, porta rpc com a chave
+   publishable, 403 = codigo recusado, wakeLock, recarga de 6 h so com internet, som destravado no 1o toque/tecla.
+   So duas portas no banco: rpc/sacola_tela (ler, a cada 12 s) e rpc/sacola_acao (conferir / desconferir / marcar /
+   entregar / resolvi). Nenhuma tabela direto. Nada de nome, telefone ou endereco do cliente chega aqui. */
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const $=i=>document.getElementById(i);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hhmm=s=>{try{const d=new Date(s);if(isNaN(d))return '—';return d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'});}catch(e){return '—';}};
+const limpa=c=>String(c||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+/* revisao 31/10: relogio da TV/PC costuma estar errado. Toda leitura boa guarda a diferenca para a hora do banco
+   (OFS) e tudo que mede tempo ("ha X min", relogio, aviso de rota) usa agoraMs(). */
+let OFS=0;
+const agoraMs=()=>Date.now()+OFS;
+const minDesde=s=>{const t=new Date(s).getTime();return isNaN(t)?null:Math.max(0,Math.floor((agoraMs()-t)/60000));};
+const haMin=m=>m==null?'':(m<60?'há '+m+' min':'há '+Math.floor(m/60)+'h'+String(m%60).padStart(2,'0'));
+const semZero=n=>String(n==null?'':n).replace(/\D/g,'').replace(/^0+/,'');
+const fmtQ=q=>{const n=Number(q);return isFinite(n)?String(Math.round(n*100)/100):'?';};
+const ATRASO_MIN=25;   /* "ha X min" fica vermelho a partir de 25 min */
+const ROTA_CHEIA_MS=90000;   /* aviso grande de rota: 90 s; depois vira a linha "Sairam ha pouco" (o banco manda 10 min) */
+
+const ORDEM=['burger','prato','balcao','conferir'];
+/* 24/10 Fabio: o lugar da bebida/sobremesa chama "DELIVERY", nao "balcao". A chave do JSON continua 'balcao'. */
+const CZ={burger:'🍔 Cozinha do burger',prato:'🍽 Cozinha dos pratos',balcao:'🥤 DELIVERY',conferir:'❓ Conferir (sem lugar)'};
+const ICO={burger:'🍔',prato:'🍽',balcao:'🥤',conferir:'❓'};
+const CURTO={burger:'burger',prato:'prato',balcao:'DELIVERY',conferir:'conferir'};
+const DO={burger:'o do burger',prato:'o do prato',balcao:'o do DELIVERY',conferir:'o que está em “Conferir”'};
+const TITULO={tudo:'Conferência da sacola',burger:'Cozinha do burger',prato:'Cozinha dos pratos',balcao:'DELIVERY'};
+const ESTUFA={burger:true,prato:true};
+/* o que mais se esquece (regra do Drive, 31/10). Cor + emoji + TEXTO sempre. */
+const CL={bebida:{i:'🥤',t:'Bebida'},sobremesa:{i:'🍨',t:'Sobremesa'},molho:{i:'🫙',t:'Molho/potinho'},batata:{i:'🍟',t:'Batata/porção'}};
+const CL_ORD=['bebida','sobremesa','molho','batata'];
+const lugarDe=l=>ORDEM.indexOf(l&&l.lugar)>=0?l.lugar:'conferir';
+const zona=x=>ORDEM.indexOf(x)>=0?x:'conferir';
+const temPar=lugs=>Array.isArray(lugs)&&lugs.indexOf('burger')>=0&&lugs.indexOf('prato')>=0;
+const parcial=a=>a&&a.tipo!=='sem_marca';
+const junta=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' e '+a[a.length-1];
+
+let COD='', DADO=null, TIMER=null, TIMER_MS=0, BUSCANDO=false, DE_NOVO=false, ULT_OK=0, FALHAS=0, TV=false;
+let VISTOS_P=null, VISTOS_A=null, VISTOS_R=null, ALERTAS_TODOS=false;
+let SOM_PREF=null;   /* '1' ligado, '0' desligado, null = padrao (TV: ligado; tablet: desligado) */
+const OVR=new Map(), FILA=new Map();
+let SEQ=0, VER=0, T_FLUSH=null, ENVIANDO=null;
+const RESOLVIDO=new Set(), OCUPADO=new Set();
+const CONF=new Map();      /* conferido ainda nao confirmado pelo banco: id -> {on, t} */
+const ROTA_ATE=new Map();  /* rota id -> ate quando fica o aviso grande (ms, hora do banco) */
+/* revisao 31/10: nao tocar 2 vezes a mesma rota. GRUPO_TOCOU: rotas do TrackEat que ja tocaram. ULT_ROTA: ultimo aviso
+   de cada motoboy {t, conf, id}. ENT_DA_ROTA: rota id -> motoboy (para ver a troca de id na mesma leitura). */
+const GRUPO_TOCOU=new Set(), ULT_ROTA=new Map(), ENT_DA_ROTA=new Map();
+const MOTOBOY_15MIN=15*60000;
+let CONF_LOCAL=false;      /* alguem conferiu por este aparelho (entao "NAO CONFERIDO" no aviso de rota faz sentido) */
+let PAUSADO=false, BUSCA_INICIO=0, VISIVEL_DESDE=Date.now();
+let LIMITE_MS=10000;       /* chamada ao banco: desiste em 10 s (fetch + leitura da resposta, com ou sem AbortController) */
+try{ const v=localStorage.getItem('cdm_sacola_som'); if(v==='1'||v==='0') SOM_PREF=v; }catch(e){}
+const somLigado=()=>SOM_PREF==='1'||(SOM_PREF===null&&TV);
+
+/* ---------- codigo do aparelho ---------- */
+function guarda(c){ try{ localStorage.setItem('cdm_sacola_codigo',c); }catch(e){} try{ history.replaceState(null,'',location.pathname+location.search+'#'+c); }catch(e){} }
+function esquece(){ try{ localStorage.removeItem('cdm_sacola_codigo'); }catch(e){} try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} }
+function pedeCodigo(msg){ $('cod').classList.add('on'); $('cod-err').textContent=msg||''; setTimeout(function(){ try{$('cod-in').focus();}catch(e){} },50); }
+function entra(){
+  const c=limpa($('cod-in').value);
+  if(c.length!==8){ $('cod-err').textContent='O código tem 8 letras e números.'; return; }
+  COD=c; $('cod-err').textContent='conferindo…'; busca();
+}
+function recusado(){
+  desliga(); esquece(); COD=''; DADO=null; VISTOS_P=null; VISTOS_A=null; VISTOS_R=null; PAUSADO=false; $('pausa').classList.remove('on');
+  OVR.clear(); FILA.clear(); RESOLVIDO.clear(); OCUPADO.clear(); CONF.clear(); ROTA_ATE.clear();
+  if(T_FLUSH){ clearTimeout(T_FLUSH); T_FLUSH=null; }
+  $('grid').innerHTML=''; $('alertas').innerHTML=''; $('rota').innerHTML=''; $('barra').innerHTML='';
+  pedeCodigo('Código não aceito. Confira e digite de novo.');
+}
+
+/* ---------- rede: so as duas portas ---------- */
+/* revisao 31/10: o limite de 10 s cobre o fetch E a leitura da resposta (r.json), e funciona tambem em navegador de TV
+   sem AbortController (Promise.race). Assim uma chamada travada nunca deixa a tela parada. */
+function comLimite(prom,ms){   /* sem Promise.finally: funciona em navegador de TV mais antigo */
+  return new Promise(function(res,rej){
+    const tm=setTimeout(function(){ rej({msg:'',tempo:true}); },ms);
+    prom.then(function(v){ clearTimeout(tm); res(v); },function(e){ clearTimeout(tm); rej(e); });
+  });
+}
+async function rpc(fn,corpo){
+  const ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+  const chamada=(async function(){
+    let r;
+    try{
+      r=await fetch(SB+'rpc/'+fn,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify(corpo),signal:ctl?ctl.signal:undefined});
+    }catch(e){ throw {msg:''}; }
+    let j=null, lido=false; try{ j=await r.json(); lido=true; }catch(e){}
+    /* so o erro 28000 (codigo recusado/desligado) faz a tela esquecer o codigo. Outro 401/403 (ex.: porta fechada
+       pelo dono com revoke) e tratado como falha de conexao e o codigo fica guardado. */
+    if(r.status===403 && j && String(j.code)==='28000') return {recusado:true};
+    if(!r.ok) throw {msg:String((j&&j.message)||'').slice(0,140), status:r.status};
+    if(!lido) throw {msg:'resposta ilegível'};
+    return {j:j};
+  })();
+  let res;
+  try{ res=await comLimite(chamada,LIMITE_MS); }
+  catch(e){ if(e&&e.tempo&&ctl){ try{ ctl.abort(); }catch(x){} } throw e; }
+  if(res.recusado){ recusado(); throw {recusado:true}; }
+  return res.j;
+}
+function acao(nome,dados){ return rpc('sacola_acao',{p_chave:COD,p_acao:nome,p_dados:dados}); }
+
+function modoTV(){
+  const q=location.search||'';
+  TV=/[?&]tv=1\b/.test(q)?true:/[?&]tv=0\b/.test(q)?false:!!(DADO&&DADO.tela==='tv');
+  document.body.classList.toggle('tv',TV);
+  botaoSom();   /* revisao 31/10: a TV comeca com som ligado; o botao e a faixa "Som travado" seguem o modo */
+}
+function intervaloMs(){ const s=Number(DADO&&DADO.intervalo_s); return Math.max(10,Math.min(15,isFinite(s)&&s>0?s:12))*1000; }
+
+async function busca(){
+  if(!COD) return;
+  if(BUSCANDO){ DE_NOVO=true; return; }
+  BUSCANDO=true; BUSCA_INICIO=Date.now(); const inicio=SEQ;
+  try{
+    const j=await rpc('sacola_tela',{p_chave:COD});
+    if(!j||typeof j!=='object') throw {msg:'resposta vazia'};
+    $('cod').classList.remove('on'); guarda(COD);
+    { const ta=Date.parse(j.agora); if(!isNaN(ta)) OFS=ta-Date.now(); }
+    /* tela pausada pelo dono: mostra o aviso, guarda o codigo e continua perguntando */
+    PAUSADO=j.pausado===true; $('pausa').classList.toggle('on',PAUSADO);
+    if(PAUSADO){ DADO=j; ULT_OK=Date.now(); FALHAS=0; $('faixaRede').hidden=true; VISTOS_P=null; VISTOS_A=null; VISTOS_R=null; modoTV(); return; }
+    OVR.forEach(function(o,k){ if(o.fase==='ok' && o.ack<=inicio) OVR.delete(k); });
+    const ps=Array.isArray(j.pedidos)?j.pedidos.filter(p=>p&&p.id!=null):[];
+    const as=Array.isArray(j.alertas)?j.alertas.filter(a=>a&&a.id!=null):[];
+    const rs=Array.isArray(j.rotas)?j.rotas.filter(r=>r&&r.id!=null):[];
+    const novosP=VISTOS_P? ps.filter(p=>!p.cancelado && !VISTOS_P.has(String(p.id))).length : 0;
+    const novosA=VISTOS_A? as.filter(a=>parcial(a) && !VISTOS_A.has(String(a.id))).length : 0;
+    const novasR=[], agora=agoraMs();
+    const sumiram=VISTOS_R? Array.from(VISTOS_R).filter(id=>!rs.some(r=>String(r.id)===id)) : [];
+    rs.forEach(function(r){
+      const id=String(r.id), ent=String(r.entregador||''), gs=Array.isArray(r.grupos)?r.grupos.map(String):[];
+      if(VISTOS_R && !VISTOS_R.has(id)){
+        /* revisao 31/10 (rede de seguranca; o banco ja junta fila + TrackEat numa rota so):
+           - troca de id do mesmo motoboy na mesma leitura = a mesma rota: herda o tempo do aviso, sem som;
+           - rota do TrackEat que ja tocou: sem som e sem aviso grande de novo;
+           - o mesmo motoboy avisou ha menos de 15 min e aquele aviso nunca achou a rota no TrackEat: e a mesma
+             saida, agora com os pedidos: aviso grande de novo, sem som. Senao: som + voz + aviso grande. */
+        const troca=sumiram.find(x=>ENT_DA_ROTA.get(x)===ent);
+        const u=ULT_ROTA.get(ent);
+        const jaTocou=gs.some(g=>GRUPO_TOCOU.has(g));
+        const mesmaSaida=!!(u && agora-u.t<MOTOBOY_15MIN && !u.conf);
+        if(troca){ const ate=ROTA_ATE.get(troca); if(ate) ROTA_ATE.set(id,ate); }
+        else if(jaTocou){ /* nada */ }
+        else { ROTA_ATE.set(id,agora+ROTA_CHEIA_MS); if(!mesmaSaida) novasR.push(r); }
+        ULT_ROTA.set(ent,{t:(troca||jaTocou||mesmaSaida)&&u?u.t:agora,conf:!!r.confirmado||(troca&&u?u.conf:false),id:id});
+      } else if(!VISTOS_R){
+        const t=new Date(r.saiu_em).getTime(); if(!isNaN(t) && agora-t<ROTA_CHEIA_MS) ROTA_ATE.set(id,t+ROTA_CHEIA_MS);
+        ULT_ROTA.set(ent,{t:isNaN(t)?agora:t,conf:!!r.confirmado,id:id});
+      } else {
+        const u=ULT_ROTA.get(ent); if(u && u.id===id && r.confirmado) u.conf=true;
+      }
+      gs.forEach(g=>GRUPO_TOCOU.add(g));   /* rota que ja apareceu na tela, de qualquer jeito, nao toca de novo */
+      ENT_DA_ROTA.set(id,ent);
+    });
+    if(GRUPO_TOCOU.size>500) GRUPO_TOCOU.clear();
+    Array.from(ENT_DA_ROTA.keys()).forEach(function(id){ if(!rs.some(r=>String(r.id)===id)) ENT_DA_ROTA.delete(id); });
+    VISTOS_P=new Set(ps.map(p=>String(p.id))); VISTOS_A=new Set(as.map(a=>String(a.id))); VISTOS_R=new Set(rs.map(r=>String(r.id)));
+    Array.from(RESOLVIDO).forEach(function(id){ if(!VISTOS_A.has(String(id))) RESOLVIDO.delete(id); });
+    Array.from(ROTA_ATE.keys()).forEach(function(id){ if(!VISTOS_R.has(id)) ROTA_ATE.delete(id); });
+    /* conferido confirmado: quando o banco ja devolve igual, a tela larga a copia dela */
+    ps.forEach(function(p){ const c=CONF.get(String(p.id)); if(c && c.ok && (!!p.conferido_em)===c.on) CONF.delete(String(p.id)); });
+    Array.from(CONF.keys()).forEach(function(id){ if(!VISTOS_P.has(id)) CONF.delete(id); });
+    DADO=j; ULT_OK=Date.now(); FALHAS=0; $('faixaRede').hidden=true;
+    modoTV(); desenha(); botaoSom();
+    if(novosA) toca('alarme');
+    else if(novasR.length){ toca('rota'); fala(novasR.map(r=>String(r.entregador||'Motoboy').split(' ')[0]+' saiu para rota').join('. ')); }
+    else if(novosP && !TV) toca('novo');   /* na TV: so a rota e o alarme fazem som (pedido novo chega toda hora) */
+  }catch(e){
+    if(!(e&&e.recusado)){ FALHAS++; if(FALHAS>=2||!DADO) falha(e&&e.status?'Não consegui ler agora (código '+e.status+'). Tento de novo em 12 s.':e&&e.tempo?'O banco não respondeu em 10 s — tentando de novo.':'SEM INTERNET — tentando de novo a cada 12 s.'); }
+  }finally{
+    BUSCANDO=false; liga();
+    if(DE_NOVO && COD){ DE_NOVO=false; busca(); } else DE_NOVO=false;
+  }
+}
+function falha(msg){
+  const f=$('faixaRede'); f.textContent='⚠️ '+msg+(ULT_OK?' Mostrando o que foi lido às '+hhmm(ULT_OK+OFS)+'.':''); f.hidden=false;
+  if($('cod').classList.contains('on')) $('cod-err').textContent=msg;
+  if(!DADO && !COD) pedeCodigo();
+}
+/* le a cada 12 s (10-15 s, o banco pode mudar em intervalo_s); para quando a tela some e volta quando aparece */
+function liga(){
+  const ms=intervaloMs();
+  if(TIMER && TIMER_MS!==ms){ clearInterval(TIMER); TIMER=null; }
+  if(!TIMER && COD && document.visibilityState!=='hidden'){ TIMER=setInterval(busca,ms); TIMER_MS=ms; }
+}
+function desliga(){ if(TIMER){ clearInterval(TIMER); TIMER=null; } }
+
+/* ---------- marcar linha (otimista, junta toques rapidos) ---------- */
+function eConferido(p){ const c=CONF.get(String(p.id)); return c? c.on : !!p.conferido_em; }
+function marcado(p,l){ if(eConferido(p)) return true; const o=OVR.get(p.id+'|'+l.chave); return o? !!o.on : !!l.marcado; }
+function acha(id){ const ps=(DADO&&Array.isArray(DADO.pedidos))?DADO.pedidos:[]; for(const p of ps) if(String(p.id)===String(id)) return p; return null; }
+function toque(id,chave){
+  const p=acha(id); if(!p||p.cancelado||eConferido(p)) return;
+  const l=(p.linhas||[]).find(x=>String(x.chave)===String(chave)); if(!l) return;
+  const k=p.id+'|'+l.chave, on=!marcado(p,l), v=++VER;
+  OVR.set(k,{on:on,v:v,fase:'fila',ack:0});
+  FILA.set(k,{k:k,id:p.id,chave:l.chave,on:on,v:v});
+  desenha();
+  if(T_FLUSH) clearTimeout(T_FLUSH);
+  T_FLUSH=setTimeout(function(){ T_FLUSH=null; envia(); },600);
+}
+async function envia(){
+  if(T_FLUSH){ clearTimeout(T_FLUSH); T_FLUSH=null; }
+  while(ENVIANDO){ try{ await ENVIANDO; }catch(e){} }
+  if(!FILA.size) return true;
+  const lote=Array.from(FILA.values()); FILA.clear();
+  ENVIANDO=(async function(){
+    const grupos=new Map();
+    lote.forEach(function(x){ const g=x.id+'|'+(x.on?1:0); if(!grupos.has(g)) grupos.set(g,{id:x.id,on:x.on,itens:[]}); grupos.get(g).itens.push(x); });
+    let tudo=true, msg='';
+    for(const g of grupos.values()){
+      try{
+        const r=await acao('marcar',{pedido:g.id,chaves:g.itens.map(x=>x.chave),on:g.on});
+        if(r&&r.ok===false) throw {msg:''};
+        g.itens.forEach(function(x){ const o=OVR.get(x.k); if(o&&o.v===x.v){ o.fase='ok'; o.ack=++SEQ; } });
+      }catch(e){
+        if(e&&e.recusado) return false;
+        tudo=false; if(e&&e.msg) msg=e.msg;
+        g.itens.forEach(function(x){ const o=OVR.get(x.k); if(o&&o.v===x.v) OVR.delete(x.k); });
+      }
+    }
+    if(!tudo) aviso(msg?'Não salvou: '+msg:'Não salvou — sem internet?');
+    desenha();
+    return tudo;
+  })();
+  let ok=false;
+  try{ ok=await ENVIANDO; }catch(e){ ok=false; } finally{ ENVIANDO=null; }
+  if(COD) busca();
+  return ok;
+}
+
+/* ---------- CONFERIDO (clique no cartao ou teclado numero + Enter) ---------- */
+async function conferir(id,on,porTecla){
+  const p=acha(id); if(!p||p.cancelado) return;
+  const k='c:'+id; if(OCUPADO.has(k)) return;
+  const sid=String(p.id), num=p.numero!=null?p.numero:'—';
+  OCUPADO.add(k); CONF.set(sid,{on:on,ok:false}); CONF_LOCAL=true; desenha();
+  try{
+    if(on) await envia();   /* garante os toques de linha antes */
+    const r=await acao(on?'conferir':'desconferir',{pedido:p.id});
+    if(r&&r.ok===true){ const c=CONF.get(sid); if(c) c.ok=true; aviso(on?'#'+num+' CONFERIDO ✓':'#'+num+' voltou para "a conferir"', true); }
+    else { CONF.delete(sid); aviso('Não salvou #'+num+' — tenta de novo.'); }
+  }catch(e){
+    CONF.delete(sid);
+    if(e&&e.recusado) return;
+    aviso(e&&e.msg?'Não salvou: '+e.msg:'Não salvou — sem internet?');
+  }finally{
+    OCUPADO.delete(k); if(COD){ desenha(); busca(); }
+  }
+}
+async function resolvi(id){
+  if(lugarAparelho()!=='tudo') return;
+  const k='a:'+id; if(OCUPADO.has(k)) return;
+  OCUPADO.add(k); desenha();
+  try{
+    const r=await acao('resolvi',{pedido:id});
+    if(r&&r.ok===true) RESOLVIDO.add(id); else aviso('Não salvou — tenta de novo.');
+  }catch(e){
+    if(e&&e.recusado) return;
+    aviso(e&&e.msg?'Não salvou: '+e.msg:'Não salvou — sem internet?');
+  }finally{
+    OCUPADO.delete(k); if(COD){ desenha(); busca(); }
+  }
+}
+
+/* ---------- teclado: numero do pedido + Enter (como o "bump bar" da cozinha) ---------- */
+let TECLA='', T_TECLA=null, DESFAZ=null;
+function mostraTecla(){
+  const el=$('tecla'); if(!el) return;
+  if(TECLA){ el.classList.add('on'); el.innerHTML='Nº '+esc(TECLA)+'<small> ENTER</small>'; }
+  else { el.classList.remove('on'); el.innerHTML='<small>Nº + ENTER</small>'; }
+}
+function zeraTecla(){ TECLA=''; if(T_TECLA){ clearTimeout(T_TECLA); T_TECLA=null; } mostraTecla(); }
+function acendeCartao(ids){
+  const q=ids.map(String);
+  document.querySelectorAll('article.card').forEach(function(el){ if(q.indexOf(el.getAttribute('data-id'))>=0){ el.classList.add('acende'); setTimeout(function(){ el.classList.remove('acende'); },4000); } });
+}
+async function teclaEnter(){
+  const n=semZero(TECLA); zeraTecla(); if(!n) return;
+  if(!COD||!DADO) return;
+  if(lugarAparelho()!=='tudo'){ aviso('Este aparelho não confere pedidos.'); return; }
+  const ps=(Array.isArray(DADO.pedidos)?DADO.pedidos:[]).filter(p=>!p.cancelado && semZero(p.numero)===n);
+  if(ps.length>1){ aviso('Dois pedidos #'+n+' ('+ps.map(p=>p.marca||'?').join(' e ')+') — clique no cartão certo.'); acendeCartao(ps.map(p=>p.id)); return; }
+  if(ps.length===1){
+    const p=ps[0];
+    if(eConferido(p)){
+      if(DESFAZ && DESFAZ.n===n && Date.now()<DESFAZ.ate){ DESFAZ=null; conferir(p.id,false,true); return; }
+      DESFAZ={n:n,ate:Date.now()+120000};
+      aviso('#'+n+' já está conferido. Para DESFAZER, digite '+n+' e Enter de novo.'); return;
+    }
+    DESFAZ=null; conferir(p.id,true,true); return;
+  }
+  /* nao esta na lista desta tela (pode ter acabado de chegar): o banco procura pelo numero */
+  try{
+    const r=await acao('conferir',{numero:n});
+    if(r&&r.ok===true){ aviso('#'+n+' CONFERIDO ✓',true); }
+    else if(r&&r.motivo==='varios'){ aviso('Dois pedidos #'+n+' — clique no cartão certo.'); }
+    else aviso('#'+n+' não está na lista.');
+  }catch(e){ if(!(e&&e.recusado)) aviso(e&&e.msg?'Não salvou: '+e.msg:'Não salvou — sem internet?'); }
+  finally{ if(COD) busca(); }
+}
+document.addEventListener('keydown',function(e){
+  if($('cod').classList.contains('on')) return;
+  const a=document.activeElement, tag=a&&a.tagName;
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return;
+  if(e.ctrlKey||e.metaKey||e.altKey) return;
+  const k=e.key;
+  if(/^[0-9]$/.test(k)){ if(TECLA.length<6) TECLA+=k; e.preventDefault(); }
+  else if(k==='Backspace'){ if(!TECLA) return; TECLA=TECLA.slice(0,-1); e.preventDefault(); }
+  else if(k==='Escape'){ zeraTecla(); return; }
+  else if(k==='Enter'||k==='NumpadEnter'){ if(!TECLA) return; e.preventDefault(); teclaEnter(); return; }
+  else return;
+  mostraTecla();
+  if(T_TECLA) clearTimeout(T_TECLA);
+  T_TECLA=setTimeout(zeraTecla,6000);   /* 6 s parado: apaga o que foi digitado */
+});
+
+/* ---------- aviso curto (verde = deu certo) ---------- */
+let T_AVISO=null;
+function aviso(t,ok){ const el=$('toast'); el.textContent=t; el.classList.toggle('ok',!!ok); el.hidden=false; if(T_AVISO) clearTimeout(T_AVISO); T_AVISO=setTimeout(function(){ el.hidden=true; },ok?3000:5000); }
+
+/* ---------- desenho ---------- */
+function lugarAparelho(){ const L=DADO&&DADO.lugar; return ['tudo','burger','prato','balcao'].indexOf(L)>=0?L:'tudo'; }
+function rotaDoPedido(){
+  const m=new Map(); const rs=(DADO&&Array.isArray(DADO.rotas))?DADO.rotas:[];
+  rs.forEach(function(r){ (Array.isArray(r.pedidos)?r.pedidos:[]).forEach(function(x){ if(x&&x.id!=null && !m.has(String(x.id))) m.set(String(x.id),r); }); });
+  return m;
+}
+function visiveis(L,RP){
+  const ps=(DADO&&Array.isArray(DADO.pedidos))?DADO.pedidos.filter(p=>p&&p.id!=null):[];
+  const t=s=>{const x=new Date(s).getTime();return isNaN(x)?0:x;};
+  const peso=function(p){
+    if(!p.cancelado && !eConferido(p) && RP.has(String(p.id))) return -1;   /* motoboy ja saiu: sobe */
+    if(eConferido(p)) return 3;
+    if(p.agendado_para) return 2;
+    if(L!=='tudo' && !p.cancelado){ const ls=(p.linhas||[]).filter(l=>lugarDe(l)===L); if(ls.length && ls.every(l=>marcado(p,l))) return 1; }
+    return 0;
+  };
+  return ps.map((p,i)=>({p:p,i:i,w:peso(p)})).sort(function(a,b){
+    if(a.w!==b.w) return a.w-b.w;
+    if(a.w===2){ const d=t(a.p.agendado_para)-t(b.p.agendado_para); if(d) return d; }
+    return a.i-b.i;
+  }).map(x=>x.p);
+}
+function lembraHTML(p){
+  let lst=Array.isArray(p.avisos)?p.avisos.filter(a=>a&&CL[a.classe]):[];
+  if(!lst.length && p.lembrar && typeof p.lembrar==='object') lst=Object.keys(p.lembrar).filter(k=>CL[k]).map(k=>({classe:k,qtd:p.lembrar[k]}));
+  if(!lst.length) return '';
+  lst.sort((a,b)=>CL_ORD.indexOf(a.classe)-CL_ORD.indexOf(b.classe));
+  return '<div class="lembra">'+lst.map(a=>'<span class="av av-'+a.classe+'"><b>'+esc(fmtQ(a.qtd))+'</b> '+CL[a.classe].i+' '+esc(CL[a.classe].t)+'</span>').join('')+'</div>';
+}
+function iconesLembrar(lb){
+  if(!lb||typeof lb!=='object') return '';
+  return CL_ORD.filter(k=>Number(lb[k])>0).map(k=>CL[k].i+fmtQ(lb[k])).join(' ');
+}
+function linhaHTML(p,l,trava){
+  const on=marcado(p,l), q=Number(l.qtd);
+  const det=Array.isArray(l.detalhe)?l.detalhe.filter(x=>x!=null&&String(x).trim()):[];
+  const c=(l.aviso&&CL[l.classe])?l.classe:null;
+  return '<li><button type="button" class="row'+(on?' on':'')+(c?' av-'+c:'')+'" aria-pressed="'+on+'" data-p="'+esc(p.id)+'" data-k="'+esc(l.chave)+'"'+(trava?' disabled':'')+'>'
+    +'<span class="box">✓</span><span class="qty'+(q>1?' many':'')+'">'+esc(l.qtd==null?'?':fmtQ(l.qtd))+'x</span>'
+    +'<span class="name">'+(c?'<span class="rot">'+CL[c].i+' '+esc(CL[c].t)+'</span>':'')+esc(l.nome)
+    +det.map(x=>'<span class="det">+ '+esc(x)+'</span>').join('')
+    +(l.veio_de?'<small class="de">veio junto do '+esc(l.veio_de)+'</small>':'')
+    +'</span></button></li>';
+}
+function cartao(p,L,RP){
+  const linhas=Array.isArray(p.linhas)?p.linhas:[];
+  const zs=ORDEM.filter(z=>linhas.some(l=>lugarDe(l)===z));
+  const n=zs.length, multi=n>1, cz=L!=='tudo', canc=!!p.cancelado, par=temPar(zs), conf=!canc&&eConferido(p);
+  const grupos=zs.map(function(z,ix){ const ls=linhas.filter(l=>lugarDe(l)===z); const ok=ls.length>0&&ls.every(l=>marcado(p,l));
+    let ult=null; if(ok) ls.forEach(function(l){ if(l.marcado_em && !OVR.has(p.id+'|'+l.chave) && (!ult||l.marcado_em>ult)) ult=l.marcado_em; });
+    return {z:z,ix:ix,ls:ls,ok:ok,ult:ult}; });
+  const mostra=cz?grupos.filter(g=>g.z===L):grupos;
+  const prontos=grupos.filter(g=>g.ok);
+  const done=!canc && (conf || (cz? (mostra.length>0&&mostra.every(g=>g.ok)) : (grupos.length>0&&prontos.length===grupos.length)));
+  const num=esc(p.numero!=null&&p.numero!==''?p.numero:'—');
+  const agend=!!p.agendado_para, mins=minDesde(p.criado);
+  const rota=(!canc&&!conf)?RP.get(String(p.id)):null;
+
+  let h='<article class="card '+(multi&&!cz&&!canc&&!conf?'duplo':'single')+(done?' done':'')+(canc?' cancel':'')+(rota?' narota':'')+'" data-id="'+esc(p.id)+'">';
+  h+='<div class="top"><div><div class="num">#'+num+'</div><div class="marca">'+esc(p.marca)+'</div>';
+  const selos=[];
+  if(agend) selos.push('Agendado '+esc(hhmm(p.agendado_para)));
+  if(p.tipo==='TAKEOUT') selos.push('Retirada');
+  if(selos.length) h+='<div class="selos">'+selos.map(s=>'<span class="selo">'+s+'</span>').join('')+'</div>';
+  h+='</div>';
+  if(agend) h+='<div class="tempo">agendado para<b>'+esc(hhmm(p.agendado_para))+'</b></div>';
+  else h+='<div class="tempo'+(mins!=null&&mins>=ATRASO_MIN&&!canc&&!conf?' late':'')+'" data-ts="'+esc(p.criado||'')+'">entrou '+esc(hhmm(p.criado))+'<b>'+esc(haMin(mins))+'</b></div>';
+  h+='</div>';
+  if(rota) h+='<div class="sairota">🛵 '+esc(rota.entregador||'motoboy')+' saiu '+esc(hhmm(rota.saiu_em))+' — confere agora</div>';
+  if(canc) h+='<div class="cancelado">Cancelado — não montar / não mandar</div>';
+  if(conf) h+='<div class="okfaixa">✓ Conferido '+esc(hhmm(p.conferido_em||agoraMs()))+'</div>';
+  h+=lembraHTML(p);
+  if(multi && !canc && !conf) h+='<div class="vol"><span class="big">'+n+' lugares</span><span class="what">'+zs.map(z=>ICO[z]+' '+CURTO[z]).join(' + ')+' — juntar tudo na mesma sacola</span></div>';
+  const comObs=(cz?linhas.filter(l=>lugarDe(l)===L):linhas).filter(l=>l.obs!=null&&String(l.obs).trim());
+  if(!conf) comObs.forEach(function(l){ h+='<div class="obs"><div class="k">Cliente pediu'+(linhas.length>1?' · '+esc(l.nome):'')+'</div><div class="v">'+esc(l.obs)+'</div></div>'; });
+  if(!conf || !TV){
+    h+='<div class="packs">'+mostra.map(function(g){
+      return '<section class="pack'+(g.ok?' ok':'')+'"><div class="ph"><span class="p">'+(g.ix+1)+' de '+n+'</span><span class="c">'+(g.ok?'✓ pronto'+(g.ult?' '+esc(hhmm(g.ult)):'')+' · ':'')+CZ[g.z]+'</span></div>'
+        +'<ul>'+g.ls.map(l=>linhaHTML(p,l,canc||conf)).join('')+'</ul></section>';
+    }).join('')+'</div>';
+  }
+  if(cz && !mostra.length && !canc) h+='<div class="falta">Nada deste pedido é '+(L==='balcao'?'do DELIVERY':'desta cozinha')+'.</div>';
+
+  if(!canc && !cz){
+    if(multi && prontos.length && !done){
+      const falta=grupos.filter(g=>!g.ok).map(g=>CURTO[g.z]);
+      const naEstufa=prontos.filter(g=>ESTUFA[g.z]).map(g=>CURTO[g.z]);
+      const balcaoFalta=grupos.some(g=>g.z==='balcao'&&!g.ok), balcaoOk=prontos.some(g=>g.z==='balcao');
+      h+='<div class="espera"><b>Esperando: '+esc(junta(falta))+'</b>'
+        +(naEstufa.length?(par?'O que é do '+esc(naEstufa.join(' e do '))+' já está pronto: vai para a estufa na prateleira <u>TEM PAR</u>, com o número #'+num+' escrito.'
+                              :'O do '+esc(naEstufa.join(' e do '))+' já está pronto: fica na estufa até a hora de entregar.'):'')
+        +(balcaoOk?' O do DELIVERY já está separado.':'')
+        +(balcaoFalta?' Bebida e sobremesa saem do DELIVERY na hora de entregar.':'')+'</div>';
+    }
+    /* expedicao: CONFERIDO (opcional). Um clique so; nao precisa marcar linha por linha. */
+    const oc=OCUPADO.has('c:'+p.id);
+    h+='<div class="foot">'+(conf
+      ? '<button type="button" class="go des" data-des="'+esc(p.id)+'"'+(oc?' disabled':'')+'>'+(oc?'Salvando…':'Desfazer conferido')+'</button>'
+      : '<button type="button" class="go" data-conf="'+esc(p.id)+'"'+(oc?' disabled':'')+'>'+(oc?'Salvando…':'✓ Conferido')+'</button>')+'</div>';
+  } else if(!canc && cz && mostra.length){
+    const outros=grupos.filter(g=>g.z!==L), outrosFalta=outros.filter(g=>!g.ok);
+    if(done){
+      h+='<div class="pronto">'+(L==='balcao'?'<b>✓ Separado — sai do DELIVERY na hora de entregar</b>Bebida e sobremesa não vão para a estufa.':'<b>✓ Pronto — vai para a estufa</b>');
+      if(outros.length){
+        if(L!=='balcao' && par) h+='<span class="par">Prateleira TEM PAR · #'+num+'</span>';
+        const faltaCoz=outrosFalta.filter(g=>g.z!=='balcao');
+        h+='<small>'+(faltaCoz.length?'Ainda falta das outras partes: '+esc(junta(faltaCoz.map(g=>CURTO[g.z])))+'.'
+                     :outrosFalta.length?'O do DELIVERY sai na hora de entregar, junto na mesma sacola.'
+                     :'As outras partes também já estão prontas — tudo junto na mesma sacola.')+'</small>';
+      }
+      h+='</div>';
+    } else {
+      const outrosEstufa=outros.filter(g=>g.ok&&ESTUFA[g.z]);
+      if(outrosEstufa.length && L!=='balcao') h+='<div class="espera"><b>O do '+esc(outrosEstufa.map(g=>CURTO[g.z]).join(' e do '))+' já está na estufa</b>Prateleira <u>TEM PAR</u>, #'+num+'. Quando o seu ficar pronto, põe do lado.</div>';
+      else if(outros.length) h+='<div class="falta">Este pedido também tem: '+esc(junta(outros.map(g=>CURTO[g.z]+(g.ok?' (pronto)':''))))+'.</div>';
+    }
+  }
+  return h+'</article>';
+}
+function alertaHTML(a,exp){
+  const f=Array.isArray(a.faltando)?a.faltando:[];
+  const zs=ORDEM.filter(z=>f.some(x=>zona(x.lugar)===z));
+  const itens=f.map(x=>'<b>'+(x.qtd!=null?esc(fmtQ(x.qtd))+'x ':'')+esc(x.nome)+'</b>'+(zs.length>1?' ('+esc(CURTO[zona(x.lugar)])+')':'')).join(', ');
+  const est=zs.some(z=>ESTUFA[z]), bal=zs.indexOf('balcao')>=0, par=temPar(a.lugares);
+  const oc=OCUPADO.has('a:'+a.id);
+  return '<div class="alert" role="alert"><div class="t">⚠ #'+esc(a.numero!=null?a.numero:'—')+' saiu faltando'+(zs.length?' '+esc(junta(zs.map(z=>DO[z]))):'')+'</div>'
+    +'<div class="d">Saiu às '+esc(hhmm(a.saiu))+'<span class="q"> com uma parte marcada e outra não</span>.'+(itens?' Sem marcar: '+itens+'.':'')
+    +'<span class="q">'+(est?(par?' Deve estar na prateleira "TEM PAR" da estufa.':' Confere a estufa.'):'')+(bal?' Confere o DELIVERY.':'')+'</span> Liga para o motoboy.</div>'
+    +(exp?'<button type="button" data-ok="'+esc(a.id)+'"'+(oc?' disabled':'')+'>'+(oc?'Salvando…':'Já resolvi')+'</button>'
+         :'<div class="so">A expedição marca como resolvido.</div>')+'</div>';
+}
+function desenhaAlertas(){
+  const L=lugarAparelho(), exp=L==='tudo';
+  const as=(DADO&&Array.isArray(DADO.alertas))?DADO.alertas.filter(a=>a&&a.id!=null&&!RESOLVIDO.has(a.id)):[];
+  const parc=as.filter(a=>parcial(a)&&(exp||(Array.isArray(a.faltando)&&a.faltando.some(x=>zona(x.lugar)===L))));
+  const MAX=TV?2:3;
+  let h=(ALERTAS_TODOS?parc:parc.slice(0,MAX)).map(a=>alertaHTML(a,exp)).join('');
+  if(parc.length>MAX) h+='<button type="button" class="mais" data-mais="a">'+(ALERTAS_TODOS?'Mostrar só os '+MAX+' mais recentes'
+    :'+ '+(parc.length-MAX)+(parc.length-MAX>1?' outros pedidos saíram faltando':' outro pedido saiu faltando')+' — ver todos')+'</button>';
+  $('alertas').innerHTML=h;
+}
+/* ---------- FULANO SAIU PARA ROTA ---------- */
+/* revisao 31/10: na TV so de olhar ninguem confere; "NAO CONFERIDO" em todo aviso viraria vermelho falso permanente.
+   So aparece quando alguem ja conferiu hoje (no banco) ou por este aparelho. */
+function usamConferido(){ const h=(DADO&&DADO.hoje)||{}; return CONF_LOCAL || Number(h.conferidos)>0; }
+function desenhaRotas(){
+  const rs=(DADO&&Array.isArray(DADO.rotas))?DADO.rotas.filter(r=>r&&r.id!=null):[];
+  const agora=agoraMs(), usa=usamConferido();
+  const ate=r=>ROTA_ATE.get(String(r.id))||0;
+  const cheias=rs.filter(r=>ate(r)>agora).sort((a,b)=>ate(b)-ate(a)), resto=rs.filter(r=>!(ate(r)>agora));   /* o aviso mais novo primeiro */
+  const peds=r=>Array.isArray(r.pedidos)?r.pedidos.filter(x=>x&&x.numero!=null):[];
+  let h=cheias.slice(0,2).map(function(r){
+    const ps=peds(r);
+    return '<div class="rota cheia" role="alert"><div class="rt">🛵 '+esc(r.entregador||'Motoboy')+' saiu para rota<small>'+esc(hhmm(r.saiu_em))+'</small></div>'
+      +'<div class="rp">'+(ps.length? ps.map(function(x){ const ok=!!x.conferido||(CONF.get(String(x.id))||{}).on===true;
+          const ic=iconesLembrar(x.lembrar);
+          return '<span class="rpp '+(ok?'ok':(usa?'nao':''))+'">#'+esc(x.numero)+(ic?' '+esc(ic):'')+(ok?'<b class="nc">✓</b>':(usa?'<b class="nc">NÃO CONFERIDO</b>':''))+'</span>'; }).join('')
+        :'<span class="rpe">Pedidos dele: aguardando o TrackEat (até 5 min)…</span>')+'</div></div>';
+  }).join('');
+  const resto2=resto.concat(cheias.slice(2));
+  if(resto2.length) h+='<div class="rota curta"><b>Saíram há pouco:</b> '+resto2.map(r=>esc(r.entregador||'motoboy')+' '+esc(hhmm(r.saiu_em))
+    +(peds(r).length?' ('+peds(r).map(x=>'#'+esc(x.numero)).join(' ')+')':'')).join(' · ')+'</div>';
+  if($('rota').innerHTML!==h) $('rota').innerHTML=h;
+}
+const semAcento=s=>String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+function subtitulo(L,loja,ap){
+  const lj=semAcento(loja), a=semAcento(ap), partes=[];
+  if(L!=='tudo') partes.push('Conferência da sacola');
+  if(!a) partes.push(loja);
+  else if(L!=='tudo' && a.indexOf(semAcento(TITULO[L]))===0) partes.push(loja);
+  else if(lj && a.indexOf(lj)>=0) partes.push(ap);
+  else partes.push(loja, ap);
+  return partes.filter(x=>x!=null&&String(x).trim()).join(' · ')+' · iFood';
+}
+function desenha(){
+  const j=DADO; if(!j) return;
+  const L=lugarAparelho(), RP=rotaDoPedido();
+  $('titulo').textContent=TITULO[L];
+  document.title=(L==='tudo'?'Conferência da Sacola':TITULO[L])+' · Cidadão do Mundo';
+  $('sub').textContent=subtitulo(L,j.loja,j.aparelho);
+  const rb=j.robo||{};
+  if(rb.atrasado===true){
+    $('faixaRobo').textContent=rb.motivo==='falha'
+      ? '⚠️ O iFood não está respondendo ao robô (desde '+hhmm(rb.falha_desde)+'). Pedido novo pode NÃO aparecer aqui — confira o tablet do iFood.'
+      : '⚠️ Os pedidos do iFood estão chegando atrasados (último às '+hhmm(rb.ultimo_ciclo)+'). Confira o iFood.';
+    $('faixaRobo').hidden=false; }
+  else $('faixaRobo').hidden=true;
+  const h=j.hoje||{}, sh=x=>x==null?'—':String(x);
+  const ps=visiveis(L,RP);
+  const aFazer=L==='tudo'? ps.filter(p=>!p.cancelado&&!eConferido(p))
+    : ps.filter(p=>{ if(p.cancelado) return false; const ls=(p.linhas||[]).filter(l=>lugarDe(l)===L); return ls.length>0 && !ls.every(l=>marcado(p,l)); });
+  $('lA').textContent=L==='tudo'?'A conferir':'A fazer';
+  $('lS').innerHTML=(L==='tudo'?'Saiu faltando':'Saiu sem o '+esc(CURTO[L]))+'<span class="lg"> hoje</span>';
+  $('sA').textContent=String(aFazer.length);
+  $('sC').textContent=sh(h.conferidos!=null?h.conferidos:h.entregues);
+  $('sS').textContent=sh(h.saiu_faltando);
+  $('stS').classList.toggle('zero',!(Number(h.saiu_faltando)>0));
+  $('semBotao').hidden=true;
+  desenhaAlertas(); desenhaRotas();
+  $('h2lista').textContent=L==='tudo'?'A conferir — o mais antigo primeiro':'A fazer — o mais antigo primeiro (o que já está pronto desce)';
+  /* TV: o conferido sai do quadro e vira um botaozinho na barra de baixo (clique = desfazer) */
+  const noQuadro=TV&&L==='tudo'? ps.filter(p=>p.cancelado||!eConferido(p)) : ps;
+  $('grid').innerHTML=noQuadro.length? noQuadro.map(p=>cartao(p,L,RP)).join('') : '<div class="vazio">'+(ps.length?'Tudo conferido ✓':'Nenhum pedido para conferir agora.')+'</div>';
+  $('rodape').textContent='Atualiza sozinho a cada '+Math.round(intervaloMs()/1000)+' s · lido às '+hhmm(j.agora)+(rb.ultimo_ciclo?' · iFood lido às '+hhmm(rb.ultimo_ciclo):'')+' · sem preço e sem dado do cliente.';
+  barra(ps,L);
+}
+/* TV sem rolagem: esconde do fim para o comeco o que nao cabe e lista na barra de baixo */
+function barra(ps,L){
+  const b=$('barra');
+  if(!TV){ b.innerHTML=''; return; }
+  const g=$('grid'), cards=Array.from(g.querySelectorAll('article.card'));
+  cards.forEach(c=>{ c.hidden=false; });
+  const fora=[]; let i=cards.length-1;
+  /* colunas: o que passa da ultima coluna visivel aumenta o scrollWidth */
+  while(i>0 && (g.scrollHeight>g.clientHeight+1 || g.scrollWidth>g.clientWidth+1)){ cards[i].hidden=true; fora.unshift(cards[i].getAttribute('data-id')); i--; }
+  const confs=L==='tudo'? ps.filter(p=>!p.cancelado&&eConferido(p)) : [];
+  let h='';
+  /* revisao 31/10: no pico (24/10 14h26: 43 pedidos abertos) iam ~30 numeros numa linha so, cortados. Agora: o total
+     e so os 6 proximos (os mais antigos dos que nao couberam); conferidos: so os 5 ultimos (botao = desfazer). */
+  const MAX_FORA=6, MAX_CONF=5;
+  if(fora.length){
+    const fp=fora.map(id=>acha(id)).filter(Boolean);
+    h+='<span class="fora">+'+fp.length+' fora da tela<small>'+fp.slice(0,MAX_FORA).map(p=>'#'+esc(p.numero)+(iconesLembrar(p.lembrar)?' '+esc(iconesLembrar(p.lembrar)):'')).join(' · ')+(fp.length>MAX_FORA?' · …':'')+'</small></span>';
+  }
+  if(confs.length){
+    const tc=p=>{ const c=CONF.get(String(p.id)); const x=new Date(p.conferido_em||0).getTime(); return c&&c.on?Infinity:(isNaN(x)?0:x); };
+    const ult=confs.slice().sort((a,b)=>tc(b)-tc(a)).slice(0,MAX_CONF);
+    h+='<span class="ok">✓ Conferidos'+(confs.length>MAX_CONF?' ('+confs.length+')':'')+':</span>'+ult.map(p=>'<button type="button" class="chip ok" data-des="'+esc(p.id)+'" title="Clique para desfazer">#'+esc(p.numero)+' ✓</button>').join('');
+  }
+  if(b.innerHTML!==h) b.innerHTML=h;
+}
+/* relogio e "ha X min" andam sem rede */
+function relogio(){
+  $('relogio').textContent=new Date(agoraMs()).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'});
+  document.querySelectorAll('.tempo[data-ts]').forEach(function(el){
+    const m=minDesde(el.getAttribute('data-ts')); const b=el.querySelector('b'); if(b) b.textContent=haMin(m);
+    if(!el.closest('.cancel')&&!el.closest('.done')) el.classList.toggle('late',m!=null&&m>=ATRASO_MIN);
+  });
+}
+
+/* ---------- som: o navegador so deixa tocar depois de um toque/tecla; na TV comeca ligado ---------- */
+let AC=null;
+/* revisao 31/10: o botao mostra o estado REAL. Som ligado mas travado pelo navegador = "Toque para ativar o som"
+   (e a faixa vermelha). Clicar nesse estado so destrava; nunca desliga. */
+let PRONTO_ANTES=false, PRONTO_EM=0;   /* quando o som destravou (o mesmo toque gera pointerdown + click) */
+function botaoSom(){ const b=$('bt-som'); if(!b) return; const on=somLigado(), pr=somPronto();
+  if(pr && !PRONTO_ANTES) PRONTO_EM=Date.now(); PRONTO_ANTES=pr;
+  const t=on?(pr?'🔔<span class="lg"> Som ligado</span>':'🔇<span class="lg"> Toque para ativar o som</span>'):'🔕<span class="lg"> Ligar som</span>';
+  if(b.innerHTML!==t) b.innerHTML=t;
+  b.setAttribute('aria-label',on?(pr?'Som ligado':'Som travado: toque para ativar'):'Ligar som');
+  b.classList.toggle('on',on&&pr); somAviso(); }
+function somPronto(){ return !!(AC && AC.state==='running'); }
+function somAviso(){ const el=$('som-aviso'); if(el) el.style.display=(somLigado()&&!somPronto()&&COD)?'':'none'; const b=$('bt-som'); if(b) b.classList.toggle('on',somLigado()&&somPronto()); }
+function somDestrava(){
+  try{ const C=window.AudioContext||window.webkitAudioContext; if(!C) return; if(!AC) AC=new C();
+    if(AC.state!=='running'){ const pr=AC.resume(); if(pr&&pr.then) pr.then(botaoSom,botaoSom); } }catch(e){}
+  botaoSom();
+}
+['pointerdown','keydown','touchstart','click'].forEach(function(ev){ document.addEventListener(ev, somDestrava, true); });
+function toca(tipo){
+  if(!somLigado()) return;
+  try{ const C=window.AudioContext||window.webkitAudioContext; if(!C) return; if(!AC) AC=new C(); if(AC.state==='suspended') AC.resume();
+    /* alarme (vermelho) > rota (3 notas subindo, 2 vezes) > novo (1 bipe) */
+    const notas=tipo==='alarme'? [[0,988],[0.28,740],[0.56,988],[0.84,740],[1.12,988],[1.4,740]]
+              : tipo==='rota'? [[0,523],[0.2,659],[0.4,784],[0.9,523],[1.1,659],[1.3,784]] : [[0,880]];
+    notas.forEach(function(x){ const o=AC.createOscillator(), g=AC.createGain(); o.type=tipo==='rota'?'triangle':'square'; o.frequency.value=x[1];
+      g.gain.value=tipo==='rota'?0.3:0.18; o.connect(g); g.connect(AC.destination); o.start(AC.currentTime+x[0]); o.stop(AC.currentTime+x[0]+(tipo==='novo'?0.18:0.24)); });
+  }catch(e){}
+}
+function fala(t){
+  if(!somLigado()||!somPronto()) return;
+  try{ if(!window.speechSynthesis||!window.SpeechSynthesisUtterance) return;
+    setTimeout(function(){ const u=new SpeechSynthesisUtterance(t); u.lang='pt-BR'; u.rate=1; speechSynthesis.speak(u); },1700); }catch(e){}
+}
+
+/* ---------- cliques ---------- */
+document.addEventListener('click',function(e){
+  const r=e.target.closest('.row'); if(r&&!r.disabled){ toque(r.getAttribute('data-p'),r.getAttribute('data-k')); return; }
+  const c=e.target.closest('[data-conf]'); if(c&&!c.disabled){ conferir(c.getAttribute('data-conf'),true); return; }
+  const d=e.target.closest('[data-des]'); if(d&&!d.disabled){ conferir(d.getAttribute('data-des'),false); return; }
+  const a=e.target.closest('[data-ok]'); if(a&&!a.disabled){ resolvi(a.getAttribute('data-ok')); return; }
+  const m=e.target.closest('[data-mais]'); if(m){ ALERTAS_TODOS=!ALERTAS_TODOS; desenhaAlertas(); return; }
+});
+$('cod-bt').addEventListener('click',entra);
+$('cod-in').addEventListener('keydown',function(e){ if(e.key==='Enter') entra(); });
+$('bt-som').addEventListener('click',function(){
+  /* travado, ou destravou agora mesmo por este toque (pointerdown vem antes do click): so destrava, nao desliga */
+  if(somLigado() && (!somPronto() || Date.now()-PRONTO_EM<1500)){ somDestrava(); toca('novo'); botaoSom(); return; }
+  SOM_PREF=somLigado()?'0':'1'; try{ localStorage.setItem('cdm_sacola_som',SOM_PREF); }catch(e){}
+  somDestrava(); botaoSom(); if(somLigado()) toca('novo'); });
+
+/* ---------- VIGIA (revisao 31/10): a tela nunca fica parada mostrando pedido velho como se estivesse certo ----------
+   - leitura presa ha mais de 25 s: solta e le de novo;
+   - mais de 45 s sem leitura boa: faixa vermelha "TELA PARADA" com a hora da ultima leitura;
+   - mais de 5 min sem leitura boa: recarrega a pagina, mas SO se a propria pagina responder (senao a TV ficaria
+     numa pagina de erro do navegador) e no maximo 1 vez a cada 30 min. */
+let VIGIA_TESTE=0;
+function vigia(){
+  if(!COD || document.visibilityState==='hidden') return;
+  const agora=Date.now();
+  if(BUSCANDO && agora-BUSCA_INICIO>25000){ BUSCANDO=false; DE_NOVO=false; busca(); }
+  if(!ULT_OK || agora-VISIVEL_DESDE<20000) return;
+  const parado=agora-ULT_OK;
+  if(parado>45000 && !BUSCANDO && !TIMER){ liga(); busca(); }      /* leitura automatica parou: religa */
+  if(parado>45000 && (FALHAS<2 || /TELA PARADA/.test($('faixaRede').textContent))){   /* erro de rede ja tem a faixa dele */
+    const f=$('faixaRede'); const t='⚠️ TELA PARADA — última leitura às '+hhmm(ULT_OK+OFS)+'. Os pedidos daqui podem estar velhos: confira o iFood.';
+    if(f.textContent!==t) f.textContent=t; f.hidden=false; }
+  if(parado>5*60000 && navigator.onLine!==false && !FILA.size && !ENVIANDO && !TECLA && agora-VIGIA_TESTE>60000){
+    VIGIA_TESTE=agora;
+    let ult=0; try{ ult=Number(sessionStorage.getItem('cdm_sacola_rl'))||0; }catch(e){}
+    if(agora-ult<30*60000) return;
+    comLimite(fetch(location.pathname+'?v='+agora,{method:'HEAD',cache:'no-store'}),8000).then(function(r){
+      if(r&&r.ok){ try{ sessionStorage.setItem('cdm_sacola_rl',String(Date.now())); }catch(e){} location.reload(); }
+    },function(){});
+  }
+}
+
+/* tela nao apaga (quando o navegador deixa) */
+async function acordada(){ try{ if(navigator.wakeLock && document.visibilityState==='visible') await navigator.wakeLock.request('screen'); }catch(e){} }
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='hidden'){ desliga(); return; }   /* escondida: para de ler */
+  VISIVEL_DESDE=Date.now(); acordada(); if(COD) busca();          /* voltou: le na hora e religa */
+});
+window.addEventListener('online',function(){ if(COD) busca(); });
+let T_RS=null;
+window.addEventListener('resize',function(){ if(T_RS) clearTimeout(T_RS); T_RS=setTimeout(function(){ if(DADO) desenha(); },300); });
+
+(function(){
+  modoTV(); somDestrava(); botaoSom(); relogio(); acordada(); mostraTecla();
+  setInterval(relogio,15000);
+  setInterval(function(){ if(DADO){ const n=$('rota').innerHTML; desenhaRotas(); if($('rota').innerHTML!==n) barra(visiveis(lugarAparelho(),rotaDoPedido()),lugarAparelho()); } },5000);   /* aviso grande de rota vira linha depois de 90 s */
+  setInterval(function(){ if(performance.now()>6*3600*1000 && navigator.onLine!==false && Date.now()-ULT_OK<5*60000 && !FILA.size && !ENVIANDO && !TECLA) location.reload(); }, 10*60000);
+  setInterval(vigia,5000);
+  let c=''; try{ c=limpa(decodeURIComponent((location.hash||'').replace(/^#(k=)?/i,''))); }catch(e){ c=''; }
+  if(c.length!==8){ try{ c=limpa(localStorage.getItem('cdm_sacola_codigo')); }catch(e){ c=''; } }
+  if(c.length===8){ COD=c; busca(); } else pedeCodigo();
+})();
+</script>
+</body>
+</html>
