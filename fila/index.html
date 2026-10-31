@@ -216,6 +216,7 @@ button.b:hover{border-color:var(--text2)}
 .rs .rt .tt small{color:var(--muted);font-size:12.5px;font-weight:600}
 .rs .lt{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:7px;color:#111;font:800 14px Barlow,sans-serif;flex:0 0 auto}
 .rs .ig{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800;background:rgba(255,255,255,.08);color:var(--text2)}
+.rs .ab{display:inline-block;font-size:12px;font-weight:700;color:#FFB74D;margin-left:4px}
 .rs .pr{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0 2px 32px;font-size:13.5px}
 .rs .pr .n{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:11.5px;font-weight:800;color:#111;flex:0 0 auto}
 .rs .pr .p{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;letter-spacing:.02em;min-width:46px;line-height:1}
@@ -1287,6 +1288,7 @@ function rsCalc(d){
   r.svc=rsNum(alm?M.rota_seg_parada_almoco:M.rota_seg_parada_jantar);
   r.mk=rsNum(alm?M.rota_min_km_almoco:M.rota_min_km_jantar);
   r.tol=rsNum(M.rota_tolerancia_s);
+  var av0=rsNum(M.rota_alvo_por_saida); r.alvo=isFinite(av0)&&av0>=2?Math.min(r.cap,Math.round(av0)):0;   /* sem o numero no banco, pula a etapa do alvo */
   /* idade da leitura do TrackEat; diferenca "negativa" (relogio do TrackEat um pouco a frente) conta como 0 */
   var vt=rsMin(d.visto_em), df=(vt===null)?null:((agora-vt)%1440+1440)%1440;
   r.idade=(df===null)?null:(df>720?0:df);
@@ -1337,7 +1339,7 @@ function rsCalc(d){
     a.forEach(function(x){ at+=x.atrasados; sg+=x.segAtraso;
       x.ids.forEach(function(id,j){ var pz=x.prazos[j]; atr[String(id)]=(pz==null)?0:Math.max(0,x.chegadas[j]-pz); }); });
     (pl.semLocal||[]).forEach(function(id){ sl[String(id)]=1; });
-    return {pl:pl,av:a,at:at,sg:sg,atr:atr,nsl:(pl.semLocal||[]).length,fora:(pl.sobra||[]).filter(function(id){return !sl[String(id)];}).length}; };
+    return {k:k,pl:pl,av:a,at:at,sg:sg,atr:atr,nsl:(pl.semLocal||[]).length,fora:(pl.sobra||[]).filter(function(id){return !sl[String(id)];}).length}; };
   try{
     var tudo=rodar(slots.length);
     /* saidas supostas com teto: se alguem atrasa, refaz com uma saida suposta por pedido (como o aviso diz)
@@ -1363,6 +1365,47 @@ function rsCalc(d){
     if(!achou){ lo=Math.min(hi,lo+3);
       while(lo<hi){ var md=Math.floor((lo+hi)/2), t=rodar(md); if(serve(t)){ ok=t; hi=md; } else lo=md+1; } }
     plano=ok.pl; av=ok.av;
+    /* alvo por saida (Fabio, 31/10: "vamos tentar com 3 pedidos, caso nao der temos que usar o bom senso"; rota_alvo_por_saida):
+       rota com menos pedidos que o alvo tenta (1) se desfazer, pondo os pedidos dela nas outras rotas, ou (2) receber um pedido
+       de rota que tem mais que o alvo. So fica a troca que passa no mesmo "serve" da busca (ninguem a mais sem motoboy, nao ha
+       mais atrasados, pedido no horario no maximo a tolerancia, atrasado no maximo a folga de juntar) e que nao faz o km em
+       linha reta (so ida) crescer mais que 2 x a ida da rota pequena. Desfazer (1) poupa um motoboy e usa o mesmo "serve" da busca;
+       receber (2) so redistribui, entao nenhum pedido pode atrasar mais que a tolerancia alem do plano de antes desta etapa, e
+       pedido ja atrasado nao sai mais tarde (revisao de 31/10: senao a conta empurrava cliente ja atrasado so para encher rota). */
+    var alvo=r.alvo;
+    var iK={deposito:base,slots:slots.slice(0,ok.k).map(function(s){return {t0:s.t0};}),pedidos:ped}, oK={cap:opts.cap,tolS:opts.tolS,travel:opts.travel};
+    var medir=function(pl){ var a=window.MotorRota.avaliar(iK,pl,oK), at=0, sg=0, m=0, atr={};
+      var sai={};
+      a.forEach(function(x){ at+=x.atrasados; sg+=x.segAtraso; m+=x.metros;
+        x.ids.forEach(function(id,j){ var pz=x.prazos[j], k=String(id); atr[k]=(pz==null)?0:Math.max(0,x.chegadas[j]-pz); sai[k]=x.sai; }); });
+      return {pl:pl,av:a,at:at,sg:sg,m:m,atr:atr,sai:sai,fora:ok.fora}; };
+    var melhorQue=function(t,b){ return !b||t.at<b.at||(t.at===b.at&&(t.sg<b.sg-1||(Math.abs(t.sg-b.sg)<=1&&t.m<b.m))); };
+    var copia=function(pl){ return pl.map(function(l){ return (l||[]).map(String); }); };
+    var cur=medir(copia(plano)), cur0=cur;
+    var naoPiora=function(t){ if(t.fora>cur0.fora||t.at>cur0.at) return false;
+      for(var id in cur0.atr){ if(!(id in t.atr)||t.atr[id]>cur0.atr[id]+r.tol||(cur0.atr[id]>r.tol&&t.sai[id]>cur0.sai[id])) return false; }
+      return true; };
+    var desfaz=function(pl,s){ var res=copia(pl), ids=res[s]; res[s]=[];
+      for(var q=0;q<ids.length;q++){ var bm=null, br=null;
+        for(var u=0;u<res.length;u++){ if(u===s||!res[u].length||res[u].length>=r.cap) continue;
+          for(var p=0;p<=res[u].length;p++){ var c=copia(res); c[u].splice(p,0,ids[q]); var t=medir(c); if(melhorQue(t,bm)){ bm=t; br=c; } } }
+        if(!br) return null; res=br; }
+      return medir(res); };
+    var recebe=function(pl,s){ var b=null;
+      for(var u=0;u<pl.length;u++){ if(u===s||pl[u].length<=alvo) continue;
+        for(var w=0;w<pl[u].length;w++) for(var p=0;p<=pl[s].length;p++){
+          var c=copia(pl), id=c[u].splice(w,1)[0]; c[s].splice(p,0,id); var t=medir(c); if(naoPiora(t)&&melhorQue(t,b)) b=t; } }
+      return b; };
+    for(var volta=0;alvo>=2&&volta<2*ok.k;volta++){
+      var mexeu=false, pq=[];
+      cur.pl.forEach(function(l,s){ if(l.length&&l.length<alvo) pq.push(s); });
+      pq.sort(function(x,y){ return cur.pl[x].length-cur.pl[y].length; });
+      for(var z=0;z<pq.length&&!mexeu;z++){ var s=pq[z], mS=cur.av[s].metros;
+        var t2=desfaz(cur.pl,s); if(t2&&serve(t2)&&t2.m-cur.m<=2*mS){ cur=t2; mexeu=true; break; }
+        var t3=recebe(cur.pl,s); if(t3&&t3.m-cur.m<=2*mS){ cur=t3; mexeu=true; } }
+      if(!mexeu) break;
+    }
+    var pl0=plano; plano=cur.pl; plano.sobra=pl0.sobra; plano.semLocal=pl0.semLocal; av=cur.av;
   }
   catch(e){ r.erro='A conta falhou neste minuto ('+esc(e&&e.message||e)+'). Tente o botão Atualizar.'; return r; }
   r.saidas=slots.length;
@@ -1370,8 +1413,9 @@ function rsCalc(d){
     if(!ids||!ids.length) return;
     var a=av[s], n=r.rotas.length;
     if(!a||!a.ids||!a.ids.length) return;
+    var fg=null; a.prazos.forEach(function(pz,j){ if(pz!=null){ var x=Math.floor((pz-a.chegadas[j])/60); if(fg===null||x<fg) fg=x; } });
     r.rotas.push({letra:String.fromCharCode(65+n%26),cor:RS_COR[n%RS_COR.length],slot:slots[s],sai:a.sai,
-      km:a.metros/1000,atrasados:a.atrasados,igual:!!temTE[chave(a.ids.map(String))],
+      km:a.metros/1000,atrasados:a.atrasados,igual:!!temTE[chave(a.ids.map(String))],abaixo:a.ids.length<r.alvo,folga:fg,
       paradas:a.ids.map(String).map(function(id,i){ var p=porId[id], ch=a.chegadas[i], f=rsNum(p.falta_prom);
         var ps2=(isFinite(f)&&ch-f*60>r.tol)?Math.ceil((ch-f*60)/60):0, pm=rsMin(p.prometido), dm=(pm===null)?0:((Math.round(agora+ch/60)-pm)%1440+1440)%1440;
         var perto=isFinite(f)&&ch>f*60-120;   /* a hora mostrada so conta quando a conta tambem esta perto do prazo */
@@ -1384,6 +1428,7 @@ function rsCalc(d){
   /* o calculador separa quem ficou de fora por falta de vaga (sobra) de quem tem endereco sem ponto no mapa (semLocal) */
   var semL={}; (plano.semLocal||[]).forEach(function(id){ semL[String(id)]=1; if(porId[String(id)]) r.semPonto.push(porId[String(id)]); });
   r.sobra=(plano.sobra||[]).filter(function(id){return !semL[String(id)];}).map(function(id){return porId[String(id)];}).filter(Boolean);
+  r.nOk=ps.length-Object.keys(semL).length;   /* prontos com ponto no mapa (os que podem ir em rota) */
   return r;
 }
 /* a conta so refaz quando chega leitura nova ou muda o maximo (esconder/mostrar a sugestao e redesenhar nao refazem) */
@@ -1391,6 +1436,17 @@ var RS_MEMO=null;
 function rsCalcMemo(d){
   if(RS_MEMO&&RS_MEMO.d===d&&RS_MEMO.cap===RS_CAP) return RS_MEMO.r;
   var r=rsCalc(d); RS_MEMO={d:d,cap:RS_CAP,r:r}; return r;
+}
+/* por que esta saida ficou com menos pedidos que o alvo (rota_alvo_por_saida) */
+function rsAbaixo(r,rt){
+  var poucos=r.nOk<r.alvo&&r.rotas.length===1;
+  var t=poucos?'só '+r.nOk+' pronto'+(r.nOk===1?'':'s')+' agora'
+    :'abaixo de '+r.alvo+': a conta não achou como juntar mais sem passar do máximo, atrasar alguém ou rodar muito mais';
+  if(!r.preparo) return t+(poucos?' e nenhum em preparo':'');
+  if(rt.folga===null) return t;   /* sem hora prometida: nao da para medir a folga */
+  if(rt.folga>=Math.ceil(r.svc/60)) return t+' · dá para esperar o próximo ficar pronto: folga de '+rt.folga+' min';
+  if(rt.folga>=1) return t+' · folga de só '+rt.folga+' min';
+  return t+' · sem folga: sai '+((rt.slot&&rt.slot.suposto)?'assim que houver motoboy':(rt.sai>0?'assim que o motoboy chegar':'já'));
 }
 function rsSaida(rt){
   var s=rt.slot||{};
@@ -1417,6 +1473,7 @@ function rsBloco(r){
     h+='<div class="rt"><div class="tt"><span class="lt" style="background:'+rt.cor+'">'+rt.letra+'</span>'+rsSaida(rt)+
       ' <small>'+rt.paradas.length+' entrega'+(rt.paradas.length===1?'':'s')+' · '+rt.km.toFixed(1).replace('.',',')+' km em linha reta</small>'+
       (rt.atrasados?'<span class="mal">⚠ '+rt.atrasados+' atrasa'+(rt.atrasados===1?'':'m')+'</span>':'<span class="ok">✓</span>')+
+      (rt.abaixo?'<span class="ab">'+rsAbaixo(r,rt)+'</span>':'')+
       (rt.igual?'<span class="ig" title="o TrackEat já montou uma rota com exatamente estes pedidos">igual ao TrackEat</span>':'')+'</div>';
     rt.paradas.forEach(function(x,i){ var p=x.p;
       h+='<div class="pr"><span class="n" style="background:'+rt.cor+'">'+(i+1)+'</span>'+
@@ -1440,7 +1497,8 @@ function rsNota(r){
     esc(String(r.mk).replace('.',','))+' min por km em linha reta (números do '+esc(r.turno)+', medidos nas entregas da Água Verde no TrackEat e guardados no banco). '+
     'Atrasa = chegada prevista mais de '+esc(String(r.tol))+' s depois da hora prometida. A conta escolhe primeiro <b>ninguém atrasar</b>, depois <b>menos km</b>: '+
     'usa o menor número de motoboys (cada motoboy a mais é uma volta a mais até a loja) que não faz nenhum pedido passar da hora prometida mais de '+esc(String(r.tol))+' s além do que passaria usando todos (pedido com folga pode chegar mais tarde, sem atrasar), e guarda os outros para os pedidos que ainda vão ficar prontos. '+
-    'Pedido que já vai atrasar mesmo com todos os motoboys pode ir junto com outros na mesma rota: aceita chegar até '+esc(String(Math.round((r.cap-1)*r.svc/60)))+' min mais tarde (uma parada de '+esc(String(r.svc))+' s para cada outro pedido que cabe na rota). '+
+    'Pedido que já vai atrasar mesmo com todos os motoboys pode ir junto com outros na mesma rota: aceita chegar até '+esc(String(Math.round(((r.cap-1)*r.svc+r.tol)/60)))+' min mais tarde (uma parada de '+esc(String(r.svc))+' s para cada outro pedido que cabe na rota, mais os '+esc(String(r.tol))+' s de tolerância). '+
+    (r.alvo?'Tenta '+esc(String(r.alvo))+' pedidos por saída (alvo guardado no banco): rota com menos tenta juntar com outra (poupa um motoboy, mesma regra de atraso acima) ou receber pedido de uma rota maior (só se nenhum pedido atrasar mais de '+esc(String(r.tol))+' s além do que atrasaria e nenhum atrasado sair mais tarde); em cada troca, no máximo o dobro do km de ida da rota pequena; quando não dá, a rota mostra por quê. ':'')+
     'Parte das rotas que o TrackEat já montou (as que cabem no máximo escolhido) — nunca sugere mais pedidos atrasados que elas na conta. Só entram pedidos prontos. '+
     'Saída "quando X voltar" usa o mesmo "Livre ~" do quadro Motoboys. É estimativa: trânsito, chuva e porta demorada não entram. '+
     'O quadradinho colorido ao lado do pedido é a rota em que ele está hoje no TrackEat.</div>';
@@ -1937,7 +1995,7 @@ function rodape(d){
     '<br>O mapa dos pedidos mostra a loja (🏠), os pedidos da loja com o número do Saipos (vermelho = em preparo, roxo = pronto; o 📍 na lista leva até ele), onde cada motoboy está agora pelo GPS (🛵, com o nome ao lado) e só as entregas que ainda faltam, numeradas na ordem da rota do TrackEat (1 = a próxima). A linha tracejada é em linha reta, não é o caminho de rua. Tocando no quadro de um motoboy (ou no nome dele no mapa) só a rota dele fica acesa. O botão 🔍 ruas abre o mapa grande dele, com o caminho pelas ruas e o tempo estimado de um ponto ao outro (serviço de rotas OSRM: de carro, sem trânsito e sem o tempo parado na porta). Bolinha com anel vermelho = passando do normal.'+
     '<br>Toque no número de um pedido (ou na bolinha dele no mapa) para ver os itens, o endereço e o complemento. Os itens vêm do Saipos, lido de 10 em 10 minutos.'+
     '<br>A tela se atualiza sozinha a cada minuto e o TrackEat também é lido de minuto em minuto.'+
-    (UNI==='Água Verde'?'<br>A caixa 🧭 Rota sugerida é uma conta feita aqui na tela (não é o TrackEat e não manda nada para ele): junta os pedidos prontos em rotas para ninguém atrasar; depois usa o menor número de motoboys que não atrasa ninguém a mais (pedido que já vai atrasar pode ir junto com outros) e roda menos km. O botão "Máximo por rota" fica guardado neste aparelho.':'');
+    (UNI==='Água Verde'?'<br>A caixa 🧭 Rota sugerida é uma conta feita aqui na tela (não é o TrackEat e não manda nada para ele): junta os pedidos prontos em rotas para ninguém atrasar; depois usa o menor número de motoboys que não atrasa ninguém a mais (pedido que já vai atrasar pode ir junto com outros), tenta o alvo de pedidos por saída, quando ele está guardado no banco, e roda menos km. O botão "Máximo por rota" fica guardado neste aparelho.':'');
 }
 
 /* 24/09/2026, pedido do Fabio: "o quadro tem que estar completamente vivo".
