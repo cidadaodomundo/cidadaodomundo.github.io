@@ -766,6 +766,7 @@ function montaLojas(){
   d.innerHTML=(LOJAS.length<2?'':LOJAS.map(function(l){ return '<button class="bt'+(l===LOJA?' on':'')+'" data-l="'+esc(l)+'">'+esc(l)+'</button>'; }).join(''))
     +'<button class="bt" data-cheia="1">⛶ Tela cheia</button><button class="bt'+(MODO_CARRO?' on':'')+'" data-carro="1">📺 Carrossel</button>'
     +'<button class="bt" data-info="regras">📖 Regras</button><button class="bt" data-info="codigos">🔑 Códigos das TVs</button><button class="bt" data-info="ligar">📲 Como ligar a TV</button>'
+    +(FIXA?'':'<button class="bt" data-sem="1">📅 Semanas passadas</button>')   /* 31/10: so na TV do grupo Gestao */
     +'<span class="cod-tv" id="cod-tv"></span>';
   rt.insertBefore(d, rt.firstChild);
   d.addEventListener('click',function(ev){
@@ -773,6 +774,7 @@ function montaLojas(){
     if(b.getAttribute('data-cheia')){ telaCheia(); return; }
     if(b.getAttribute('data-carro')){ modoCarro(!MODO_CARRO); return; }
     if(b.getAttribute('data-info')){ abreInfo(b.getAttribute('data-info')); return; }
+    if(b.getAttribute('data-sem')){ abreSemanas(); return; }
     const l=b.getAttribute('data-l'); if(!l||l===LOJA) return;
     LOJA=l; try{ localStorage.setItem('cdm_tv_loja',l); }catch(e){}
     [].forEach.call(d.querySelectorAll('button[data-l]'),function(x){ x.classList.toggle('on', x.getAttribute('data-l')===l); });
@@ -847,11 +849,12 @@ function isoDoDia(dm){   /* "10/10" -> "2026-10-10"; a semana nunca passa de hoj
   if(d.getTime()>hoje.getTime()+86400000) y--;
   return y+'-'+String(p[1]).padStart(2,'0')+'-'+String(p[0]).padStart(2,'0');
 }
-async function abreDia(dm){
+async function abreDia(dm, deSem){
   const iso=isoDoDia(dm); if(!iso) return;
   const eu=++DIA_PEDIDO, bx=$('info-box');
   bx.classList.add('larga');
-  bx.innerHTML='<button class="bt fecha" onclick="fechaInfo()">✕ Fechar</button><h1>Erros de '+esc(dm)+'</h1><p>carregando…</p>';
+  const fch='<button class="bt fecha" onclick="fechaInfo()">✕ Fechar</button>'+(deSem?'<button class="bt fecha" onclick="abreSemanas()">◀ Semanas</button>':'');   /* 31/10: veio da lista das semanas */
+  bx.innerHTML=fch+'<h1>Erros de '+esc(dm)+'</h1><p>carregando…</p>';
   $('info').classList.add('on');
   /* TV da parede: o controle nao tem Esc; a tabela fecha sozinha em 2 min para nao tampar a lista ao vivo */
   if(!PORTAL) setTimeout(function(){ if(eu===DIA_PEDIDO) fechaInfo(); },120000);
@@ -862,7 +865,7 @@ async function abreDia(dm){
     if(r.ok) j=await r.json(); else msg='Não consegui ler agora (código '+r.status+'). Feche e tente de novo.';
   }catch(e){ msg='Sem internet. Feche e tente de novo.'; }
   if(eu!==DIA_PEDIDO || !$('info').classList.contains('on')) return;   /* fechou ou clicou em outro dia no meio */
-  if(!j){ bx.innerHTML='<button class="bt fecha" onclick="fechaInfo()">✕ Fechar</button><h1>Erros de '+esc(dm)+'</h1><p class="alerta">⚠️ '+esc(msg)+'</p>'; return; }
+  if(!j){ bx.innerHTML=fch+'<h1>Erros de '+esc(dm)+'</h1><p class="alerta">⚠️ '+esc(msg)+'</p>'; return; }
   const C=Array.isArray(j.conta)?j.conta:[], F=Array.isArray(j.fora)?j.fora:[], lim=Number(j.verde_ate);
   /* 14/10/2026 (chat-tv-qualidade-fotos-14-10) Fabio: "mais um quadro que e qdo tem problema de qualidade", "queremos fotos" e
      "avaliacoes nao somente do ifood, tambem do google qdo tiver". O quadro de qualidade junta o que veio cru/queimado/estragado/
@@ -898,7 +901,7 @@ async function abreDia(dm){
           +'<td><b style="color:var(--brand)">'+est(r.nota)+'</b> nota '+esc(r.nota)+(Array.isArray(r.tags)&&r.tags.length?'<br><small style="color:var(--text2)">o cliente marcou: '+esc(r.tags.join(', '))+'</small>':'')+'</td>'
           +'<td>'+mp(r)+'</td><td class="ds">'+(r.disse?'“'+esc(r.disse)+'”':'<span style="font-style:normal;color:var(--muted)">não escreveu nada</span>')+'<br><small style="font-style:normal;color:var(--muted)">iFood · avaliou '+esc(r.avaliou||'')+'</small></td><td>—</td></tr>';
   const cab='<tr><th>Hora</th><th>Setor</th><th>O que foi</th><th>Marca · pedido</th><th>O que chegou</th><th>O que a loja fez</th></tr>';
-  let h='<button class="bt fecha" onclick="fechaInfo()">✕ Fechar</button>'
+  let h=fch
     +'<h1>'+esc(j.sem||'')+' '+esc(j.dia||dm)+' · '+esc(j.loja||'')+'</h1>'
     +'<p><b style="color:'+cor+';font-size:1.3em">'+C.length+' erro'+(C.length===1?'':'s')+'</b> · '+esc(situ)
     +' · cozinha '+n('cozinha')+' · montagem '+n('montagem')+' · qualidade '+(Q.length+AQ.length)+' · dia das 6h às 6h'+(j.hoje?' · <b>hoje, ainda contando</b>':'')+'</p>'
@@ -932,6 +935,58 @@ async function abreDia(dm){
   }
   bx.innerHTML=h;
 }
+/* 31/10/2026 (obra 124, chat-tv-semanas-passadas-31-10) Fabio: "na tv da cozinha ter um botao pra gerencia poder consultar as
+   semanas anteriores" / "quero ver como foi semana passada". Retoma o botao de 24/10 (chat-tv-semanas-gestao-24-10, que ficou sem
+   publicar). So na TV do grupo Gestao (sem loja fixa): os botoes das lojas e a TV da parede continuam so com a semana de agora.
+   O banco (cozinha_tv_semanas) manda cada semana fechada desde 03/10 com a regra que valia, os erros que contam e, na loja com
+   meta do Google, as avaliacoes novas da semana; toque no dia abre a mesma tabela do dia (cozinha_tv_dia). Guardado 5 min aqui
+   para o Voltar ser na hora. */
+let SEM_CACHE={};
+async function abreSemanas(){
+  const eu=++DIA_PEDIDO, bx=$('info-box'), loja=LOJA;
+  const fch='<button class="bt fecha" onclick="fechaInfo()">✕ Fechar</button>';
+  bx.classList.add('larga'); $('info').classList.add('on');
+  let j=SEM_CACHE[loja]&&Date.now()-SEM_CACHE[loja].t<5*60000?SEM_CACHE[loja].j:null, msg='';
+  if(!j){
+    bx.innerHTML=fch+'<h1>📅 Semanas passadas · '+esc(loja)+'</h1><p>carregando… (a primeira vez pode levar uns segundos)</p>';
+    try{
+      const r=await fetch(SB+'rpc/cozinha_tv_semanas',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:PTOK,p_loja:loja})});
+      if(r.ok) j=await r.json(); else msg=(r.status===401||r.status===403)?'Seu login venceu ou você não tem esta tela. Saia e entre de novo no portal.':'Não consegui ler agora (código '+r.status+'). Feche e tente de novo.';
+    }catch(e){ msg='Sem internet. Feche e tente de novo.'; }
+    if(j&&!j.faltam) SEM_CACHE[loja]={t:Date.now(),j:j};
+  }
+  if(eu!==DIA_PEDIDO || !$('info').classList.contains('on') || loja!==LOJA) return;   /* fechou, abriu outra coisa ou trocou de loja no meio */
+  if(!j){ bx.innerHTML=fch+'<h1>📅 Semanas passadas · '+esc(loja)+'</h1><p class="alerta">⚠️ '+esc(msg)+'</p>'; return; }
+  const S=Array.isArray(j.semanas)?j.semanas:[];
+  let h=fch+'<h1>📅 Semanas passadas · '+esc(j.loja||loja)+'</h1>'
+    +'<p>Cada semana vai de sábado a sexta, com o dia das 6h às 6h. Conta igual à Meta do churrasco: erro de cozinha, de montagem e pedido que chegou frio — só o que é erro mesmo. <b>Toque no dia</b> para ver os erros.</p>'
+    +'<p style="font-size:.85em">Desde '+esc(j.desde||'')+' (primeira semana da meta).'+(j.lido_em?' Lido em '+esc(j.lido_em)+'.':'')+' A semana de agora está no cartão da meta, na tela.</p>';
+  if(j.faltam) h+='<p class="alerta">⚠️ '+esc(j.faltam)+' semana'+(j.faltam>1?'s ainda estão sendo calculadas':' ainda está sendo calculada')+'. Feche e abra de novo daqui a 1 minuto.</p>';
+  if(!S.length&&!j.faltam) h+='<div class="vazio">Ainda não fechou nenhuma semana.</div>';
+  h+=S.map(function(w){
+    const lim=Number(w.verde_ate), teto=w.teto==null?null:Number(w.teto), cd=w.conta_desde||'';
+    const eok=w.erros_ok!=null?!!w.erros_ok:!!w.ganhou, ga=w.goo_alvo==null?null:Number(w.goo_alvo), gn=w.goo_novas==null?null:Number(w.goo_novas);
+    const cx=(Array.isArray(w.dias)?w.dias:[]).map(function(d){
+      const cls=d.conta===false?'naoconta':(Number(d.erros)<=lim?'verde':'vermelho');
+      const tt=d.conta===false?'Não contava: a regra desta semana começou em '+cd+'. Toque para ver os erros':'Ver os erros deste dia';
+      return '<div class="dd '+cls+' clica" data-dia="'+esc(d.dia)+'" title="'+esc(tt)+'" tabindex="0" role="button"><div class="sm">'+esc(d.sem)+'</div><div class="nn">'+esc(d.erros)+'</div><div class="dt">'+esc(d.dia)+'</div></div>';
+    }).join('');
+    const rg=(teto!=null?'até '+teto+' erros de sáb a sex'+(ga!=null?' e '+ga+' avaliações novas no Google':'')+' = churrasco · guia: até '+lim+' por dia'
+                        :'regra da época: '+esc(w.meta_dias)+' dias verdes (até '+lim+' erros por dia) = churrasco')
+            +(cd?' · contou a partir de '+esc(cd):'');
+    const fe=teto!=null?'🍳 Erros: <b>'+esc(w.total)+' de até '+teto+'</b>'+(eok?' — dentro do limite':' — passou do limite')
+                       :'🍳 Erros: <b>'+esc(w.verdes)+' de '+esc(w.meta_dias)+' dias verdes</b> · '+esc(w.total)+' erros'+(eok?' — dentro da regra':' — não deu');
+    const fg=ga==null?'':'<div class="gfr'+(gn!=null&&gn>=ga?' ok':'')+'" style="white-space:normal">⭐ Google (salão): <b>'+(gn==null?'sem leitura na semana':esc(gn)+' de '+ga)+'</b>'+(gn==null?'':' avaliações novas na semana')+'</div>';
+    return '<div class="meta" style="margin-top:.8em"><h2>Semana '+esc(w.de)+' a '+esc(w.ate)+'</h2><div class="rg" style="white-space:normal">'+rg+'</div>'
+      +'<div class="dias">'+cx+'</div>'
+      +'<div class="gfr'+(eok?' ok':'')+'" style="white-space:normal">'+fe+'</div>'+fg
+      +'<div class="fr '+(w.ganhou?'ok':'nao')+'">'+(w.ganhou?'🎉 Ganharam o churrasco':'Não deu o churrasco')+'</div>'
+      +(w.pode_subir?'<div class="ant">Acabou de fechar: reclamação do iFood às vezes chega atrasada, o número ainda pode subir.</div>':'')+'</div>';
+  }).join('');
+  bx.innerHTML=h;
+}
+$('info-box').addEventListener('click',function(ev){ const d=ev.target.closest('.dd.clica'); if(d) abreDia(d.getAttribute('data-dia'), true); });
+$('info-box').addEventListener('keydown',function(ev){ if(ev.key!=='Enter'&&ev.key!==' ') return; const d=ev.target.closest('.dd.clica'); if(d){ ev.preventDefault(); abreDia(d.getAttribute('data-dia'), true); } });
 /* 14/10/2026: a foto que o cliente mandou na reclamacao. Mesmo guardador das telas Resolver e Cancelados (guardar-foto-chat,
    acao ver): links que valem 10 minutos, so para quem tem a tela Resolver. So no portal: a foto pode ter nome e endereco
    do cliente, entao a TV da parede so avisa que tem foto. */
