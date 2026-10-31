@@ -225,7 +225,7 @@ button.b:hover{border-color:var(--text2)}
 .rs .leg{margin-top:8px}
 .rs-mk{border-radius:7px;padding:0 5px;font:800 11.5px/17px Barlow,sans-serif;color:#111;white-space:nowrap;border:2px solid #111;box-shadow:0 1px 4px rgba(0,0,0,.7)}
 #sec_mapa .grp .b+.b{margin-left:6px}
-@media (max-width:640px){.rs .pr{padding-left:4px}.rs .cap button{min-width:38px;height:36px}}
+@media (max-width:640px){.rs .pr{padding-left:4px}.rs .cap button{min-width:38px;height:36px}.rs-tx{display:none}}
 </style>
 </head>
 <body>
@@ -1175,8 +1175,10 @@ function rsCalc(d){
   var nPri={}; slots.forEach(function(s){ var k=primeiroNome(s.quem); nPri[k]=(nPri[k]||0)+1; });
   slots.forEach(function(s){ var k=primeiroNome(s.quem); s.nome=nPri[k]>1?String(s.quem||'').replace(/^\d+\s+GME\s+/i,''):k; });
   if(!slots.length){
-    /* sem motoboy no quadro: uma saida suposta por pedido, ja; a busca abaixo fica com o menor numero de rotas */
-    for(var k=0;k<ps.length;k++) slots.push({t0:0,quem:null,suposto:true});
+    /* sem motoboy no quadro: saidas supostas, ja (uma por pedido ate 8, ou o dobro do minimo, para a conta nao pesar);
+       a busca abaixo fica com o menor numero de rotas */
+    var nsup=Math.min(ps.length,Math.max(8,2*Math.ceil(ps.length/r.cap)));
+    for(var k=0;k<nsup;k++) slots.push({t0:0,quem:null,suposto:true});
     r.avisos.push(mbs?'Nenhum motoboy livre nem voltando no quadro Motoboys agora: a conta supõe que cada rota sai já, assim que houver motoboy.'
                      :'Não consegui ler os motoboys neste minuto: a conta supõe um motoboy livre agora para cada rota.');
   }
@@ -1199,19 +1201,22 @@ function rsCalc(d){
   Object.keys(grTE).forEach(function(g){ temTE[chave(grTE[g])]=1; });
   /* menos motoboys: a conta nao ve a volta ate a loja, entao, solta, espalha os pedidos por todos os motoboys livres.
      Roda com todas as saidas e depois procura (busca binaria) o menor numero de saidas, as que ficam livres primeiro,
-     que nao deixa ninguem a mais sem motoboy, nao tem mais pedidos atrasados e soma no maximo a tolerancia (rota_tolerancia_s)
-     de atraso a mais. Pedido sem ponto no mapa (semLocal) nao conta como "sem motoboy". */
+     que nao deixa ninguem a mais sem motoboy, nao tem mais pedidos atrasados e nao faz NENHUM pedido chegar mais que a
+     tolerancia (rota_tolerancia_s) depois do que chegaria com todas as saidas. Pedido sem ponto no mapa (semLocal) nao conta. */
   var base={lat:+d.loja.lat,lng:+d.loja.lng}, plano, av;
   var rodar=function(k){ var o={cap:opts.cap,tolS:opts.tolS,travel:opts.travel,inicial:opts.inicial.slice(0,k)};
     var i={deposito:base,slots:slots.slice(0,k).map(function(s){return {t0:s.t0};}),pedidos:ped};
-    var pl=window.MotorRota.planejar(i,o), a=window.MotorRota.avaliar(i,pl,o), at=0, sg=0, sl={};
-    a.forEach(function(x){ at+=x.atrasados; sg+=x.segAtraso; });
+    var pl=window.MotorRota.planejar(i,o), a=window.MotorRota.avaliar(i,pl,o), at=0, sg=0, sl={}, atr={};
+    a.forEach(function(x){ at+=x.atrasados; sg+=x.segAtraso;
+      x.ids.forEach(function(id,j){ var pz=x.prazos[j]; atr[String(id)]=(pz==null)?0:Math.max(0,x.chegadas[j]-pz); }); });
     (pl.semLocal||[]).forEach(function(id){ sl[String(id)]=1; });
-    return {pl:pl,av:a,at:at,sg:sg,fora:(pl.sobra||[]).filter(function(id){return !sl[String(id)];}).length}; };
+    return {pl:pl,av:a,at:at,sg:sg,atr:atr,nsl:(pl.semLocal||[]).length,fora:(pl.sobra||[]).filter(function(id){return !sl[String(id)];}).length}; };
   try{
     var mx=slots.length, tudo=rodar(mx), ok=tudo;
-    var serve=function(t){ return t.fora<=tudo.fora&&t.at<=tudo.at&&t.sg<=tudo.sg+r.tol; };
-    var lo=Math.min(mx,Math.max(1,Math.ceil(ps.length/r.cap))), hi=mx;
+    var serve=function(t){ if(t.fora>tudo.fora||t.at>tudo.at||t.sg>tudo.sg+r.tol) return false;
+      for(var id in tudo.atr){ if(!(id in t.atr)||t.atr[id]>tudo.atr[id]+r.tol) return false; }
+      return true; };
+    var lo=Math.min(mx,Math.max(1,Math.ceil((ps.length-tudo.nsl)/r.cap))), hi=mx;
     while(lo<hi){ var md=Math.floor((lo+hi)/2), t=rodar(md); if(serve(t)){ ok=t; hi=md; } else lo=md+1; }
     plano=ok.pl; av=ok.av;
   }
@@ -1285,18 +1290,18 @@ function rsNota(r){
   return '<div class="leg">Como a conta funciona: chegada prevista = hora desta atualização + '+esc(String(r.svc))+' s por entrega + '+
     esc(String(r.mk).replace('.',','))+' min por km em linha reta (números do '+esc(r.turno)+', medidos nas entregas da Água Verde no TrackEat e guardados no banco). '+
     'Atrasa = chegada prevista mais de '+esc(String(r.tol))+' s depois da hora prometida. A conta escolhe primeiro <b>ninguém atrasar</b>, depois <b>menos km</b>: '+
-    'se dá para ninguém atrasar, usa o menor número de motoboys (cada motoboy a mais é uma volta a mais até a loja) e guarda os outros para os pedidos que ainda vão ficar prontos. '+
+    'usa o menor número de motoboys (cada motoboy a mais é uma volta a mais até a loja) que não faz nenhum pedido chegar mais de '+esc(String(r.tol))+' s depois do que chegaria usando todos, e guarda os outros para os pedidos que ainda vão ficar prontos. '+
     'Parte das rotas que o TrackEat já montou (as que cabem no máximo escolhido) — nunca sugere mais pedidos atrasados que elas na conta. Só entram pedidos prontos. '+
     'Saída "quando X voltar" usa o mesmo "Livre ~" do quadro Motoboys. É estimativa: trânsito, chuva e porta demorada não entram. '+
     'O quadradinho colorido ao lado do pedido é a rota em que ele está hoje no TrackEat.</div>';
 }
 function rsCap(n){
   RS_CAP=n; try{ localStorage.setItem('cdm_fila_cap',String(n)); }catch(e){}
-  if(window.ULT_D) desenha(window.ULT_D);
+  if(window.ULT_D){ desenha(window.ULT_D); selo(); }
 }
 function rsMapaTroca(){
   RS_MAPA=!RS_MAPA; try{ localStorage.setItem('cdm_fila_rsmapa',RS_MAPA?'1':'0'); }catch(e){}
-  if(window.ULT_D) desenha(window.ULT_D);
+  if(window.ULT_D){ desenha(window.ULT_D); selo(); }
 }
 /* no mapa: linha pontilhada da loja ate cada entrega, na ordem sugerida, e etiqueta A1, A2... ao lado do pedido */
 function rsMapa(mp,d){
@@ -1306,7 +1311,7 @@ function rsMapa(mp,d){
     var op=DEST?.25:.95;
     L.polyline([lj].concat(rt.paradas.map(function(x){return [+x.p.lat,+x.p.lng];})),{color:rt.cor,weight:5,opacity:op,dashArray:'2 8',lineCap:'round',interactive:false}).addTo(mp);
     rt.paradas.forEach(function(x,i){
-      L.marker([+x.p.lat,+x.p.lng],{interactive:false,opacity:op,zIndexOffset:700,
+      L.marker([+x.p.lat,+x.p.lng],{interactive:false,opacity:op,zIndexOffset:300,
         icon:L.divIcon({className:'',html:'<div class="rs-mk" style="background:'+rt.cor+'">'+rt.letra+(i+1)+'</div>',iconSize:null,iconAnchor:[-10,26]})}).addTo(mp);
     });
   });
@@ -1365,7 +1370,7 @@ function desenha(d){
              rua.reduce(function(a,m){return a+pontosRota(m).length;},0);
   if(noMapa)
     h+='<div class="sec" id="sec_mapa"><div class="grp"><span class="em">🗺️</span><h2>Mapa dos pedidos</h2><span class="ct">'+noMapa+' pedido'+(noMapa===1?'':'s')+' no mapa</span>'+
-       (temRs?'<button class="b" onclick="rsMapaTroca()" title="mostrar ou esconder no mapa as rotas sugeridas">🧭 '+(RS_MAPA?'esconder sugestão':'mostrar sugestão')+'</button>':'')+
+       (temRs?'<button class="b" onclick="rsMapaTroca()" title="mostrar ou esconder no mapa as rotas sugeridas">🧭<span class="rs-tx"> '+(RS_MAPA?'esconder sugestão':'mostrar sugestão')+'</span></button>':'')+
        '<button class="b" onclick="mapaTodos()" title="voltar a mostrar todos os pedidos e motoboys">ver todos</button></div>'+
        '<div class="mapao" id="mapao"></div>'+
        '<div class="mapdica">etiqueta com o número do Saipos = pedido na loja: <span class="bola b-vm"></span>em preparo &nbsp;·&nbsp; <span class="bola b-rx"></span>pronto, esperando motoboy &nbsp;·&nbsp; '+
@@ -1781,7 +1786,7 @@ function rodape(d){
     '<br>O mapa dos pedidos mostra a loja (🏠), os pedidos da loja com o número do Saipos (vermelho = em preparo, roxo = pronto; o 📍 na lista leva até ele), onde cada motoboy está agora pelo GPS (🛵, com o nome ao lado) e só as entregas que ainda faltam, numeradas na ordem da rota do TrackEat (1 = a próxima). A linha tracejada é em linha reta, não é o caminho de rua. Tocando no quadro de um motoboy (ou no nome dele no mapa) só a rota dele fica acesa. O botão 🔍 ruas abre o mapa grande dele, com o caminho pelas ruas e o tempo estimado de um ponto ao outro (serviço de rotas OSRM: de carro, sem trânsito e sem o tempo parado na porta). Bolinha com anel vermelho = passando do normal.'+
     '<br>Toque no número de um pedido (ou na bolinha dele no mapa) para ver os itens, o endereço e o complemento. Os itens vêm do Saipos, lido de 10 em 10 minutos.'+
     '<br>A tela se atualiza sozinha a cada minuto e o TrackEat também é lido de minuto em minuto.'+
-    (UNI==='Água Verde'?'<br>A caixa 🧭 Rota sugerida é uma conta feita aqui na tela (não é o TrackEat e não manda nada para ele): junta os pedidos prontos em rotas para ninguém atrasar; se dá, usa o menor número de motoboys e, depois, menos km. O botão "Máximo por rota" fica guardado neste aparelho.':'');
+    (UNI==='Água Verde'?'<br>A caixa 🧭 Rota sugerida é uma conta feita aqui na tela (não é o TrackEat e não manda nada para ele): junta os pedidos prontos em rotas para ninguém atrasar; depois usa o menor número de motoboys que não atrasa ninguém a mais e roda menos km. O botão "Máximo por rota" fica guardado neste aparelho.':'');
 }
 
 /* 24/09/2026, pedido do Fabio: "o quadro tem que estar completamente vivo".
