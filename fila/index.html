@@ -1258,7 +1258,7 @@ function rsCalc(d){
     var copia=function(pl){ return pl.map(function(l){ return (l||[]).map(String); }); };
     var cur=medir(copia(plano)), cur0=cur;
     var naoPiora=function(t){ if(t.fora>cur0.fora||t.at>cur0.at) return false;
-      for(var id in cur0.atr){ if(!(id in t.atr)||t.atr[id]>cur0.atr[id]+r.tol||(cur0.atr[id]>r.tol&&t.sai[id]>cur0.sai[id]+r.tol)) return false; }
+      for(var id in cur0.atr){ if(!(id in t.atr)||t.atr[id]>cur0.atr[id]+r.tol||(cur0.atr[id]>r.tol&&t.sai[id]>cur0.sai[id])) return false; }
       return true; };
     var desfaz=function(pl,s){ var res=copia(pl), ids=res[s]; res[s]=[];
       for(var q=0;q<ids.length;q++){ var bm=null, br=null;
@@ -1319,9 +1319,9 @@ function rsAbaixo(r,rt){
     :'abaixo de '+r.alvo+': a conta não achou como juntar mais sem passar do máximo, atrasar alguém ou rodar muito mais';
   if(!r.preparo) return t+(poucos?' e nenhum em preparo':'');
   if(rt.folga===null) return t;   /* sem hora prometida: nao da para medir a folga */
-  if(rt.folga>=Math.round(r.svc/60)) return t+' · dá para esperar o próximo ficar pronto: folga de '+rt.folga+' min';
+  if(rt.folga>=Math.ceil(r.svc/60)) return t+' · dá para esperar o próximo ficar pronto: folga de '+rt.folga+' min';
   if(rt.folga>=1) return t+' · folga de só '+rt.folga+' min';
-  return t+' · sem folga: sai '+(rt.sai>0?'assim que o motoboy chegar':'já');
+  return t+' · sem folga: sai '+((rt.slot&&rt.slot.suposto)?'assim que houver motoboy':(rt.sai>0?'assim que o motoboy chegar':'já'));
 }
 function rsSaida(rt){
   var s=rt.slot||{};
@@ -1869,7 +1869,7 @@ function rodape(d){
     '<br>O mapa dos pedidos mostra a loja (🏠), os pedidos da loja com o número do Saipos (vermelho = em preparo, roxo = pronto; o 📍 na lista leva até ele), onde cada motoboy está agora pelo GPS (🛵, com o nome ao lado) e só as entregas que ainda faltam, numeradas na ordem da rota do TrackEat (1 = a próxima). A linha tracejada é em linha reta, não é o caminho de rua. Tocando no quadro de um motoboy (ou no nome dele no mapa) só a rota dele fica acesa. O botão 🔍 ruas abre o mapa grande dele, com o caminho pelas ruas e o tempo estimado de um ponto ao outro (serviço de rotas OSRM: de carro, sem trânsito e sem o tempo parado na porta). Bolinha com anel vermelho = passando do normal.'+
     '<br>Toque no número de um pedido (ou na bolinha dele no mapa) para ver os itens, o endereço e o complemento. Os itens vêm do Saipos, lido de 10 em 10 minutos.'+
     '<br>A tela se atualiza sozinha a cada minuto e o TrackEat também é lido de minuto em minuto.'+
-    (UNI==='Água Verde'?'<br>A caixa 🧭 Rota sugerida é uma conta feita aqui na tela (não é o TrackEat e não manda nada para ele): junta os pedidos prontos em rotas para ninguém atrasar; depois usa o menor número de motoboys que não atrasa ninguém a mais (pedido que já vai atrasar pode ir junto com outros), tenta o alvo de pedidos por saída guardado no banco e roda menos km. O botão "Máximo por rota" fica guardado neste aparelho.':'');
+    (UNI==='Água Verde'?'<br>A caixa 🧭 Rota sugerida é uma conta feita aqui na tela (não é o TrackEat e não manda nada para ele): junta os pedidos prontos em rotas para ninguém atrasar; depois usa o menor número de motoboys que não atrasa ninguém a mais (pedido que já vai atrasar pode ir junto com outros), tenta o alvo de pedidos por saída, quando ele está guardado no banco, e roda menos km. O botão "Máximo por rota" fica guardado neste aparelho.':'');
 }
 
 /* 24/09/2026, pedido do Fabio: "o quadro tem que estar completamente vivo".
