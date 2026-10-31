@@ -234,23 +234,24 @@ function anaDesenha(){
   /* --- tabela por marca / por loja --- */
   if(G.loja==='Todas'){
     const LL=L.filter(function(x){return x.loja!=='Todas'});
-    h+='<div class="ana-c"><h3>🏪 Lojas lado a lado</h3><div class="ana-rol"><table class="ana-tab"><tr><th>Loja</th><th>Avaliações</th><th>Média</th><th>5 estrelas</th><th>Notas 1 a 3</th><th>Antes</th><th>Nota do iFood (Burger)</th></tr>'
-      +LL.map(function(x){const o=(x.oficial||[])[0];return '<tr><td>'+aEsc(x.loja)+'</td><td>'+aNum(x.n)+'</td><td>'+aNum(x.media,2)+'</td><td>'+aNum(x.pct5,1)+'%</td><td>'+aNum(x.n13)+'</td><td>'+aNum(x.antes&&x.antes.media,2)+'</td><td class="of">'+(o?aNum(o.score,1):'—')+'</td></tr>'}).join('')+'</table></div></div>';
+    h+='<div class="ana-c"><h3>🏪 Lojas lado a lado</h3><div class="ana-rol"><table class="ana-tab"><tr><th>Loja</th><th>Avaliações</th><th>Média</th><th>5 estrelas</th><th>Notas 1 a 3</th><th>Antes</th><th>Nota do iFood (Burger)</th><th>Média simples 90 dias (Burger)</th></tr>'
+      +LL.map(function(x){const o=(x.oficial||[])[0];return '<tr><td>'+aEsc(x.loja)+'</td><td>'+aNum(x.n)+'</td><td>'+aNum(x.media,2)+'</td><td>'+aNum(x.pct5,1)+'%</td><td>'+aNum(x.n13)+'</td><td>'+aNum(x.antes&&x.antes.media,2)+'</td><td class="of">'+(o?aNum(o.score,1):'—')+'</td><td>'+(o?aNum(o.media90,2):'—')+'</td></tr>'}).join('')+'</table></div></div>';
   }else{
     const M=Array.isArray(G.marcas)?G.marcas:[], ofm={}; OF.forEach(function(o){ofm[o.marca]=o});
     h+='<div class="ana-c"><h3>🏷 Por marca</h3><div class="ex">"Contam" e "total" vêm do próprio iFood; "chegaram em 90 dias" e "média simples" são a nossa conta com as avaliações gravadas.</div><div class="ana-rol"><table class="ana-tab"><tr><th>Marca</th><th>Avaliações no período</th><th>Média</th><th>Notas 1 a 3</th><th>Nota do iFood</th><th>Contam</th><th>Total histórico</th><th>Chegaram em 90 dias</th><th>Média simples 90 dias</th></tr>'
       +M.map(function(m){const o=ofm[m.marca];return '<tr><td>'+aEsc(m.marca)+'</td><td>'+aNum(m.n)+'</td><td>'+aNum(m.media,2)+'</td><td>'+aNum(m.n13)+'</td><td class="of">'+(o?aNum(o.score,1):'—')+'</td><td>'+(o?aNum(o.validas):'—')+'</td><td>'+(o?aNum(o.total):'—')+'</td><td>'+(o?aNum(o.n90):'—')+'</td><td>'+(o?aNum(o.media90,2):'—')+'</td></tr>'}).join('')+'</table></div></div>';
   }
-  /* --- como o iFood classifica (numeros das 3 lojas no periodo) --- */
-  const o0=OF[0];
-  h+='<div class="ana-c ana-cl"><h3>📖 Como o iFood classifica as avaliações</h3><div class="ex">Medido nas avaliações das 3 lojas que chegaram de '+aEsc(J.de)+' a '+aEsc(J.ate)+' ('+aNum(C.n)+' avaliações).</div><ol>'
-    +'<li><b>O cliente dá de 1 a 5 estrelas e marca etiquetas.</b> As etiquetas falam da <b>comida e da embalagem</b>; não existe etiqueta de entrega ou de motoboy. Quando o pedido atrasa, o cliente costuma marcar <b>Temperatura</b>.</li>'
-    +'<li><b>5 estrelas → só elogios.</b> '+aNum(C.n5_elogio)+' de '+aNum(C.n5)+' avaliações de 5 estrelas marcaram elogio'+(Number(C.n5_melhorar)?' e '+aNum(C.n5_melhorar)+' marcaram crítica':' e nenhuma marcou crítica')+'.</li>'
-    +'<li><b>1 a 4 estrelas → só "o que melhorar".</b> '+aNum(C.n14_melhorar)+' de '+aNum(C.n14)+'. 🔴 <b>Para o iFood, 4 estrelas já é crítica:</b> '+aNum(C.n4_melhorar)+' de '+aNum(C.n4)+' avaliações de 4 estrelas vieram com algo para melhorar.</li>'
+  /* --- como o iFood classifica (numeros das lojas no periodo; 31/10 supervisor: so o que os numeros mostram, nada de "sempre"/"so") --- */
+  const o0=OF[0], nLj=L.filter(function(x){return x.loja!=='Todas'}).length;
+  const OFc=OF.filter(function(o){return o.media90_1!=null&&o.score!=null}), ig=OFc.filter(function(o){return Number(o.media90_1)===Number(o.score)}).length;
+  h+='<div class="ana-c ana-cl"><h3>📖 Como o iFood classifica as avaliações</h3><div class="ex">Medido nas avaliações das '+aNum(nLj)+' lojas que chegaram de '+aEsc(J.de)+' a '+aEsc(J.ate)+' ('+aNum(C.n)+' avaliações).</div><ol>'
+    +'<li><b>O cliente dá de 1 a 5 estrelas e pode marcar etiquetas.</b> As etiquetas que apareceram falam da <b>comida e da embalagem</b>; nenhuma é de entrega ou de motoboy.</li>'
+    +'<li><b>5 estrelas → elogios.</b> '+aNum(C.n5_elogio)+' de '+aNum(C.n5)+' avaliações de 5 estrelas marcaram elogio'+(Number(C.n5_melhorar)?'; '+aNum(C.n5_melhorar)+' marcaram algo para melhorar':' e nenhuma marcou algo para melhorar')+'.</li>'
+    +'<li><b>1 a 4 estrelas → "o que melhorar".</b> '+aNum(C.n14_melhorar)+' de '+aNum(C.n14)+' marcaram algo para melhorar'+(Number(C.n14_elogio)?' ('+aNum(C.n14_elogio)+' marcaram também algum elogio)':'')+'. 🔴 <b>4 estrelas também vem com crítica:</b> '+aNum(C.n4_melhorar)+' de '+aNum(C.n4)+' avaliações de 4 estrelas marcaram algo para melhorar.</li>'
     +'<li><b>Comentário escrito:</b> nota 1 a 3 → '+aNum(C.n13_coment)+' de '+aNum(C.n13)+' · 4 estrelas → '+aNum(C.n4_coment)+' de '+aNum(C.n4)+' · 5 estrelas → '+aNum(C.n5_coment)+' de '+aNum(C.n5)+'.</li>'
     +'<li><b>Avaliação descartada pelo iFood não conta na nota.</b> No período: '+aNum(C.descartadas)+'.</li>'
-    +'<li><b>A nota que o iFood mostra conta só as avaliações recentes, não o histórico.</b>'+(o0?' Ex.: '+aEsc(G.loja==='Todas'?o0.marca:o0.marca+' · '+G.loja)+' tem '+aNum(o0.total)+' avaliações na história e só '+aNum(o0.validas)+' contam — perto das '+aNum(o0.n90)+' que chegaram nos últimos 90 dias.':'')
-    +' <b>Mas a nota não é a média simples</b> dessas avaliações: o iFood faz uma conta própria e não divulga qual é. Compare "Nota do iFood" com "Média simples 90 dias" na tabela'+(G.loja==='Todas'?' de cada loja':'')+'.</li></ol></div>';
+    +'<li><b>A nota que o iFood mostra conta só as avaliações recentes, não o histórico.</b>'+(o0?' Ex.: '+aEsc(G.loja==='Todas'?o0.marca:o0.marca+' · '+G.loja)+' tem '+aNum(o0.total)+' avaliações na história e '+aNum(o0.validas)+' contam; nos últimos 90 dias chegaram '+aNum(o0.n90)+'.':'')
+    +(OFc.length?' A nota do iFood tem 1 casa. Comparada com a média simples dos últimos 90 dias arredondada para 1 casa, é igual em '+aNum(ig)+' de '+aNum(OFc.length)+(G.loja==='Todas'?' lojas (marca Burger)':' marcas desta loja')+(ig<OFc.length?' e diferente nas outras':'')+'. A conta exata o iFood não divulga. Os números estão na tabela acima.':'')+'</li></ol></div>';
   /* --- ultimos comentarios --- */
   const F=Array.isArray(G.frases)?G.frases:[];
   if(F.length) h+='<div class="ana-c"><h3>💬 Últimos comentários de nota 1 a 3</h3>'+F.map(function(f){
