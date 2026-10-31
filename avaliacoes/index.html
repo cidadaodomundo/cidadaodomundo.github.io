@@ -205,7 +205,7 @@ function anaDesenha(){
   [7,30,90].forEach(function(d){h+='<button class="avd-chip'+(ANA.dias===d?' on':'')+'" onclick="anaDias('+d+')">Últimos '+d+' dias</button>'});
   h+='</div>';
   if(!G||!G.n){el.innerHTML=h+'<div class="avd-aviso">Nenhuma avaliação do iFood chegou neste período.</div>';return}
-  const A=G.antes||{}, E=G.estrelas||{}, n14=(Number(G.n13)||0)+(Number(G.n4)||0), n5=Number(E['5'])||0, OF=Array.isArray(G.oficial)?G.oficial:[];
+  const A=G.antes||{}, E=G.estrelas||{}, n14=G.n14_tg!=null?Number(G.n14_tg):(Number(G.n13)||0)+(Number(G.n4)||0), n5=G.n5_tg!=null?Number(G.n5_tg):(Number(E['5'])||0), nTg=G.n_tg!=null?Number(G.n_tg):(Number(G.n)||0), OF=Array.isArray(G.oficial)?G.oficial:[];
   /* --- numeros grandes --- */
   let kOf;
   if(G.loja==='Todas') kOf='<div class="lb">Nota que o iFood mostra</div><div class="v3">'+(OF.length?OF.map(function(o){return '<span>'+aEsc(String(o.marca).replace('Burger · ',''))+'<b>'+aNum(o.score,1)+'</b></span>'}).join(''):'<span>—</span>')+'</div><div class="sub">marca Burger de cada loja'+(OF[0]?' · lida '+aEsc(OF[0].lido):' · ainda sem leitura')+'</div>';
@@ -216,14 +216,15 @@ function anaDesenha(){
     +'<div class="ana-k"><div class="lb">Média das notas no período</div><div class="v">'+aNum(G.media,2)+'</div><div class="sub">'+aNum(G.n)+' avaliações · '+(dl?dl+' vs '+aNum(A.media,2)+' antes':'sem período anterior')+'</div></div>'
     +'<div class="ana-k"><div class="lb">Deram 5 estrelas</div><div class="v">'+aNum(G.pct5,1)+'<small> %</small></div><div class="sub">antes: '+aNum(A.pct5,1)+'%</div></div>'
     +'<div class="ana-k"><div class="lb">Notas 1 a 3</div><div class="v">'+aNum(G.n13)+'</div><div class="sub">de '+aNum(G.n)+' · antes: '+aNum(A.n13)+' de '+aNum(A.n)+'</div></div>'
-    +'<div class="ana-k"><div class="lb">Reclamaram do preparo</div><div class="v">'+aPct(Number(G.preparo)||0,Number(G.n)||0)+'<small> em cada 100</small></div><div class="sub">'+aNum(G.preparo)+' avaliações marcaram sabor, tempero, ponto, ingredientes, aparência ou quantidade</div></div></div>';
+    +'<div class="ana-k"><div class="lb">Reclamaram do preparo</div><div class="v">'+aPct(Number(G.preparo)||0,nTg)+'<small> em cada 100</small></div><div class="sub">'+aNum(G.preparo)+' das '+aNum(nTg)+' avaliações com etiqueta marcaram sabor, tempero, ponto, ingredientes, aparência ou quantidade</div></div></div>';
+  if(nTg<(Number(G.n)||0)) h+='<div class="avd-aviso">⚠️ '+aNum((Number(G.n)||0)-nTg)+' das '+aNum(G.n)+' avaliações deste período vieram sem etiqueta gravada (as mais antigas). As contas de etiqueta (elogios, o que melhorar e "reclamaram do preparo") usam só as '+aNum(nTg)+' que têm etiqueta.</div>';
   /* --- semana a semana --- */
   h+='<div class="ana-c ana-sem"><h3>📈 Média das notas, semana a semana</h3><div class="ex">Blocos de 7 dias terminando em '+aEsc(J.ate)+' (as últimas 8 semanas, qualquer período escolhido). Passe o dedo ou o mouse num ponto para ver os detalhes.</div>'+anaSemanas(G.semanas)+'</div>';
   /* --- elogios x criticas --- */
   let fr='';
   if(Number(G.frio)>0) fr='<div class="ana-nota">🌡️ <b>Temperatura</b> (comida fria) foi marcada em '+aNum(G.frio)+' avaliações. Dos '+aNum(G.frio_coment)+' clientes que marcaram e escreveram alguma coisa, '+aNum(G.frio_atraso)+' falaram de atraso ou demora'+(Number(G.frio_atraso)>0?': nesses casos o frio pode ter vindo da entrega, não da cozinha.':'.')+'</div>';
-  h+='<div class="ana-grid"><div class="ana-c"><h3>👍 O que o cliente elogia</h3><div class="ex">Etiquetas que o cliente marca quando dá 5 estrelas ('+aNum(n5)+' avaliações). A % é sobre essas '+aNum(n5)+'.</div>'+anaBarras(G.elogios,n5,false,'avaliações de 5 estrelas')+'</div>'
-    +'<div class="ana-c"><h3>👎 O que o cliente marcou para melhorar</h3><div class="ex">Etiquetas que o cliente marca quando dá 1 a 4 estrelas ('+aNum(n14)+' avaliações). A % é sobre essas '+aNum(n14)+'.</div>'+anaBarras(G.criticas,n14,true,'avaliações de 1 a 4 estrelas')+fr+'</div></div>';
+  h+='<div class="ana-grid"><div class="ana-c"><h3>👍 O que o cliente elogia</h3><div class="ex">Etiquetas que o cliente marca quando dá 5 estrelas ('+aNum(n5)+' avaliações com etiqueta). A % é sobre essas '+aNum(n5)+'.</div>'+anaBarras(G.elogios,n5,false,'avaliações de 5 estrelas')+'</div>'
+    +'<div class="ana-c"><h3>👎 O que o cliente marcou para melhorar</h3><div class="ex">Etiquetas que o cliente marca quando dá 1 a 4 estrelas ('+aNum(n14)+' avaliações com etiqueta). A % é sobre essas '+aNum(n14)+'.</div>'+anaBarras(G.criticas,n14,true,'avaliações de 1 a 4 estrelas')+fr+'</div></div>';
   /* --- temas escritos --- */
   const T=Array.isArray(G.temas)?G.temas:[], mt=Math.max.apply(null,T.map(function(t){return Number(t.n)||0}).concat([1]));
   h+='<div class="ana-c"><h3>✍️ O que o cliente escreveu (notas 1 a 3)</h3><div class="ex">Li os '+aNum(G.n13_coment)+' comentários de nota 1 a 3 e separei por assunto, pelas palavras usadas. Um comentário pode cair em mais de um assunto. Embaixo de cada um, o comentário mais recente daquele assunto.</div>';
@@ -235,19 +236,20 @@ function anaDesenha(){
   if(G.loja==='Todas'){
     const LL=L.filter(function(x){return x.loja!=='Todas'});
     h+='<div class="ana-c"><h3>🏪 Lojas lado a lado</h3><div class="ana-rol"><table class="ana-tab"><tr><th>Loja</th><th>Avaliações</th><th>Média</th><th>5 estrelas</th><th>Notas 1 a 3</th><th>Antes</th><th>Nota do iFood (Burger)</th><th>Média simples 90 dias (Burger)</th></tr>'
-      +LL.map(function(x){const o=(x.oficial||[])[0];return '<tr><td>'+aEsc(x.loja)+'</td><td>'+aNum(x.n)+'</td><td>'+aNum(x.media,2)+'</td><td>'+aNum(x.pct5,1)+'%</td><td>'+aNum(x.n13)+'</td><td>'+aNum(x.antes&&x.antes.media,2)+'</td><td class="of">'+(o?aNum(o.score,1):'—')+'</td><td>'+(o?aNum(o.media90,2):'—')+'</td></tr>'}).join('')+'</table></div></div>';
+      +LL.map(function(x){const o=(x.oficial||[])[0];return '<tr><td>'+aEsc(x.loja)+'</td><td>'+aNum(x.n)+'</td><td>'+aNum(x.media,2)+'</td><td>'+aNum(x.pct5,1)+'%</td><td>'+aNum(x.n13)+'</td><td>'+aNum(x.antes&&x.antes.media,2)+'</td><td class="of">'+(o?aNum(o.score,1):'—')+'</td><td>'+(o?aNum(o.media90,3):'—')+'</td></tr>'}).join('')+'</table></div></div>';
   }else{
     const M=Array.isArray(G.marcas)?G.marcas:[], ofm={}; OF.forEach(function(o){ofm[o.marca]=o});
     h+='<div class="ana-c"><h3>🏷 Por marca</h3><div class="ex">"Contam" e "total" vêm do próprio iFood; "chegaram em 90 dias" e "média simples" são a nossa conta com as avaliações gravadas.</div><div class="ana-rol"><table class="ana-tab"><tr><th>Marca</th><th>Avaliações no período</th><th>Média</th><th>Notas 1 a 3</th><th>Nota do iFood</th><th>Contam</th><th>Total histórico</th><th>Chegaram em 90 dias</th><th>Média simples 90 dias</th></tr>'
-      +M.map(function(m){const o=ofm[m.marca];return '<tr><td>'+aEsc(m.marca)+'</td><td>'+aNum(m.n)+'</td><td>'+aNum(m.media,2)+'</td><td>'+aNum(m.n13)+'</td><td class="of">'+(o?aNum(o.score,1):'—')+'</td><td>'+(o?aNum(o.validas):'—')+'</td><td>'+(o?aNum(o.total):'—')+'</td><td>'+(o?aNum(o.n90):'—')+'</td><td>'+(o?aNum(o.media90,2):'—')+'</td></tr>'}).join('')+'</table></div></div>';
+      +M.map(function(m){const o=ofm[m.marca];return '<tr><td>'+aEsc(m.marca)+'</td><td>'+aNum(m.n)+'</td><td>'+aNum(m.media,2)+'</td><td>'+aNum(m.n13)+'</td><td class="of">'+(o?aNum(o.score,1):'—')+'</td><td>'+(o?aNum(o.validas):'—')+'</td><td>'+(o?aNum(o.total):'—')+'</td><td>'+(o?aNum(o.n90):'—')+'</td><td>'+(o?aNum(o.media90,3):'—')+'</td></tr>'}).join('')+'</table></div></div>';
   }
   /* --- como o iFood classifica (numeros das lojas no periodo; 31/10 supervisor: so o que os numeros mostram, nada de "sempre"/"so") --- */
   const o0=OF[0], nLj=L.filter(function(x){return x.loja!=='Todas'}).length;
   const OFc=OF.filter(function(o){return o.media90_1!=null&&o.score!=null}), ig=OFc.filter(function(o){return Number(o.media90_1)===Number(o.score)}).length;
   h+='<div class="ana-c ana-cl"><h3>📖 Como o iFood classifica as avaliações</h3><div class="ex">Medido nas avaliações das '+aNum(nLj)+' lojas que chegaram de '+aEsc(J.de)+' a '+aEsc(J.ate)+' ('+aNum(C.n)+' avaliações).</div><ol>'
     +'<li><b>O cliente dá de 1 a 5 estrelas e pode marcar etiquetas.</b> As etiquetas que apareceram falam da <b>comida e da embalagem</b>; nenhuma é de entrega ou de motoboy.</li>'
-    +'<li><b>5 estrelas → elogios.</b> '+aNum(C.n5_elogio)+' de '+aNum(C.n5)+' avaliações de 5 estrelas marcaram elogio'+(Number(C.n5_melhorar)?'; '+aNum(C.n5_melhorar)+' marcaram algo para melhorar':' e nenhuma marcou algo para melhorar')+'.</li>'
-    +'<li><b>1 a 4 estrelas → "o que melhorar".</b> '+aNum(C.n14_melhorar)+' de '+aNum(C.n14)+' marcaram algo para melhorar'+(Number(C.n14_elogio)?' ('+aNum(C.n14_elogio)+' marcaram também algum elogio)':'')+'. 🔴 <b>4 estrelas também vem com crítica:</b> '+aNum(C.n4_melhorar)+' de '+aNum(C.n4)+' avaliações de 4 estrelas marcaram algo para melhorar.</li>'
+    +'<li><b>5 estrelas → elogios.</b> '+aNum(C.n5_elogio)+' de '+aNum(C.n5_tg!=null?C.n5_tg:C.n5)+' avaliações de 5 estrelas com etiqueta marcaram elogio'+(Number(C.n5_melhorar)?'; '+aNum(C.n5_melhorar)+' marcaram algo para melhorar':' e nenhuma marcou algo para melhorar')+'.</li>'
+    +'<li><b>1 a 4 estrelas → "o que melhorar".</b> '+aNum(C.n14_melhorar)+' de '+aNum(C.n14_tg!=null?C.n14_tg:C.n14)+' com etiqueta marcaram algo para melhorar'+(Number(C.n14_elogio)?' ('+aNum(C.n14_elogio)+' marcaram também algum elogio)':'')+'. 🔴 <b>4 estrelas também vem com crítica:</b> '+aNum(C.n4_melhorar)+' de '+aNum(C.n4_tg!=null?C.n4_tg:C.n4)+' avaliações de 4 estrelas com etiqueta marcaram algo para melhorar.</li>'
+    +(Number(C.sem_etiqueta)?'<li>⚠️ <b>'+aNum(C.sem_etiqueta)+' avaliações do período vieram sem etiqueta gravada</b> (as mais antigas) e ficaram fora das contas de etiqueta acima.</li>':'')
     +'<li><b>Comentário escrito:</b> nota 1 a 3 → '+aNum(C.n13_coment)+' de '+aNum(C.n13)+' · 4 estrelas → '+aNum(C.n4_coment)+' de '+aNum(C.n4)+' · 5 estrelas → '+aNum(C.n5_coment)+' de '+aNum(C.n5)+'.</li>'
     +'<li><b>Avaliação descartada pelo iFood não conta na nota.</b> No período: '+aNum(C.descartadas)+'.</li>'
     +'<li><b>A nota que o iFood mostra conta só as avaliações recentes, não o histórico.</b>'+(o0?' Ex.: '+aEsc(G.loja==='Todas'?o0.marca:o0.marca+' · '+G.loja)+' tem '+aNum(o0.total)+' avaliações na história e '+aNum(o0.validas)+' contam; nos últimos 90 dias chegaram '+aNum(o0.n90)+'.':'')
