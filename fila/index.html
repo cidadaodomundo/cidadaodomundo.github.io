@@ -201,6 +201,32 @@ button.b:hover{border-color:var(--text2)}
 @keyframes pisca{0%{box-shadow:0 0 0 0 rgba(47,174,106,.6)}70%{box-shadow:0 0 0 8px rgba(47,174,106,0)}100%{box-shadow:0 0 0 0 rgba(47,174,106,0)}}
 @media (max-width:640px){.linha .mb{display:none}.linha{gap:9px;padding:10px 12px}.linha .dir{gap:8px}.linha .ped{min-width:0;font-size:19px}.linha .mn{min-width:0;font-size:18px}.linha .hr{font-size:11.5px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.card .v{font-size:34px}.per{width:100%}.quadros{grid-template-columns:1fr}.lojas{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}.lojas .chip{flex:0 0 auto}}
 @media (max-width:640px){.linha{flex-wrap:wrap}.linha .dir:has(.pz) .hr{display:none}.pz .pzl{display:none}.pz{font-size:12px;padding:3px 8px}}
+/* 31/10/2026: caixa da rota sugerida (so Agua Verde) e as linhas dela no mapa */
+.rs{background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:12px 14px}
+.rs .cab{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.rs .cap{display:flex;align-items:center;gap:5px;color:var(--text2);font-size:13px;font-weight:700}
+.rs .cap button{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:999px;min-width:34px;height:32px;font:800 14px Barlow,sans-serif;cursor:pointer}
+.rs .cap button.on{background:var(--brand);border-color:var(--brand);color:#111}
+.rs .res{font-size:14.5px;font-weight:700;line-height:1.45;margin:2px 0 6px}
+.rs .res .ok,.rs .rt .ok{color:#7fe0aa}
+.rs .res .mal,.rs .rt .mal{color:#ff9a9a}
+.rs .av{color:var(--warn);font-size:13px;font-weight:700;line-height:1.45;margin:4px 0}
+.rs .rt{border-top:1px solid var(--line);padding:10px 0 4px}
+.rs .rt .tt{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;font-weight:800}
+.rs .rt .tt small{color:var(--muted);font-size:12.5px;font-weight:600}
+.rs .lt{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:7px;color:#111;font:800 14px Barlow,sans-serif;flex:0 0 auto}
+.rs .ig{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:800;background:rgba(255,255,255,.08);color:var(--text2)}
+.rs .pr{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0 2px 32px;font-size:13.5px}
+.rs .pr .n{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:11.5px;font-weight:800;color:#111;flex:0 0 auto}
+.rs .pr .p{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;letter-spacing:.02em;min-width:46px;line-height:1}
+.rs .pr .ch{color:var(--text2);font-weight:700;white-space:nowrap}
+.rs .pr .mb{color:var(--muted);font-size:12px}
+.rs .fora{border-top:1px solid var(--line);padding:9px 0 2px;color:var(--text2);font-size:13.5px;line-height:1.5}
+.rs .leg{margin-top:8px}
+.rs-mk{border-radius:7px;padding:0 5px;font:800 11.5px/17px Barlow,sans-serif;color:#111;white-space:nowrap;border:2px solid #111;box-shadow:0 1px 4px rgba(0,0,0,.7)}
+#sec_mapa .grp .b+.b{margin-left:6px}
+.rs-bt{white-space:nowrap}
+@media (max-width:640px){.rs .pr{padding-left:4px}.rs .cap button{min-width:38px;height:36px}.rs-tx{display:none}#sec_mapa .grp.com-rs .ct{display:none}}
 </style>
 </head>
 <body>
@@ -219,13 +245,555 @@ button.b:hover{border-color:var(--text2)}
   <button class="chip" data-u="Ahú" onclick="trocaLoja('Ahú')">Ahú</button>
 </div>
 <div id="app"><div class="load">Carregando…</div></div>
+<script>
+/*
+ * Calculador de rota - versao para o navegador (Cidadao do Mundo, loja Agua Verde)
+ *
+ * E o motor A (engine_a.js, o vencedor do replay TrackEat x calculador) pronto para colar
+ * dentro de um <script> comum. No navegador cria so window.MotorRota (mesmo que a pagina
+ * tenha um "module" global); sem window (Node) o mesmo arquivo funciona com require() e
+ * devolve { planejar, avaliar }.
+ *
+ * Recebe os pedidos de uma "onda" e as saidas de motoboy disponiveis e devolve,
+ * para cada saida, a lista de pedidos na ordem de entrega (saida vazia = motoboy livre).
+ *
+ * Objetivo (decisao do dono), em ordem de importancia:
+ *   1) menos pedidos atrasados  (atrasado = chegada - prometido > tolS)
+ *   2) menos segundos de atraso somados (dos pedidos atrasados)
+ *   3) menos metros rodados (linha reta - haversine - entre as paradas, sem a volta)
+ * Os tres viram um numero so, com pesos tao diferentes que nunca se misturam.
+ *
+ * Estrategia:
+ *   a) INSERCAO COM ARREPENDIMENTO (regret-2): a cada passo entra primeiro o pedido que
+ *      mais perde se nao for para a sua melhor rota (empate: prazo mais cedo).
+ *   b) BUSCA LOCAL: mover 1 pedido de rota, trocar 2 pedidos entre rotas e trocar rotas
+ *      inteiras entre duas saidas, repetida ate nao melhorar mais.
+ *   c) ORDEM EXATA dentro de cada rota: permutacoes com poda (branch and bound).
+ *   d) REFINAMENTO: destruir e reconstruir pedacos do plano (com sorteio de semente fixa)
+ *      e rodar a busca local de novo, ficando com o melhor; tem teto de trabalho.
+ *   e) PLANO INICIAL (opts.inicial, opcional): monta tambem um plano partindo do que a tela
+ *      ja mostra, roda a busca local nos dois e refina a partir do melhor. Por isso o
+ *      resultado NUNCA e pior que o plano inicial completado (plano.inicialCompletado), e
+ *      este nunca e pior que o inicial dado quando o dado ja e completo e valido.
+ *
+ * Interface:
+ *   MotorRota.planejar(inst, opts) -> Array<Array<idPedido>> (um array por saida), com:
+ *     plano.sobra = [ids que nao entraram em rota] (vazio quando tudo cabe): falta de vaga
+ *       (ver cap) ou pedido sem local (ver lat/lng)
+ *     plano.semLocal = [ids da sobra que ficaram de fora por coordenada ruim]
+ *     plano.inicialCompletado = o plano inicial completado (so quando veio opts.inicial)
+ *   MotorRota.avaliar(inst, plano, opts) -> um objeto por saida:
+ *     { sai, ids, chegadas:[s], prazos:[prom ou null], atrasados, segAtraso, metros, semLocal:[ids] }
+ *   inst = { deposito:{lat,lng}, slots:[{t0}], pedidos:[{id,lat,lng,prom,pronto,visto}] }
+ *   opts = { cap, travel(a,b)->segundos, tolS, esperar?, inicial? }   (tempos em epoch segundos)
+ *   esperar falso: pedido so vai em saida com t0 >= pronto e t0 >= visto; a rota sai em t0.
+ *   esperar verdadeiro: qualquer saida serve; a rota sai em max(t0, maior pronto/visto dela).
+ *   inicial: um array de ids por saida, pode ser parcial. Id desconhecido, repetido, em saida
+ *     que nao serve, alem do cap ou que tomaria a vaga de quem so cabe ali e ignorado (o pedido
+ *     fica "faltando" e o motor o insere como os outros).
+ *   cap e DURO: nenhuma rota passa de cap. Se nao cabe todo mundo (mais de cap * saidas, ou
+ *     pedidos que so podem ir em poucas saidas), os de prazo mais tarde ficam de fora e vao
+ *     para plano.sobra; o motor nunca alarga a rota por conta propria. cap null/undefined =
+ *     sem limite; texto numerico vale ('4' = 4, 4.9 = 4); qualquer outra coisa (NaN, -1,
+ *     'abc', '') vira 0 = ninguem sai e todos vao para a sobra (erro aparece, nao se esconde).
+ *   numeros: prom, pronto e visto aceitam numero ou texto numerico ('1500'); t0 tem que ser numero.
+ *   prazo invalido (null, undefined, NaN, +-Infinito, texto nao numerico, true, Date...):
+ *     vira "sem prazo" = o maior horario conhecido da onda (prazos validos, saidas,
+ *     pronto/visto) + 1e9 s (~31 anos). Nunca conta como atrasado, nao quebra as comparacoes
+ *     (Infinito - Infinito = NaN) e fica por ultimo na ordem de prazo (e o primeiro a sobrar se
+ *     faltar vaga). avaliar mostra null no prazo dele.
+ *   lat/lng: tem que ser numeros validos a ate 100 km do patio. Pedido com coordenada ruim
+ *     (null, undefined, '', texto, NaN, ou 0 vindo de +'' na tela) nao entra em rota (nao
+ *     da para saber onde fica): vai para plano.sobra e plano.semLocal, sem tomar vaga de
+ *     ninguem e sem mexer no plano dos outros. avaliar pula a parada (lista em semLocal da
+ *     saida) e calcula as outras como se ela nao existisse; a saida ainda espera por ela.
+ *   ids: comparados como texto (17 e "17" sao o mesmo pedido). Id repetido na onda: vale o
+ *     primeiro pedido com ele; os outros sao ignorados (o id aparece uma vez so no plano).
+ * Deterministico: nao usa Math.random nem Date (mesma entrada = mesma saida).
+ */
+(function (raiz) {
+  'use strict';
+
+  var PESO_ATRASO = 1e12;        // 1 pedido atrasado pesa mais que qualquer soma de segundos e metros
+  var PESO_SEG = 1e6;            // 1 segundo de atraso pesa mais que qualquer soma de metros
+  var EPS = 0.5;                 // melhora menor que meio metro e ruido de conta: ignora
+  var LIMITE_NOS = 20000;        // teto da busca exata por rota: ate 7 paradas e sempre exata; com 8
+                                 // quase sempre; com 9+ (so com cap alto) usa 1/10 e fica com a melhor achada
+  var LIMITE_VOLTAS = 200;       // teto de voltas da busca local (seguranca; para bem antes)
+  var ITER_POR_PEDIDO = 3;       // voltas de destruir-e-reconstruir por pedido da onda
+  var LIMITE_TRABALHO = 20000;   // teto de trabalho: avaliacoes de rota + nos/10 (segura o tempo no celular)
+  var FOLGA_SEM_PRAZO = 1e9;     // "sem prazo" = maior horario conhecido + isso (segundos)
+  var RAIO_MAX_M = 100000;       // entrega a mais de 100 km do patio e coordenada errada
+
+  function haversine(a, b) {
+    var R = 6371000, r = Math.PI / 180;
+    var dLa = (b.lat - a.lat) * r, dLo = (b.lng - a.lng) * r;
+    var x = Math.pow(Math.sin(dLa / 2), 2) +
+      Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.pow(Math.sin(dLo / 2), 2);
+    return 2 * R * Math.asin(Math.sqrt(x));
+  }
+  // numero ou texto numerico ('1500'); o resto vira NaN
+  function lerNumero(x) { return typeof x === 'number' ? x : (typeof x === 'string' && x.trim() !== '') ? Number(x) : NaN; }
+  // numero valido ou -Infinito (pronto/visto ausente = pedido ja liberado)
+  function num(x) { var v = lerNumero(x); return isNaN(v) ? -Infinity : v; }
+  function finito(x) { return typeof x === 'number' && isFinite(x); }
+  function porIndice(x, y) { return x - y; }
+  function liberacao(p) { return Math.max(num(p.pronto), num(p.visto)); }
+  function prazo(p) { var x = lerNumero(p.prom); return isFinite(x) ? x : null; }   // null = sem prazo
+  // da para saber onde o pedido fica? (lat/lng numeros e a ate RAIO_MAX_M do patio)
+  function localOk(dep, p) {
+    return typeof p.lat === 'number' && typeof p.lng === 'number' && Math.abs(p.lat) <= 90 &&
+      Math.abs(p.lng) <= 180 && haversine(dep, p) <= RAIO_MAX_M;
+  }
+
+  // prazo de cada pedido; o invalido vira "sem prazo" (ver cabecalho)
+  function prazosSeguros(ped, slots) {
+    var maior = -Infinity;
+    function ve(x) { if (finito(x) && x > maior) maior = x; }
+    ped.forEach(function (p) { ve(prazo(p)); ve(num(p.pronto)); ve(num(p.visto)); });
+    slots.forEach(function (s) { ve(s.t0); });
+    var semPrazo = (maior > -Infinity ? maior : 0) + FOLGA_SEM_PRAZO;
+    return ped.map(function (p) { var x = prazo(p); return x === null ? semPrazo : x; });
+  }
+
+  // posicao de cada id (como texto) na lista de pedidos; id repetido fica com o primeiro
+  function indicePorId(ped) {
+    var mapa = new Map();
+    for (var i = 0; i < ped.length; i++) if (!mapa.has(String(ped[i].id))) mapa.set(String(ped[i].id), i);
+    return mapa;
+  }
+
+  // ---------- cap duro: quem cabe nas vagas ----------
+  // Cada pedido so serve nas saidas com t0 >= liberacao (com esperar, em todas): sao sempre
+  // as k saidas mais tarde, conjuntos encaixados. nivel = quantas saidas o aceitam. Todos
+  // cabem se, para todo k, os pedidos de nivel <= k cabem em k * cap vagas. Do mais urgente
+  // ao menos urgente entra quem ainda cabe (com conjuntos assim o guloso e exato: entram os
+  // mais urgentes possiveis). Sem restricao de saida isso e: ficam os cap*m de prazo mais cedo.
+  // So os candidatos (cands) disputam vaga; devolve, por pedido, se fica.
+  function quemCabe(cands, prom, lib, t0, cap, esperar) {
+    var m = t0.length, nivel = [], fica = prom.map(function () { return false; });
+    var porNivel = new Array(m + 1).fill(0);
+    cands.forEach(function (i) {
+      var c = 0;
+      for (var s = 0; s < m; s++) if (esperar || lib[i] <= t0[s]) c++;
+      nivel[i] = c;
+    });
+    cands.slice().sort(function (x, y) { return prom[x] - prom[y] || x - y; }).forEach(function (i) {
+      var ok = nivel[i] > 0, acc = 0;
+      for (var k = 1; k <= m && ok; k++) {
+        acc += porNivel[k];
+        if (k >= nivel[i] && acc + 1 > cap * k) ok = false;
+      }
+      if (ok) { porNivel[nivel[i]]++; fica[i] = true; }
+    });
+    return fica;
+  }
+
+  function planejar(inst, opts) {
+    var todosPed = inst.pedidos || [], m = inst.slots.length;
+    var tol = opts.tolS || 0, esperar = !!opts.esperar, inicial = Array.isArray(opts.inicial) ? opts.inicial : null;
+    var plano = inst.slots.map(function () { return []; });
+    plano.sobra = []; plano.semLocal = [];
+    if (inicial) plano.inicialCompletado = inst.slots.map(function () { return []; });
+    // cap ausente = sem limite; cap que nao e numero >= 0 vira 0 (ver cabecalho)
+    var capLido = lerNumero(opts.cap), cap = opts.cap == null ? Infinity : capLido >= 0 ? Math.floor(capLido) : 0;
+
+    var t0 = inst.slots.map(function (s) { return s.t0; });
+    var promT = prazosSeguros(todosPed, inst.slots);
+    // hora a partir da qual o pedido pode sair (pronto e ja visto pelo sistema).
+    // Sem esperar: pedido que so libera depois de TODAS as saidas nao tem opcao valida;
+    // vai na ultima saida (em vez de travar o calculo)
+    var ultimaSaida = Math.max.apply(null, t0);
+    var libT = todosPed.map(function (p) { var x = liberacao(p); return esperar ? x : Math.min(x, ultimaSaida); });
+
+    // disputam vaga os pedidos com local e id ainda nao visto (tipo 'c'); sem local = 'l';
+    // id repetido fica sem tipo (ignorado). Quem nao cabe sem passar do cap e quem nao tem
+    // local vao para plano.sobra; o resto e a onda do motor
+    var jaVisto = new Set(), cands = [], tipo = [];
+    todosPed.forEach(function (p, i) {
+      if (jaVisto.has(String(p.id))) return;
+      jaVisto.add(String(p.id));
+      tipo[i] = localOk(inst.deposito, p) ? 'c' : 'l';
+      if (tipo[i] === 'c') cands.push(i);
+    });
+    var fica = quemCabe(cands, promT, libT, t0, cap, esperar), idx = [];
+    for (var iT = 0; iT < todosPed.length; iT++) {
+      if (fica[iT]) idx.push(iT);
+      else if (tipo[iT]) {
+        plano.sobra.push(todosPed[iT].id);
+        if (tipo[iT] === 'l') plano.semLocal.push(todosPed[iT].id);
+      }
+    }
+    var ped = idx.map(function (i) { return todosPed[i]; }), n = ped.length;
+    if (!n || !m) return plano;
+    var prom = idx.map(function (i) { return promT[i]; });
+    var lib = idx.map(function (i) { return libT[i]; });
+
+    // ---------- matrizes: tempo (travel) e distancia (haversine); no 0 = patio, i+1 = pedido i
+    var N = n + 1, pts = [inst.deposito].concat(ped);
+    var T = new Float64Array(N * N), D = new Float64Array(N * N);
+    for (var a = 0; a < N; a++) for (var b = 0; b < N; b++) {
+      if (a === b) continue;
+      T[a * N + b] = opts.travel(pts[a], pts[b]);
+      D[a * N + b] = haversine(pts[a], pts[b]);
+    }
+    var porPrazo = function (x, y) { return prom[x] - prom[y] || x - y; };
+
+    function podeIr(i, s) { return esperar || lib[i] <= t0[s]; }
+    function saida(s, lista) {             // hora em que a rota sai do patio
+      var t = t0[s];
+      if (esperar) for (var k = 0; k < lista.length; k++) if (lib[lista[k]] > t) t = lib[lista[k]];
+      return t;
+    }
+    // custo da rota na ordem dada; com pos, o ultimo pedido da lista vai para a posicao pos
+    function custoOrdem(ini, ordem, pos) {
+      var k = ordem.length, t = ini, prev = 0, c = 0;
+      if (pos === undefined) pos = k - 1;
+      for (var q = 0; q < k; q++) {
+        var i = q < pos ? ordem[q] : q === pos ? ordem[k - 1] : ordem[q - 1], j = i + 1;
+        t += T[prev * N + j];
+        var atraso = t - prom[i];
+        if (atraso > tol) c += PESO_ATRASO + atraso * PESO_SEG;
+        c += D[prev * N + j];
+        prev = j;
+      }
+      return c;
+    }
+
+    // ---------- c) ordem exata: permutacoes com poda ----------
+    // A busca roda numa copia pequena das matrizes so com a rota (no 0 = patio, x+1 = x-esimo
+    // pedido em ordem de prazo); em cada no a chegada e a multa de cada filho sao calculadas
+    // uma vez so (servem ao limite inferior e ao filho). Estado fora da funcao recursiva.
+    var kMax = Math.min(n, cap), S = kMax + 1;             // maior rota possivel; passo das copias
+    var bT = new Float64Array(S * S), bD = new Float64Array(S * S), bP = new Float64Array(kMax), bMin = new Float64Array(kMax);
+    var bUsado = new Uint8Array(kMax), bAtual = new Array(kMax), bChega = new Float64Array(kMax * kMax), bMulta = new Float64Array(kMax * kMax);
+    var bPs = null, bK = 0, bMc = 0, bMelhor = null, bNos = 0, bTeto = 0;
+    function ordemExata(ini, lista) {
+      var ps = lista.slice().sort(porPrazo), k = ps.length, x, y;
+      // sementes dao um teto bom para a poda: ordem de prazo e a ordem recebida com o ultimo
+      // pedido em cada lugar (a busca local manda a rota otima + o pedido novo no fim)
+      bPs = ps; bK = k; bMelhor = ps; bMc = custoOrdem(ini, ps); bNos = 0;
+      bTeto = k <= 8 ? LIMITE_NOS : LIMITE_NOS / 10;
+      for (var pos = 0; pos < k; pos++) {
+        var c = custoOrdem(ini, lista, pos);
+        if (c < bMc) { bMc = c; bMelhor = lista.slice(0, pos).concat(lista[k - 1], lista.slice(pos, k - 1)); }
+      }
+      for (x = 0; x <= k; x++) {           // copia local de tempo e distancia
+        var gx = x ? ps[x - 1] + 1 : 0;
+        for (y = 0; y <= k; y++) { var gy = y ? ps[y - 1] + 1 : 0; bT[x * S + y] = T[gx * N + gy]; bD[x * S + y] = D[gx * N + gy]; }
+      }
+      // menor distancia possivel para CHEGAR em cada pedido (do patio ou de outro da rota)
+      for (x = 0; x < k; x++) {
+        var best = bD[x + 1];              // patio -> pedido
+        for (y = 0; y < k; y++) if (y !== x && bD[(y + 1) * S + x + 1] < best) best = bD[(y + 1) * S + x + 1];
+        bMin[x] = best; bUsado[x] = 0; bP[x] = prom[ps[x]];
+      }
+      dfs(0, 0, ini, 0);
+      return { c: bMc, ordem: bMelhor };
+    }
+    function dfs(prof, prev, t, c) {
+      var k = bK, x;
+      if (prof === k) { if (c < bMc - EPS) { bMc = c; bMelhor = bAtual.slice(0, k); } return; }
+      if (++bNos > bTeto) return;
+      // limite inferior: cada pedido restante chega no minimo em t + travel(atual, ele)
+      // (travel respeita a desigualdade triangular) e custa no minimo bMin metros
+      var lin = prev * S, col = prof * k, lb = c;
+      for (x = 0; x < k; x++) if (!bUsado[x]) {
+        var chega = t + bT[lin + x + 1], at = chega - bP[x], multa = at > tol ? PESO_ATRASO + at * PESO_SEG : 0;
+        bChega[col + x] = chega; bMulta[col + x] = multa;
+        lb += multa; lb += bMin[x];
+      }
+      if (lb >= bMc - EPS) return;
+      for (x = 0; x < k; x++) if (!bUsado[x]) {    // filhos em ordem de prazo
+        var nc = c + bD[lin + x + 1] + bMulta[col + x];
+        if (nc >= bMc - EPS) continue;
+        bUsado[x] = 1; bAtual[prof] = bPs[x];
+        dfs(prof + 1, x + 1, bChega[col + x], nc);
+        bUsado[x] = 0;
+      }
+    }
+
+    // rota com memoria: mesmo conjunto + mesmo t0 = mesma resposta (a saida depende so disso).
+    // Chave do conjunto = soma de 2^i (numero exato ate 52 pedidos); acima disso, texto.
+    var grupoT0 = t0.map(function (x) { return t0.indexOf(x); });
+    var memo = t0.map(function () { return new Map(); }), trabalho = 0, VAZIA = { c: 0, ordem: [] };
+    var POT = [];
+    for (var ip = 0; ip < n && ip <= 52; ip++) POT.push(Math.pow(2, ip));
+    function chave(lista) {
+      var ch = 0;
+      if (n <= 52) for (var k = 0; k < lista.length; k++) ch += POT[lista[k]];
+      else ch = lista.slice().sort(porIndice).join(',');
+      return ch;
+    }
+    function rota(s, lista) {
+      if (!lista.length) return VAZIA;
+      trabalho++;
+      var mp = memo[grupoT0[s]], ch = chave(lista), r = mp.get(ch);
+      if (!r) { r = ordemExata(saida(s, lista), lista); mp.set(ch, r); trabalho += bNos / 10; }
+      return r;
+    }
+
+    // ---------- estado do plano ----------
+    var rotas = inst.slots.map(function () { return []; });
+    var custo = new Float64Array(m);       // custo atual de cada rota
+    var onde = new Int32Array(n).fill(-1); // em que saida esta cada pedido
+    var ver = new Int32Array(m);           // versao de cada rota (para o cache da insercao)
+    var sujo = new Uint8Array(m);          // rota mudou desde a ultima olhada da busca local
+    function mudar(s, lista) {             // troca a rota s (guardada ja na ordem otima)
+      var r = rota(s, lista);
+      rotas[s] = r.ordem.slice(); custo[s] = r.c; ver[s]++; sujo[s] = 1;
+      for (var k = 0; k < lista.length; k++) onde[lista[k]] = s;
+    }
+    function total() { var t = 0; for (var s = 0; s < m; s++) t += custo[s]; return t; }
+    function sem(lista, x) { return lista.filter(function (y) { return y !== x; }); }
+    function copia(r) { return r.slice(); }
+    function idsDe(r) { return r.map(function (i) { return ped[i].id; }); }
+
+    // ---------- vagas: a insercao nunca pode deixar pedido sem saida ----------
+    // Cada pedido so serve em saidas com t0 >= lib (um "sufixo" das saidas no tempo). Com
+    // conjuntos encaixados basta conferir, do lib mais tarde ao mais cedo, que os pedidos
+    // livres com lib >= X cabem nas vagas das saidas com t0 >= X. folga() devolve a menor
+    // sobra; (p, s) simula por o pedido p na saida s antes de conferir. quemCabe() ja
+    // garantiu que no comeco tudo cabe; cada passo mantem isso.
+    var saidasDesc = t0.map(function (_, s) { return s; }).sort(function (x, y) { return t0[y] - t0[x] || x - y; });
+    var livresLib = [];                    // pedidos sem saida, do lib mais tarde ao mais cedo
+    function folga(p, s) {
+      var k = 0, vagas = 0, cont = 0, min = Infinity;
+      for (var r = 0; r < livresLib.length; r++) {
+        var q = livresLib[r];
+        if (q === p) continue;
+        while (k < m && (esperar || t0[saidasDesc[k]] >= lib[q])) {
+          var sk = saidasDesc[k++];
+          vagas += cap - rotas[sk].length - (sk === s ? 1 : 0);
+        }
+        if (vagas - (++cont) < min) min = vagas - cont;
+      }
+      return min;
+    }
+    function porLibDesc(x, y) { return lib[y] - lib[x] || x - y; }
+
+    // ---------- a) insercao com arrependimento (regret-2) ----------
+    // embaralhar = true: insere na ordem recebida (ja sorteada), cada pedido na sua melhor
+    // saida - so no refinamento, para variar a reconstrucao.
+    var cacheD = new Float64Array(n * m), cacheV = new Int32Array(n * m).fill(-1);
+    function inserir(lista, embaralhar) {
+      var livres = embaralhar ? lista.slice() : lista.slice().sort(porPrazo);
+      livresLib = lista.slice().sort(porLibDesc);
+      while (livres.length) {
+        var folgado = folga(-1, -1) >= 1, escolha = null;  // com folga >= 1 qualquer vaga serve
+        for (var li = 0; li < livres.length; li++) {
+          var i = livres[li], b1 = Infinity, b2 = Infinity, s1 = -1;
+          for (var s = 0; s < m; s++) {
+            if (!podeIr(i, s) || rotas[s].length >= cap || (!folgado && folga(i, s) < 0)) continue;
+            var ix = i * m + s;            // custo de por i em s, guardado ate a rota s mudar
+            if (cacheV[ix] !== ver[s]) { cacheD[ix] = rota(s, rotas[s].concat(i)).c - custo[s]; cacheV[ix] = ver[s]; }
+            var d = cacheD[ix];
+            if (d < b1 - EPS) { b2 = b1; b1 = d; s1 = s; } else if (d < b2) b2 = d;
+          }
+          if (s1 < 0) continue;
+          var reg = b2 - b1;               // Infinity se so ha uma saida possivel
+          // maior arrependimento primeiro; empate fica com o prazo mais cedo (livres em ordem de prazo)
+          if (!escolha || reg > escolha.reg + EPS) escolha = { i: i, s: s1, reg: reg, li: li };
+          if (embaralhar) break;
+        }
+        // seguranca (so com conta invalida, ex.: travel devolvendo NaN): primeira vaga que
+        // mantem todo mundo cabendo, da saida mais tarde; sempre existe, entao o cap nao estoura
+        for (var lf = 0; !escolha && lf < livres.length; lf++) for (var kf = 0; kf < m; kf++) {
+          var sf = saidasDesc[kf];
+          if (podeIr(livres[lf], sf) && rotas[sf].length < cap && folga(livres[lf], sf) >= 0) { escolha = { i: livres[lf], s: sf, li: lf }; break; }
+        }
+        mudar(escolha.s, rotas[escolha.s].concat(escolha.i));
+        livres.splice(escolha.li, 1);
+        livresLib.splice(livresLib.indexOf(escolha.i), 1);
+      }
+    }
+
+    // ---------- b) busca local: mover 1 / trocar 2 / trocar rotas, ate nao melhorar ----------
+    // So reexamina pares de rotas em que pelo menos uma mudou desde a ultima olhada.
+    // Teto de seguranca (3x o do refinamento) conferido a cada pedido, nao so a cada volta:
+    // onda dificil (prazos iguais, entregas coladas, saidas juntas) passava dele numa volta
+    // so. No replay o trabalho total nunca chega perto (maximo ~23 mil): la nada muda.
+    function buscaLocal() {
+      var teto = 3 * LIMITE_TRABALHO;
+      for (var volta = 0; volta < LIMITE_VOLTAS && trabalho < teto; volta++) {
+        var olhar = sujo.slice(), algum = false;
+        for (var s = 0; s < m; s++) if (olhar[s]) algum = true;
+        if (!algum) return;
+        sujo.fill(0);
+        var rever = function (A, B) { return olhar[A] || olhar[B] || sujo[A] || sujo[B]; };
+        // mover: cada pedido vai para a saida que mais reduz o custo total
+        for (var p = 0; p < n && trabalho < teto; p++) {
+          var A = onde[p], semP = null, ganhoA = 0, melhorD = -EPS, melhorS = -1;
+          for (var B = 0; B < m; B++) {
+            if (B === A || !podeIr(p, B) || rotas[B].length >= cap || !rever(A, B)) continue;
+            if (!semP) { semP = sem(rotas[A], p); ganhoA = rota(A, semP).c - custo[A]; }
+            var dm = ganhoA + rota(B, rotas[B].concat(p)).c - custo[B];
+            if (dm < melhorD) { melhorD = dm; melhorS = B; }
+          }
+          if (melhorS >= 0) { mudar(melhorS, rotas[melhorS].concat(p)); mudar(A, semP); }
+        }
+        // trocar: pedido p (rota A) <-> pedido q (rota B); aplica a primeira troca que melhora
+        for (var p2 = 0; p2 < n && trabalho < teto; p2++) for (var q = p2 + 1; q < n; q++) {
+          var rA = onde[p2], rB = onde[q];
+          if (rA === rB || !podeIr(p2, rB) || !podeIr(q, rA) || !rever(rA, rB)) continue;
+          var novaA = sem(rotas[rA], p2).concat(q), novaB = sem(rotas[rB], q).concat(p2);
+          if (rota(rA, novaA).c + rota(rB, novaB).c - custo[rA] - custo[rB] < -EPS) { mudar(rA, novaA); mudar(rB, novaB); }
+        }
+        // trocar rotas inteiras entre duas saidas (ex.: a rota mais apertada sai mais cedo)
+        for (var sA = 0; sA < m && trabalho < teto; sA++) for (var sB = sA + 1; sB < m; sB++) {
+          var RA = rotas[sA], RB = rotas[sB];
+          if ((!RA.length && !RB.length) || !rever(sA, sB)) continue;
+          if (!RA.every(function (x) { return podeIr(x, sB); }) || !RB.every(function (x) { return podeIr(x, sA); })) continue;
+          if (rota(sA, RB).c + rota(sB, RA).c - custo[sA] - custo[sB] < -EPS) { mudar(sA, RB); mudar(sB, RA); }
+        }
+      }
+    }
+
+    // ---------- e) plano inicial: o que a tela ja mostra, completado ----------
+    // Cada id vai para a sua saida, na ordem dada, enquanto for valido (ver cabecalho); os
+    // que faltam entram pela mesma insercao com arrependimento. Cada rota fica com a melhor
+    // ordem conhecida: conjunto novo e buscado com a ordem dada como semente; conjunto que ja
+    // estava na memoria (achado com teto de nos, rota de 9+ paradas) troca pela ordem dada
+    // se ela for melhor. Assim um inicial completo e valido nunca sai pior do que veio.
+    function montarInicial(lista) {
+      var porId = indicePorId(ped);
+      for (var s = 0; s < m; s++) rotas[s] = [];
+      onde.fill(-1);
+      livresLib = todos.slice().sort(porLibDesc);
+      for (s = 0; s < m && s < lista.length; s++) {
+        var ids = Array.isArray(lista[s]) ? lista[s] : [];
+        for (var k = 0; k < ids.length; k++) {
+          var p = porId.get(String(ids[k]));
+          if (p === undefined || onde[p] >= 0 || !podeIr(p, s) || rotas[s].length >= cap || folga(p, s) < 0) continue;
+          rotas[s].push(p); onde[p] = s;
+          livresLib.splice(livresLib.indexOf(p), 1);
+        }
+      }
+      for (s = 0; s < m; s++) {
+        var dada = rotas[s], c = dada.length ? custoOrdem(saida(s, dada), dada) : 0;
+        if (c < rota(s, dada).c) memo[grupoT0[s]].set(chave(dada), { c: c, ordem: dada.slice() });
+        mudar(s, dada);
+      }
+      inserir(todos.filter(function (x) { return onde[x] < 0; }), false);
+    }
+
+    // ---------- montagem: plano do zero (e, se veio, o plano inicial) ----------
+    var todos = [];
+    for (var i0 = 0; i0 < n; i0++) todos.push(i0);
+    inserir(todos, false);
+    buscaLocal();
+    if (inicial) {
+      var doZero = rotas.map(copia), custoDoZero = total();
+      montarInicial(inicial);
+      plano.inicialCompletado = rotas.map(idsDe);
+      buscaLocal();
+      if (custoDoZero < total() - EPS) {   // o do zero ganhou: refina a partir dele (empate fica com o da tela)
+        for (var sZ = 0; sZ < m; sZ++) mudar(sZ, doZero[sZ]);
+        sujo.fill(0);
+      }
+    }
+
+    // ---------- d) refinamento: destruir e reconstruir (ruin & recreate) ----------
+    var sorteio = (function (x) {          // mulberry32 com semente fixa: sempre a mesma sequencia
+      return function () {
+        x = x + 0x6D2B79F5 | 0;
+        var t = Math.imul(x ^ x >>> 15, 1 | x);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    })(20261031);
+    function atrasados() {                 // pedidos atrasados no plano atual
+      var out = [];
+      for (var s = 0; s < m; s++) {
+        var o = rotas[s], t = saida(s, o), prev = 0;
+        for (var k = 0; k < o.length; k++) {
+          t += T[prev * N + o[k] + 1]; prev = o[k] + 1;
+          if (t - prom[o[k]] > tol) out.push(o[k]);
+        }
+      }
+      return out;
+    }
+    function parecenca(x, y) { return D[(x + 1) * N + y + 1] + 5 * Math.abs(prom[x] - prom[y]); } // metros + 5 m/s de prazo
+    var iter = (m > 1 && n > 2) ? ITER_POR_PEDIDO * n : 0;
+    var melhor = total(), guardado = rotas.map(copia);
+    for (var it = 0; it < iter && trabalho < LIMITE_TRABALHO; it++) {
+      var tirar;
+      if (sorteio() < 0.6) {               // uma semente (metade das vezes um atrasado) e os parecidos
+        var late = atrasados();
+        var semente = (late.length && sorteio() < 0.5) ? late[Math.floor(sorteio() * late.length)] : Math.floor(sorteio() * n);
+        tirar = todos.slice().sort(function (x, y) { return parecenca(semente, x) - parecenca(semente, y) || x - y; })
+          .slice(0, 2 + Math.floor(sorteio() * Math.min(5, n - 2)));
+      } else {                             // duas rotas inteiras sorteadas
+        var r1 = onde[Math.floor(sorteio() * n)], r2 = onde[Math.floor(sorteio() * n)];
+        tirar = rotas[r1].concat(r1 === r2 ? [] : rotas[r2]);
+      }
+      var fora = {};
+      tirar.forEach(function (x) { fora[x] = 1; });
+      for (var s2 = 0; s2 < m; s2++) {
+        var resto = rotas[s2].filter(function (x) { return !fora[x]; });
+        if (resto.length !== rotas[s2].length) mudar(s2, resto);
+      }
+      var embaralhar = sorteio() < 0.5;    // metade das vezes reconstroi em ordem sorteada
+      if (embaralhar) for (var e = tirar.length - 1; e > 0; e--) {
+        var f = Math.floor(sorteio() * (e + 1)), tmp = tirar[e]; tirar[e] = tirar[f]; tirar[f] = tmp;
+      }
+      inserir(tirar, embaralhar);
+      buscaLocal();
+      var c = total();
+      if (c < melhor - EPS) { melhor = c; guardado = rotas.map(copia); }
+      else if (c > melhor + EPS) {         // piorou: volta ao melhor (que ja e otimo local)
+        for (var s3 = 0; s3 < m; s3++) mudar(s3, guardado[s3]);
+        sujo.fill(0);
+      }                                    // empatou: segue do novo (ajuda a variar)
+    }
+
+    // ---------- saida: cada rota do melhor plano, na sua ordem exata ----------
+    for (var sF = 0; sF < m; sF++) plano[sF] = idsDe(rota(sF, guardado[sF]).ordem);
+    return plano;
+  }
+
+  // ---------- avaliar: as contas do motor para um plano qualquer (para a tela mostrar) ----------
+  // Mesmo travel, mesma tolS, mesma saida do patio e mesma linha reta (so ida) do motor.
+  // Id desconhecido no plano e ignorado (ids diz quem foi avaliado, na ordem). Pedido sem
+  // local (ver cabecalho) entra so na hora de saida (com esperar) e vai para semLocal.
+  function avaliar(inst, plano, opts) {
+    var ped = inst.pedidos || [], tol = opts.tolS || 0, esperar = !!opts.esperar;
+    var prom = prazosSeguros(ped, inst.slots), porId = indicePorId(ped);
+    return inst.slots.map(function (slot, s) {
+      var lista = [], dados = (plano && Array.isArray(plano[s])) ? plano[s] : [];
+      dados.forEach(function (id) { var i = porId.get(String(id)); if (i !== undefined) lista.push(i); });
+      var sai = slot.t0;
+      if (esperar) lista.forEach(function (i) { var l = liberacao(ped[i]); if (l > sai) sai = l; });
+      var r = { sai: sai, ids: [], chegadas: [], prazos: [], atrasados: 0, segAtraso: 0, metros: 0, semLocal: [] };
+      var t = sai, prev = inst.deposito;
+      lista.forEach(function (i) {
+        var p = ped[i];
+        if (!localOk(inst.deposito, p)) { r.semLocal.push(p.id); return; }
+        t += opts.travel(prev, p);
+        r.metros += haversine(prev, p);
+        r.ids.push(p.id); r.chegadas.push(t); r.prazos.push(prazo(p));
+        var atraso = t - prom[i];
+        if (atraso > tol) { r.atrasados++; r.segAtraso += atraso; }
+        prev = p;
+      });
+      return r;
+    });
+  }
+
+  var api = { planejar: planejar, avaliar: avaliar };
+  // navegador (ou worker): so MotorRota no global, mesmo que a pagina tenha um "module";
+  // Node (sem window): module.exports
+  if (typeof window === 'undefined' && typeof module !== 'undefined' && module && module.exports) module.exports = api;
+  else raiz.MotorRota = api;
+})(typeof window !== 'undefined' ? window : this);
+</script>
 </div>
 
 <script>
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const $=i=>document.getElementById(i);
-const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 async function rpc(nome,corpo){
   try{
@@ -549,6 +1117,231 @@ function czBloco(){
   return h;
 }
 
+/* 31/10/2026 (chat-roteirizacao-ia-31-10), pedido do Fabio pela 3a vez (20/09, 28/10, 30/10): "uma especie de
+   roteirizacao inteligente feita por ia ... hj o track nao tem uma roteirizacao boa". So na Agua Verde e so SUGERE:
+   quem despacha monta igual no TrackEat (a porta do TrackEat so le; robo no site dele foi vetado em 30/09).
+   Decisoes dele em 30/10: prioridade "ninguem atrasar", depois menos km; maximo por rota num botao, ate 6.
+   Quem calcula e o MotorRota (script acima): conta, nao ChatGPT - a mesma entrada da sempre a mesma resposta.
+   Testado nas entregas de 17 a 30/10: de 6 a 9 atrasos a menos por jantar (simulacao; relatorio no Drive,
+   roteirizacao-ia-estudo-30-10-2026.md). Rodar a conta nao usa a internet.
+   Entram so os pedidos PRONTOS (de 17 a 30/10, 94% das rotas foram montadas depois do pronto); o que esta em preparo
+   entra quando ficar pronto. As saidas sao os motoboys livres agora e os que estao voltando, com a mesma estimativa
+   "Livre ~" do quadro Motoboys (delivery_tempo_calc). O plano de partida sao as rotas que o TrackEat ja montou, entao a
+   sugestao nunca tem mais pedidos atrasados que elas na conta. Os numeros da conta (segundos por entrega, minutos por km em linha reta,
+   tolerancia, maximo que a tela abre, horario do almoco) vem do banco (motoboy_param, chaves rota_*, campo rota_modelo
+   de fila_pedidos) e nunca sao escritos aqui: sem eles a caixa diz que nao da para sugerir. */
+var RS_CAP=null, RS_MAPA=true, RS_ULT=null;
+try{ var _rc=+localStorage.getItem('cdm_fila_cap'); if(_rc>=2&&_rc<=6&&_rc===Math.round(_rc)) RS_CAP=_rc; if(localStorage.getItem('cdm_fila_rsmapa')==='0') RS_MAPA=false; }catch(e){}
+var RS_COR=['#4FC3F7','#FFB74D','#81C784','#F48FB1','#CE93D8','#FFF176','#80CBC4','#BCAAA4'];
+function rsHav(a,b){ var R=6371000, r=Math.PI/180, dLa=(b.lat-a.lat)*r, dLo=(b.lng-a.lng)*r;
+  var x=Math.pow(Math.sin(dLa/2),2)+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.pow(Math.sin(dLo/2),2); return 2*R*Math.asin(Math.sqrt(x)); }
+function rsMin(s){ var m=/^(\d{1,2}):(\d{2})$/.exec(String(s||'')); return m?(+m[1])*60+(+m[2]):null; }
+function rsHora(t){ t=((Math.round(t)%1440)+1440)%1440; var h=Math.floor(t/60), m=t%60; return (h<10?'0':'')+h+':'+(m<10?'0':'')+m; }
+function rsNum(x){ return (x===null||x===undefined||x==='')?NaN:+x; }
+function rsCalc(d){
+  var r={rotas:[],sobra:[],semPonto:[],preparo:0,prontos:0,avisos:[],erro:null,cap:null,agoraTxt:d.agora};
+  var loja=Array.isArray(d.na_loja)?d.na_loja:[];
+  r.preparo=loja.filter(function(p){return p.onde==='preparo';}).length;
+  /* pedido repetido na leitura: vale o primeiro registro (a conta, a caixa e o mapa usam o mesmo) */
+  var jaVi={}, prontos=loja.filter(function(p){ if(p.onde!=='pronto') return false; var k=String(p.pedido); if(jaVi[k]) return false; jaVi[k]=1; return true; });
+  r.prontos=prontos.length;
+  r.semPonto=prontos.filter(function(p){return p.lat==null||p.lng==null;});
+  var ps=prontos.filter(function(p){return p.lat!=null&&p.lng!=null;});
+  var M=d.rota_modelo||{}, agora=rsMin(d.agora);
+  var cp=rsNum(M.rota_max_padrao);
+  r.cap=RS_CAP||((cp>=2&&cp<=6&&cp===Math.round(cp))?cp:null);
+  var faltam=['rota_seg_parada_jantar','rota_min_km_jantar','rota_seg_parada_almoco','rota_min_km_almoco','rota_tolerancia_s','rota_max_padrao','rota_almoco_de_h','rota_almoco_ate_h']
+    .filter(function(k){return !isFinite(rsNum(M[k]));});
+  if(!window.MotorRota){ r.erro='O calculador não carregou nesta tela. Tente o botão Atualizar.'; return r; }
+  if(faltam.length){ r.erro='Faltam no banco os números da conta (motoboy_param: '+esc(faltam.join(', '))+') — sem eles a tela não sugere nada.'; return r; }
+  if(!r.cap){ r.erro='O máximo por rota guardado no banco (motoboy_param rota_max_padrao = '+esc(String(M.rota_max_padrao))+') está fora dos botões de 2 a 6: toque num botão acima para escolher.'; return r; }
+  if(!d.loja||d.loja.lat==null||d.loja.lng==null){ r.erro='Falta no banco a posição do pátio da loja (patio_loja) — sem ela a tela não sugere nada.'; return r; }
+  if(agora===null){ r.erro='Não veio a hora da leitura — sem ela a tela não sugere nada.'; return r; }
+  var hr=Math.floor(agora/60), alm=hr>=rsNum(M.rota_almoco_de_h)&&hr<rsNum(M.rota_almoco_ate_h);
+  r.turno=alm?'almoço':'jantar';
+  r.svc=rsNum(alm?M.rota_seg_parada_almoco:M.rota_seg_parada_jantar);
+  r.mk=rsNum(alm?M.rota_min_km_almoco:M.rota_min_km_jantar);
+  r.tol=rsNum(M.rota_tolerancia_s);
+  /* idade da leitura do TrackEat; diferenca "negativa" (relogio do TrackEat um pouco a frente) conta como 0 */
+  var vt=rsMin(d.visto_em), df=(vt===null)?null:((agora-vt)%1440+1440)%1440;
+  r.idade=(df===null)?null:(df>720?0:df);
+  if(!ps.length) return r;
+  /* saidas: quem esta livre agora (no patio) e quem esta voltando, na ordem em que ficam livres */
+  var mbs=Array.isArray(d.motoboys)?d.motoboys:null, slots=[];
+  (mbs||[]).forEach(function(m){ var lm=rsNum(m.livre_min);
+    if(!isFinite(lm)&&String(m.livre||'').trim().toLowerCase()==='agora') lm=0;
+    if(m.livre&&isFinite(lm)) slots.push({t0:Math.max(0,lm)*60,quem:m.motoboy,patio:!!m.no_patio,livre:m.livre}); });
+  slots.sort(function(a,b){return a.t0-b.t0||String(a.quem).localeCompare(String(b.quem));});
+  /* nome na caixa: o primeiro nome; se dois motoboys tem o mesmo primeiro nome, o nome inteiro */
+  var nPri={}; slots.forEach(function(s){ var k=primeiroNome(s.quem); nPri[k]=(nPri[k]||0)+1; });
+  slots.forEach(function(s){ var k=primeiroNome(s.quem); s.nome=nPri[k]>1?String(s.quem||'').replace(/^\d+\s+GME\s+/i,''):k; });
+  if(!slots.length){
+    /* sem motoboy no quadro: saidas supostas, ja (uma por pedido ate 8, ou o dobro do minimo, para a conta nao pesar);
+       a busca abaixo fica com o menor numero de rotas */
+    var nsup=Math.min(ps.length,Math.max(8,2*Math.ceil(ps.length/r.cap)));
+    for(var k=0;k<nsup;k++) slots.push({t0:0,quem:null,suposto:true});
+    r.avisos.push(mbs?'Nenhum motoboy livre nem voltando no quadro Motoboys agora: a conta supõe que cada rota sai já, assim que houver motoboy.'
+                     :'Não consegui ler os motoboys neste minuto: a conta supõe um motoboy livre agora para cada rota.');
+  }
+  r.slots=slots;
+  /* tempo em segundos a partir da hora da leitura; prazo = minutos que faltam para a hora prometida */
+  var porId={};
+  var ped=ps.map(function(p){ var id=String(p.pedido), f=rsNum(p.falta_prom); porId[id]=p;
+    return {id:id,lat:+p.lat,lng:+p.lng,prom:isFinite(f)?f*60:null,pronto:-Infinity,visto:-Infinity}; });
+  var svc=r.svc, sPorM=r.mk*60/1000;
+  var opts={cap:r.cap,tolS:r.tol,travel:function(a,b){ return svc+sPorM*rsHav(a,b); }};
+  /* plano de partida: as rotas que o TrackEat ja montou com estes pedidos, a mais urgente na primeira saida */
+  var gr={}; ps.forEach(function(p){ if(p.grupo!=null&&p.grupo!=='') (gr[p.grupo]=gr[p.grupo]||[]).push(String(p.pedido)); });
+  var urg=function(id){ var f=rsNum(porId[id].falta_prom); return isFinite(f)?f:1e9; };
+  var gl=Object.keys(gr).map(function(g){return gr[g];}).filter(function(l){return l.length<=r.cap;});
+  gl.sort(function(a,b){ return Math.min.apply(null,a.map(urg))-Math.min.apply(null,b.map(urg)); });
+  opts.inicial=slots.map(function(s,i){ return gl[i]?gl[i].slice():[]; });
+  /* "igual ao TrackEat": compara com a rota inteira do TrackEat (pedidos em qualquer etapa, com ou sem ponto no mapa) */
+  var chave=function(l){ return l.slice().sort().join(','); }, grTE={}, vTE={}, temTE={};
+  loja.forEach(function(p){ var k=String(p.pedido); if(p.grupo==null||p.grupo===''||vTE[k]) return; vTE[k]=1; (grTE[p.grupo]=grTE[p.grupo]||[]).push(k); });
+  Object.keys(grTE).forEach(function(g){ temTE[chave(grTE[g])]=1; });
+  /* menos motoboys: a conta nao ve a volta ate a loja, entao, solta, espalha os pedidos por todos os motoboys livres.
+     Roda com todas as saidas e depois procura (busca binaria) o menor numero de saidas, as que ficam livres primeiro,
+     que nao deixa ninguem a mais sem motoboy, nao tem mais pedidos atrasados e nao faz pedido nenhum passar da hora
+     prometida mais que a tolerancia (rota_tolerancia_s) alem do que passaria com todas as saidas (pedido com folga pode
+     chegar mais tarde, sem atrasar; pedido que ja atrasa pode ir junto com outros, ver "junta"). Sem ponto no mapa nao conta. */
+  var base={lat:+d.loja.lat,lng:+d.loja.lng}, plano, av;
+  var rodar=function(k){ var o={cap:opts.cap,tolS:opts.tolS,travel:opts.travel,inicial:opts.inicial.slice(0,k)};
+    var i={deposito:base,slots:slots.slice(0,k).map(function(s){return {t0:s.t0};}),pedidos:ped};
+    var pl=window.MotorRota.planejar(i,o), a=window.MotorRota.avaliar(i,pl,o), at=0, sg=0, sl={}, atr={};
+    a.forEach(function(x){ at+=x.atrasados; sg+=x.segAtraso;
+      x.ids.forEach(function(id,j){ var pz=x.prazos[j]; atr[String(id)]=(pz==null)?0:Math.max(0,x.chegadas[j]-pz); }); });
+    (pl.semLocal||[]).forEach(function(id){ sl[String(id)]=1; });
+    return {pl:pl,av:a,at:at,sg:sg,atr:atr,nsl:(pl.semLocal||[]).length,fora:(pl.sobra||[]).filter(function(id){return !sl[String(id)];}).length}; };
+  try{
+    var tudo=rodar(slots.length);
+    /* saidas supostas com teto: se alguem atrasa, refaz com uma saida suposta por pedido (como o aviso diz)
+       e so fica com ela se baixar o numero de atrasados; senao volta ao teto (nao espalha rota a toa) */
+    if(tudo.at>0&&slots.length&&slots[0].suposto&&slots.length<ps.length){
+      var nTeto=slots.length;
+      while(slots.length<ps.length) slots.push({t0:0,quem:null,suposto:true});
+      for(var q=opts.inicial.length;q<slots.length;q++) opts.inicial.push(gl[q]?gl[q].slice():[]);
+      var tUm=rodar(slots.length);
+      if(tUm.at<tudo.at) tudo=tUm; else { slots.length=nTeto; opts.inicial.length=nTeto; }
+    }
+    var mx=slots.length, ok=tudo;
+    /* pedido que ja atrasa mesmo com todas as saidas pode ir junto com outros (Fabio, 31/10: "pode juntar os atrasados"):
+       aceita chegar ate uma parada (rota_seg_parada_*) a mais por outro pedido que cabe na rota; os outros, so a tolerancia */
+    var junta=(r.cap-1)*r.svc;
+    var serve=function(t){ if(t.fora>tudo.fora||t.at>tudo.at) return false;
+      for(var id in tudo.atr){ if(!(id in t.atr)) return false;
+        if(t.atr[id]>tudo.atr[id]+r.tol+(tudo.atr[id]>r.tol?junta:0)) return false; }
+      return true; };
+    var lo=Math.min(mx,Math.max(1,Math.ceil((ps.length-tudo.nsl)/r.cap))), hi=mx, achou=false;
+    /* primeiro os 3 menores numeros, um a um (o "serve" nem sempre cresce junto com o numero de saidas); depois, busca binaria */
+    for(var kk=lo;kk<Math.min(hi,lo+3);kk++){ var t1=rodar(kk); if(serve(t1)){ ok=t1; achou=true; break; } }
+    if(!achou){ lo=Math.min(hi,lo+3);
+      while(lo<hi){ var md=Math.floor((lo+hi)/2), t=rodar(md); if(serve(t)){ ok=t; hi=md; } else lo=md+1; } }
+    plano=ok.pl; av=ok.av;
+  }
+  catch(e){ r.erro='A conta falhou neste minuto ('+esc(e&&e.message||e)+'). Tente o botão Atualizar.'; return r; }
+  r.saidas=slots.length;
+  plano.forEach(function(ids,s){
+    if(!ids||!ids.length) return;
+    var a=av[s], n=r.rotas.length;
+    if(!a||!a.ids||!a.ids.length) return;
+    r.rotas.push({letra:String.fromCharCode(65+n%26),cor:RS_COR[n%RS_COR.length],slot:slots[s],sai:a.sai,
+      km:a.metros/1000,atrasados:a.atrasados,igual:!!temTE[chave(a.ids.map(String))],
+      paradas:a.ids.map(String).map(function(id,i){ var p=porId[id], ch=a.chegadas[i], f=rsNum(p.falta_prom);
+        var ps2=(isFinite(f)&&ch-f*60>r.tol)?Math.ceil((ch-f*60)/60):0, pm=rsMin(p.prometido), dm=(pm===null)?0:((Math.round(agora+ch/60)-pm)%1440+1440)%1440;
+        var perto=isFinite(f)&&ch>f*60-120;   /* a hora mostrada so conta quando a conta tambem esta perto do prazo */
+        /* "passa N min" com o mesmo N que a diferenca entre a hora mostrada e a prometida */
+        if(ps2&&perto&&dm>0&&dm<=720) ps2=dm;
+        /* "no limite": chega depois da hora prometida mas dentro da tolerancia, ou a hora mostrada ja passa a prometida */
+        return {p:p,chega:rsHora(agora+ch/60),passa:ps2,
+          justo:!ps2&&((isFinite(f)&&ch>f*60)||(perto&&dm>0&&dm<=720))}; })});
+  });
+  /* o calculador separa quem ficou de fora por falta de vaga (sobra) de quem tem endereco sem ponto no mapa (semLocal) */
+  var semL={}; (plano.semLocal||[]).forEach(function(id){ semL[String(id)]=1; if(porId[String(id)]) r.semPonto.push(porId[String(id)]); });
+  r.sobra=(plano.sobra||[]).filter(function(id){return !semL[String(id)];}).map(function(id){return porId[String(id)];}).filter(Boolean);
+  return r;
+}
+/* a conta so refaz quando chega leitura nova ou muda o maximo (esconder/mostrar a sugestao e redesenhar nao refazem) */
+var RS_MEMO=null;
+function rsCalcMemo(d){
+  if(RS_MEMO&&RS_MEMO.d===d&&RS_MEMO.cap===RS_CAP) return RS_MEMO.r;
+  var r=rsCalc(d); RS_MEMO={d:d,cap:RS_CAP,r:r}; return r;
+}
+function rsSaida(rt){
+  var s=rt.slot||{};
+  if(s.suposto) return 'sai assim que houver motoboy';
+  if(rt.sai<=0) return 'sai agora'+(s.patio?' (motoboy no pátio)':'');
+  return 'quando '+esc(s.nome||primeiroNome(s.quem))+' voltar (~'+esc(s.livre)+')';
+}
+function rsBloco(r){
+  var h='<div class="sec" id="sec_rs"><div class="grp"><span class="em">🧭</span><h2>Rota sugerida</h2><span class="ct">para quem despacha — monte igual no TrackEat</span></div><div class="rs">';
+  h+='<div class="cab"><span class="cap">Máximo por rota:';
+  for(var c=2;c<=6;c++) h+='<button class="'+(c===r.cap?'on':'')+'" onclick="rsCap('+c+')" title="no máximo '+c+' pedidos em cada rota">'+c+'</button>';
+  h+='</span></div><div class="av" id="rs_velho" style="display:none"></div>';
+  if(r.erro) return h+'<div class="vazio">'+r.erro+'</div></div></div>';
+  if(r.idade!==null&&r.idade>=5) h+='<div class="av">⚠ O TrackEat foi lido há '+r.idade+' min: pedido que ficou pronto depois disso ainda não entrou na conta.</div>';
+  r.avisos.forEach(function(a){ h+='<div class="av">⚠ '+a+'</div>'; });
+  var prep=r.preparo?' · '+r.preparo+' em preparo (entra'+(r.preparo===1?'':'m')+' na conta quando ficar'+(r.preparo===1?'':'em')+' pronto'+(r.preparo===1?'':'s')+')':'';
+  if(!r.prontos) return h+'<div class="vazio">Nenhum pedido pronto esperando motoboy agora'+prep+'.</div>'+rsNota(r)+'</div></div>';
+  var at=r.rotas.reduce(function(a,x){return a+x.atrasados;},0);
+  if(r.rotas.length) h+='<div class="res">'+r.prontos+' pronto'+(r.prontos===1?'':'s')+' esperando → <b>'+r.rotas.length+' rota'+(r.rotas.length===1?'':'s')+'</b>'+
+    (r.saidas>r.rotas.length&&!r.slots[0].suposto?' <small style="color:var(--muted);font-weight:600">(usa '+r.rotas.length+' de '+r.saidas+' motoboys livres ou voltando)</small>':'')+' · '+
+    (at?'<span class="mal">⚠ '+at+' pode'+(at===1?'':'m')+' atrasar mesmo na melhor conta</span>':'<span class="ok">✓ ninguém atrasa na conta</span>')+
+    '<small style="color:var(--muted);font-weight:600">'+prep+'</small></div>';
+  r.rotas.forEach(function(rt){
+    h+='<div class="rt"><div class="tt"><span class="lt" style="background:'+rt.cor+'">'+rt.letra+'</span>'+rsSaida(rt)+
+      ' <small>'+rt.paradas.length+' entrega'+(rt.paradas.length===1?'':'s')+' · '+rt.km.toFixed(1).replace('.',',')+' km em linha reta</small>'+
+      (rt.atrasados?'<span class="mal">⚠ '+rt.atrasados+' atrasa'+(rt.atrasados===1?'':'m')+'</span>':'<span class="ok">✓</span>')+
+      (rt.igual?'<span class="ig" title="o TrackEat já montou uma rota com exatamente estes pedidos">igual ao TrackEat</span>':'')+'</div>';
+    rt.paradas.forEach(function(x,i){ var p=x.p;
+      h+='<div class="pr"><span class="n" style="background:'+rt.cor+'">'+(i+1)+'</span>'+
+        '<span class="p" data-ped="'+esc(p.pedido)+'" title="número do Saipos — toque para ver os itens">'+esc(p.pedido)+'</span>'+
+        (quad(p.grupo)||'')+'<span class="ch">chega ~'+esc(x.chega)+'</span>'+
+        (!p.prometido||p.falta_prom==null?'<span class="pz sem">sem hora prometida</span>'
+          :'<span class="pz'+(x.passa?' passou':'')+'">até '+esc(p.prometido)+(x.passa?' · <b>passa '+x.passa+' min</b>':(x.justo?' · no limite':''))+'</span>')+
+        (p.motoboy?'<span class="mb">no TrackEat com '+esc(p.motoboy)+'</span>':'')+
+        vm(p,false)+'</div>';
+    });
+    h+='</div>';
+  });
+  if(r.sobra.length) h+='<div class="fora">🕒 Sem motoboy na conta para: <b>'+r.sobra.map(function(p){return esc(p.pedido);}).join(', ')+
+    '</b> — com no máximo '+r.cap+' por rota não cabem nas saídas de agora. Subir o máximo ou esperar o próximo motoboy livre.</div>';
+  if(r.semPonto.length) h+='<div class="fora">📍 Sem endereço no mapa, fora da conta: <b>'+r.semPonto.map(function(p){return esc(p.pedido);}).join(', ')+'</b>.</div>';
+  return h+rsNota(r)+'</div></div>';
+}
+function rsNota(r){
+  if(r.svc==null) return '';
+  return '<div class="leg">Como a conta funciona: chegada prevista = hora desta atualização + '+esc(String(r.svc))+' s por entrega + '+
+    esc(String(r.mk).replace('.',','))+' min por km em linha reta (números do '+esc(r.turno)+', medidos nas entregas da Água Verde no TrackEat e guardados no banco). '+
+    'Atrasa = chegada prevista mais de '+esc(String(r.tol))+' s depois da hora prometida. A conta escolhe primeiro <b>ninguém atrasar</b>, depois <b>menos km</b>: '+
+    'usa o menor número de motoboys (cada motoboy a mais é uma volta a mais até a loja) que não faz nenhum pedido passar da hora prometida mais de '+esc(String(r.tol))+' s além do que passaria usando todos (pedido com folga pode chegar mais tarde, sem atrasar), e guarda os outros para os pedidos que ainda vão ficar prontos. '+
+    'Pedido que já vai atrasar mesmo com todos os motoboys pode ir junto com outros na mesma rota: aceita chegar até '+esc(String(Math.round((r.cap-1)*r.svc/60)))+' min mais tarde (uma parada de '+esc(String(r.svc))+' s para cada outro pedido que cabe na rota). '+
+    'Parte das rotas que o TrackEat já montou (as que cabem no máximo escolhido) — nunca sugere mais pedidos atrasados que elas na conta. Só entram pedidos prontos. '+
+    'Saída "quando X voltar" usa o mesmo "Livre ~" do quadro Motoboys. É estimativa: trânsito, chuva e porta demorada não entram. '+
+    'O quadradinho colorido ao lado do pedido é a rota em que ele está hoje no TrackEat.</div>';
+}
+function rsCap(n){
+  RS_CAP=n; try{ localStorage.setItem('cdm_fila_cap',String(n)); }catch(e){}
+  if(window.ULT_D){ desenha(window.ULT_D); selo(); }
+}
+function rsMapaTroca(){
+  RS_MAPA=!RS_MAPA; try{ localStorage.setItem('cdm_fila_rsmapa',RS_MAPA?'1':'0'); }catch(e){}
+  if(window.ULT_D){ desenha(window.ULT_D); selo(); }
+}
+/* no mapa: linha pontilhada da loja ate cada entrega, na ordem sugerida, e etiqueta A1, A2... ao lado do pedido */
+function rsMapa(mp,d){
+  if(!RS_MAPA||!RS_ULT||!RS_ULT.rotas.length||!d.loja||d.loja.lat==null) return;
+  var lj=[+d.loja.lat,+d.loja.lng];
+  RS_ULT.rotas.forEach(function(rt){
+    var op=DEST?.25:.95;
+    L.polyline([lj].concat(rt.paradas.map(function(x){return [+x.p.lat,+x.p.lng];})),{color:rt.cor,weight:5,opacity:op,dashArray:'2 8',lineCap:'round',interactive:false}).addTo(mp);
+    rt.paradas.forEach(function(x,i){
+      L.marker([+x.p.lat,+x.p.lng],{interactive:false,opacity:op,zIndexOffset:300,
+        icon:L.divIcon({className:'',html:'<div class="rs-mk" style="background:'+rt.cor+'">'+rt.letra+(i+1)+'</div>',iconSize:null,iconAnchor:[-10,26]})}).addTo(mp);
+    });
+  });
+}
+
 function desenha(d){
   if(!d){ $('app').innerHTML='<div class="vazio">Não consegui ler os pedidos agora. Tente o botão Atualizar.</div>'; return; }
   var r=d.resumo||{}, h='';
@@ -594,14 +1387,20 @@ function desenha(d){
   /* 25/10/2026, pedido do Fabio: "colocar todos os pedidos dentro do mapa". O mapa deixou de ser so da rua:
      mostra os da loja (em preparo e prontos) e os da rua, por isso virou um bloco proprio, antes da lista da loja. */
   if(DEST&&!rua.some(function(m){return m.motoboy===DEST;})){ DEST=null; MV=null; }   /* o motoboy escolhido voltou para a loja */
+  /* 31/10/2026: a rota sugerida (so Agua Verde) fica logo antes do mapa, que desenha as mesmas rotas */
+  RS_ULT=(UNI==='Água Verde'&&!TEP)?rsCalcMemo(d):null;
+  if(RS_ULT) h+=rsBloco(RS_ULT);
+  var temRs=!!(RS_ULT&&RS_ULT.rotas.length);
   var noMapa=loja.filter(function(p){return p.lat!=null&&p.lng!=null;}).length+
              rua.reduce(function(a,m){return a+pontosRota(m).length;},0);
   if(noMapa)
-    h+='<div class="sec" id="sec_mapa"><div class="grp"><span class="em">🗺️</span><h2>Mapa dos pedidos</h2><span class="ct">'+noMapa+' pedido'+(noMapa===1?'':'s')+' no mapa</span>'+
+    h+='<div class="sec" id="sec_mapa"><div class="grp'+(temRs?' com-rs':'')+'"><span class="em">🗺️</span><h2>Mapa dos pedidos</h2><span class="ct">'+noMapa+' pedido'+(noMapa===1?'':'s')+' no mapa</span>'+
+       (temRs?'<button class="b rs-bt" onclick="rsMapaTroca()" title="mostrar ou esconder no mapa as rotas sugeridas">🧭 '+(RS_MAPA?'esconder':'mostrar')+'<span class="rs-tx"> sugestão</span></button>':'')+
        '<button class="b" onclick="mapaTodos()" title="voltar a mostrar todos os pedidos e motoboys">ver todos</button></div>'+
        '<div class="mapao" id="mapao"></div>'+
        '<div class="mapdica">etiqueta com o número do Saipos = pedido na loja: <span class="bola b-vm"></span>em preparo &nbsp;·&nbsp; <span class="bola b-rx"></span>pronto, esperando motoboy &nbsp;·&nbsp; '+
        'bolinha com número = na rua, na cor da rota, na ordem de entrega &nbsp;·&nbsp; anel vermelho = passando do normal &nbsp;·&nbsp; 🏠 loja &nbsp;·&nbsp; 🛵 motoboy agora'+
+       (temRs&&RS_MAPA?' &nbsp;·&nbsp; linha pontilhada com etiqueta A1, A2… = rota sugerida (rota A, 1ª entrega…), em linha reta':'')+
        '<br>Passe o mouse em cima de um pedido para ver o nome do cliente, os números, o tempo e o endereço; tocando, abre os itens com o nome e a hora de entrega. Na lista, o 📍 ao lado do número (e o endereço nos quadros dos motoboys) mostra o pedido no mapa. '+
        'Toque no quadro de um motoboy (ou no nome dele no mapa) para ver só a rota dele; toque de novo para ver todos.</div></div>';
 
@@ -791,6 +1590,7 @@ function minimapas(d){
         .on('click',function(){ abrePedido(p.pedido); }).addTo(mp);
       todos.push(ll); if(DEST&&p.motoboy===DEST) foco.push(ll);
     });
+    try{ rsMapa(mp,d); }catch(e){}
     /* o 1o movimento e o enquadramento da propria tela; dai em diante so a PESSOA mexe (arrastar, botoes +/-, pinca) */
     var auto=true;
     mp.on('moveend',function(){ if(auto){ auto=false; return; } MV={c:mp.getCenter(),z:mp.getZoom(),uni:UNI,dest:DEST}; });
@@ -1010,7 +1810,8 @@ function rodape(d){
     '<br>O quadradinho colorido é a cor da rota no mapa do TrackEat (mesma regra de cor do site dele): pedidos da mesma cor vão com o mesmo motoboy.'+
     '<br>O mapa dos pedidos mostra a loja (🏠), os pedidos da loja com o número do Saipos (vermelho = em preparo, roxo = pronto; o 📍 na lista leva até ele), onde cada motoboy está agora pelo GPS (🛵, com o nome ao lado) e só as entregas que ainda faltam, numeradas na ordem da rota do TrackEat (1 = a próxima). A linha tracejada é em linha reta, não é o caminho de rua. Tocando no quadro de um motoboy (ou no nome dele no mapa) só a rota dele fica acesa. O botão 🔍 ruas abre o mapa grande dele, com o caminho pelas ruas e o tempo estimado de um ponto ao outro (serviço de rotas OSRM: de carro, sem trânsito e sem o tempo parado na porta). Bolinha com anel vermelho = passando do normal.'+
     '<br>Toque no número de um pedido (ou na bolinha dele no mapa) para ver os itens, o endereço e o complemento. Os itens vêm do Saipos, lido de 10 em 10 minutos.'+
-    '<br>A tela se atualiza sozinha a cada minuto e o TrackEat também é lido de minuto em minuto.';
+    '<br>A tela se atualiza sozinha a cada minuto e o TrackEat também é lido de minuto em minuto.'+
+    (UNI==='Água Verde'?'<br>A caixa 🧭 Rota sugerida é uma conta feita aqui na tela (não é o TrackEat e não manda nada para ele): junta os pedidos prontos em rotas para ninguém atrasar; depois usa o menor número de motoboys que não atrasa ninguém a mais (pedido que já vai atrasar pode ir junto com outros) e roda menos km. O botão "Máximo por rota" fica guardado neste aparelho.':'');
 }
 
 /* 24/09/2026, pedido do Fabio: "o quadro tem que estar completamente vivo".
@@ -1046,6 +1847,8 @@ function selo(){
   if(!OK_EM){ v.className='vivo velho'; v.innerHTML='<i></i>sem leitura'; return; }
   if(TEP){ v.className='vivo velho'; v.innerHTML='<i></i>TrackEat sem dado desde '+TEP; return; }
   var s=Math.round((Date.now()-OK_EM)/1000);
+  /* Rota sugerida: se a leitura falhar, a caixa avisa que a conta e da leitura antiga (so texto, sem rede) */
+  var rv=$('rs_velho'); if(rv){ if(s>180&&RS_ULT){ rv.style.display=''; rv.innerHTML='⚠ A tela não atualiza há '+Math.floor(s/60)+' min: esta sugestão é da leitura das '+esc(RS_ULT.agoraTxt)+'. Confira no TrackEat antes de usar.'; } else rv.style.display='none'; }
   v.className='vivo'+(s>180?' velho':'');
   v.innerHTML='<i></i>'+(s>180?'sem atualizar há '+Math.floor(s/60)+' min':'ao vivo · há '+s+' s');
 }
