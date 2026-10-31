@@ -249,6 +249,21 @@ body.modo-carro #slides{display:flex;flex-direction:column;flex:1;min-height:0;p
 .sl-mel .ins:empty{display:none}
 .sl-mel .ac{font-size:3em;font-weight:800;line-height:1.15}
 .sl-mel .ev{font-size:1.8em;color:var(--text2);margin-top:.2em}
+/* 31/10/2026 (obra 165, chat-avaliacoes-analise-31-10) O QUE O CLIENTE DIZ DA COMIDA (iFood, ultimos 30 dias) */
+.sl-vz{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1.4em;margin-bottom:.6em}
+.sl-vz .bx{background:var(--s1);border:2px solid var(--line);border-top:.4em solid var(--ok);border-radius:.6em;padding:.4em 1em;min-width:0}
+.sl-vz .bx.no{border-top-color:var(--bad)}
+.sl-vz .rt{font-size:1.6em;font-weight:800;color:var(--text2);margin-bottom:.1em}
+.sl-vz .rt small{font-weight:600;color:var(--muted);font-size:.75em}
+.sl-vz .vi{display:flex;justify-content:space-between;align-items:baseline;gap:.5em;border-bottom:1px solid var(--line);padding:.05em 0}
+.sl-vz .vi:last-child{border-bottom:0}
+.sl-vz .vi .tg{font-size:2.6em;font-weight:800;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.sl-vz .vi .q{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:3em;line-height:1;color:var(--text2)}
+.sl-vtm{font-size:1.8em;color:var(--text2);margin-bottom:.35em;line-height:1.25}
+.sl-vtm b{color:var(--text)}
+.sl-vfr{font-size:2em;font-style:italic;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sl-vfr .st{color:var(--bad);font-style:normal;letter-spacing:.05em}
+.sl-vfr small{font-style:normal;color:var(--muted);font-size:.75em}
 @media (max-width:900px){html,body{height:auto}body{overflow:auto}.corpo{grid-template-columns:1fr}.topo{flex-wrap:wrap}
   .melhor,.cli{height:auto;grid-template-columns:1fr}.ins .ac,.ins .ev,.cli .q1{white-space:normal}}
 </style>
@@ -993,7 +1008,7 @@ setInterval(function(){ if(CARRO.length>1){ CARRO_I++; carroMostra(); } },8000);
    Erro novo: volta na hora para "Erros de hoje". */
 let MODO_CARRO=!PORTAL;
 try{ if(PORTAL) MODO_CARRO=localStorage.getItem('cdm_tv_carro')==='1'; }catch(e){}
-const SL_ORDEM=['erros','meta','fotos','pz','cli','notas','mel'];
+const SL_ORDEM=['erros','meta','fotos','pz','cli','notas','voz','mel'];   /* 31/10: 'voz' = O que o cliente diz da comida */
 let SL_I=-1, SL_T=null, SL_FOTO=0, SL_CLI=0, SL_ATUAL='';
 function slErros(){
   const j=DADO; if(!j) return null;
@@ -1119,7 +1134,29 @@ function slNotas(){
     +'<div class="sl-nt"><div class="bx"><div class="rt">Notas de '+esc(n.dia||'')+' <small>· o iFood libera depois</small></div>'+esq+'</div>'
     +'<div class="bx"><div class="rt">🏆 Últimos 30 dias <small>· '+esc(n.loja_n)+' notas</small></div>'+dir+rk+'<div class="obj">'+esc(obj)+'</div></div></div>', dur:16};
 }
-const SL_FAZ={erros:slErros, meta:slMeta, fotos:slFotos, pz:slPz, cli:slCli, notas:slNotas, mel:slMel};
+/* 31/10/2026 (obra 165, chat-avaliacoes-analise-31-10) Fabio: "...e depois vamos transmitir pra tv da cozinha".
+   O que o cliente diz da comida no iFood, ultimos 30 dias: os 3 elogios e as 3 criticas que o cliente mais marca, os 3 assuntos
+   que mais escreve (notas 1 a 3) e o ultimo comentario de nota 1 a 3. Dado vem pronto da porta (voz = avaliacoes_voz, guardado
+   30 min): nenhuma chamada de rede nova. Sem nome de cliente; dinheiro do comentario ja vem escondido. Loja sem dado: tela pulada. */
+function slVoz(){
+  const v=DADO&&DADO.voz; if(!v||!v.n) return null;
+  if(v.atraso_dias==null||Number(v.atraso_dias)>3)
+    return {html:'<div class="sl-tit">🗣 O que o cliente diz da comida <small>iFood</small></div><div class="sl-fr nao">⚠️ Nenhuma avaliação nova do iFood desde '+esc(v.ultima||'—')+' — o robô pode estar parado.</div>', dur:8};
+  const fm=x=>Number(x).toLocaleString('pt-BR');
+  const lista=function(arr){ const L=Array.isArray(arr)?arr:[];
+    return L.length? L.map(function(x){ return '<div class="vi"><span class="tg">'+esc(x.tag)+'</span><span class="q">'+fm(x.n)+'</span></div>'; }).join('')
+      : '<div class="vi"><span class="tg" style="color:var(--muted)">nenhuma</span></div>'; };
+  const o=v.oficial, f=v.frase, nt=f?Math.max(0,Math.min(5,Number(f.nota)|0)):0, tm=Array.isArray(v.temas)?v.temas:[];
+  return {html:'<div class="sl-tit">🗣 O que o cliente diz da comida <small>iFood · '+esc(v.de||'')+' a '+esc(v.ate||'')+'</small></div>'
+    +'<div class="sl-vz"><div class="bx"><div class="rt">👍 Mais elogiado <small>· quem deu 5 estrelas marcou</small></div>'+lista(v.elogios)+'</div>'
+    +'<div class="bx no"><div class="rt">👎 Pra melhorar <small>· quem deu 1 a 4 estrelas marcou</small></div>'+lista(v.criticas)+'</div></div>'
+    +'<div class="sl-vtm">⭐ '+fm(v.n)+' avaliações no período, '+fm(v.n13||0)+' com nota 1 a 3'
+      +(o&&o.score!=null?' · nota que o iFood mostra: <b>'+esc(Number(o.score).toFixed(1).replace('.',','))+'</b> ('+esc(marcaCurta(o.marca))+')':'')+'</div>'
+    +(tm.length?'<div class="sl-vtm">✍️ O que mais escrevem nas notas 1 a 3: '+tm.map(function(t){ return '<b>'+esc(t.tema)+'</b> ('+fm(t.n)+')'; }).join(' · ')+'</div>':'')
+    +(f&&f.texto?'<div class="sl-vfr"><span class="st">'+'★'.repeat(nt)+'☆'.repeat(5-nt)+'</span> <small>'+esc(marcaLoja(f.marca))+' · '+esc(f.dia||'')+'</small> “'+esc(f.texto)+'”</div>':''),
+    dur:16};
+}
+const SL_FAZ={erros:slErros, meta:slMeta, fotos:slFotos, pz:slPz, cli:slCli, notas:slNotas, voz:slVoz, mel:slMel};
 function slPontos(nome){
   const vivos=SL_ORDEM.filter(function(k){ try{ return k===nome || !!SL_FAZ[k](); }catch(e){ return false; } });
   $('sl-pontos').innerHTML=vivos.map(function(k){ return '<i'+(k===nome?' class="on"':'')+'></i>'; }).join('');
