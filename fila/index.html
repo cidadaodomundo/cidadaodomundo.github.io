@@ -313,6 +313,8 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
 .rsc-nums{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:2px 4px 6px}
 .rsc-n{display:inline-block;border-radius:999px;border:2px solid #111;padding:1px 10px;font:800 17px/22px 'Barlow Condensed',Barlow,sans-serif;letter-spacing:.02em;color:#111;cursor:pointer}
 .rsc-n.pron{background:var(--roxo)}
+.rsc-n[data-ped]{text-decoration:none}
+.rsc-n[data-ped]:hover{color:#111;filter:brightness(1.12)}
 .rsc-n.prep{background:var(--bad)}
 .rsc-n.passa{box-shadow:0 0 0 3px #e66767}
 .rsc-seta{font-style:normal;color:var(--muted);font-weight:800}
@@ -1543,8 +1545,9 @@ function rsMapa(mp,d){
     var op=DEST?.25:.95;
     L.polyline([lj].concat(rt.paradas.map(function(x){return [+x.p.lat,+x.p.lng];})),{color:rt.cor,weight:5,opacity:op,dashArray:'2 8',lineCap:'round',interactive:false}).addTo(mp);
     rt.paradas.forEach(function(x,i){
-      L.marker([+x.p.lat,+x.p.lng],{interactive:false,opacity:op,zIndexOffset:300,
-        icon:L.divIcon({className:'',html:'<div class="rs-mk" style="background:'+rt.cor+'">'+rt.letra+(i+1)+'</div>',iconSize:null,iconAnchor:[-10,26]})}).addTo(mp);
+      var rsLig=!!(window.TG&&TG.on&&TG.aba==='rota');   /* rota inteligente do mapa grande: etiqueta por cima do numero preto e mais afastada */
+      L.marker([+x.p.lat,+x.p.lng],{interactive:false,opacity:op,zIndexOffset:rsLig?1800:300,
+        icon:L.divIcon({className:'',html:'<div class="rs-mk" style="background:'+rt.cor+'">'+rt.letra+(i+1)+'</div>',iconSize:null,iconAnchor:rsLig?[-18,32]:[-10,26]})}).addTo(mp);
     });
   });
 }
@@ -2194,7 +2197,7 @@ function tgDesenha(d){
     h+='<div class="tg-rs"><div style="padding:8px 2px;display:flex;gap:6px;flex-wrap:wrap"><button class="b" onclick="rsMapaTroca()">🧭 '+(RS_MAPA?'esconder do mapa':'mostrar no mapa')+'</button>'+
        '<button class="b" data-tgrd="'+(TG.rsDet?'0':'1')+'">'+(TG.rsDet?'só os números':'ver horários')+'</button></div>'+
        (TG.rsDet?rsBloco(RS_ULT).replace('id="rs_velho"','id="tg_rs_velho"').replace('id="sec_rs"','id="tg_sec_rs"')
-                :'<div id="tg_sec_rs"><div class="av" id="tg_rs_velho" style="display:none"></div>'+rsNumeros(RS_ULT,loja)+'</div>')+'</div>';
+                :'<div id="tg_sec_rs"><div class="tg-av" id="tg_rs_velho" style="display:none"></div>'+rsNumeros(RS_ULT,loja)+'</div>')+'</div>';
   }else{
     var foco=function(p){ return !TG.foco||p.motoboy===TG.foco; };
     var sec=function(chave,tit,bola,lista,fn){
@@ -2291,7 +2294,7 @@ function tgDesenha(d){
     if(p.lat==null||p.lng==null) return;
     var id=String(p.pedido), dim=(!!TG.foco&&p.motoboy!==TG.foco)||(rsFoco&&!emRota[id]), cor=p.motoboy&&tgCorG(p.grupo);
     if(rsFoco&&emRota[id]){   /* rota inteligente: numero branco sobre preto, borda na cor da rota, por cima do resto */
-      mkPed(id,[+p.lat,+p.lng],'<div class="mm-l tg-rsnum'+(TG.sel===id?' tg-selmk':'')+'" style="border-color:'+emRota[id]+'">'+esc(p.pedido)+'</div>',fichaLoja(p),900,false);
+      mkPed(id,[+p.lat,+p.lng],'<div class="mm-l tg-rsnum'+(TG.sel===id?' tg-selmk':'')+'" style="border-color:'+emRota[id]+'">'+esc(p.pedido)+'</div>',fichaLoja(p),1700,false);
       return;
     }
     mkPed(id,[+p.lat,+p.lng],'<div class="mm-l '+(p.onde==='preparo'?'mm-prep':'mm-pron')+(late(p)?' late':'')+(TG.sel===id?' tg-selmk':'')+'"'+(cor?' style="border-color:'+cor+';border-width:3px"':'')+'>'+esc(p.pedido)+'</div>',
@@ -2384,7 +2387,9 @@ function rsNumeros(r,loja){
   if(r.erro) return '<div class="tg-vz">'+r.erro+'</div>';
   var h='', chip=function(p,cls,extra){ return '<span class="rsc-n '+cls+'" data-ped="'+esc(p.pedido)+'" title="toque para ver os itens">'+esc(p.pedido)+(extra||'')+'</span>'; };
   if(r.idade!==null&&r.idade>=5) h+='<div class="tg-av">⚠ TrackEat lido há '+r.idade+' min</div>';
-  if(!r.rotas.length) h+='<div class="tg-vz">Nenhum pedido pronto esperando motoboy agora.</div>';
+  (r.avisos||[]).forEach(function(a){ h+='<div class="tg-av">⚠ '+a+'</div>'; });
+  if(!r.prontos) h+='<div class="tg-vz">Nenhum pedido pronto esperando motoboy agora.</div>';
+  else if(!r.rotas.length) h+='<div class="tg-vz">Nenhuma saída sugerida agora: veja abaixo.</div>';
   r.rotas.forEach(function(rt){
     var s=rt.slot||{}, sai=s.suposto?'assim que houver motoboy':(rt.sai<=0?'sai agora':'~'+esc(s.livre)+' · '+esc(s.nome||primeiroNome(s.quem)));
     h+='<div class="rsc-rt"><span class="lt" style="background:'+rt.cor+'">'+rt.letra+'</span><span class="rsc-sai">'+sai+'</span>'+
