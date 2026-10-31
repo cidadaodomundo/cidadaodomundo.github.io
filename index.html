@@ -113,7 +113,7 @@ const LOGO="//acconimages.s3.amazonaws.com/merchants/logos/378-1755286245137.png
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const H={apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'};
-const DESC={motoboys:'MEI, CNH, moto, contrato e Pix de cada motoboy — e o que falta pedir',hellen_ponto:'Painel RH: espelho de ponto, refeição e mês a mês',hellen_rhcaixa:'Caixa de entrada do RH: o que o robô achou e espera aprovação',pausadosgestao:'iFood, Accon e tablet — o que está pausado em cada loja',hellen_moto:'Pagamento do dia, ao vivo e maquininha',hellen:'Ponto das taxas pelo QR: ao vivo, semana e pagamento',hellen_rh:'Central do RH: ponto do dia, escala e equipe',avaliacoes:'iFood, Google e Accon — o que o cliente disse hoje, loja por loja',avaliacoesgestao:'iFood, Google e Accon — o que o cliente disse hoje, loja por loja',avaliacoessb:'iFood, Google e Accon do dia — só São Braz',avaliacoesahu:'iFood, Google e Accon do dia — só Ahú',tvsb:'Erros do dia, fora do ar e meta do churrasco — só São Braz',tvahu:'Erros do dia, fora do ar e meta do churrasco — só Ahú',agora:'Resolver, tempo de entrega, chegada e fila — o que fazer agora',pausados:'iFood e Accon — o que está fora do ar no delivery',cancelados:'Cancelados e parte devolvida no iFood: motivos, turno, prejuízo e o que explicar',sbpausados:'Tablet do salão e iFood — só São Braz',ahupausados:'iFood — só Ahú',manutencaoahu:'Chamados de conserto — só Ahú',ahucancel:'Cancelados e parte devolvida no iFood — só Ahú',qualidade:'Como fomos: prazo, cancelamentos, avaliações e painel do dia',delivery:'Diário, equipe e iFood do delivery',escala:'Previsão de chuva e escala dos motoboys',rh:'Ponto do dia das gestoras',salao:'Avaliações e gestão do salão',rhsb:'Ponto do dia — só São Braz',ifoodsb:'Notas, cancelamentos e chamados — só São Braz',ponto:'Consulta por tipo, guia e visão geral do ponto',ifood:'Notas, cancelamentos, chamados e Selo Super',reuniao:'Resumo semanal: avaliações, cancelamentos e RH',escritorio:'Financeiro, contas a pagar e usuários',operacao:'Perdas e sobras jogadas fora'};
+const DESC={fila:'o mapa dos pedidos em tela inteira: cozinha, prontos e rua',motoboys:'MEI, CNH, moto, contrato e Pix de cada motoboy — e o que falta pedir',hellen_ponto:'Painel RH: espelho de ponto, refeição e mês a mês',hellen_rhcaixa:'Caixa de entrada do RH: o que o robô achou e espera aprovação',pausadosgestao:'iFood, Accon e tablet — o que está pausado em cada loja',hellen_moto:'Pagamento do dia, ao vivo e maquininha',hellen:'Ponto das taxas pelo QR: ao vivo, semana e pagamento',hellen_rh:'Central do RH: ponto do dia, escala e equipe',avaliacoes:'iFood, Google e Accon — o que o cliente disse hoje, loja por loja',avaliacoesgestao:'iFood, Google e Accon — o que o cliente disse hoje, loja por loja',avaliacoessb:'iFood, Google e Accon do dia — só São Braz',avaliacoesahu:'iFood, Google e Accon do dia — só Ahú',tvsb:'Erros do dia, fora do ar e meta do churrasco — só São Braz',tvahu:'Erros do dia, fora do ar e meta do churrasco — só Ahú',agora:'Resolver, tempo de entrega e chegada — o que fazer agora',pausados:'iFood e Accon — o que está fora do ar no delivery',cancelados:'Cancelados e parte devolvida no iFood: motivos, turno, prejuízo e o que explicar',sbpausados:'Tablet do salão e iFood — só São Braz',ahupausados:'iFood — só Ahú',manutencaoahu:'Chamados de conserto — só Ahú',ahucancel:'Cancelados e parte devolvida no iFood — só Ahú',qualidade:'Como fomos: prazo, cancelamentos, avaliações e painel do dia',delivery:'Diário, equipe e iFood do delivery',escala:'Previsão de chuva e escala dos motoboys',rh:'Ponto do dia das gestoras',salao:'Avaliações e gestão do salão',rhsb:'Ponto do dia — só São Braz',ifoodsb:'Notas, cancelamentos e chamados — só São Braz',ponto:'Consulta por tipo, guia e visão geral do ponto',ifood:'Notas, cancelamentos, chamados e Selo Super',reuniao:'Resumo semanal: avaliações, cancelamentos e RH',escritorio:'Financeiro, contas a pagar e usuários',operacao:'Perdas e sobras jogadas fora'};
 /* 14/10/2026 (chat-aba-hellen-3-em-1-14-10): grupo Hellen no menu, pedido do Fabio: "a hellen pra fora como e o de gestao, o nome dela e as opcoes logo abaixo". */
 /* 15/10/2026 (chat-menu-faxina-pausados-15-10): saiu o grupo Resolver, pedido do Fabio: "excluir a aba resolver inteira". */
 const GRUPOS=['Hellen','Delivery','Gestão','Escritório','São Braz','Ahú','Proprietário'];
@@ -191,7 +191,11 @@ function mods(){const tem={};MODULOS.forEach(m=>{tem[m.id]=1});return MODULOS.fi
 let ABERTO=null;
 function grp(i){const g=GRUPOS[i];ABERTO=(ABERTO===g?null:g);menu()}
 function menu(){
-  let h='<div class="mi'+(ATUAL===null?' on':'')+'" onclick="inicio()"><div class="ic">🏠</div><div><div class="t">Início</div></div></div><div class="gsep"></div>';
+  /* 31/10/2026 (chat-mapa-fila-foody-31-10), pedido do Fabio: o Mapa de Pedidos fica logo abaixo do Inicio, fora dos grupos
+     (modulo com grupo "_topo"), e abre em tela inteira (ver abrir). Ainda em 31/10 ele pediu o Mapa dentro do grupo Delivery:
+     hoje nenhum modulo usa o _topo (fica pronto para um item fixo abaixo do Inicio, se ele pedir de novo). */
+  let h='<div class="mi'+(ATUAL===null?' on':'')+'" onclick="inicio()"><div class="ic">🏠</div><div><div class="t">Início</div></div></div>'+
+    mods().filter(m=>m.grupo==='_topo').map(mi).join('')+'<div class="gsep"></div>';
   GRUPOS.forEach((g,i)=>{const l=mods().filter(m=>m.grupo===g);if(!l.length)return;
     const ab=ABERTO===g, tem=l.some(m=>m.id===ATUAL);
     h+='<div class="grp'+(ab?' aberto':'')+(tem?' tem':'')+'" onclick="grp('+i+')"><span>'+esc(g)+'</span><span class="gq">'+l.length+'</span><span class="gs">▸</span></div>';
@@ -203,6 +207,7 @@ function menu(){
 function mi(m){return '<div class="mi'+(ATUAL===m.id?' on':'')+'" onclick="abrir(\''+m.id+'\')"><div class="ic">'+(m.icone||'')+'</div><div><div class="t">'+esc(m.nome)+'</div><div class="d">'+esc(DESC[m.id]||'')+'</div></div></div>'}
 function inicio(){ATUAL=null;ABERTO=null;location.hash='';$('titulo').textContent='Início';$('rt').innerHTML='';
   let h='<div class="home"><img src="'+LOGO+'"><h1>Portal de Gestão</h1><div class="s">'+esc(NOME)+' — escolha um módulo</div><div id="fresco" style="text-align:center;margin-top:10px"></div><div class="avd" id="avd"></div><div class="cards">';
+  mods().filter(m=>m.grupo==='_topo').forEach(m=>{h+='<div class="card" onclick="abrir(\''+m.id+'\')"><div class="ic">'+(m.icone||'')+'</div><div class="t">'+esc(m.nome)+'</div><div class="d">'+esc(DESC[m.id]||'')+'</div></div>'});
   const gs=GRUPOS.slice();
   /* 30/09/2026: modulo com grupo comecando por "_" continua ligado (a trava de acesso das telas precisa dele),
      mas nao ganha cartao: ele aparece dentro de outra tela (ex.: as abas da tela Agora). */
@@ -248,7 +253,14 @@ async function carimboFontes(){try{
     return '<div style="display:inline-block;margin:3px;padding:6px 12px;border-radius:999px;background:'+cor+';color:'+tx+';font-size:13px">'+(parado?'⛔':'⚠')+' '+esc(nm[x.fonte]||x.fonte)+' — dado até '+esc(d||'nunca')+'</div>';
   }).join('');
 }catch(e){}}
+/* 31/10/2026, pedido do Fabio: "coloque ele dentro da aba do delivery". O Mapa de Pedidos (modulo fila) foi para o grupo
+   Delivery (portal_modulo) e continua abrindo em tela inteira: modulo desta lista abre a tela sozinha, fora do quadro do portal. */
+const TELA_CHEIA={fila:1};
 function abrir(id){const m=MODULOS.find(x=>x.id===id);if(!m)return;
+  /* 31/10/2026, pedido do Fabio: "qdo clicar nele some as opcoes do lado e fica somente essa parte na tela inteira, assim como
+     no foody". Modulo do grupo _topo abre a tela sozinha, sem o menu e sem o cabecalho do portal (mesma aba, a sessao continua);
+     a propria tela tem o botao "← Portal" para voltar. O endereco do portal fica sem #, para o Voltar do navegador nao reabrir. */
+  if(m.grupo==='_topo'||TELA_CHEIA[m.id]){try{history.replaceState(null,'',location.pathname)}catch(e){}location.assign('/'+String(m.url).replace(/^\//,''));return}
   ATUAL=id;ABERTO=m.grupo;location.hash=id;$('titulo').textContent=m.icone+' '+m.nome;
   URLBASE=m.url;
   $('rt').innerHTML='<button class="btn" onclick="voltar()">← Voltar</button><button class="btn" onclick="recarregar()">↻</button><a class="btn" href="'+m.url+'" target="_blank" rel="noopener">↗ abrir</a>';

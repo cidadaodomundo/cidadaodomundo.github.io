@@ -60,7 +60,7 @@ button.b[disabled]{opacity:.45;cursor:not-allowed}
 <body>
 <div class="top">
   <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>💬 Central do SAC</h1><div class="sub">WhatsApp do SAC Água Verde (41 9947-3007), WhatsApp das lojas, Facebook, Instagram e WhatsApp oficial — lido pelo robô, conversa por conversa</div></div></div>
-  <div class="rt"><button class="b" id="bHoje" onclick="mudaDia(0)">Hoje</button><button class="b" id="bOntem" onclick="mudaDia(1)">Ontem</button><input type="date" id="dDia" onchange="escolhe(this.value)"><button class="b" onclick="boot()">↻</button></div>
+  <div class="rt"><button class="b" id="bHoje" onclick="mudaDia(0)">Hoje</button><button class="b" id="bOntem" onclick="mudaDia(1)">Ontem</button><input type="date" id="dDia" onchange="escolhe(this.value)"><button class="b" onclick="boot()">↻</button><button class="b" id="bSom" onclick="trocaSom()">🔔 Som</button></div>
 </div>
 <div id="fresco" class="fresco"></div>
 <div class="lojas" id="lojas"></div>
@@ -137,6 +137,28 @@ async function guardaChave(cid){
   await carregaResp(cid);
 }
 function hojeOp(){const d=new Date(Date.now()-5*3600*1000);return d.toLocaleDateString('sv-SE')}
+/* 31/10/2026 (Fabio: "fazer o sac agua verde responder tudo... sempre tem alguem la de prontidao"): reserva, encomenda,
+   reclamacao e problema no pedido em vermelho; contador de quem espera no titulo da aba; som quando chega cliente do
+   Facebook/Instagram esperando. O som so toca com a tela a vista (a atualizacao de 1 min para quando a aba some, regra 15);
+   com a aba escondida quem avisa e o alerta no celular do SAC (robo meta_avisar_sac). O navegador so deixa tocar depois de
+   um clique na tela. A preferencia do botao Som fica so neste navegador. */
+const QUENTE=['reserva_salao','encomenda_grande','reclamacao_cliente','problema_no_pedido'];
+const TITULO=document.title;
+let SOM=(function(){try{return localStorage.getItem('cdm_sac_som')!=='0'}catch(e){return true}})(),ACTX=null,VISTOS=null;
+function abreSom(){if(SOM&&!ACTX){try{ACTX=new (window.AudioContext||window.webkitAudioContext)()}catch(e){ACTX=null}}}
+document.addEventListener('click',abreSom);
+function apito(){try{if(!ACTX)return;if(ACTX.resume)ACTX.resume();const o=ACTX.createOscillator(),g=ACTX.createGain();o.frequency.value=880;g.gain.value=.15;o.connect(g);g.connect(ACTX.destination);o.start();o.stop(ACTX.currentTime+.35)}catch(e){}}
+try{$('bSom').textContent=SOM?'🔔 Som':'🔕 Som'}catch(e){}
+function trocaSom(){SOM=!SOM;try{localStorage.setItem('cdm_sac_som',SOM?'1':'0')}catch(e){}abreSom();$('bSom').textContent=SOM?'🔔 Som':'🔕 Som';if(SOM)apito()}
+function avisaNovos(){
+  if(DIA){document.title=TITULO;VISTOS=null;return}
+  const esp=(D&&D.casos||[]).filter(c=>c.situacao==='esperando_resposta'&&!c.feito);
+  document.title=(esp.length?'('+esp.length+') ':'')+TITULO;
+  const redes=esp.filter(podeResp).map(c=>c.conversa_id+'|'+(c.esperando_desde||''));
+  if(VISTOS===null){VISTOS=redes;return}
+  const novo=redes.some(k=>VISTOS.indexOf(k)<0);VISTOS=redes;
+  if(novo&&SOM)apito();
+}
 function mudaDia(n){const d=new Date(Date.now()-5*3600*1000-n*86400000);DIA=n===0?'':d.toLocaleDateString('sv-SE');boot()}
 function escolhe(v){DIA=(v&&v<hojeOp())?v:'';boot()}
 function min(m){if(m==null)return '';if(m<60)return m+' min';const h=Math.floor(m/60);return h+'h'+String(m%60).padStart(2,'0')}
@@ -153,7 +175,7 @@ function cartao(c){
   else if(esp)pill='<span class="pill p-bad">esperando há '+esc(min(c.esperando_min))+'</span>';
   else if(ult)pill='<span class="pill p-warn">última palavra dele · '+esc(c.esperando_desde||'')+'</span>';
   else pill='<span class="pill p-off">respondido</span>';
-  const ass=(c.assuntos&&c.assuntos.length?c.assuntos:[c.assunto]).filter(Boolean).map(a=>'<span class="pill p-br">'+esc(assLbl(a))+'</span>').join(' ');
+  const ass=(c.assuntos&&c.assuntos.length?c.assuntos:[c.assunto]).filter(Boolean).map(a=>'<span class="pill '+(QUENTE.indexOf(a)>=0?'p-bad':'p-br')+'">'+esc(assLbl(a))+'</span>').join(' ');
   const rs=((ABA==='pessoal'?c.resumos_pessoais:c.resumos)||[]).map(r=>'<div>• '+esc(r)+'</div>').join('');
   const extra=[c.loja?('loja '+esc(LOJA[c.loja]||c.loja)):'',(c.pedidos&&c.pedidos.length)?('pedido '+c.pedidos.map(esc).join(', ')):'',c.e_grupo?'grupo':'',c.sem_ler?(c.sem_ler+' msg ainda sem ler'):'',c.pessoais?(c.pessoais+' fora do trabalho'):''].filter(Boolean).join(' · ');
   const br=podeResp(c)?'<button class="b" onclick="abreResp(\''+esc(c.conversa_id)+'\')">'+(RESP[c.conversa_id]?'Fechar conversa':'💬 Ver e responder')+'</button> ':'';
@@ -191,7 +213,7 @@ async function boot(quieto){
   const atras=D.chegou_ate?Math.round((Date.now()-new Date(D.chegou_ate))/60000):null;
   $('fresco').className='fresco'+((atras!=null&&atras>60)||D.sem_ler_2h>40?' bad':'');
   $('fresco').innerHTML='Última mensagem que chegou: <b>'+f(D.chegou_ate)+'</b>'+(atras!=null&&atras>60?' (há '+min(atras)+' — o carteiro pode estar parado)':'')+' · lido pelo robô até <b>'+f(D.lido_ate)+'</b>'+(D.sem_ler_2h?' · '+D.sem_ler_2h+' mensagens das últimas 2h ainda na fila':'')+' · atualiza sozinho a cada minuto';
-  desenha();
+  desenha();avisaNovos();
   clearTimeout(TIMER);TIMER=document.hidden?null:setTimeout(auto,60000);
 }
 /* enquanto alguem esta digitando uma resposta, a tela espera o proximo minuto para se redesenhar (nao tira o cursor de quem escreve);
