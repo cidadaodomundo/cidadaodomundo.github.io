@@ -21,6 +21,10 @@ input[type=date]{background:var(--s2);border:1px solid var(--line);color:var(--t
 .dot{width:40px;height:40px;border-radius:11px;background:var(--brand);color:var(--brand-ink);display:grid;place-items:center;font-weight:800;font-size:16px}
 .abas{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
 .abas button .n{display:inline-block;margin-left:6px;background:rgba(0,0,0,.25);border-radius:99px;padding:0 7px;font-size:11.5px}
+.lojas{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.lojas .tt{font-size:12px;color:var(--muted);margin-right:2px}
+.lojas button.b{padding:6px 10px;font-size:12.5px}
+.lojas button .n{display:inline-block;margin-left:6px;background:rgba(0,0,0,.25);border-radius:99px;padding:0 7px;font-size:11px}
 .fresco{font-size:12px;color:var(--muted);margin-bottom:12px}
 .fresco.bad{color:var(--bad)}
 .c{background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:12px 14px;margin-bottom:9px}
@@ -46,13 +50,14 @@ input[type=date]{background:var(--s2);border:1px solid var(--line);color:var(--t
 </head>
 <body>
 <div class="top">
-  <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>💬 Central do SAC</h1><div class="sub">WhatsApp do SAC Água Verde (41 9947-3007) — lido pelo robô, conversa por conversa</div></div></div>
+  <div style="display:flex;gap:10px;align-items:center"><div class="dot">CM</div><div><h1>💬 Central do SAC</h1><div class="sub">WhatsApp do SAC Água Verde (41 9947-3007), WhatsApp das lojas, Facebook, Instagram e WhatsApp oficial — lido pelo robô, conversa por conversa</div></div></div>
   <div class="rt"><button class="b" id="bHoje" onclick="mudaDia(0)">Hoje</button><button class="b" id="bOntem" onclick="mudaDia(1)">Ontem</button><input type="date" id="dDia" onchange="escolhe(this.value)"><button class="b" onclick="boot()">↻</button></div>
 </div>
 <div id="fresco" class="fresco"></div>
+<div class="lojas" id="lojas"></div>
 <div class="abas" id="abas"></div>
 <div id="app"><div class="load">Carregando…</div></div>
-<div class="aviso">O robô lê cada mensagem assim que ela chega e junta por conversa. <b>Vermelho</b> = a pessoa pediu algo e o SAC ainda não respondeu. <b>Amarelo</b> = a última palavra foi dela, mas talvez não precise de resposta. Marque <b>✓ Resolvido</b> quando cuidar. Cliente aparece pelas iniciais e o final do telefone; nos resumos o robô troca o nome do cliente pela inicial, mas algum nome escrito diferente pode escapar. O dia vira às 5h da manhã. A aba <b>Fora do trabalho</b> mostra as mensagens que a IA marcou como fora do trabalho — é a leitura dela, confira na conversa antes de agir.</div>
+<div class="aviso">O robô lê cada mensagem assim que ela chega e junta por conversa. <b>Vermelho</b> = a pessoa pediu algo e o SAC ainda não respondeu. <b>Amarelo</b> = a última palavra foi dela, mas talvez não precise de resposta. Marque <b>✓ Resolvido</b> quando cuidar. Cliente aparece pelas iniciais e o final do telefone; nos resumos o robô troca o nome do cliente pela inicial, mas algum nome escrito diferente pode escapar. O dia vira às 5h da manhã. Os botões de cima separam por onde a mensagem chegou: o SAC, cada loja, Compras, ou Facebook, Instagram e WhatsApp oficial (as lojas entram a partir de 30/10/2026). A aba <b>Fora do trabalho</b> mostra as mensagens que a IA marcou como fora do trabalho — é a leitura dela, confira na conversa antes de agir.</div>
 <script>
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
@@ -69,7 +74,18 @@ const assLbl=a=>ASS[a]||(a?a.replace(/_/g,' '):'—');
 const LOJA={agua_verde:'Água Verde',sao_braz:'São Braz',ahu:'Ahú',boqueirao:'Boqueirão'};
 const PARA={compras:'🛒 Compras',manutencao:'🔧 Manutenção',encomendas:'🎉 Encomendas',nao_conserto:'🙅 Não é conserto (não foi para tela nenhuma)'};
 const ABAS=[['esperando','🔴 Esperando resposta'],['clientes','🙋 Clientes'],['motoboys','🛵 Motoboys'],['de_fora','🌍 De fora'],['lojas','🏪 Lojas e gerência'],['pessoal','🙂 Fora do trabalho'],['encaminhados','📦 Mandados para outras telas']];
-let DIA='',ABA='esperando',D=null,TIMER=null;
+/* 31/10/2026 (chat-carteiro-facebook-31-10, Fabio: "sim coloque botoes por loja"): a porta sac_consulta passou a trazer
+   tambem os WhatsApp das lojas e Facebook/Instagram/WhatsApp oficial. De onde veio sai do comeco do conversa_id
+   (loja:<numero>:..., fb:, ig:, wa:; o resto e o SAC). Nas lojas o id tecnico do numero 'ahu' e o de Compras e 'boqueirao' e o Ahu. */
+const ORIG=[['todas','📋 Todas'],['sac','🎧 SAC Água Verde'],['salao','🏪 Salão'],['saobraz','🏪 São Braz'],['ahu','🏪 Ahú'],['compras','🛒 Compras'],['redes','📱 Facebook · Instagram · WhatsApp oficial']];
+function origem(c){
+  const id=String(c.conversa_id||'');
+  if(/^(fb|ig|wa):/.test(id))return 'redes';
+  if(id.indexOf('loja:')!==0)return 'sac';
+  const n=id.split(':')[1];
+  return n==='ahu'?'compras':n==='boqueirao'?'ahu':n;
+}
+let DIA='',ABA='esperando',LOJ='todas',D=null,TIMER=null;
 function hojeOp(){const d=new Date(Date.now()-5*3600*1000);return d.toLocaleDateString('sv-SE')}
 function mudaDia(n){const d=new Date(Date.now()-5*3600*1000-n*86400000);DIA=n===0?'':d.toLocaleDateString('sv-SE');boot()}
 function escolhe(v){DIA=(v&&v<hojeOp())?v:'';boot()}
@@ -94,11 +110,14 @@ function cartao(c){
   return '<div class="c'+(esp?' esp':'')+(ult?' ult':'')+(c.feito?' feito':'')+'"><div class="l1"><span class="nm">'+esc(c.nome)+'</span>'+pill+'<span class="rt">'+bt+'</span></div>'
     +'<div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">'+ass+'</div>'
     +(rs?'<div class="rs">'+rs+'</div>':'')
-    +'<div class="m">'+esc(c.primeira||'')+' → '+esc(c.ultima||'')+' · '+c.msgs+' mensagens ('+c.msgs_sac+' do SAC)'+(extra?' · '+extra:'')+'</div></div>';
+    +'<div class="m">'+esc(c.primeira||'')+' → '+esc(c.ultima||'')+' · '+c.msgs+' mensagens ('+c.msgs_sac+(origem(c)==='sac'?' do SAC':c.msgs_sac===1?' nossa':' nossas')+')'+(extra?' · '+extra:'')+'</div></div>';
 }
 function desenha(){
   if(!D)return;
-  const cs=D.casos||[];
+  const todos=D.casos||[];
+  const nLoj=k=>k==='todas'?todos.length:todos.filter(c=>origem(c)===k).length;
+  $('lojas').innerHTML='<span class="tt">De onde veio:</span>'+ORIG.filter(([k])=>k==='todas'||k===LOJ||nLoj(k)>0).map(([k,t])=>'<button class="b'+(LOJ===k?' on':'')+'" onclick="LOJ=\''+k+'\';desenha()">'+t+'<span class="n">'+nLoj(k)+'</span></button>').join('');
+  const cs=LOJ==='todas'?todos:todos.filter(c=>origem(c)===LOJ);
   $('abas').innerHTML=ABAS.map(([k,t])=>{const n=k==='encaminhados'?(D.encaminhados||[]).length:cs.filter(c=>naAba(c,k)).length;return '<button class="b'+(ABA===k?' on':'')+'" onclick="ABA=\''+k+'\';desenha()">'+t+'<span class="n">'+n+'</span></button>'}).join('');
   if(ABA==='encaminhados'){
     const e=D.encaminhados||[];
