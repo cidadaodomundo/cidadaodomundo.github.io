@@ -319,6 +319,32 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
 .rsc-n.passa{box-shadow:0 0 0 3px #e66767}
 .rsc-seta{font-style:normal;color:var(--muted);font-weight:800}
 .rsc-tit{font:700 12.5px 'Barlow Condensed',Barlow,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);padding:12px 4px 2px}
+/* 01/11/2026 (chat-mapa-numeros-01-11), pedido do Fabio: "diminua esses cartoes deixe so os numeros em cores vermelha (cozinha) roxo (pronto)
+   pra facilitar a vizualizacao geral igual ao foody delivery". Mesmas cores e o mesmo anel de atraso dos numeros do mapa.
+   E "as rotas sugeridas pode olhar todas, ou uma a uma": botoes Todas / A / B... escondem as outras rotas no mapa. */
+.tg-modo{display:flex;align-items:center;gap:8px;font-size:11.5px;font-weight:700;color:var(--muted)}
+.tg-modo i{display:inline-block;width:14px;height:12px;border-radius:4px;border:1.5px solid #111;vertical-align:-1px;margin-right:3px}
+.tg-modo .an{background:transparent;border:2.5px solid #e66767;border-radius:50%;width:12px}
+.tg-modo button{margin-left:auto;border:1px solid var(--line);background:var(--s2);border-radius:8px;padding:4px 9px;font:700 12px Barlow,sans-serif;color:var(--text2);cursor:pointer;white-space:nowrap}
+.tg-nums{display:flex;flex-wrap:wrap;gap:7px;padding:3px 3px 8px}
+.tg-nn{min-width:56px;border:2px solid #111;border-radius:9px;padding:3px 6px;background:var(--s3);font:800 19px/22px 'Barlow Condensed',Barlow,sans-serif;letter-spacing:.02em;color:#111;text-align:center;cursor:pointer}
+.tg-nn:hover{filter:brightness(1.12)}
+.tg-nn.pron{background:var(--roxo)}
+.tg-nn.prep{background:var(--bad)}
+.tg-nn.nv{background:#fff;border-color:#ea1d2c;color:#c4111d;font-size:16px}
+.tg-nn.nv small{font:800 10px Barlow,sans-serif;margin-right:3px}
+.tg-nn.late{box-shadow:0 0 0 2px var(--s0),0 0 0 5px #e66767}
+.tg-nn.sel{outline:3px solid var(--brand);outline-offset:4px}
+.tg-selbox{position:sticky;top:0;z-index:3;background:var(--s0);padding:8px 0 2px}
+.tg-selbox .fx{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;font-weight:700;color:var(--muted);padding:0 2px 4px}
+.tg-selbox .fx button{border:1px solid var(--line);background:var(--s2);border-radius:8px;padding:2px 9px;font:700 12px Barlow,sans-serif;color:var(--text2);cursor:pointer}
+.tg-rsver{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font:700 12px Barlow,sans-serif;color:var(--text2)}
+.tg-rsver button{min-width:34px;height:32px;border:2px solid #111;border-radius:9px;padding:0 9px;background:var(--s2);font:800 14px Barlow,sans-serif;color:var(--text);cursor:pointer}
+.tg-rsver button[data-tgro]:not([data-tgro=""]){background:var(--c);color:#111}
+.tg-rsver button.on{outline:3px solid var(--brand);outline-offset:2px}
+.tg-rsver button.apaga{opacity:.4}
+.rsc-rt[data-tgro]{cursor:pointer}
+.rsc-rt.apaga,.rsc-nums.apaga{opacity:.3}
 .tg-mbs{top:10px;right:10px;width:270px;max-height:calc(100% - 90px);display:flex;flex-direction:column}
 .tg-mbs header{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line)}
 .tg-mbs header h4{margin:0;font:700 14.5px 'Barlow Condensed',Barlow,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--text2)}
@@ -1541,7 +1567,9 @@ function rsMapaTroca(){
 function rsMapa(mp,d){
   if(!RS_MAPA||!RS_ULT||!RS_ULT.rotas.length||!d.loja||d.loja.lat==null) return;
   var lj=[+d.loja.lat,+d.loja.lng];
+  var so=(window.TG&&TG.on&&TG.aba==='rota'&&TG.rsSo)||null;   /* 01/11/2026: rota escolhida sozinha esconde as outras */
   RS_ULT.rotas.forEach(function(rt){
+    if(so&&rt.letra!==so) return;
     var op=DEST?.25:.95;
     L.polyline([lj].concat(rt.paradas.map(function(x){return [+x.p.lat,+x.p.lng];})),{color:rt.cor,weight:5,opacity:op,dashArray:'2 8',lineCap:'round',interactive:false}).addTo(mp);
     rt.paradas.forEach(function(x,i){
@@ -2108,6 +2136,24 @@ var TG={on:true, mp:null, cam:null, base:null, fitUni:null, baseUni:null, extra:
         filtro:'todos', busca:'', aba:'ped', foco:null, sel:null, escuro:false, mk:{}, mbsFechado:false};
 try{ TG.on=(localStorage.getItem('cdm_fila_vista')||'mapa')!=='lista'; }catch(e){}
 try{ TG.escuro=localStorage.getItem('cdm_fila_escuro')==='1'; }catch(e){}
+/* 01/11/2026: so os numeros e o padrao; "ver detalhes" volta aos cartoes (fica guardado neste aparelho). rsSo = rota sugerida mostrada sozinha */
+TG.det=false; TG.rsSo=null;
+try{ TG.det=localStorage.getItem('cdm_fila_det')==='1'; }catch(e){}
+function tgAtras(p){ return (p.falta_prom!=null&&+p.falta_prom<0)||!!p.atrasado; }
+function tgNum(p,cls,cor){
+  var id=String(p.pedido), dica=(p.prometido?'prometido '+p.prometido:'sem hora prometida')+' — toque para ver no mapa';
+  return '<button class="tg-nn '+cls+(tgAtras(p)?' late':'')+(TG.sel===id?' sel':'')+'" data-tgp="'+esc(id)+'"'+(cor?' style="'+cor+'"':'')+' title="'+esc(dica)+'">'+esc(p.pedido)+'</button>';
+}
+function tgNumNovo(p){
+  var id='n'+p.ifood, dica='acabou de entrar no iFood, ainda não está no TrackEat';
+  return '<button class="tg-nn nv'+(TG.sel===id?' sel':'')+'" data-tgp="'+esc(id)+'" title="'+esc(dica)+'"><small>iFood</small>'+esc(p.ifood)+'</button>';
+}
+/* botoes Todas / A / B... da rota sugerida: escolher uma rota esconde as outras no mapa */
+function tgRsVer(R){
+  if(!R||!R.rotas||R.rotas.length<2) return '';
+  return '<div class="tg-rsver">Ver:<button class="'+(TG.rsSo?'':'on')+'" data-tgro="" title="mostrar todas as rotas no mapa">Todas</button>'+
+    R.rotas.map(function(rt){ return '<button class="'+(TG.rsSo===rt.letra?'on':(TG.rsSo?'apaga':''))+'" data-tgro="'+esc(rt.letra)+'" style="--c:'+rt.cor+'" title="mostrar só a rota '+esc(rt.letra)+' e esconder as outras">'+esc(rt.letra)+'</button>'; }).join('')+'</div>';
+}
 function tgSemAcento(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); }
 function tgKm(a,b){ var R=6371000, r=Math.PI/180, dLa=(b[0]-a[0])*r, dLo=(b[1]-a[1])*r;
   var x=Math.sin(dLa/2)*Math.sin(dLa/2)+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dLo/2)*Math.sin(dLo/2); return 2*R*Math.asin(Math.sqrt(x)); }
@@ -2178,6 +2224,8 @@ function tgDesenha(d){
   var nPass=todos.filter(function(p){return p.falta_prom!=null&&+p.falta_prom<0;}).length;
   var temRs=!!(UNI==='Água Verde'&&RS_ULT);
   if(!temRs&&TG.aba==='rota') TG.aba='ped';
+  /* a conta das rotas e refeita a cada leitura: se a rota escolhida sumiu, volta a mostrar todas */
+  if(TG.rsSo&&!(temRs&&(RS_ULT.rotas||[]).some(function(rt){return rt.letra===TG.rsSo;}))) TG.rsSo=null;
 
   /* --- coluna da esquerda --- */
   var h='<div class="tg-ferr">'+
@@ -2188,7 +2236,10 @@ function tgDesenha(d){
       '<div><b>'+(TEP?'—':nRua)+'</b><span>na rua</span></div>'+
       '<div class="'+(nPass?'mal':'')+'"><b>'+(TEP?'—':nPass)+'</b><span>passaram da hora</span></div></div>';
   if(TG.aba==='ped') h+='<label class="tg-busca"><span aria-hidden="true">🔎</span><input id="tg_busca" type="search" autocomplete="off" placeholder="Nº Saipos, nº iFood ou nome do cliente" value="'+esc(TG.busca)+'"></label>'+
-    '<div class="tg-filt">'+[['todos','Todos'],['cozinha','Cozinha'],['prontos','Prontos'],['rua','Na rua']].map(function(f){return '<button class="'+(TG.filtro===f[0]?'on':'')+'" data-tgf="'+f[0]+'">'+f[1]+'</button>';}).join('')+'</div>';
+    '<div class="tg-filt">'+[['todos','Todos'],['cozinha','Cozinha'],['prontos','Prontos'],['rua','Na rua']].map(function(f){return '<button class="'+(TG.filtro===f[0]?'on':'')+'" data-tgf="'+f[0]+'">'+f[1]+'</button>';}).join('')+'</div>'+
+    '<div class="tg-modo">'+(TG.det?'':'<span><i style="background:var(--bad)"></i>cozinha</span><span><i style="background:var(--roxo)"></i>pronto</span><span><i class="an"></i>atrasado</span>')+
+      '<button data-tgdet="'+(TG.det?'0':'1')+'" title="'+(TG.det?'voltar a mostrar só os números':'mostrar nome, endereço e horário de cada pedido')+'">'+(TG.det?'só os números':'ver detalhes')+'</button></div>';
+  if(TG.aba==='rota'&&temRs) h+=tgRsVer(RS_ULT);
   h+='</div><div class="tg-lista" id="tg_lista_in">';
   if(TEP) h+='<div class="tg-av">⚪ O TrackEat está sem dado desde '+esc(TEP)+' (o robô do TrackEat pode ter parado — avise). Acompanhe pelo Gestor de Pedidos do iFood até ele voltar.</div>';
   if(TG.aba==='rota'&&temRs){
@@ -2200,19 +2251,34 @@ function tgDesenha(d){
                 :'<div id="tg_sec_rs"><div class="tg-av" id="tg_rs_velho" style="display:none"></div>'+rsNumeros(RS_ULT,loja)+'</div>')+'</div>';
   }else{
     var foco=function(p){ return !TG.foco||p.motoboy===TG.foco; };
-    var sec=function(chave,tit,bola,lista,fn){
+    var so=!TG.det;   /* 01/11/2026: so os numeros (padrao) */
+    var sec=function(chave,tit,bola,lista,fn,fnN){
       if(TG.filtro!=='todos'&&TG.filtro!==chave) return;
       h+='<div class="tg-gr"><i class="bola" style="background:'+bola+'"></i><h3>'+tit+'</h3><span class="n">'+lista.length+'</span></div>';
-      h+=lista.length?lista.map(fn).join(''):'<div class="tg-vz">Nenhum agora.</div>';
+      h+=!lista.length?'<div class="tg-vz">Nenhum agora.</div>':(so?'<div class="tg-nums">'+lista.map(fnN).join('')+'</div>':lista.map(fn).join(''));
     };
+    var cartPron=function(p){
+      return tgCartao(p,(p.motoboy&&tgCorG(p.grupo))||'var(--roxo)',p.motoboy?'<span class="tg-t"><i class="sw" style="background:'+tgCorMb(p.motoboy,d)+'"></i>vai com '+esc(primeiroNome(p.motoboy))+'</span>':'',d); };
+    var cartRua=function(p,m){
+      return tgCartao(p,(p.grupo&&tgCorG(p.grupo))||tgCorMb(m.motoboy,d),
+        (p._n?'<span class="tg-t">'+(p._n===1?'próxima entrega':p._n+'ª da rota')+'</span>':'')+(p.onde==='porta'?'<span class="tg-t">na porta do cliente</span>':''),d); };
+    /* so os numeros: o pedido tocado (aqui ou no mapa) aparece inteiro em cima da lista, com nome, rua e horario */
+    if(so&&TG.sel){
+      var sc='', sid=TG.sel;
+      novos.forEach(function(p){ if('n'+p.ifood===sid) sc=tgCartaoNovo(p,d); });
+      loja.forEach(function(p){ if(String(p.pedido)===sid) sc=p.onde==='preparo'?tgCartao(p,'var(--bad)','',d):cartPron(p); });
+      rua.forEach(function(m){ ordemRota(m.pedidos).forEach(function(p){ if(String(p.pedido)===sid) sc=cartRua(p,m)+'<div class="tg-vz" style="padding:0 4px 4px">na rua com '+esc(m.motoboy)+'</div>'; }); });
+      if(sc) h+='<div class="tg-selbox"><div class="fx"><span>Pedido escolhido</span><button data-tgsx="1">fechar</button></div>'+sc+'</div>';
+    }
     if(novos.length&&!TG.foco&&(TG.filtro==='todos'||TG.filtro==='cozinha')){
       var nv=novos.filter(tgOk);
       h+='<div class="tg-gr"><i class="bola" style="background:#ea1d2c"></i><h3>Acabaram de entrar · iFood</h3><span class="n">'+nv.length+'</span></div>';
-      h+=nv.length?nv.map(function(p){return tgCartaoNovo(p,d);}).join(''):'<div class="tg-vz">Nenhum com esta busca.</div>';
+      h+=!nv.length?'<div class="tg-vz">Nenhum com esta busca.</div>':(so?'<div class="tg-nums">'+nv.map(tgNumNovo).join('')+'</div>':nv.map(function(p){return tgCartaoNovo(p,d);}).join(''));
     }
-    sec('prontos','Prontos — esperando motoboy','var(--roxo)',pron.filter(function(p){return tgOk(p)&&foco(p);}).sort(tgUrg),function(p){
-      return tgCartao(p,(p.motoboy&&tgCorG(p.grupo))||'var(--roxo)',p.motoboy?'<span class="tg-t"><i class="sw" style="background:'+tgCorMb(p.motoboy,d)+'"></i>vai com '+esc(primeiroNome(p.motoboy))+'</span>':'',d); });
-    sec('cozinha','Na cozinha','var(--bad)',prep.filter(function(p){return tgOk(p)&&foco(p);}).sort(tgUrg),function(p){ return tgCartao(p,'var(--bad)','',d); });
+    sec('prontos','Prontos — esperando motoboy','var(--roxo)',pron.filter(function(p){return tgOk(p)&&foco(p);}).sort(tgUrg),cartPron,function(p){
+      var c=p.motoboy&&tgCorG(p.grupo); return tgNum(p,'pron',c?'border-color:'+c+';border-width:3px':''); });
+    sec('cozinha','Na cozinha','var(--bad)',prep.filter(function(p){return tgOk(p)&&foco(p);}).sort(tgUrg),function(p){ return tgCartao(p,'var(--bad)','',d); },
+      function(p){ return tgNum(p,'prep',''); });
     if(TG.filtro==='todos'||TG.filtro==='rua'){
       var nOk=0, hr='';
       rua.forEach(function(m){
@@ -2221,8 +2287,8 @@ function tgDesenha(d){
         var cor=tgCorMb(m.motoboy,d);
         hr+='<div class="tg-mbc" data-tgm="'+esc(m.motoboy)+'" title="ver só a rota dele no mapa"><i class="sw" style="background:'+cor+'"></i><b>'+esc(m.motoboy)+'</b> '+ps.length+' entrega'+(ps.length===1?'':'s')+
             (m.saiu_ha!=null?'<span>saiu há '+esc(m.saiu_ha)+' min</span>':'')+'</div>';
-        hr+=ps.map(function(p){ return tgCartao(p,(p.grupo&&tgCorG(p.grupo))||cor,
-            (p._n?'<span class="tg-t">'+(p._n===1?'próxima entrega':p._n+'ª da rota')+'</span>':'')+(p.onde==='porta'?'<span class="tg-t">na porta do cliente</span>':''),d); }).join('');
+        hr+=so?'<div class="tg-nums">'+ps.map(function(p){ return tgNum(p,'rua','background:'+((p.grupo&&tgCorG(p.grupo))||cor)); }).join('')+'</div>'
+              :ps.map(function(p){ return cartRua(p,m); }).join('');
       });
       h+='<div class="tg-gr"><i class="bola" style="background:var(--text2)"></i><h3>Na rua</h3><span class="n">'+nOk+'</span></div>'+(hr||'<div class="tg-vz">Nenhum agora.</div>');
     }
@@ -2260,7 +2326,7 @@ function tgDesenha(d){
       var R=RS_ULT, nat=(R.rotas||[]).reduce(function(a,x){return a+x.atrasados;},0), cb='';
       for(var ci=2;ci<=6;ci++) cb+='<button class="'+(ci===R.cap?'on':'')+'" onclick="rsCap('+ci+')" title="no máximo '+ci+' pedidos em cada rota">'+ci+'</button>';
       rc.innerHTML='<button class="tg-rsbt on" data-tga="ped" title="volta ao mapa normal">🧭 Rota inteligente · sair</button>'+
-        '<div class="tg-rscap">Máximo<span style="display:flex;gap:4px">'+cb+'</span></div>'+
+        '<div class="tg-rscap">Máximo<span style="display:flex;gap:4px">'+cb+'</span></div>'+tgRsVer(R)+
         '<div class="tg-rsres">'+(R.erro?'Sem sugestão agora: veja a aba Rota sugerida.'
           :(!R.rotas.length?'Nenhum pedido pronto esperando motoboy.'
           :R.rotas.length+' saída'+(R.rotas.length===1?'':'s')+' para '+R.prontos+' pronto'+(R.prontos===1?'':'s')+' · '+
@@ -2288,7 +2354,7 @@ function tgDesenha(d){
   var late=function(p){ return (p.falta_prom!=null&&+p.falta_prom<0)||p.atrasado; };
   /* rota inteligente ligada: o que nao esta numa saida sugerida fica apagado, para as linhas das rotas aparecerem */
   var rsFoco=!!(rsLiga&&RS_MAPA&&RS_ULT&&RS_ULT.rotas&&RS_ULT.rotas.length), emRota={};
-  if(rsFoco) RS_ULT.rotas.forEach(function(rt){ rt.paradas.forEach(function(x){ emRota[String(x.p.pedido)]=rt.cor; }); });
+  if(rsFoco) RS_ULT.rotas.forEach(function(rt){ if(TG.rsSo&&rt.letra!==TG.rsSo) return; rt.paradas.forEach(function(x){ emRota[String(x.p.pedido)]=rt.cor; }); });
   var lr=$('tg_leg_rs'); if(lr) lr.hidden=!rsFoco;
   loja.forEach(function(p){
     if(p.lat==null||p.lng==null) return;
@@ -2392,8 +2458,10 @@ function rsNumeros(r,loja){
   else if(!r.rotas.length) h+='<div class="tg-vz">Nenhuma saída sugerida agora: veja abaixo.</div>';
   r.rotas.forEach(function(rt){
     var s=rt.slot||{}, sai=s.suposto?'assim que houver motoboy':(rt.sai<=0?'sai agora':'~'+esc(s.livre)+' · '+esc(s.nome||primeiroNome(s.quem)));
-    h+='<div class="rsc-rt"><span class="lt" style="background:'+rt.cor+'">'+rt.letra+'</span><span class="rsc-sai">'+sai+'</span>'+
-       (rt.atrasados?'<span class="rsc-at">⚠ '+rt.atrasados+'</span>':'')+'</div><div class="rsc-nums">'+
+    /* 01/11/2026: tocar na rota mostra so ela no mapa; tocar de novo volta a todas */
+    var ap=(TG.rsSo&&TG.rsSo!==rt.letra)?' apaga':'', unica=r.rotas.length>1;
+    h+='<div class="rsc-rt'+ap+'"'+(unica?' data-tgro="'+(TG.rsSo===rt.letra?'':esc(rt.letra))+'" title="'+(TG.rsSo===rt.letra?'voltar a mostrar todas as rotas':'mostrar só a rota '+esc(rt.letra)+' no mapa')+'"':'')+'><span class="lt" style="background:'+rt.cor+'">'+rt.letra+'</span><span class="rsc-sai">'+sai+'</span>'+
+       (rt.atrasados?'<span class="rsc-at">⚠ '+rt.atrasados+'</span>':'')+'</div><div class="rsc-nums'+ap+'">'+
        rt.paradas.map(function(x,i){ return (i?'<i class="rsc-seta">›</i>':'')+chip(x.p,'pron'+(x.passa?' passa':'')); }).join('')+'</div>';
   });
   if(r.sobra.length) h+='<div class="rsc-tit">Sem motoboy na conta</div><div class="rsc-nums">'+r.sobra.map(function(p){return chip(p,'pron');}).join('')+'</div>';
@@ -2408,7 +2476,7 @@ function tgRsZoom(){
   if(!TG.mp||!RS_ULT||!RS_ULT.rotas||!RS_ULT.rotas.length) return;
   var d=window.ULT_D||{}, b=[];
   if(d.loja&&d.loja.lat!=null) b.push([+d.loja.lat,+d.loja.lng]);
-  RS_ULT.rotas.forEach(function(rt){ rt.paradas.forEach(function(x){ if(x.p.lat!=null&&x.p.lng!=null) b.push([+x.p.lat,+x.p.lng]); }); });
+  RS_ULT.rotas.forEach(function(rt){ if(TG.rsSo&&rt.letra!==TG.rsSo) return; rt.paradas.forEach(function(x){ if(x.p.lat!=null&&x.p.lng!=null) b.push([+x.p.lat,+x.p.lng]); }); });
   var el=$('tg_map'), w=el?el.offsetWidth:0, h=el?el.offsetHeight:0, ctl=document.querySelector('.tg-ctl');
   /* no celular o quadro dos motoboys some e o mapa e estreito: folga so para o quadro de controles, e nunca mais que ~60% do mapa */
   var tl=w<700?[10,Math.min(Math.round(h*.45),(ctl?ctl.offsetHeight:0)+10)]:[260,40], br=w<700?[10,10]:[290,40];
@@ -2425,9 +2493,16 @@ document.addEventListener('click',function(e){
   if(t.closest('[data-ped]')) return;   /* numero do Saipos: abre os itens (porta fila_pedido_itens), como na lista */
   var dd=t.closest('[data-tgrd]'); if(dd){ TG.rsDet=dd.getAttribute('data-tgrd')==='1'; tgDesenha(window.ULT_D); return; }
   if(t.closest('[data-tgrs]')){   /* botao "Criar rota inteligente" do mapa: liga a aba e as linhas da sugestao no mapa */
-    TG.aba='rota'; TG.sel=null; TG.foco=null;
+    TG.aba='rota'; TG.sel=null; TG.foco=null; TG.rsSo=null;
     if(!RS_MAPA){ RS_MAPA=true; try{ localStorage.setItem('cdm_fila_rsmapa','1'); }catch(x){} }
     tgDesenha(window.ULT_D); tgRsZoom(); return; }
+  /* 01/11/2026: Todas / A / B... = mostrar todas as rotas sugeridas ou so uma (as outras somem do mapa) */
+  var ro=t.closest('[data-tgro]'); if(ro){
+    TG.rsSo=ro.getAttribute('data-tgro')||null; TG.sel=null;
+    if(!RS_MAPA){ RS_MAPA=true; try{ localStorage.setItem('cdm_fila_rsmapa','1'); }catch(x){} }
+    tgDesenha(window.ULT_D); tgRsZoom(); return; }
+  var dt=t.closest('[data-tgdet]'); if(dt){ TG.det=dt.getAttribute('data-tgdet')==='1'; try{ localStorage.setItem('cdm_fila_det',TG.det?'1':'0'); }catch(x){} tgDesenha(window.ULT_D); return; }
+  if(t.closest('[data-tgsx]')){ TG.sel=null; tgDesenha(window.ULT_D); return; }
   var a=t.closest('[data-tga]'); if(a){ TG.aba=a.getAttribute('data-tga'); tgDesenha(window.ULT_D); return; }
   var f=t.closest('[data-tgf]'); if(f){ TG.filtro=f.getAttribute('data-tgf'); tgDesenha(window.ULT_D); return; }
   if(t.closest('[data-tgx]')){ tgTodos(); return; }
