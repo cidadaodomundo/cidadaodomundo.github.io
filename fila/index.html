@@ -335,6 +335,15 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
 .tg-nn.nv small{font:800 10px Barlow,sans-serif;margin-right:3px}
 .tg-nn.late{box-shadow:0 0 0 2px var(--s0),0 0 0 5px #e66767}
 .tg-nn.sel{outline:3px solid var(--brand);outline-offset:4px}
+/* 01/11/2026, Fabio: "Passou da hora deveria ficar piscando" — o numero atrasado pisca o anel vermelho (lista, mini lista da rota,
+   etiqueta "passou" dos cartoes e a bolinha da legenda); quem pediu menos movimento no aparelho ve o anel parado */
+.rsc-n.late{box-shadow:0 0 0 2px var(--s0),0 0 0 5px #e66767}
+.tg-nn.late,.rsc-n.late{animation:tgPisca 1s ease-in-out infinite}
+@keyframes tgPisca{50%{box-shadow:0 0 0 2px var(--s0),0 0 0 5px rgba(230,103,103,0)}}
+.tg-nn.sel.late{outline-offset:7px}   /* o contorno de escolhido fica por fora do anel que pisca */
+.tg-t.passou,.tg-modo .an{animation:tgtPisca 1s ease-in-out infinite}
+@keyframes tgtPisca{50%{opacity:.3}}
+@media (prefers-reduced-motion:reduce){.tg-nn.late,.rsc-n.late,.tg-t.passou,.tg-modo .an{animation:none}}
 .tg-selbox{position:sticky;top:0;z-index:3;background:var(--s0);padding:8px 0 2px}
 .tg-selbox .fx{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;font-weight:700;color:var(--muted);padding:0 2px 4px}
 .tg-selbox .fx button{border:1px solid var(--line);background:var(--s2);border-radius:8px;padding:2px 9px;font:700 12px Barlow,sans-serif;color:var(--text2);cursor:pointer}
@@ -2459,7 +2468,7 @@ function tgTodos(){
 /* mini lista da rota inteligente (vista Mapa): cada saida com os numeros na ordem, roxo = pronto; embaixo, os da cozinha em vermelho */
 function rsNumeros(r,loja){
   if(r.erro) return '<div class="tg-vz">'+r.erro+'</div>';
-  var h='', chip=function(p,cls,extra){ return '<span class="rsc-n '+cls+'" data-ped="'+esc(p.pedido)+'" title="toque para ver os itens">'+esc(p.pedido)+(extra||'')+'</span>'; };
+  var h='', chip=function(p,cls,extra){ if(tgAtras(p)) cls+=' late'; return '<span class="rsc-n '+cls+'" data-ped="'+esc(p.pedido)+'" title="toque para ver os itens">'+esc(p.pedido)+(extra||'')+'</span>'; };
   if(r.idade!==null&&r.idade>=5) h+='<div class="tg-av">⚠ TrackEat lido há '+r.idade+' min</div>';
   (r.avisos||[]).forEach(function(a){ h+='<div class="tg-av">⚠ '+a+'</div>'; });
   if(!r.prontos) h+='<div class="tg-vz">Nenhum pedido pronto esperando motoboy agora.</div>';
