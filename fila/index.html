@@ -2137,7 +2137,8 @@ var TG={on:true, mp:null, cam:null, base:null, fitUni:null, baseUni:null, extra:
 try{ TG.on=(localStorage.getItem('cdm_fila_vista')||'mapa')!=='lista'; }catch(e){}
 try{ TG.escuro=localStorage.getItem('cdm_fila_escuro')==='1'; }catch(e){}
 /* 01/11/2026: so os numeros e o padrao; "ver detalhes" volta aos cartoes (fica guardado neste aparelho). rsSo = rota sugerida mostrada sozinha */
-TG.det=false; TG.rsSo=null;
+TG.det=false; TG.rsSo=null; TG.rsIds=null;
+function tgRsIds(rt){ var o={}; (rt.paradas||[]).forEach(function(x){ o[String(x.p.pedido)]=1; }); return o; }
 try{ TG.det=localStorage.getItem('cdm_fila_det')==='1'; }catch(e){}
 function tgAtras(p){ return (p.falta_prom!=null&&+p.falta_prom<0)||!!p.atrasado; }
 function tgNum(p,cls,cor){
@@ -2224,8 +2225,15 @@ function tgDesenha(d){
   var nPass=todos.filter(function(p){return p.falta_prom!=null&&+p.falta_prom<0;}).length;
   var temRs=!!(UNI==='Água Verde'&&RS_ULT);
   if(!temRs&&TG.aba==='rota') TG.aba='ped';
-  /* a conta das rotas e refeita a cada leitura: se a rota escolhida sumiu, volta a mostrar todas */
-  if(TG.rsSo&&!(temRs&&(RS_ULT.rotas||[]).some(function(rt){return rt.letra===TG.rsSo;}))) TG.rsSo=null;
+  /* a conta das rotas e refeita a cada leitura e a letra sai da posicao (pode trocar): a rota escolhida e seguida pelos PEDIDOS dela
+     (fica a rota com mais pedidos em comum, e a letra passa a ser a dela); se nenhuma tem pedido em comum, volta a mostrar todas */
+  if(TG.rsSo){
+    var rsAch=null, rsMax=0;
+    if(temRs) (RS_ULT.rotas||[]).forEach(function(rt){
+      var n=rt.paradas.filter(function(x){ return !!(TG.rsIds&&TG.rsIds[String(x.p.pedido)]); }).length;
+      if(n>rsMax){ rsMax=n; rsAch=rt; } });
+    TG.rsSo=rsAch?rsAch.letra:null; TG.rsIds=rsAch?tgRsIds(rsAch):null;
+  }
 
   /* --- coluna da esquerda --- */
   var h='<div class="tg-ferr">'+
@@ -2499,6 +2507,8 @@ document.addEventListener('click',function(e){
   /* 01/11/2026: Todas / A / B... = mostrar todas as rotas sugeridas ou so uma (as outras somem do mapa) */
   var ro=t.closest('[data-tgro]'); if(ro){
     TG.rsSo=ro.getAttribute('data-tgro')||null; TG.sel=null;
+    var rsEsc=(TG.rsSo&&RS_ULT&&RS_ULT.rotas||[]).filter(function(rt){return rt.letra===TG.rsSo;})[0];
+    TG.rsIds=rsEsc?tgRsIds(rsEsc):null; if(!rsEsc) TG.rsSo=null;
     if(!RS_MAPA){ RS_MAPA=true; try{ localStorage.setItem('cdm_fila_rsmapa','1'); }catch(x){} }
     tgDesenha(window.ULT_D); tgRsZoom(); return; }
   var dt=t.closest('[data-tgdet]'); if(dt){ TG.det=dt.getAttribute('data-tgdet')==='1'; try{ localStorage.setItem('cdm_fila_det',TG.det?'1':'0'); }catch(x){} tgDesenha(window.ULT_D); return; }
