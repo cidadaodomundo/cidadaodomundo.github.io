@@ -336,14 +336,15 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
 .tg-nn.late{box-shadow:0 0 0 2px var(--s0),0 0 0 5px #e66767}
 .tg-nn.sel{outline:3px solid var(--brand);outline-offset:4px}
 /* 01/11/2026, Fabio: "Passou da hora deveria ficar piscando" — o numero atrasado pisca o anel vermelho (lista, mini lista da rota,
-   etiqueta "passou" dos cartoes e a bolinha da legenda); quem pediu menos movimento no aparelho ve o anel parado */
-.rsc-n.late{box-shadow:0 0 0 2px var(--s0),0 0 0 5px #e66767}
-.tg-nn.late,.rsc-n.late{animation:tgPisca 1s ease-in-out infinite}
-@keyframes tgPisca{50%{box-shadow:0 0 0 2px var(--s0),0 0 0 5px rgba(230,103,103,0)}}
-.tg-nn.sel.late{outline-offset:7px}   /* o contorno de escolhido fica por fora do anel que pisca */
-.tg-t.passou,.tg-modo .an{animation:tgtPisca 1s ease-in-out infinite}
-@keyframes tgtPisca{50%{opacity:.3}}
-@media (prefers-reduced-motion:reduce){.tg-nn.late,.rsc-n.late,.tg-t.passou,.tg-modo .an{animation:none}}
+   etiqueta "passou" dos cartoes); quem pediu menos movimento no aparelho ve o anel parado */
+.tg-nn.late,.rsc-n.late{position:relative;box-shadow:none}   /* o anel mora no ::after e so a opacidade dele anima (leve para celular fraco) */
+.tg-nn.late::after,.rsc-n.late::after{content:'';position:absolute;inset:-2px;border-radius:inherit;box-shadow:0 0 0 2px var(--s0),0 0 0 5px #e66767;pointer-events:none;animation:tgPisca 1s ease-in-out infinite}
+@keyframes tgPisca{50%{opacity:0}}
+.tg-nums{gap:10px}   /* espaco para o anel de dois atrasados lado a lado */
+.tg-nn.sel.late{outline-width:2px;outline-offset:7px}   /* o contorno de escolhido fica por fora do anel que pisca */
+.tg-t.passou{animation:tgtPisca 1s ease-in-out infinite}   /* pisca o fundo, o texto com os minutos fica sempre legivel */
+@keyframes tgtPisca{50%{background:rgba(230,103,103,.42);border-color:#e66767}}
+@media (prefers-reduced-motion:reduce){.tg-nn.late::after,.rsc-n.late::after,.tg-t.passou{animation:none}}
 .tg-selbox{position:sticky;top:0;z-index:3;background:var(--s0);padding:8px 0 2px}
 .tg-selbox .fx{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;font-weight:700;color:var(--muted);padding:0 2px 4px}
 .tg-selbox .fx button{border:1px solid var(--line);background:var(--s2);border-radius:8px;padding:2px 9px;font:700 12px Barlow,sans-serif;color:var(--text2);cursor:pointer}
@@ -2156,7 +2157,7 @@ function tgNum(p,cls,cor){
 }
 function tgNumNovo(p){
   var id='n'+p.ifood, dica='acabou de entrar no iFood, ainda não está no TrackEat';
-  return '<button class="tg-nn nv'+(TG.sel===id?' sel':'')+'" data-tgp="'+esc(id)+'" title="'+esc(dica)+'"><small>iFood</small>'+esc(p.ifood)+'</button>';
+  return '<button class="tg-nn nv'+(tgAtras(p)?' late':'')+(TG.sel===id?' sel':'')+'" data-tgp="'+esc(id)+'" title="'+esc(dica)+'"><small>iFood</small>'+esc(p.ifood)+'</button>';
 }
 /* botoes Todas / A / B... da rota sugerida: escolher uma rota esconde as outras no mapa */
 function tgRsVer(R){
