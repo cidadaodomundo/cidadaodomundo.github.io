@@ -2178,7 +2178,7 @@ function tgLinha(id,num,cls,cor,dica,p){
   var sel=TG.sel===id;
   return '<button class="tg-ln'+(sel?' sel':'')+'" data-tgp="'+esc(id)+'" title="'+esc(dica)+'"><span class="tg-nn '+cls+(tgPassou(p)?' late':'')+'"'+
     (cor?' style="'+cor+'"':'')+'>'+num+'</span><i class="tg-dt" aria-hidden="true"></i>'+tgHora(p)+'</button>'+
-    (sel&&TG.selCard&&!TG.selUsado?(TG.selUsado=true,TG.selCard):'');
+    (sel&&TG.selCard&&!TG.selUsado&&(TG.selConta++)===(TG.selIdx||0)?(TG.selUsado=true,TG.selCard):'');
 }
 function tgNum(p,cls,cor){
   return tgLinha(String(p.pedido),esc(p.pedido),cls,cor,'Saipos '+p.pedido+' — toque para ver no mapa',p);
@@ -2317,7 +2317,7 @@ function tgDesenha(d){
       return tgCartao(p,(p.grupo&&tgCorG(p.grupo))||tgCorMb(m.motoboy,d),
         (p._n?'<span class="tg-t">'+(p._n===1?'próxima entrega':p._n+'ª da rota')+'</span>':'')+(p.onde==='porta'?'<span class="tg-t">na porta do cliente</span>':''),d); };
     /* so os numeros: o pedido tocado (aqui ou no mapa) abre inteiro logo embaixo da linha dele, com nome, rua e horario */
-    TG.selCard=''; TG.selUsado=false;
+    TG.selCard=''; TG.selUsado=false; TG.selConta=0;
     if(so&&TG.sel){
       var sc='', sid=TG.sel;
       novos.forEach(function(p){ if('n'+p.ifood===sid) sc=tgCartaoNovo(p,d); });
@@ -2357,13 +2357,14 @@ function tgDesenha(d){
      '. Linha reta entre os pontos, não é o caminho pelas ruas. Motoboy e rota vêm do TrackEat; pedido novo do iFood aparece antes e some quando o TrackEat lê.</div>';
   var lst=$('tg_lista_in'), topo=lst?lst.scrollTop:0;
   /* 01/11/2026: a linha tocada (ou a escolhida, se estava a vista) fica no mesmo lugar da tela depois do redesenho */
-  var anc=TG.ancora||TG.sel, celA=tgCel(), ln0=anc&&tgLnDe(anc), a0=null;
-  if(ln0&&(TG.ancora||tgAVista(ln0,celA))) a0=ln0.getBoundingClientRect().top;
-  TG.ancora=null;
+  var anc=TG.semAncora?null:(TG.ancora||TG.sel), tocada=!!TG.ancora, celA=tgCel(), ln0=anc&&tgLnDe(anc), a0=null;
+  if(ln0&&(tocada||tgInteira(ln0,celA))) a0=ln0.getBoundingClientRect().top;
+  TG.ancora=null; TG.semAncora=false;
   $('tg_lado').innerHTML=h;
   var lst2=$('tg_lista_in'); if(lst2) lst2.scrollTop=topo;
   var ln1=(a0!=null)&&tgLnDe(anc);
-  if(ln1){ var dA=ln1.getBoundingClientRect().top-a0; if(dA){ if(celA) window.scrollBy(0,dA); else if(lst2) lst2.scrollTop+=dA; } }
+  if(ln1){ var dA=ln1.getBoundingClientRect().top-a0, lim=(celA?window.innerHeight:(lst2?lst2.clientHeight:0))/2;
+    if(dA&&(tocada||Math.abs(dA)<=lim)){ if(celA) window.scrollBy(0,dA); else if(lst2) lst2.scrollTop+=dA; } }   /* mudou de secao (pulo grande): a lista fica onde a pessoa estava */
 
   /* --- quadro dos motoboys --- */
   var mbs=Array.isArray(d.motoboys)?d.motoboys:[];
@@ -2491,6 +2492,7 @@ function tgMapaCria(d){
   }
 }
 function tgSel(id,voar){
+  if(!voar) TG.selIdx=0;
   TG.sel=(TG.sel===id&&!voar)?null:id;
   if(TG.sel&&TG.aba!=='ped'&&voar) TG.aba='ped';   /* toque no marcador do mapa com a rota inteligente ligada: continua nela */
   tgDesenha(window.ULT_D);
@@ -2498,13 +2500,17 @@ function tgSel(id,voar){
   if(TG.sel&&mk&&voar&&TG.mp) TG.mp.flyTo(mk.getLatLng(),Math.max(TG.mp.getZoom(),15),{duration:.5});
   if(TG.sel&&mk) mk.openTooltip();
   var sid=(window.CSS&&CSS.escape)?CSS.escape(String(id)):String(id).replace(/["\\]/g,''), cel=window.matchMedia&&matchMedia('(max-width:760px)').matches;
-  var c=document.querySelector('.tg-p[data-tgp="'+sid+'"]'), ln=document.querySelector('.tg-ln[data-tgp="'+sid+'"]');
+  var c=document.querySelector('.tg-p[data-tgp="'+sid+'"]');
   if(c&&!voar&&!c.closest('.tg-selin')&&c.scrollIntoView) c.scrollIntoView({block:'nearest',behavior:'smooth'});
   if(TG.sel&&(!cel||voar)) tgMostraSel(cel);   /* no celular, o toque no mapa nao rola a pagina (o mapa fica na tela) */
 }
 function tgCel(){ return !!(window.matchMedia&&matchMedia('(max-width:760px)').matches); }
-function tgLnDe(id){ return document.querySelector('#tg_lista_in .tg-ln[data-tgp="'+((window.CSS&&CSS.escape)?CSS.escape(String(id)):String(id).replace(/["\\]/g,''))+'"]'); }
-function tgAVista(el,cel){ var r=el.getBoundingClientRect(), b=cel?{top:0,bottom:window.innerHeight}:($('tg_lista_in')||el).getBoundingClientRect(); return r.bottom>b.top&&r.top<b.bottom; }
+function tgLnDe(id){ var a=document.querySelectorAll('#tg_lista_in .tg-ln[data-tgp="'+((window.CSS&&CSS.escape)?CSS.escape(String(id)):String(id).replace(/["\\]/g,''))+'"]');
+  return a.length?a[Math.min(TG.selIdx||0,a.length-1)]:null; }   /* numero repetido na leitura: vale a linha tocada */
+function tgInteira(el,cel){   /* a linha esta inteira na tela, abaixo do titulo de grupo que gruda */
+  var r=el.getBoundingClientRect(), b=cel?{top:0,bottom:window.innerHeight}:($('tg_lista_in')||el).getBoundingClientRect(), gr=document.querySelector('#tg_lista_in .tg-gr');
+  return r.top>=b.top+(gr?gr.offsetHeight:0)&&r.bottom<=b.bottom;
+}
 /* mostra o escolhido: a linha e a gaveta; se a linha nao esta na lista (filtro, busca, foco), a gaveta que fica no topo */
 function tgMostraSel(cel){
   if(!TG.sel) return;
@@ -2601,12 +2607,14 @@ document.addEventListener('click',function(e){
   if(t.closest('[data-tgz]')){ TG.mbsFechado=!TG.mbsFechado; tgDesenha(window.ULT_D); return; }
   var m=t.closest('[data-tgm]'); if(m){ tgFoco(m.getAttribute('data-tgm')); return; }
   if(t.closest('.tg-selin')) return;   /* clique dentro da gaveta do escolhido: so ler */
-  var p=t.closest('[data-tgp]'); if(p){ if(p.classList.contains('tg-ln')) TG.ancora=p.getAttribute('data-tgp'); tgSel(p.getAttribute('data-tgp'),true); return; }
+  var p=t.closest('[data-tgp]'); if(p){ var pid=p.getAttribute('data-tgp'); TG.selIdx=0;
+    if(p.classList.contains('tg-ln')){ TG.ancora=pid; var mesmas=[].slice.call(document.querySelectorAll('#tg_lista_in .tg-ln')).filter(function(x){ return x.getAttribute('data-tgp')===pid; }); TG.selIdx=Math.max(0,mesmas.indexOf(p)); }
+    tgSel(pid,true); return; }
 });
 document.addEventListener('input',function(e){
   if(!e.target||e.target.id!=='tg_busca') return;
   TG.busca=e.target.value; var pos=e.target.selectionStart;
-  tgDesenha(window.ULT_D); if(!tgCel()) tgMostraSel(false);
+  TG.semAncora=true; tgDesenha(window.ULT_D); var lb=$('tg_lista_in'); if(lb&&!tgCel()) lb.scrollTop=0;   /* a busca comeca do alto da lista */
   var i=$('tg_busca'); if(i){ i.focus(); try{ i.setSelectionRange(pos,pos); }catch(x){} }
 });
 /* a caixa Rota sugerida avisa "tela sem atualizar" pelo selo(); a copia dela na aba do mapa recebe o mesmo aviso (so texto, sem rede) */
