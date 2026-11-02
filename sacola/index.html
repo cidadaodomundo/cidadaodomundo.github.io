@@ -21,7 +21,12 @@
    Conserto 31/10 (revisor, 18 pedidos reais de 30/10 21:44 em 1920x1080): cartao compacto na TV (10+ pedidos na tela);
    numero + Enter de pedido FORA da tela so traz o cartao para o topo e acende (o 2o Enter confere); clique no cartao
    escolhe (mostra CONFERIDO) em vez de conferir; a barra de baixo se ajusta quando as fontes/layout assentam; a faixa
-   "Som travado" fica no fluxo (nao tampa cartao); faixa "Aviso de rota parado" quando o robo da fila do TrackEat para. */
+   "Som travado" fica no fluxo (nao tampa cartao); faixa "Aviso de rota parado" quando o robo da fila do TrackEat para.
+   01/11 TrackEat AO VIVO (leitor do site no BENTOIK, 30 em 30 s; banco sacola_tela_dados 'sacola-01-11-2026-aovivo'):
+   na expedicao o pedido PRONTO no TrackEat sobe primeiro com "PRONTO ha X min — conferir agora"; motoboy a caminho
+   aparece no cartao; o que ainda esta na cozinha fica num cartao curto (clique ou numero + Enter abre inteiro); o que
+   ja saiu vai para o fim. O aviso "SAIU PARA ROTA" lista os pedidos do grupo na hora. "TrackEat ao vivo: ha N s" no
+   topo; ao vivo velho (mais de 2 min) = faixa com o motivo e a tela volta ao jeito antigo. Telas das cozinhas: iguais. */
 :root{
   --bg:#111111; --card:#1b1b1a; --card2:#252522; --line:#383631;
   --fg:#f4f2ec; --mut:#a8a398; --gold:#E0A81C;
@@ -206,6 +211,23 @@ li{border-top:1px solid var(--line)} li:first-child{border-top:0}
 #som-aviso{margin-top:12px;background:var(--bad);color:#fff;font-weight:800;font-size:17px;line-height:1.3;text-align:center;padding:.45em .8em;border-radius:.5em;animation:pisca 1.2s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){#som-aviso{animation:none}}
 /* tela do codigo do aparelho (igual a TV) */
+/* ---------- TrackEat AO VIVO (01/11): PRONTO primeiro, cozinha em cartao curto, indicador "ha N s" ---------- */
+.aovivo{font-family:var(--cond);font-weight:700;font-size:14px;letter-spacing:.04em;color:var(--mut);white-space:nowrap}
+.aovivo i{display:inline-block;width:.62em;height:.62em;border-radius:50%;background:var(--mut);margin-right:.35em;vertical-align:.04em}
+.aovivo.ok{color:#bfe8cf} .aovivo.ok i{background:var(--ok)}
+.aovivo.velho{color:#ffd9d5} .aovivo.velho i{background:var(--bad)}
+.card.vpronto{border-color:var(--ok);box-shadow:0 0 0 2px var(--ok)}
+.vpr{margin:0 16px 8px;padding:8px 12px;border-radius:10px;background:var(--ok);color:#fff;line-height:1.1}
+.vpr b{display:block;font-family:var(--display);font-weight:400;font-size:28px;text-transform:uppercase}
+.vpr small{display:block;font-family:var(--cond);font-weight:700;font-size:17px;letter-spacing:.05em;text-transform:uppercase;margin-top:2px}
+.vmoto{margin:0 16px 8px;padding:4px 12px;border-radius:10px;border:2px solid var(--rota);color:#ffd9a8;font-family:var(--cond);font-weight:700;font-size:18px;letter-spacing:.02em}
+.card.mini{border-style:dashed}
+.card.mini .top{padding-bottom:6px}
+.card.vsaiu{opacity:.55}
+.mini-l{margin:0 16px 10px;font-family:var(--cond);font-weight:700;font-size:16px;letter-spacing:.04em;text-transform:uppercase;color:#d9d4c8}
+.mini + .mini{margin-top:0}
+.rpp small{font-size:.65em;opacity:.8;margin-left:.3em}
+.rpp .cz{color:#ffcf8a;margin-left:.3em}
 .cod{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:var(--bg);z-index:40;padding:16px}
 .cod.on{display:flex}
 .cod .cx{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px 22px;max-width:460px;width:100%;text-align:center}
@@ -307,6 +329,16 @@ body.tv #barra{display:flex;flex:0 0 auto;flex-wrap:nowrap;overflow:hidden;white
 #barra .chip.ok{border-color:var(--ok);color:#d6f5e2}
 body.tv .toast{font-size:1.6em;bottom:1em;padding:.4em .9em;border-radius:.4em}
 body.tv #som-aviso{flex:0 0 auto;font-size:1.05em;margin-top:.4em;padding:.2em .8em}
+/* 01/11 TrackEat ao vivo na TV: o PRONTO e o maior texto do cartao depois do numero (legivel de 2-3 m) */
+body.tv .aovivo{font-size:.8em}
+body.tv .card.vpronto{box-shadow:0 0 0 .12em var(--ok)}
+body.tv .vpr{margin:0 .55em .3em;padding:.12em .45em .15em;border-radius:.35em}
+body.tv .vpr b{font-size:1.45em}
+body.tv .vpr small{font-size:.9em;margin-top:0}
+body.tv .vmoto{margin:0 .55em .3em;padding:.05em .45em;font-size:1em;border-radius:.35em;border-width:.1em}
+body.tv .card.mini .num{font-size:1.8em}
+body.tv .card.mini .top{padding-bottom:.1em}
+body.tv .mini-l{margin:0 .55em .3em;font-size:.95em}
 </style>
 </head>
 <body>
@@ -325,6 +357,7 @@ body.tv #som-aviso{flex:0 0 auto;font-size:1.05em;margin-top:.4em;padding:.2em .
     <div class="ctl">
       <div class="tecla" id="tecla" aria-live="polite" title="Digite o número do pedido e aperte Enter para marcar CONFERIDO"><small>Nº + ENTER</small></div>
       <div class="relogio" id="relogio">--:--</div>
+      <div class="aovivo" id="aovivo" role="status" hidden></div>
       <button type="button" class="bt" id="bt-som" aria-label="Ligar som">🔕<span class="lg"> Ligar som</span></button>
     </div>
   </header>
@@ -334,6 +367,7 @@ body.tv #som-aviso{flex:0 0 auto;font-size:1.05em;margin-top:.4em;padding:.2em .
   <div class="faixa" id="faixaRede" role="status" hidden></div>
   <div class="faixa" id="faixaRobo" role="status" hidden></div>
   <div class="faixa" id="faixaFila" role="status" hidden></div>
+  <div class="faixa" id="faixaVivo" role="status" hidden></div>
 
   <div id="alertas"></div>
 
@@ -348,7 +382,8 @@ body.tv #som-aviso{flex:0 0 auto;font-size:1.05em;margin-top:.4em;padding:.2em .
       <li>O que mais se esquece aparece colorido e escrito: <b>🥤 BEBIDA</b>, <b>🍨 SOBREMESA</b>, <b>🫙 MOLHO/POTINHO</b> e <b>🍟 BATATA/PORÇÃO</b>, com a quantidade.</li>
       <li>Só quando o pedido junta <b>burger e prato</b> (as duas cozinhas): quem termina primeiro põe <b>na estufa, na prateleira "TEM PAR"</b>, com o número do pedido escrito, e a outra cozinha põe a sua parte <b>do lado</b>. Na hora de entregar, tudo vai junto na mesma sacola.</li>
       <li>Bebida e sobremesa saem do <b>DELIVERY</b> na hora de entregar: não vão para a estufa nem para a "TEM PAR".</li>
-      <li>Quando o motoboy sai da fila para uma rota, a tela mostra em laranja <b>"FULANO SAIU PARA ROTA"</b> com som, e os pedidos dele sobem piscando. Confira a sacola nessa hora.</li>
+      <li>Quando o TrackEat marca o pedido como <b>pronto</b>, o cartão sobe para o começo com <b>"PRONTO há X min — conferir agora"</b> (em menos de 1 min). Confira a sacola nessa hora. O que ainda está na cozinha fica num cartão curto, depois dos prontos (clique nele para ver tudo).</li>
+      <li>Quando o motoboy sai da fila para uma rota, a tela mostra em laranja <b>"FULANO SAIU PARA ROTA"</b> com som e os pedidos dele, e eles sobem piscando. Confira a sacola nessa hora.</li>
       <li><b>Conferido</b> é opcional: clique no botão do cartão ou digite o número do pedido e aperte <b>Enter</b>. Digitar o mesmo número de novo (e Enter duas vezes) desfaz. Na TV: clique no cartão para aparecer o botão CONFERIDO. Se o pedido digitado estiver fora da tela, o 1º Enter traz o cartão para o topo (veja bebida, molho e batata) e só o 2º Enter confere.</li>
       <li><b>TV:</b> depois de ligar a TV ou abrir a página, toque ou clique 1 vez na tela (ou aperte uma tecla) para destravar o som do aviso de rota. Quem preferir pode abrir o Chrome em modo quiosque com <code>--kiosk --autoplay-policy=no-user-gesture-required</code> (aí não precisa do toque). TV de 43" ou maior.</li>
       <li>Se o iFood mostrar que o pedido saiu com uma parte marcada e outra não, a tela fica vermelha na hora para ligar para o motoboy.</li>
@@ -407,6 +442,23 @@ const zona=x=>ORDEM.indexOf(x)>=0?x:'conferir';
 const temPar=lugs=>Array.isArray(lugs)&&lugs.indexOf('burger')>=0&&lugs.indexOf('prato')>=0;
 const parcial=a=>a&&a.tipo!=='sem_marca';
 const junta=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' e '+a[a.length-1];
+/* 01/11 TrackEat AO VIVO. O banco so manda p.vivo quando o leitor do site leu ha menos de 2 min E a ligacao TrackEat ->
+   iFood esta provada (mesma regra do aviso de rota). Sem p.vivo (retirada, entrega do iFood, pedido de menos de 5 min,
+   ao vivo parado) o cartao fica igual a antes. st: COZINHA | PRONTO | ROTA (motoboy) | SAIU | CANCELADO. */
+const vivoOk=()=>!!(DADO&&DADO.vivo&&DADO.vivo.ok===true);
+function vivoDe(p){ const v=p&&p.vivo; return (vivoOk()&&v&&typeof v==='object'&&v.st)?v:null; }
+function prontoDesde(p){ const v=vivoDe(p); if(!v) return null; if(v.st==='PRONTO') return v.pronto_desde||v.desde||null; return v.st==='ROTA'&&v.pronto_desde?v.pronto_desde:null; }
+/* 'pronto' (PRONTO, ou motoboy ja com o pedido pronto) | 'rota' (motoboy vem e o pedido ainda na cozinha) | 'cozinha' | 'saiu' */
+function estadoVivo(p){ const v=vivoDe(p); if(!v) return null; if(prontoDesde(p)) return 'pronto'; return v.st==='ROTA'?'rota':v.st==='COZINHA'?'cozinha':v.st==='SAIU'?'saiu':null; }
+function motoTexto(v){ if(!v||!v.motoboy) return ''; return v.te==='ARRIVED_AT_MERCHANT'?v.motoboy+' chegou na loja':(v.te==='ACCEPTED'||v.te==='PICKUP_ONGOING')?v.motoboy+' vem buscar':'rota de '+v.motoboy; }
+/* aprox = o leitor nao viu o pedido na cozinha (ligou depois): o pronto real pode ser antes -> "ha 6+ min" */
+function prTexto(ts,aprox){
+  const m=minDesde(ts);
+  const t=m==null?'PRONTO':m<1?(aprox?'PRONTO':'PRONTO agora'):'PRONTO há '+(m<60?m+(aprox?'+':'')+' min':Math.floor(m/60)+'h'+String(m%60).padStart(2,'0'));
+  return '<b>✅ '+t+'</b><small>— conferir agora</small>';
+}
+const idadeS=ts=>{ const t=new Date(ts).getTime(); return isNaN(t)?null:Math.max(0,Math.round((agoraMs()-t)/1000)); };
+const idadeTxt=s=>s==null?'—':s<90?'há '+s+' s':haMin(Math.floor(s/60));
 
 let COD='', DADO=null, TIMER=null, TIMER_MS=0, BUSCANDO=false, DE_NOVO=false, ULT_OK=0, FALHAS=0, TV=false;
 let VISTOS_P=null, VISTOS_A=null, VISTOS_R=null, ALERTAS_TODOS=false;
@@ -419,6 +471,9 @@ const ROTA_ATE=new Map();  /* rota id -> ate quando fica o aviso grande (ms, hor
 /* revisao 31/10: nao tocar 2 vezes a mesma rota. GRUPO_TOCOU: rotas do TrackEat que ja tocaram. ULT_ROTA: ultimo aviso
    de cada motoboy {t, conf, id}. ENT_DA_ROTA: rota id -> motoboy (para ver a troca de id na mesma leitura). */
 const GRUPO_TOCOU=new Set(), ULT_ROTA=new Map(), ENT_DA_ROTA=new Map();
+/* 01/11: rota id -> grupos do TrackEat. A rota que nasce do ao vivo ('v'+grupo) e depois vem do oficial com outro id e
+   outro jeito de escrever o nome ('Erick I.' / 'Erick B.') e a MESMA rota: herda o aviso, sem som. */
+const GR_DA_ROTA=new Map();
 const MOTOBOY_15MIN=15*60000;
 let CONF_LOCAL=false;      /* alguem conferiu por este aparelho (entao "NAO CONFERIDO" no aviso de rota faz sentido) */
 let PAUSADO=false, BUSCA_INICIO=0, VISIVEL_DESDE=Date.now();
@@ -518,7 +573,7 @@ async function busca(){
            - rota do TrackEat que ja tocou: sem som e sem aviso grande de novo;
            - o mesmo motoboy avisou ha menos de 15 min e aquele aviso nunca achou a rota no TrackEat: e a mesma
              saida, agora com os pedidos: aviso grande de novo, sem som. Senao: som + voz + aviso grande. */
-        const troca=sumiram.find(x=>ENT_DA_ROTA.get(x)===ent);
+        const troca=sumiram.find(x=>ENT_DA_ROTA.get(x)===ent || (GR_DA_ROTA.get(x)||[]).some(g=>gs.indexOf(g)>=0));
         const u=ULT_ROTA.get(ent);
         const jaTocou=gs.some(g=>GRUPO_TOCOU.has(g));
         const mesmaSaida=!!(u && agora-u.t<MOTOBOY_15MIN && !u.conf);
@@ -533,10 +588,10 @@ async function busca(){
         const u=ULT_ROTA.get(ent); if(u && u.id===id && r.confirmado) u.conf=true;
       }
       gs.forEach(g=>GRUPO_TOCOU.add(g));   /* rota que ja apareceu na tela, de qualquer jeito, nao toca de novo */
-      ENT_DA_ROTA.set(id,ent);
+      ENT_DA_ROTA.set(id,ent); GR_DA_ROTA.set(id,gs);
     });
     if(GRUPO_TOCOU.size>500) GRUPO_TOCOU.clear();
-    Array.from(ENT_DA_ROTA.keys()).forEach(function(id){ if(!rs.some(r=>String(r.id)===id)) ENT_DA_ROTA.delete(id); });
+    Array.from(ENT_DA_ROTA.keys()).forEach(function(id){ if(!rs.some(r=>String(r.id)===id)){ ENT_DA_ROTA.delete(id); GR_DA_ROTA.delete(id); } });
     VISTOS_P=new Set(ps.map(p=>String(p.id))); VISTOS_A=new Set(as.map(a=>String(a.id))); VISTOS_R=new Set(rs.map(r=>String(r.id)));
     Array.from(RESOLVIDO).forEach(function(id){ if(!VISTOS_A.has(String(id))) RESOLVIDO.delete(id); });
     Array.from(ROTA_ATE.keys()).forEach(function(id){ if(!VISTOS_R.has(id)) ROTA_ATE.delete(id); });
@@ -713,7 +768,9 @@ async function teclaEnter(){
     aviso('#'+n+' já está conferido. Para DESFAZER, digite '+n+' e Enter de novo.'); return;
   }
   DESFAZ=null;
-  if((escolhido(p.id) && SEL.ids.length===1) || cartaoNaTela(p.id)){ conferir(p.id,true,true); return; }
+  /* 01/11: cartao CURTO (cozinha / ja saiu) nao mostra as linhas: o 1o Enter abre o cartao inteiro, so o 2o confere */
+  const ce=cartaoEl(p.id), curto=!!(ce&&ce.classList.contains('mini'));
+  if((escolhido(p.id) && SEL.ids.length===1) || (cartaoNaTela(p.id) && !curto)){ conferir(p.id,true,true); return; }
   escolhe([p.id],n,true);
   aviso('#'+n+' veio para o topo. Confira bebida, molho e batata e aperte ENTER de novo para CONFERIR.',true);
 }
@@ -747,17 +804,26 @@ function rotaDoPedido(){
 function visiveis(L,RP){
   const ps=(DADO&&Array.isArray(DADO.pedidos))?DADO.pedidos.filter(p=>p&&p.id!=null):[];
   const t=s=>{const x=new Date(s).getTime();return isNaN(x)?0:x;};
+  /* 01/11 TrackEat ao vivo (so na expedicao, L 'tudo'): PRONTO primeiro (o pronto ha mais tempo antes), depois motoboy
+     vindo com o pedido ainda na cozinha, depois o que nao tem o ao vivo (como antes), depois a cozinha (cartao curto),
+     agendados, o que ja saiu e os conferidos. Telas das cozinhas: a ordem de antes. */
   const peso=function(p){
     if(!p.cancelado && !eConferido(p) && SEL && SEL.sobe && escolhido(p.id)) return -2;   /* numero digitado: sobe para o topo */
+    const ev=(L==='tudo'&&!p.cancelado&&!eConferido(p))?estadoVivo(p):null;
+    if(ev==='saiu') return 2.5;                                                /* ja saiu com o motoboy: fim */
     if(!p.cancelado && !eConferido(p) && RP.has(String(p.id))) return -1;   /* motoboy ja saiu: sobe */
     if(eConferido(p)) return 3;
+    if(ev==='pronto') return 0;
+    if(ev==='rota') return 0.5;
     if(p.agendado_para) return 2;
+    if(ev==='cozinha') return 1.5;
     if(L!=='tudo' && !p.cancelado){ const ls=(p.linhas||[]).filter(l=>lugarDe(l)===L); if(ls.length && ls.every(l=>marcado(p,l))) return 1; }
-    return 0;
+    return L==='tudo'&&vivoOk()?1:0;
   };
   return ps.map((p,i)=>({p:p,i:i,w:peso(p)})).sort(function(a,b){
     if(a.w!==b.w) return a.w-b.w;
     if(a.w===2){ const d=t(a.p.agendado_para)-t(b.p.agendado_para); if(d) return d; }
+    if(a.w===0 && L==='tudo'){ const pa=prontoDesde(a.p), pb=prontoDesde(b.p); if(pa&&pb){ const d=t(pa)-t(pb); if(d) return d; } }
     return a.i-b.i;
   }).map(x=>x.p);
 }
@@ -803,10 +869,14 @@ function cartao(p,L,RP){
   const done=!canc && (conf || (cz? (mostra.length>0&&mostra.every(g=>g.ok)) : (grupos.length>0&&prontos.length===grupos.length)));
   const num=esc(p.numero!=null&&p.numero!==''?p.numero:'—');
   const agend=!!p.agendado_para, mins=minDesde(p.criado);
-  const rota=(!canc&&!conf)?RP.get(String(p.id)):null;
+  /* 01/11 TrackEat ao vivo (so na expedicao): ev = pronto | rota | cozinha | saiu (null = sem ao vivo, como antes) */
+  const ev=(!cz&&!canc&&!conf)?estadoVivo(p):null, vv=ev?vivoDe(p):null;
+  const rota=(!canc&&!conf&&ev!=='saiu')?RP.get(String(p.id)):null;
   const soVer=TV&&!cz, sel=!canc&&!conf&&escolhido(p.id);   /* TV da expedicao: cartao compacto, so de olhar */
+  /* cozinha (sem motoboy saindo) e "ja saiu" = cartao CURTO, sem as linhas. Escolhido (clique / numero + Enter) abre inteiro. */
+  const mini=((ev==='cozinha'&&!rota)||ev==='saiu') && !sel && !OCUPADO.has('c:'+p.id);
 
-  let h='<article class="card '+(multi&&!cz&&!canc&&!conf?'duplo':'single')+(done?' done':'')+(canc?' cancel':'')+(rota?' narota':'')+(sel?' escolhido':'')+'" data-id="'+esc(p.id)+'">';
+  let h='<article class="card '+(mini?'single mini'+(ev==='saiu'?' vsaiu':''):(multi&&!cz&&!canc&&!conf?'duplo':'single'))+(done?' done':'')+(canc?' cancel':'')+(rota?' narota':'')+(sel?' escolhido':'')+(ev==='pronto'?' vpronto':'')+'" data-id="'+esc(p.id)+'">';
   const late=mins!=null&&mins>=ATRASO_MIN&&!canc&&!conf?' late':'';
   if(TV){
     /* TV (conserto 31/10): 1 linha so no topo. Numero a esquerda; "ha X min" e a marca curta a direita. */
@@ -828,6 +898,14 @@ function cartao(p,L,RP){
   else h+='<div class="tempo'+late+'" data-ts="'+esc(p.criado||'')+'">entrou '+esc(hhmm(p.criado))+'<b>'+esc(haMin(mins))+'</b></div>';
   h+='</div>';
   }
+  if(mini){
+    h+= ev==='saiu'
+      ? '<div class="mini-l">🛵 Saiu'+(vv.motoboy?' com '+esc(vv.motoboy):'')+(vv.saiu_em?' às '+esc(hhmm(vv.saiu_em)):'')+'</div>'
+      : '<div class="mini-l">🍳 Na cozinha'+(multi?' · '+n+' lugares':'')+'</div>'+lembraHTML(p);
+    return h+'</article>';
+  }
+  if(ev==='pronto'){ const pd=prontoDesde(p); h+='<div class="vpr" data-pr="'+esc(pd)+'"'+(vv.pronto_aprox?' data-aprox="1"':'')+'>'+prTexto(pd,!!vv.pronto_aprox)+'</div>'; }
+  if((ev==='pronto'||ev==='rota') && vv.motoboy && !rota) h+='<div class="vmoto">🛵 '+esc(motoTexto(vv))+(ev==='rota'?' · ainda na cozinha':'')+'</div>';
   if(rota) h+='<div class="sairota">🛵 '+esc(rota.entregador||'motoboy')+' saiu '+esc(hhmm(rota.saiu_em))+(TV?'':' — confere agora')+'</div>';
   if(canc) h+='<div class="cancelado">Cancelado — não montar / não mandar</div>';
   if(conf) h+='<div class="okfaixa">✓ Conferido '+esc(hhmm(p.conferido_em||agoraMs()))+'</div>';
@@ -917,18 +995,23 @@ function desenhaRotas(){
   const agora=agoraMs(), usa=usamConferido();
   const ate=r=>ROTA_ATE.get(String(r.id))||0;
   const cheias=rs.filter(r=>ate(r)>agora).sort((a,b)=>ate(b)-ate(a)), resto=rs.filter(r=>!(ate(r)>agora));   /* o aviso mais novo primeiro */
-  const peds=r=>Array.isArray(r.pedidos)?r.pedidos.filter(x=>x&&x.numero!=null):[];
+  /* 01/11: com o TrackEat ao vivo a lista vem na hora (pedidos do grupo). numero_te = pedido de outro canal (sem iFood):
+     mostra o numero do TrackEat. Pedido da rota ainda na cozinha ganha "🍳 cozinha". */
+  const peds=r=>Array.isArray(r.pedidos)?r.pedidos.filter(x=>x&&(x.numero!=null||x.numero_te!=null)):[];
   let h=cheias.slice(0,2).map(function(r){
     const ps=peds(r);
     return '<div class="rota cheia" role="alert"><div class="rt">🛵 '+esc(r.entregador||'Motoboy')+' saiu para rota<small>'+esc(hhmm(r.saiu_em))+'</small></div>'
-      +'<div class="rp">'+(ps.length? ps.map(function(x){ const ok=!!x.conferido||(CONF.get(String(x.id))||{}).on===true;
-          const ic=iconesLembrar(x.lembrar);
-          return '<span class="rpp '+(ok?'ok':(usa?'nao':''))+'">#'+esc(x.numero)+(ic?' '+esc(ic):'')+(ok?'<b class="nc">✓</b>':(usa?'<b class="nc">NÃO CONFERIDO</b>':''))+'</span>'; }).join('')
-        :'<span class="rpe">Pedidos dele: aguardando o TrackEat (até 5 min)…</span>')+'</div></div>';
+      +'<div class="rp">'+(ps.length? ps.map(function(x){
+          if(x.numero==null) return '<span class="rpp">TrackEat '+esc(x.numero_te)+'<small>outro canal</small></span>';
+          const ok=!!x.conferido||(CONF.get(String(x.id))||{}).on===true;
+          const ic=iconesLembrar(x.lembrar), cp=x.id!=null?acha(x.id):null, ev=cp?estadoVivo(cp):null;
+          return '<span class="rpp '+(ok?'ok':(usa?'nao':''))+'">#'+esc(x.numero)+(ic?' '+esc(ic):'')+(ev==='rota'||ev==='cozinha'?'<b class="cz">🍳 cozinha</b>':'')
+            +(ok?'<b class="nc">✓</b>':(usa?'<b class="nc">NÃO CONFERIDO</b>':''))+'</span>'; }).join('')
+        :'<span class="rpe">'+(vivoOk()?'Pedidos dele: lendo o TrackEat ao vivo…':'Pedidos dele: aguardando o TrackEat (até 5 min)…')+'</span>')+'</div></div>';
   }).join('');
   const resto2=resto.concat(cheias.slice(2));
   if(resto2.length) h+='<div class="rota curta"><b>Saíram há pouco:</b> '+resto2.map(r=>esc(r.entregador||'motoboy')+' '+esc(hhmm(r.saiu_em))
-    +(peds(r).length?' ('+peds(r).map(x=>'#'+esc(x.numero)).join(' ')+')':'')).join(' · ')+'</div>';
+    +(peds(r).length?' ('+peds(r).map(x=>'#'+esc(x.numero!=null?x.numero:x.numero_te)).join(' ')+')':'')).join(' · ')+'</div>';
   if($('rota').innerHTML!==h) $('rota').innerHTML=h;
 }
 const semAcento=s=>String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
@@ -962,6 +1045,18 @@ function desenha(){
       : '⚠️ Aviso de rota parado'+(fl.ultimo_ok?' (fila de motoboys lida pela última vez às '+hhmm(fl.ultimo_ok)+')':'')+'. "Saiu para rota" pode NÃO aparecer aqui — confira o TrackEat.';
     $('faixaFila').hidden=false; }
   else $('faixaFila').hidden=true;
+  /* 01/11: TrackEat AO VIVO parado (mais de 2 min sem ler, no horario do leitor): faixa com o motivo; a tela volta ao jeito
+     antigo sozinha (o banco para de mandar p.vivo e a rota volta a vir so da fila / do oficial). */
+  const vv=j.vivo||{};
+  if(vv.atrasado===true){
+    const por=vv.motivo==='login'?'o site do TrackEat pediu login de novo — chamar o Fábio para entrar no Chrome dos robôs'
+      :vv.motivo==='falha'?'o site do TrackEat está com erro ou lento'+(vv.falha_em?' (desde '+hhmm(vv.falha_em)+')':'')
+      :vv.motivo==='sem_pedidos'?'o leitor está ligado mas não vê pedidos desta loja — conferir a loja escolhida no TrackEat do Chrome dos robôs'
+      :'o leitor do site do TrackEat não está lendo';
+    $('faixaVivo').textContent='⚠️ TrackEat ao vivo parado'+(vv.lido_em?' (última leitura às '+hhmm(vv.lido_em)+')':'')+': '+por+'. O PRONTO não aparece e o "saiu para rota" pode atrasar até 5 min.';
+    $('faixaVivo').hidden=false; }
+  else $('faixaVivo').hidden=true;
+  vivoInd();
   if(SEL && Date.now()>SEL.ate){ SEL=null; if(T_SEL){ clearTimeout(T_SEL); T_SEL=null; } }
   const h=j.hoje||{}, sh=x=>x==null?'—':String(x);
   const ps=visiveis(L,RP);
@@ -975,11 +1070,11 @@ function desenha(){
   $('stS').classList.toggle('zero',!(Number(h.saiu_faltando)>0));
   $('semBotao').hidden=true;
   desenhaAlertas(); desenhaRotas();
-  $('h2lista').textContent=L==='tudo'?'A conferir — o mais antigo primeiro':'A fazer — o mais antigo primeiro (o que já está pronto desce)';
+  $('h2lista').textContent=L==='tudo'?(vivoOk()?'A conferir — PRONTO no TrackEat primeiro, depois a cozinha':'A conferir — o mais antigo primeiro'):'A fazer — o mais antigo primeiro (o que já está pronto desce)';
   /* TV: o conferido sai do quadro e vira um botaozinho na barra de baixo (clique = desfazer) */
   const noQuadro=TV&&L==='tudo'? ps.filter(p=>p.cancelado||!eConferido(p)) : ps;
   $('grid').innerHTML=noQuadro.length? noQuadro.map(p=>cartao(p,L,RP)).join('') : '<div class="vazio">'+(ps.length?'Tudo conferido ✓':'Nenhum pedido para conferir agora.')+'</div>';
-  $('rodape').textContent='Atualiza sozinho a cada '+Math.round(intervaloMs()/1000)+' s · lido às '+hhmm(j.agora)+(rb.ultimo_ciclo?' · iFood lido às '+hhmm(rb.ultimo_ciclo):'')+' · sem preço e sem dado do cliente.';
+  $('rodape').textContent='Atualiza sozinho a cada '+Math.round(intervaloMs()/1000)+' s · lido às '+hhmm(j.agora)+(rb.ultimo_ciclo?' · iFood lido às '+hhmm(rb.ultimo_ciclo):'')+(vv.lido_em?' · TrackEat ao vivo lido às '+hhmm(vv.lido_em):'')+' · sem preço e sem dado do cliente.';
   barra(ps,L);
   ajusta();
 }
@@ -1026,6 +1121,25 @@ function relogio(){
     const m=minDesde(el.getAttribute('data-ts')); const b=el.querySelector('b'); if(b) b.textContent=haMin(m);
     if(!el.closest('.cancel')&&!el.closest('.done')) el.classList.toggle('late',m!=null&&m>=ATRASO_MIN);
   });
+  /* 01/11: "PRONTO ha X min" anda junto */
+  document.querySelectorAll('.vpr[data-pr]').forEach(function(el){
+    const t=prTexto(el.getAttribute('data-pr'),el.getAttribute('data-aprox')==='1'); if(el.innerHTML!==t) el.innerHTML=t;
+  });
+  vivoInd();
+}
+/* 01/11: indicador pequeno "TrackEat ao vivo: ha N s" (verde ate 2 min; vermelho depois; cinza fora do horario).
+   A idade anda pelo relogio do banco (agoraMs), entao fica vermelho sozinho se a tela parar de ler. */
+function vivoInd(){
+  const el=$('aovivo'); if(!el) return;
+  const v=DADO&&DADO.vivo;
+  if(PAUSADO||!v||typeof v!=='object'||v.motivo==='historico'){ if(!el.hidden) el.hidden=true; return; }
+  const s=v.lido_em?idadeS(v.lido_em):null;
+  const ok=v.ok===true&&s!=null&&s<=120, ruim=!ok&&(v.atrasado===true||v.ok===true);
+  const t='<i></i>TrackEat ao vivo: '+(s==null?'sem leitura':idadeTxt(s))+(!ok&&!ruim&&v.horario===false?' · fora do horário':'');
+  if(el.innerHTML!==t) el.innerHTML=t;
+  el.className='aovivo'+(ok?' ok':ruim?' velho':'');
+  el.title=ok?'O leitor do site do TrackEat está lendo (de 30 em 30 s)':'TrackEat ao vivo sem leitura recente: a tela usa o jeito antigo';
+  el.hidden=false;
 }
 
 /* ---------- som: o navegador so deixa tocar depois de um toque/tecla; na TV comeca ligado ---------- */
@@ -1135,7 +1249,7 @@ window.addEventListener('resize',function(){ if(T_RS) clearTimeout(T_RS); T_RS=s
 (function(){
   modoTV(); somDestrava(); botaoSom(); relogio(); acordada(); mostraTecla();
   setInterval(relogio,15000);
-  setInterval(function(){ if(DADO){ const n=$('rota').innerHTML; desenhaRotas(); if($('rota').innerHTML!==n) barra(visiveis(lugarAparelho(),rotaDoPedido()),lugarAparelho()); } },5000);   /* aviso grande de rota vira linha depois de 90 s */
+  setInterval(function(){ if(DADO){ const n=$('rota').innerHTML; desenhaRotas(); if($('rota').innerHTML!==n) barra(visiveis(lugarAparelho(),rotaDoPedido()),lugarAparelho()); vivoInd(); } },5000);   /* aviso grande de rota vira linha depois de 90 s; "ao vivo: ha N s" */
   setInterval(function(){ if(performance.now()>6*3600*1000 && navigator.onLine!==false && Date.now()-ULT_OK<5*60000 && !FILA.size && !ENVIANDO && !TECLA) location.reload(); }, 10*60000);
   setInterval(vigia,5000);
   /* conserto 31/10: refaz a barra quando as fontes terminam de carregar e quando o quadro muda de tamanho */
