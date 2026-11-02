@@ -2178,7 +2178,7 @@ function tgLinha(id,num,cls,cor,dica,p){
   var sel=TG.sel===id;
   return '<button class="tg-ln'+(sel?' sel':'')+'" data-tgp="'+esc(id)+'" title="'+esc(dica)+'"><span class="tg-nn '+cls+(tgPassou(p)?' late':'')+'"'+
     (cor?' style="'+cor+'"':'')+'>'+num+'</span><i class="tg-dt" aria-hidden="true"></i>'+tgHora(p)+'</button>'+
-    (sel&&TG.selCard?(TG.selUsado=true,TG.selCard):'');
+    (sel&&TG.selCard&&!TG.selUsado?(TG.selUsado=true,TG.selCard):'');
 }
 function tgNum(p,cls,cor){
   return tgLinha(String(p.pedido),esc(p.pedido),cls,cor,'Saipos '+p.pedido+' — toque para ver no mapa',p);
@@ -2356,8 +2356,14 @@ function tgDesenha(d){
      (ex?' · pedidos novos do iFood conferidos às '+esc(String(ex.lido_em).slice(0,5)):(TG.on?' · <span style="color:var(--warn)">pedidos novos do iFood: sem leitura</span>':''))+
      '. Linha reta entre os pontos, não é o caminho pelas ruas. Motoboy e rota vêm do TrackEat; pedido novo do iFood aparece antes e some quando o TrackEat lê.</div>';
   var lst=$('tg_lista_in'), topo=lst?lst.scrollTop:0;
+  /* 01/11/2026: a linha tocada (ou a escolhida, se estava a vista) fica no mesmo lugar da tela depois do redesenho */
+  var anc=TG.ancora||TG.sel, celA=tgCel(), ln0=anc&&tgLnDe(anc), a0=null;
+  if(ln0&&(TG.ancora||tgAVista(ln0,celA))) a0=ln0.getBoundingClientRect().top;
+  TG.ancora=null;
   $('tg_lado').innerHTML=h;
   var lst2=$('tg_lista_in'); if(lst2) lst2.scrollTop=topo;
+  var ln1=(a0!=null)&&tgLnDe(anc);
+  if(ln1){ var dA=ln1.getBoundingClientRect().top-a0; if(dA){ if(celA) window.scrollBy(0,dA); else if(lst2) lst2.scrollTop+=dA; } }
 
   /* --- quadro dos motoboys --- */
   var mbs=Array.isArray(d.motoboys)?d.motoboys:[];
@@ -2494,7 +2500,18 @@ function tgSel(id,voar){
   var sid=(window.CSS&&CSS.escape)?CSS.escape(String(id)):String(id).replace(/["\\]/g,''), cel=window.matchMedia&&matchMedia('(max-width:760px)').matches;
   var c=document.querySelector('.tg-p[data-tgp="'+sid+'"]'), ln=document.querySelector('.tg-ln[data-tgp="'+sid+'"]');
   if(c&&!voar&&!c.closest('.tg-selin')&&c.scrollIntoView) c.scrollIntoView({block:'nearest',behavior:'smooth'});
-  if(TG.sel&&ln&&(!cel||voar)) tgVerLinha(ln,cel);   /* no celular, o toque no mapa nao rola a pagina (o mapa fica na tela) */
+  if(TG.sel&&(!cel||voar)) tgMostraSel(cel);   /* no celular, o toque no mapa nao rola a pagina (o mapa fica na tela) */
+}
+function tgCel(){ return !!(window.matchMedia&&matchMedia('(max-width:760px)').matches); }
+function tgLnDe(id){ return document.querySelector('#tg_lista_in .tg-ln[data-tgp="'+((window.CSS&&CSS.escape)?CSS.escape(String(id)):String(id).replace(/["\\]/g,''))+'"]'); }
+function tgAVista(el,cel){ var r=el.getBoundingClientRect(), b=cel?{top:0,bottom:window.innerHeight}:($('tg_lista_in')||el).getBoundingClientRect(); return r.bottom>b.top&&r.top<b.bottom; }
+/* mostra o escolhido: a linha e a gaveta; se a linha nao esta na lista (filtro, busca, foco), a gaveta que fica no topo */
+function tgMostraSel(cel){
+  if(!TG.sel) return;
+  var ln=tgLnDe(TG.sel); if(ln) return tgVerLinha(ln,cel);
+  var gv=document.querySelector('#tg_lista_in .tg-selin'), lst=$('tg_lista_in'); if(!gv||!lst) return;
+  if(cel){ var rg=gv.getBoundingClientRect(); if(rg.top<0||rg.top>window.innerHeight-60) window.scrollBy(0,rg.top-8); }
+  else lst.scrollTop+=gv.getBoundingClientRect().top-lst.getBoundingClientRect().top-2;
 }
 /* 01/11/2026: deixa a linha escolhida e a gaveta dela a vista, abaixo do titulo de grupo que gruda (lista no computador, pagina no celular) */
 function tgVerLinha(ln,cel){
@@ -2578,18 +2595,18 @@ document.addEventListener('click',function(e){
     tgDesenha(window.ULT_D); tgRsZoom(); return; }
   var dt=t.closest('[data-tgdet]'); if(dt){ TG.det=dt.getAttribute('data-tgdet')==='1'; try{ localStorage.setItem('cdm_fila_det',TG.det?'1':'0'); }catch(x){} tgDesenha(window.ULT_D); return; }
   if(t.closest('[data-tgsx]')){ TG.sel=null; tgDesenha(window.ULT_D); return; }
-  var a=t.closest('[data-tga]'); if(a){ TG.aba=a.getAttribute('data-tga'); tgDesenha(window.ULT_D); return; }
-  var f=t.closest('[data-tgf]'); if(f){ TG.filtro=f.getAttribute('data-tgf'); tgDesenha(window.ULT_D); return; }
+  var a=t.closest('[data-tga]'); if(a){ TG.aba=a.getAttribute('data-tga'); tgDesenha(window.ULT_D); if(!tgCel()) tgMostraSel(false); return; }
+  var f=t.closest('[data-tgf]'); if(f){ TG.filtro=f.getAttribute('data-tgf'); tgDesenha(window.ULT_D); if(!tgCel()) tgMostraSel(false); return; }
   if(t.closest('[data-tgx]')){ tgTodos(); return; }
   if(t.closest('[data-tgz]')){ TG.mbsFechado=!TG.mbsFechado; tgDesenha(window.ULT_D); return; }
   var m=t.closest('[data-tgm]'); if(m){ tgFoco(m.getAttribute('data-tgm')); return; }
   if(t.closest('.tg-selin')) return;   /* clique dentro da gaveta do escolhido: so ler */
-  var p=t.closest('[data-tgp]'); if(p){ tgSel(p.getAttribute('data-tgp'),true); return; }
+  var p=t.closest('[data-tgp]'); if(p){ if(p.classList.contains('tg-ln')) TG.ancora=p.getAttribute('data-tgp'); tgSel(p.getAttribute('data-tgp'),true); return; }
 });
 document.addEventListener('input',function(e){
   if(!e.target||e.target.id!=='tg_busca') return;
   TG.busca=e.target.value; var pos=e.target.selectionStart;
-  tgDesenha(window.ULT_D);
+  tgDesenha(window.ULT_D); if(!tgCel()) tgMostraSel(false);
   var i=$('tg_busca'); if(i){ i.focus(); try{ i.setSelectionRange(pos,pos); }catch(x){} }
 });
 /* a caixa Rota sugerida avisa "tela sem atualizar" pelo selo(); a copia dela na aba do mapa recebe o mesmo aviso (so texto, sem rede) */
