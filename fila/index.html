@@ -2176,7 +2176,7 @@ function tgHora(p){
 }
 function tgLinha(id,num,cls,cor,dica,p){
   var sel=TG.sel===id;
-  return '<button class="tg-ln'+(sel?' sel':'')+'" data-tgp="'+esc(id)+'" title="'+esc(dica)+'"><span class="tg-nn '+cls+(tgPassou(p)?' late':'')+'"'+
+  return '<button class="tg-ln'+(sel?' sel':'')+'" data-tgp="'+esc(id)+'" data-sec="'+esc(cls)+'" title="'+esc(dica)+'"><span class="tg-nn '+cls+(tgPassou(p)?' late':'')+'"'+
     (cor?' style="'+cor+'"':'')+'>'+num+'</span><i class="tg-dt" aria-hidden="true"></i>'+tgHora(p)+'</button>'+
     (sel&&TG.selCard&&!TG.selUsado&&(TG.selConta++)===(TG.selIdx||0)?(TG.selUsado=true,TG.selCard):'');
 }
@@ -2348,6 +2348,7 @@ function tgDesenha(d){
       });
       h+='<div class="tg-gr"><i class="bola" style="background:var(--text2)"></i><h3>Na rua</h3><span class="n">'+nOk+'</span></div>'+(hr||'<div class="tg-vz">Nenhum agora.</div>');
     }
+    if(TG.selCard&&!TG.selUsado&&TG.selConta>0&&TG.selIdx){ TG.selIdx=0; return tgDesenha(d); }   /* a linha repetida tocada sumiu: vale a primeira */
     if(TG.selCard&&!TG.selUsado) h=h.slice(0,iniLista)+TG.selCard+h.slice(iniLista);
     TG.selCard='';
   }
@@ -2359,12 +2360,13 @@ function tgDesenha(d){
   /* 01/11/2026: a linha tocada (ou a escolhida, se estava a vista) fica no mesmo lugar da tela depois do redesenho */
   var anc=TG.semAncora?null:(TG.ancora||TG.sel), tocada=!!TG.ancora, celA=tgCel(), ln0=anc&&tgLnDe(anc), a0=null;
   if(ln0&&(tocada||tgInteira(ln0,celA))) a0=ln0.getBoundingClientRect().top;
+  var sec0=ln0?ln0.getAttribute('data-sec'):null;
   TG.ancora=null; TG.semAncora=false;
   $('tg_lado').innerHTML=h;
   var lst2=$('tg_lista_in'); if(lst2) lst2.scrollTop=topo;
   var ln1=(a0!=null)&&tgLnDe(anc);
-  if(ln1){ var dA=ln1.getBoundingClientRect().top-a0, lim=(celA?window.innerHeight:(lst2?lst2.clientHeight:0))/2;
-    if(dA&&(tocada||Math.abs(dA)<=lim)){ if(celA) window.scrollBy(0,dA); else if(lst2) lst2.scrollTop+=dA; } }   /* mudou de secao (pulo grande): a lista fica onde a pessoa estava */
+  if(ln1){ var dA=ln1.getBoundingClientRect().top-a0;
+    if(dA&&(tocada||ln1.getAttribute('data-sec')===sec0)){ if(celA) window.scrollBy(0,dA); else if(lst2) lst2.scrollTop+=dA; } }   /* o escolhido mudou de secao: a lista fica onde a pessoa estava */
 
   /* --- quadro dos motoboys --- */
   var mbs=Array.isArray(d.motoboys)?d.motoboys:[];
@@ -2615,6 +2617,7 @@ document.addEventListener('input',function(e){
   if(!e.target||e.target.id!=='tg_busca') return;
   TG.busca=e.target.value; var pos=e.target.selectionStart;
   TG.semAncora=true; tgDesenha(window.ULT_D); var lb=$('tg_lista_in'); if(lb&&!tgCel()) lb.scrollTop=0;   /* a busca comeca do alto da lista */
+  var qb=TG.busca.replace(/\D/g,''); if(qb&&TG.sel&&(String(TG.sel)===qb||String(TG.sel)==='n'+qb)&&!tgCel()) tgMostraSel(false);   /* buscou o proprio escolhido */
   var i=$('tg_busca'); if(i){ i.focus(); try{ i.setSelectionRange(pos,pos); }catch(x){} }
 });
 /* a caixa Rota sugerida avisa "tela sem atualizar" pelo selo(); a copia dela na aba do mapa recebe o mesmo aviso (so texto, sem rede) */
