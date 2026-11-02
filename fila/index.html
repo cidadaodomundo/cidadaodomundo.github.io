@@ -323,14 +323,13 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
    E "as rotas sugeridas pode olhar todas, ou uma a uma": botoes Todas / A / B... escondem as outras rotas no mapa. */
 .tg-modo{display:flex;align-items:center;gap:8px;font-size:11.5px;font-weight:700;color:var(--muted)}
 .tg-modo button{margin-left:auto;border:1px solid var(--line);background:var(--s2);border-radius:8px;padding:4px 9px;font:700 12px Barlow,sans-serif;color:var(--text2);cursor:pointer;white-space:nowrap}
-.tg-nums{display:flex;flex-wrap:wrap;gap:7px;padding:3px 3px 8px}
+.tg-nums{display:flex;flex-direction:column;gap:0;padding:0 0 6px}   /* 01/11/2026: uma linha por pedido */
 .tg-nn{min-width:56px;border:2px solid #111;border-radius:9px;padding:3px 6px;background:var(--s3);font:800 19px/22px 'Barlow Condensed',Barlow,sans-serif;letter-spacing:.02em;color:#111;text-align:center;cursor:pointer}
 .tg-nn:hover{filter:brightness(1.12)}
 .tg-nn.pron{background:var(--roxo)}
 .tg-nn.prep{background:var(--bad)}
 .tg-nn.nv{background:#fff;border-color:#ea1d2c;color:#c4111d;font-size:16px}
 .tg-nn.nv small{font:800 10px Barlow,sans-serif;margin-right:3px}
-.tg-nn.sel{outline:3px solid var(--brand);outline-offset:4px}
 /* 01/11/2026, Fabio: "Passou da hora deveria ficar piscando" — o numero atrasado pisca o anel vermelho (lista, mini lista da rota,
    etiqueta "passou" dos cartoes); quem pediu menos movimento no aparelho ve o anel parado */
 .tg-nn.late,.rsc-n.late{position:relative;box-shadow:none}   /* o anel mora no ::after e so a opacidade dele anima (leve para celular fraco) */
@@ -339,17 +338,17 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
 .tg-nn.late[style*="border-width:3px"]::after{inset:-3px}   /* pronto com motoboy: borda de 3px na cor da rota */
 /* 01/11/2026, Fabio, opcao B: "uma lista um numero em baixo do outro na ordem em que eles entraram na cozinha, e no final de cada linha
    21:05 · faltam 23 min" e os contadores viram as abas do filtro (Todos / Cozinha / Prontos / Na rua com a quantidade) */
-.tg-nums{display:flex;flex-direction:column;gap:0;padding:0 0 6px}
 .tg-ln{display:flex;align-items:center;gap:8px;width:100%;border:0;border-bottom:1px solid var(--line);background:transparent;padding:7px 8px 7px 9px;margin:0;color:var(--text);text-align:left;font:inherit;cursor:pointer}
 .tg-ln:hover{background:var(--s1)}
 .tg-ln.sel{background:rgba(224,168,28,.12);box-shadow:inset 3px 0 0 var(--brand)}
 .tg-ln .tg-nn{display:inline-block;flex:0 0 auto}
-.tg-ln .tg-nn.sel{outline:0}   /* na linha, o escolhido aparece pela faixa amarela da linha */
 .tg-dt{flex:1 1 auto;min-width:10px;border-bottom:2px dotted #4a4943;margin-top:9px}
 .tg-hr{font:700 15px Barlow,sans-serif;white-space:nowrap;color:var(--text)}
 .tg-hr small{font-size:12.5px;font-weight:600;color:var(--muted)}
-.tg-hr.ruim{color:#ff8080}
-.tg-hr.sem{font-size:12.5px;font-weight:600;color:var(--muted)}
+.tg-hr.ruim{color:#ff8080;animation:tgHrPisca 1s ease-in-out infinite}
+@keyframes tgHrPisca{50%{color:#ffd2d2}}
+.tg-hr.tg-hr0{font-size:12.5px;font-weight:600;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.tg-hr.ruim{animation:none}}
 .tg-fab{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .tg-fab button{border:2px solid var(--line);background:var(--s1);border-radius:10px;padding:5px 7px;text-align:left;font:700 12px Barlow,sans-serif;color:var(--text2);cursor:pointer;line-height:1.15}
 .tg-fab button b{display:block;font-family:Anton,Impact,sans-serif;font-weight:400;font-size:21px;color:var(--text)}
@@ -358,6 +357,7 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
 .tg-fab .t-p b{color:var(--roxo)}
 .tg-pass{font:700 12.5px Barlow,sans-serif;color:#ff9a9a;padding:0 2px}
 .tg-t.passou{animation:tgtPisca 1s ease-in-out infinite}   /* pisca o fundo, o texto com os minutos fica sempre legivel */
+.tg-t.passou.dem{animation:none}   /* "demorando" fica parado: so pisca quem passou da hora */
 @keyframes tgtPisca{50%{background:rgba(230,103,103,.42);border-color:#e66767}}
 @media (prefers-reduced-motion:reduce){.tg-nn.late::after,.rsc-n.late::after,.tg-t.passou{animation:none}}
 .tg-selbox{position:sticky;top:0;z-index:3;background:var(--s0);padding:8px 0 2px}
@@ -2165,17 +2165,17 @@ try{ TG.escuro=localStorage.getItem('cdm_fila_escuro')==='1'; }catch(e){}
 TG.det=false; TG.rsSo=null; TG.rsIds=null;
 function tgRsIds(rt){ var o={}; (rt.paradas||[]).forEach(function(x){ o[String(x.p.pedido)]=1; }); return o; }
 try{ TG.det=localStorage.getItem('cdm_fila_det')==='1'; }catch(e){}
-function tgAtras(p){ return (p.falta_prom!=null&&+p.falta_prom<0)||!!p.atrasado; }
+function tgPassou(p){ return p.falta_prom!=null&&+p.falta_prom<0; }   /* 01/11/2026: pisca so quem passou da hora prometida (o "demorando" nao) */
 /* fim da linha: a hora prometida e quanto falta; passou da hora fica vermelho (o anel do numero pisca) */
 function tgHora(p){
-  if(!p.prometido||p.falta_prom==null) return '<span class="tg-hr sem">sem hora prometida</span>';
+  if(!p.prometido||p.falta_prom==null) return '<span class="tg-hr tg-hr0">sem hora prometida</span>';
   var f=+p.falta_prom;
   if(f<0) return '<span class="tg-hr ruim">'+esc(p.prometido)+' · passou '+(-f)+' min</span>';
-  return '<span class="tg-hr">'+esc(p.prometido)+' <small>· '+(f===1?'falta 1 min':'faltam '+f+' min')+'</small></span>';
+  return '<span class="tg-hr">'+esc(p.prometido)+' <small>· '+(f===0?'é agora':f===1?'falta 1 min':'faltam '+f+' min')+'</small></span>';
 }
 function tgLinha(id,num,cls,cor,dica,p){
   var sel=TG.sel===id;
-  return '<button class="tg-ln'+(sel?' sel':'')+'" data-tgp="'+esc(id)+'" title="'+esc(dica)+'"><span class="tg-nn '+cls+(tgAtras(p)?' late':'')+(sel?' sel':'')+'"'+
+  return '<button class="tg-ln'+(sel?' sel':'')+'" data-tgp="'+esc(id)+'" title="'+esc(dica)+'"><span class="tg-nn '+cls+(tgPassou(p)?' late':'')+'"'+
     (cor?' style="'+cor+'"':'')+'>'+num+'</span><i class="tg-dt" aria-hidden="true"></i>'+tgHora(p)+'</button>';
 }
 function tgNum(p,cls,cor){
@@ -2228,7 +2228,7 @@ function tgCartao(p,cor,extra,d){
     '<span class="mi">'+esc(p.min)+'<small>min</small></span>'+
     (p.cliente?'<span class="cl">'+esc(p.cliente)+'</span>':'')+
     (p.end?'<span class="en">'+esc(endCurto(p.end))+'<em>'+tgDistTxt(p,d)+'</em></span>':'')+
-    '<span class="tg">'+tgPrazo(p)+(p.atrasado?'<span class="tg-t passou">demorando mais que o normal</span>':'')+(extra||'')+'</span></div>';
+    '<span class="tg">'+tgPrazo(p)+(p.atrasado?'<span class="tg-t passou dem">demorando mais que o normal</span>':'')+(extra||'')+'</span></div>';
 }
 function tgCartaoNovo(p,d){
   var id='n'+p.ifood;
@@ -2246,7 +2246,7 @@ function tgOk(p){
   return true;
 }
 /* 01/11/2026, Fabio: "na ordem em que eles entraram na cozinha" — o que entrou primeiro (mais minutos) fica em cima */
-function tgEntrou(a,b){ var ma=a.min==null?-1:+a.min, mb=b.min==null?-1:+b.min; return mb-ma||String(a.pedido||a.ifood||'').localeCompare(String(b.pedido||b.ifood||''),undefined,{numeric:true}); }
+function tgEntrou(a,b){ var ma=a.min==null?-1:+a.min, mb=b.min==null?-1:+b.min; return mb-ma||(a.pedido&&b.pedido?String(a.pedido).localeCompare(String(b.pedido),undefined,{numeric:true}):0); }
 
 function tgDesenha(d){
   window.ULT_D=d;
@@ -2272,12 +2272,17 @@ function tgDesenha(d){
   }
 
   /* --- coluna da esquerda --- */
+  /* 01/11/2026: as abas contam o que a lista vai mostrar (com a busca e o motoboy em foco, como a lista) */
+  var vF=function(p){ return tgOk(p)&&(!TG.foco||p.motoboy===TG.foco); };
+  var vPrep=prep.filter(vF), vPron=pron.filter(vF), vNov=TG.foco?[]:novos.filter(tgOk), vRua=[];
+  rua.forEach(function(m){ if(!TG.foco||m.motoboy===TG.foco) vRua=vRua.concat((m.pedidos||[]).filter(tgOk)); });
+  var vPass=vPrep.concat(vPron,vNov,vRua).filter(tgPassou).length;
   var h='<div class="tg-ferr">'+
     (temRs?'<div class="tg-abas"><button class="'+(TG.aba==='ped'?'on':'')+'" data-tga="ped">Pedidos</button><button class="'+(TG.aba==='rota'?'on':'')+'" data-tga="rota">🧭 Rota sugerida</button></div>':'')+
     (TG.aba==='ped'
-      ?'<div class="tg-fab">'+[['todos','Todos',prep.length+novos.length+pron.length+nRua,''],['cozinha','Cozinha',prep.length+novos.length,'t-c'],['prontos','Prontos',pron.length,'t-p'],['rua','Na rua',nRua,'']].map(function(f){
+      ?'<div class="tg-fab">'+[['todos','Todos',vPrep.length+vNov.length+vPron.length+vRua.length,''],['cozinha','Cozinha',vPrep.length+vNov.length,'t-c'],['prontos','Prontos',vPron.length,'t-p'],['rua','Na rua',vRua.length,'']].map(function(f){
           return '<button class="'+(TG.filtro===f[0]?'on ':'')+f[3]+'" data-tgf="'+f[0]+'" title="mostrar '+(f[0]==='todos'?'todos os pedidos':'só '+f[1].toLowerCase())+'">'+f[1]+'<b>'+(TEP?'—':f[2])+'</b></button>'; }).join('')+'</div>'+
-        (nPass&&!TEP?'<div class="tg-pass">⚠ '+nPass+' '+(nPass===1?'passou':'passaram')+' da hora (piscando na lista)</div>':'')
+        (vPass&&!TEP?'<div class="tg-pass">⚠ '+vPass+' '+(vPass===1?'passou':'passaram')+' da hora (piscando na lista)</div>':'')
       :'<div class="tg-cont">'+
         '<div><b>'+(TEP?'—':prep.length)+'</b><span>na cozinha</span></div>'+
         '<div><b>'+(TEP?'—':pron.length)+'</b><span>prontos</span></div>'+
@@ -2480,7 +2485,11 @@ function tgSel(id,voar){
   var mk=TG.mk[id];
   if(TG.sel&&mk&&voar&&TG.mp) TG.mp.flyTo(mk.getLatLng(),Math.max(TG.mp.getZoom(),15),{duration:.5});
   if(TG.sel&&mk) mk.openTooltip();
-  var c=document.querySelector('.tg-p[data-tgp="'+String(id).replace(/"/g,'')+'"]'); if(c&&!voar&&c.scrollIntoView) c.scrollIntoView({block:'nearest',behavior:'smooth'});
+  var sid=(window.CSS&&CSS.escape)?CSS.escape(String(id)):String(id).replace(/["\\]/g,''), cel=window.matchMedia&&matchMedia('(max-width:760px)').matches;
+  var c=document.querySelector('.tg-p[data-tgp="'+sid+'"]'), ln=document.querySelector('.tg-ln[data-tgp="'+sid+'"]');
+  if(c&&!voar&&c.scrollIntoView) c.scrollIntoView({block:'nearest',behavior:'smooth'});
+  if(ln&&!voar&&!cel&&ln.scrollIntoView) ln.scrollIntoView({block:'center',behavior:'smooth'});   /* 01/11/2026: toque no mapa acha a linha */
+  var sb=document.querySelector('.tg-selbox'); if(TG.sel&&voar&&cel&&sb&&sb.scrollIntoView) sb.scrollIntoView({block:'start',behavior:'smooth'});   /* no celular o cartao fica no topo da lista */
 }
 function tgFoco(n){
   TG.foco=(TG.foco===n)?null:n; TG.sel=null; if(TG.foco&&TG.aba==='rota') TG.aba='ped'; tgDesenha(window.ULT_D);
@@ -2498,7 +2507,7 @@ function tgTodos(){
 /* mini lista da rota inteligente (vista Mapa): cada saida com os numeros na ordem, roxo = pronto; embaixo, os da cozinha em vermelho */
 function rsNumeros(r,loja){
   if(r.erro) return '<div class="tg-vz">'+r.erro+'</div>';
-  var h='', chip=function(p,cls,extra){ if(tgAtras(p)) cls+=' late'; return '<span class="rsc-n '+cls+'" data-ped="'+esc(p.pedido)+'" title="toque para ver os itens">'+esc(p.pedido)+(extra||'')+'</span>'; };
+  var h='', chip=function(p,cls,extra){ if(tgPassou(p)) cls+=' late'; return '<span class="rsc-n '+cls+'" data-ped="'+esc(p.pedido)+'" title="toque para ver os itens">'+esc(p.pedido)+(extra||'')+'</span>'; };
   if(r.idade!==null&&r.idade>=5) h+='<div class="tg-av">⚠ TrackEat lido há '+r.idade+' min</div>';
   (r.avisos||[]).forEach(function(a){ h+='<div class="tg-av">⚠ '+a+'</div>'; });
   if(!r.prontos) h+='<div class="tg-vz">Nenhum pedido pronto esperando motoboy agora.</div>';
