@@ -476,7 +476,12 @@ function desenhaFicha(){
     '<div class="ult" style="font-size:13.5px;color:var(--text2)">'+(f.obs?esc(f.obs):'Nenhuma.')+'</div>';
   $('gvConteudo').innerHTML=h;
 }
-function abreFichaPessoa(id){ABERTO=id;desenhaFicha();$('gv').hidden=false;document.body.classList.add('gv-aberta')}
+function abreFichaPessoa(id){
+  if(ABERTO!==id)FOTOS=[];
+  ABERTO=id;desenhaFicha();$('gv').hidden=false;document.body.classList.add('gv-aberta');
+  /* fotos da ficha: uma leitura so ao abrir (porta motoboys_arquivo, acao lista com ficha_id) */
+  carregaFotos(id).then(function(){if(ABERTO===id)desenhaFicha()});
+}
 function fechaFicha(){ABERTO=null;$('gv').hidden=true;document.body.classList.remove('gv-aberta')}
 
 /* ---- janela do documento ---- */
@@ -515,9 +520,10 @@ async function portaFoto(acao,dados){
   if(!r.ok){let m='';try{m=(await r.json()).message||''}catch(e){}throw new Error(m||('porta '+r.status))}
   return await r.json();
 }
-/* a lista de fotos vem sem o conteudo; se falhar, a tela continua funcionando sem as fotos */
-async function carregaFotos(){
-  try{const j=await portaFoto('lista',{});FOTOS=j.arquivos||[];PODE_APAGAR=!!j.pode_apagar}
+/* so as fotos da ficha aberta (ate 5 por documento), sem o conteudo; se falhar, a tela continua funcionando sem as fotos */
+async function carregaFotos(fid){
+  if(fid==null){FOTOS=[];return}
+  try{const j=await portaFoto('lista',{ficha_id:fid});if(ABERTO===fid||(EDOC&&EDOC.id===fid)){FOTOS=j.arquivos||[];PODE_APAGAR=!!j.pode_apagar}}
   catch(e){FOTOS=[];PODE_APAGAR=false}
 }
 function fotosDe(fid,k){return FOTOS.filter(function(a){return a.ficha_id===fid&&a.doc===k})}
@@ -574,7 +580,7 @@ async function enviaFoto(inp){
     if(blob.size>4194304)throw new Error(ehPdf?'O PDF passa de 4 MB. Mande uma foto da página no lugar.':'A foto ficou grande demais.');
     const b64=await paraBase64(blob);
     await portaFoto('enviar',{ficha_id:EDOC.id,doc:EDOC.k,tipo:tipo,base64:b64});
-    await carregaFotos();
+    await carregaFotos(EDOC.id);
     pintaFotosDoc();if(ABERTO!=null)desenhaFicha();
     aviso('📎 Foto guardada!');
   }catch(e){aviso('😕 '+(e&&e.message?e.message:'Não deu para enviar. Tente de novo.'))}
@@ -614,7 +620,7 @@ async function apagaFoto(){
   if(!confirm('Apagar esta foto? Ela some de vez.'))return;
   try{
     await portaFoto('apagar',{id:FOTO_ID});
-    fechaFoto();await carregaFotos();pintaFotosDoc();if(ABERTO!=null)desenhaFicha();
+    fechaFoto();await carregaFotos(ABERTO!=null?ABERTO:(EDOC&&EDOC.id));pintaFotosDoc();if(ABERTO!=null)desenhaFicha();
     aviso('🗑 Foto apagada.');
   }catch(e){aviso('😕 '+(e&&e.message?e.message:'Não deu para apagar.'))}
 }
@@ -748,7 +754,6 @@ document.addEventListener('keydown',function(ev){if(ev.key==='Escape'&&!$('gv').
 
 async function boot(){
   let j;
-  const pf=carregaFotos();/* lista das fotos em paralelo (so os dados, sem o conteudo) */
   try{j=await porta('listar',{})}
   catch(e){$('lista').innerHTML='<div class="vazio"><span class="em">🔌</span>Não deu para carregar. Entre no portal de novo.</div>';return}
   FICHAS=j.fichas||[];SEM=j.sem_ficha||[];QUEM=j.quem||'';PODE=!!j.pode_editar;HOJE=j.hoje||'';
@@ -758,8 +763,7 @@ async function boot(){
     '<span class="pl">🔴 <b>'+at.filter(function(f){return corDe(f)==='bad'}).length+'</b> com coisa para resolver</span>'+
     '<span class="pl">✅ <b>'+at.filter(conferido).length+'</b> com tudo conferido</span>';
   pintaCards();pintaLojas();pintaLista();
-  await pf;
-  if(ABERTO!=null)desenhaFicha();
+  if(ABERTO!=null){await carregaFotos(ABERTO);desenhaFicha()}
   $('rod').innerHTML='<b>De onde vêm os dados</b><br>'+
     'Documentos: lista de contratos do Alejo (20/10) e documentos que os motoboys mandaram no WhatsApp do SAC; depois, o que a equipe marca aqui. '+
     'Proteção térmica: planilha do Alejo (21/10) e respostas do Jaison e do Alejo no grupo dos motoboys. '+
