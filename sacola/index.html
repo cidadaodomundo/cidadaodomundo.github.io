@@ -26,7 +26,10 @@
    na expedicao o pedido PRONTO no TrackEat sobe primeiro com "PRONTO ha X min — conferir agora"; motoboy a caminho
    aparece no cartao; o que ainda esta na cozinha fica num cartao curto (clique ou numero + Enter abre inteiro); o que
    ja saiu vai para o fim. O aviso "SAIU PARA ROTA" lista os pedidos do grupo na hora. "TrackEat ao vivo: ha N s" no
-   topo; ao vivo velho (mais de 2 min) = faixa com o motivo e a tela volta ao jeito antigo. Telas das cozinhas: iguais. */
+   topo; ao vivo velho (mais de 2 min) = faixa com o motivo: pedidos novos ficam sem PRONTO e sem rota ate o leitor
+   voltar (os ja ligados continuam). Telas das cozinhas: iguais.
+   02/11 REGRA UNICA (decisao do Fabio 01/11; banco 'sacola-02-11-2026-regra-unica'): a ligacao TrackEat -> iFood e SO a
+   do codigo do pedido do iFood, desde o 1o segundo do pedido; nao existe mais o jeito antigo (Saipos / nome + lugar + hora). */
 :root{
   --bg:#111111; --card:#1b1b1a; --card2:#252522; --line:#383631;
   --fg:#f4f2ec; --mut:#a8a398; --gold:#E0A81C;
@@ -744,9 +747,10 @@ const zona=x=>ORDEM.indexOf(x)>=0?x:'conferir';
 const temPar=lugs=>Array.isArray(lugs)&&lugs.indexOf('burger')>=0&&lugs.indexOf('prato')>=0;
 const parcial=a=>a&&a.tipo!=='sem_marca';
 const junta=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' e '+a[a.length-1];
-/* 01/11 TrackEat AO VIVO. O banco so manda p.vivo quando o leitor do site leu ha menos de 2 min E a ligacao TrackEat ->
-   iFood esta provada (mesma regra do aviso de rota). Sem p.vivo (retirada, entrega do iFood, pedido de menos de 5 min,
-   ao vivo parado) o cartao fica igual a antes. st: COZINHA | PRONTO | ROTA (motoboy) | SAIU | CANCELADO. */
+/* 01/11 TrackEat AO VIVO. O banco so manda p.vivo quando o leitor do site leu ha menos de 2 min E a entrega do TrackEat
+   esta ligada ao pedido do iFood pelo codigo do pedido (02/11: regra unica, a mesma do aviso de rota). Sem p.vivo
+   (retirada, entrega do iFood, pedido que o leitor ainda nao ligou, ao vivo parado) o cartao fica sem o estado do
+   TrackEat. st: COZINHA | PRONTO | ROTA (motoboy) | SAIU | CANCELADO. */
 const vivoOk=()=>!!(DADO&&DADO.vivo&&DADO.vivo.ok===true);
 function vivoDe(p){ const v=p&&p.vivo; return (vivoOk()&&v&&typeof v==='object'&&v.st)?v:null; }
 function prontoDesde(p){ const v=vivoDe(p); if(!v) return null; if(v.st==='PRONTO') return v.pronto_desde||v.desde||null; return v.st==='ROTA'&&v.pronto_desde?v.pronto_desde:null; }
@@ -1351,7 +1355,7 @@ function desenhaRotas(){
           const ic=iconesLembrar(x.lembrar), cp=x.id!=null?acha(x.id):null, ev=cp?estadoVivo(cp):null;
           return '<span class="rpp '+(ok?'ok':(usa?'nao':''))+'">#'+esc(x.numero)+(ic?' '+esc(ic):'')+(ev==='rota'||ev==='cozinha'?'<b class="cz">🍳 cozinha</b>':'')
             +(ok?'<b class="nc">✓</b>':(usa?'<b class="nc">NÃO CONFERIDO</b>':''))+'</span>'; }).join('')
-        :'<span class="rpe">'+(vivoOk()?'Pedidos dele: lendo o TrackEat ao vivo…':'Pedidos dele: aguardando o TrackEat (até 5 min)…')+'</span>')+'</div></div>';
+        :'<span class="rpe">'+(vivoOk()?'Pedidos dele: lendo o TrackEat ao vivo…':'Pedidos dele: aguardando o leitor do TrackEat…')+'</span>')+'</div></div>';
   }).join('');
   const resto2=resto.concat(cheias.slice(2));
   if(resto2.length) h+='<div class="rota curta"><b>Saíram há pouco:</b> '+resto2.map(r=>esc(r.entregador||'motoboy')+' '+esc(hhmm(r.saiu_em))
@@ -1389,8 +1393,9 @@ function desenha(){
       : '⚠️ Aviso de rota parado'+(fl.ultimo_ok?' (fila de motoboys lida pela última vez às '+hhmm(fl.ultimo_ok)+')':'')+'. "Saiu para rota" pode NÃO aparecer aqui — confira o TrackEat.';
     $('faixaFila').hidden=false; }
   else $('faixaFila').hidden=true;
-  /* 01/11: TrackEat AO VIVO parado (mais de 2 min sem ler, no horario do leitor): faixa com o motivo; a tela volta ao jeito
-     antigo sozinha (o banco para de mandar p.vivo e a rota volta a vir so da fila / do oficial). */
+  /* 01/11: TrackEat AO VIVO parado (mais de 2 min sem ler, no horario do leitor): faixa com o motivo; o banco para de
+     mandar p.vivo e a rota vem so da fila / do TrackEat oficial. 02/11 regra unica: o pedido do iFood continua SO pela
+     ligacao do codigo; os ja ligados continuam, os novos ficam sem PRONTO e sem rota ate o leitor voltar. */
   const vv=j.vivo||{};
   if(vv.atrasado===true){
     const por=vv.motivo==='login'?'o site do TrackEat pediu login de novo — chamar o Fábio para entrar no Chrome dos robôs'
@@ -1399,7 +1404,7 @@ function desenha(){
       :'o leitor do site do TrackEat não está lendo';
     $('faixaVivo').textContent=EXP
       ? '⚠️ TrackEat parado'+(vv.lido_em?' desde '+hhmm(vv.lido_em):'')+': '+por+'. A tela não sabe onde está o motoboy — confira as rotas no TrackEat. A sacola só sai daqui quando sai do iFood.'
-      : '⚠️ TrackEat ao vivo parado'+(vv.lido_em?' (última leitura às '+hhmm(vv.lido_em)+')':'')+': '+por+'. O PRONTO não aparece e o "saiu para rota" pode atrasar até 5 min.';
+      : '⚠️ TrackEat ao vivo parado'+(vv.lido_em?' (última leitura às '+hhmm(vv.lido_em)+')':'')+': '+por+'. Pedidos novos ficam sem PRONTO e sem rota até o leitor voltar (os já ligados continuam).';
     $('faixaVivo').hidden=false; }
   else $('faixaVivo').hidden=true;
   vivoInd();
@@ -1500,7 +1505,7 @@ function vivoInd(){
   const t='<i></i>TrackEat ao vivo: '+(s==null?'sem leitura':idadeTxt(s))+(!ok&&!ruim&&v.horario===false?' · fora do horário':'');
   if(el.innerHTML!==t) el.innerHTML=t;
   el.className='aovivo'+(ok?' ok':ruim?' velho':'');
-  el.title=ok?'O leitor do site do TrackEat está lendo (de 30 em 30 s)':'TrackEat ao vivo sem leitura recente: a tela usa o jeito antigo';
+  el.title=ok?'O leitor do site do TrackEat está lendo (de 30 em 30 s)':'TrackEat ao vivo sem leitura recente: pedidos novos ficam sem PRONTO e sem rota até o leitor voltar (os já ligados continuam)';
   el.hidden=false;
 }
 
