@@ -360,10 +360,10 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
 .tg-t.passou.dem{animation:none}   /* "demorando" fica parado: so pisca quem passou da hora */
 @keyframes tgtPisca{50%{background:rgba(230,103,103,.42);border-color:#e66767}}
 @media (prefers-reduced-motion:reduce){.tg-nn.late::after,.rsc-n.late::after,.tg-t.passou{animation:none}}
-.tg-selbox{position:sticky;top:0;z-index:3;background:var(--s0);padding:8px 0 2px}
-@media (min-width:761px) and (max-height:660px){.tg-selbox{position:static}}   /* janela baixa: o cartao nao gruda, senao cobre a lista inteira */
-.tg-selbox .fx{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;font-weight:700;color:var(--muted);padding:0 2px 4px}
-.tg-selbox .fx button{border:1px solid var(--line);background:var(--s2);border-radius:8px;padding:2px 9px;font:700 12px Barlow,sans-serif;color:var(--text2);cursor:pointer}
+/* 01/11/2026: o cartao do pedido escolhido abre logo embaixo da linha dele (como uma gaveta); grudado no topo ele cobria a lista */
+.tg-selin{padding:6px 4px 8px 9px;margin:0 0 4px;border-left:3px solid var(--brand);background:rgba(224,168,28,.06)}
+.tg-selin .fx{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;font-weight:700;color:var(--muted);padding:0 2px 4px}
+.tg-selin .fx button{border:1px solid var(--line);background:var(--s2);border-radius:8px;padding:2px 9px;font:700 12px Barlow,sans-serif;color:var(--text2);cursor:pointer}
 .tg-rsver{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font:700 12px Barlow,sans-serif;color:var(--text2)}
 .tg-rsver button{min-width:34px;height:32px;border:2px solid #111;border-radius:9px;padding:0 9px;background:var(--s2);font:800 14px Barlow,sans-serif;color:var(--text);cursor:pointer}
 .tg-rsver button[data-tgro]:not([data-tgro=""]){background:var(--c);color:#111}
@@ -2177,7 +2177,8 @@ function tgHora(p){
 function tgLinha(id,num,cls,cor,dica,p){
   var sel=TG.sel===id;
   return '<button class="tg-ln'+(sel?' sel':'')+'" data-tgp="'+esc(id)+'" title="'+esc(dica)+'"><span class="tg-nn '+cls+(tgPassou(p)?' late':'')+'"'+
-    (cor?' style="'+cor+'"':'')+'>'+num+'</span><i class="tg-dt" aria-hidden="true"></i>'+tgHora(p)+'</button>';
+    (cor?' style="'+cor+'"':'')+'>'+num+'</span><i class="tg-dt" aria-hidden="true"></i>'+tgHora(p)+'</button>'+
+    (sel&&TG.selCard?(TG.selUsado=true,TG.selCard):'');
 }
 function tgNum(p,cls,cor){
   return tgLinha(String(p.pedido),esc(p.pedido),cls,cor,'Saipos '+p.pedido+' — toque para ver no mapa',p);
@@ -2315,14 +2316,16 @@ function tgDesenha(d){
     var cartRua=function(p,m){
       return tgCartao(p,(p.grupo&&tgCorG(p.grupo))||tgCorMb(m.motoboy,d),
         (p._n?'<span class="tg-t">'+(p._n===1?'próxima entrega':p._n+'ª da rota')+'</span>':'')+(p.onde==='porta'?'<span class="tg-t">na porta do cliente</span>':''),d); };
-    /* so os numeros: o pedido tocado (aqui ou no mapa) aparece inteiro em cima da lista, com nome, rua e horario */
+    /* so os numeros: o pedido tocado (aqui ou no mapa) abre inteiro logo embaixo da linha dele, com nome, rua e horario */
+    TG.selCard=''; TG.selUsado=false;
     if(so&&TG.sel){
       var sc='', sid=TG.sel;
       novos.forEach(function(p){ if('n'+p.ifood===sid) sc=tgCartaoNovo(p,d); });
       loja.forEach(function(p){ if(String(p.pedido)===sid) sc=p.onde==='preparo'?tgCartao(p,'var(--bad)','',d):cartPron(p); });
       rua.forEach(function(m){ ordemRota(m.pedidos).forEach(function(p){ if(String(p.pedido)===sid) sc=cartRua(p,m)+'<div class="tg-vz" style="padding:0 4px 4px">na rua com '+esc(m.motoboy)+'</div>'; }); });
-      if(sc) h+='<div class="tg-selbox"><div class="fx"><span>Pedido escolhido</span><button data-tgsx="1">fechar</button></div>'+sc+'</div>';
+      if(sc) TG.selCard='<div class="tg-selin"><div class="fx"><span>Pedido escolhido</span><button data-tgsx="1">fechar</button></div>'+sc+'</div>';
     }
+    var iniLista=h.length;
     if(novos.length&&!TG.foco&&(TG.filtro==='todos'||TG.filtro==='cozinha')){
       var nv=novos.filter(tgOk).sort(tgEntrou);
       h+='<div class="tg-gr"><i class="bola" style="background:#ea1d2c"></i><h3>Acabaram de entrar · iFood</h3><span class="n">'+nv.length+'</span></div>';
@@ -2345,6 +2348,8 @@ function tgDesenha(d){
       });
       h+='<div class="tg-gr"><i class="bola" style="background:var(--text2)"></i><h3>Na rua</h3><span class="n">'+nOk+'</span></div>'+(hr||'<div class="tg-vz">Nenhum agora.</div>');
     }
+    if(TG.selCard&&!TG.selUsado) h=h.slice(0,iniLista)+TG.selCard+h.slice(iniLista);
+    TG.selCard='';
   }
   var gpsUlt=(ex&&Array.isArray(ex.gps)?ex.gps:[]).map(function(g){return g.visto||'';}).sort().pop();
   h+='</div><div class="tg-rod">TrackEat lido às '+esc(d.visto_em||'—')+' · GPS às '+esc(d.gps_visto_em||gpsUlt||'—')+
@@ -2487,15 +2492,21 @@ function tgSel(id,voar){
   if(TG.sel&&mk&&voar&&TG.mp) TG.mp.flyTo(mk.getLatLng(),Math.max(TG.mp.getZoom(),15),{duration:.5});
   if(TG.sel&&mk) mk.openTooltip();
   var sid=(window.CSS&&CSS.escape)?CSS.escape(String(id)):String(id).replace(/["\\]/g,''), cel=window.matchMedia&&matchMedia('(max-width:760px)').matches;
-  var c=document.querySelector('.tg-p[data-tgp="'+sid+'"]'), ln=document.querySelector('.tg-ln[data-tgp="'+sid+'"]'), sb=document.querySelector('.tg-selbox');
-  if(c&&!voar&&!c.closest('.tg-selbox')&&c.scrollIntoView) c.scrollIntoView({block:'nearest',behavior:'smooth'});
-  if(TG.sel&&ln&&!cel) tgVerLinha(ln,sb);   /* 01/11/2026: no computador a linha escolhida fica a vista, logo abaixo do cartao grudado */
-  if(TG.sel&&voar&&cel&&sb&&sb.scrollIntoView) sb.scrollIntoView({block:'start',behavior:'smooth'});   /* no celular o cartao fica no topo da lista */
+  var c=document.querySelector('.tg-p[data-tgp="'+sid+'"]'), ln=document.querySelector('.tg-ln[data-tgp="'+sid+'"]');
+  if(c&&!voar&&!c.closest('.tg-selin')&&c.scrollIntoView) c.scrollIntoView({block:'nearest',behavior:'smooth'});
+  if(TG.sel&&ln&&(!cel||voar)) tgVerLinha(ln,cel);   /* no celular, o toque no mapa nao rola a pagina (o mapa fica na tela) */
 }
-function tgVerLinha(ln,sb){
-  var lst=$('tg_lista_in'); if(!lst) return;
-  var fixo=sb&&getComputedStyle(sb).position==='sticky', rb=lst.getBoundingClientRect(), r=ln.getBoundingClientRect(), topo=rb.top+(fixo?sb.offsetHeight:0)+6;
-  if(r.top<topo) lst.scrollTop+=r.top-topo; else if(r.bottom>rb.bottom-4) lst.scrollTop+=r.bottom-rb.bottom+6;
+/* 01/11/2026: deixa a linha escolhida e a gaveta dela a vista, abaixo do titulo de grupo que gruda (lista no computador, pagina no celular) */
+function tgVerLinha(ln,cel){
+  var lst=$('tg_lista_in'), gr=document.querySelector('#tg_lista_in .tg-gr'), cab=gr?gr.offsetHeight:0;
+  var cx=ln.nextElementSibling&&ln.nextElementSibling.classList.contains('tg-selin')?ln.nextElementSibling:null;
+  var r=ln.getBoundingClientRect(), fim=(cx||ln).getBoundingClientRect().bottom;
+  var cima, baixo;
+  if(cel){ cima=cab+4; baixo=window.innerHeight; }
+  else{ if(!lst) return; var rb=lst.getBoundingClientRect(); cima=rb.top+cab+4; baixo=rb.bottom; }
+  var mv=0; if(r.top<cima) mv=r.top-cima; else if(fim>baixo-4) mv=Math.min(fim-baixo+8,r.top-cima);
+  if(!mv) return;
+  if(cel) window.scrollBy(0,mv); else lst.scrollTop+=mv;
 }
 function tgFoco(n){
   TG.foco=(TG.foco===n)?null:n; TG.sel=null; if(TG.foco&&TG.aba==='rota') TG.aba='ped'; tgDesenha(window.ULT_D);
@@ -2566,15 +2577,13 @@ document.addEventListener('click',function(e){
     if(!RS_MAPA){ RS_MAPA=true; try{ localStorage.setItem('cdm_fila_rsmapa','1'); }catch(x){} }
     tgDesenha(window.ULT_D); tgRsZoom(); return; }
   var dt=t.closest('[data-tgdet]'); if(dt){ TG.det=dt.getAttribute('data-tgdet')==='1'; try{ localStorage.setItem('cdm_fila_det',TG.det?'1':'0'); }catch(x){} tgDesenha(window.ULT_D); return; }
-  if(t.closest('[data-tgsx]')){ var era=TG.sel; TG.sel=null; tgDesenha(window.ULT_D);
-    var lv=era&&document.querySelector('.tg-ln[data-tgp="'+((window.CSS&&CSS.escape)?CSS.escape(String(era)):String(era).replace(/["\\]/g,''))+'"]');
-    if(lv&&window.matchMedia&&matchMedia('(max-width:760px)').matches&&lv.scrollIntoView) lv.scrollIntoView({block:'center'});   /* celular: volta ao lugar na lista */
-    return; }
+  if(t.closest('[data-tgsx]')){ TG.sel=null; tgDesenha(window.ULT_D); return; }
   var a=t.closest('[data-tga]'); if(a){ TG.aba=a.getAttribute('data-tga'); tgDesenha(window.ULT_D); return; }
   var f=t.closest('[data-tgf]'); if(f){ TG.filtro=f.getAttribute('data-tgf'); tgDesenha(window.ULT_D); return; }
   if(t.closest('[data-tgx]')){ tgTodos(); return; }
   if(t.closest('[data-tgz]')){ TG.mbsFechado=!TG.mbsFechado; tgDesenha(window.ULT_D); return; }
   var m=t.closest('[data-tgm]'); if(m){ tgFoco(m.getAttribute('data-tgm')); return; }
+  if(t.closest('.tg-selin')) return;   /* clique dentro da gaveta do escolhido: so ler */
   var p=t.closest('[data-tgp]'); if(p){ tgSel(p.getAttribute('data-tgp'),true); return; }
 });
 document.addEventListener('input',function(e){
