@@ -361,6 +361,7 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
 @keyframes tgtPisca{50%{background:rgba(230,103,103,.42);border-color:#e66767}}
 @media (prefers-reduced-motion:reduce){.tg-nn.late::after,.rsc-n.late::after,.tg-t.passou{animation:none}}
 .tg-selbox{position:sticky;top:0;z-index:3;background:var(--s0);padding:8px 0 2px}
+@media (min-width:761px) and (max-height:660px){.tg-selbox{position:static}}   /* janela baixa: o cartao nao gruda, senao cobre a lista inteira */
 .tg-selbox .fx{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;font-weight:700;color:var(--muted);padding:0 2px 4px}
 .tg-selbox .fx button{border:1px solid var(--line);background:var(--s2);border-radius:8px;padding:2px 9px;font:700 12px Barlow,sans-serif;color:var(--text2);cursor:pointer}
 .tg-rsver{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font:700 12px Barlow,sans-serif;color:var(--text2)}
@@ -2212,7 +2213,7 @@ function tgPrazo(p){
   if(!p.prometido||p.falta_prom==null) return '<span class="tg-t">sem hora prometida</span>';
   var f=+p.falta_prom, h='prometido '+esc(p.prometido)+(p.prom_fonte==='saipos'?' (Accon)':'');
   if(f<0) return '<span class="tg-t passou">'+h+' · passou '+(-f)+' min</span>';
-  return '<span class="tg-t '+(f<=10?'quase':'bom')+'">'+h+' · '+(f===1?'falta 1 min':'faltam '+f+' min')+'</span>';
+  return '<span class="tg-t '+(f<=10?'quase':'bom')+'">'+h+' · '+(f===0?'é agora':f===1?'falta 1 min':'faltam '+f+' min')+'</span>';
 }
 function tgDistTxt(p,d){
   if(p.lat==null||p.lng==null||!d.loja||d.loja.lat==null) return '';
@@ -2486,10 +2487,15 @@ function tgSel(id,voar){
   if(TG.sel&&mk&&voar&&TG.mp) TG.mp.flyTo(mk.getLatLng(),Math.max(TG.mp.getZoom(),15),{duration:.5});
   if(TG.sel&&mk) mk.openTooltip();
   var sid=(window.CSS&&CSS.escape)?CSS.escape(String(id)):String(id).replace(/["\\]/g,''), cel=window.matchMedia&&matchMedia('(max-width:760px)').matches;
-  var c=document.querySelector('.tg-p[data-tgp="'+sid+'"]'), ln=document.querySelector('.tg-ln[data-tgp="'+sid+'"]');
-  if(c&&!voar&&c.scrollIntoView) c.scrollIntoView({block:'nearest',behavior:'smooth'});
-  if(ln&&!voar&&!cel&&ln.scrollIntoView) ln.scrollIntoView({block:'center',behavior:'smooth'});   /* 01/11/2026: toque no mapa acha a linha */
-  var sb=document.querySelector('.tg-selbox'); if(TG.sel&&voar&&cel&&sb&&sb.scrollIntoView) sb.scrollIntoView({block:'start',behavior:'smooth'});   /* no celular o cartao fica no topo da lista */
+  var c=document.querySelector('.tg-p[data-tgp="'+sid+'"]'), ln=document.querySelector('.tg-ln[data-tgp="'+sid+'"]'), sb=document.querySelector('.tg-selbox');
+  if(c&&!voar&&!c.closest('.tg-selbox')&&c.scrollIntoView) c.scrollIntoView({block:'nearest',behavior:'smooth'});
+  if(TG.sel&&ln&&!cel) tgVerLinha(ln,sb);   /* 01/11/2026: no computador a linha escolhida fica a vista, logo abaixo do cartao grudado */
+  if(TG.sel&&voar&&cel&&sb&&sb.scrollIntoView) sb.scrollIntoView({block:'start',behavior:'smooth'});   /* no celular o cartao fica no topo da lista */
+}
+function tgVerLinha(ln,sb){
+  var lst=$('tg_lista_in'); if(!lst) return;
+  var fixo=sb&&getComputedStyle(sb).position==='sticky', rb=lst.getBoundingClientRect(), r=ln.getBoundingClientRect(), topo=rb.top+(fixo?sb.offsetHeight:0)+6;
+  if(r.top<topo) lst.scrollTop+=r.top-topo; else if(r.bottom>rb.bottom-4) lst.scrollTop+=r.bottom-rb.bottom+6;
 }
 function tgFoco(n){
   TG.foco=(TG.foco===n)?null:n; TG.sel=null; if(TG.foco&&TG.aba==='rota') TG.aba='ped'; tgDesenha(window.ULT_D);
@@ -2560,7 +2566,10 @@ document.addEventListener('click',function(e){
     if(!RS_MAPA){ RS_MAPA=true; try{ localStorage.setItem('cdm_fila_rsmapa','1'); }catch(x){} }
     tgDesenha(window.ULT_D); tgRsZoom(); return; }
   var dt=t.closest('[data-tgdet]'); if(dt){ TG.det=dt.getAttribute('data-tgdet')==='1'; try{ localStorage.setItem('cdm_fila_det',TG.det?'1':'0'); }catch(x){} tgDesenha(window.ULT_D); return; }
-  if(t.closest('[data-tgsx]')){ TG.sel=null; tgDesenha(window.ULT_D); return; }
+  if(t.closest('[data-tgsx]')){ var era=TG.sel; TG.sel=null; tgDesenha(window.ULT_D);
+    var lv=era&&document.querySelector('.tg-ln[data-tgp="'+((window.CSS&&CSS.escape)?CSS.escape(String(era)):String(era).replace(/["\\]/g,''))+'"]');
+    if(lv&&window.matchMedia&&matchMedia('(max-width:760px)').matches&&lv.scrollIntoView) lv.scrollIntoView({block:'center'});   /* celular: volta ao lugar na lista */
+    return; }
   var a=t.closest('[data-tga]'); if(a){ TG.aba=a.getAttribute('data-tga'); tgDesenha(window.ULT_D); return; }
   var f=t.closest('[data-tgf]'); if(f){ TG.filtro=f.getAttribute('data-tgf'); tgDesenha(window.ULT_D); return; }
   if(t.closest('[data-tgx]')){ tgTodos(); return; }
