@@ -15,7 +15,10 @@
      Dados: porta motoboys_consulta (motoboy_ficha, motoboy_doc, motoboy_emprestimo, motoboy_avaliacao; entregas de 30 dias do TrackEat; Pix de motoboy_cadastro).
      01/11/2026 (chat-motoboys-lista-02-11): pedido do Fabio "mude para o formato lista, esse jeito com carttoes nao ficou bom":
      os 15 cartoes de situacao viraram uma LISTA (uma situacao por linha, o numero no fim), em 3 blocos (para resolver / para conferir / outras listas);
-     no computador a lista fica a esquerda e os nomes a direita; no celular, um embaixo do outro. A tela foi para o grupo Delivery do menu. -->
+     no computador a lista fica a esquerda e os nomes a direita; no celular, um embaixo do outro. A tela foi para o grupo Delivery do menu.
+     01/11/2026 (chat-motoboys-lista-02-11): FOTO DO DOCUMENTO, decisao do Fabio ("pode construir assim"): na janela do documento, botao
+     "Enviar foto" (foto do celular ou PDF; a tela diminui a foto antes de mandar). Guardada fechada na tabela motoboy_doc_arquivo, so pela
+     porta motoboys_arquivo (quem tem a tela Motoboys envia e ve). Foto nova nao apaga a antiga; apagar so o dono. -->
 <style>
 .intro{color:var(--text2);font-size:14px;line-height:1.5;margin:-4px 0 14px}
 /* 01/11/2026: situacoes em LISTA (uma por linha, numero no fim) a esquerda; nomes a direita */
@@ -97,6 +100,15 @@ button.dl:hover{border-color:var(--text2)}
 .empl .tx{flex:1;min-width:0}
 .empl.fim{opacity:.6}
 .ult{color:var(--muted);font-size:11.5px;margin-top:4px}
+/* 01/11/2026: foto do documento */
+.fotoln{display:flex;align-items:center;gap:6px;width:100%;text-align:left;background:none;border:0;color:#8fc1ff;font-family:inherit;font-size:12.5px;font-weight:700;padding:2px 11px 6px 42px;margin-top:-2px;cursor:pointer}
+.fotoln:hover{text-decoration:underline}
+.fotol{display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--line);border-radius:11px;padding:8px 10px;font-size:13.5px}
+.fotol .tx{flex:1;min-width:0}
+.fotobt{margin-top:6px}
+.fotobt:disabled{opacity:.6;cursor:wait}
+#fo_corpo img{display:block;max-width:100%;max-height:70vh;margin:0 auto;border-radius:10px;background:#000}
+#fo_corpo .inf{color:var(--muted);font-size:12.5px;margin-top:8px;text-align:center}
 .sep{border-top:1px solid var(--line);margin:4px 0}
 body.gv-aberta{overflow:hidden}
 @media (max-width:860px){.painel{grid-template-columns:minmax(0,1fr)}}
@@ -143,6 +155,12 @@ body.gv-aberta{overflow:hidden}
       <div class="f" id="dd_val_f"><label for="dd_val">📅 Vence em</label><input id="dd_val" type="date"></div>
     </div>
     <div class="f"><label for="dd_det">📝 O que se sabe</label><textarea id="dd_det" maxlength="400" placeholder="Ex.: mandou no WhatsApp em 26/10, conferido"></textarea></div>
+    <div class="f"><label>📎 Foto do documento</label>
+      <div id="dd_fotos" class="docs"></div>
+      <button type="button" class="bx fotobt" id="dd_foto_bt" onclick="$('dd_arq').click()">📎 Enviar foto</button>
+      <input id="dd_arq" type="file" accept="image/*,application/pdf" style="display:none" onchange="enviaFoto(this)">
+      <div class="dica">Foto do celular ou PDF (até 4 MB). Fica guardada fechada: só quem tem esta tela vê. Enviar a foto não muda a situação acima — escolha e aperte Salvar.</div>
+    </div>
     <div class="ult" id="dd_ult"></div>
   </div>
   <div class="df">
@@ -211,6 +229,14 @@ body.gv-aberta{overflow:hidden}
     <button class="sal" id="av_sal" onclick="salvaAval()">💾 Salvar avaliação</button>
   </div>
 </dialog>
+<dialog id="dlg_foto">
+  <div class="dh"><h3 id="fo_tit">📎 Foto</h3><button class="x" onclick="fechaFoto()" aria-label="Fechar">✕</button></div>
+  <div class="db" id="fo_corpo"></div>
+  <div class="df">
+    <button class="bx tira" id="fo_apaga" onclick="apagaFoto()" hidden>🗑 Apagar foto</button>
+    <button class="sal" onclick="fechaFoto()">Fechar</button>
+  </div>
+</dialog>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -251,6 +277,7 @@ const LOJAS=['Água Verde','São Braz','Ahú'];
 const ICL={'Água Verde':'🟢','São Braz':'🔵','Ahú':'🟣'};
 
 let FICHAS=[],SEM=[],QUEM='',PODE=false,HOJE='',BOTAO='pedir',LOJA='todas',ABERTO=null,EDOC=null,EFIC=null,EEQ=null,EAV=null;
+let FOTOS=[],PODE_APAGAR=false,FOTO_ID=null,FOTO_URL=null;
 
 async function porta(acao,dados){
   const r=await fetch(SB+'rpc/motoboys_consulta',{method:'POST',
@@ -427,7 +454,7 @@ function desenhaFicha(){
     h+='<div class="pedirbox">'+(fa.length?'📋 <b>Pedir para ele:</b> '+esc(fa.join(', '))+'.':'')+(fa.length&&sp?'<br>':'')+
       (sp?'🧊 <b>Está sem proteção térmica:</b> emprestar uma bag da casa.':'')+'</div>';
   }else h+='<div class="pedirbox ok">✅ <b>Nada para pedir.</b>'+(conferido(f)?' Documentos vistos e Pix cadastrado.':' Os documentos que faltam ver estão na pasta do contrato.')+'</div>';
-  h+='<div class="gv-sub">📄 Documentos</div><div class="docs">'+DOCS.map(function(x){return linhaDoc(f,x)}).join('')+linhaPix(f)+'</div>';
+  h+='<div class="gv-sub">📄 Documentos</div><div class="docs">'+DOCS.map(function(x){return linhaDoc(f,x)+linhaFoto(f,x)}).join('')+linhaPix(f)+'</div>';
   h+='<div class="gv-sub">🧊 Bag e baú</div><div class="docs">'+linhaTerm(f)+linhaBau(f)+'</div>';
   const es=f.emprestimos||[];
   if(es.length)h+='<div class="docs" style="margin-top:6px">'+es.map(function(e){
@@ -449,7 +476,12 @@ function desenhaFicha(){
     '<div class="ult" style="font-size:13.5px;color:var(--text2)">'+(f.obs?esc(f.obs):'Nenhuma.')+'</div>';
   $('gvConteudo').innerHTML=h;
 }
-function abreFichaPessoa(id){ABERTO=id;desenhaFicha();$('gv').hidden=false;document.body.classList.add('gv-aberta')}
+function abreFichaPessoa(id){
+  if(ABERTO!==id)FOTOS=[];
+  ABERTO=id;desenhaFicha();$('gv').hidden=false;document.body.classList.add('gv-aberta');
+  /* fotos da ficha: uma leitura so ao abrir (porta motoboys_arquivo, acao lista com ficha_id) */
+  carregaFotos(id).then(function(){if(ABERTO===id)desenhaFicha()});
+}
 function fechaFicha(){ABERTO=null;$('gv').hidden=true;document.body.classList.remove('gv-aberta')}
 
 /* ---- janela do documento ---- */
@@ -467,6 +499,7 @@ function abreDoc(id,k){
   $('dd_det').value=d.detalhe||'';
   $('dd_ult').textContent=d.quando?('Última mudança: '+d.quando+(d.quem?' · '+d.quem:'')+(d.fonte?' · de onde veio: '+d.fonte:'')):'';
   $('dd_sal').disabled=false;
+  pintaFotosDoc();
   abreDlg('dlg_doc');
 }
 async function salvaDoc(){
@@ -477,6 +510,119 @@ async function salvaDoc(){
       validade:$('dd_val_f').style.display==='none'?'':$('dd_val').value,detalhe:$('dd_det').value.trim()});
     fecha('dlg_doc');await boot();aviso('✅ Guardado!');
   }catch(e){$('dd_sal').disabled=false;aviso('😕 Não deu para salvar. Entre no portal de novo e tente outra vez.')}
+}
+
+/* ---- foto do documento (01/11/2026) — porta motoboys_arquivo: lista / enviar / ver / apagar ---- */
+async function portaFoto(acao,dados){
+  const r=await fetch(SB+'rpc/motoboys_arquivo',{method:'POST',
+    headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:tok(),p_acao:acao,p_dados:dados||{}})});
+  if(!r.ok){let m='';try{m=(await r.json()).message||''}catch(e){}throw new Error(m||('porta '+r.status))}
+  return await r.json();
+}
+/* so as fotos da ficha aberta (ate 5 por documento), sem o conteudo; se falhar, a tela continua funcionando sem as fotos */
+async function carregaFotos(fid){
+  if(fid==null){FOTOS=[];return}
+  try{const j=await portaFoto('lista',{ficha_id:fid});if(ABERTO===fid||(EDOC&&EDOC.id===fid)){FOTOS=j.arquivos||[];PODE_APAGAR=!!j.pode_apagar}}
+  catch(e){FOTOS=[];PODE_APAGAR=false}
+}
+function fotosDe(fid,k){return FOTOS.filter(function(a){return a.ficha_id===fid&&a.doc===k})}
+function quandoCurto(q){return String(q||'').slice(0,5)}
+function linhaFoto(f,x){
+  const l=fotosDe(f.id,x.k);if(!l.length)return '';
+  const a=l[0];
+  return '<button type="button" class="fotoln" data-foto="'+a.id+'">📎 '+(a.tipo==='application/pdf'?'PDF enviado':'Foto enviada')+' por '+esc(a.por||'?')+' em '+esc(quandoCurto(a.quando))+
+    (l.length>1?' · mais '+(l.length-1)+' antiga'+(l.length>2?'s':''):'')+' · ver</button>';
+}
+function pintaFotosDoc(){
+  if(!EDOC)return;
+  const l=fotosDe(EDOC.id,EDOC.k);
+  $('dd_fotos').innerHTML=l.length?l.map(function(a){
+    return '<div class="fotol"><span class="tx">📎 '+(a.tipo==='application/pdf'?'PDF':'Foto')+' · '+esc(a.por||'?')+' · '+esc(a.quando||'')+'</span>'+
+      '<button type="button" class="bt mini" data-foto="'+a.id+'">👁 Ver</button></div>';
+  }).join(''):'<div class="ult">Nenhuma foto enviada ainda.</div>';
+}
+/* diminui a foto antes de mandar (lado maior 1800 px, JPEG): gasta menos internet e espaco */
+function encolhe(file){
+  return new Promise(function(ok,ruim){
+    const url=URL.createObjectURL(file),img=new Image();
+    img.onload=function(){
+      URL.revokeObjectURL(url);
+      const fat=Math.min(1,1800/Math.max(img.naturalWidth||1,img.naturalHeight||1));
+      const w=Math.max(1,Math.round(img.naturalWidth*fat)),h=Math.max(1,Math.round(img.naturalHeight*fat));
+      const c=document.createElement('canvas');c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      c.toBlob(function(b){if(b)ok(b);else ruim(new Error('Não deu para preparar a foto.'))},'image/jpeg',0.82);
+    };
+    img.onerror=function(){URL.revokeObjectURL(url);ruim(new Error('Não deu para ler essa foto. Tire de novo ou mande em JPG.'))};
+    img.src=url;
+  });
+}
+function paraBase64(blob){
+  return new Promise(function(ok,ruim){
+    const fr=new FileReader();
+    fr.onload=function(){const s=String(fr.result||'');ok(s.slice(s.indexOf(',')+1))};
+    fr.onerror=function(){ruim(new Error('Não deu para ler o arquivo.'))};
+    fr.readAsDataURL(blob);
+  });
+}
+async function enviaFoto(inp){
+  const file=inp.files&&inp.files[0];inp.value='';
+  if(!file||!EDOC)return;
+  const bt=$('dd_foto_bt');
+  if(bt.disabled)return;
+  const ehPdf=file.type==='application/pdf'||/\.pdf$/i.test(file.name||'');
+  if(!ehPdf&&!/^image\//.test(file.type||'')){aviso('😕 Mande uma foto ou um PDF.');return}
+  bt.disabled=true;bt.textContent='⏳ Enviando…';
+  try{
+    let blob=file,tipo='application/pdf';
+    if(!ehPdf){blob=await encolhe(file);tipo='image/jpeg'}
+    if(blob.size>4194304)throw new Error(ehPdf?'O PDF passa de 4 MB. Mande uma foto da página no lugar.':'A foto ficou grande demais.');
+    const b64=await paraBase64(blob);
+    await portaFoto('enviar',{ficha_id:EDOC.id,doc:EDOC.k,tipo:tipo,base64:b64});
+    await carregaFotos(EDOC.id);
+    pintaFotosDoc();if(ABERTO!=null)desenhaFicha();
+    aviso('📎 Foto guardada!');
+  }catch(e){aviso('😕 '+(e&&e.message?e.message:'Não deu para enviar. Tente de novo.'))}
+  finally{bt.disabled=false;bt.textContent='📎 Enviar foto'}
+}
+function base64Blob(b64,tipo){
+  const bin=atob(b64),u=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+  return new Blob([u],{type:tipo});
+}
+async function verFoto(id){
+  FOTO_ID=id;
+  $('fo_tit').textContent='📎 Foto';
+  $('fo_corpo').innerHTML='<div class="vazio"><span class="em">⏳</span>Abrindo…</div>';
+  $('fo_apaga').hidden=!PODE_APAGAR;
+  abreDlg('dlg_foto');
+  try{
+    const j=await portaFoto('ver',{id:id});
+    if(FOTO_ID!==id)return;
+    if(FOTO_URL)URL.revokeObjectURL(FOTO_URL);
+    FOTO_URL=URL.createObjectURL(base64Blob(j.base64,j.tipo));
+    const f=FICHAS.find(function(x){return x.id===j.ficha_id}),x=DOCS.find(function(y){return y.k===j.doc});
+    $('fo_tit').textContent='📎 '+(x?x.n:'Documento')+(f?' · '+nomeCurto(f):'');
+    const inf='<div class="inf">Enviada por '+esc(j.por||'?')+' em '+esc(j.quando||'')+'</div>';
+    $('fo_corpo').innerHTML=j.tipo==='application/pdf'
+      ?'<div class="vazio"><span class="em">📄</span>É um PDF.</div><a class="sal" style="display:block;text-align:center;text-decoration:none" href="'+FOTO_URL+'" target="_blank" rel="noopener">Abrir o PDF</a>'+inf
+      :'<img src="'+FOTO_URL+'" alt="Foto do documento">'+inf;
+  }catch(e){if(FOTO_ID===id)$('fo_corpo').innerHTML='<div class="vazio"><span class="em">😕</span>'+esc(e&&e.message?e.message:'Não deu para abrir a foto.')+'</div>'}
+}
+function fechaFoto(){
+  FOTO_ID=null;fecha('dlg_foto');
+  if(FOTO_URL){URL.revokeObjectURL(FOTO_URL);FOTO_URL=null}
+  $('fo_corpo').innerHTML='';
+}
+async function apagaFoto(){
+  if(!FOTO_ID||!PODE_APAGAR)return;
+  if(!confirm('Apagar esta foto? Ela some de vez.'))return;
+  try{
+    await portaFoto('apagar',{id:FOTO_ID});
+    fechaFoto();await carregaFotos(ABERTO!=null?ABERTO:(EDOC&&EDOC.id));pintaFotosDoc();if(ABERTO!=null)desenhaFicha();
+    aviso('🗑 Foto apagada.');
+  }catch(e){aviso('😕 '+(e&&e.message?e.message:'Não deu para apagar.'))}
 }
 
 /* ---- janela da ficha (nome, loja, como roda) ---- */
@@ -587,6 +733,8 @@ document.addEventListener('click',function(ev){
   const lj=ev.target.closest('[data-loja]');
   if(lj){LOJA=lj.getAttribute('data-loja');pintaLojas();pintaCards();pintaLista();return}
   if(ev.target.closest('[data-fechar]')){fechaFicha();return}
+  const fo=ev.target.closest('[data-foto]');
+  if(fo){verFoto(Number(fo.getAttribute('data-foto')));return}
   const d=ev.target.closest('[data-doc]');
   if(d){const p=d.getAttribute('data-doc').split('|');abreDoc(Number(p[0]),p[1]);return}
   const eq=ev.target.closest('[data-eq]');
@@ -615,7 +763,7 @@ async function boot(){
     '<span class="pl">🔴 <b>'+at.filter(function(f){return corDe(f)==='bad'}).length+'</b> com coisa para resolver</span>'+
     '<span class="pl">✅ <b>'+at.filter(conferido).length+'</b> com tudo conferido</span>';
   pintaCards();pintaLojas();pintaLista();
-  if(ABERTO!=null)desenhaFicha();
+  if(ABERTO!=null){await carregaFotos(ABERTO);desenhaFicha()}
   $('rod').innerHTML='<b>De onde vêm os dados</b><br>'+
     'Documentos: lista de contratos do Alejo (20/10) e documentos que os motoboys mandaram no WhatsApp do SAC; depois, o que a equipe marca aqui. '+
     'Proteção térmica: planilha do Alejo (21/10) e respostas do Jaison e do Alejo no grupo dos motoboys. '+
