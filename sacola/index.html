@@ -648,6 +648,19 @@ body.exp.boq #pe.f2 .q-fl{display:none}
 body.exp.boq.rola #pe{flex-wrap:wrap;white-space:normal;overflow:visible}
 body.exp.boq.rola .q-mb{white-space:normal;overflow-wrap:anywhere}
 body.exp.boq.rola .q-palco{flex:0 0 auto}
+/* 02/11 18h NUMERO DO SAIPOS GRANDE, o do iFood pequeno (so a TV da expedicao). Lista (cabecalho da rota, faixa SAIU,
+   "so o lanche"): o do iFood embaixo do grande (.n-st). No meio de um texto ("esperando", "ja pegou", rodape): ao lado
+   (.n-in). No cartao: uma etiqueta igual as outras ("IFOOD 1694"). Sem cor nova: o cinza de sempre (no branco, o cinza
+   escuro das faixas "na loja"). */
+body.exp .n-st{display:inline-flex;flex-direction:column;align-items:flex-start;vertical-align:baseline}
+body.exp .n-st .n-if{font-family:var(--cond);font-weight:700;font-size:.38em;font-size:max(13px,.38em);letter-spacing:.04em;text-transform:uppercase;color:var(--mut);line-height:1;margin:.1em 0 0 .06em;white-space:nowrap;opacity:1}
+body.exp .b-n .n-st .n-if{color:var(--mut)}
+/* na cozinha o numero tem contorno tracejado: o do iFood desce um pouco para o tracejado nao passar por cima dele */
+body.exp .b-hn.coz .n-if,body.exp .b-n.coz .n-if{margin-top:.55em}
+body.exp .b-saiu .b-hn .n-if{font-size:max(15px,.44em)}
+body.exp .b-hn.conf .n-if{opacity:.42}
+body.exp .n-in{font-family:var(--cond);font-weight:700;font-size:.62em;font-size:max(11px,.62em);letter-spacing:.03em;text-transform:uppercase;color:var(--mut);margin-left:.25em;white-space:nowrap}
+body.exp .b-rota.loja>.b-cab .n-if,body.exp.boq .q-palco.loja>.q-cab .n-in,body.exp.boq .q-it.loja .n-in{color:#5d5a53}
 </style>
 </head>
 <body>
@@ -771,6 +784,33 @@ function prTexto(ts,aprox){
 }
 const idadeS=ts=>{ const t=new Date(ts).getTime(); return isNaN(t)?null:Math.max(0,Math.round((agoraMs()-t)/1000)); };
 const idadeTxt=s=>s==null?'—':s<90?'há '+s+' s':haMin(Math.floor(s/60));
+/* 02/11 18h NUMERO DO SAIPOS (Fabio: "preciso que apareca o numero do saipos grande e do ifood pequeno"). So na TV da
+   expedicao (boqueta e ?vista=rotas, codigo do aparelho e ?portal=1); cozinhas e tablet: como antes.
+   O banco manda 'numero_saipos' (banco 'sacola-02-11-2026-numero-saipos': o numero do TrackEat ao vivo, que E o do Saipos;
+   sem TrackEat, o da venda do Saipos, que chega ~15 min depois). Numero GRANDE = Saipos; embaixo/ao lado, pequeno,
+   "iFood 1694". Sem o do Saipos ainda: o do iFood grande com a etiqueta "iFood" (troca sozinho quando o do Saipos chega).
+   Nº + Enter aceita os dois. SAI_DE guarda o ultimo numero do Saipos visto de cada pedido (o aviso SAIU e o "ja pegou"
+   usam depois que o pedido sai da lista). */
+const SAI_DE=new Map();
+const saiOk=s=>{ s=s==null?'':String(s).trim(); return /^\d{1,7}$/.test(s)?s:''; };
+function lembraSaipos(j){
+  if(!j||typeof j!=='object') return;
+  if(SAI_DE.size>600) SAI_DE.clear();   /* um dia de loja inteiro cabe; depois recomeca com a leitura de agora */
+  const poe=x=>{ if(x&&x.id!=null){ const s=saiOk(x.numero_saipos); if(s) SAI_DE.set(String(x.id),s); } };
+  (Array.isArray(j.pedidos)?j.pedidos:[]).forEach(poe); (Array.isArray(j.alertas)?j.alertas:[]).forEach(poe);
+  (Array.isArray(j.rotas)?j.rotas:[]).forEach(r=>{ if(r&&Array.isArray(r.pedidos)) r.pedidos.forEach(poe); });
+}
+/* numero do Saipos de um pedido (do dado, ou o ultimo visto); '' = ainda nao se sabe */
+function nSai(x){ if(!x) return ''; return saiOk(x.numero_saipos)||(x.id!=null?(SAI_DE.get(String(x.id))||''):''); }
+const nIfo=x=>x&&x.numero!=null&&x.numero!==''?String(x.numero):'—';
+const nGde=x=>nSai(x)||nIfo(x);
+const nIf=x=>nSai(x)?'iFood '+nIfo(x):'iFood';
+/* numero da lista (cabecalho da rota, faixa SAIU, "so o lanche"): grande + o do iFood pequeno embaixo */
+const nPilha=x=>'<span class="n-st"><span class="b-nn">'+esc(nGde(x))+'</span><small class="n-if">'+esc(nIf(x))+'</small></span>';
+/* numero no meio de um texto ("esperando 3330", "ja pegou 3329"): grande + o do iFood pequeno ao lado */
+const nLinha=x=>esc(nGde(x))+'<small class="n-in">'+esc(nIf(x))+'</small>';
+/* nos avisos: "#3076 (iFood 1694)" ou "#1694 (iFood)" */
+const nRot=x=>'#'+nGde(x)+' ('+nIf(x)+')';
 
 let COD='', DADO=null, TIMER=null, TIMER_MS=0, BUSCANDO=false, DE_NOVO=false, ULT_OK=0, FALHAS=0, TV=false;
 let VISTOS_P=null, VISTOS_A=null, VISTOS_R=null, ALERTAS_TODOS=false;
@@ -894,6 +934,7 @@ async function busca(){
     PAUSADO=j.pausado===true; $('pausa').classList.toggle('on',PAUSADO);
     if(PAUSADO){ DADO=j; ULT_OK=Date.now(); FALHAS=0; $('faixaRede').hidden=true; VISTOS_P=null; VISTOS_A=null; VISTOS_R=null; modoTV(); return; }
     OVR.forEach(function(o,k){ if(o.fase==='ok' && o.ack<=inicio) OVR.delete(k); });
+    lembraSaipos(j);   /* 02/11: numero do Saipos de cada pedido (a TV da expedicao mostra grande) */
     const ps=Array.isArray(j.pedidos)?j.pedidos.filter(p=>p&&p.id!=null):[];
     const as=Array.isArray(j.alertas)?j.alertas.filter(a=>a&&a.id!=null):[];
     const rs=Array.isArray(j.rotas)?j.rotas.filter(r=>r&&r.id!=null):[];
@@ -1018,7 +1059,7 @@ async function envia(){
 async function conferir(id,on,porTecla){
   const p=acha(id); if(!p||p.cancelado) return;
   const k='c:'+id; if(OCUPADO.has(k)) return;
-  const sid=String(p.id), num=p.numero!=null?p.numero:'—';
+  const sid=String(p.id), num=p.numero!=null?p.numero:'—', rot=EXP?nRot(p):'#'+num;   /* 02/11: na TV da expedicao "#3076 (iFood 1694)" */
   if(BOQ_ON&&FOCO) FOCO.ate=Math.max(FOCO.ate,Date.now()+FOCO_MS);   /* conferindo o escolhido na fila: a tela nao volta no meio */
   if(BOQ_ON) BOQ_MEXEU=Date.now();   /* conserto 02/11: o ✓ fica uns segundos na tela antes de passar para o proximo motoboy */
   if(SEL && SEL.ids.indexOf(sid)>=0){ SEL=null; if(T_SEL){ clearTimeout(T_SEL); T_SEL=null; } mostraTecla(); }
@@ -1026,8 +1067,8 @@ async function conferir(id,on,porTecla){
   try{
     if(on) await envia();   /* garante os toques de linha antes */
     const r=await acao(on?'conferir':'desconferir',{pedido:p.id});
-    if(r&&r.ok===true){ const c=CONF.get(sid); if(c) c.ok=true; aviso(on?'#'+num+' CONFERIDO ✓':'#'+num+' voltou para "a conferir"', true); }
-    else { CONF.delete(sid); aviso('Não salvou #'+num+' — tenta de novo.'); }
+    if(r&&r.ok===true){ const c=CONF.get(sid); if(c) c.ok=true; aviso(on?rot+' CONFERIDO ✓':rot+' voltou para "a conferir"', true); }
+    else { CONF.delete(sid); aviso('Não salvou '+rot+' — tenta de novo.'); }
   }catch(e){
     CONF.delete(sid);
     if(e&&e.recusado) return;
@@ -1057,7 +1098,7 @@ function mostraTecla(){
   const el=$('tecla'); if(!el) return;
   const s=TECLA?null:selUnico();
   if(TECLA){ el.classList.add('on'); el.innerHTML='Nº '+esc(TECLA)+'<small> ENTER</small>'; }
-  else if(s){ el.classList.add('on'); el.innerHTML='#'+esc(s.numero!=null?s.numero:'—')+'<small> ENTER = CONFERIR</small>'; }
+  else if(s){ el.classList.add('on'); el.innerHTML='#'+esc(EXP?nGde(s):(s.numero!=null?s.numero:'—'))+'<small> ENTER = CONFERIR</small>'; }
   else { el.classList.remove('on'); el.innerHTML='<small>Nº + ENTER</small>'; }
 }
 function zeraTecla(){ TECLA=''; if(T_TECLA){ clearTimeout(T_TECLA); T_TECLA=null; } mostraTecla(); }
@@ -1091,7 +1132,9 @@ function escolhe(ids,n,sobe){
   if(!TV){ const el=cartaoEl(SEL.ids[0]); if(el&&el.scrollIntoView&&!cartaoNaTela(SEL.ids[0])){ try{ el.scrollIntoView({block:'center'}); }catch(e){ el.scrollIntoView(); } } }
 }
 function solta(){ if(!SEL) return; SEL=null; if(T_SEL){ clearTimeout(T_SEL); T_SEL=null; } desenha(); mostraTecla(); }
-const achaNumero=n=>(DADO&&Array.isArray(DADO.pedidos)?DADO.pedidos:[]).filter(p=>p&&!p.cancelado&&semZero(p.numero)===n);
+/* 02/11: na TV da expedicao o numero digitado pode ser o do Saipos (o grande) ou o do iFood (o pequeno). O mesmo numero em
+   dois pedidos (o Saipos de um = o iFood de outro) cai no "Dois pedidos" de sempre: o ENTER nao confere, toca no cartao certo. */
+const achaNumero=n=>(DADO&&Array.isArray(DADO.pedidos)?DADO.pedidos:[]).filter(p=>p&&!p.cancelado&&(semZero(p.numero)===n||(EXP&&semZero(nSai(p))===n)));
 /* conserto 31/10 (revisor): antes, numero + Enter de pedido FORA da tela conferia as cegas, sem mostrar os avisos dele
    (e o banco procurava pelo numero). Agora:
    - pedido com o cartao INTEIRO na tela: 1 Enter confere (como o bump bar da cozinha);
@@ -1114,7 +1157,8 @@ async function teclaEnter(){
     /* conserto 02/11 (revisor): na boqueta os dois pedidos podem estar em rotas diferentes (so um na tela grande). O ENTER
        nunca confere (a escolha continua com os dois) e o aviso diz onde esta cada um. */
     if(BOQ_ON){ const l=boqLista().lista;
-      aviso('Dois pedidos #'+n+': '+ps.map(function(p){ const e=l.find(x=>x.ps.some(q=>String(q.id)===String(p.id))); return (p.marca||'?')+(e?' ('+e.nome+')':''); }).join(' e ')+' — toque no CONFERIDO do cartão certo; o ENTER não confere.'); return; }
+      aviso('Dois pedidos #'+n+': '+ps.map(function(p){ const e=l.find(x=>x.ps.some(q=>String(q.id)===String(p.id))); return nRot(p)+' '+(p.marca||'?')+(e?' ('+e.nome+')':''); }).join(' e ')+' — toque no CONFERIDO do cartão certo; o ENTER não confere.'); return; }
+    if(EXP){ aviso('Dois pedidos #'+n+': '+ps.map(p=>nRot(p)+' '+(p.marca||'?')).join(' e ')+' — toque no CONFERIDO do cartão certo; o ENTER não confere.'); return; }
     aviso('Dois pedidos #'+n+' ('+ps.map(p=>p.marca||'?').join(' e ')+') — clique no CONFERIDO do cartão certo.'); return; }
   const p=ps[0];
   if(eConferido(p)){
@@ -1126,11 +1170,11 @@ async function teclaEnter(){
   /* 02/11 expedicao: o 1o Enter SEMPRE so escolhe (contorno branco + botao grande); o 2o Enter confere.
      Numero digitado errado nunca marca o pedido errado sem ninguem ver. */
   if(EXP){
-    if(!EXP_IDS.has(String(p.id))){ aviso('#'+n+' já saiu com o motoboy — não está mais na tela.'); return; }
+    if(!EXP_IDS.has(String(p.id))){ aviso(nRot(p)+' já saiu com o motoboy — não está mais na tela.'); return; }
     if(escolhido(p.id)&&SEL.ids.length===1){ conferir(p.id,true,true); return; }
     escolhe([p.id],n,false);
     /* conserto 02/11 (revisor): na boqueta o contorno + o botao + "#N ENTER = CONFERIR" ja dizem isso; o aviso a mais tampava o pedido */
-    if(!BOQ_ON) aviso('#'+n+' escolhido: confira o que vai solto e aperte ENTER de novo para CONFERIR.',true);
+    if(!BOQ_ON) aviso(nRot(p)+' escolhido: confira o que vai solto e aperte ENTER de novo para CONFERIR.',true);
     return;
   }
   /* 01/11: cartao CURTO (cozinha / ja saiu) nao mostra as linhas: o 1o Enter abre o cartao inteiro, so o 2o confere */
@@ -1337,7 +1381,7 @@ function alertaHTML(a,exp){
   const itens=f.map(x=>'<b>'+(x.qtd!=null?esc(fmtQ(x.qtd))+'x ':'')+esc(x.nome)+'</b>'+(zs.length>1?' ('+esc(CURTO[zona(x.lugar)])+')':'')).join(', ');
   const est=zs.some(z=>ESTUFA[z]), bal=zs.indexOf('balcao')>=0, par=temPar(a.lugares);
   const oc=OCUPADO.has('a:'+a.id);
-  return '<div class="alert" role="alert"><div class="t">⚠ #'+esc(a.numero!=null?a.numero:'—')+' saiu faltando'+(zs.length?' '+esc(junta(zs.map(z=>DO[z]))):'')+'</div>'
+  return '<div class="alert" role="alert"><div class="t">⚠ '+esc(EXP?nRot(a):'#'+(a.numero!=null?a.numero:'—'))+' saiu faltando'+(zs.length?' '+esc(junta(zs.map(z=>DO[z]))):'')+'</div>'
     +'<div class="d">Saiu às '+esc(hhmm(a.saiu))+'<span class="q"> com uma parte marcada e outra não</span>.'+(itens?' Sem marcar: '+itens+'.':'')
     +'<span class="q">'+(est?(par?' Deve estar na prateleira "TEM PAR" da estufa.':' Confere a estufa.'):'')+(bal?' Confere o DELIVERY.':'')+'</span> Liga para o motoboy.</div>'
     +(exp?'<button type="button" data-ok="'+esc(a.id)+'"'+(oc?' disabled':'')+'>'+(oc?'Salvando…':'Já resolvi')+'</button>'
@@ -1825,7 +1869,7 @@ function expMonta(){
       if(e>et){ et=e; desde=v.desde||null; } else if(e===et&&v.desde&&(!desde||tms(v.desde)<tms(desde))) desde=v.desde; });
     /* conserto 02/11 (revisor): parte das sacolas ja pega (outra leitura) = o motoboy esta na loja pegando o resto */
     const pg=ok?GR_PEGO.get(r.g):null, dentro=new Set(r.ps.map(p=>String(p.id)));
-    r.pegos=pg?Array.from(pg.ids.entries()).filter(x=>!dentro.has(x[0])&&!CANC.has(x[0])).map(x=>({id:x[0],numero:x[1]})):[];
+    r.pegos=pg?Array.from(pg.ids.entries()).filter(x=>!dentro.has(x[0])&&!CANC.has(x[0])).map(x=>({id:x[0],numero:x[1],numero_saipos:(ULT_PED.get(x[0])||{}).sai||''})):[];
     if(et>=3&&desde) GR_DESDE.set(r.g,desde);
     else if(r.pegos.length){ et=3; desde=GR_DESDE.get(r.g)||desde; }
     if(!moto&&pg&&pg.moto&&r.pegos.length) moto=pg.moto;
@@ -1872,7 +1916,7 @@ function expSaidas(j,ps,rs,agora){
       if(v.grupo){ const g=String(v.grupo); let x=GR_PEGO.get(g); if(!x){ x={t:agora,moto:null,ids:new Map()}; GR_PEGO.set(g,x); }
         x.t=agora; x.ids.set(id,p.numero); if(v.motoboy&&!x.moto) x.moto=String(v.motoboy); } }
     else coz=!!v&&(v.st==='COZINHA'||(v.st!=='PRONTO'&&!v.pronto_desde))&&temCoz(s.coz);
-    ULT_PED.set(id,{numero:p.numero,itens:s.lista.map(x=>x.obs?'obs do cliente':itemTxt(x)),conf:eConferido(p),t:agora,k:soltos(p),c:tms(p.criado),q:seqDe(v),coz:coz}); });
+    ULT_PED.set(id,{numero:p.numero,sai:nSai(p),itens:s.lista.map(x=>x.obs?'obs do cliente':itemTxt(x)),conf:eConferido(p),t:agora,k:soltos(p),c:tms(p.criado),q:seqDe(v),coz:coz}); });
   [ULT_PED,PEGOS,CANC,GR_PEGO].forEach(m=>m.forEach(function(x,id){ if(agora-(typeof x==='number'?x:x.t)>30*60000) m.delete(id); }));
   if(GR_DESDE.size>300) GR_DESDE.clear();
   const cancelado=id=>{ const p=byId.get(id); return p?!!p.cancelado:CANC.has(id); };
@@ -1954,7 +1998,7 @@ function saidaInfo(s){
     const c=ULT_PED.get(id), x=(s.px||[]).find(y=>y.id!=null&&String(y.id)===id), cl=CONF.get(id);
     const numero=c?c.numero:(x?x.numero:null); if(numero==null) return;
     const conf=!!((cl&&cl.on)||(x&&x.conferido)||(c&&c.conf));
-    out.push({numero:numero,conf:conf,itens:c?c.itens:lembraTxt(x&&x.lembrar),k:c?(c.k||{}):lembraK(x&&x.lembrar),c:c&&c.c?c.c:Infinity,q:c&&c.q!=null?c.q:null,i:out.length,coz:!!(c&&c.coz)}); });
+    out.push({id:id,numero:numero,numero_saipos:(c&&c.sai)||nSai(x)||SAI_DE.get(id)||'',conf:conf,itens:c?c.itens:lembraTxt(x&&x.lembrar),k:c?(c.k||{}):lembraK(x&&x.lembrar),c:c&&c.c?c.c:Infinity,q:c&&c.q!=null?c.q:null,i:out.length,coz:!!(c&&c.coz)}); });
   /* mesma ordem do cabecalho da rota (ordPed: a sequencia do TrackEat quando vier, senao a hora do pedido); o que a tela nao
      viu fica no fim, na ordem do banco; o pedido de outro canal por ultimo (uma vez so) */
   out.sort(function(a,b){ if(a.q!=null&&b.q!=null&&a.q!==b.q) return a.q-b.q; if((a.q==null)!==(b.q==null)) return a.q==null?1:-1;
@@ -1963,7 +2007,8 @@ function saidaInfo(s){
   return out;
 }
 /* lista de numeros do cabecalho / da faixa: ✓ verde = conferido; tracejado = na cozinha; vermelho = 40+ min */
-const bHn=(id,numero,cls,conf)=>'<span class="b-hn'+(conf?' conf':'')+(cls?' '+cls:'')+'"'+(id!=null?' data-hp="'+esc(id)+'"':'')+'>'+(conf?'<i class="b-ok">✓</i>':'')+'<span class="b-nn">'+esc(numero!=null&&numero!==''?numero:'—')+'</span></span>';
+/* 02/11: x = o pedido (numero do iFood + numero_saipos): o do Saipos grande, o do iFood pequeno embaixo */
+const bHn=(id,x,cls,conf)=>'<span class="b-hn'+(conf?' conf':'')+(cls?' '+cls:'')+'"'+(id!=null?' data-hp="'+esc(id)+'"':'')+'>'+(conf?'<i class="b-ok">✓</i>':'')+nPilha(x)+'</span>';
 const bTe=n=>'<span class="b-hn te"><small>TrackEat</small><span class="b-nn">'+esc(n)+'</span></span>';
 function bannerExp(){
   const agora=agoraMs(), ag=Date.now();
@@ -1976,13 +2021,13 @@ function bannerExp(){
     pend.forEach(x=>Object.keys(x.k||{}).forEach(function(k){ t[k]=(t[k]||0)+Number(x.k[k]); }));
     const fl=bFlags(t);
     return '<div class="b-saiu" role="alert"><b>'+esc(nome.toUpperCase())+' SAIU '+esc(hhmm(s.t))+'</b>'
-      +(ps.length?'<b class="b-np">· '+ps.length+(ps.length>1?' pedidos':' pedido')+'</b><span class="b-hns">'+ps.map(x=>x.te?bTe(x.numero):bHn(null,x.numero,'',x.conf)).join('')+'</span>'
+      +(ps.length?'<b class="b-np">· '+ps.length+(ps.length>1?' pedidos':' pedido')+'</b><span class="b-hns">'+ps.map(x=>x.te?bTe(x.numero):bHn(null,x,'',x.conf)).join('')+'</span>'
         :'<span>pedidos dele: aguardando o TrackEat</span>')
       +(pend.length?'<span class="b-q">conferiu tudo?</span>'+(fl?'<span class="b-fls">'+fl+'</span>':'')
         /* conserto 02/11 (revisor): "tudo conferido" so quando TODO numero tem o ✓; senao "tudo solto conferido" */
         :todos?'<span>tudo conferido <i class="b-ok">✓</i></span>':algum?'<span>tudo solto conferido <i class="b-ok">✓</i></span>':ps.length?'<span>nada solto</span>':'')
       +(pend.length?'<i class="b-br"></i>':'')
-      +pend.map(x=>'<span class="b-pend"><b>'+esc(x.numero)+'</b>· '+esc(x.itens.join(', '))+'</span>').join('')+'</div>';
+      +pend.map(x=>'<span class="b-pend"><b>'+nLinha(x)+'</b>· '+esc(x.itens.join(', '))+'</span>').join('')+'</div>';
   }).join('');
 }
 function peExp(){
@@ -2013,8 +2058,9 @@ function bPed(p,s,e){
   if(p.agendado_para) tags.push('<span class="b-tag">agendado '+esc(hhmm(p.agendado_para))+'</span>');
   if(p.tipo==='TAKEOUT') tags.push('<span class="b-tag">retirada</span>');
   if(mc) tags.push('<span class="b-tag">'+esc(mc)+'</span>');
+  tags.unshift('<span class="b-tag n-if">'+esc(nIf(p))+'</span>');   /* 02/11: o numero do iFood pequeno ("iFood 1694") */
   let h='<div class="b-ped'+(conf?' conf':'')+(canc?' canc':'')+(coz?' coz':'')+(late?' late':'')+(sel?' sel':'')+'" data-ped="'+esc(p.id)+'">'
-    +'<div class="b-num">'+(conf?'<i class="b-ok">✓</i>':'')+'<span class="b-nn">'+esc(p.numero!=null&&p.numero!==''?p.numero:'—')+'</span>'+tags.join('')+'</div>';
+    +'<div class="b-num">'+(conf?'<i class="b-ok">✓</i>':'')+'<span class="b-nn">'+esc(nGde(p))+'</span>'+tags.join('')+'</div>';
   if(canc) h+='<div class="b-canc">Cancelado — não enviar</div>';
   else if(s.lista.length) h+='<div class="b-chk">'+s.lista.map(bItem).join('')+'</div>';
   else h+='<div class="b-nada">'+esc(soRot([s]))+'</div>';
@@ -2034,7 +2080,7 @@ function bPeds(ps){
     const p=x.p, e=x.e, coz=e==='cozinha'&&temCoz(x.s.coz), late=atrasoMin(p,e), mc=outraMarca(p.marca);
     const ex=(late?'<small class="mau">'+late+' min</small>':'')+(coz?'<small>cozinha</small>':'')+(p.agendado_para?'<small>'+esc(hhmm(p.agendado_para))+'</small>':'')
       +(p.tipo==='TAKEOUT'?'<small>retirada</small>':'')+(mc?'<small>'+esc(mc)+'</small>':''), tg=!!(p.agendado_para||p.tipo==='TAKEOUT'||mc);
-    return '<span class="b-n'+(e==='conf'?' conf':'')+(coz?' coz':'')+(late?' late':'')+(tg?' b-tg':'')+'" data-ped="'+esc(p.id)+'">'+(e==='conf'?'<i class="b-ok">✓</i>':'')+'<span class="b-nn">'+esc(p.numero)+'</span>'+ex+'</span>';
+    return '<span class="b-n'+(e==='conf'?' conf':'')+(coz?' coz':'')+(late?' late':'')+(tg?' b-tg':'')+'" data-ped="'+esc(p.id)+'">'+(e==='conf'?'<i class="b-ok">✓</i>':'')+nPilha(p)+ex+'</span>';
   }).join('')+'</div>';
   return h;
 }
@@ -2069,7 +2115,7 @@ function bRota(r){
   let nConf=0;
   const nums=vale.map(function(p){ const e=expEstado(p), conf=e==='conf';
     if(conf) nConf++; else { const s=soltos(p); Object.keys(s).forEach(function(k){ t[k]=(t[k]||0)+s[k]; }); }
-    return bHn(p.id,p.numero,[e==='cozinha'&&temCoz(separa(p).coz)?'coz':'',atrasoMin(p,e)?'late':'',escolhido(p.id)?'sel':''].filter(Boolean).join(' '),conf); }).join('')+te.map(bTe).join('');
+    return bHn(p.id,p,[e==='cozinha'&&temCoz(separa(p).coz)?'coz':'',atrasoMin(p,e)?'late':'',escolhido(p.id)?'sel':''].filter(Boolean).join(' '),conf); }).join('')+te.map(bTe).join('');
   const fl=bFlags(t);
   /* "nada a pegar" so quando nenhum pedido nao conferido tem dourado (e nao tem pedido de outro canal, que a tela nao ve) */
   const fim=fl?'<span class="b-fls">'+fl+'</span>':n&&nConf===n?'<span class="b-tc">tudo conferido <i class="b-ok">✓</i></span>':n&&!te.length?'<span class="b-nd">nada a pegar</span>':'';
@@ -2258,7 +2304,7 @@ function corta(M){
     if(!nf){ pe.innerHTML=''; return; }
     const gs=Array.from(G.values()).sort((a,b)=>a.ord-b.ord);
     pe.innerHTML='<b>Fora da tela ('+nf+(nf>1?' pedidos':' pedido')+'):</b> '+gs.map(g=>(g.nome?'<span class="b-fx b-fg">'+esc(g.nome)+':</span> ':'')
-      +g.peds.sort((a,b)=>a.y-b.y).map(function(x){ const t=f(x.p); return '<span class="b-fx"><b>'+esc(x.p.numero)+'</b>'+(t?' <i>'+esc(t)+'</i>':'')+'</span>'; }).join(' ')).join(' · ');
+      +g.peds.sort((a,b)=>a.y-b.y).map(function(x){ const t=f(x.p); return '<span class="b-fx"><b>'+nLinha(x.p)+'</b>'+(t?' <i>'+esc(t)+'</i>':'')+'</span>'; }).join(' ')).join(' · ');
   };
   /* posicao original (para o rodape listar na ordem da tela) */
   Array.prototype.forEach.call(M.querySelectorAll('[data-ped]'),function(n){ const r=n.getBoundingClientRect(); n.setAttribute('data-y',String(Math.round(r.top)*10000+Math.round(r.left))); });
@@ -2481,9 +2527,10 @@ function qPed(p){
   if(p.agendado_para) tags.push('<span class="b-tag">agendado '+esc(hhmm(p.agendado_para))+'</span>');
   if(p.tipo==='TAKEOUT') tags.push('<span class="b-tag">retirada</span>');
   if(mc) tags.push('<span class="b-tag">'+esc(mc)+'</span>');
+  tags.unshift('<span class="b-tag n-if">'+esc(nIf(p))+'</span>');   /* 02/11: o numero do iFood pequeno ao lado ("iFood 1694") */
   let h='<div class="q-ped'+(conf?' conf':'')+(canc?' canc':'')+(coz?' coz':'')+(late?' late':'')+(sel?' sel':'')+'" data-ped="'+esc(p.id)+'">'
-    +'<div class="q-num"><span class="q-n1">'+(conf?'<i class="b-ok">✓</i>':'')+'<span class="b-nn">'+esc(p.numero!=null&&p.numero!==''?p.numero:'—')+'</span></span>'
-    +(tags.length?'<span class="q-tags">'+tags.join('')+'</span>':'')+'</div>';
+    +'<div class="q-num"><span class="q-n1">'+(conf?'<i class="b-ok">✓</i>':'')+'<span class="b-nn">'+esc(nGde(p))+'</span></span>'
+    +'<span class="q-tags">'+tags.join('')+'</span></div>';
   if(canc) h+='<div class="b-canc">Cancelado — não enviar</div>';
   else {
     if(coz) h+='<div class="q-cz">ainda na cozinha</div>';
@@ -2518,15 +2565,15 @@ function boqPalcoHTML(Q){
   /* conserto 02/11 (revisor): sem bandeira dourada porque o que ia solto JA FOI conferido = "tudo solto conferido ✓"
      (antes dizia "nada solto" numa rota com bebida); "nada solto" so quando a rota nao tem item dourado nenhum */
   /* o que ele ja pegou com dourado SEM conferir (ele ainda esta na boqueta: da para olhar a sacola) */
-  const pgU=pg.map(x=>({n:x.numero,u:ULT_PED.get(String(x.id))})).filter(x=>x.u&&Object.keys(x.u.k||{}).length), pgPend=pgU.filter(x=>!x.u.conf);
-  const fim=fl?'<span class="b-fls">'+fl+'</span>':e.tipo==='canc'?'':pgPend.length?'<span class="q-est">pegou sem conferir: '+pgPend.map(x=>esc(x.n)).join(' · ')+'</span>'
+  const pgU=pg.map(x=>({n:x,u:ULT_PED.get(String(x.id))})).filter(x=>x.u&&Object.keys(x.u.k||{}).length), pgPend=pgU.filter(x=>!x.u.conf);
+  const fim=fl?'<span class="b-fls">'+fl+'</span>':e.tipo==='canc'?'':pgPend.length?'<span class="q-est">pegou sem conferir: '+pgPend.map(x=>nLinha(x.n)).join(' · ')+'</span>'
     :nv&&nConf===nv&&!pg.length?'<span class="b-tc">tudo conferido <i class="b-ok">✓</i></span>'
     :soltoConf||pgU.length?'<span class="b-tc">tudo solto conferido <i class="b-ok">✓</i></span>':nv&&!e.te.length?'<span class="b-nd">nada solto</span>':'';
   const head='<div class="q-cab">'+(kick?'<span class="q-kick">'+esc(kick)+'</span>':'')
     +'<b class="q-mb">'+esc(e.nome)+'</b>'+(flash?'<b class="q-kick q-flash">na boqueta</b>':'')
     +'<b class="q-np">· '+n+(n===1?' pedido':' pedidos')+'</b>'
     +(est?'<span class="q-est'+(e.tipo==='canc'?' mau':'')+'">'+esc(est)+'</span>':'')
-    +(pg.length?'<span class="q-est">já pegou '+pg.map(x=>esc(x.numero)).join(' · ')+'</span>':'')
+    +(pg.length?'<span class="q-est">já pegou '+pg.map(nLinha).join(' · ')+'</span>':'')
     +(Q.foco?'<button type="button" class="q-volta" data-qauto="1" title="Volta sozinho em 1 min">↺ automático</button>':'')
     +(fim||nCoz?'<i class="b-br"></i>'+fim+(nCoz?'<span class="q-est q-aguarda">'+nCoz+(nCoz>1?' pedidos':' pedido')+' ainda na cozinha</span>':''):'')+'</div>';
   const cards=e.ps.map(qPed).join('')+e.te.map(x=>'<div class="q-ped te"><div class="q-num"><span class="q-n1"><small>TrackEat</small><span class="b-nn">'+esc(x)+'</span></span></div><div class="q-nada">outro canal — conferir no TrackEat</div></div>').join('');
@@ -2545,8 +2592,9 @@ function boqSaiuHTML(B){
   /* so o conferido fica apagado; o que nao foi conferido fica aceso (antes o "nada solto" ficava apagado igual ao ✓) */
   const cards=ps.map(function(x){
     const falta=!x.conf&&x.itens.length, cz=!x.conf&&!x.te&&x.coz;
-    return '<div class="q-ped'+(x.conf?' conf':'')+'"><div class="q-num"><span class="q-n1">'+(x.conf?'<i class="b-ok">✓</i>':'')+(x.te?'<small>TrackEat</small>':'')+'<span class="b-nn">'+esc(x.numero)+'</span></span>'
-      +(x.conf?'<span class="q-tags"><span class="b-tag ok">conferido</span></span>':'')+'</div>'
+    const tg=(x.te?'':'<span class="b-tag n-if">'+esc(nIf(x))+'</span>')+(x.conf?'<span class="b-tag ok">conferido</span>':'');
+    return '<div class="q-ped'+(x.conf?' conf':'')+'"><div class="q-num"><span class="q-n1">'+(x.conf?'<i class="b-ok">✓</i>':'')+(x.te?'<small>TrackEat</small>':'')+'<span class="b-nn">'+esc(x.te?x.numero:nGde(x))+'</span></span>'
+      +(tg?'<span class="q-tags">'+tg+'</span>':'')+'</div>'
       +(cz?'<div class="q-alarme">estava na cozinha — foi junto?</div>':'')
       +(falta?'<div class="q-chk">'+x.itens.map(i=>'<div class="b-it"><i class="b-cx"></i><span class="b-nm">'+esc(i)+'</span></div>').join('')+'</div>'
         :x.conf?'':'<div class="q-nc">'+(x.te?'outro canal <i>· conferir no TrackEat</i>':'nada solto <i>· não conferido</i>')+'</div>')+'</div>';
@@ -2560,13 +2608,14 @@ function qChip(e){
   const fl=FLAG_KS.filter(k=>t[k]>0).map(k=>FLAG_TXT[k]).join(' · ');
   /* conserto 02/11: motoboy na loja que ja teve conferido tudo o que esta pronto: "esperando 4631" (ou "conferido ✓") */
   let esp='';
-  if(e.tipo==='rota'&&e.banda==='loja'&&!boqFalta(e)){ const cz=vale.filter(p=>expEstado(p)==='cozinha'&&temCoz(separa(p).coz)).map(p=>p.numero);
-    esp=cz.length?'esperando '+cz.join(' · '):vale.length&&vale.every(eConferido)?'conferido ✓':''; }
+  /* 02/11: "esperando 3330" com o do iFood pequeno ao lado (esp ja vem em HTML) */
+  if(e.tipo==='rota'&&e.banda==='loja'&&!boqFalta(e)){ const cz=vale.filter(p=>expEstado(p)==='cozinha'&&temCoz(separa(p).coz));
+    esp=cz.length?'esperando '+cz.map(nLinha).join(' · '):vale.length&&vale.every(eConferido)?'conferido ✓':''; }
   const rot=e.tipo==='rota'?'<b>'+esc(e.nome)+'</b>'+(e.banda==='loja'?' '+n:' · '+n+(n===1?' pedido':' pedidos'))
     :e.tipo==='sem'?[e.np?'<b>'+e.np+'</b> '+(e.np>1?'prontos':'pronto'):'',e.nc?'<b>'+e.nc+'</b> na cozinha':''].filter(Boolean).join(' · ')
     :'<b>'+n+'</b> '+(n===1?'pedido':'pedidos');
   return '<button type="button" class="q-it'+(e.tipo==='rota'&&e.banda==='loja'?' loja':'')+(e.tipo==='canc'?' mau':'')+((BOQ_TAMBEM.get(e.k)||0)>ag?' pisca':'')+'" data-q="'+esc(e.k)+'" title="Mostrar na tela grande por 1 min">'
-    +rot+(fl&&e.tipo==='rota'?'<span class="q-fl">'+esc(fl)+'</span>':'')+(esp?'<span class="q-esp">'+esc(esp)+'</span>':'')+'</button>';
+    +rot+(fl&&e.tipo==='rota'?'<span class="q-fl">'+esc(fl)+'</span>':'')+(esp?'<span class="q-esp">'+esp+'</span>':'')+'</button>';
 }
 function boqFila(L,Q){
   const pe=$('pe'); if(!pe) return;
