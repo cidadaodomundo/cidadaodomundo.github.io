@@ -424,11 +424,11 @@ function camLinha(e){
    ou de sacola = Delivery. Baixa e Famosa contam como Cozinha 2 pratos (decisao do Fabio). Uma chamada por dia aberto,
    sem timer. */
 let PED={}, PED_META=null, ONDE_F='todos';
-const ONDE_TX={c1:'🍔 Cozinha 1',c2:'🍲 Cozinha 2 pratos',delivery:'🛍 Delivery',duas:'Cozinha 1 e 2',cozinha:'🍳 Cozinha',nao_sei:'❓ Não sei'};
+const ONDE_TX={c1:'🍔 Cozinha 1',c2:'🍲 Cozinha 2 pratos',delivery:'🛍 Delivery',frio:'🧊 Chegou frio',duas:'Cozinha 1 e 2',cozinha:'🍳 Cozinha',nao_sei:'❓ Não sei'};   /* frio: botao proprio, decisao do Fabio 02/11 */
 const COZ_TX={c1:'Cozinha 1',c2:'Cozinha 2 pratos',copa:'Copa',nao:'não imprime',caixa:'Caixa'};
 async function pedPede(L,iso){
   if(!DONO||!PTOK) return false;
-  const itens=(L||[]).filter(e=>e).slice(0,60).map(e=>({k:camK(e),pedido:String(e.pedido||''),hora:String(e.hora||''),setor:String(e.setor||'cozinha')}));
+  const itens=(L||[]).filter(e=>e).slice(0,60).map(e=>({k:camK(e),pedido:String(e.pedido||''),hora:String(e.hora||''),setor:String(e.setor||'cozinha'),cat:String(e.cat||'')}));
   if(!itens.length) return false;
   try{
     const r=await fetch(SB+'rpc/cozinha_tv_pedidos',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
@@ -451,11 +451,11 @@ function ondeBarra(L){
   const fixos=temMapa?['c1','c2','delivery']:['cozinha','delivery'];
   const bt=(o,tx,k)=>'<button class="bt'+(ONDE_F===o?' on':'')+'" data-onde-f="'+o+'" onclick="filtraOnde(\''+o+'\')">'+tx+'<b>'+k+'</b></button>';
   let h='<div class="ondef"><span style="color:var(--muted);font-size:.85em">Separar por setor:</span>'+bt('todos','Todos',tot);
-  ['c1','c2','delivery','duas','cozinha','nao_sei'].forEach(o=>{ if(n[o]||fixos.indexOf(o)>=0) h+=bt(o,ONDE_TX[o],n[o]||0); });
+  ['c1','c2','delivery','frio','duas','cozinha','nao_sei'].forEach(o=>{ if(n[o]||fixos.indexOf(o)>=0) h+=bt(o,ONDE_TX[o],n[o]||0); });
   h+='</div><p style="font-size:.8em;color:var(--muted);margin:.2em 0 .6em">'
     +(temMapa?'De onde veio o erro: o lugar onde o Saipos imprime cada item do pedido (mapa das impressoras lido em '+esc(PED_META.mapa.lido_em)+'). '
              :'Esta loja ainda não tem o mapa das impressoras do Saipos lido, então a cozinha ainda não se separa em 1 e 2. ')
-    +'Erro de montagem ou de sacola entra em Delivery. Passe o mouse no setor de cada linha para ver o motivo.</p>';
+    +'Erro de montagem, de sacola ou de expedição entra em Delivery; reclamação de comida que chegou fria tem botão próprio. Passe o mouse no setor de cada linha para ver o motivo.</p>';
   return h;
 }
 function filtraOnde(o){
@@ -479,7 +479,7 @@ function verPedidoTV(k){
     +'<p style="margin:0 0 .6em;color:var(--text2);font-size:.9em">'+(x.ifood?'número do iFood '+esc(x.ifood)+' · ':'')+'Saipos nº '+esc(x.venda||'—')
     +(x.hora?' · feito às '+esc(x.hora):'')+(x.cancelada?' · <b style="color:var(--bad)">cancelado</b>':'')+'</p>';
   if(x.onde) h+='<p style="margin:0 0 .6em"><b>'+esc(ONDE_TX[x.onde]||x.onde)+'</b> <span style="color:var(--muted);font-size:.85em">— '+esc(x.porque||'')+'</span></p>';
-  if(!it.length) h+='<p>Os itens deste pedido ainda não chegaram do Saipos.</p>';
+  if(!it.length) h+=x.cancelada?'<p>Pedido cancelado: o Saipos não tem nenhum item ativo nele.</p>':'<p>Os itens deste pedido ainda não chegaram do Saipos.</p>';
   else h+=it.map(function(i){
       const q=Number(i.q), qt=isFinite(q)?(q%1===0?String(q):String(q).replace('.',','))+'×':'';
       return '<div class="pdi">'+(temMapa?'<span class="cz">'+esc(i.cozinha?(COZ_TX[i.cozinha]||i.cozinha):'cozinha: não sei')+'</span>':'')
