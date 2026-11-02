@@ -51,6 +51,13 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .e .ds{font-style:italic;margin-top:.3em;font-size:1.05em}
 .e .ds,.e .lj,.p .it{overflow-wrap:anywhere}
 .cam{font-size:.8em;color:var(--text2);margin-top:.35em;line-height:1.35;font-style:normal;overflow-wrap:anywhere}.cam b{color:var(--brand)}.cam small{color:var(--muted)}
+/* 02/11/2026 (chat-tv-pedido-inteiro-02-11): pedido inteiro e separacao por setor nos erros do dia (so versao do dono) */
+.pedbt{margin-top:.25em;font-size:.95em;padding:.2em .6em}.pedbt b{color:var(--brand)}
+.onde{display:block;margin-top:.3em;font-size:.78em;font-weight:700;color:var(--text2);white-space:nowrap;cursor:help}
+.ondef{display:flex;flex-wrap:wrap;gap:.4em;align-items:center;margin:.6em 0 .3em}.ondef .bt b{margin-left:.4em}
+.pdi{border-bottom:1px solid var(--line);padding:.45em 0}.pdi .qn{color:var(--brand);font-weight:800;margin-right:.35em}
+.pdi .es{color:var(--text2);font-size:.9em;margin-left:1.4em}.pdi .ob{color:var(--warn);font-size:.85em;margin-left:1.4em}
+.pdi .cz{float:right;margin-left:.6em;font-size:.75em;font-weight:800;color:var(--muted);text-transform:uppercase}
 .pl{display:inline-block;border-radius:999px;padding:.1em .6em;font-size:.6em;font-weight:800;text-transform:uppercase;letter-spacing:.03em}
 .p-novo{background:var(--bad);color:#fff}
 .p-coz{background:rgba(230,103,103,.18);color:var(--bad)}
@@ -409,6 +416,83 @@ function camLinha(e){
   return '<div class="cam">🎥 '+(cams||'câmera desta loja ainda não cadastrada')
     +' · olhe '+(x.ate?'de <b>'+esc(x.entrou)+'</b> a <b>'+esc(x.ate)+'</b>':'a partir de <b>'+esc(x.entrou)+'</b> (a saída ainda não foi marcada)')
     +'<br><small>'+esc(hs.join(' · '))+'</small></div>';
+}
+/* 02/11/2026 (chat-tv-pedido-inteiro-02-11), dois pedidos do Fabio na tabela de erros do dia (so na versao do dono):
+   "qdo clicar em cima do pedido ja abri o que foi pedido inteiro" e "um botao de separacao pra ver qual setor esta errando:
+   cozinha 1, cozinha 2 pratos, delivery". Porta cozinha_tv_pedidos: os itens do pedido no Saipos (sem preco, sem nome de
+   cliente) e de onde veio o erro, pelo lugar onde o Saipos imprime cada item (tabela cozinha_impressora). Erro de montagem
+   ou de sacola = Delivery. Baixa e Famosa contam como Cozinha 2 pratos (decisao do Fabio). Uma chamada por dia aberto,
+   sem timer. */
+let PED={}, PED_META=null, ONDE_F='todos';
+const ONDE_TX={c1:'🍔 Cozinha 1',c2:'🍲 Cozinha 2 pratos',delivery:'🛍 Delivery',duas:'Cozinha 1 e 2',cozinha:'🍳 Cozinha',nao_sei:'❓ Não sei'};
+const COZ_TX={c1:'Cozinha 1',c2:'Cozinha 2 pratos',copa:'Copa',nao:'não imprime',caixa:'Caixa'};
+async function pedPede(L,iso){
+  if(!DONO||!PTOK) return false;
+  const itens=(L||[]).filter(e=>e).slice(0,60).map(e=>({k:camK(e),pedido:String(e.pedido||''),hora:String(e.hora||''),setor:String(e.setor||'cozinha')}));
+  if(!itens.length) return false;
+  try{
+    const r=await fetch(SB+'rpc/cozinha_tv_pedidos',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({p_token:PTOK,p_dados:{loja:LOJA,dia:iso,itens:itens}})});
+    if(!r.ok) return false;
+    const j=await r.json();
+    PED_META=j; (j.itens||[]).forEach(x=>{ if(x&&x.k) PED[x.k]=x; });
+    return true;
+  }catch(err){ return false; }
+}
+function ondeDe(e){ const x=e?PED[camK(e)]:null; return x&&x.onde?x.onde:''; }
+function ondeLinha(e){ const x=e?PED[camK(e)]:null; if(!x||!x.onde) return '';
+  return '<span class="onde" title="'+esc(x.porque||'')+'">'+esc(ONDE_TX[x.onde]||x.onde)+'</span>'; }
+function ondeTr(e){ const o=ondeDe(e); return o?' data-onde="'+esc(o)+'"':''; }
+function ondeBarra(L){
+  if(!PED_META) return '';
+  const n={}; let tot=0; (L||[]).forEach(e=>{ const o=ondeDe(e); if(!o) return; n[o]=(n[o]||0)+1; tot++; });
+  if(!tot) return '';
+  const temMapa=!!(PED_META.mapa&&Number(PED_META.mapa.regras)>0);
+  const fixos=temMapa?['c1','c2','delivery']:['cozinha','delivery'];
+  const bt=(o,tx,k)=>'<button class="bt'+(ONDE_F===o?' on':'')+'" data-onde-f="'+o+'" onclick="filtraOnde(\''+o+'\')">'+tx+'<b>'+k+'</b></button>';
+  let h='<div class="ondef"><span style="color:var(--muted);font-size:.85em">Separar por setor:</span>'+bt('todos','Todos',tot);
+  ['c1','c2','delivery','duas','cozinha','nao_sei'].forEach(o=>{ if(n[o]||fixos.indexOf(o)>=0) h+=bt(o,ONDE_TX[o],n[o]||0); });
+  h+='</div><p style="font-size:.8em;color:var(--muted);margin:.2em 0 .6em">'
+    +(temMapa?'De onde veio o erro: o lugar onde o Saipos imprime cada item do pedido (mapa das impressoras lido em '+esc(PED_META.mapa.lido_em)+'). '
+             :'Esta loja ainda não tem o mapa das impressoras do Saipos lido, então a cozinha ainda não se separa em 1 e 2. ')
+    +'Erro de montagem ou de sacola entra em Delivery. Passe o mouse no setor de cada linha para ver o motivo.</p>';
+  return h;
+}
+function filtraOnde(o){
+  ONDE_F=o;
+  document.querySelectorAll('#info-box tr[data-onde]').forEach(tr=>{ tr.style.display=(o==='todos'||tr.getAttribute('data-onde')===o)?'':'none'; });
+  document.querySelectorAll('#info-box [data-onde-f]').forEach(b=>b.classList.toggle('on',b.getAttribute('data-onde-f')===o));
+}
+function verPedidoTV(k){
+  const x=PED[k]; if(!x) return;
+  let cx=document.getElementById('__ped'); if(cx) cx.remove();
+  cx=document.createElement('div'); cx.id='__ped';
+  cx.style.cssText='position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.8);overflow:auto;padding:16px;display:flex;align-items:flex-start;justify-content:center';
+  const fecha=function(){ cx.remove(); document.removeEventListener('keydown',tecla,true); };
+  const tecla=function(ev){ if(ev.key==='Escape'){ ev.stopPropagation(); fecha(); } };
+  document.addEventListener('keydown',tecla,true);
+  cx.onclick=function(ev){ if(ev.target===cx) fecha(); };
+  const it=Array.isArray(x.itens)?x.itens:[], M2=PED_META||{}, temMapa=!!(M2.mapa&&Number(M2.mapa.regras)>0);
+  let h='<div style="background:var(--s1);border:1px solid var(--line);border-radius:1em;padding:1.2em 1.5em;max-width:36em;width:100%;font-size:.95em;color:var(--text)">'
+    +'<button class="bt" data-fecha="1" style="float:right">✕ Fechar</button>'
+    +'<h2 style="margin:0 0 .2em">Pedido '+esc(x.ifood||x.venda||'')+'</h2>'
+    +'<p style="margin:0 0 .6em;color:var(--text2);font-size:.9em">'+(x.ifood?'número do iFood '+esc(x.ifood)+' · ':'')+'Saipos nº '+esc(x.venda||'—')
+    +(x.hora?' · feito às '+esc(x.hora):'')+(x.cancelada?' · <b style="color:var(--bad)">cancelado</b>':'')+'</p>';
+  if(x.onde) h+='<p style="margin:0 0 .6em"><b>'+esc(ONDE_TX[x.onde]||x.onde)+'</b> <span style="color:var(--muted);font-size:.85em">— '+esc(x.porque||'')+'</span></p>';
+  if(!it.length) h+='<p>Os itens deste pedido ainda não chegaram do Saipos.</p>';
+  else h+=it.map(function(i){
+      const q=Number(i.q), qt=isFinite(q)?(q%1===0?String(q):String(q).replace('.',','))+'×':'';
+      return '<div class="pdi">'+(temMapa?'<span class="cz">'+esc(i.cozinha?(COZ_TX[i.cozinha]||i.cozinha):'cozinha: não sei')+'</span>':'')
+        +'<span class="qn">'+esc(qt)+'</span>'+esc(i.nome||'')
+        +(i.obs?'<div class="ob">obs: '+esc(i.obs)+'</div>':'')
+        +(Array.isArray(i.escolhas)?i.escolhas:[]).map(c=>'<div class="es">+ '+esc(c.nome||'')+'</div>'+(c.obs?'<div class="ob">obs: '+esc(c.obs)+'</div>':'')).join('')
+        +'</div>';
+    }).join('');
+  h+='<p style="font-size:.8em;color:var(--muted);margin-top:.8em">Itens do Saipos'+(M2.saipos_lido?', última leitura '+esc(M2.saipos_lido):'')+'. Sem preço.'
+    +(temMapa?' Cozinha de cada item: mapa das impressoras do Saipos lido em '+esc(M2.mapa.lido_em)+'.':' Esta loja ainda não tem o mapa das impressoras lido.')+'</p></div>';
+  cx.innerHTML=h;
+  cx.querySelector('[data-fecha]').onclick=fecha;
+  document.body.appendChild(cx);
 }
 
 function desenha(novos){
@@ -872,9 +956,10 @@ async function abreDia(dm){
   const M=C.filter(e=>!e.qual), Q=C.filter(e=>e.qual).concat(X).sort((a,b)=>String(a.hora).localeCompare(String(b.hora)));
   /* 28/10/2026 (chat-camera-erros-28-10): na versao do dono, a linha da camera em cada erro do dia. A porta do dia nao manda a hora
      exata do pedido: vai o dia da cozinha + a hora do cartao, e o banco acha o pedido no iFood ate 5 min dela. */
+  PED={}; PED_META=null; ONDE_F='todos';
   if(DONO){
     M.concat(Q).forEach(e=>{ if(e && !e.ts) e.dia=iso; });
-    await camPede(M.concat(Q));
+    await Promise.all([camPede(M.concat(Q)), pedPede(M.concat(Q).concat(RU),iso)]);   /* 02/11: pedido inteiro + setor */
     if(eu!==DIA_PEDIDO || !$('info').classList.contains('on')) return;
   }
   DIA_ISO=iso;
@@ -885,16 +970,19 @@ async function abreDia(dm){
   const foto=e=>{ const k=Number(e.fotos)||0; if(!k||!e.pedido) return '';
     return PORTAL?'<br><button class="bt" style="margin-top:.3em" onclick="verFotoTV(\''+esc(String(e.pedido).replace(/[^0-9A-Za-z-]/g,''))+'\')">📷 ver '+(k===1?'a foto':'as '+k+' fotos')+' do cliente</button>'
                  :'<br><span class="pl p-exp" style="font-size:.75em">📷 '+k+(k===1?' foto':' fotos')+' do cliente · veja no portal</span>'; };
+  const pedTx=e=>{ if(!e.pedido) return 'sem nº de pedido'; const k=camK(e), x=PED[k];   /* 02/11: no dono, o numero abre o pedido inteiro */
+    if(x&&x.achou) return '<button class="bt pedbt" data-pk="'+esc(k)+'" onclick="verPedidoTV(this.getAttribute(\'data-pk\'))">pedido <b>'+esc(e.pedido)+'</b> · ver o pedido inteiro</button>';
+    return 'pedido <b>'+esc(e.pedido)+'</b>'; };
   const mp=e=>{ const mc=marcaLoja(e.marca);
-    return (mc?'<span class="mc" style="font-size:1em">'+esc(mc)+'</span>':'<span style="color:var(--muted)">marca não informada</span>')+'<br>'+(e.pedido?'pedido <b>'+esc(e.pedido)+'</b>':'sem nº de pedido')+foto(e); };
-  const linha=e=>'<tr><td class="hr">'+esc(e.hora)+'</td><td><span class="pl '+(e.setor==='cozinha'?'p-coz':e.setor==='montagem'?'p-mon':'p-exp')+'">'+esc(e.setor)+'</span>'
-          +(e.qual?'<br><small style="color:'+(e.na_meta?'var(--bad)':'var(--muted)')+'">'+(e.na_meta?'conta na meta':'não conta na meta')+'</small>':'')+'</td>'
+    return (mc?'<span class="mc" style="font-size:1em">'+esc(mc)+'</span>':'<span style="color:var(--muted)">marca não informada</span>')+'<br>'+pedTx(e)+foto(e); };
+  const linha=e=>'<tr'+ondeTr(e)+'><td class="hr">'+esc(e.hora)+'</td><td><span class="pl '+(e.setor==='cozinha'?'p-coz':e.setor==='montagem'?'p-mon':'p-exp')+'">'+esc(e.setor)+'</span>'
+          +(e.qual?'<br><small style="color:'+(e.na_meta?'var(--bad)':'var(--muted)')+'">'+(e.na_meta?'conta na meta':'não conta na meta')+'</small>':'')+ondeLinha(e)+'</td>'
           +'<td><b>'+esc(e.titulo)+'</b>'+(e.item?'<br><small style="color:var(--text2)">'+esc(e.item)+'</small>':'')+'</td>'
           +'<td>'+mp(e)+camLinha(e)+'</td>'
           +'<td class="ds">'+(e.disse?'“'+esc(e.disse)+'”':'—')+(e.fontes?'<br><small style="font-style:normal;color:var(--muted)">'+esc(e.fontes)+'</small>':'')+'</td>'
           +'<td>'+resolveu(e.resolveu)+'</td></tr>';
   const est=v=>{ const k=Math.max(0,Math.min(5,Number(v)|0)); return '★'.repeat(k)+'☆'.repeat(5-k); };
-  const linhaAv=r=>'<tr><td class="hr">'+esc(r.hora||'')+'</td><td><span class="pl p-coz">avaliação</span><br><small style="color:var(--muted)">não conta na meta</small></td>'
+  const linhaAv=r=>'<tr'+ondeTr(r)+'><td class="hr">'+esc(r.hora||'')+'</td><td><span class="pl p-coz">avaliação</span><br><small style="color:var(--muted)">não conta na meta</small>'+ondeLinha(r)+'</td>'
           +'<td><b style="color:var(--brand)">'+est(r.nota)+'</b> nota '+esc(r.nota)+(Array.isArray(r.tags)&&r.tags.length?'<br><small style="color:var(--text2)">o cliente marcou: '+esc(r.tags.join(', '))+'</small>':'')+'</td>'
           +'<td>'+mp(r)+'</td><td class="ds">'+(r.disse?'“'+esc(r.disse)+'”':'<span style="font-style:normal;color:var(--muted)">não escreveu nada</span>')+'<br><small style="font-style:normal;color:var(--muted)">iFood · avaliou '+esc(r.avaliou||'')+'</small></td><td>—</td></tr>';
   const cab='<tr><th>Hora</th><th>Setor</th><th>O que foi</th><th>Marca · pedido</th><th>O que chegou</th><th>O que a loja fez</th></tr>';
@@ -903,6 +991,7 @@ async function abreDia(dm){
     +'<p><b style="color:'+cor+';font-size:1.3em">'+C.length+' erro'+(C.length===1?'':'s')+'</b> · '+esc(situ)
     +' · cozinha '+n('cozinha')+' · montagem '+n('montagem')+' · qualidade '+(Q.length+AQ.length)+' · dia das 6h às 6h'+(j.hoje?' · <b>hoje, ainda contando</b>':'')+'</p>'
     +'<p style="font-size:.85em">'+(j.lido_em?'Lido em '+esc(j.lido_em)+'.':'')+(j.ontem?' Reclamação do iFood às vezes chega com 1 dia de atraso: este número ainda pode subir.':'')+'</p>';
+  h+=ondeBarra(M.concat(Q).concat(RU));   /* 02/11: botoes Cozinha 1 / Cozinha 2 pratos / Delivery (so dono) */
   h+='<h3>🛍 Erros de cozinha e montagem ('+M.length+')</h3>';
   if(M.length) h+='<table class="tb" data-cdm-sem-nota>'+cab+M.map(linha).join('')+'</table>';
   else h+='<div class="vazio"><b>Nenhum erro de cozinha ou montagem neste dia.</b></div>';
