@@ -431,6 +431,9 @@ body.exp .b-hn.conf .b-nn{opacity:.42}
 body.exp .b-hn .b-ok{font-size:.72em;margin-right:.04em}
 body.exp .b-hn.late{color:var(--bad)}
 body.exp .b-hn.sel .b-nn{text-decoration:underline;text-decoration-thickness:.07em;text-underline-offset:.1em}
+/* conserto 02/11 (revisor): pedido de OUTRO CANAL na rota (so no TrackEat, sem iFood): entra no N PEDIDOS e na lista
+   como "TRACKEAT 3090" (a palavra pequena; sem bandeira, a tela nao sabe o que tem dentro) */
+body.exp .b-hn small{font-family:var(--cond);font-weight:700;font-size:.5em;letter-spacing:.04em;text-transform:uppercase;margin-right:.2em;opacity:.8}
 body.exp .b-fls{display:flex;flex-wrap:wrap;align-items:baseline;gap:calc(5*var(--u)) calc(10*var(--u));min-width:0}
 body.exp .b-fl{font-family:var(--display);font-weight:400;line-height:1.12;text-transform:uppercase;letter-spacing:.02em;background:var(--ouro);color:#141414;border-radius:.16em;padding:0 .28em;white-space:nowrap}
 body.exp .b-cab .b-fl{font-size:calc(36*var(--u));font-size:max(calc(var(--pisoA)*1.08),calc(36*var(--u)))}
@@ -512,11 +515,17 @@ body.exp.c1 .b-par:not(.b-det){display:none}
 body.exp.c2 .b-tp{display:none}
 body.exp.c3 .b-banda[data-b="montando"] .b-coz:not(.agu),body.exp.c3 .b-banda[data-b="sem"] .b-coz:not(.agu),body.exp.c3 .b-banda[data-b="montando"] .b-cz,body.exp.c3 .b-banda[data-b="sem"] .b-cz{display:none}
 body.exp.c4 .b-banda:not([data-b="loja"]) .b-soma{display:none}
-body.exp.c4 .b-rota:not(.b-sem) .b-so,body.exp.c4 .b-x,body.exp.c4 .b-banda[data-b="caminho"] .b-coz:not(.agu){display:none}
+body.exp.c4 .b-rota:not(.b-sem) .b-so:not(.b-tg),body.exp.c4 .b-x,body.exp.c4 .b-banda[data-b="caminho"] .b-coz:not(.agu){display:none}
+/* conserto 02/11 (revisor): o numero "so o lanche" com etiqueta (outra marca = outra sacola, agendado, retirada) fica a
+   vista no aperto; so os sem etiqueta somem (eles ja estao no cabecalho) */
+body.exp.c4 .b-rota:not(.b-sem) .b-so .b-n:not(.b-tg){display:none}
 /* sacola tirada da tela pelo encaixe (conserto 02/11: esconde, devolve a mais urgente que couber, depois sai da pagina) */
 body.exp .b-off{display:none!important}
 /* c5 (so na TV, depois da letra no minimo): nas faixas de baixo o que vai solto corre na mesma linha (o nome fica) */
 body.exp.c5 .b-banda[data-b="montando"] .b-chk,body.exp.c5 .b-banda[data-b="sem"] .b-chk{display:flex;flex-wrap:wrap;column-gap:.65em}
+/* conserto 02/11 (revisor: rota de 5-6 pedidos no pico): c5 tambem tira a linha cinza da comida ("+ 1 burger") da faixa
+   "na loja" (as outras faixas ja nao tem no aperto); "AGUARDANDO COZINHA" fica */
+body.exp.c5 .b-banda[data-b="loja"] .b-coz:not(.agu){display:none}
 /* tablet que nao coube nem pequeno, e celular: ROLA na vertical (ninguem some) */
 body.tv.exp.rola{height:auto;min-height:100vh;overflow-y:auto}
 body.exp.rola .wrap{display:block}
@@ -1599,7 +1608,12 @@ const tms=s=>{ const t=Date.parse(s); return isNaN(t)?0:t; };
 /* 02/11 01h40: ordem FIXA dos pedidos da rota (cabecalho, corpo e faixa SAIU): a ordem de entrega do TrackEat quando ela
    vier no dado (vivo.sequencia; hoje o banco ainda nao manda), senao a hora do pedido (a mais antiga primeiro). O numero do
    TrackEat (num_te) nao e a ordem da rota: nao serve. */
-const seqTe=p=>{ const v=vx(p), s=v&&(v.sequencia!=null?v.sequencia:v.seq); const n=(s==null||s==='')?NaN:Number(s); return isFinite(n)?n:null; };
+const seqDe=v=>{ const s=v&&(v.sequencia!=null?v.sequencia:v.seq); const n=(s==null||s==='')?NaN:Number(s); return isFinite(n)?n:null; };
+const seqTe=p=>seqDe(vx(p));
+/* pedido de OUTRO CANAL numa rota de rotas[] (so no TrackEat, sem iFood: {id:null, numero_te}). Chave sem repetir. */
+const teDe=px=>uniq((Array.isArray(px)?px:[]).filter(x=>x&&x.id==null&&x.numero_te!=null).map(x=>String(x.numero_te)));
+const pxK=x=>x.id!=null?'i'+x.id:'t'+x.numero_te;
+function juntaPx(a,b){ const m=new Map(); (a||[]).concat(b||[]).forEach(function(x){ if(x&&!m.has(pxK(x))) m.set(pxK(x),x); }); return Array.from(m.values()); }
 function ordPed(a,b){
   const sa=seqTe(a), sb=seqTe(b);
   if(sa!=null&&sb!=null&&sa!==sb) return sa-sb;
@@ -1612,6 +1626,11 @@ function expMonta(){
   /* rota aceita (rotas[]) que ainda tem sacola aberta: pedido sem grupo ao vivo vai para o bloco dela */
   const ac=new Map(); ACEITAS.forEach(a=>a.ids.forEach(id=>{ if(!ac.has(id)) ac.set(id,a); }));
   const R=new Map(), A=new Map(), pend=[], sem={pronto:[],cozinha:[],fora:[],todos:[],canc:[]}, ids=new Set();
+  /* conserto 02/11 (revisor): "N PEDIDOS" e o total que o motoboy leva. A rota de rotas[] (nasce no aceite) tambem traz o
+     pedido de outro canal (numero_te, sem iFood): ele entra na conta e na lista do cabecalho, igual na faixa SAIU. */
+  const TE=new Map();
+  (DADO&&Array.isArray(DADO.rotas)?DADO.rotas:[]).forEach(function(x){ if(!x) return; const te=teDe(x.pedidos); if(!te.length) return;
+    (Array.isArray(x.grupos)?x.grupos:[]).forEach(function(g){ g=String(g); TE.set(g,uniq((TE.get(g)||[]).concat(te))); }); });
   ps.forEach(function(p){
     const id=String(p.id), e=expEstado(p), v=vx(p);
     if(e==='saiu') return;                                         /* o motoboy ja pegou (ORDER_PICKED em diante) */
@@ -1628,12 +1647,12 @@ function expMonta(){
   Array.from(R.keys()).forEach(function(g){ const r=R.get(g); if(r.ps.every(p=>p.cancelado)){ sem.canc=sem.canc.concat(r.ps); R.delete(g); } });
   pend.forEach(function(p){ const a=ac.get(String(p.id));
     if(a.g&&R.has(a.g)){ R.get(a.g).ps.push(p); return; }
-    if(!A.has(a.id)) A.set(a.id,{g:'a'+a.id,ps:[],moto:a.moto||null,aceita:true,t:a.t}); A.get(a.id).ps.push(p); });
+    if(!A.has(a.id)) A.set(a.id,{g:'a'+a.id,ps:[],moto:a.moto||null,aceita:true,t:a.t,te:a.te||[]}); A.get(a.id).ps.push(p); });
   const rotas=Array.from(R.values()).map(function(r){
     let et=-1, desde=null, moto=null;
     r.ps.forEach(function(p){ if(p.cancelado) return; const v=vx(p); if(!v) return; const e=ETAPA[v.te]||0; if(v.motoboy&&!moto) moto=String(v.motoboy);
       if(e>et){ et=e; desde=v.desde||null; } else if(e===et&&v.desde&&(!desde||tms(v.desde)<tms(desde))) desde=v.desde; });
-    r.moto=moto; r.et=Math.max(0,et); r.desde=desde; r.banda=r.et>=3?'loja':r.et>=2?'caminho':'montando';
+    r.moto=moto; r.et=Math.max(0,et); r.desde=desde; r.banda=r.et>=3?'loja':r.et>=2?'caminho':'montando'; r.te=TE.get(r.g)||[];
     return r;
   }).concat(Array.from(A.values()).map(function(r){ r.et=2; r.desde=null; r.banda='caminho'; return r; }));
   rotas.forEach(function(r){
@@ -1670,7 +1689,7 @@ function expSaidas(j,ps,rs,agora){
   ps.forEach(function(p){ const id=String(p.id);
     if(p.cancelado){ CANC.set(id,agora); ULT_PED.delete(id); return; }
     if(pegou(vivoJ(j,p))) PEGOS.set(id,agora);
-    const s=separa(p); ULT_PED.set(id,{numero:p.numero,itens:s.lista.filter(x=>!x.obs).map(itemTxt),conf:eConferido(p),t:agora,k:soltos(p),c:tms(p.criado)}); });
+    const s=separa(p); ULT_PED.set(id,{numero:p.numero,itens:s.lista.map(x=>x.obs?'obs do cliente':itemTxt(x)),conf:eConferido(p),t:agora,k:soltos(p),c:tms(p.criado),q:seqDe(vivoJ(j,p))}); });
   [ULT_PED,PEGOS,CANC].forEach(m=>m.forEach(function(x,id){ if(agora-(typeof x==='number'?x:x.t)>30*60000) m.delete(id); }));
   const cancelado=id=>{ const p=byId.get(id); return p?!!p.cancelado:CANC.has(id); };
   const nova=function(s,semAviso){
@@ -1680,7 +1699,7 @@ function expSaidas(j,ps,rs,agora){
     SAIDAS.forEach(function(x){ if(!mesma&&pn&&primeiroNome(x.moto).toLowerCase()===pn&&Math.abs(s.t-x.t)<MOTOBOY_15MIN&&(!x.grupos.length||!s.grupos.length)) mesma=x; });
     /* um aviso sem grupo e sem pedido (fila) nao engole a saida AO VIVO que vem depois: a do ao vivo toca e fica no lugar */
     if(mesma&&s.k.charAt(0)==='g'&&!mesma.grupos.length&&!mesma.ids.length&&!(mesma.px||[]).length){ SAIDAS.delete(mesma.k); mesma=null; }
-    if(mesma){ mesma.ids=uniq(mesma.ids.concat(s.ids)); mesma.grupos=uniq(mesma.grupos.concat(s.grupos)); mesma.px=(mesma.px||[]).concat(s.px||[]);
+    if(mesma){ mesma.ids=uniq(mesma.ids.concat(s.ids)); mesma.grupos=uniq(mesma.grupos.concat(s.grupos)); mesma.px=juntaPx(s.px,mesma.px);
       if(!mesma.moto) mesma.moto=s.moto; if(EXP_LIDO&&!semAviso) mesma.ate=agora+ROTA_CHEIA_MS; return; }
     s.ate=semAviso?0:EXP_LIDO?agora+ROTA_CHEIA_MS:s.t+ROTA_CHEIA_MS;
     SAIDAS.set(s.k,s); if(EXP_LIDO&&!semAviso) novas.push(s);
@@ -1709,11 +1728,11 @@ function expSaidas(j,ps,rs,agora){
     pids.forEach(function(pid){ if(cancelado(pid)) return; const p=byId.get(pid); if(p&&!pegou(vivoJ(j,p))) abertos.push(pid); else foram++; });
     const gv=gs.find(g=>cur.has(g))||abertos.map(function(pid){ const v=vivoJ(j,byId.get(pid)); return v&&v.grupo&&cur.has(String(v.grupo))?String(v.grupo):null; }).find(Boolean)||null;
     if(abertos.length){                               /* ainda tem sacola aberta: o motoboy nao saiu */
-      aceitas.push({id:id,moto:String(r.entregador||''),t:tms(r.saiu_em)||agora,ids:abertos,g:gv}); return; }
+      aceitas.push({id:id,moto:String(r.entregador||''),t:tms(r.saiu_em)||agora,ids:abertos,g:gv,te:teDe(px)}); return; }
     if(gv) return;                                    /* motoboy ainda na loja (ou vindo): o ao vivo vence */
     let rec=SAIDAS.get('r'+id); if(!rec) SAIDAS.forEach(function(s){ if(!rec&&s.grupos.some(g=>gs.indexOf(g)>=0)) rec=s; });
     if(rec||ROTA_SAIU.has(id)){
-      if(rec){ rec.ids=uniq(rec.ids.concat(pids.filter(x=>!cancelado(x)))); rec.grupos=uniq(rec.grupos.concat(gs)); rec.px=px.concat((rec.px||[]).filter(y=>!px.some(z=>String(z.id)===String(y.id)&&y.id!=null)));
+      if(rec){ rec.ids=uniq(rec.ids.concat(pids.filter(x=>!cancelado(x)))); rec.grupos=uniq(rec.grupos.concat(gs)); rec.px=juntaPx(px,rec.px);   /* conserto 02/11: o outro canal (id null) nao se repete a cada leitura */
         if(!rec.moto&&r.entregador) rec.moto=String(r.entregador); else if(r.entregador&&String(r.entregador).length>rec.moto.length&&primeiroNome(r.entregador)===primeiroNome(rec.moto)) rec.moto=String(r.entregador); }
       ROTA_SAIU.add(id); gs.forEach(g=>GR_SAIU.add(g)); return;
     }
@@ -1745,26 +1764,30 @@ function saidaInfo(s){
     const c=ULT_PED.get(id), x=(s.px||[]).find(y=>y.id!=null&&String(y.id)===id), cl=CONF.get(id);
     const numero=c?c.numero:(x?x.numero:null); if(numero==null) return;
     const conf=!!((cl&&cl.on)||(x&&x.conferido)||(c&&c.conf));
-    out.push({numero:numero,conf:conf,itens:c?c.itens:lembraTxt(x&&x.lembrar),k:c?(c.k||{}):lembraK(x&&x.lembrar),c:c&&c.c?c.c:Infinity,i:out.length}); });
-  /* mesma ordem do cabecalho da rota (hora do pedido); o que a tela nao viu fica no fim, na ordem do banco */
-  out.sort((a,b)=>(a.c===b.c?0:a.c<b.c?-1:1)||a.i-b.i);
-  (s.px||[]).forEach(function(x){ if(x.id==null&&x.numero_te!=null) out.push({numero:'TrackEat '+x.numero_te,conf:false,itens:[],k:{}}); });
+    out.push({numero:numero,conf:conf,itens:c?c.itens:lembraTxt(x&&x.lembrar),k:c?(c.k||{}):lembraK(x&&x.lembrar),c:c&&c.c?c.c:Infinity,q:c&&c.q!=null?c.q:null,i:out.length}); });
+  /* mesma ordem do cabecalho da rota (ordPed: a sequencia do TrackEat quando vier, senao a hora do pedido); o que a tela nao
+     viu fica no fim, na ordem do banco; o pedido de outro canal por ultimo (uma vez so) */
+  out.sort(function(a,b){ if(a.q!=null&&b.q!=null&&a.q!==b.q) return a.q-b.q; if((a.q==null)!==(b.q==null)) return a.q==null?1:-1;
+    return (a.c===b.c?0:a.c<b.c?-1:1)||a.i-b.i; });
+  teDe(s.px).forEach(n=>out.push({numero:n,te:true,conf:false,itens:[],k:{}}));
   return out;
 }
 /* lista de numeros do cabecalho / da faixa: ✓ verde = conferido; tracejado = na cozinha; vermelho = 40+ min */
 const bHn=(id,numero,cls,conf)=>'<span class="b-hn'+(conf?' conf':'')+(cls?' '+cls:'')+'"'+(id!=null?' data-hp="'+esc(id)+'"':'')+'>'+(conf?'<i class="b-ok">✓</i>':'')+'<span class="b-nn">'+esc(numero!=null&&numero!==''?numero:'—')+'</span></span>';
+const bTe=n=>'<span class="b-hn te"><small>TrackEat</small><span class="b-nn">'+esc(n)+'</span></span>';
 function bannerExp(){
   const agora=agoraMs();
   return Array.from(SAIDAS.values()).filter(s=>s.ate>agora).sort((a,b)=>b.t-a.t).slice(0,2).map(function(s){
-    const ps=saidaInfo(s), pend=ps.filter(x=>!x.conf&&x.itens.length), algum=ps.some(x=>x.itens.length);
+    const ps=saidaInfo(s), pend=ps.filter(x=>!x.conf&&x.itens.length), algum=ps.some(x=>x.itens.length), todos=ps.length&&ps.every(x=>x.conf);
     const nome=String(s.moto||'').trim()||'Motoboy', t={};
     pend.forEach(x=>Object.keys(x.k||{}).forEach(function(k){ t[k]=(t[k]||0)+Number(x.k[k]); }));
     const fl=bFlags(t);
     return '<div class="b-saiu" role="alert"><b>'+esc(nome.toUpperCase())+' SAIU '+esc(hhmm(s.t))+'</b>'
-      +(ps.length?'<b class="b-np">· '+ps.length+(ps.length>1?' pedidos':' pedido')+'</b><span class="b-hns">'+ps.map(x=>bHn(null,x.numero,'',x.conf)).join('')+'</span>'
+      +(ps.length?'<b class="b-np">· '+ps.length+(ps.length>1?' pedidos':' pedido')+'</b><span class="b-hns">'+ps.map(x=>x.te?bTe(x.numero):bHn(null,x.numero,'',x.conf)).join('')+'</span>'
         :'<span>pedidos dele: aguardando o TrackEat</span>')
       +(pend.length?'<span class="b-q">conferiu tudo?</span>'+(fl?'<span class="b-fls">'+fl+'</span>':'')
-        :algum?'<span>tudo conferido <i class="b-ok">✓</i></span>':ps.length?'<span>nada solto</span>':'')
+        /* conserto 02/11 (revisor): "tudo conferido" so quando TODO numero tem o ✓; senao "tudo solto conferido" */
+        :todos?'<span>tudo conferido <i class="b-ok">✓</i></span>':algum?'<span>tudo solto conferido <i class="b-ok">✓</i></span>':ps.length?'<span>nada solto</span>':'')
       +(pend.length?'<i class="b-br"></i>':'')
       +pend.map(x=>'<span class="b-pend"><b>'+esc(x.numero)+'</b>· '+esc(x.itens.join(', '))+'</span>').join('')+'</div>';
   }).join('');
@@ -1813,11 +1836,11 @@ function bPeds(ps){
   ps.forEach(function(p){ const s=separa(p), e=expEstado(p); ((s.lista.length||p.cancelado||escolhido(p.id))?com:so).push({p:p,s:s,e:e}); });
   if(so.length===1&&!com.length) return '<div class="b-peds">'+bPed(so[0].p,so[0].s,so[0].e)+'</div>';
   let h=com.length?'<div class="b-peds">'+com.map(x=>bPed(x.p,x.s,x.e)).join('')+'</div>':'';
-  if(so.length) h+='<div class="b-so"><span class="b-rot">'+esc(soRot(so.map(x=>x.s)))+':</span>'+so.map(function(x){
+  if(so.length) h+='<div class="b-so'+(so.some(x=>x.p.agendado_para||x.p.tipo==='TAKEOUT'||outraMarca(x.p.marca))?' b-tg':'')+'"><span class="b-rot">'+esc(soRot(so.map(x=>x.s)))+':</span>'+so.map(function(x){
     const p=x.p, e=x.e, coz=e==='cozinha'&&temCoz(x.s.coz), late=atrasoMin(p,e), mc=outraMarca(p.marca);
     const ex=(late?'<small class="mau">'+late+' min</small>':'')+(coz?'<small>cozinha</small>':'')+(p.agendado_para?'<small>'+esc(hhmm(p.agendado_para))+'</small>':'')
-      +(p.tipo==='TAKEOUT'?'<small>retirada</small>':'')+(mc?'<small>'+esc(mc)+'</small>':'');
-    return '<span class="b-n'+(e==='conf'?' conf':'')+(coz?' coz':'')+(late?' late':'')+'" data-ped="'+esc(p.id)+'">'+(e==='conf'?'<i class="b-ok">✓</i>':'')+'<span class="b-nn">'+esc(p.numero)+'</span>'+ex+'</span>';
+      +(p.tipo==='TAKEOUT'?'<small>retirada</small>':'')+(mc?'<small>'+esc(mc)+'</small>':''), tg=!!(p.agendado_para||p.tipo==='TAKEOUT'||mc);
+    return '<span class="b-n'+(e==='conf'?' conf':'')+(coz?' coz':'')+(late?' late':'')+(tg?' b-tg':'')+'" data-ped="'+esc(p.id)+'">'+(e==='conf'?'<i class="b-ok">✓</i>':'')+'<span class="b-nn">'+esc(p.numero)+'</span>'+ex+'</span>';
   }).join('')+'</div>';
   return h;
 }
@@ -1829,9 +1852,14 @@ function bSoma(ps){
   return n+(n===1?' pedido':' pedidos')+(ks.length?' · pegar <b>'+ks.map(k=>fmtQ(t[k])+' '+KIND[k][t[k]>1?1:0]).join(' · ')+'</b>':n&&nc===n?' · conferidos <i class="b-ok">✓</i>':n?' · nada a pegar':'');
 }
 /* 02/11 01h40: bandeiras douradas do cabecalho e da faixa SAIU (SOBREMESA e BEBIDA primeiro: as que mais se esquecem) */
-const FLAG_KS=['sobremesa','bebida','pote','adicional','talher'];
-function soltos(p){ const t={}; separa(p).lista.forEach(function(it){ if(FLAG_KS.indexOf(it.kind)<0) return; t[it.kind]=(t[it.kind]||0)+(it.q==null?1:Number(it.q)||1); }); return t; }
-function bFlags(t){ return FLAG_KS.filter(k=>Number(t[k])>0).map(k=>'<span class="b-fl">tem '+k+(Number(t[k])>1?' ('+esc(fmtQ(t[k]))+')':'')+'</span>').join(''); }
+/* conserto 02/11 (revisor): TODO item dourado do corpo entra numa bandeira (antes item de balcao sem classe, item "conferir"
+   e o pedido do cliente nao entravam e o cabecalho dizia "NADA A PEGAR" com caixinha dourada embaixo):
+   item sem classe + conferir = "TEM OUTRO ITEM"; observacao do cliente sobre a sacola = "TEM OBS". */
+const FLAG_KS=['sobremesa','bebida','pote','adicional','talher','outro','obs'];
+const FLAG_TXT={sobremesa:'tem sobremesa',bebida:'tem bebida',pote:'tem pote',adicional:'tem adicional',talher:'tem talher',outro:'tem outro item',obs:'tem obs'};
+const FLAG_DE={item:'outro',conferir:'outro'};
+function soltos(p){ const t={}; separa(p).lista.forEach(function(it){ const k=FLAG_DE[it.kind]||it.kind; if(FLAG_KS.indexOf(k)<0) return; t[k]=(t[k]||0)+(it.q==null?1:Number(it.q)||1); }); return t; }
+function bFlags(t){ return FLAG_KS.filter(k=>Number(t[k])>0).map(k=>'<span class="b-fl">'+FLAG_TXT[k]+(Number(t[k])>1?' ('+esc(fmtQ(t[k]))+')':'')+'</span>').join(''); }
 function bRota(r){
   const nm=String(r.moto||'').trim().split(/\s+/), n1=nm[0]||'', resto=nm.slice(1).join(' ');
   let est, nc=0;
@@ -1843,13 +1871,14 @@ function bRota(r){
   else est='montando a rota';
   const nome=r.moto||(r.aceita?'Motoboy':'Rota nova');
   /* a lista da separacao: TODOS os pedidos que o motoboy leva (cancelado nao vai) e o que falta pegar deles */
-  const vale=r.ps.filter(p=>!p.cancelado), n=vale.length, t={};
+  const vale=r.ps.filter(p=>!p.cancelado), te=r.te||[], n=vale.length+te.length, t={};
   let nConf=0;
   const nums=vale.map(function(p){ const e=expEstado(p), conf=e==='conf';
     if(conf) nConf++; else { const s=soltos(p); Object.keys(s).forEach(function(k){ t[k]=(t[k]||0)+s[k]; }); }
-    return bHn(p.id,p.numero,[e==='cozinha'&&temCoz(separa(p).coz)?'coz':'',atrasoMin(p,e)?'late':'',escolhido(p.id)?'sel':''].filter(Boolean).join(' '),conf); }).join('');
+    return bHn(p.id,p.numero,[e==='cozinha'&&temCoz(separa(p).coz)?'coz':'',atrasoMin(p,e)?'late':'',escolhido(p.id)?'sel':''].filter(Boolean).join(' '),conf); }).join('')+te.map(bTe).join('');
   const fl=bFlags(t);
-  const fim=fl?'<span class="b-fls">'+fl+'</span>':n&&nConf===n?'<span class="b-tc">tudo conferido <i class="b-ok">✓</i></span>':n?'<span class="b-nd">nada a pegar</span>':'';
+  /* "nada a pegar" so quando nenhum pedido nao conferido tem dourado (e nao tem pedido de outro canal, que a tela nao ve) */
+  const fim=fl?'<span class="b-fls">'+fl+'</span>':n&&nConf===n?'<span class="b-tc">tudo conferido <i class="b-ok">✓</i></span>':n&&!te.length?'<span class="b-nd">nada a pegar</span>':'';
   return '<div class="b-rota '+r.banda+(r.aceita?' aceita':'')+'" data-nome="'+esc(nome)+'"'+(r.moto?' data-moto="1"':'')+'><div class="b-cab"><b class="b-mb">'+(r.moto?esc(n1)+(resto?'<small>'+esc(resto)+'</small>':''):esc(nome))+'</b>'
     +'<b class="b-np">· '+n+(n===1?' pedido':' pedidos')+'</b>'
     +'<span class="b-est">'+esc(est)+(r.banda==='montando'&&!r.moto&&!r.aceita?'<span class="b-x"> · sem motoboy ainda</span>':'')+'</span>'+(nc?'<span class="b-est b-aguarda">'+nc+(nc>1?' pedidos':' pedido')+' ainda na cozinha</span>':'')
@@ -1868,7 +1897,7 @@ function garanteExp(){
   const f=document.createElement('div'); f.id='pe'; f.setAttribute('aria-live','polite');
   pai.insertBefore(s,al.nextSibling); pai.insertBefore(m,s.nextSibling); pai.insertBefore(f,m.nextSibling);
   const ctl=document.querySelector('header .ctl');
-  if(ctl){ const lg=document.createElement('div'); lg.className='leg'; lg.innerHTML='<i class="b-cx"></i>dourado = pôr na sacola <small>bebida · sobremesa · pote · adicional · talher</small>'; ctl.parentNode.insertBefore(lg,ctl); }
+  if(ctl){ const lg=document.createElement('div'); lg.className='leg'; lg.innerHTML='<i class="b-cx"></i>dourado = pôr na sacola <small>bebida · sobremesa · pote · adicional · talher · outro item · obs</small>'; ctl.parentNode.insertBefore(lg,ctl); }
   /* uma faixa nova em cima (rede, robo, TrackEat parado) aperta o quadro: refaz o encaixe */
   try{ if(window.ResizeObserver) new ResizeObserver(function(){ const M=$('bancada'); if(!EXP||!M||document.body.classList.contains('rola')) return; if(Math.abs(M.clientHeight-EXP_H)>2) ajusta(); }).observe(m); }catch(e){}
 }
@@ -1899,11 +1928,62 @@ function desenhaExp(){
    TV, ultimo caso: tira da tela SACOLA POR SACOLA, a menos urgente primeiro (conserto 02/11 do revisor: antes saia a
    rota inteira, com buraco na tela, e as rotas montando saiam antes da area quieta): na cozinha sem rota -> cancelados
    -> sem TrackEat -> prontos sem rota -> rota montando sem motoboy -> montando com motoboy -> rota aceita -> a caminho
-   -> (so se nada mais couber) na loja. Dentro de cada area sai primeiro a sacola mais baixa (a do bloco mais alto). O
+   -> (so se nada mais couber) na loja. Conserto 02/11: o CABECALHO de rota fica mesmo sem sacola a vista ("+N no rodape");
+   so sai, o da rota menos urgente primeiro, depois de todas as sacolas fora da faixa "na loja" e antes delas (o rodape lista
+   os numeros dele). Dentro de cada area sai primeiro a sacola mais baixa (a do bloco mais alto). O
    rodape lista cada sacola que saiu COM O NOME do que vai solto ("4248 3 Pepsi, 2 Guaraná"); se nao couber em 3 linhas,
    so a conta ("4248 5 bebidas"). A sacola escolhida nunca sai. */
 const EXP_KS=[1.9,1.72,1.56,1.42,1.3,1.2,1.1,1];
 const EXP_KS2=[.94,.88,.83,.78,.74,.7,.66,.62];
+/* conserto 02/11 (revisor): rota LONGA (5-6 pedidos) num bloco de 1/3 da largura quebrava o cabecalho em 3 linhas (nome /
+   numeros / bandeiras) e o pico deixava de caber. Em cada linha de blocos de uma faixa, o bloco cujo cabecalho nao cabe em
+   2 linhas (nome · N PEDIDOS · estado / numeros + bandeiras) ganha a largura que precisa e os vizinhos cedem a sobra deles;
+   fica a arrumacao so se a linha de blocos nao ficar mais alta e os cabecalhos, somados, ficarem mais baixos. Roda a cada
+   medida do encaixe (a letra muda a largura) e tambem no tablet que rola (no celular cada rota ja tem a largura toda). */
+function larg(M){
+  const ea=(sel,f)=>Array.prototype.forEach.call(typeof sel==='string'?M.querySelectorAll(sel):sel,f);
+  ea('.b-banda>.b-rota',function(r){ if(r.style.flexBasis) r.style.flexBasis=''; });
+  const px=v=>parseFloat(v)||0, linhas=[];
+  /* largura natural (numa linha so) de um pedaco do cabecalho; o estado e o unico que quebra por dentro */
+  const nat=function(e){
+    const r=e.getBoundingClientRect(); if(!e.classList.contains('b-est')) return r.width;
+    const cs=getComputedStyle(e); if(r.height<=px(cs.fontSize)*1.6) return r.width;
+    let w=0, t; const tw=document.createTreeWalker(e,4);
+    while((t=tw.nextNode())){ const rg=document.createRange(); rg.selectNodeContents(t); Array.prototype.forEach.call(rg.getClientRects(),x=>{ w+=x.width; }); }
+    return w+r.width-e.clientWidth+px(cs.paddingLeft)+px(cs.paddingRight)+8;
+  };
+  ea('.b-banda',function(bd){
+    const por=[], gap=px(getComputedStyle(bd).columnGap);
+    ea(bd.children,function(r){
+      if(!r.classList.contains('b-rota')) return; const rc=r.getBoundingClientRect(), c=r.querySelector('.b-cab'); if(!rc.width||!c) return;
+      const cs=getComputedStyle(c), cg=px(cs.columnGap), l=[0,0], n=[0,0]; let lin=0;
+      ea(c.children,function(e){
+        if(e.classList.contains('b-br')){ lin=1; return; }
+        let w=nat(e); if(!w) return;
+        if(e.classList.contains('b-hns')||e.classList.contains('b-fls')){ let k=0; w=0;
+          ea(e.children,function(x){ const xw=x.getBoundingClientRect().width; if(xw){ w+=xw; k++; } }); w+=Math.max(0,k-1)*px(getComputedStyle(e).columnGap); }
+        l[lin]+=w; n[lin]++;
+      });
+      const borda=rc.width-c.clientWidth+px(cs.paddingLeft)+px(cs.paddingRight);
+      const x={r:r,w:rc.width,base:px(getComputedStyle(r).flexBasis),need:Math.ceil(Math.max(l[0]+Math.max(0,n[0]-1)*cg,l[1]+Math.max(0,n[1]-1)*cg)+borda)+1};
+      const L=por.find(y=>Math.abs(y.top-rc.top)<3); if(L) L.bs.push(x); else por.push({top:rc.top,bs:[x]});
+    });
+    por.forEach(function(L){ if(L.bs.length>1&&L.bs.some(x=>x.need>x.w+.5)) linhas.push({W:bd.clientWidth-gap*(L.bs.length-1)-1,bs:L.bs}); });
+  });
+  if(!linhas.length) return;
+  /* o que dar a cada bloco: todos com a largura do cabecalho (se couber na linha); senao so o que mais falta ganha a dele */
+  const alvo=linhas.map(function(L){
+    const A=L.bs.map(x=>Math.max(x.base,x.need)); if(A.reduce((s,v)=>s+v,0)<=L.W) return A;
+    let i=0; L.bs.forEach((x,j)=>{ if(x.need-x.w>L.bs[i].need-L.bs[i].w) i=j; });
+    const B=L.bs.map((x,j)=>j===i?Math.max(x.base,x.need):x.base); return B.reduce((s,v)=>s+v,0)<=L.W?B:null;
+  });
+  /* altura da linha de blocos e a soma das alturas dos cabecalhos (nao vale trocar 1 cabecalho que quebra por 2) */
+  const alt=L=>[Math.max.apply(null,L.bs.map(x=>x.r.getBoundingClientRect().height)),L.bs.reduce((s,x)=>s+x.r.querySelector('.b-cab').getBoundingClientRect().height,0)];
+  const h0=linhas.map(alt);
+  linhas.forEach(function(L,i){ if(alvo[i]) L.bs.forEach((x,j)=>{ x.r.style.flexBasis=alvo[i][j]+'px'; }); });
+  linhas.forEach(function(L,i){ if(!alvo[i]) return; const h=alt(L); if(h[0]>h0[i][0]+.5||h[1]>h0[i][1]-.5) alvo[i]=null; });
+  linhas.forEach(function(L,i){ if(!alvo[i]) L.bs.forEach(x=>{ x.r.style.flexBasis=''; }); });
+}
 function fitExp(){
   const M=$('bancada'), b=document.body; if(!M) return;
   const W=window.innerWidth||document.documentElement.clientWidth||1920, H=window.innerHeight||document.documentElement.clientHeight||1080;
@@ -1914,7 +1994,7 @@ function fitExp(){
   const toque=!!(window.matchMedia&&window.matchMedia('(pointer: coarse)').matches);
   const grande=W>=1600||!toque, f=Math.min(2,W/1920);
   M.style.setProperty('--pisoA',(grande?Math.max(17,Math.round(28*f)):17)+'px'); M.style.setProperty('--pisoB',(grande?Math.max(16,Math.round(26*f)):16)+'px');
-  const cabe=()=>M.scrollHeight<=M.clientHeight+1&&M.scrollWidth<=M.clientWidth+1;
+  const cabe=()=>{ larg(M); return M.scrollHeight<=M.clientHeight+1&&M.scrollWidth<=M.clientWidth+1; };
   const prova=k=>{ M.style.setProperty('--k',String(k)); return cabe(); };
   let ok=false, i;
   for(i=0;i<EXP_KS.length&&!ok;i++) ok=prova(EXP_KS[i]);
@@ -1926,7 +2006,7 @@ function fitExp(){
   for(i=0;i<ks2.length&&!ok;i++) ok=prova(ks2[i]);
   /* afina entre o degrau que coube e o anterior (a letra fica o maior possivel) */
   if(ok&&i>1){ let lo=ks2[i-1], hi=ks2[i-2]; for(let n=0;n<3;n++){ const m=Math.round((lo+hi)*500)/1000; if(prova(m)) lo=m; else hi=m; } prova(lo); }
-  if(!ok&&!grande){ b.classList.add('rola'); EXP_H=0; return; }
+  if(!ok&&!grande){ b.classList.add('rola'); larg(M); EXP_H=0; return; }
   if(!ok){ b.classList.add('c5'); ok=cabe(); }
   if(!ok){ corta(M);
     /* o espaco que sobrou depois do corte (uma faixa inteira saiu) vira letra maior, sem buraco embaixo */
@@ -1939,13 +2019,21 @@ function corta(M){
   Array.prototype.forEach.call(M.querySelectorAll('.b-rota'),(x,i)=>x.setAttribute('data-ord',String(i)));
   const SELS=['.b-sem[data-g="cozinha"] [data-ped]','.b-sem[data-g="canc"] [data-ped]','.b-sem[data-g="fora"] [data-ped]','.b-sem[data-g="todos"] [data-ped]',
     '.b-sem[data-g="pronto"] [data-ped]','.b-banda[data-b="montando"] .b-rota:not([data-moto]) [data-ped]','.b-banda[data-b="montando"] .b-rota[data-moto] [data-ped]',
-    '.b-banda[data-b="caminho"] .b-rota.aceita [data-ped]','.b-banda[data-b="caminho"] [data-ped]','.b-banda[data-b="loja"] [data-ped]'];
-  const cabeJa=()=>M.scrollHeight<=M.clientHeight+1;
+    '.b-banda[data-b="caminho"] .b-rota.aceita [data-ped]','.b-banda[data-b="caminho"] [data-ped]',
+    /* conserto 02/11 (revisor): o CABECALHO de rota so sai depois de todas as sacolas das outras rotas e antes da faixa "na
+       loja" (o motoboy esta esperando): primeiro o da rota menos urgente */
+    '.b-banda[data-b="montando"] .b-rota:not([data-moto])','.b-banda[data-b="montando"] .b-rota[data-moto]','.b-banda[data-b="caminho"] .b-rota.aceita',
+    '.b-banda[data-b="caminho"] .b-rota','.b-banda[data-b="loja"] [data-ped]'];
+  /* a largura dos blocos (larg) so e refeita quando um cabecalho ganha "+N no rodape" ou um bloco/faixa some (mais leve) */
+  const assina=()=>Array.prototype.map.call(M.querySelectorAll('.b-cut'),x=>x.closest('.b-rota').getAttribute('data-ord')).join()+'|'
+    +Array.prototype.map.call(M.querySelectorAll('.b-rota.b-off,.b-banda.b-off'),x=>x.getAttribute('data-ord')||x.getAttribute('data-b')).join();
+  let sig=assina();
+  const cabeJa=()=>{ const a=assina(); if(a!==sig){ sig=a; larg(M); } return M.scrollHeight<=M.clientHeight+1; };
   /* a sacola mais baixa da area menos urgente (a do bloco mais alto sai primeiro: e ele que segura a altura da faixa) */
   const prox=function(){
     for(let i=0;i<SELS.length;i++){
       /* 02/11: so o que esta a vista (a linha "so o lanche" escondida pelo aperto c4 nao conta: os numeros estao no cabecalho) */
-      const ns=Array.prototype.filter.call(M.querySelectorAll(SELS[i]),n=>!n.classList.contains('sel')&&!n.classList.contains('b-off')&&n.getClientRects().length>0);
+      const ns=Array.prototype.filter.call(M.querySelectorAll(SELS[i]),n=>!n.classList.contains('sel')&&!n.querySelector('.sel')&&!n.classList.contains('b-off')&&n.getClientRects().length>0);
       if(!ns.length) continue;
       let el=null, fundo=-Infinity; ns.forEach(function(n){ const y=n.getBoundingClientRect().bottom; if(y>=fundo-.5){ fundo=y; el=n; } });
       return el;
@@ -1957,19 +2045,25 @@ function corta(M){
   const nomes=function(p){ if(p.cancelado) return 'cancelado';
     return separa(p).lista.map(it=>it.obs?'pedido do cliente':(it.q!=null?fmtQ(it.q)+' ':'')+it.main).join(', '); };
   /* o quadro e o rodape seguem as sacolas escondidas: bloco sem sacola some; rota que perdeu sacola diz "+N no rodape" */
+  /* conserto 02/11 (revisor): o CABECALHO da rota (nome · N PEDIDOS, numeros, bandeiras) nunca sai: e a lista da separacao.
+     Rota sem nenhuma sacola a vista fica so com o cabecalho e "+N no rodape"; some so o bloco das areas sem rota. */
   const sync=function(f){
-    ['.b-so','.b-peds','.b-rota','.b-banda'].forEach(function(q){ Array.prototype.forEach.call(M.querySelectorAll(q),function(x){
+    ['.b-so','.b-peds','.b-rota.b-sem'].forEach(function(q){ Array.prototype.forEach.call(M.querySelectorAll(q),function(x){
       const vivo=Array.prototype.some.call(x.querySelectorAll('[data-ped]'),n=>!n.classList.contains('b-off')); x.classList.toggle('b-off',!vivo); }); });
-    const G=new Map();
-    fora.forEach(function(el){ const blk=el.closest('.b-rota'), p=acha(el.getAttribute('data-ped')); if(!blk||!p) return;
-      const k=blk.getAttribute('data-ord'); if(!G.has(k)) G.set(k,{ord:Number(k),nome:blk.getAttribute('data-nome')||'',peds:[],blk:blk}); G.get(k).peds.push({p:p,y:Number(el.getAttribute('data-y'))||0}); });
+    Array.prototype.forEach.call(M.querySelectorAll('.b-banda'),function(x){ x.classList.toggle('b-off',!Array.prototype.some.call(x.children,n=>n.classList.contains('b-rota')&&!n.classList.contains('b-off'))); });
+    const G=new Map(), poe=function(el,blk){ const p=acha(el.getAttribute('data-ped')); if(!blk||!p) return;
+      const k=blk.getAttribute('data-ord'); if(!G.has(k)) G.set(k,{ord:Number(k),nome:blk.getAttribute('data-nome')||'',peds:[],blk:blk});
+      if(!G.get(k).peds.some(x=>x.p===p)) G.get(k).peds.push({p:p,y:Number(el.getAttribute('data-y'))||0}); };
+    /* bloco de rota inteiro fora (so no ultimo caso): o rodape lista TODOS os numeros dele (tambem os "so o lanche") */
+    fora.forEach(function(el){ if(el.hasAttribute('data-ped')) poe(el,el.closest('.b-rota')); else Array.prototype.forEach.call(el.querySelectorAll('[data-ped]'),n=>poe(n,el)); });
     Array.prototype.forEach.call(M.querySelectorAll('.b-cut'),x=>x.parentNode.removeChild(x));
     G.forEach(function(g){ if(g.blk.classList.contains('b-sem')||g.blk.classList.contains('b-off')) return; const cab=g.blk.querySelector('.b-cab'); if(!cab) return;
       const c=document.createElement('span'); c.className='b-cut'; c.textContent='+'+g.peds.length+' no rodapé ↓'; cab.appendChild(c); });
     if(!pe) return;
-    if(!fora.length){ pe.innerHTML=''; return; }
+    let nf=0; G.forEach(g=>{ nf+=g.peds.length; });
+    if(!nf){ pe.innerHTML=''; return; }
     const gs=Array.from(G.values()).sort((a,b)=>a.ord-b.ord);
-    pe.innerHTML='<b>Fora da tela ('+fora.length+(fora.length>1?' pedidos':' pedido')+'):</b> '+gs.map(g=>(g.nome?'<span class="b-fx b-fg">'+esc(g.nome)+':</span> ':'')
+    pe.innerHTML='<b>Fora da tela ('+nf+(nf>1?' pedidos':' pedido')+'):</b> '+gs.map(g=>(g.nome?'<span class="b-fx b-fg">'+esc(g.nome)+':</span> ':'')
       +g.peds.sort((a,b)=>a.y-b.y).map(function(x){ const t=f(x.p); return '<span class="b-fx"><b>'+esc(x.p.numero)+'</b>'+(t?' <i>'+esc(t)+'</i>':'')+'</span>'; }).join(' ')).join(' · ');
   };
   /* posicao original (para o rodape listar na ordem da tela) */
