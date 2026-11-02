@@ -717,7 +717,9 @@ body.exp.boq.rola .q-palco{flex:0 0 auto}
 /* Base tecnica da TV da cozinha (tv/index.html): codigo do aparelho em localStorage + #hash, porta rpc com a chave
    publishable, 403 = codigo recusado, wakeLock, recarga de 6 h so com internet, som destravado no 1o toque/tecla.
    So duas portas no banco: rpc/sacola_tela (ler, a cada 12 s) e rpc/sacola_acao (conferir / desconferir / marcar /
-   entregar / resolvi). Nenhuma tabela direto. Nada de nome, telefone ou endereco do cliente chega aqui. */
+   entregar / resolvi). Nenhuma tabela direto. Nada de nome, telefone ou endereco do cliente chega aqui.
+   02/11: aberta pelo menu do portal (?portal=1) usa as gemeas com o login do portal: rpc/sacola_tela_portal e
+   rpc/sacola_acao_portal (mesmo JSON e mesma regra; o banco confere o modulo 'sacola'). Ver PORTAL. */
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const $=i=>document.getElementById(i);
@@ -795,12 +797,25 @@ let SEL=null, T_SEL=null;
 const SEL_MS=60000;
 const ESPERA=[];           /* quem espera a proxima leitura do banco terminar (numero digitado que nao estava na lista) */
 try{ const v=localStorage.getItem('cdm_sacola_som'); if(v==='1'||v==='0') SOM_PREF=v; }catch(e){}
-const somLigado=()=>SOM_PREF==='1'||(SOM_PREF===null&&TV);
+/* 02/11/2026 18h (obra 123) Fabio: "coloca ela separada da tv normal / deixa o delivery com acesso a ela / e coloca no portal".
+   Aberta pelo menu do portal (sacola/?portal=1, modulo 'sacola', grupo Delivery) a tela entra com o LOGIN DO PORTAL
+   (portas rpc/sacola_tela_portal e rpc/sacola_acao_portal, Agua Verde) em vez do codigo do aparelho. Igual a TV da cozinha
+   (tv/?portal=1): mesma trava das outras telas (cdmGuarda + /assets/portal.js), sem a tela do codigo, e o som comeca
+   DESLIGADO (quem quiser liga no botao). Sem ?portal=1 (TV da parede) continua o codigo do aparelho, como antes.
+   No modo portal COD vale 'portal' so para dizer "tem credencial" (as leituras e os relogios olham COD); nunca vai para o
+   localStorage nem para o endereco. A credencial de verdade e o token do login (PTOK). */
+const PTOK=(function(){ try{ return sessionStorage.getItem('cdm_token')||''; }catch(e){ return ''; } })();
+const PORTAL=/[?&]portal=1/.test(location.search);
+const LOJA_PORTAL='Água Verde';
+const somLigado=()=>SOM_PREF==='1'||(SOM_PREF===null&&TV&&!PORTAL);
 
 /* ---------- codigo do aparelho ---------- */
-function guarda(c){ try{ localStorage.setItem('cdm_sacola_codigo',c); }catch(e){} try{ history.replaceState(null,'',location.pathname+location.search+'#'+c); }catch(e){} }
-function esquece(){ try{ localStorage.removeItem('cdm_sacola_codigo'); }catch(e){} try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} }
-function pedeCodigo(msg){ $('cod').classList.add('on'); $('cod-err').textContent=msg||''; setTimeout(function(){ try{$('cod-in').focus();}catch(e){} },50); }
+function guarda(c){ if(PORTAL) return; try{ localStorage.setItem('cdm_sacola_codigo',c); }catch(e){} try{ history.replaceState(null,'',location.pathname+location.search+'#'+c); }catch(e){} }
+function esquece(){ if(PORTAL) return; try{ localStorage.removeItem('cdm_sacola_codigo'); }catch(e){} try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} }
+function pedeCodigo(msg){
+  /* modo portal: nunca a tela do codigo. Login vencido / sem a aba (28000) = aviso para sair e entrar de novo (igual tv/) */
+  if(PORTAL){ const f=$('faixaRede'); f.textContent='⚠️ Seu login do portal venceu ou você não tem esta aba. Saia e entre de novo no portal.'; f.hidden=false; $('sub').textContent=LOJA_PORTAL+' · Portal'; return; }
+  $('cod').classList.add('on'); $('cod-err').textContent=msg||''; setTimeout(function(){ try{$('cod-in').focus();}catch(e){} },50); }
 function entra(){
   const c=limpa($('cod-in').value);
   if(c.length!==8){ $('cod-err').textContent='O código tem 8 letras e números.'; return; }
@@ -846,7 +861,7 @@ async function rpc(fn,corpo){
   if(res.recusado){ recusado(); throw {recusado:true}; }
   return res.j;
 }
-function acao(nome,dados){ return rpc('sacola_acao',{p_chave:COD,p_acao:nome,p_dados:dados}); }
+function acao(nome,dados){ return PORTAL? rpc('sacola_acao_portal',{p_token:PTOK,p_acao:nome,p_dados:dados}) : rpc('sacola_acao',{p_chave:COD,p_acao:nome,p_dados:dados}); }
 
 function modoTV(){
   const q=location.search||'';
@@ -871,7 +886,7 @@ async function busca(){
   if(BUSCANDO){ DE_NOVO=true; return; }
   BUSCANDO=true; BUSCA_INICIO=Date.now(); const inicio=SEQ, t0=BUSCA_INICIO;
   try{
-    const j=await rpc('sacola_tela',{p_chave:COD});
+    const j=PORTAL? await rpc('sacola_tela_portal',{p_token:PTOK,p_loja:LOJA_PORTAL}) : await rpc('sacola_tela',{p_chave:COD});
     if(!j||typeof j!=='object') throw {msg:'resposta vazia'};
     $('cod').classList.remove('on'); guarda(COD);
     { const ta=Date.parse(j.agora); if(!isNaN(ta)) OFS=ta-Date.now(); }
@@ -2741,12 +2756,39 @@ window.addEventListener('online',function(){ if(COD) busca(); });
 let T_RS=null;
 window.addEventListener('resize',function(){ if(T_RS) clearTimeout(T_RS); T_RS=setTimeout(function(){ if(DADO) desenha(); },300); });
 
+/* trava de entrada do modo portal: a mesma das outras telas (copia da TV da cozinha, tv/index.html) */
+const CDMMODS=['sacola'];
+function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
+function cdmSaia(m){try{sessionStorage.setItem('cdm_aviso',m||'')}catch(e){}
+  try{var w=(window.top&&window.top!==window)?window.top:window;w.location.replace('/index.html')}catch(e){location.replace('/index.html')}}
+async function cdmGuarda(){
+  const t=cdmTok();
+  if(!t){cdmSaia('Entre no portal para acessar esta tela');return false}
+  let j=null;
+  try{
+    const r=await fetch('https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/rpc/portal_eu',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:t,p_tela:'sacola'})});
+    if(r.ok)j=await r.json();
+  }catch(e){j=null}
+  if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
+  const ms=Array.isArray(j.modulos)?j.modulos:[];
+  try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
+  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  return true;
+}
+
 (function(){
   modoTV(); somDestrava(); botaoSom(); relogio(); acordada(); mostraTecla();
   if(document.visibilityState!=='hidden') ligaAux();   /* relogios auxiliares so com a tela a vista (ver ligaAux/desligaAux) */
   /* conserto 31/10: refaz a barra quando as fontes terminam de carregar e quando o quadro muda de tamanho */
   try{ if(document.fonts){ if(document.fonts.ready&&document.fonts.ready.then) document.fonts.ready.then(ajusta,function(){}); if(document.fonts.addEventListener) document.fonts.addEventListener('loadingdone',ajusta); } }catch(e){}
   try{ if(window.ResizeObserver) new ResizeObserver(function(){ ajusta(); }).observe($('grid')); }catch(e){}
+  /* 02/11: aberta pelo menu do portal (?portal=1): login do portal, sem a tela do codigo (ver PORTAL la em cima) */
+  if(PORTAL){
+    $('sub').textContent='conferindo o login…';
+    try{ const ps=document.createElement('script'); ps.src='/assets/portal.js?v=3'; document.body.appendChild(ps); }catch(e){}
+    cdmGuarda().then(function(ok){ if(ok){ COD='portal'; busca(); } });
+    return;
+  }
   let c=''; try{ c=limpa(decodeURIComponent((location.hash||'').replace(/^#(k=)?/i,''))); }catch(e){ c=''; }
   if(c.length!==8){ try{ c=limpa(localStorage.getItem('cdm_sacola_codigo')); }catch(e){ c=''; } }
   if(c.length===8){ COD=c; busca(); } else pedeCodigo();
