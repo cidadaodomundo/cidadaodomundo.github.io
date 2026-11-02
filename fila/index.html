@@ -169,6 +169,17 @@ button.b:hover{border-color:var(--text2)}
 .mm-dica .de{color:#aaa}
 .mm-dica .cli{color:#fff;font-weight:800}
 .leaflet-tooltip-top.mm-dica:before{border-top-color:#444}
+/* 02/11/2026: o pedido completo e as duas taxas ao passar o mouse (bolinha do mapa e linha da lista) */
+.dh{white-space:normal;min-width:210px;max-width:290px;margin-top:6px;padding-top:6px;border-top:1px solid #444;font-weight:600}
+.dh-tx{margin-bottom:5px}
+.dh-tx b{font-size:13px!important;color:#ffd77a}
+.dh-i{margin:2px 0}
+.dh-e{color:#bbb;font-weight:500;padding-left:12px}
+.dh-a{color:#aaa;font-weight:500}
+.dh .de{color:#999;font-weight:500;font-size:11px}
+#dh_box{position:fixed;z-index:9000;pointer-events:none;font:600 12.5px/1.4 Barlow,sans-serif;background:rgba(17,17,17,.97);color:#eee;border:1px solid #444;border-radius:10px;padding:7px 10px;box-shadow:0 4px 14px rgba(0,0,0,.6);max-width:300px;max-height:70vh;overflow:hidden}
+#dh_box .dh{margin-top:0;padding-top:0;border-top:0}
+#dh_box .nb{font-size:14.5px;font-weight:800}
 .mm-nome{border-radius:999px;padding:1px 8px;font:800 12px/18px Barlow,sans-serif;color:#111;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.7);border:2px solid #111;cursor:pointer}
 .qd[data-mb]{cursor:pointer;transition:opacity .15s}
 .quadros.foco .qd[data-mb]{opacity:.45}
@@ -1792,6 +1803,74 @@ document.addEventListener('click',function(e){
   if(t){ e.stopPropagation(); abrePedido(t.getAttribute('data-ped')); }
 });
 document.addEventListener('keydown',function(e){ if(e.key!=='Escape') return; if($('pdm')) fechaPedido(); else fechaMapa(); });
+/* 02/11/2026 (chat-robo-rotas-02-11), pedido do Fabio: "qdo passamos o mouse em cima do quadro o valor da taxa de entrega"
+   e "tem que aparecer qual e o pedido completo da pessoa tambem"; perguntado, escolheu "Os dois" (bolinha do mapa e linha
+   da lista) e "As duas" taxas. Taxa do cliente = Saipos (mesma venda dos itens); quanto o motoboy ganha = fechamento do
+   TrackEat, que so existe depois de entregue (antes disso a tela diz isso, nunca estima). Le a porta fila_pedido_itens so
+   quando o mouse PARA em cima (250 ms), sem timer; cada pedido fica guardado 60 s neste aparelho. */
+var DH={c:{}, t:null, ln:null};
+function dhPega(num,cb){
+  var k=UNI+'|'+num, x=DH.c[k];
+  if(x&&Date.now()-x.em<60000){ if(x.d) cb(x.d); else x.cbs.push(cb); return; }
+  x=DH.c[k]={em:Date.now(),d:null,cbs:[cb]};
+  rpc('fila_pedido_itens',{p_token:cdmTok(),p_unidade:UNI,p_pedido:String(num)}).then(function(d){
+    x.d=d||{erro:1}; if(!d) x.em=0; x.cbs.splice(0).forEach(function(f){ try{ f(x.d); }catch(e){} }); });
+}
+function dhReais(v){ return 'R$ '+Number(v).toFixed(2).replace('.',','); }
+function dhHtml(d){
+  if(!d) return '<div class="dh"><div class="dh-a">Abrindo o pedido…</div></div>';
+  if(d.erro) return '<div class="dh"><div class="dh-a">Não consegui ler o pedido agora.</div></div>';
+  if(!d.achou) return '<div class="dh"><div class="dh-a">Este pedido não está no TrackEat de hoje.</div></div>';
+  var h='<div class="dh-tx">Taxa do cliente: <b>'+(d.taxa_cliente==null?'ainda sem dado do Saipos':(+d.taxa_cliente===0?'grátis (R$ 0,00)':dhReais(d.taxa_cliente)))+'</b><br>'+
+    'Motoboy ganha: <b>'+(d.motoboy_valor==null?'sai depois de entregue':dhReais(d.motoboy_valor)+(d.motoboy_status==='Reprovado'?' (corrida reprovada)':''))+'</b>'+
+    (d.motoboy_valor!=null&&d.motoboy_lido_em?' <span class="de">fechamento TrackEat '+esc(d.motoboy_lido_em)+'</span>':'')+'</div>';
+  var it=Array.isArray(d.itens)?d.itens:[];
+  if(!d.tem_venda||!it.length) h+='<div class="dh-a">Os itens ainda não chegaram do Saipos.</div>';
+  else h+=it.map(function(x){
+      return '<div class="dh-i"><b>'+esc(qtd(x.q))+'</b> '+esc(x.nome)+
+        (x.escolhas||[]).map(function(c){ return '<div class="dh-e">+ '+esc(c.nome)+(c.obs?' (obs: '+esc(c.obs)+')':'')+'</div>'; }).join('')+
+        (x.obs?'<div class="dh-e">obs: '+esc(x.obs)+'</div>':'')+'</div>'; }).join('')+
+      (d.lido_em?'<div class="de">Itens do Saipos, lidos às '+esc(d.lido_em)+'</div>':'');
+  return '<div class="dh">'+h+'</div>';
+}
+function dhPodeMouse(){ return !!(window.matchMedia&&matchMedia('(hover:hover) and (pointer:fine)').matches); }
+/* bolinha do mapa: a ficha de sempre + o pedido completo embaixo */
+function dhMarca(mk,num,dica){
+  mk.on('mouseover',function(){
+    clearTimeout(DH.t);
+    DH.t=setTimeout(function(){
+      if(!mk.isTooltipOpen()) return;
+      mk.setTooltipContent(dica+dhHtml(null));
+      dhPega(num,function(d){ if(mk.isTooltipOpen()) mk.setTooltipContent(dica+dhHtml(d)); });
+    },250);
+  });
+  mk.on('mouseout',function(){ clearTimeout(DH.t); });
+}
+/* linha da lista: caixa ao lado da linha (so em computador com mouse) */
+function dhFecha(){ clearTimeout(DH.t); DH.ln=null; var b=$('dh_box'); if(b) b.remove(); }
+function dhPoe(ln,html){
+  if(DH.ln!==ln||!document.body.contains(ln)) return;
+  var b=$('dh_box'); if(!b){ b=document.createElement('div'); b.id='dh_box'; document.body.appendChild(b); }
+  b.innerHTML=html;
+  var r=ln.getBoundingClientRect(), w=b.offsetWidth, hh=b.offsetHeight, x=r.right+10, y=r.top;
+  if(x+w>window.innerWidth-8) x=Math.max(8,r.left-w-10);
+  if(y+hh>window.innerHeight-8) y=Math.max(8,window.innerHeight-hh-8);
+  b.style.left=x+'px'; b.style.top=y+'px';
+}
+document.addEventListener('mouseover',function(e){
+  if(!dhPodeMouse()) return;
+  var ln=e.target&&e.target.closest?e.target.closest('.tg-ln[data-tgp]'):null;
+  if(!ln){ if(DH.ln) dhFecha(); return; }
+  if(ln===DH.ln) return;
+  dhFecha();
+  var id=ln.getAttribute('data-tgp');
+  if(!id||id.charAt(0)==='n') return;   /* pedido novo do iFood: ainda nao esta no TrackEat */
+  if(ln.hasAttribute('title')) ln.removeAttribute('title');
+  DH.ln=ln;
+  var topo='<div class="nb">Pedido '+esc(id)+'</div>';
+  DH.t=setTimeout(function(){ dhPoe(ln,topo+dhHtml(null)); dhPega(id,function(d){ dhPoe(ln,topo+dhHtml(d)); }); },250);
+});
+window.addEventListener('scroll',function(){ if(DH.ln) dhFecha(); },true);
 function temPonto(ps){ return ps.some(function(p){return p.lat!=null&&p.lng!=null;}); }
 var MAPA_FUNDO='https://tile.openstreetmap.org/{z}/{x}/{y}.png', MAPA_ATRIB='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 function mmIcone(html,cls,st,t){ t=t||22; return L.divIcon({className:'',html:'<div class="'+cls+'"'+(st?' style="'+st+'"':'')+'>'+html+'</div>',iconSize:[t,t],iconAnchor:[t/2,t/2]}); }
@@ -2166,6 +2245,12 @@ try{ TG.escuro=localStorage.getItem('cdm_fila_escuro')==='1'; }catch(e){}
 TG.det=false; TG.rsSo=null; TG.rsIds=null;
 function tgRsIds(rt){ var o={}; (rt.paradas||[]).forEach(function(x){ o[String(x.p.pedido)]=1; }); return o; }
 try{ TG.det=localStorage.getItem('cdm_fila_det')==='1'; }catch(e){}
+/* minutos desde o ultimo GPS ("HH:MI", hora de Curitiba); null se nao der para saber */
+function mbIdade(v){
+  var m=/^(\d{2}):(\d{2})$/.exec(String(v||'')); if(!m) return null;
+  var a=new Date().toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour12:false,hour:'2-digit',minute:'2-digit'}).split(':');
+  return ((+a[0]*60+ +a[1])-(+m[1]*60+ +m[2])+1440)%1440;
+}
 function tgPassou(p){ return p.falta_prom!=null&&+p.falta_prom<0; }   /* 01/11/2026: pisca so quem passou da hora prometida (o "demorando" nao) */
 /* fim da linha: a hora prometida e quanto falta; passou da hora fica vermelho (o anel do numero pisca) */
 function tgHora(p){
@@ -2251,7 +2336,7 @@ function tgOk(p){
 function tgEntrou(a,b){ var ma=a.min==null?-1:+a.min, mb=b.min==null?-1:+b.min; return mb-ma||(a.pedido&&b.pedido?String(a.pedido).localeCompare(String(b.pedido),undefined,{numeric:true}):0); }
 
 function tgDesenha(d){
-  window.ULT_D=d;
+  window.ULT_D=d; dhFecha();
   if(!d){ $('tg_lado').innerHTML='<div class="tg-vz" style="padding:14px">Não consegui ler os pedidos agora. Tente o botão Atualizar.</div>'; return; }
   var loja=Array.isArray(d.na_loja)?d.na_loja:[], rua=Array.isArray(d.na_rua)?d.na_rua:[];
   var ex=(TG.extra&&TG.extraUni===UNI)?TG.extra:null;
@@ -2369,7 +2454,12 @@ function tgDesenha(d){
     if(dA&&(tocada||ln1.getAttribute('data-sec')===sec0)){ if(celA) window.scrollBy(0,dA); else if(lst2) lst2.scrollTop+=dA; } }   /* o escolhido mudou de secao: a lista fica onde a pessoa estava */
 
   /* --- quadro dos motoboys --- */
-  var mbs=Array.isArray(d.motoboys)?d.motoboys:[];
+  /* 02/11/2026, pedido do Fabio: "onde tem os motoboys deixar a lista somente dos que estao online no momento".
+     Online = o aplicativo mandou GPS nos ultimos 5 min (o GPS chega de 1 em 1 min; medido 01/11 AV: 99% em ate 2 min).
+     Quem esta com entrega na mao continua na lista mesmo sem GPS, com o aviso "sem GPS ha X min". */
+  var mbsTudo=Array.isArray(d.motoboys)?d.motoboys:[];
+  var mbs=mbsTudo.filter(function(m){ var x=mbIdade(m.visto); return (x!=null&&x<=5)||rua.some(function(r){return r.motoboy===m.motoboy;}); });
+  var mbsFora=mbsTudo.length-mbs.length;
   var livre=mbs.filter(function(m){return m.livre&&m.livre_min!=null;}).sort(function(a,b){return a.livre_min-b.livre_min;})[0];
   $('tg_mbs').className='tg-fl tg-mbs'+(TG.mbsFechado?' fechado':'');
   $('tg_mbs').innerHTML='<header><h4>Motoboys</h4><span class="n">'+mbs.length+'</span>'+
@@ -2378,8 +2468,9 @@ function tgDesenha(d){
     '<ol>'+(mbs.length?mbs.map(function(m){
       return '<li><button class="tg-mb'+(TG.foco===m.motoboy?' sel':'')+(TG.foco&&TG.foco!==m.motoboy?' apaga':'')+'" data-tgm="'+esc(m.motoboy)+'">'+
         '<i class="sw" style="background:'+tgCorMb(m.motoboy,d)+'"></i><b>'+esc(m.motoboy)+'</b><span class="q">'+(m.faltam>0?esc(String(m.faltam)):'')+'</span>'+
-        '<span class="st">'+(m.no_patio?'na loja':esc(m.onde||''))+(m.situacao&&m.situacao!==m.onde?' · '+esc(m.situacao):'')+(m.livre==='agora'?' · livre agora':(m.livre?' · livre ~'+esc(m.livre):''))+'</span></button></li>';
-    }).join(''):'<li class="tg-vz" style="padding:8px">'+(d.motoboys==null?'Não consegui ler os motoboys neste minuto.':'Nenhum motoboy com o aplicativo ligado nos últimos 30 minutos.')+'</li>')+'</ol>';
+        '<span class="st">'+(function(x){ return x!=null&&x>5?'<span style="color:var(--warn)">sem GPS há '+x+' min</span> · ':''; })(mbIdade(m.visto))+(m.no_patio?'na loja':esc(m.onde||''))+(m.situacao&&m.situacao!==m.onde?' · '+esc(m.situacao):'')+(m.livre==='agora'?' · livre agora':(m.livre?' · livre ~'+esc(m.livre):''))+'</span></button></li>';
+    }).join(''):'<li class="tg-vz" style="padding:8px">'+(d.motoboys==null?'Não consegui ler os motoboys neste minuto.':'Nenhum motoboy online agora.')+'</li>')+'</ol>'+
+    (mbsFora?'<div class="tg-vz" style="padding:4px 8px 8px">'+mbsFora+' com o aplicativo parado há mais de 5 min não aparece'+(mbsFora===1?'':'m')+'.</div>':'');
 
   /* --- botao "Criar rota inteligente" no canto do mapa (so Agua Verde): liga a aba Rota sugerida, apaga o resto do mapa
      e traz os botoes de maximo por rota para perto do mapa; trocar o maximo refaz as rotas na hora (rsCap) --- */
@@ -2416,6 +2507,7 @@ function tgDesenha(d){
   var mkPed=function(id,ll,html,dica,z,dim){
     var mk=L.marker(ll,{zIndexOffset:z,keyboard:false,opacity:dim?.25:1,icon:L.divIcon({className:'',iconSize:[0,0],html:html})})
       .bindTooltip(dica,{direction:'top',offset:[0,-12],className:'mm-dica'}).on('click',function(){ tgSel(id,false); }).addTo(cam);
+    if(id.charAt(0)!=='n'&&dhPodeMouse()) dhMarca(mk,id,dica);   /* 02/11/2026: taxa e pedido completo ao passar o mouse */
     TG.mk[id]=mk; pts.push(ll); return mk;
   };
   var late=function(p){ return (p.falta_prom!=null&&+p.falta_prom<0)||p.atrasado; };
@@ -2423,8 +2515,12 @@ function tgDesenha(d){
   var rsFoco=!!(rsLiga&&RS_MAPA&&RS_ULT&&RS_ULT.rotas&&RS_ULT.rotas.length), emRota={};
   if(rsFoco) RS_ULT.rotas.forEach(function(rt){ if(TG.rsSo&&rt.letra!==TG.rsSo) return; rt.paradas.forEach(function(x){ emRota[String(x.p.pedido)]=rt.cor; }); });
   var lr=$('tg_leg_rs'); if(lr) lr.hidden=!rsFoco;
+  /* 02/11/2026, pedido do Fabio: "qdo apertar um dos botoes dos filtros ali... so aparecam no mapa os pedidos que estao
+     prontos / na cozinha / na rua". Vale na aba Pedidos; a rota inteligente continua mostrando o mapa dela. */
+  var fMapa=function(k){ return rsFoco||TG.aba!=='ped'||TG.filtro==='todos'||TG.filtro===k; };
   loja.forEach(function(p){
     if(p.lat==null||p.lng==null) return;
+    if(!fMapa(p.onde==='preparo'?'cozinha':'prontos')) return;
     var id=String(p.pedido), dim=(!!TG.foco&&p.motoboy!==TG.foco)||(rsFoco&&!emRota[id]), cor=p.motoboy&&tgCorG(p.grupo);
     if(rsFoco&&emRota[id]){   /* rota inteligente: numero branco sobre preto, borda na cor da rota, por cima do resto */
       mkPed(id,[+p.lat,+p.lng],'<div class="mm-l tg-rsnum'+(TG.sel===id?' tg-selmk':'')+'" style="border-color:'+emRota[id]+'">'+esc(p.pedido)+'</div>',fichaLoja(p),1700,false);
@@ -2434,7 +2530,7 @@ function tgDesenha(d){
       fichaLoja(p),late(p)?600:400,dim);
   });
   novos.forEach(function(p){
-    if(p.lat==null||p.lng==null||TG.foco) return;
+    if(p.lat==null||p.lng==null||TG.foco||!fMapa('cozinha')) return;
     var id='n'+p.ifood;   /* com a rota inteligente ligada, pedido novo do iFood fica apagado (ainda nao esta pronto) */
     mkPed(id,[+p.lat,+p.lng],'<div class="tg-novo'+(TG.sel===id?' tg-selmk':'')+'">iFood '+esc(p.ifood)+'</div>',
       '<b>iFood '+esc(p.ifood)+'</b> · '+esc(p.marca||'')+(p.cliente?'<br><span class="cli">👤 '+esc(p.cliente)+'</span>':'')+
@@ -2442,6 +2538,7 @@ function tgDesenha(d){
   });
   var gpsMb={}; (ex&&Array.isArray(ex.gps)?ex.gps:[]).forEach(function(g){ gpsMb[g.motoboy]=g; });
   rua.forEach(function(m){
+    if(!fMapa('rua')) return;
     var ps=ordemRota(m.pedidos).filter(function(p){return p.lat!=null&&p.lng!=null;});
     var dim=(!!TG.foco&&TG.foco!==m.motoboy)||rsFoco, cor=tgCorMb(m.motoboy,d);
     var g=gpsMb[m.motoboy]||m.gps, gp=(g&&g.lat!=null&&g.lng!=null)?[+g.lat,+g.lng]:null;
