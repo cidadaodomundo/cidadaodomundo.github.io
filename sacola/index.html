@@ -600,8 +600,16 @@ body.exp.boq .q-ped .b-acao{margin-top:auto;padding-top:calc(4*var(--u))}
 body.exp.boq .q-ped .b-go{font-size:max(24px,calc(40*var(--u)))}
 body.exp.boq .q-ped.te,body.exp.boq .q-saiu .q-ped{cursor:default}
 body.exp.boq .q-palco.q-saiu{animation:entra .5s ease-out 1}
-/* no "SAIU · conferiu tudo?" o olho vai para o que ficou sem conferir: o pedido sem nada solto fica mais apagado */
-body.exp.boq .q-saiu .q-ped.nada .b-nn,body.exp.boq .q-saiu .q-ped.nada .q-nada{opacity:.5}
+/* conserto 02/11 (revisor): no "SAIU · conferiu tudo?" so o CONFERIDO fica apagado; o que nao foi conferido fica aceso
+   ("nada solto · não conferido"); o que a tela viu por ultimo NA COZINHA e saiu sem conferir = alarme vermelho */
+body.exp.boq .q-saiu .q-nc{font-family:var(--cond);font-weight:700;font-size:max(calc(22px*var(--f)),calc(32*var(--u)));line-height:1.15;letter-spacing:.03em;text-transform:uppercase;color:var(--fg)}
+body.exp.boq .q-saiu .q-nc i{font-style:normal;font-weight:600;color:var(--mut)}
+body.exp.boq .q-saiu .q-alarme{align-self:flex-start;font-family:var(--cond);font-weight:700;font-size:max(calc(24px*var(--f)),calc(36*var(--u)));line-height:1.15;letter-spacing:.03em;text-transform:uppercase;color:#fff;background:var(--bad);border-radius:.2em;padding:.05em .35em}
+/* conserto 02/11 (revisor): o aviso curto (toast) sobe para a faixa do titulo e nunca segura o toque: embaixo ele tampava
+   o botao CONFERIDO e a comida do pedido que estava sendo conferido */
+body.exp.boq .toast{top:.25em;bottom:auto;pointer-events:none}
+/* encaixe: o lugar do botao CONFERIDO fica reservado em todo pedido (escolher nao faz a tela encolher e crescer) */
+body.exp.boq .q-fant{visibility:hidden}
 /* aperto (so quando a rota nao cabe nem com a letra no piso): q1 tira o que vem dentro do combo; q2 poe a comida numa linha so */
 body.exp.boq.q1 .q-food small,body.exp.boq.q1 .q-chk .b-par:not(.b-det),body.exp.boq.q1 .q-chk .b-tp{display:none}
 body.exp.boq.q2 .q-food li{display:inline}
@@ -620,6 +628,11 @@ body.exp.boq .q-it.pisca,body.exp.boq .q-flash{animation:boqpisca 1s ease-in-out
 body.exp.boq .q-it:focus-visible,body.exp.boq .q-volta:focus-visible{outline:3px solid var(--ouro);outline-offset:2px}
 body.exp.boq #pe .q-sai,body.exp.boq #pe .q-dica,body.exp.boq #pe .q-mais{flex:none;font-family:var(--cond);font-weight:600;font-size:.9em;color:var(--mut)}
 body.exp.boq #pe .q-mais{color:var(--fg);font-weight:700}
+/* conserto 02/11 (revisor): o "+N" do fim da fila e um botao (abre a 1a rota que nao coube) */
+body.exp.boq #pe button.q-mais{background:none;border:2px solid var(--line);border-radius:.35em;padding:.05em .5em;cursor:pointer;line-height:1.2}
+body.exp.boq #pe button.q-mais:focus-visible{outline:3px solid var(--ouro);outline-offset:2px}
+/* motoboy na loja que ja teve tudo o que esta pronto conferido: "esperando 4631" (o que falta sair da cozinha) */
+body.exp.boq .q-it .q-esp{font-family:var(--cond);font-weight:600;font-size:.72em;letter-spacing:.02em;text-transform:uppercase}
 body.exp.boq #pe.f1 .q-sai,body.exp.boq #pe.f1 .q-dica{display:none}
 body.exp.boq #pe.f2 .q-fl{display:none}
 @keyframes boqpisca{0%,100%{opacity:1}50%{opacity:.4}}
@@ -984,6 +997,7 @@ async function conferir(id,on,porTecla){
   const k='c:'+id; if(OCUPADO.has(k)) return;
   const sid=String(p.id), num=p.numero!=null?p.numero:'—';
   if(BOQ_ON&&FOCO) FOCO.ate=Math.max(FOCO.ate,Date.now()+FOCO_MS);   /* conferindo o escolhido na fila: a tela nao volta no meio */
+  if(BOQ_ON) BOQ_MEXEU=Date.now();   /* conserto 02/11: o ✓ fica uns segundos na tela antes de passar para o proximo motoboy */
   if(SEL && SEL.ids.indexOf(sid)>=0){ SEL=null; if(T_SEL){ clearTimeout(T_SEL); T_SEL=null; } mostraTecla(); }
   OCUPADO.add(k); CONF.set(sid,{on:on,ok:false}); CONF_LOCAL=true; desenha();
   try{
@@ -1043,7 +1057,7 @@ function escolhe(ids,n,sobe){
   SEL={ids:ids.map(String),n:n||'',sobe:!!sobe,ate:Date.now()+SEL_MS};
   if(T_SEL) clearTimeout(T_SEL);
   T_SEL=setTimeout(function(){ T_SEL=null; if(SEL&&Date.now()>=SEL.ate){ SEL=null; desenha(); mostraTecla(); } },SEL_MS+50);
-  if(BOQ_ON) boqTraz(SEL.ids[0]);   /* 02/11 boqueta: pedido de outro motoboy vem para a tela grande (1 min) */
+  if(BOQ_ON){ BOQ_MEXEU=Date.now(); boqTraz(SEL.ids[0]); }   /* 02/11 boqueta: pedido de outro motoboy vem para a tela grande (1 min) */
   desenha(); mostraTecla();
   /* 02/11 expedicao: a sacola escolhida fica na rota dela (o encaixe nunca a tira da tela); no celular rola ate ela */
   if(EXP){ const q=String(SEL.ids[0]), el=Array.prototype.find.call(document.querySelectorAll('[data-ped]'),x=>x.getAttribute('data-ped')===q);
@@ -1073,7 +1087,12 @@ async function teclaEnter(){
     ps=achaNumero(n);
     if(!ps.length){ aviso('#'+n+' não está na lista desta tela.'); return; }
   }
-  if(ps.length>1){ escolhe(ps.map(p=>p.id),n,true); aviso('Dois pedidos #'+n+' ('+ps.map(p=>p.marca||'?').join(' e ')+') — clique no CONFERIDO do cartão certo.'); return; }
+  if(ps.length>1){ escolhe(ps.map(p=>p.id),n,true);
+    /* conserto 02/11 (revisor): na boqueta os dois pedidos podem estar em rotas diferentes (so um na tela grande). O ENTER
+       nunca confere (a escolha continua com os dois) e o aviso diz onde esta cada um. */
+    if(BOQ_ON){ const l=boqLista().lista;
+      aviso('Dois pedidos #'+n+': '+ps.map(function(p){ const e=l.find(x=>x.ps.some(q=>String(q.id)===String(p.id))); return (p.marca||'?')+(e?' ('+e.nome+')':''); }).join(' e ')+' — toque no CONFERIDO do cartão certo; o ENTER não confere.'); return; }
+    aviso('Dois pedidos #'+n+' ('+ps.map(p=>p.marca||'?').join(' e ')+') — clique no CONFERIDO do cartão certo.'); return; }
   const p=ps[0];
   if(eConferido(p)){
     if(DESFAZ && DESFAZ.n===n && Date.now()<DESFAZ.ate){ DESFAZ=null; conferir(p.id,false,true); return; }
@@ -1087,7 +1106,8 @@ async function teclaEnter(){
     if(!EXP_IDS.has(String(p.id))){ aviso('#'+n+' já saiu com o motoboy — não está mais na tela.'); return; }
     if(escolhido(p.id)&&SEL.ids.length===1){ conferir(p.id,true,true); return; }
     escolhe([p.id],n,false);
-    aviso('#'+n+' escolhido: confira o que vai solto e aperte ENTER de novo para CONFERIR.',true);
+    /* conserto 02/11 (revisor): na boqueta o contorno + o botao + "#N ENTER = CONFERIR" ja dizem isso; o aviso a mais tampava o pedido */
+    if(!BOQ_ON) aviso('#'+n+' escolhido: confira o que vai solto e aperte ENTER de novo para CONFERIR.',true);
     return;
   }
   /* 01/11: cartao CURTO (cozinha / ja saiu) nao mostra as linhas: o 1o Enter abre o cartao inteiro, so o 2o confere */
@@ -1104,7 +1124,7 @@ document.addEventListener('keydown',function(e){
   const k=e.key;
   /* 02/11 boqueta: setas trocam o motoboy da tela grande (1 min; Esc volta ao automatico) */
   if(BOQ_ON&&(k==='ArrowLeft'||k==='ArrowRight')){ e.preventDefault(); boqPasso(k==='ArrowRight'?1:-1); return; }
-  if(/^[0-9]$/.test(k)){ if(TECLA.length<6) TECLA+=k; e.preventDefault(); }
+  if(/^[0-9]$/.test(k)){ if(TECLA.length<6) TECLA+=k; e.preventDefault(); if(BOQ_ON) BOQ_MEXEU=Date.now(); }
   else if(k==='Backspace'){ if(!TECLA) return; TECLA=TECLA.slice(0,-1); e.preventDefault(); }
   else if(k==='Escape'){ zeraTecla(); solta(); if(BOQ_ON&&(FOCO||BOQ_SAIU)){ FOCO=null; BOQ_SAIU=null; desenha(); } return; }
   else if(k==='Enter'||k==='NumpadEnter'){ if(!TECLA && !selUnico()) return; e.preventDefault(); teclaEnter(); return; }
@@ -1351,7 +1371,7 @@ function subtitulo(L,loja,ap){
 function desenha(){
   const j=DADO; if(!j) return;
   const L=lugarAparelho(), RP=rotaDoPedido();
-  $('titulo').textContent=EXP?(BOQ&&vivoOk()?'Na boqueta':'Sacolas por motoboy'):TITULO[L];
+  $('titulo').textContent=EXP?(boqVivo()?'Na boqueta':'Sacolas por motoboy'):TITULO[L];
   document.title=(L==='tudo'?'Conferência da Sacola':TITULO[L])+' · Cidadão do Mundo';
   $('sub').textContent=subtitulo(L,j.loja,j.aparelho);
   const rb=j.robo||{};
@@ -1400,8 +1420,9 @@ function desenha(){
     if($('rota').innerHTML) $('rota').innerHTML=''; if($('grid').innerHTML) $('grid').innerHTML=''; if($('barra').innerHTML) $('barra').innerHTML='';
     $('rodape').textContent='Atualiza sozinho a cada '+Math.round(intervaloMs()/1000)+' s · lido às '+hhmm(j.agora)+' · sem preço e sem dado do cliente.';
     /* 02/11 03h: "na boqueta" so com o TrackEat ao vivo bom; sem ele, "sacolas por motoboy" com a faixa vermelha
-       (a tela nunca diz que tem motoboy na boqueta sem saber) */
-    BOQ_ON=BOQ&&vivoOk(); document.body.classList.toggle('boq',BOQ_ON);
+       (a tela nunca diz que tem motoboy na boqueta sem saber). Conserto 02/11 (revisor): a TV sem internet tambem
+       (a ultima leitura boa tem mais de 45 s): o "ao vivo ok" que ficou guardado nao vale mais. */
+    BOQ_ON=boqVivo(); document.body.classList.toggle('boq',BOQ_ON);
     if(BOQ_ON) desenhaBoq();
     else { ['q1','q2'].forEach(function(c){ document.body.classList.remove(c); }); if(T_BOQ){ clearTimeout(T_BOQ); T_BOQ=null; } desenhaExp(); }
     return;
@@ -1542,8 +1563,12 @@ const ULT_PED=new Map();
    quando as sacolas dela saem da lista. CANC: pedidos vistos cancelados (cancelado nao e saida). VAZIAS: rota da fila
    sem grupo e sem pedidos vista com o ao vivo funcionando (motoboy saiu da fila antes do aceite, ou sem rota): nao toca. */
 const PEGOS=new Map(), CANC=new Map(), VAZIAS=new Set();
+/* conserto 02/11 (revisor): o TrackEat muda o estado POR PEDIDO. Motoboy que ja pegou parte das sacolas continua NA LOJA
+   ate pegar a ultima (antes ele virava "PROXIMO · montando a rota"). GR_PEGO: grupo -> {t, moto, ids: id -> numero} dos
+   pedidos ja pegos; GR_DESDE: grupo -> hora em que chegou na loja (o "na boqueta ha N min" nao zera). */
+const GR_PEGO=new Map(), GR_DESDE=new Map();
 let ACEITAS=[];
-function expZera(){ EXP_PREV=null; EXP_LIDO=false; EXP_DESDE=0; SAIDAS.clear(); GR_SAIU.clear(); ROTA_SAIU.clear(); ULT_PED.clear(); PEGOS.clear(); CANC.clear(); VAZIAS.clear(); ACEITAS=[]; boqZera(true); }
+function expZera(){ EXP_PREV=null; EXP_LIDO=false; EXP_DESDE=0; SAIDAS.clear(); GR_SAIU.clear(); ROTA_SAIU.clear(); ULT_PED.clear(); PEGOS.clear(); CANC.clear(); VAZIAS.clear(); GR_PEGO.clear(); GR_DESDE.clear(); ACEITAS=[]; boqZera(true); }
 const SEP=(typeof WeakMap!=='undefined')?new WeakMap():null;
 function ehExp(j){
   const q=location.search||'', tv=/[?&]tv=1\b/.test(q)?true:/[?&]tv=0\b/.test(q)?false:!!(j&&j.tela==='tv');
@@ -1760,6 +1785,12 @@ function expMonta(){
     let et=-1, desde=null, moto=null;
     r.ps.forEach(function(p){ if(p.cancelado) return; const v=vx(p); if(!v) return; const e=ETAPA[v.te]||0; if(v.motoboy&&!moto) moto=String(v.motoboy);
       if(e>et){ et=e; desde=v.desde||null; } else if(e===et&&v.desde&&(!desde||tms(v.desde)<tms(desde))) desde=v.desde; });
+    /* conserto 02/11 (revisor): parte das sacolas ja pega (outra leitura) = o motoboy esta na loja pegando o resto */
+    const pg=ok?GR_PEGO.get(r.g):null, dentro=new Set(r.ps.map(p=>String(p.id)));
+    r.pegos=pg?Array.from(pg.ids.entries()).filter(x=>!dentro.has(x[0])&&!CANC.has(x[0])).map(x=>({id:x[0],numero:x[1]})):[];
+    if(et>=3&&desde) GR_DESDE.set(r.g,desde);
+    else if(r.pegos.length){ et=3; desde=GR_DESDE.get(r.g)||desde; }
+    if(!moto&&pg&&pg.moto&&r.pegos.length) moto=pg.moto;
     r.moto=moto; r.et=Math.max(0,et); r.desde=desde; r.banda=r.et>=3?'loja':r.et>=2?'caminho':'montando'; r.te=TE.get(r.g)||[];
     return r;
   }).concat(Array.from(A.values()).map(function(r){ r.et=2; r.desde=null; r.banda='caminho'; return r; }));
@@ -1794,11 +1825,18 @@ function expSaidas(j,ps,rs,agora){
   const ok=!!(j.vivo&&j.vivo.ok===true), cur=grVivos(j,ps), byId=new Map(), novas=[], aceitas=[];
   ps.forEach(p=>byId.set(String(p.id),p));
   if(!ok||!EXP_DESDE) EXP_DESDE=ok?Date.now():0;
-  ps.forEach(function(p){ const id=String(p.id);
+  ps.forEach(function(p){ const id=String(p.id), v=vivoJ(j,p);
     if(p.cancelado){ CANC.set(id,agora); ULT_PED.delete(id); return; }
-    if(pegou(vivoJ(j,p))) PEGOS.set(id,agora);
-    const s=separa(p); ULT_PED.set(id,{numero:p.numero,itens:s.lista.map(x=>x.obs?'obs do cliente':itemTxt(x)),conf:eConferido(p),t:agora,k:soltos(p),c:tms(p.criado),q:seqDe(vivoJ(j,p))}); });
-  [ULT_PED,PEGOS,CANC].forEach(m=>m.forEach(function(x,id){ if(agora-(typeof x==='number'?x:x.t)>30*60000) m.delete(id); }));
+    const s=separa(p), u=ULT_PED.get(id);
+    /* coz: a ultima vez que a tela viu este pedido antes de o motoboy pegar, ele estava NA COZINHA (o "SAIU" avisa) */
+    let coz=!!(u&&u.coz);
+    if(pegou(v)){ PEGOS.set(id,agora);
+      if(v.grupo){ const g=String(v.grupo); let x=GR_PEGO.get(g); if(!x){ x={t:agora,moto:null,ids:new Map()}; GR_PEGO.set(g,x); }
+        x.t=agora; x.ids.set(id,p.numero); if(v.motoboy&&!x.moto) x.moto=String(v.motoboy); } }
+    else coz=!!v&&(v.st==='COZINHA'||(v.st!=='PRONTO'&&!v.pronto_desde))&&temCoz(s.coz);
+    ULT_PED.set(id,{numero:p.numero,itens:s.lista.map(x=>x.obs?'obs do cliente':itemTxt(x)),conf:eConferido(p),t:agora,k:soltos(p),c:tms(p.criado),q:seqDe(v),coz:coz}); });
+  [ULT_PED,PEGOS,CANC,GR_PEGO].forEach(m=>m.forEach(function(x,id){ if(agora-(typeof x==='number'?x:x.t)>30*60000) m.delete(id); }));
+  if(GR_DESDE.size>300) GR_DESDE.clear();
   const cancelado=id=>{ const p=byId.get(id); return p?!!p.cancelado:CANC.has(id); };
   const nova=function(s,semAviso){
     /* o mesmo motoboy saiu ha menos de 15 min por uma rota ainda sem grupo (a fila avisa antes do TrackEat): mesma saida,
@@ -1825,6 +1863,11 @@ function expSaidas(j,ps,rs,agora){
       let t=agora; sids.forEach(function(id){ const v=vivoJ(j,byId.get(id)), s=v&&tms(v.saiu_em); if(s&&s<t) t=s; });
       nova({k:'g'+g,moto:x.moto||'',t:Math.max(t,agora-5*60000),ids:sids,grupos:[g],px:[]});
     });
+    /* conserto 02/11 (revisor): o grupo que ainda tem sacola na loja guarda os pedidos dele que ja foram pegos em leituras
+       anteriores: quando ele sai, o "SAIU · conferiu tudo?" lista TODOS (antes so o ultimo pego) */
+    cur.forEach(function(x,g){ const pv=EXP_PREV.get(g); if(!pv) return;
+      pv.ids.forEach(function(id){ if(x.ids.indexOf(id)>=0||cancelado(id)) return; const p=byId.get(id); if(!p||pegou(vivoJ(j,p))) x.ids.push(id); });
+      if(!x.moto&&pv.moto) x.moto=pv.moto; if(pv.et>x.et) x.et=pv.et; });
   }
   EXP_PREV=ok?cur:null;
   /* 2) rotas[] */
@@ -1856,6 +1899,7 @@ function expSaidas(j,ps,rs,agora){
   ACEITAS=aceitas;
   SAIDAS.forEach(function(s,k){ if(agora-s.t>10*60000) SAIDAS.delete(k); });
   if(GR_SAIU.size>500) GR_SAIU.clear(); if(ROTA_SAIU.size>500) ROTA_SAIU.clear(); if(VAZIAS.size>500) VAZIAS.clear();
+  GR_SAIU.forEach(g=>{ GR_PEGO.delete(g); GR_DESDE.delete(g); });
   EXP_LIDO=true;
   return novas;
 }
@@ -1872,7 +1916,7 @@ function saidaInfo(s){
     const c=ULT_PED.get(id), x=(s.px||[]).find(y=>y.id!=null&&String(y.id)===id), cl=CONF.get(id);
     const numero=c?c.numero:(x?x.numero:null); if(numero==null) return;
     const conf=!!((cl&&cl.on)||(x&&x.conferido)||(c&&c.conf));
-    out.push({numero:numero,conf:conf,itens:c?c.itens:lembraTxt(x&&x.lembrar),k:c?(c.k||{}):lembraK(x&&x.lembrar),c:c&&c.c?c.c:Infinity,q:c&&c.q!=null?c.q:null,i:out.length}); });
+    out.push({numero:numero,conf:conf,itens:c?c.itens:lembraTxt(x&&x.lembrar),k:c?(c.k||{}):lembraK(x&&x.lembrar),c:c&&c.c?c.c:Infinity,q:c&&c.q!=null?c.q:null,i:out.length,coz:!!(c&&c.coz)}); });
   /* mesma ordem do cabecalho da rota (ordPed: a sequencia do TrackEat quando vier, senao a hora do pedido); o que a tela nao
      viu fica no fim, na ordem do banco; o pedido de outro canal por ultimo (uma vez so) */
   out.sort(function(a,b){ if(a.q!=null&&b.q!=null&&a.q!==b.q) return a.q-b.q; if((a.q==null)!==(b.q==null)) return a.q==null?1:-1;
@@ -2212,6 +2256,11 @@ function corta(M){
      Toque no nome (ou setas ← →) = esse na tela grande por 1 min; depois volta ao automatico (Esc volta ja).
    - CHEGOU motoboy na loja: se a tela mostrava o "proximo", ele assume a tela (som + "NA BOQUETA"); se ja tem motoboy na
      tela, o novo vai para "TAMBEM NA LOJA" (som + pisca): ninguem perde a tela no meio da conferencia.
+   - Consertos 02/11 (revisores): conferido tudo o que esta pronto do motoboy da tela (sobra so o que esta na cozinha),
+     uns segundos depois a tela passa para o proximo motoboy da loja ("esperando 4631" na fila); motoboy que chega com a
+     equipe na escolha da fila (ou com pedido escolhido) vai para "NA LOJA" sem tirar a tela; grupo remontado no TrackEat
+     nao "chega" de novo; sacolas pegas em leituras diferentes: continua na loja ("ja pegou ...") e o SAIU lista todas;
+     TV sem internet ha mais de 45 s = "sacolas por motoboy".
    - O motoboy da tela PEGOU as sacolas: 8 s "PEDRO SAIU · conferiu tudo?" com o que nao foi conferido; depois o proximo.
    - TrackEat ao vivo parado ou sem dado: volta sozinha para "sacolas por motoboy" com a faixa vermelha (a tela nunca diz que
      tem motoboy na boqueta sem saber). Cozinhas e tablet: nada muda.
@@ -2222,13 +2271,21 @@ let PALCO=null;               /* chave do que o AUTOMATICO pos na tela (gruda en
 let FOCO=null;                /* escolha da equipe na fila / setas / numero digitado: {k, ate} */
 let BOQ_MOSTRA=null, BOQ_MOSTRA_IDS=[];   /* o que esta na tela grande (para saber quando ELE sai) */
 let BOQ_LOJA=null;            /* rotas na loja na ultima leitura (null = ainda nao leu com o ao vivo bom: nao toca) */
+let BOQ_KS=null;              /* todas as rotas da ultima leitura: chave -> {moto, ids} (o TrackEat remonta grupo) */
 let BOQ_SAIU=null;            /* {s, ate}: "FULANO SAIU · conferiu tudo?" na tela grande */
 let BOQ_FLASH=null;           /* {k, ate}: "NA BOQUETA" piscando no cabecalho de quem acabou de chegar */
+let BOQ_ULT=null;             /* {k, loja}: o que o automatico mostrou por ultimo (passou para outro motoboy na loja = pisca) */
+let BOQ_MEXEU=0;              /* ultimo toque / tecla / conferido da equipe */
 let T_BOQ=null;
 const BOQ_TAMBEM=new Map();   /* chave -> ate: "tambem na loja" piscando na fila */
+const BOQ_VISTOS=new Map();   /* chave -> Set(ids): todo pedido que a rota ja teve (o "SAIU" lista todos) */
 const CHEGOU=new Set();       /* rotas que ja tocaram a chegada (toca 1 vez so) */
-const FOCO_MS=60000, SAIU_MS=8000, FLASH_MS=6000, TAMBEM_MS=20000;
-function boqZera(tudo){ PALCO=null; FOCO=null; BOQ_MOSTRA=null; BOQ_MOSTRA_IDS=[]; BOQ_LOJA=null; BOQ_SAIU=null; BOQ_FLASH=null; BOQ_TAMBEM.clear();
+const FOCO_MS=60000, SAIU_MS=8000, FLASH_MS=6000, TAMBEM_MS=20000, PASSA_MS=6000, BOQ_VELHO_MS=45000;
+/* conserto 02/11 (revisor): "na boqueta" so com o ao vivo bom E a ultima leitura boa recente (TV sem internet = a tela
+   volta para "sacolas por motoboy" com a faixa vermelha, nunca "PEDRO na boqueta ha 15 min" com dado velho) */
+const boqVivo=()=>BOQ&&vivoOk()&&!!ULT_OK&&Date.now()-ULT_OK<BOQ_VELHO_MS;
+const ehToque=()=>!!(window.matchMedia&&window.matchMedia('(pointer: coarse)').matches);
+function boqZera(tudo){ PALCO=null; FOCO=null; BOQ_MOSTRA=null; BOQ_MOSTRA_IDS=[]; BOQ_LOJA=null; BOQ_KS=null; BOQ_SAIU=null; BOQ_FLASH=null; BOQ_ULT=null; BOQ_TAMBEM.clear(); BOQ_VISTOS.clear();
   if(T_BOQ){ clearTimeout(T_BOQ); T_BOQ=null; } if(tudo) CHEGOU.clear(); }
 /* tudo o que pode ir para a tela grande, na ordem da fila: na loja (quem chegou primeiro), a caminho, montando (mais
    pedidos prontos primeiro), sem rota (prontos e na cozinha), sem TrackEat, cancelados */
@@ -2236,22 +2293,39 @@ function boqLista(){
   const G=expMonta(), loja=[], cam=[], mon=[];
   EXP_IDS=G.ids;
   G.rotas.forEach(function(r){
-    const e={k:r.aceita?String(r.g):'g'+r.g, tipo:'rota', r:r, banda:r.banda, ps:r.ps, te:r.te||[], nome:r.moto||(r.aceita?'Motoboy':'Rota nova')};
+    const e={k:r.aceita?String(r.g):'g'+r.g, tipo:'rota', r:r, banda:r.banda, ps:r.ps, te:r.te||[], pegos:r.pegos||[], nome:r.moto||(r.aceita?'Motoboy':'Rota nova')};
     (r.banda==='loja'?loja:r.banda==='caminho'?cam:mon).push(e);
   });
   const pr=e=>e.ps.filter(function(p){ const s=expEstado(p); return s==='pronto'||s==='conf'; }).length;
   mon.sort((a,b)=>pr(b)-pr(a)||((b.r.moto?1:0)-(a.r.moto?1:0))||tms(a.r.criado)-tms(b.r.criado));
   const lista=loja.concat(cam,mon), s=G.sem;
-  if(s.pronto.length||s.cozinha.length) lista.push({k:'sem',tipo:'sem',ps:s.pronto.concat(s.cozinha),te:[],nome:'Sem rota',np:s.pronto.length,nc:s.cozinha.length});
-  if(s.fora.length) lista.push({k:'fora',tipo:'fora',ps:s.fora,te:[],nome:'Sem TrackEat'});
-  if(s.canc.length) lista.push({k:'canc',tipo:'canc',ps:s.canc,te:[],nome:'Cancelados'});
+  /* pr = so os prontos: a tela grande AUTOMATICA mostra so eles (conserto 02/11: os da cozinha enchiam a tela no pico);
+     escolhido na fila (ou numero digitado) mostra todos */
+  if(s.pronto.length||s.cozinha.length){ const cz=s.cozinha.filter(p=>temCoz(separa(p).coz)), pr=s.pronto.concat(s.cozinha.filter(p=>cz.indexOf(p)<0));
+    lista.push({k:'sem',tipo:'sem',ps:pr.concat(cz),pr:pr,te:[],pegos:[],nome:'Sem rota',np:pr.length,nc:cz.length}); }
+  if(s.fora.length) lista.push({k:'fora',tipo:'fora',ps:s.fora,te:[],pegos:[],nome:'Sem TrackEat'});
+  if(s.canc.length) lista.push({k:'canc',tipo:'canc',ps:s.canc,te:[],pegos:[],nome:'Cancelados'});
   return {lista:lista,loja:loja};
 }
-/* o automatico: motoboy na loja (o que ja esta na tela fica; senao o que chegou primeiro); ninguem na loja = a proxima rota
-   (fica a mesma enquanto nao aparecer uma mais urgente); sem rota nenhuma = os prontos sem rota */
+/* o que o AUTOMATICO poe na tela grande de uma entrada ("sem rota" com pronto: so os prontos) */
+const boqAutoPs=e=>e.tipo==='sem'&&e.np&&e.nc?Object.assign({},e,{ps:e.pr}):e;
+/* conserto 02/11 (revisor): o que a equipe ainda tem para conferir na boqueta = pedido pronto (ou sem nada da cozinha)
+   e ainda sem ✓. Pedido "ainda na cozinha" nao conta: o motoboy espera, a equipe confere o proximo. */
+const boqFalta=e=>!!e&&e.tipo==='rota'&&e.ps.some(function(p){ const s=expEstado(p); return s==='pronto'||(s==='cozinha'&&!temCoz(separa(p).coz)); });
+const selNa=e=>!!(e&&SEL&&Date.now()<=SEL.ate&&SEL.ids.some(id=>e.ps.some(p=>String(p.id)===id)));
+/* a tela fica neste motoboy: ainda tem o que conferir, a equipe esta com um pedido dele escolhido, ou acabou de mexer
+   (o ✓ do ultimo conferido fica uns segundos na tela) */
+const boqPreso=e=>!!e&&(boqFalta(e)||selNa(e)||Date.now()-BOQ_MEXEU<PASSA_MS);
+/* o automatico: motoboy na loja (o que ja esta na tela fica enquanto tiver o que conferir; conferido tudo o que esta
+   pronto, passa para o proximo da loja que tem o que conferir; senao o que chegou primeiro); ninguem na loja = a proxima
+   rota (fica a mesma enquanto nao aparecer uma mais urgente); sem rota nenhuma = os prontos sem rota */
 function boqAuto(L){
   const de=k=>k?L.lista.find(e=>e.k===k):null, at=de(PALCO);
-  if(L.loja.length) return at&&at.banda==='loja'?at:L.loja[0];
+  if(L.loja.length){
+    if(at&&at.banda==='loja') return boqPreso(at)?at:(L.loja.find(e=>e!==at&&boqFalta(e))||at);
+    if(selNa(at)) return at;   /* a equipe esta com um pedido do "proximo" escolhido: termina antes */
+    return L.loja.find(boqFalta)||L.loja[0];
+  }
   const rs=L.lista.filter(e=>e.tipo==='rota');
   if(rs.length) return at&&at.tipo==='rota'&&at.banda===rs[0].banda?at:rs[0];
   const sem=de('sem');
@@ -2263,7 +2337,11 @@ function boqQual(L){
   BOQ_SAIU=null;
   if(FOCO){ const e=ag<FOCO.ate?L.lista.find(x=>x.k===FOCO.k):null; if(e) return {e:e,foco:true}; FOCO=null; }
   const e=boqAuto(L); PALCO=e?e.k:null;
-  return {e:e,foco:false};
+  /* a tela grande passou para um motoboy NA LOJA que nao estava nela (o de antes saiu ou ja conferiu tudo; acabou a
+     escolha da fila): "NA BOQUETA" pisca */
+  if(e&&e.banda==='loja'&&BOQ_ULT&&(BOQ_ULT.k!==e.k||!BOQ_ULT.loja)&&!(BOQ_FLASH&&BOQ_FLASH.k===e.k&&ag<BOQ_FLASH.ate)) BOQ_FLASH={k:e.k,ate:ag+FLASH_MS};
+  if(e) BOQ_ULT={k:e.k,loja:e.banda==='loja'};
+  return {e:e?boqAutoPs(e):null,foco:false};
 }
 /* a saida (SAIDAS) da rota que estava na tela: mesmo grupo do TrackEat, mesma rota de rotas[] ou os mesmos pedidos */
 function saidaDe(k,ids){
@@ -2272,43 +2350,67 @@ function saidaDe(k,ids){
     if((k.charAt(0)==='g'&&s.grupos.indexOf(k.slice(1))>=0)||s.k==='r'+k.slice(1)||s.ids.some(id=>ids.indexOf(id)>=0)) r=s; });
   return r;
 }
+const boqIds=e=>e.ps.map(p=>String(p.id)).concat((e.pegos||[]).map(x=>String(x.id)));
+/* conserto 02/11 (revisor): o TrackEat remontou o grupo (chave nova) do mesmo motoboy: tudo o que era da chave velha
+   passa para a nova (sem "chegou" de novo, sem som, sem perder a tela) */
+function boqRenomeia(a,b,naLoja){
+  if(BOQ_MOSTRA===a) BOQ_MOSTRA=b; if(PALCO===a) PALCO=b; if(BOQ_ULT&&BOQ_ULT.k===a) BOQ_ULT.k=b; if(FOCO&&FOCO.k===a) FOCO.k=b; if(BOQ_FLASH&&BOQ_FLASH.k===a) BOQ_FLASH.k=b;
+  if(BOQ_TAMBEM.has(a)){ BOQ_TAMBEM.set(b,BOQ_TAMBEM.get(a)); BOQ_TAMBEM.delete(a); }
+  if(BOQ_LOJA&&BOQ_LOJA.has(a)&&naLoja) BOQ_LOJA.add(b);
+  if(CHEGOU.has(a)) CHEGOU.add(b);
+  const v=BOQ_VISTOS.get(a); if(v){ const n=BOQ_VISTOS.get(b)||new Set(); v.forEach(id=>n.add(id)); BOQ_VISTOS.set(b,n); BOQ_VISTOS.delete(a); }
+}
 /* a cada leitura (antes de desenhar): quem saiu da tela grande e quem chegou na loja. Devolve os nomes que chegaram (som). */
 function boqLe(){
   if(!BOQ||!DADO) return [];
   if(!vivoOk()){ boqZera(); return []; }
   const L=boqLista(), ag=Date.now(), tem=k=>!!k&&L.lista.some(e=>e.k===k);
+  /* 0) grupo remontado: mesma rota (pedido em comum, mesmo motoboy) com chave nova */
+  if(BOQ_KS) BOQ_KS.forEach(function(x,k){ if(tem(k)) return;
+    const c=L.lista.find(e=>e.tipo==='rota'&&!BOQ_KS.has(e.k)&&boqIds(e).some(id=>x.ids.indexOf(id)>=0)&&(!x.moto||!e.r.moto||semAcento(e.r.moto)===x.moto));
+    if(c) boqRenomeia(k,c.k,c.banda==='loja'); });
+  /* todo pedido que cada rota ja teve (para o "SAIU" listar os que foram pegos em leituras anteriores) */
+  L.lista.forEach(function(e){ if(e.tipo!=='rota') return; const v=BOQ_VISTOS.get(e.k)||new Set(); boqIds(e).forEach(id=>v.add(id)); BOQ_VISTOS.set(e.k,v); });
   /* 1) o motoboy que estava na tela grande pegou as sacolas: "FULANO SAIU · conferiu tudo?" por 8 s, depois o proximo */
   if(BOQ_MOSTRA&&/^[ga]/.test(BOQ_MOSTRA)&&!tem(BOQ_MOSTRA)){
-    const s=saidaDe(BOQ_MOSTRA,BOQ_MOSTRA_IDS);
-    if(s){ s.palco=true; BOQ_SAIU={s:s,ate:ag+SAIU_MS}; }
+    const s=saidaDe(BOQ_MOSTRA,BOQ_MOSTRA_IDS), vs=BOQ_VISTOS.get(BOQ_MOSTRA);
+    if(s){ s.palco=true; BOQ_SAIU={s:s,ate:ag+SAIU_MS};
+      /* + os pedidos dele que sairam antes (nao os que ainda estao abertos em outra rota, nem cancelado) */
+      if(vs) s.ids=uniq(s.ids.concat(Array.from(vs).filter(id=>!EXP_IDS.has(id)&&!CANC.has(id)&&ULT_PED.has(id)))); }
     BOQ_MOSTRA=null; BOQ_MOSTRA_IDS=[];
   }
+  Array.from(BOQ_VISTOS.keys()).forEach(k=>{ if(!tem(k)) BOQ_VISTOS.delete(k); });
   if(FOCO&&!tem(FOCO.k)) FOCO=null;
   if(PALCO&&!tem(PALCO)) PALCO=null;
-  /* 2) chegou motoboy na loja. Ninguem na boqueta: ele assume a tela grande. Ja tem motoboy na boqueta: vai para
-        "TAMBEM NA LOJA" (a equipe nao perde a tela no meio da conferencia). Os dois com som, 1 vez por rota. */
+  /* 2) chegou motoboy na loja. Ninguem conferindo na boqueta: ele assume a tela grande. Ja tem motoboy na boqueta com o que
+        conferir, ou a equipe escolheu outra rota na fila / esta com um pedido escolhido: vai para "TAMBEM NA LOJA" (a
+        equipe nao perde a tela no meio da conferencia). Os dois com som, 1 vez por rota. */
   const nomes=[];
   if(BOQ_LOJA){
-    let ocupada=L.loja.some(e=>BOQ_LOJA.has(e.k));
-    L.loja.forEach(function(e){
-      if(BOQ_LOJA.has(e.k)||CHEGOU.has(e.k)) return;
-      CHEGOU.add(e.k); nomes.push(primeiroNome(e.nome)||'Motoboy');
-      if(ocupada){ BOQ_TAMBEM.set(e.k,ag+TAMBEM_MS); return; }
-      PALCO=e.k; FOCO=null; ocupada=true;
-      BOQ_FLASH={k:e.k,ate:(BOQ_SAIU?BOQ_SAIU.ate:ag)+FLASH_MS};
-    });
+    const novos=L.loja.filter(e=>!BOQ_LOJA.has(e.k)&&!CHEGOU.has(e.k));
+    if(novos.length){
+      const a=boqAuto({lista:L.lista.filter(e=>novos.indexOf(e)<0),loja:L.loja.filter(e=>novos.indexOf(e)<0)});
+      let ocupada=!!(FOCO&&ag<FOCO.ate)||selNa(a)||!!(a&&a.banda==='loja'&&boqPreso(a));
+      novos.forEach(function(e){
+        CHEGOU.add(e.k); nomes.push(primeiroNome(e.nome)||'Motoboy');
+        if(ocupada){ BOQ_TAMBEM.set(e.k,ag+TAMBEM_MS); return; }
+        PALCO=e.k; ocupada=true;
+        BOQ_FLASH={k:e.k,ate:(BOQ_SAIU?BOQ_SAIU.ate:ag)+FLASH_MS};
+      });
+    }
   } else L.loja.forEach(e=>CHEGOU.add(e.k));   /* 1a leitura: quem ja estava na loja nao toca */
   BOQ_LOJA=new Set(L.loja.map(e=>e.k));
+  BOQ_KS=new Map(); L.lista.forEach(function(e){ if(e.tipo==='rota') BOQ_KS.set(e.k,{moto:e.r.moto?semAcento(e.r.moto):'',ids:boqIds(e)}); });
   if(CHEGOU.size>500) CHEGOU.clear();
   return nomes;
 }
 function boqTimer(){
   if(T_BOQ){ clearTimeout(T_BOQ); T_BOQ=null; }
-  const ag=Date.now(), ts=[BOQ_SAIU&&BOQ_SAIU.ate,BOQ_FLASH&&BOQ_FLASH.ate,FOCO&&FOCO.ate].concat(Array.from(BOQ_TAMBEM.values())).filter(t=>t&&t>ag);
+  const ag=Date.now(), ts=[BOQ_SAIU&&BOQ_SAIU.ate,BOQ_FLASH&&BOQ_FLASH.ate,FOCO&&FOCO.ate,BOQ_MEXEU&&BOQ_MEXEU+PASSA_MS].concat(Array.from(BOQ_TAMBEM.values())).filter(t=>t&&t>ag);
   if(ts.length) T_BOQ=setTimeout(function(){ T_BOQ=null; if(BOQ_ON&&DADO) desenha(); },Math.min.apply(null,ts)-ag+80);
 }
 /* escolha da equipe: 1 min na tela grande (escolher o mesmo que o automatico ja mostraria = volta ao automatico) */
-function boqFoco(k){ BOQ_SAIU=null; const a=boqAuto(boqLista()); FOCO=a&&a.k===String(k)?null:{k:String(k),ate:Date.now()+FOCO_MS}; desenha(); }
+function boqFoco(k){ BOQ_SAIU=null; const a=boqAuto(boqLista()); FOCO=a&&a.k===String(k)&&!(a.tipo==='sem'&&a.nc&&a.np)?null:{k:String(k),ate:Date.now()+FOCO_MS}; desenha(); }
 function boqPasso(d){
   const l=boqLista().lista; if(!l.length) return;
   const i=l.findIndex(x=>x.k===BOQ_MOSTRA);
@@ -2317,9 +2419,10 @@ function boqPasso(d){
 }
 /* numero + Enter de pedido que nao esta na tela grande: a rota dele vem para a tela (1 min) */
 function boqTraz(id){
-  const L=boqLista(), e=L.lista.find(x=>x.ps.some(p=>String(p.id)===String(id))); if(!e) return;
-  if(e.k===BOQ_MOSTRA&&!(BOQ_SAIU&&Date.now()<BOQ_SAIU.ate)){ if(FOCO) FOCO.ate=Date.now()+FOCO_MS; return; }
-  BOQ_SAIU=null; const a=boqAuto(L); FOCO=a&&a.k===e.k?null:{k:e.k,ate:Date.now()+FOCO_MS};
+  const q=String(id), L=boqLista(), e=L.lista.find(x=>x.ps.some(p=>String(p.id)===q)); if(!e) return;
+  if(BOQ_MOSTRA_IDS.indexOf(q)>=0&&!(BOQ_SAIU&&Date.now()<BOQ_SAIU.ate)){ if(FOCO) FOCO.ate=Date.now()+FOCO_MS; return; }
+  BOQ_SAIU=null; const a=boqAuto(L);
+  FOCO=a&&a.k===e.k&&boqAutoPs(a).ps.some(p=>String(p.id)===q)?null:{k:e.k,ate:Date.now()+FOCO_MS};
 }
 /* item dourado da boqueta: nome grande; "(cheese cake)", o sabor e o tipo ("pote", "adicional") numa linha pequena embaixo */
 function qItem(it){
@@ -2358,10 +2461,12 @@ function boqPalcoHTML(Q){
   const e=Q.e;
   if(!e) return '<section class="q-palco t-vazio"><div class="q-cab"><b class="q-mb">Ninguém na boqueta</b><span class="q-est">nenhuma sacola aberta agora</span></div></section>';
   const ag=Date.now(), rota=e.tipo==='rota', loja=rota&&e.banda==='loja', flash=loja&&!!BOQ_FLASH&&BOQ_FLASH.k===e.k&&ag<BOQ_FLASH.ate;
-  const vale=e.ps.filter(p=>!p.cancelado), n=e.tipo==='canc'?e.ps.length:vale.length+e.te.length, t={};
-  let nConf=0, nCoz=0;
-  vale.forEach(function(p){ const s=expEstado(p); if(s==='conf'){ nConf++; return; } if(s==='cozinha'&&temCoz(separa(p).coz)) nCoz++;
-    const so=soltos(p); Object.keys(so).forEach(function(k){ t[k]=(t[k]||0)+so[k]; }); });
+  /* conserto 02/11 (revisor): "N PEDIDOS" conta tambem o que ele ja pegou (o TrackEat muda pedido por pedido) */
+  const pg=e.pegos||[], vale=e.ps.filter(p=>!p.cancelado), nv=vale.length+e.te.length, n=e.tipo==='canc'?e.ps.length:nv+pg.length, t={};
+  let nConf=0, nCoz=0, soltoConf=false;
+  vale.forEach(function(p){ const s=expEstado(p), so=soltos(p);
+    if(s==='conf'){ nConf++; if(Object.keys(so).length) soltoConf=true; return; } if(s==='cozinha'&&temCoz(separa(p).coz)) nCoz++;
+    Object.keys(so).forEach(function(k){ t[k]=(t[k]||0)+so[k]; }); });
   const fl=bFlags(t);
   let kick='', est='';
   if(rota){
@@ -2372,11 +2477,18 @@ function boqPalcoHTML(Q){
     est=e.tipo==='sem'?[e.np?e.np+(e.np>1?' prontos':' pronto'):'',e.nc?e.nc+' na cozinha':''].filter(Boolean).join(' · ')+' · sem motoboy ainda'
       :e.tipo==='fora'?'motoboy iFood, retirada ou pedido novo':'não enviar';
   }
-  const fim=fl?'<span class="b-fls">'+fl+'</span>':e.tipo==='canc'?'':n&&nConf===n?'<span class="b-tc">tudo conferido <i class="b-ok">✓</i></span>':n&&!e.te.length?'<span class="b-nd">nada solto</span>':'';
+  /* conserto 02/11 (revisor): sem bandeira dourada porque o que ia solto JA FOI conferido = "tudo solto conferido ✓"
+     (antes dizia "nada solto" numa rota com bebida); "nada solto" so quando a rota nao tem item dourado nenhum */
+  /* o que ele ja pegou com dourado SEM conferir (ele ainda esta na boqueta: da para olhar a sacola) */
+  const pgU=pg.map(x=>({n:x.numero,u:ULT_PED.get(String(x.id))})).filter(x=>x.u&&Object.keys(x.u.k||{}).length), pgPend=pgU.filter(x=>!x.u.conf);
+  const fim=fl?'<span class="b-fls">'+fl+'</span>':e.tipo==='canc'?'':pgPend.length?'<span class="q-est">pegou sem conferir: '+pgPend.map(x=>esc(x.n)).join(' · ')+'</span>'
+    :nv&&nConf===nv&&!pg.length?'<span class="b-tc">tudo conferido <i class="b-ok">✓</i></span>'
+    :soltoConf||pgU.length?'<span class="b-tc">tudo solto conferido <i class="b-ok">✓</i></span>':nv&&!e.te.length?'<span class="b-nd">nada solto</span>':'';
   const head='<div class="q-cab">'+(kick?'<span class="q-kick">'+esc(kick)+'</span>':'')
     +'<b class="q-mb">'+esc(e.nome)+'</b>'+(flash?'<b class="q-kick q-flash">na boqueta</b>':'')
     +'<b class="q-np">· '+n+(n===1?' pedido':' pedidos')+'</b>'
     +(est?'<span class="q-est'+(e.tipo==='canc'?' mau':'')+'">'+esc(est)+'</span>':'')
+    +(pg.length?'<span class="q-est">já pegou '+pg.map(x=>esc(x.numero)).join(' · ')+'</span>':'')
     +(Q.foco?'<button type="button" class="q-volta" data-qauto="1" title="Volta sozinho em 1 min">↺ automático</button>':'')
     +(fim||nCoz?'<i class="b-br"></i>'+fim+(nCoz?'<span class="q-est q-aguarda">'+nCoz+(nCoz>1?' pedidos':' pedido')+' ainda na cozinha</span>':''):'')+'</div>';
   const cards=e.ps.map(qPed).join('')+e.te.map(x=>'<div class="q-ped te"><div class="q-num"><span class="q-n1"><small>TrackEat</small><span class="b-nn">'+esc(x)+'</span></span></div><div class="q-nada">outro canal — conferir no TrackEat</div></div>').join('');
@@ -2385,30 +2497,38 @@ function boqPalcoHTML(Q){
 /* "PEDRO SAIU 22:09 · 4 PEDIDOS · conferiu tudo?" + o que tinha dourado e nao foi conferido, pedido por pedido */
 function boqSaiuHTML(B){
   const s=B.s, ps=saidaInfo(s), pend=ps.filter(x=>!x.conf&&x.itens.length), algum=ps.some(x=>x.itens.length), todos=ps.length&&ps.every(x=>x.conf), t={};
+  /* conserto 02/11 (revisor): pedido que a tela viu por ultimo AINDA NA COZINHA e saiu sem conferir = alarme */
+  const coz=ps.filter(x=>!x.conf&&!x.te&&x.coz);
   pend.forEach(x=>Object.keys(x.k||{}).forEach(function(k){ t[k]=(t[k]||0)+Number(x.k[k]); }));
   const fl=bFlags(t), nome=String(s.moto||'').trim()||'Motoboy';
   const head='<div class="q-cab"><b class="q-mb">'+esc(nome)+' saiu</b><b class="q-np">'+esc(hhmm(s.t))+(ps.length?' · '+ps.length+(ps.length>1?' pedidos':' pedido'):'')+'</b>'
-    +(pend.length?'<span class="q-est">conferiu tudo?</span>'+(fl?'<i class="b-br"></i><span class="b-fls">'+fl+'</span>':'')
+    +(pend.length||coz.length?'<span class="q-est">conferiu tudo?</span>'+(fl?'<i class="b-br"></i><span class="b-fls">'+fl+'</span>':'')
       :'<span class="q-est">'+(todos?'tudo conferido <i class="b-ok">✓</i>':algum?'tudo solto conferido <i class="b-ok">✓</i>':'nada solto')+'</span>')+'</div>';
+  /* so o conferido fica apagado; o que nao foi conferido fica aceso (antes o "nada solto" ficava apagado igual ao ✓) */
   const cards=ps.map(function(x){
-    const falta=!x.conf&&x.itens.length;
-    return '<div class="q-ped'+(x.conf?' conf':falta?'':' nada')+'"><div class="q-num"><span class="q-n1">'+(x.conf?'<i class="b-ok">✓</i>':'')+(x.te?'<small>TrackEat</small>':'')+'<span class="b-nn">'+esc(x.numero)+'</span></span>'
+    const falta=!x.conf&&x.itens.length, cz=!x.conf&&!x.te&&x.coz;
+    return '<div class="q-ped'+(x.conf?' conf':'')+'"><div class="q-num"><span class="q-n1">'+(x.conf?'<i class="b-ok">✓</i>':'')+(x.te?'<small>TrackEat</small>':'')+'<span class="b-nn">'+esc(x.numero)+'</span></span>'
       +(x.conf?'<span class="q-tags"><span class="b-tag ok">conferido</span></span>':'')+'</div>'
+      +(cz?'<div class="q-alarme">estava na cozinha — foi junto?</div>':'')
       +(falta?'<div class="q-chk">'+x.itens.map(i=>'<div class="b-it"><i class="b-cx"></i><span class="b-nm">'+esc(i)+'</span></div>').join('')+'</div>'
-        :x.conf?'':'<div class="q-nada">'+(x.te?'outro canal':'nada solto')+'</div>')+'</div>';
+        :x.conf?'':'<div class="q-nc">'+(x.te?'outro canal <i>· conferir no TrackEat</i>':'nada solto <i>· não conferido</i>')+'</div>')+'</div>';
   }).join('');
   return '<section class="q-palco q-saiu" role="alert">'+head+'<div class="q-peds">'+cards+'</div></section>';
 }
 /* a fila: um botao por motoboy/area (o da tela grande nao aparece) */
 function qChip(e){
-  const ag=Date.now(), vale=e.ps.filter(p=>!p.cancelado), n=e.tipo==='canc'?e.ps.length:vale.length+e.te.length, t={};
+  const ag=Date.now(), vale=e.ps.filter(p=>!p.cancelado), n=e.tipo==='canc'?e.ps.length:vale.length+e.te.length+(e.pegos||[]).length, t={};
   vale.forEach(function(p){ if(eConferido(p)) return; const s=soltos(p); Object.keys(s).forEach(function(k){ t[k]=(t[k]||0)+s[k]; }); });
   const fl=FLAG_KS.filter(k=>t[k]>0).map(k=>FLAG_TXT[k]).join(' · ');
+  /* conserto 02/11: motoboy na loja que ja teve conferido tudo o que esta pronto: "esperando 4631" (ou "conferido ✓") */
+  let esp='';
+  if(e.tipo==='rota'&&e.banda==='loja'&&!boqFalta(e)){ const cz=vale.filter(p=>expEstado(p)==='cozinha'&&temCoz(separa(p).coz)).map(p=>p.numero);
+    esp=cz.length?'esperando '+cz.join(' · '):vale.length&&vale.every(eConferido)?'conferido ✓':''; }
   const rot=e.tipo==='rota'?'<b>'+esc(e.nome)+'</b>'+(e.banda==='loja'?' '+n:' · '+n+(n===1?' pedido':' pedidos'))
     :e.tipo==='sem'?[e.np?'<b>'+e.np+'</b> '+(e.np>1?'prontos':'pronto'):'',e.nc?'<b>'+e.nc+'</b> na cozinha':''].filter(Boolean).join(' · ')
     :'<b>'+n+'</b> '+(n===1?'pedido':'pedidos');
   return '<button type="button" class="q-it'+(e.tipo==='rota'&&e.banda==='loja'?' loja':'')+(e.tipo==='canc'?' mau':'')+((BOQ_TAMBEM.get(e.k)||0)>ag?' pisca':'')+'" data-q="'+esc(e.k)+'" title="Mostrar na tela grande por 1 min">'
-    +rot+(fl&&e.tipo==='rota'?'<span class="q-fl">'+esc(fl)+'</span>':'')+'</button>';
+    +rot+(fl&&e.tipo==='rota'?'<span class="q-fl">'+esc(fl)+'</span>':'')+(esp?'<span class="q-esp">'+esc(esp)+'</span>':'')+'</button>';
 }
 function boqFila(L,Q){
   const pe=$('pe'); if(!pe) return;
@@ -2420,7 +2540,8 @@ function boqFila(L,Q){
   if(!h) h='<span class="q-g">'+(L.lista.length?'nenhuma outra rota agora':'nenhum pedido aberto')+'</span>';
   const ag=agoraMs(), sai=Array.from(SAIDAS.values()).filter(s=>ag-s.t<10*60000).sort((a,b)=>b.t-a.t).slice(0,3);
   if(sai.length) h+='<span class="q-sai">saíram: '+sai.map(s=>esc(primeiroNome(s.moto)||'motoboy')+' '+esc(hhmm(s.t))).join(' · ')+'</span>';
-  if(L.lista.length>1||FOCO) h+='<span class="q-dica">'+(FOCO?'Esc = automático':'← → ver outro')+'</span>';
+  const tq=ehToque();
+  if(L.lista.length>1||FOCO) h+='<span class="q-dica">'+(FOCO?(tq?'volta sozinho em 1 min':'Esc = automático'):(tq?'toque no nome = ver':'← → ver outro'))+'</span>';
   pe.className=''; pe.innerHTML=h;
 }
 /* fila numa linha so (TV): tira a dica e as saidas, depois as bandeiras, depois os botoes do fim ("+N", as setas passam
@@ -2433,9 +2554,11 @@ function filaCabe(pe){
   pe.classList.add('f1'); if(cabe()) return;
   pe.classList.add('f2'); if(cabe()) return;
   const its=Array.prototype.filter.call(pe.querySelectorAll('.q-it'),x=>!x.classList.contains('loja'));
-  const mais=document.createElement('span'); mais.className='q-mais'; pe.appendChild(mais);
-  let k=0;
-  while(!cabe()&&its.length){ its.pop().style.display='none'; k++; mais.textContent='+'+k+' ← →'; }
+  /* conserto 02/11 (revisor): o "+N" e um botao: toque = a 1a rota que nao coube vai para a tela grande (1 min) */
+  const mais=document.createElement('button'); mais.type='button'; mais.className='q-mais'; mais.title='Mostrar na tela grande por 1 min'; pe.appendChild(mais);
+  const tq=ehToque(); let k=0, ult=null;
+  while(!cabe()&&its.length){ ult=its.pop(); ult.style.display='none'; k++; mais.textContent='+'+k+(tq?' · ver ›':' ← →'); }
+  if(ult) mais.setAttribute('data-q',ult.getAttribute('data-q')); else mais.remove();
   Array.prototype.forEach.call(pe.querySelectorAll('.q-g'),function(g){ let x=g.nextElementSibling, algum=false;
     while(x&&x.classList.contains('q-it')){ if(x.style.display!=='none') algum=true; x=x.nextElementSibling; }
     if(!algum) g.style.display='none'; });
@@ -2454,6 +2577,17 @@ function fitBoq(){
   const toque=!!(window.matchMedia&&window.matchMedia('(pointer: coarse)').matches), grande=W>=1600||!toque;
   const f0=grande?Math.max(.62,Math.min(2,W/1920)):.62;
   set('--f',f0); filaCabe(pe);
+  /* conserto 02/11 (revisor): mede SEMPRE com o lugar do botao CONFERIDO em todo pedido (um botao invisivel onde nao tem
+     escolhido). Antes, escolher um pedido fazia a tela inteira encolher e crescer de novo a cada toque. */
+  const fant=[];
+  if(P&&!M.querySelector('.q-saiu')) Array.prototype.forEach.call(P.children,function(c){
+    if(c.querySelector('.b-acao')||c.classList.contains('te')||c.classList.contains('canc')) return;
+    const d=document.createElement('div'); d.className='b-acao q-fant'; d.setAttribute('aria-hidden','true'); d.innerHTML='<span class="b-go">✓ Conferido<small>ENTER</small></span>';
+    c.appendChild(d); fant.push(d); });
+  try{ fitBoqMede(M,b,P,n,set,f0,grande,rola); }
+  finally{ fant.forEach(function(d){ if(d.parentNode) d.parentNode.removeChild(d); }); }
+}
+function fitBoqMede(M,b,P,n,set,f0,grande,rola){
   /* cabe = nada passa da tela E nenhum numero/nome passa da coluna dele (o palco corta o que sobra: nao pode esconder) */
   const cabe=function(){ if(M.scrollHeight>M.clientHeight+1||M.scrollWidth>M.clientWidth+1) return false;
     const xs=M.querySelectorAll('.q-ped>*,.q-cab'); for(let i=0;i<xs.length;i++) if(xs[i].scrollWidth>xs[i].clientWidth+1) return false; return true; };
@@ -2482,9 +2616,10 @@ function desenhaBoq(){
   if(BOQ_FLASH&&ag>=BOQ_FLASH.ate) BOQ_FLASH=null;
   BOQ_TAMBEM.forEach(function(t,k){ if(ag>=t) BOQ_TAMBEM.delete(k); });
   BOQ_MOSTRA=Q.e?Q.e.k:null; BOQ_MOSTRA_IDS=Q.e?Q.e.ps.map(p=>String(p.id)):[];
-  /* pedido escolhido que saiu da tela grande deixa de estar escolhido (o Enter sozinho nunca confere o que nao esta a vista) */
-  if(SEL){ const v=SEL.ids.filter(id=>BOQ_MOSTRA_IDS.indexOf(id)>=0);
-    if(v.length!==SEL.ids.length){ if(v.length) SEL.ids=v; else { SEL=null; if(T_SEL){ clearTimeout(T_SEL); T_SEL=null; } } setTimeout(mostraTecla,0); } }
+  /* pedido escolhido que saiu da tela grande deixa de estar escolhido (o Enter sozinho nunca confere o que nao esta a vista).
+     Conserto 02/11 (revisor): dois pedidos com o mesmo numero (um so na tela) continuam escolhidos OS DOIS: assim o ENTER
+     nao confere nenhum (antes a escolha encolhia para o da tela e o 2o Enter conferia esse, talvez o errado). */
+  if(SEL&&!SEL.ids.some(id=>BOQ_MOSTRA_IDS.indexOf(id)>=0)){ SEL=null; if(T_SEL){ clearTimeout(T_SEL); T_SEL=null; } setTimeout(mostraTecla,0); }
   $('bancada').innerHTML=Q.saiu?boqSaiuHTML(Q.saiu):boqPalcoHTML(Q);
   EXP_BAN=bannerExp(); $('saiu').innerHTML=EXP_BAN;
   boqFila(L,Q);
