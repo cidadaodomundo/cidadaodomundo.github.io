@@ -2724,9 +2724,18 @@ function vigia(){
 
 /* tela nao apaga (quando o navegador deixa) */
 async function acordada(){ try{ if(navigator.wakeLock && document.visibilityState==='visible') await navigator.wakeLock.request('screen'); }catch(e){} }
+/* 02/11 (revisao do portal, regra 15): os relogios auxiliares (hora, redesenho de 5 s, recarga de 6 h e vigia) tambem
+   param quando a tela fica escondida e voltam quando ela aparece -- nenhum timer fica vivo com a tela escondida.
+   O vigia pode fazer rede: le de novo a porta rpc/sacola_tela quando a leitura trava (>25 s) ou para (>45 s), e com a
+   tela parada ha mais de 5 min faz 1 HEAD na propria pagina (no maximo 1 a cada 30 min) antes de recarregar. */
+let AUX=[];
+function redesenho5s(){ if(DADO&&EXP){ if(bannerExp()!==EXP_BAN) desenha(); vivoInd(); } else if(DADO){ const n=$('rota').innerHTML; desenhaRotas(); if($('rota').innerHTML!==n) barra(visiveis(lugarAparelho(),rotaDoPedido()),lugarAparelho()); vivoInd(); } }   /* aviso grande de rota vira linha depois de 90 s; "ao vivo: ha N s" */
+function recarga6h(){ if(performance.now()>6*3600*1000 && navigator.onLine!==false && Date.now()-ULT_OK<5*60000 && !FILA.size && !ENVIANDO && !TECLA) location.reload(); }
+function ligaAux(){ if(AUX.length) return; AUX=[setInterval(relogio,15000), setInterval(redesenho5s,5000), setInterval(recarga6h,10*60000), setInterval(vigia,5000)]; }
+function desligaAux(){ AUX.forEach(function(t){ clearInterval(t); }); AUX=[]; }
 document.addEventListener('visibilitychange',function(){
-  if(document.visibilityState==='hidden'){ desliga(); return; }   /* escondida: para de ler */
-  VISIVEL_DESDE=Date.now(); acordada(); if(COD) busca();          /* voltou: le na hora e religa */
+  if(document.visibilityState==='hidden'){ desliga(); desligaAux(); return; }   /* escondida: para de ler e para os relogios */
+  VISIVEL_DESDE=Date.now(); acordada(); relogio(); ligaAux(); if(COD) busca();   /* voltou: le na hora e religa */
 });
 window.addEventListener('online',function(){ if(COD) busca(); });
 let T_RS=null;
@@ -2734,10 +2743,7 @@ window.addEventListener('resize',function(){ if(T_RS) clearTimeout(T_RS); T_RS=s
 
 (function(){
   modoTV(); somDestrava(); botaoSom(); relogio(); acordada(); mostraTecla();
-  setInterval(relogio,15000);
-  setInterval(function(){ if(DADO&&EXP){ if(bannerExp()!==EXP_BAN) desenha(); vivoInd(); } else if(DADO){ const n=$('rota').innerHTML; desenhaRotas(); if($('rota').innerHTML!==n) barra(visiveis(lugarAparelho(),rotaDoPedido()),lugarAparelho()); vivoInd(); } },5000);   /* aviso grande de rota vira linha depois de 90 s; "ao vivo: ha N s" */
-  setInterval(function(){ if(performance.now()>6*3600*1000 && navigator.onLine!==false && Date.now()-ULT_OK<5*60000 && !FILA.size && !ENVIANDO && !TECLA) location.reload(); }, 10*60000);
-  setInterval(vigia,5000);
+  if(document.visibilityState!=='hidden') ligaAux();   /* relogios auxiliares so com a tela a vista (ver ligaAux/desligaAux) */
   /* conserto 31/10: refaz a barra quando as fontes terminam de carregar e quando o quadro muda de tamanho */
   try{ if(document.fonts){ if(document.fonts.ready&&document.fonts.ready.then) document.fonts.ready.then(ajusta,function(){}); if(document.fonts.addEventListener) document.fonts.addEventListener('loadingdone',ajusta); } }catch(e){}
   try{ if(window.ResizeObserver) new ResizeObserver(function(){ ajusta(); }).observe($('grid')); }catch(e){}
