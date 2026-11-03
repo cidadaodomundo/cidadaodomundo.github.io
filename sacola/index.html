@@ -661,6 +661,26 @@ body.exp .b-saiu .b-hn .n-if{font-size:max(15px,.44em)}
 body.exp .b-hn.conf .n-if{opacity:.42}
 body.exp .n-in{font-family:var(--cond);font-weight:700;font-size:.62em;font-size:max(11px,.62em);letter-spacing:.03em;text-transform:uppercase;color:var(--mut);margin-left:.25em;white-space:nowrap}
 body.exp .b-rota.loja>.b-cab .n-if,body.exp.boq .q-palco.loja>.q-cab .n-in,body.exp.boq .q-it.loja .n-in{color:#5d5a53}
+/* 03/11 DOIS PACOTES (Fabio: "colocar quando tem dois pacotes tambem e muito bom ... e muito importante"). Pedido com comida
+   das DUAS cozinhas (burger E pratos) = dois pacotes que saem juntos (o problema de origem: "o pacote do prato fica para tras
+   na estufa"). So na TV da expedicao (boqueta e ?vista=rotas). Sem cor nova: DOURADO cheio = por na sacola (igual as
+   bandeiras do cabecalho). No cartao, logo embaixo do numero: "2 PACOTES · BURGER + PRATO"; na comida (branco), o nome da
+   cozinha pequeno em cinza antes da primeira linha de cada pacote. */
+body.exp .b-pac,body.exp.boq .q-pac{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 .3em;align-self:flex-start;max-width:100%;background:var(--ouro);color:#141414;border-radius:.16em;padding:.02em .32em .05em;font-family:var(--display);font-weight:400;line-height:1.08;text-transform:uppercase;letter-spacing:.02em}
+body.exp .b-pac span,body.exp.boq .q-pac span{font-family:var(--cond);font-weight:700;font-size:.66em;letter-spacing:.04em;white-space:nowrap}
+body.exp .b-pac{width:max-content;font-size:.92em;margin:0 0 .12em}
+body.exp .b-pac i{font-style:normal}
+/* na boqueta (coluna estreita: 4 pedidos lado a lado) em 2 linhas: "2 PACOTES" grande, "BURGER + PRATO" embaixo */
+body.exp.boq .q-pac{flex-direction:column;align-items:flex-start;gap:0;font-size:max(calc(34px*var(--f)),calc(54*var(--u)));line-height:1.02;padding:.04em .3em .1em}
+body.exp.boq .q-pac i{display:none}
+body.exp.boq .q-pac span{font-size:.62em;line-height:1.05}
+body.exp .b-ped.conf .b-pac,body.exp.boq .q-ped.conf .q-pac{opacity:.38}
+body.exp.boq .q-food .q-lg{font-style:normal;font-family:var(--cond);font-weight:700;font-size:.72em;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin-right:.4em}
+/* 03/11 VOZ: o 🔊 de cada pedido que tem o que lembrar repete a fala dele (toque). No canto de cima do cartao (no alto do
+   numero, que e alto): nao empurra a etiqueta "iFood 1694" para baixo */
+body.exp.boq .q-ped{position:relative}
+body.exp.boq .q-voz{position:absolute;top:calc(8*var(--u));right:calc(10*var(--u));font-family:var(--body);font-size:max(calc(18px*var(--f)),calc(26*var(--u)));line-height:1.15;background:none;border:2px solid var(--line);border-radius:.3em;color:var(--fg);padding:0 .3em;cursor:pointer;margin:0}
+body.exp.boq .q-voz:focus-visible{outline:3px solid var(--ouro);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -862,7 +882,7 @@ function entra(){
   COD=c; $('cod-err').textContent='conferindo…'; busca();
 }
 function recusado(){
-  desliga(); esquece(); COD=''; DADO=null; VISTOS_P=null; VISTOS_A=null; VISTOS_R=null; PAUSADO=false; $('pausa').classList.remove('on');
+  desliga(); esquece(); vozPara(); COD=''; DADO=null; VISTOS_P=null; VISTOS_A=null; VISTOS_R=null; PAUSADO=false; $('pausa').classList.remove('on');
   SEL=null; if(T_SEL){ clearTimeout(T_SEL); T_SEL=null; } $('faixaFila').hidden=true;
   OVR.clear(); FILA.clear(); RESOLVIDO.clear(); OCUPADO.clear(); CONF.clear(); ROTA_ATE.clear();
   if(T_FLUSH){ clearTimeout(T_FLUSH); T_FLUSH=null; }
@@ -983,8 +1003,11 @@ async function busca(){
     if(novosA) toca('alarme');
     /* 02/11 boqueta: motoboy que CHEGOU na loja tem som proprio; se alguem saiu na mesma leitura, vai tudo num aviso so */
     else if(expJ){ const ch=cheg.map(n=>n+' na boqueta');
-      if(novasS.length){ toca('rota'); fala(novasS.map(s=>(primeiroNome(s.moto)||'Motoboy')+' saiu').concat(ch).join('. ')); }
-      else if(ch.length){ toca('chegou'); fala(ch.join('. ')); } }
+      /* 03/11 VOZ: na chegada, depois do aviso, o que lembrar de cada pedido dele ("Pedido 3076: tem bebida, Pepsi Black...") */
+      const av=novasS.length?novasS.map(s=>(primeiroNome(s.moto)||'Motoboy')+' saiu').concat(ch).join('. '):ch.join('. ');
+      const dz=ch.length?vozChegada(BOQ_CHEG,av):[];
+      if(novasS.length){ toca('rota'); fala(av,dz); }
+      else if(ch.length){ toca('chegou'); fala(av,dz); } }
     else if(novasR.length){ toca('rota'); fala(novasR.map(r=>String(r.entregador||'Motoboy').split(' ')[0]+' saiu para rota').join('. ')); }
     else if(novosP && !TV) toca('novo');   /* na TV: so a rota e o alarme fazem som (pedido novo chega toda hora) */
   }catch(e){
@@ -1620,10 +1643,57 @@ function toca(tipo){
       g.gain.value=suave?0.3:0.18; o.connect(g); g.connect(AC.destination); o.start(AC.currentTime+x[0]); o.stop(AC.currentTime+x[0]+(tipo==='novo'?0.18:0.24)); });
   }catch(e){}
 }
-function fala(t){
-  if(!somLigado()||!somPronto()) return;
-  try{ if(!window.speechSynthesis||!window.SpeechSynthesisUtterance) return;
-    setTimeout(function(){ const u=new SpeechSynthesisUtterance(t); u.lang='pt-BR'; u.rate=1; speechSynthesis.speak(u); },1700); }catch(e){}
+/* ---------- VOZ ----------
+   03/11 Fabio: "fazer barulho, melhor ate falar pedido tal do saipos tem bebida, se puder ate falar o nome da bebida, da
+   sobremesa, e qdo tem dois pacotes tambem e muito importante". fala(aviso, frases): o aviso de sempre ("Pedro na boqueta",
+   "Pedro saiu") e, na CHEGADA do motoboy na boqueta, uma frase por pedido dele que tem o que lembrar (vozChegada).
+   - Voz em portugues do Brasil quando o aparelho tem (a do proprio aparelho primeiro; senao a que tiver pt-BR).
+   - Fila propria, UMA frase por vez (o Chrome corta fala comprida e as vezes nao avisa o fim: cada frase tem um tempo
+     maximo e a proxima entra mesmo assim, na fila do proprio navegador, sem sobrepor).
+   - Outro motoboy CHEGA enquanto a tela fala: a frase que esta sendo dita termina, o resto da chegada anterior sai da fila
+     (esta na tela, em dourado) e entra a nova. Aviso curto ("Rhyan saiu"): entra logo depois da frase atual e a fila segue.
+   - Nunca fala com a tela escondida, com o som desligado no botao ou travado pelo navegador (para na hora).
+   - So relogio local (nenhuma leitura nova do banco). */
+const VOZ_TEM=!!(window.speechSynthesis&&window.SpeechSynthesisUtterance);
+let VOZ_FILA=[], VOZ_U=null, T_VOZ=null, VOZ_N=0;
+const VOZ_INI=new Set();
+function vozPode(){ return VOZ_TEM&&somLigado()&&somPronto()&&document.visibilityState!=='hidden'; }
+function vozPara(){
+  VOZ_N++; VOZ_FILA=[]; VOZ_U=null; if(T_VOZ){ clearTimeout(T_VOZ); T_VOZ=null; }
+  VOZ_INI.forEach(function(t){ clearTimeout(t); }); VOZ_INI.clear();
+  try{ if(VOZ_TEM) speechSynthesis.cancel(); }catch(e){}
+}
+/* voz pt-BR: a do aparelho (localService) primeiro; depois qualquer pt-BR; depois qualquer portugues; senao a padrao */
+function vozPt(){
+  try{ const vs=(speechSynthesis.getVoices&&speechSynthesis.getVoices())||[], lg=v=>String(v&&v.lang||'').replace('_','-').toLowerCase();
+    const br=vs.filter(v=>lg(v)==='pt-br');
+    return br.find(v=>v.localService)||br[0]||vs.find(v=>/^pt\b/.test(lg(v)))||null; }catch(e){ return null; }
+}
+function vozProxima(){
+  if(T_VOZ){ clearTimeout(T_VOZ); T_VOZ=null; }
+  VOZ_U=null;
+  if(!VOZ_FILA.length) return;
+  if(!vozPode()){ VOZ_FILA=[]; return; }
+  const t=VOZ_FILA.shift();
+  try{
+    const u=new SpeechSynthesisUtterance(t); u.lang='pt-BR'; u.rate=1; const v=vozPt(); if(v) u.voice=v;
+    const fim=function(){ if(VOZ_U===u) vozProxima(); };
+    u.onend=fim; u.onerror=fim; VOZ_U=u;
+    if(speechSynthesis.paused) speechSynthesis.resume();
+    speechSynthesis.speak(u);
+    T_VOZ=setTimeout(fim,2500+t.length*95);   /* o fim que nao vem: segue (o navegador enfileira, nao sobrepoe) */
+  }catch(e){ VOZ_U=null; VOZ_FILA=[]; }
+}
+/* troca = true: turno de CHEGADA (substitui o que faltava falar); false: aviso curto (entra na frente e a fila segue) */
+function vozPoe(fr,troca){ VOZ_FILA=troca?fr.slice():fr.concat(VOZ_FILA); if(!VOZ_U) vozProxima(); }
+function fala(t,mais){
+  if(!vozPode()) return;
+  const fr=[t].concat(Array.isArray(mais)?mais:[]).map(x=>String(x==null?'':x).trim()).filter(Boolean);
+  if(!fr.length) return;
+  const troca=Array.isArray(mais)&&mais.length>0, n=VOZ_N;
+  /* depois do "plim" (1,7 s) */
+  const tm=setTimeout(function(){ VOZ_INI.delete(tm); if(n!==VOZ_N||!vozPode()) return; vozPoe(fr,troca); },1700);
+  VOZ_INI.add(tm);
 }
 
 /* =====================================================================================================================
@@ -1737,6 +1807,10 @@ function separa(p){
   /* 02/11 boqueta: a COMIDA (burger, prato, batata/porcao) com nome e quantidade, para a equipe olhar a sacola inteira.
      O que vem dentro do combo vai junto; "dentro do lanche", "sem ...", salada do dia e o que ja acendeu dourado nao. */
   const comida=[];
+  /* 03/11 DOIS PACOTES: as cozinhas de onde vem a COMIDA (o lugar de cada linha que vai para "comida"; bebida, sobremesa,
+     pote, adicional, talher e DELIVERY nao contam). 2 ou mais = "2 PACOTES · BURGER + PRATO" (a batata do burger num prato
+     tambem: o banco poe a batata na cozinha do burger, igual as TVs das cozinhas) */
+  const pac=[];
   const add=function(kind,q,nome,obs,det){
     const c=obs?{main:'“'+nome+'”',sm:''}:curto(nome,kind), dt=det||'';
     const k=kind+'|'+c.main+'|'+c.sm+'|'+dt, a=lista.get(k);
@@ -1748,7 +1822,8 @@ function separa(p){
     /* o que vem DENTRO de um item dourado (sabor e tamanho do cha, por exemplo) vai em letra menor */
     const detOuro=()=>det.filter(d=>!RX_DENTRO.test(nrm(d))).map(d=>d.trim().toLowerCase()).join(' · ');
     let usouDet=false;
-    const come=function(){ comida.push({q:q,nome:nome.trim(),det:det.filter(function(d){ const tn=nrm(d.replace(/^\s*\d+\s*x\s+/i,''));
+    const come=function(){ if(lug&&lug!=='balcao'&&lug!=='conferir'&&pac.indexOf(String(lug))<0) pac.push(String(lug));
+      comida.push({q:q,nome:nome.trim(),lug:lug,det:det.filter(function(d){ const tn=nrm(d.replace(/^\s*\d+\s*x\s+/i,''));
       return !(RX_DENTRO.test(tn)||RX_SALADA.test(tn)||RX_TALHER.test(tn)||RX_PAO.test(tn)||RX_POTE_INI.test(tn)||RX_APARTE.test(tn)); }).map(d=>d.trim())}); };
     if(RX_SALADA.test(n)){ /* dentro do prato: nao acende */ }
     else if(cl==='bebida'){ add('bebida',q,nome,false,detOuro()); usouDet=true; }
@@ -1774,10 +1849,17 @@ function separa(p){
     /* conserto 02/11 (revisor): a observacao nao e mais cortada em 60 letras (o pedido da sacola vinha depois e sumia) */
     if(l.obs!=null&&String(l.obs).trim()){ const ob=obsSacola(l.obs); if(ob.length) add('obs',null,obsTexto(l.obs,ob),true); }
   });
-  const r={lista:Array.from(lista.values()).sort((a,b)=>KIND_ORD.indexOf(a.kind)-KIND_ORD.indexOf(b.kind)),coz:coz,comida:comida};
+  const oz=z=>{ const i=ORDEM.indexOf(z); return i<0?99:i; };
+  pac.sort((a,b)=>oz(a)-oz(b));
+  const r={lista:Array.from(lista.values()).sort((a,b)=>KIND_ORD.indexOf(a.kind)-KIND_ORD.indexOf(b.kind)),coz:coz,comida:comida,pac:p.cancelado?[]:pac};
   if(SEP) SEP.set(p,r);
   return r;
 }
+/* 03/11 DOIS PACOTES: quantos pacotes (cozinhas) o pedido tem; o nome curto delas ("burger + prato") */
+const nPac=s=>s&&Array.isArray(s.pac)?s.pac.length:0;
+const pacNomes=(s,sep)=>s.pac.map(z=>CURTO[z]||z).join(sep||' + ');
+const pacTxt=s=>nPac(s)+' pacotes ('+pacNomes(s)+')';
+function pacHTML(s,cls){ return nPac(s)>=2?'<div class="'+cls+'"><b>'+nPac(s)+' pacotes</b> <span><i>· </i>'+esc(pacNomes(s))+'</span></div>':''; }
 function cozTexto(c){
   const pl=(n,a,b)=>fmtQ(n)+' '+(n>1?b:a), out=[];
   if(c.burger) out.push(pl(c.burger,'burger','burgers'));
@@ -1916,7 +1998,8 @@ function expSaidas(j,ps,rs,agora){
       if(v.grupo){ const g=String(v.grupo); let x=GR_PEGO.get(g); if(!x){ x={t:agora,moto:null,ids:new Map()}; GR_PEGO.set(g,x); }
         x.t=agora; x.ids.set(id,p.numero); if(v.motoboy&&!x.moto) x.moto=String(v.motoboy); } }
     else coz=!!v&&(v.st==='COZINHA'||(v.st!=='PRONTO'&&!v.pronto_desde))&&temCoz(s.coz);
-    ULT_PED.set(id,{numero:p.numero,sai:nSai(p),itens:s.lista.map(x=>x.obs?'obs do cliente':itemTxt(x)),conf:eConferido(p),t:agora,k:soltos(p),c:tms(p.criado),q:seqDe(v),coz:coz}); });
+    /* 03/11: "2 pacotes (burger + prato)" primeiro na lista do que faltou conferir (faixa e tela "SAIU · conferiu tudo?") */
+    ULT_PED.set(id,{numero:p.numero,sai:nSai(p),itens:(nPac(s)>=2?[pacTxt(s)]:[]).concat(s.lista.map(x=>x.obs?'obs do cliente':itemTxt(x))),conf:eConferido(p),t:agora,k:soltos(p),c:tms(p.criado),q:seqDe(v),coz:coz}); });
   [ULT_PED,PEGOS,CANC,GR_PEGO].forEach(m=>m.forEach(function(x,id){ if(agora-(typeof x==='number'?x:x.t)>30*60000) m.delete(id); }));
   if(GR_DESDE.size>300) GR_DESDE.clear();
   const cancelado=id=>{ const p=byId.get(id); return p?!!p.cancelado:CANC.has(id); };
@@ -2062,7 +2145,8 @@ function bPed(p,s,e){
   let h='<div class="b-ped'+(conf?' conf':'')+(canc?' canc':'')+(coz?' coz':'')+(late?' late':'')+(sel?' sel':'')+'" data-ped="'+esc(p.id)+'">'
     +'<div class="b-num">'+(conf?'<i class="b-ok">✓</i>':'')+'<span class="b-nn">'+esc(nGde(p))+'</span>'+tags.join('')+'</div>';
   if(canc) h+='<div class="b-canc">Cancelado — não enviar</div>';
-  else if(s.lista.length) h+='<div class="b-chk">'+s.lista.map(bItem).join('')+'</div>';
+  /* 03/11: "2 PACOTES · BURGER + PRATO" em cima do que vai solto (sem nada solto: so ele) */
+  else if(s.lista.length||nPac(s)>=2) h+='<div class="b-chk">'+pacHTML(s,'b-pac')+s.lista.map(bItem).join('')+'</div>';
   else h+='<div class="b-nada">'+esc(soRot([s]))+'</div>';
   /* na cozinha: "AGUARDANDO COZINHA" grande na linha da comida (largura toda; nao empilha embaixo do numero) */
   const ct=cozTexto(s.coz); if(ct&&!canc) h+=coz?'<div class="b-coz agu"><b class="b-agu">aguardando cozinha</b><span class="b-cz"> · '+esc(ct)+'</span></div>':'<div class="b-coz">+ '+esc(ct)+'</div>';
@@ -2073,7 +2157,7 @@ function bPed(p,s,e){
 }
 function bPeds(ps){
   const com=[], so=[];
-  ps.forEach(function(p){ const s=separa(p), e=expEstado(p); ((s.lista.length||p.cancelado||escolhido(p.id))?com:so).push({p:p,s:s,e:e}); });
+  ps.forEach(function(p){ const s=separa(p), e=expEstado(p); ((s.lista.length||nPac(s)>=2||p.cancelado||escolhido(p.id))?com:so).push({p:p,s:s,e:e}); });
   if(so.length===1&&!com.length) return '<div class="b-peds">'+bPed(so[0].p,so[0].s,so[0].e)+'</div>';
   let h=com.length?'<div class="b-peds">'+com.map(x=>bPed(x.p,x.s,x.e)).join('')+'</div>':'';
   if(so.length) h+='<div class="b-so'+(so.some(x=>x.p.agendado_para||x.p.tipo==='TAKEOUT'||outraMarca(x.p.marca))?' b-tg':'')+'"><span class="b-rot">'+esc(soRot(so.map(x=>x.s)))+':</span>'+so.map(function(x){
@@ -2098,8 +2182,76 @@ function bSoma(ps){
 const FLAG_KS=['sobremesa','bebida','pote','adicional','talher','outro','obs'];
 const FLAG_TXT={sobremesa:'tem sobremesa',bebida:'tem bebida',pote:'tem pote',adicional:'tem adicional',talher:'tem talher',outro:'tem outro item',obs:'tem obs'};
 const FLAG_DE={item:'outro',conferir:'outro'};
-function soltos(p){ const t={}; separa(p).lista.forEach(function(it){ const k=FLAG_DE[it.kind]||it.kind; if(FLAG_KS.indexOf(k)<0) return; t[k]=(t[k]||0)+(it.q==null?1:Number(it.q)||1); }); return t; }
-function bFlags(t){ return FLAG_KS.filter(k=>Number(t[k])>0).map(k=>'<span class="b-fl">'+FLAG_TXT[k]+(Number(t[k])>1?' ('+esc(fmtQ(t[k]))+')':'')+'</span>').join(''); }
+/* 03/11 DOIS PACOTES: bandeira "TEM 2 PACOTES" (a conta = quantos PEDIDOS tem 2 pacotes: "TEM 2 PACOTES (2)"), a PRIMEIRA
+   (e a sacola inteira que fica para tras). Chave 'pac2' (3 cozinhas = 'pac3' = "TEM 3 PACOTES"). */
+const ehPac=k=>/^pac\d+$/.test(k);
+function soltos(p){ const t={}, s=separa(p); if(nPac(s)>=2) t['pac'+nPac(s)]=1;
+  s.lista.forEach(function(it){ const k=FLAG_DE[it.kind]||it.kind; if(FLAG_KS.indexOf(k)<0) return; t[k]=(t[k]||0)+(it.q==null?1:Number(it.q)||1); }); return t; }
+const flagKs=t=>Object.keys(t).filter(k=>ehPac(k)&&Number(t[k])>0).sort((a,b)=>Number(b.slice(3))-Number(a.slice(3))).concat(FLAG_KS.filter(k=>Number(t[k])>0));
+const flagTxt=k=>ehPac(k)?'tem '+k.slice(3)+' pacotes':FLAG_TXT[k];
+function bFlags(t){ return flagKs(t).map(k=>'<span class="b-fl">'+flagTxt(k)+(Number(t[k])>1?' ('+esc(fmtQ(t[k]))+')':'')+'</span>').join(''); }
+
+/* ---------- 03/11 VOZ: o texto do que lembrar de cada pedido (so o que vai solto e os 2 pacotes; nada do cliente) ----------
+   "Pedido 3076: tem bebida, Pepsi Black. Dois pacotes, burger e prato." / "Pedido 3077: tem sobremesa, dois Salvador Dalí e Brownie."
+   Numero do Saipos quando ja se sabe; senao "Pedido do iFood 1694". Nome curto (o da tela sem o "350 ml"); 2 unidades =
+   "dois/duas" (o genero pelo nome); 3 ou mais = o numero. Observacao do cliente NUNCA e lida: so "tem observação, olhe na
+   tela". Pedido sem nada a lembrar nao e falado. */
+const VOZ_TXT={bebida:'tem bebida',sobremesa:'tem sobremesa',pote:'tem pote',adicional:'tem adicional',talher:'tem talher',item:'tem outro item'};
+const VOZ_KS=['bebida','sobremesa','pote','adicional','talher','item'];
+const VOZ_NUM={2:'Dois',3:'Três',4:'Quatro'};
+const VOZ_FEM=/^(coca|coca-cola|pepsi|fanta|sprite|agua|aguas|cerveja|heineken|budweiser|stella|corona|skol|brahma|amstel|original|lata|tonica|schweppes|soda|limonada|h2oh|kombucha|maionese|mostarda|colher|colheres|faca|facas|batata|porcao|torta|coxinha|trufa|cocada|pacoca|paleta|barra|garrafa|caixa)$/;
+const VOZ_MASC_A=/^(guarana|cha|mate|dia|programa)$/;
+function vozFem(nome){ const w=semAcento(String(nome||'').split(/[\s(]+/)[0]); return VOZ_FEM.test(w)||(/a$/.test(w)&&!VOZ_MASC_A.test(w)); }
+function vozNome(it){
+  return String(it&&it.main||'').replace(/[“”"]/g,'').replace(/\s*\b\d+([.,]\d+)?\s*ml\b/gi,'')
+    .replace(/\b(\d+([.,]\d+)?)\s*L\b/g,'$1 litros').replace(/\s+/g,' ').trim();
+}
+function vozQtd(q,nome){ const n=Number(q); if(!nome) return ''; if(!(n>1)) return nome; return (n===2?(vozFem(nome)?'duas':'dois'):fmtQ(n))+' '+nome; }
+const vozCap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+const vozNum=p=>nSai(p)?'Pedido '+nSai(p):'Pedido do iFood '+nIfo(p);
+function vozPedido(p){
+  if(!p||p.cancelado) return '';
+  const s=separa(p), g={}, partes=[];
+  let obs=false;
+  s.lista.forEach(function(it){ if(it.obs){ obs=true; return; } const k=it.kind==='conferir'?'item':it.kind; if(!VOZ_TXT[k]) return;
+    (g[k]=g[k]||[]).push(vozQtd(it.q,vozNome(it))); });
+  VOZ_KS.forEach(function(k){ if(!g[k]) return; const ns=g[k].filter(Boolean); partes.push(VOZ_TXT[k]+(ns.length?', '+junta(ns):'')); });
+  if(obs) partes.push('tem observação, olhe na tela');
+  if(nPac(s)>=2) partes.push((VOZ_NUM[nPac(s)]||String(nPac(s)))+' pacotes, '+junta(s.pac.map(z=>CURTO[z]||z)));
+  if(!partes.length) return '';
+  return vozNum(p)+': '+partes.map((x,i)=>i?vozCap(x):x).join('. ')+'.';
+}
+/* as frases da CHEGADA (um ou mais motoboys na mesma leitura): os pedidos abertos e ainda nao conferidos de cada um, na
+   ordem da tela. Limite: 6 pedidos e ~25 s (350 letras com o aviso); o resto = "E mais N pedidos, confira na tela."
+   Os que nao tem nada a lembrar: "Os outros: só o lanche." (sem nenhum a lembrar: "Só o lanche.") */
+const VOZ_MAX_PED=6, VOZ_MAX_CH=350;
+function vozChegada(es,aviso){
+  const out=[], so=[]; let ch=String(aviso||'').length, n=0, resto=0;
+  (es||[]).forEach(function(e){
+    let pre=(es.length>1?(primeiroNome(e.nome)||'Motoboy')+', ':'');
+    (e.ps||[]).forEach(function(p){
+      if(p.cancelado||eConferido(p)) return;
+      const f=vozPedido(p); if(!f){ so.push(separa(p)); return; }
+      const fr=pre?pre+f.charAt(0).toLowerCase()+f.slice(1):f;
+      if(n<VOZ_MAX_PED&&ch+fr.length<=VOZ_MAX_CH){ out.push(fr); ch+=fr.length; n++; pre=''; } else resto++;
+    });
+  });
+  if(resto) out.push('E mais '+resto+(resto>1?' pedidos':' pedido')+', confira na tela.');
+  else if(so.length){ const r=soRot(so); out.push(out.length?(so.length>1?'Os outros: ':'O outro: ')+r+'.':vozCap(r)+'.'); }
+  return out;
+}
+/* toque no 🔊 do pedido: fala de novo so ele (na hora, sem esperar a fila) */
+function vozRepete(id){
+  const p=acha(id); if(!p) return;
+  const f=vozPedido(p)||vozNum(p)+': nada solto.';
+  if(!somLigado()){ aviso('Som desligado: ligue no botão 🔕 lá em cima para ouvir.'); return; }
+  setTimeout(function(){
+    if(!vozPode()){ aviso('Som travado: toque na tela 1 vez e depois no 🔊.'); return; }
+    vozPara();   /* o toque e de agora: para o que estava falando */
+    const n=VOZ_N, tm=setTimeout(function(){ VOZ_INI.delete(tm); if(n===VOZ_N&&vozPode()) vozPoe([f],true); },120);
+    VOZ_INI.add(tm);
+  },somPronto()?0:400);
+}
 function bRota(r){
   const nm=String(r.moto||'').trim().split(/\s+/), n1=nm[0]||'', resto=nm.slice(1).join(' ');
   let est, nc=0;
@@ -2137,7 +2289,7 @@ function garanteExp(){
   const f=document.createElement('div'); f.id='pe'; f.setAttribute('aria-live','polite');
   pai.insertBefore(s,al.nextSibling); pai.insertBefore(m,s.nextSibling); pai.insertBefore(f,m.nextSibling);
   const ctl=document.querySelector('header .ctl');
-  if(ctl){ const lg=document.createElement('div'); lg.className='leg'; lg.innerHTML='<i class="b-cx"></i>dourado = pôr na sacola <small>bebida · sobremesa · pote · adicional · talher · outro item · obs</small>'; ctl.parentNode.insertBefore(lg,ctl); }
+  if(ctl){ const lg=document.createElement('div'); lg.className='leg'; lg.innerHTML='<i class="b-cx"></i>dourado = pôr na sacola <small>2 pacotes · bebida · sobremesa · pote · adicional · talher · outro item · obs</small>'; ctl.parentNode.insertBefore(lg,ctl); }
   /* uma faixa nova em cima (rede, robo, TrackEat parado) aperta o quadro: refaz o encaixe */
   try{ if(window.ResizeObserver) new ResizeObserver(function(){ const M=$('bancada'); if(!EXP||!M||document.body.classList.contains('rola')) return; if(Math.abs(M.clientHeight-EXP_H)>2) ajusta(); }).observe(m); }catch(e){}
 }
@@ -2280,10 +2432,12 @@ function corta(M){
     }
     return null;
   };
-  const conta=function(p){ if(p.cancelado) return 'cancelado'; const t={}; separa(p).lista.forEach(function(it){ const k=it.kind; t[k]=(t[k]||0)+(it.q==null?1:it.q); });
-    return KIND_ORD.filter(k=>t[k]&&KIND[k]).map(k=>fmtQ(t[k])+' '+KIND[k][t[k]>1?1:0]).join(', '); };
-  const nomes=function(p){ if(p.cancelado) return 'cancelado';
-    return separa(p).lista.map(it=>it.obs?'pedido do cliente':(it.q!=null?fmtQ(it.q)+' ':'')+it.main).join(', '); };
+  /* 03/11: o "2 pacotes" vai na frente tambem no rodape */
+  const pc=s=>nPac(s)>=2?[nPac(s)+' pacotes']:[];
+  const conta=function(p){ if(p.cancelado) return 'cancelado'; const s=separa(p), t={}; s.lista.forEach(function(it){ const k=it.kind; t[k]=(t[k]||0)+(it.q==null?1:it.q); });
+    return pc(s).concat(KIND_ORD.filter(k=>t[k]&&KIND[k]).map(k=>fmtQ(t[k])+' '+KIND[k][t[k]>1?1:0])).join(', '); };
+  const nomes=function(p){ if(p.cancelado) return 'cancelado'; const s=separa(p);
+    return pc(s).concat(s.lista.map(it=>it.obs?'pedido do cliente':(it.q!=null?fmtQ(it.q)+' ':'')+it.main)).join(', '); };
   /* o quadro e o rodape seguem as sacolas escondidas: bloco sem sacola some; rota que perdeu sacola diz "+N no rodape" */
   /* conserto 02/11 (revisor): o CABECALHO da rota (nome · N PEDIDOS, numeros, bandeiras) nunca sai: e a lista da separacao.
      Rota sem nenhuma sacola a vista fica so com o cabecalho e "+N no rodape"; some so o bloco das areas sem rota. */
@@ -2364,6 +2518,7 @@ let T_BOQ=null;
 const BOQ_TAMBEM=new Map();   /* chave -> ate: "tambem na loja" piscando na fila */
 const BOQ_VISTOS=new Map();   /* chave -> Set(ids): todo pedido que a rota ja teve (o "SAIU" lista todos) */
 const CHEGOU=new Set();       /* rotas que ja tocaram a chegada (toca 1 vez so) */
+let BOQ_CHEG=[];              /* 03/11: as rotas (entradas da fila) que chegaram na ultima leitura: a voz fala os pedidos delas */
 const FOCO_MS=60000, SAIU_MS=8000, FLASH_MS=6000, TAMBEM_MS=20000, PASSA_MS=6000, BOQ_VELHO_MS=45000;
 /* conserto 02/11 (revisor): "na boqueta" so com o ao vivo bom E a ultima leitura boa recente (TV sem internet = a tela
    volta para "sacolas por motoboy" com a faixa vermelha, nunca "PEDRO na boqueta ha 15 min" com dado velho) */
@@ -2446,6 +2601,7 @@ function boqRenomeia(a,b,naLoja){
 }
 /* a cada leitura (antes de desenhar): quem saiu da tela grande e quem chegou na loja. Devolve os nomes que chegaram (som). */
 function boqLe(){
+  BOQ_CHEG=[];   /* 03/11 VOZ: as rotas que chegaram nesta leitura (a fala dos pedidos delas) */
   if(!BOQ||!DADO) return [];
   if(!vivoOk()){ boqZera(); return []; }
   const L=boqLista(), ag=Date.now(), tem=k=>!!k&&L.lista.some(e=>e.k===k);
@@ -2476,7 +2632,7 @@ function boqLe(){
       const a=boqAuto({lista:L.lista.filter(e=>novos.indexOf(e)<0),loja:L.loja.filter(e=>novos.indexOf(e)<0)});
       let ocupada=!!(FOCO&&ag<FOCO.ate)||selNa(a)||!!(a&&a.banda==='loja'&&boqPreso(a));
       novos.forEach(function(e){
-        CHEGOU.add(e.k); nomes.push(primeiroNome(e.nome)||'Motoboy');
+        CHEGOU.add(e.k); nomes.push(primeiroNome(e.nome)||'Motoboy'); BOQ_CHEG.push(e);
         if(ocupada){ BOQ_TAMBEM.set(e.k,ag+TAMBEM_MS); return; }
         PALCO=e.k; ocupada=true;
         BOQ_FLASH={k:e.k,ate:(BOQ_SAIU?BOQ_SAIU.ate:ag)+FLASH_MS};
@@ -2515,9 +2671,17 @@ function qItem(it){
     +(sub||tp?'<small class="q-sub">'+(sub?'<span class="b-par'+(it.det?' b-det':'')+'">'+esc(sub)+'</span>':'')+(tp?'<span class="b-tp">'+esc(tp)+'</span>':'')+'</small>':'')+'</span></div>';
 }
 /* a comida: "1 Ayrton Senna Burger (Cheese Bacon)"; combo: "2x Burgers Clássicos: Charles Chaplin Burger + Alain Prost Burger" */
-function qFood(f){
+function qFood(f,lab){
   const so=/^\s*\d+\s*x\b/i.test(f.nome)&&Number(f.q)===1;
-  return '<li>'+(so?'':'<b>'+esc(fmtQ(f.q))+'</b>')+esc(f.nome)+(f.det.length?'<small>: '+agrupa(f.det).map(esc).join(' + ')+'</small>':'')+'</li>';
+  return '<li>'+(lab?'<i class="q-lg">'+esc(lab)+'</i>':'')+(so?'':'<b>'+esc(fmtQ(f.q))+'</b>')+esc(f.nome)+(f.det.length?'<small>: '+agrupa(f.det).map(esc).join(' + ')+'</small>':'')+'</li>';
+}
+/* 03/11 DOIS PACOTES: a comida em ordem de cozinha, com o nome da cozinha antes da 1a linha de cada pacote */
+function qFoods(s){
+  if(nPac(s)<2) return s.comida.map(f=>qFood(f)).join('');
+  const oz=f=>{ const i=s.pac.indexOf(String(f.lug)); return i<0?99:i; };
+  let ult=null;
+  return s.comida.map((f,i)=>({f:f,i:i})).sort((a,b)=>oz(a.f)-oz(b.f)||a.i-b.i).map(function(x){
+    const z=x.f.lug, lab=z!==ult&&s.pac.indexOf(String(z))>=0?(CURTO[z]||z):''; ult=z; return qFood(x.f,lab); }).join('');
 }
 function qPed(p){
   const s=separa(p), e=expEstado(p), sel=escolhido(p.id), conf=e==='conf', canc=e==='canc', coz=e==='cozinha'&&temCoz(s.coz), late=atrasoMin(p,e), mc=outraMarca(p.marca);
@@ -2528,14 +2692,18 @@ function qPed(p){
   if(p.tipo==='TAKEOUT') tags.push('<span class="b-tag">retirada</span>');
   if(mc) tags.push('<span class="b-tag">'+esc(mc)+'</span>');
   tags.unshift('<span class="b-tag n-if">'+esc(nIf(p))+'</span>');   /* 02/11: o numero do iFood pequeno ao lado ("iFood 1694") */
+  /* 03/11 VOZ: 🔊 = ouvir de novo o que lembrar deste pedido (so quando tem o que lembrar e o navegador fala) */
   let h='<div class="q-ped'+(conf?' conf':'')+(canc?' canc':'')+(coz?' coz':'')+(late?' late':'')+(sel?' sel':'')+'" data-ped="'+esc(p.id)+'">'
+    +(!canc&&VOZ_TEM&&vozPedido(p)?'<button type="button" class="q-voz" data-voz="'+esc(p.id)+'" title="Ouvir de novo" aria-label="Ouvir de novo o que lembrar deste pedido">🔊</button>':'')
     +'<div class="q-num"><span class="q-n1">'+(conf?'<i class="b-ok">✓</i>':'')+'<span class="b-nn">'+esc(nGde(p))+'</span></span>'
     +'<span class="q-tags">'+tags.join('')+'</span></div>';
   if(canc) h+='<div class="b-canc">Cancelado — não enviar</div>';
   else {
+    /* 03/11: "2 PACOTES · BURGER + PRATO" logo embaixo do numero (dourado cheio; com ele, o "nada solto" sai) */
+    h+=pacHTML(s,'q-pac');
     if(coz) h+='<div class="q-cz">ainda na cozinha</div>';
-    h+=s.lista.length?'<div class="q-chk">'+s.lista.map(qItem).join('')+'</div>':'<div class="q-nada">nada solto</div>';
-    if(s.comida.length) h+='<ul class="q-food">'+s.comida.map(qFood).join('')+'</ul>';
+    h+=s.lista.length?'<div class="q-chk">'+s.lista.map(qItem).join('')+'</div>':nPac(s)>=2?'':'<div class="q-nada">nada solto</div>';
+    if(s.comida.length) h+='<ul class="q-food">'+qFoods(s)+'</ul>';
   }
   if(sel&&!canc) h+='<div class="b-acao">'+(conf
     ? '<button type="button" class="b-go des" data-des="'+esc(p.id)+'"'+(oc?' disabled':'')+'>'+(oc?'Salvando…':'Desfazer conferido')+'</button>'
@@ -2605,7 +2773,7 @@ function boqSaiuHTML(B){
 function qChip(e){
   const ag=Date.now(), vale=e.ps.filter(p=>!p.cancelado), n=e.tipo==='canc'?e.ps.length:vale.length+e.te.length+(e.pegos||[]).length, t={};
   vale.forEach(function(p){ if(eConferido(p)) return; const s=soltos(p); Object.keys(s).forEach(function(k){ t[k]=(t[k]||0)+s[k]; }); });
-  const fl=FLAG_KS.filter(k=>t[k]>0).map(k=>FLAG_TXT[k]).join(' · ');
+  const fl=flagKs(t).map(flagTxt).join(' · ');
   /* conserto 02/11: motoboy na loja que ja teve conferido tudo o que esta pronto: "esperando 4631" (ou "conferido ✓") */
   let esp='';
   /* 02/11: "esperando 3330" com o do iFood pequeno ao lado (esp ja vem em HTML) */
@@ -2725,6 +2893,8 @@ document.addEventListener('click',function(e){
      2o toque na mesma solta; toque fora das sacolas solta. O toque que acabou de destravar o som nao escolhe. */
   if(EXP && !$('cod').classList.contains('on')){
     /* 02/11 boqueta: toque no nome da fila = esse motoboy na tela grande por 1 min; "automatico" volta ja */
+    /* 03/11 VOZ: toque no 🔊 do pedido = fala de novo o que lembrar dele (nao escolhe o pedido) */
+    const vz=e.target.closest('[data-voz]'); if(vz&&BOQ_ON){ vozRepete(vz.getAttribute('data-voz')); return; }
     const qq=e.target.closest('[data-q]'); if(qq&&BOQ_ON){ boqFoco(qq.getAttribute('data-q')); return; }
     const qa=e.target.closest('[data-qauto]'); if(qa&&BOQ_ON){ FOCO=null; BOQ_SAIU=null; desenha(); return; }
     /* 02/11: o numero no cabecalho da rota (data-hp) escolhe o pedido igual a sacola */
@@ -2758,6 +2928,7 @@ $('bt-som').addEventListener('click',function(){
   /* travado, ou destravou agora mesmo por este toque (pointerdown vem antes do click): so destrava, nao desliga */
   if(somLigado() && (!somPronto() || Date.now()-PRONTO_EM<1500)){ somDestrava(); toca('novo'); botaoSom(); return; }
   SOM_PREF=somLigado()?'0':'1'; try{ localStorage.setItem('cdm_sacola_som',SOM_PREF); }catch(e){}
+  if(!somLigado()) vozPara();   /* 03/11: desligou o som = cala na hora */
   somDestrava(); botaoSom(); if(somLigado()) toca('novo'); });
 
 /* ---------- VIGIA (revisao 31/10): a tela nunca fica parada mostrando pedido velho como se estivesse certo ----------
@@ -2798,7 +2969,7 @@ function recarga6h(){ if(performance.now()>6*3600*1000 && navigator.onLine!==fal
 function ligaAux(){ if(AUX.length) return; AUX=[setInterval(relogio,15000), setInterval(redesenho5s,5000), setInterval(recarga6h,10*60000), setInterval(vigia,5000)]; }
 function desligaAux(){ AUX.forEach(function(t){ clearInterval(t); }); AUX=[]; }
 document.addEventListener('visibilitychange',function(){
-  if(document.visibilityState==='hidden'){ desliga(); desligaAux(); return; }   /* escondida: para de ler e para os relogios */
+  if(document.visibilityState==='hidden'){ desliga(); desligaAux(); vozPara(); return; }   /* escondida: para de ler, para os relogios e cala (03/11) */
   VISIVEL_DESDE=Date.now(); acordada(); relogio(); ligaAux(); if(COD) busca();   /* voltou: le na hora e religa */
 });
 window.addEventListener('online',function(){ if(COD) busca(); });
