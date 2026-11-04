@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TV do RH · Cidadão do Mundo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* 04/11/2026 chat-rh-tv-escritorio-04-11 — TV do RH na LG do escritório (reveza com as câmeras).
+   Lê a porta rh_tv_ler(p_chave): o que está esperando na Caixa do RH, juntado por pessoa e assunto.
+   O código da TV vem em ?k= (fica guardado no aparelho). Nenhum valor em R$. */
+:root{--brand:#E0A81C;--bg:#0b0e14;--surface:#141922;--line:#242d3d;--text:#e8edf4;--muted:#8b95a5;
+--ok:#37b46c;--warn:#e8833a;--dang:#e05252;--atest:#8e6bc9;--flash:#4a90d9}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:'Barlow',-apple-system,'Segoe UI',sans-serif;height:100%;overflow:hidden}
+body{padding:1.6vw 2vw;display:flex;flex-direction:column;gap:1.2vw}
+header{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:.25vw solid var(--brand);padding-bottom:.8vw}
+h1{font-family:'Anton',Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:3.2vw;letter-spacing:.01em;line-height:1}
+.sub{color:var(--muted);font-size:1.1vw;margin-top:.4vw}
+.placar{display:flex;gap:1vw}
+.loja{background:var(--surface);border:1px solid var(--line);border-radius:.8vw;padding:.6vw 1.2vw;text-align:center;min-width:9vw}
+.loja b{display:block;font-family:'Anton',Impact,sans-serif;font-weight:400;font-size:3vw;line-height:1.05}
+.loja span{font-size:1vw;color:var(--muted);text-transform:uppercase;font-weight:700}
+.loja.zero b{color:var(--ok)}
+#grade{flex:1;display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:min-content;gap:1vw;overflow:hidden;align-content:start}
+.card{background:var(--surface);border:1px solid var(--line);border-left:.45vw solid var(--cc,var(--line));border-radius:.8vw;padding:.9vw 1.1vw}
+.top{display:flex;justify-content:space-between;gap:.8vw;align-items:flex-start}
+.nome{font-weight:700;font-size:1.45vw;line-height:1.15}
+.tag{background:var(--cc);color:#fff;border-radius:.5vw;padding:.25vw .6vw;font-size:.85vw;font-weight:800;white-space:nowrap}
+.linha{font-size:1.05vw;color:#b6c2d4;margin-top:.35vw}
+.linha .rep{color:var(--warn);font-weight:700}
+.linha .vel{color:var(--dang);font-weight:700}
+.txt{font-size:.95vw;color:var(--muted);margin-top:.4vw;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.alerta{background:#3a1418;border:1px solid #6b1e26;color:#f0a0a0;border-radius:.8vw;padding:.7vw 1.1vw;font-size:1.15vw}
+.vazio{grid-column:1/-1;text-align:center;padding:8vw 0;font-size:2.4vw;color:var(--ok);font-weight:700}
+.mais{grid-column:1/-1;text-align:center;color:var(--muted);font-size:1.1vw}
+footer{display:flex;justify-content:space-between;color:var(--muted);font-size:.95vw}
+#erro{color:var(--dang)}
+</style></head><body>
+<header>
+  <div><h1>📥 RH — esperando decisão</h1><div class="sub" id="sub">carregando…</div></div>
+  <div class="placar" id="placar"></div>
+</header>
+<div id="alertas"></div>
+<div id="grade"></div>
+<footer><span>Decida na tela <b>Caixa de entrada do RH</b> do portal. Item aprovado ou recusado some daqui.</span><span id="erro"></span></footer>
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const H={apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'};
+const TIPO={FALTA:['Falta','var(--dang)'],ADVERTENCIA:['Advertência','#c0392b'],SUSPENSAO:['Suspensão','var(--dang)'],
+  ATESTADO:['Atestado','var(--atest)'],DECLARACAO:['Declaração','#4a90d9'],PARA_O_FLASH:['Arrumar no Flash','var(--flash)'],
+  BATIDA:['Batida esquecida','var(--warn)'],ORIENTACAO:['Orientação','var(--warn)'],AVISOU_ANTES:['Avisou antes','#8e6bc9'],
+  COMBINADO:['Combinado','#3aa6a0'],COBERTURA:['Cobertura','#4a90d9'],ERRO_CORRIGIDO:['Erro corrigido','#6b7686'],
+  SEM_DONO:['Comanda sem dono','#6b7686'],FERIAS:['Férias','#3aa6a0'],LICENCA:['Licença','var(--atest)'],FOLGA_ABONADA:['Folga abonada','#3aa6a0']};
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function chave(){
+  let k=new URLSearchParams(location.search).get('k');
+  try{ if(k) localStorage.setItem('cdm_rh_tv',k); else k=localStorage.getItem('cdm_rh_tv'); }catch(e){}
+  return k||'';
+}
+function curto(n){const s=String(n||'').trim();if(/^\d{8,}$/.test(s))return 'Pessoa não identificada';
+  if(s!==s.toUpperCase())return s;const p=s.split(/\s+/);if(p.length<=2)return s;return p[0]+' '+p[p.length-1];}
+function desenha(d){
+  document.getElementById('sub').textContent='Água Verde · São Braz · Ahú — '+d.total+' item(ns) esperando'+(d.mais_antigo?' · mais antigo de '+d.mais_antigo:'')+' · atualizado '+d.agora;
+  const L=d.por_loja||{};const ordem=['Água Verde','São Braz','Ahú'];if(L['sem loja'])ordem.push('sem loja');
+  document.getElementById('placar').innerHTML=ordem.map(l=>{const k=L[l]||0;return '<div class="loja'+(k?'':' zero')+'"><b>'+k+'</b><span>'+esc(l)+'</span></div>';}).join('');
+  const A=d.alertas||[];
+  document.getElementById('alertas').innerHTML=A.length?'<div class="alerta">⚠️ Orientado 3 vezes ou mais em 7 dias: '+A.map(a=>'<b>'+esc(curto(a.nome))+'</b> ('+esc(a.loja||'')+', '+a.vezes+'×)').join(' · ')+'</div>':'';
+  const I=d.itens||[];const g=document.getElementById('grade');
+  if(!I.length){g.innerHTML='<div class="vazio">✅ Nada esperando na Caixa do RH</div>';return;}
+  const MAX=15;
+  g.innerHTML=I.slice(0,MAX).map(it=>{
+    const t=TIPO[it.tipo]||[it.tipo,'#6b7686'];
+    const per=it.desde===it.ultima?it.desde:it.desde+' a '+it.ultima;
+    const rep=it.vezes>1?' · <span class="rep">'+it.vezes+'× o mesmo assunto</span>':'';
+    const vel=it.parado_dias>=7?' · <span class="vel">parado há '+it.parado_dias+' dias</span>':(it.parado_dias>0?' · parado há '+it.parado_dias+' dia'+(it.parado_dias>1?'s':''):' · chegou hoje');
+    return '<div class="card" style="--cc:'+t[1]+'"><div class="top"><div class="nome">'+esc(curto(it.nome))+'</div><div class="tag">'+esc(t[0])+'</div></div>'+
+      '<div class="linha">'+esc(it.loja==='sem loja'?'loja não informada':it.loja)+' · '+esc(per)+rep+vel+'</div>'+
+      (it.texto?'<div class="txt">'+esc(it.texto)+'</div>':'')+'</div>';
+  }).join('')+(I.length>MAX?'<div class="mais">+ '+(I.length-MAX)+' grupo(s) — veja todos na Caixa de entrada do RH</div>':'');
+}
+async function carregar(){
+  const e=document.getElementById('erro');
+  const k=chave();
+  if(!k){e.textContent='Falta o código da TV no endereço (?k=...)';return;}
+  try{
+    const r=await fetch(SB+'rpc/rh_tv_ler',{method:'POST',headers:H,body:JSON.stringify({p_chave:k})});
+    if(!r.ok){e.textContent=r.status===401||r.status===403?'Código da TV recusado':'Sem resposta do banco ('+r.status+') — tentando de novo';return;}
+    desenha(await r.json());e.textContent='';
+  }catch(x){e.textContent='Sem internet — tentando de novo';}
+}
+carregar();
+setInterval(carregar,60000);
+setTimeout(()=>location.reload(),6*3600*1000);
+</script>
+</body></html>
