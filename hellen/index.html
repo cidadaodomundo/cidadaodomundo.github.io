@@ -239,6 +239,7 @@ table.pv-tb tr.pv-setor td{color:var(--text2)}
   <button class="view" data-view="semana" type="button">📊 Resumo por loja</button>
   <button class="view" data-view="pagamento" type="button">💰 Pagamento</button>
   <button class="view" data-view="qr" type="button">🔳 QR da semana</button>
+  <button class="view" data-view="sanepar" type="button">💧 Sanepar</button>
   <button class="view" data-view="pedir" type="button">💬 Pedir ao Claude</button>
 </div>
 <div id="content"><div class="rf-load">Carregando os registros…</div></div>
@@ -335,7 +336,7 @@ let AVISO_LIMITE = false;
 let ultimaLeitura = null;
 
 let VIEW = (location.hash || "").replace("#", "") || "vivo";
-if (["vivo","semana","pagamento","qr","pedir"].indexOf(VIEW) < 0) VIEW = "vivo";
+if (["vivo","semana","pagamento","qr","pedir","sanepar"].indexOf(VIEW) < 0) VIEW = "vivo";
 let lojaAtiva = "";
 let nomeAtivo = "";
 // 14/10/2026: semana como numero (0 = atual, -1 = passada, ...) para andar com os botoes ‹ ›.
@@ -1524,6 +1525,46 @@ elContent.addEventListener("click", async e => {
   carregarPedidos();
 });
 
+/* ---------- Sanepar ---------- */
+/* 05/11/2026 (chat-hellen-sanepar-05-11), pedido da Hellen pelo WhatsApp 04/11: "Crie uma pasta no portal com isso, na aba da Hellen"
+   (matriculas da Sanepar das 3 lojas). Os dados (nome, CPF, matricula) ficam no banco, tabela hellen_sanepar, fechada ao publico;
+   esta tela le pela funcao hellen_sanepar_lista, que so entrega para quem esta logado e tem a aba Hellen. Nada disso fica no codigo. */
+let SANEPAR = null, SANEPAR_ERRO = "";
+async function carregarSanepar(){
+  SANEPAR_ERRO = "";
+  try{
+    const r = await fetch(SB + "rpc/hellen_sanepar_lista", { method: "POST",
+      headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_token: cdmTok() }) });
+    const j = await r.json().catch(() => null);
+    if (!r.ok || !j || j.erro || !Array.isArray(j.lojas)) throw new Error((j && (j.erro || j.message)) || ("erro " + r.status));
+    SANEPAR = j.lojas;
+  }catch(e){ SANEPAR_ERRO = e.message || String(e); }
+  if (VIEW === "sanepar") renderSanepar();
+}
+function renderSanepar(){
+  let h = '<div class="rf-h2">💧 Sanepar <span class="hint">matrícula e vencimento da conta de água de cada loja</span></div>';
+  if (SANEPAR_ERRO) h += '<div class="err">Não consegui carregar as contas da Sanepar (' + escapeHtml(SANEPAR_ERRO) + '). Aperte ↻ Atualizar.</div>';
+  else if (!SANEPAR){ elContent.innerHTML = h + '<div class="rf-load">Carregando…</div>'; carregarSanepar(); return; }
+  else {
+    const hojeDia = new Date().getDate();
+    h += '<div class="qr-grade">' + SANEPAR.map(l => {
+      const falta = l.vencimento_dia - hojeDia;
+      const tag = falta === 0 ? '<span class="ref-nao">vence hoje</span>'
+        : (falta > 0 && falta <= 3) ? '<span class="ref-ainda">vence em ' + falta + (falta === 1 ? ' dia' : ' dias') + '</span>' : '';
+      return '<div class="rf-card" style="display:flex;flex-direction:column;gap:6px">'
+        + '<div class="qr-nome" style="font-size:18px;font-weight:800">' + escapeHtml(l.loja) + '</div>'
+        + '<div><span class="rfu">Matrícula</span><br><span class="pv-h">' + escapeHtml(l.matricula) + '</span></div>'
+        + '<div><span class="rfu">Vencimento</span><br><b>todo dia ' + String(l.vencimento_dia).padStart(2, "0") + '</b> ' + tag + '</div>'
+        + '<div><span class="rfu">Titular</span><br>' + escapeHtml(l.titular || "—") + (l.cpf ? '<br><span class="rfu">CPF ' + escapeHtml(l.cpf) + '</span>' : '') + '</div>'
+        + (l.obs ? '<div class="rfu">' + escapeHtml(l.obs) + '</div>' : '')
+        + '</div>';
+    }).join('') + '</div>';
+    h += '<div class="rfu" style="margin-top:10px">Fonte: o que a Hellen mandou pelo WhatsApp em 04/11/2026. Para mudar algum dado, peça na aba 💬 Pedir ao Claude.</div>';
+  }
+  elContent.innerHTML = h;
+}
+
 /* ---------- troca de tela ---------- */
 let LIBERADO = false;
 function render(){
@@ -1531,6 +1572,7 @@ function render(){
   document.querySelectorAll(".view").forEach(b => b.classList.toggle("active", b.dataset.view === VIEW));
   if (VIEW === "qr"){ renderQR(); return; }
   if (VIEW === "pedir"){ renderPedir(); return; }
+  if (VIEW === "sanepar"){ renderSanepar(); return; }
   if (!carregouUmaVez && erroCarga){
     elContent.innerHTML = '<div class="err">Não consegui carregar os registros agora.<br>' + escapeHtml(erroCarga) + '<br><button class="btn" id="btnTentarDeNovo" type="button">Tentar de novo</button></div>';
     document.getElementById("btnTentarDeNovo").addEventListener("click", () => carregar(false));
@@ -1564,7 +1606,7 @@ elContent.addEventListener("click", e => {
   else if (b.hasAttribute("data-dia-hoje")){ irParaDia(null); }
   else if (b.hasAttribute("data-dia-ler")){ DIA_DADOS = null; carregarDia(b.getAttribute("data-dia-ler")); }
 });
-btnRefresh.addEventListener("click", () => carregar(false));
+btnRefresh.addEventListener("click", () => { if (VIEW === "sanepar"){ SANEPAR = null; renderSanepar(); return; } carregar(false); });
 elContent.addEventListener("change", e => {
   const el = e.target; if (!el) return;
   if (el.id === "diaSel") irParaDia(el.value);
