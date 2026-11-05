@@ -67,8 +67,7 @@ function desenha(d){
   document.getElementById('alertas').innerHTML=A.length?'<div class="alerta">⚠️ Orientado 3 vezes ou mais em 7 dias: '+A.map(a=>'<b>'+esc(curto(a.nome))+'</b> ('+esc(a.loja||'')+', '+a.vezes+'×)').join(' · ')+'</div>':'';
   const I=d.itens||[];const g=document.getElementById('grade');
   if(!I.length){g.innerHTML='<div class="vazio">✅ Nada esperando na Caixa do RH</div>';return;}
-  const MAX=15;
-  g.innerHTML=I.slice(0,MAX).map(it=>{
+  g.innerHTML=I.map(it=>{
     const t=TIPO[it.tipo]||[it.tipo,'#6b7686'];
     const per=it.desde===it.ultima?it.desde:it.desde+' a '+it.ultima;
     const rep=it.vezes>1?' · <span class="rep">'+it.vezes+'× o mesmo assunto</span>':'';
@@ -76,8 +75,19 @@ function desenha(d){
     return '<div class="card" style="--cc:'+t[1]+'"><div class="top"><div class="nome">'+esc(curto(it.nome))+'</div><div class="tag">'+esc(t[0])+'</div></div>'+
       '<div class="linha">'+esc(it.loja==='sem loja'?'loja não informada':it.loja)+' · '+esc(per)+rep+vel+'</div>'+
       (it.texto?'<div class="txt">'+esc(it.texto)+'</div>':'')+'</div>';
-  }).join('')+(I.length>MAX?'<div class="mais">+ '+(I.length-MAX)+' grupo(s) — veja todos na Caixa de entrada do RH</div>':'');
+  }).join('');
 }
+// tira os cartões que não cabem na tela e avisa quantos ficaram de fora (nunca corta cartão pela metade)
+function cabe(){
+  const g=document.getElementById('grade');const fim=g.getBoundingClientRect().bottom;
+  const C=[...g.querySelectorAll('.card')];let fora=0;
+  const velho=g.querySelector('.mais');if(velho)velho.remove();
+  const aviso=()=>{const m=document.createElement('div');m.className='mais';m.textContent='+ '+fora+' grupo(s) que não couberam — veja todos na Caixa de entrada do RH';return m;};
+  for(let i=C.length-1;i>=0;i--){ if(C[i].getBoundingClientRect().bottom<=fim) break; C[i].remove(); fora++; }
+  if(fora){ g.appendChild(aviso()); const L=[...g.querySelectorAll('.card')];
+    while(L.length && g.querySelector('.mais').getBoundingClientRect().bottom>fim){ L.pop().remove(); fora++; g.querySelector('.mais').textContent='+ '+fora+' grupo(s) que não couberam — veja todos na Caixa de entrada do RH'; } }
+}
+window.addEventListener('resize',()=>{clearTimeout(window.__rz);window.__rz=setTimeout(carregar,500);});
 async function carregar(){
   const e=document.getElementById('erro');
   const k=chave();
@@ -85,7 +95,7 @@ async function carregar(){
   try{
     const r=await fetch(SB+'rpc/rh_tv_ler',{method:'POST',headers:H,body:JSON.stringify({p_chave:k})});
     if(!r.ok){e.textContent=r.status===401||r.status===403?'Código da TV recusado':'Sem resposta do banco ('+r.status+') — tentando de novo';return;}
-    desenha(await r.json());e.textContent='';
+    desenha(await r.json());cabe();e.textContent='';
   }catch(x){e.textContent='Sem internet — tentando de novo';}
 }
 carregar();
