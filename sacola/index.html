@@ -1007,7 +1007,9 @@ async function busca(){
       const av=novasS.length?novasS.map(s=>(primeiroNome(s.moto)||'Motoboy')+' saiu').concat(ch).join('. '):ch.join('. ');
       const dz=ch.length?vozChegada(BOQ_CHEG,av):[];
       if(novasS.length){ toca('rota'); fala(av,dz); }
-      else if(ch.length){ toca('chegou'); fala(av,dz); } }
+      else if(ch.length){ toca('chegou'); fala(av,dz); }
+      /* 05/11 SONS GRAVADOS (vista "sacolas por motoboy"): motoboy chegou na loja com bebida/sobremesa na rota */
+      if(!BOQ) somRotas(novasS.length?2500:0); }
     else if(novasR.length){ toca('rota'); fala(novasR.map(r=>String(r.entregador||'Motoboy').split(' ')[0]+' saiu para rota').join('. ')); }
     else if(novosP && !TV) toca('novo');   /* na TV: so a rota e o alarme fazem som (pedido novo chega toda hora) */
   }catch(e){
@@ -2239,6 +2241,41 @@ function vozChegada(es,aviso){
   if(resto) out.push('E mais '+resto+(resto>1?' pedidos':' pedido')+', confira na tela.');
   else if(so.length){ const r=soRot(so); out.push(out.length?(so.length>1?'Os outros: ':'O outro: ')+r+'.':vozCap(r)+'.'); }
   return out;
+}
+/* 05/11 SONS GRAVADOS DA EQUIPE (Fabio: "algo mais simples e menos chato"; audios da equipe mandados no WhatsApp,
+   guardados no storage publico kds-sons). So na TV da expedicao na vista "sacolas por motoboy" (?vista=rotas; a
+   boqueta continua com a voz dela). Toca 1 VEZ quando o motoboy CHEGA NA LOJA e a rota dele tem bebida e/ou sobremesa
+   ainda nao conferida: "Gente, tem bebida, hein?" / "tem sobremesa" / "tem bebida e sobremesa"; + "sao pacote das duas
+   cozinhas" quando um pedido da rota junta burger e prato. Sem nome, sem numero, sem repetir: ninguem clica em nada; a
+   rota que sai some da tela. 1a leitura (TV ligou agora): quem ja estava na loja nao toca. Varios motoboys na mesma
+   leitura: 1 som so, juntando o que eles levam. Pedido que ja tocou nao toca de novo (o TrackEat remonta grupo). */
+const SOM_URL='https://kqvoatdprjwxyadhvtdd.supabase.co/storage/v1/object/public/kds-sons/';
+let SOM_LOJA=null; const SOM_PED=new Set(); let SOM_T=null;
+function somRotas(espera){
+  if(!DADO||!vivoOk()) return;
+  const L=boqLista(), loja=L.loja;
+  if(!SOM_LOJA){ SOM_LOJA=new Set(loja.map(e=>e.k)); loja.forEach(e=>e.ps.forEach(p=>SOM_PED.add(String(p.id)))); return; }
+  const novos=loja.filter(e=>!SOM_LOJA.has(e.k));
+  SOM_LOJA=new Set(loja.map(e=>e.k));
+  let beb=false, sob=false, duas=false;
+  novos.forEach(function(e){ e.ps.forEach(function(p){
+    const id=String(p.id); if(SOM_PED.has(id)) return; SOM_PED.add(id);
+    if(p.cancelado||eConferido(p)) return;
+    const s=separa(p); s.lista.forEach(function(it){ if(it.kind==='bebida') beb=true; else if(it.kind==='sobremesa') sob=true; });
+    if(nPac(s)>=2) duas=true; }); });
+  if(SOM_PED.size>800) SOM_PED.clear();
+  const fila=[]; if(beb&&sob) fila.push('tem-bebida-e-sobremesa'); else if(beb) fila.push('tem-bebida'); else if(sob) fila.push('tem-sobremesa');
+  if(duas) fila.push('duas-cozinhas');
+  if(!fila.length||!somLigado()) return;
+  if(SOM_T) clearTimeout(SOM_T);
+  SOM_T=setTimeout(function(){ SOM_T=null; somToca(fila); },espera||0);
+}
+function somToca(fila){
+  if(!fila.length) return;
+  try{ const a=new Audio(SOM_URL+fila[0]+'.ogg'); a.volume=1;
+    a.onended=a.onerror=function(){ setTimeout(function(){ somToca(fila.slice(1)); },400); };
+    const pr=a.play(); if(pr&&pr.catch) pr.catch(function(){ aviso('Som travado: toque na tela 1 vez para o aviso de bebida/sobremesa tocar.'); });
+  }catch(e){}
 }
 /* toque no 🔊 do pedido: fala de novo so ele (na hora, sem esperar a fila) */
 function vozRepete(id){
