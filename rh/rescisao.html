@@ -79,6 +79,7 @@ tr.grp td{color:var(--brand);font-weight:700;font-size:11.5px;text-transform:upp
         <option value="experiencia">Contrato de experiência</option>
       </select></div>
       <div><label id="l_aviso">E o aviso prévio?</label><select id="f_aviso" onchange="ajustaExtra()"></select></div>
+      <div id="x_avdata" style="display:none"><label>Dia em que o aviso foi dado (se ficar vazio, uso o último dia de trabalho)</label><input type="date" id="f_avdata"></div>
       <div id="x_dias" style="display:none"><label>Quantos dias do aviso ele trabalhou?</label><input id="f_dias" inputmode="numeric" placeholder="ex.: 10"></div>
       <div id="x_fimctr" style="display:none"><label>Último dia previsto no contrato de experiência (se ficar vazio, uso o prazo máximo da experiência)</label><input type="date" id="f_fimctr"></div>
       <div><button class="btn pri" style="width:100%" onclick="simular()">Calcular</button></div>
@@ -171,6 +172,7 @@ function ajustaAviso(){
 function ajustaExtra(){
   const m=$('f_motivo').value, a=$('f_aviso').value;
   $('x_dias').style.display=(m==='pedido'&&a==='parcial')?'':'none';
+  $('x_avdata').style.display=(m==='sem_justa_causa'&&a==='indenizado')?'':'none';
   $('x_fimctr').style.display=(m==='experiencia'&&a!=='fim_experiencia')?'':'none';
 }
 /* traduz o formulario para o que o banco entende: motivo, aviso e opcoes */
@@ -180,6 +182,7 @@ function escolha(){
     if(a!=='fim_experiencia'&&$('f_fimctr').value)op.fim_contrato=$('f_fimctr').value;
     return {motivo:a,aviso:'',opcoes:op};
   }
+  if(m==='sem_justa_causa'&&a==='indenizado'&&$('f_avdata').value)op.data_aviso=$('f_avdata').value;
   if(m==='pedido'&&a==='parcial')op.dias_cumpridos=parseInt($('f_dias').value,10)||0;
   return {motivo:m,aviso:a,opcoes:op};
 }
