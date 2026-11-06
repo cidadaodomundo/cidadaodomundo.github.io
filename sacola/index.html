@@ -2260,18 +2260,20 @@ function somRotas(espera){
   if(!SOM_LOJA){ SOM_LOJA=new Set(loja.map(e=>e.k)); loja.forEach(e=>e.ps.forEach(p=>SOM_PED.add(String(p.id)))); return; }
   const novos=loja.filter(e=>!SOM_LOJA.has(e.k));
   SOM_LOJA=new Set(loja.map(e=>e.k));
-  let beb=false, sob=false, duas=false, sac=false, tal=false;
+  let beb=false, sob=false, duas=false, sac=false, tal=false, msal=false;
   novos.forEach(function(e){ e.ps.forEach(function(p){
     const id=String(p.id); if(SOM_PED.has(id)) return; SOM_PED.add(id);
     if(p.cancelado||eConferido(p)) return;
     const s=separa(p); s.lista.forEach(function(it){ if(it.kind==='bebida') beb=true; else if(it.kind==='sobremesa') sob=true;
-      else if(it.kind==='pote') sac=true; else if(it.kind==='talher') tal=true; });
+      else if(it.kind==='pote'){ if(/salada/i.test(semAcento(String(it.main||'')))) msal=true; else sac=true; }
+      else if(it.kind==='talher') tal=true; });
     if(nPac(s)>=2) duas=true; }); });
   if(SOM_PED.size>800) SOM_PED.clear();
   const fila=[]; if(beb&&sob) fila.push('tem-bebida-e-sobremesa'); else if(beb) fila.push('tem-bebida'); else if(sob) fila.push('tem-sobremesa');
   /* 06/11 Fabio: kit sache (e molho/pote) e kit talher tambem tem aviso de voz (audios gravados pela equipe; enquanto o
      arquivo nao existir no storage, o somToca pula sem barulho) */
-  if(sac) fila.push('tem-kit-sache'); if(tal) fila.push('tem-talher');
+  /* 06/11 Fabio: "KIT MOLHO SALADA" / "Kit molhos salada" (classe 05MOLHO) tem voz propria: o DELIVERY manda junto */
+  if(msal) fila.push('tem-molho-salada'); if(sac) fila.push('tem-kit-sache'); if(tal) fila.push('tem-talher');
   if(duas) fila.push('duas-cozinhas');
   if(!fila.length||!somLigado()) return;
   if(SOM_T) clearTimeout(SOM_T);
