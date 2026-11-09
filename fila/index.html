@@ -1388,6 +1388,21 @@ function rsCalc(d){
     if(!isFinite(lm)&&String(m.livre||'').trim().toLowerCase()==='agora') lm=0;
     if(m.livre&&isFinite(lm)) slots.push({t0:Math.max(0,lm)*60,quem:m.motoboy,patio:!!m.no_patio,livre:m.livre}); });
   slots.sort(function(a,b){return a.t0-b.t0||String(a.quem).localeCompare(String(b.quem));});
+  /* garantido (Fabio, 06/11: "todos os motoboys devem atingir o garantido"; 09/11 "ensina o garantido"): SO no ensaio
+     (motoboy_param ensaio_rota_garantido = 1 e a porta do ensaio manda garantido_falta). Quem ainda nao bateu o garantido
+     passa na frente de quem fica livre ate rota_garantido_janela_s (padrao 300 s) antes: R$ 30 ou mais faltando = vantagem
+     inteira, menos que isso, proporcional. A busca de menos saidas e o "serve" continuam iguais: nao pode atrasar mais ninguem.
+     A tela da Fila nao recebe garantido_falta, entao para ela nada muda. */
+  var GF=(+M.rota_garantido===1&&d.garantido_falta&&typeof d.garantido_falta==='object')?d.garantido_falta:null;
+  if(GF&&slots.length>1){
+    var gJan=rsNum(M.rota_garantido_janela_s); if(!isFinite(gJan)||gJan<0) gJan=300;
+    var gRef=rsNum(M.rota_garantido_ref_reais); if(!isFinite(gRef)||gRef<=0) gRef=30;
+    var nF=0;
+    slots.forEach(function(s){ var f=rsNum(GF[s.quem]); s.falta=isFinite(f)&&f>0?f:0; if(s.falta>0) nF++;
+      s.chaveG=s.t0-gJan*Math.min(1,s.falta/gRef); });
+    slots.sort(function(a,b){return a.chaveG-b.chaveG||a.t0-b.t0||String(a.quem).localeCompare(String(b.quem));});
+    r.avisos.push('garantido: '+nF+' motoboy(s) abaixo do garantido passam na frente');
+  }
   /* nome na caixa: o primeiro nome; se dois motoboys tem o mesmo primeiro nome, o nome inteiro */
   var nPri={}; slots.forEach(function(s){ var k=primeiroNome(s.quem); nPri[k]=(nPri[k]||0)+1; });
   slots.forEach(function(s){ var k=primeiroNome(s.quem); s.nome=nPri[k]>1?String(s.quem||'').replace(/^\d+\s+GME\s+/i,''):k; });
