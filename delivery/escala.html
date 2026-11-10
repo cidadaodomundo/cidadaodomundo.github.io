@@ -135,6 +135,7 @@ h1{font-family:'Anton',Impact,'Arial Black',sans-serif;font-weight:400;text-tran
   <span class="tab on" id="t_prev" onclick="setView('prev')">🌧 Previsão da semana</span>
   <span class="tab" id="t_mont" onclick="setView('mont')">✏️ Montar escala</span>
   <span class="tab" id="t_ader" onclick="setView('ader')">✅ Chegou no horário?</span>
+  <span class="tab" id="t_jai" onclick="setView('jai')">🔁 O que o Jaison mudou</span>
 </div>
 
 <div id="conteudo"><div class="empty">carregando…</div></div>
@@ -290,8 +291,8 @@ if(!ADER_INI){ADER_INI=dm7;ADER_FIM=iso(new Date(Date.now()-864e5))}
     render();
   }catch(e){$('conteudo').innerHTML='<div class="sec"><div class="empty">Erro ao carregar: '+esc(e.message)+'</div></div>'}
 }
-function setView(v){VIEW=v;['prev','mont','ader'].forEach(x=>$('t_'+x).className='tab'+(x===v?' on':''));render()}
-function render(){VIEW==='prev'?viewPrev():VIEW==='mont'?viewMont():viewAder()}
+function setView(v){VIEW=v;['prev','mont','ader','jai'].forEach(x=>$('t_'+x).className='tab'+(x===v?' on':''));render()}
+function render(){VIEW==='prev'?viewPrev():VIEW==='mont'?viewMont():VIEW==='jai'?viewJai():viewAder()}
 
 /* ================= 1) PREVISÃO DA SEMANA ================= */
 function viewPrev(){
@@ -754,6 +755,55 @@ function sortT(id,col){
     return isNaN(n)?s.toLowerCase():n};
   rows.sort((a,b)=>{const x=val(a),y=val(b);return (typeof x==='number'&&typeof y==='number')?(x-y)*dir:String(x).localeCompare(String(y),'pt-BR')*dir});
   rows.forEach(r=>t.tBodies[0].appendChild(r));
+}
+
+/* 10/11/2026 chat-canal-jaison-whatsapp-10-11: o que o Jaison mudou na escala (WhatsApp da API e grupo), com DESFAZER.
+   Porta escala_mudanca_consulta (listar/desfazer). Carrega so quando a aba e aberta; nao tem relogio proprio. */
+var JAI_BUSY=false;
+function jaiQuando(q){try{return new Date(q).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'})}catch(e){return ''}}
+function jaiLinha(x){return esc(x.nome||'?')+' · '+esc(x.loja||'?')+' · '+(x.data?esc(br(String(x.data))):'?')+(x.turno?' · '+esc(x.turno):'')+(x.entrada?' '+esc(x.entrada)+'–'+esc(x.saida||''):'')}
+function jaiLista(tit,l){if(!l||!l.length)return '';return '<div style="margin-top:6px"><b>'+tit+'</b><div style="font-size:12.5px;color:var(--text2);line-height:1.55">'+l.map(jaiLinha).join('<br>')+'</div></div>'}
+async function viewJai(){
+  $('conteudo').innerHTML='<div class="sec"><div class="empty">carregando…</div></div>';
+  var j;
+  try{j=await rpc('escala_mudanca_consulta',{p_cred:cdmTok(),p_acao:'listar',p_dados:{}})}
+  catch(e){if(VIEW==='jai')$('conteudo').innerHTML='<div class="sec"><div class="empty">Erro ao carregar: '+esc(e.message)+'</div></div>';return}
+  if(VIEW!=='jai')return;
+  j=j||{};
+  var ms=j.mudancas||[];
+  var h='<div class="sec"><h2>🔁 O que o Jaison mudou</h2>'+
+    '<div class="hs">Tudo que o Jaison mandou e mexeu na escala nos últimos 14 dias. Mudança de hoje em diante pode ser desfeita aqui. Dia que já passou se ajusta na aba Montar escala.</div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
+    '<span class="stat '+(j.canal_ligado?'ok':'no')+'">'+(j.canal_ligado?'leitura do WhatsApp do Jaison: ligada':'leitura do WhatsApp do Jaison: desligada')+'</span>'+
+    (j.ultima_leitura?'<span class="tamb" style="margin:0">última leitura registrada: '+esc(jaiQuando(j.ultima_leitura))+'</span>':'')+
+    '</div></div>';
+  if(!ms.length)h+='<div class="sec"><div class="empty">Nenhuma mudança nos últimos 14 dias.</div></div>';
+  ms.forEach(function(m){
+    var st=m.situacao==='aplicada'?'<span class="stat ok">aplicada</span>':m.situacao==='desfeita'?'<span class="stat no">desfeita</span>':'<span class="stat par">não aplicada</span>';
+    var nt=(m.tirou||[]).length,np=(m.pos||[]).length;
+    h+='<div class="sec"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between">'+
+       '<div><b>'+esc(jaiQuando(m.quando))+'</b> <span class="tamb" style="margin:0">· '+(m.canal==='api'?'mensagem direta no WhatsApp da casa':'grupo dos motoboys')+'</span></div>'+st+'</div>'+
+       '<div style="margin-top:8px;font-size:13px;white-space:pre-wrap;word-break:break-word;border-left:3px solid var(--line);padding-left:10px;color:var(--text2)">'+esc(m.texto||'')+'</div>';
+    if(m.escala_semana)h+='<div style="margin-top:6px"><b>Escala da semana:</b> trocou '+nt+' linha(s) por '+np+'.</div>';
+    else h+=jaiLista('Saiu / horário antigo:',m.tirou)+jaiLista('Entrou:',m.pos);
+    if(m.situacao==='nao_aplicada'&&m.motivo)h+='<div style="margin-top:6px"><b>Por que não aplicou:</b> '+esc(m.motivo)+'</div>';
+    if(m.desfeita_em)h+='<div class="tamb">desfeita por '+esc(m.desfeita_por||'?')+' em '+esc(jaiQuando(m.desfeita_em))+'</div>';
+    if(m.pode_desfazer)h+='<button class="btnr" style="margin-top:10px" onclick="jaiDesfazer('+Number(m.id)+')">↩️ Desfazer esta mudança</button>';
+    h+='</div>';
+  });
+  $('conteudo').innerHTML=h;
+}
+async function jaiDesfazer(id){
+  if(JAI_BUSY)return;
+  if(!confirm('Desfazer esta mudança? A escala volta a ser como era antes dela.'))return;
+  JAI_BUSY=true;
+  try{
+    var r=await rpc('escala_mudanca_consulta',{p_cred:cdmTok(),p_acao:'desfazer',p_dados:{id:id}});
+    if(r&&r.ok){toast('Desfeita. A escala voltou a ser como era.');ROWS=null;JAI_BUSY=false;loadAll();return}
+    toast('Não desfiz: '+((r&&r.motivo)||'erro'),true);
+  }catch(e){toast('Não desfiz: '+e.message,true)}
+  JAI_BUSY=false;
+  if(VIEW==='jai')viewJai();
 }
 
 document.addEventListener('visibilitychange',function(){
