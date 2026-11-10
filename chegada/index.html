@@ -119,7 +119,7 @@ table.vv td.sit{width:250px}
 .lj2{font-size:19px;font-weight:700;letter-spacing:-.01em;margin:26px 2px 8px}
 .lj2 small{color:var(--muted);font-size:12.5px;font-weight:500;margin-left:6px}
 .lst{background:var(--s1);border-radius:18px;padding:2px 18px;margin-bottom:8px}
-.ls{display:grid;grid-template-columns:104px minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr) 16px;gap:12px;align-items:center;padding:15px 0;border-top:1px solid var(--line);cursor:pointer;font-size:14.5px}
+.ls{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,.9fr) minmax(0,.8fr) minmax(0,1.1fr) minmax(0,1.7fr);gap:12px;align-items:center;padding:15px 0;border-top:1px solid var(--line);cursor:pointer;font-size:14.5px}
 .lst>.ls:first-child{border-top:0}
 .ls:hover .n{color:#fff}
 .ls.cab{cursor:default;padding:11px 0 9px;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
@@ -130,11 +130,20 @@ table.vv td.sit{width:250px}
 .ls small{font-size:12px;font-weight:600;margin-left:4px}
 .ls .rt{display:none}
 .ls .r{font-size:13px;font-weight:600;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.ls .sv{color:var(--muted);font-size:11px;text-align:right}
+.ls .sv{color:var(--muted);font-size:11px;text-decoration:none;white-space:nowrap}
+.ls .ob table,.ls .ob tr,.ls .ob td{display:block;border:0;padding:0;margin:0;background:none}
+.ls .ob td:first-child{display:none}
+.ls .ob td{display:flex;flex-direction:column-reverse;gap:3px;align-items:stretch}
+.ls .ob .sv{align-self:flex-end}
+.ls .ob .cdm-nota{margin-top:0;font-size:13px}
+.fx{display:flex;align-items:baseline;gap:10px;margin:0 -18px;padding:9px 18px;background:var(--s3,#2a2a28);border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.fx b{font-size:15px;font-weight:700;letter-spacing:.01em}
+.fx span{color:var(--muted);font-size:12px}
+.fx+.ls{border-top:0}
 .vd{color:#7fe0aa}.vm{color:#ff8a8a}.am{color:var(--warn)}.apg{color:var(--muted);font-weight:500}
 .lsd{padding:0 0 14px}
 .lsd table.vv{background:var(--s2);border:0;border-radius:14px}
-@media (max-width:760px){.ls{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px 12px}.ls.cab{display:none}.ls .n{grid-column:1/-1;grid-row:1}.ls .e{grid-column:1/-1}.ls .rt{display:inline;color:var(--muted);font-size:11px;margin-right:6px;text-transform:uppercase}.ls .r{grid-column:1/-1}.ls .sv{display:none}.nm b{font-size:34px}.nms{gap:10px 26px}}
+@media (max-width:760px){.ls{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px 12px}.ls.cab{display:none}.ls .n{grid-column:1/-1;grid-row:1}.ls .ob{grid-column:1/-1}.ls .rt{display:inline;color:var(--muted);font-size:11px;margin-right:6px;text-transform:uppercase}.ls .r{grid-column:1/-1}.nm b{font-size:34px}.nms{gap:10px 26px}}
 </style>
 </head>
 <body>
@@ -583,37 +592,45 @@ function saidaTxt(l){
 }
 function linhaSimples(l, i, dono){
   var st=situacao(l,dono), ch=horaChegou(l,dono), a=l.atraso_min, tol=(D&&D.tolerancia!=null)?+D.tolerancia:15, k=chaveL(l), ab=!!ABERTO[k];
-  var cheg = ch ? '<b>'+esc(ch)+'</b>'+((dono&&a!=null)?(a>0?' <small class="'+(a>tol?'vm':'am')+'">+'+a+' min</small>':' <small class="vd">no horário</small>'):'')
+  var cheg = ch ? '<b>'+esc(ch)+'</b>'+((dono&&a!=null)?(a>0?' <small class="'+(a>tol?'vm':'am')+'">+'+a+' min</small>':' <small class="vd">'+((l.n_turno>1&&a<=-30)?'já estava na loja':'no horário')+'</small>'):'')
            : (st==='faltou' ? '<span class="vm">não veio</span>' : (st==='anotar' ? '<span class="am">falta anotar</span>' : '<span class="apg">até '+esc(l.limite_txt||'—')+'</span>'));
   var R={ok:['vd','✓ garantido + rango'],perdeu:['vm','✕ perdeu os dois'],parte:['am',(valeRango(l)?'só rango':'só garantido')],semprova:['am','sem prova · não corta'],espera:['apg','aguardando'],faltou:['vm','não veio'],anotar:['am','anote a hora'],fora:['apg','fora da escala']}[st];
   var bot = (!dono && !l.anotado_txt && l.na_escala) ? '<button class="mini" onclick="event.stopPropagation();chegou('+i+')">Chegou agora</button>' : '';
   return '<div class="ls'+(ab?' ab':'')+'" onclick="abre('+i+')">'+
-      '<div class="e">'+(l.na_escala?escalaTxt(l):'—')+'</div>'+
       '<div class="n">'+esc(l.entregador)+(l.na_escala?'':' <small>'+esc(l.unidade)+'</small>')+'</div>'+
       '<div class="c1"><span class="rt">chegou</span>'+cheg+'</div>'+
       '<div class="c2"><span class="rt">saiu</span>'+saidaTxt(l)+'</div>'+
       '<div class="r '+R[0]+'">'+R[1]+bot+'</div>'+
-      '<div class="sv">'+(ab?'▴':'▾')+'</div>'+
-    '</div>'+(ab?'<div class="lsd">'+cartaoChegada(l, i, !!l.vivo_onde, dono, false)+'</div>':'');
+      /* observacao da equipe no fim da linha: a caixa vem do portal.js (anotacao gravada com o nome de quem escreveu); a chave leva o DIA */
+      '<div class="ob" onclick="event.stopPropagation()"><table data-cdm-livre><tr data-cdm-chave="'+esc((D.dia||'')+' | '+l.unidade+' | '+l.entregador+' | '+(l.escala_txt||'fora'))+'"><td></td>'+
+        '<td><a href="#" class="sv" onclick="abre('+i+');return false" title="abrir os detalhes">'+(ab?'fechar ▴':'detalhes ▾')+'</a></td></tr></table></div>'+
+    '</div>'+(ab?'<div class="lsd">'+cartaoChegada(l, i, !!l.vivo_onde, dono, false).replace('data-cdm-livre>','data-cdm-livre data-cdm-sem-nota>')+'</div>':'');
 }
 function listaSimples(dono){
   var P=((D&&D.linhas)||[]).map(function(l,i){return [l,i]});
   var esc_=P.filter(function(p){return p[0].na_escala}).sort(function(a,b){
     return a[0].unidade.localeCompare(b[0].unidade) || (a[0].escala_txt||'').localeCompare(b[0].escala_txt||'') || a[0].entregador.localeCompare(b[0].entregador); });
   var fora=P.filter(function(p){return !p[0].na_escala});
-  var cab='<div class="ls cab"><div>escala</div><div>motoboy</div><div>chegou</div><div>saiu</div><div>resultado</div><div></div></div>';
+  var cab='<div class="ls cab"><div>motoboy</div><div>chegou</div><div>saiu</div><div>resultado</div><div>observação da equipe</div></div>';
+  /* 10/11/2026, pedido do Fabio: "uma faixinha grossa para separar o turno certinho da galera" (10-14, 11-17, 17-23...) */
+  var comFaixas=function(t){ var ult=null, o='';
+    t.forEach(function(p){ var f=escalaTxt(p[0]);
+      if(f!==ult){ ult=f; var n=t.filter(function(q){return escalaTxt(q[0])===f}).length; o+='<div class="fx"><b>'+f+'</b><span>'+n+' motoboy'+(n>1?'s':'')+'</span></div>'; }
+      o+=linhaSimples(p[0],p[1],dono); });
+    return o; };
   var h='', lojas=UNI?[UNI]:['Água Verde','Ahú','São Braz'];
   lojas.forEach(function(u){
     var t=esc_.filter(function(p){return p[0].unidade===u});
     if(!UNI) h+='<div class="lj2">'+esc(u)+' <small>'+(t.length?t.length+' turno(s)':'sem escala do Jaison neste dia')+'</small></div>';
     if(!t.length){ if(UNI) h+='<div class="c"><div class="vazio">sem escala do Jaison neste dia — sem escala ninguém é julgado</div></div>'; return; }
-    h+='<div class="lst" id="b_escala">'+cab+t.map(function(p){return linhaSimples(p[0],p[1],dono)}).join('')+'</div>';
+    h+='<div class="lst" id="b_escala">'+cab+comFaixas(t)+'</div>';
   });
   if(fora.length) h+='<div class="lj2">Fora da escala <small>'+fora.length+' — com o aplicativo ligado ou anotado pelo balcão, sem horário combinado</small></div>'+
     '<div class="lst">'+fora.map(function(p){return linhaSimples(p[0],p[1],dono)}).join('')+'</div>';
   return h;
 }
 function desenha(){
+  var ae=document.activeElement; if(D && ae && ae.classList && ae.classList.contains('cdm-nota')) return;   /* alguem esta escrevendo a observacao: nao apaga o que ele digita */
   if(D===false){ $('app').innerHTML='<div class="c"><b>Não deu para carregar.</b><div class="m">Entre no portal de novo e tente outra vez.</div></div>'; return }
   if(!D){ $('app').innerHTML='<div class="load">Juntando a escala com quem está com o aplicativo ligado…</div>'; return }
   const dono=!!D.dono, L=D.linhas||[], P=D.placar||{}, vivo=!!D.ao_vivo, gp=gpsParado();
