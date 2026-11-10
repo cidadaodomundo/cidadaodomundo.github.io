@@ -549,6 +549,7 @@ async function salvarColado(){
 }
 
 async function viewMont(){
+  if(!DATA){$('conteudo').innerHTML='<div class="empty">carregando\u2026</div>';return}   /* 10/11: antes de loadAll terminar nao monta (evita abrir o dia vazio e salvar vazio) */
   const ds=dias(8);
   let h='<div class="tabs">'+ds.map(d=>'<span class="tab '+(DATA===d?'on':'')+'" onclick="DATA=\''+d+'\';ROWS=null;PEND={};render()">'+DOWN[dowOf(d)].slice(0,3)+' '+br(d)+'</span>').join('')+'</div>';
   h+='<div class="hs" style="margin:10px 0 4px;font-weight:700">Loja</div>';
@@ -586,7 +587,7 @@ const extras=ROWS.map(r=>r.nome).filter(n=>ATIVOS.indexOf(n)<0);
        com o horario e um X para tirar. Antes, quem tinha horario fora dos blocos (ex.: 19h-23h, ou 20h-02h salvo como Jantar)
        nao aparecia em bloco nenhum e nao dava para tirar. */
     const meus=ROWS.filter(r=>r.turno===t);
-    h+='<div class="hs" style="margin:10px 0 2px;font-weight:700;color:var(--text2)">'+(meus.length?'Na escala deste turno \u00B7 toque no \u2715 para tirar':'Ningu\u00E9m neste turno ainda \u00B7 toque nos nomes abaixo para colocar')+'</div>';
+    h+='<div class="hs" style="margin:10px 0 2px;font-weight:700;color:var(--text2)">'+(meus.length?'Na escala deste turno \u00B7 toque no \u2715 para tirar e depois em SALVAR':'Ningu\u00E9m neste turno ainda \u00B7 toque nos nomes abaixo para colocar')+'</div>';
     if(meus.length)h+='<div class="chips">'+meus.map(r=>'<span class="chip on" title="'+esc(r.nome)+'" onclick="tirarDaEscala(\''+t+'\',\''+r.nome.replace(/\x27/g,"\\x27")+'\')">'+esc(r.nome.split(' ')[0])+' '+esc(String(r.entrada).slice(0,5))+'\u2192'+esc(String(r.saida).slice(0,5))+' \u2715</span>').join('')+'</div>';
     BLOCOS[t].forEach(bl=>{
       const e=bl[0],sa=bl[1],chave=e+'|'+sa;
