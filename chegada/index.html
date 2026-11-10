@@ -89,7 +89,8 @@ table.vv td.sit{width:250px}
 .ft small{color:var(--muted);font-size:11.5px;font-weight:600}
 .ft.ok b{color:#7fe0aa}.ft.bad b{color:#ff9a9a}.ft.warn b{color:var(--warn)}
 .ft.bad{border-color:rgba(230,103,103,.45)}
-.rbt{display:flex;flex-direction:row;gap:4px 16px;flex-wrap:wrap;align-items:center;justify-content:flex-start;text-align:left;background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:9px 13px;font-size:12.5px;color:var(--text2);margin:0 0 12px}
+.rbt{display:flex;flex-direction:row;gap:2px 16px;flex-wrap:wrap;align-items:center;justify-content:flex-start;text-align:left;background:transparent;border:0;padding:0 2px;font-size:12px;color:var(--muted);margin:0 0 22px}
+.rbt.mal{border:1px solid var(--bad);border-radius:13px;padding:9px 13px}
 .rbt.mal{background:#2a1716;border-color:var(--bad);color:#ffb4b4}
 .rbt b{color:var(--text);display:inline}
 .duo{display:block}
@@ -105,6 +106,35 @@ table.vv td.sit{width:250px}
 .esc .ln .x{grid-column:2;color:var(--muted);font-size:11.5px}
 .esc .ln .x .pill{margin-right:4px}
 .esc .semesc{color:var(--muted);font-size:12px;padding:6px 0;border-top:1px solid var(--line)}
+/* 10/11/2026 (chat-chegada-gps-decide-10-11): lista simples e limpa (pedido do Fabio: "mais clean") */
+.como{margin:0 0 6px;font-size:12.5px;color:var(--muted)}
+.como summary{cursor:pointer;display:inline-block;color:var(--text2);font-weight:600;list-style:none}
+.como summary::after{content:' ›'}
+.como[open] summary::after{content:' ⌄'}
+.como div{margin-top:8px;line-height:1.55;max-width:820px}
+.nms{display:flex;flex-wrap:wrap;gap:10px 44px;margin:6px 0 30px;padding:2px}
+.nm b{display:block;font-family:'Barlow',system-ui,sans-serif;font-size:44px;font-weight:600;letter-spacing:-.02em;line-height:1.05;color:var(--text)}
+.nm span{color:var(--muted);font-size:13px;font-weight:500}
+.nm.ok b{color:#7fe0aa}.nm.bad b{color:#ff8a8a}
+.lj2{font-size:19px;font-weight:700;letter-spacing:-.01em;margin:26px 2px 8px}
+.lj2 small{color:var(--muted);font-size:12.5px;font-weight:500;margin-left:6px}
+.lst{background:var(--s1);border-radius:18px;padding:2px 18px;margin-bottom:8px}
+.ls{display:grid;grid-template-columns:104px minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr) 16px;gap:12px;align-items:center;padding:15px 0;border-top:1px solid var(--line);cursor:pointer;font-size:14.5px}
+.lst>.ls:first-child{border-top:0}
+.ls:hover .n{color:#fff}
+.ls.cab{cursor:default;padding:11px 0 9px;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.ls .e{font-variant-numeric:tabular-nums;color:var(--text2);font-weight:500;white-space:nowrap}
+.ls .n{font-weight:600;font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ls .n small{color:var(--muted);font-weight:500;font-size:12px;margin-left:6px}
+.ls .c1 b,.ls .c2 b{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.ls small{font-size:12px;font-weight:600;margin-left:4px}
+.ls .rt{display:none}
+.ls .r{font-size:13px;font-weight:600;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.ls .sv{color:var(--muted);font-size:11px;text-align:right}
+.vd{color:#7fe0aa}.vm{color:#ff8a8a}.am{color:var(--warn)}.apg{color:var(--muted);font-weight:500}
+.lsd{padding:0 0 14px}
+.lsd table.vv{background:var(--s2);border:0;border-radius:14px}
+@media (max-width:760px){.ls{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px 12px}.ls.cab{display:none}.ls .n{grid-column:1/-1;grid-row:1}.ls .e{grid-column:1/-1}.ls .rt{display:inline;color:var(--muted);font-size:11px;margin-right:6px;text-transform:uppercase}.ls .r{grid-column:1/-1}.ls .sv{display:none}.nm b{font-size:34px}.nms{gap:10px 26px}}
 </style>
 </head>
 <body>
@@ -521,6 +551,68 @@ function umPorPessoa(pares){
   });
   return fora;
 }
+/* 11/10/2026 -> 10/11/2026 (chat-chegada-gps-decide-10-11), pedido do Fabio: "vamos simplificar... uma lista simples... so ver o horario
+   da chegada, se chegou no horario combinado e se ele saiu... mais clean". Sairam os grupos Rodando / Parado / Sem sinal, os quadros
+   grandes e a escala no canto: agora e UMA lista, um turno por linha, na ordem da escala. Clicar na linha abre o cartao completo
+   (botoes de garantido/rango, hora do balcao, entregas, anotacao). */
+var ABERTO={};
+function chaveL(l){ return l.unidade+'|'+l.entregador+'|'+l.n_turno; }
+function abre(i){ var l=linhaDe(i); if(!l) return; var k=chaveL(l); ABERTO[k]=!ABERTO[k]; desenha(); }
+function comoFunciona(dono){
+  return '<details class="como"><summary>Como funciona</summary><div>Vale o <b>1º momento no pátio (GPS) ou na fila</b> do TrackEat, comparado com a <b>escala do Jaison</b>. Passou de <b>'+tolMin()+' min</b>: perde o rango do turno e o garantido do dia. Se o robô ficou sem ler nessa hora, ou não há prova, <b>não corta</b> e avisa. A hora do balcão é só para comparar. '+(dono?'Só você muda um botão (com motivo, hoje e ontem). ':'')+'<b>O que ficar marcado aqui é o que o Pagar Motoboys paga.</b></div></details>';
+}
+function situacao(l, dono){   /* ok | perdeu | parte | semprova | espera | faltou | anotar | fora */
+  if(!l.na_escala) return 'fora';
+  if(!temBotoes(l, dono)) return l.direito==='no_prazo'?'espera':(l.direito==='nao_chegou'?'faltou':(l.direito==='aguarda_balcao'?'anotar':'espera'));
+  var g=valeGarantido(l), r=valeRango(l);
+  if(g&&r) return l.direito==='sem_prova'?'semprova':'ok';
+  return (!g&&!r)?'perdeu':'parte';
+}
+function resumoSimples(dono){
+  var T=((D&&D.linhas)||[]).filter(function(l){return l.na_escala}), c={ok:0,perdeu:0,parte:0,semprova:0,espera:0,faltou:0,anotar:0};
+  T.forEach(function(l){ c[situacao(l,dono)]++; });
+  var n=function(v,t,cls){ return '<div class="nm'+(cls&&v?' '+cls:'')+'"><b>'+v+'</b><span>'+t+'</span></div>'; };
+  return '<div class="nms">'+n(T.length,'turnos na escala')+n(c.ok+c.semprova,'no horário','ok')+n(c.perdeu+c.parte,'atrasados','bad')+
+    n(c.espera+c.anotar,dono?'ainda não chegaram':'faltam chegar ou anotar')+(c.faltou?n(c.faltou,'não vieram','bad'):'')+'</div>';
+}
+function saidaTxt(l){
+  if(!l.ultimo_sinal_txt) return '<span class="apg">—</span>';
+  if(D.ao_vivo && l.sinal_min!=null && l.sinal_min<=15) return '<span class="vd">na ativa</span>';
+  var s=desde(l.escala_txt, l.ultimo_sinal_txt), f=desde(l.escala_txt, l.escala_saida_txt), antes=(s!=null && f!=null && s<f-15);
+  return '<b>'+esc(l.ultimo_sinal_txt)+'</b>'+(antes?' <small class="am">antes do fim</small>':'');
+}
+function linhaSimples(l, i, dono){
+  var st=situacao(l,dono), ch=horaChegou(l,dono), a=l.atraso_min, tol=(D&&D.tolerancia!=null)?+D.tolerancia:15, k=chaveL(l), ab=!!ABERTO[k];
+  var cheg = ch ? '<b>'+esc(ch)+'</b>'+((dono&&a!=null)?(a>0?' <small class="'+(a>tol?'vm':'am')+'">+'+a+' min</small>':' <small class="vd">no horário</small>'):'')
+           : (st==='faltou' ? '<span class="vm">não veio</span>' : (st==='anotar' ? '<span class="am">falta anotar</span>' : '<span class="apg">até '+esc(l.limite_txt||'—')+'</span>'));
+  var R={ok:['vd','✓ garantido + rango'],perdeu:['vm','✕ perdeu os dois'],parte:['am',(valeRango(l)?'só rango':'só garantido')],semprova:['am','sem prova · não corta'],espera:['apg','aguardando'],faltou:['vm','não veio'],anotar:['am','anote a hora'],fora:['apg','fora da escala']}[st];
+  var bot = (!dono && !l.anotado_txt && l.na_escala) ? '<button class="mini" onclick="event.stopPropagation();chegou('+i+')">Chegou agora</button>' : '';
+  return '<div class="ls'+(ab?' ab':'')+'" onclick="abre('+i+')">'+
+      '<div class="e">'+(l.na_escala?escalaTxt(l):'—')+'</div>'+
+      '<div class="n">'+esc(l.entregador)+(l.na_escala?'':' <small>'+esc(l.unidade)+'</small>')+'</div>'+
+      '<div class="c1"><span class="rt">chegou</span>'+cheg+'</div>'+
+      '<div class="c2"><span class="rt">saiu</span>'+saidaTxt(l)+'</div>'+
+      '<div class="r '+R[0]+'">'+R[1]+bot+'</div>'+
+      '<div class="sv">'+(ab?'▴':'▾')+'</div>'+
+    '</div>'+(ab?'<div class="lsd">'+cartaoChegada(l, i, !!l.vivo_onde, dono, false)+'</div>':'');
+}
+function listaSimples(dono){
+  var P=((D&&D.linhas)||[]).map(function(l,i){return [l,i]});
+  var esc_=P.filter(function(p){return p[0].na_escala}).sort(function(a,b){
+    return a[0].unidade.localeCompare(b[0].unidade) || (a[0].escala_txt||'').localeCompare(b[0].escala_txt||'') || a[0].entregador.localeCompare(b[0].entregador); });
+  var fora=P.filter(function(p){return !p[0].na_escala});
+  var cab='<div class="ls cab"><div>escala</div><div>motoboy</div><div>chegou</div><div>saiu</div><div>resultado</div><div></div></div>';
+  var h='', lojas=UNI?[UNI]:['Água Verde','Ahú','São Braz'];
+  lojas.forEach(function(u){
+    var t=esc_.filter(function(p){return p[0].unidade===u});
+    if(!UNI) h+='<div class="lj2">'+esc(u)+' <small>'+(t.length?t.length+' turno(s)':'sem escala do Jaison neste dia')+'</small></div>';
+    if(!t.length){ if(UNI) h+='<div class="c"><div class="vazio">sem escala do Jaison neste dia — sem escala ninguém é julgado</div></div>'; return; }
+    h+='<div class="lst" id="b_escala">'+cab+t.map(function(p){return linhaSimples(p[0],p[1],dono)}).join('')+'</div>';
+  });
+  if(fora.length) h+='<div class="lj2">Fora da escala <small>'+fora.length+' — com o aplicativo ligado ou anotado pelo balcão, sem horário combinado</small></div>'+
+    '<div class="lst">'+fora.map(function(p){return linhaSimples(p[0],p[1],dono)}).join('')+'</div>';
+  return h;
+}
 function desenha(){
   if(D===false){ $('app').innerHTML='<div class="c"><b>Não deu para carregar.</b><div class="m">Entre no portal de novo e tente outra vez.</div></div>'; return }
   if(!D){ $('app').innerHTML='<div class="load">Juntando a escala com quem está com o aplicativo ligado…</div>'; return }
@@ -532,67 +624,13 @@ function desenha(){
     '<button class="chip'+(UNI==='Ahú'?' on':'')+'" onclick="UNI=&quot;Ahú&quot;;boot()">Ahú</button>'+
     '<button class="chip'+(UNI==='São Braz'?' on':'')+'" onclick="UNI=&quot;São Braz&quot;;boot()">São Braz</button>'+
     '</div>'+
-    '<div class="explica"><b>Como funciona:</b> o robô lê o TrackEat <b>de minuto em minuto</b> (Água Verde também de 10 em 10 s). Vale o <b>1º momento no pátio (GPS) ou na fila</b>, comparado com a <b>escala do Jaison</b>. Passou de <b>'+tolMin()+' min</b>: perde o rango do turno e o garantido do dia. Se o robô ficou sem ler nessa hora, ou não há prova, <b>não corta</b> e avisa aqui. A hora do balcão é só para comparar. '+(dono?'Só você muda um botão (com motivo, hoje e ontem). ':'')+'<b>O que ficar marcado aqui é o que o Pagar Motoboys paga.</b></div>'+roboBarra();
-
-  /* o mesmo placar de antes, agora em quadros; clicar leva ate a lista */
-  var q=function(cls,em,t,v,qs,alvo){
-    return '<div class="card '+cls+'"'+(alvo?' onclick="vaiPara(&quot;'+alvo+'&quot;)" title="Clique para ir até a lista"':'')+'>'+
-      '<div class="t">'+em+' '+t+'</div><div class="v">'+v+'</div>'+(qs?'<div class="qs">'+qs+'</div>':'')+'</div>';
-  };
-  /* 14/10/2026, pedido do Fabio ("corrija"): o TrackEat voltou pela API oficial em 13/10 (robo trackeat-api-fila).
-     Sem sinal agora quer dizer ninguem com o aplicativo ligado (antes do 1o motoboy) ou robo parado. */
-  if(gp) h+='<div class="gpsparado">⚠️ <b>Sem sinal de GPS do TrackEat'+(D.gps_ultimo?'; último dado em '+esc(D.gps_ultimo):'')+'.</b> '+
-     'Antes do primeiro motoboy ligar o aplicativo é normal. Em horário de movimento, avise: o robô do TrackEat pode ter parado. '+
-     'A tela não sabe quem está rodando nem a hora que o sistema viu cada um — por isso não aparece "o sistema não viu". '+
-     'A anotação do balcão continua valendo: anote normalmente.</div>';
-  var semGps=function(em,t){ return '<div class="card sd"><div class="t">'+em+' '+t+'</div><div class="v">—</div><div class="qs">sem GPS: TrackEat sem sinal</div></div>'; };
-  var an=P.anotados||0, tu=P.turnos||0;
-  h+='<div class="cards">'+q(an<tu?'atencao':'bem','✍️','Anotados pelo balcão',an+'/'+tu,an<tu?(tu-an)+' turno(s) sem a hora do balcão':'todos anotados',vivo?'b_rodando':'b_escala');
-  /* 14/10/2026 (chat-chegada-garantido-14-10): quem tem direito ao garantido e ao rango, pela escala do Jaison x trava da fila do TrackEat */
-  /* 15/10/2026 (chat-chegada-botoes-15-10): os quadros contam o que VALE (regra + mudanca da equipe), turno a turno */
-  if(!gp){
-    var med=L.filter(function(l){ return temBotoes(l, dono); });
-    var cg=med.filter(function(l){ return valeGarantido(l)&&valeRango(l); }).length;
-    var sr=med.filter(function(l){ return !valeRango(l); }).length;
-    var sg={}; med.forEach(function(l){ if(!valeGarantido(l)) sg[l.unidade+'|'+l.entregador]=1; });
-    var nsg=Object.keys(sg).length;
-    h+=q('bem','✅','Com garantido e rango',cg,'turno(s) de quem já chegou',vivo?'b_rodando':'b_escala')+
-       q(sr?'mal':(nsg?'atencao':'bem'),'❌','Sem rango',sr,
-         nsg ? nsg+' pessoa(s) sem o garantido do dia' : (!dono && an<tu) ? 'entre os turnos já anotados' : 'todos com garantido',
-         vivo?'b_rodando':'b_escala');
-  }
-  if(vivo && gp){
-    h+=semGps('🟢','Rodando agora')+semGps('📌','Fora da escala')+semGps('📵','App ligado e parado')+semGps('⚪','Escalado sem sinal');
-  }else if(vivo){
-    var fe=P.fora_escala||0, pa=P.parado||0, ss=P.sem_sinal||0;
-    h+=q('','🟢','Rodando agora',(P.rodando||0),'no pátio, na fila ou na rua','b_rodando')+
-       q(fe?'atencao':'bem','📌','Fora da escala',fe,fe?'rodando sem estar na escala':'todo mundo é da escala','b_rodando')+
-       q(pa?'atencao':'bem','📵','App ligado e parado',pa,pa?'fora da fila, sem se mexer':'ninguém parado',pa?'b_parados':'')+
-       q(ss?'mal':'bem','⚪','Escalado sem sinal',ss,ss?'na escala e sem o aplicativo ligado':'todos com o aplicativo ligado','b_semsinal');
-  }
-  /* 15/10/2026 (chat-chegada-botoes-15-10): sairam os quadros do dono Bateram / Nao bateram / O sistema perdeu / Erro medio
-     (Fabio: "to achando bem confuso"). O banco continua devolvendo esses numeros no placar. */
-  h+='</div>';
-
+    comoFunciona(dono)+roboBarra();
+  if(gp) h+='<div class="gpsparado">⚠️ <b>Sem sinal de GPS do TrackEat'+(D.gps_ultimo?'; último dado em '+esc(D.gps_ultimo):'')+'.</b> Antes do primeiro motoboy ligar o aplicativo é normal. Em horário de movimento, avise o Fábio. Enquanto não há sinal, ninguém é cortado.</div>';
   if(!L.length){
     h+='<div class="c"><div class="vazio">ninguém na escala deste dia e ninguém com o aplicativo ligado</div></div>';
     $('app').innerHTML=h; return;
   }
-  const pares=L.map(function(l,i){return [l,i]});
-  h+='<div class="duo"><aside class="duo-b">'+escalaDoDia(dono)+'</aside><div class="duo-a">';
-  if(!vivo || gp){
-    h+=bloco('📋 A escala do dia', umPorPessoa(pares), false, dono, 'ninguém na escala deste dia', false, 'b_escala');
-  }else{
-    h+=bloco('🟢 Rodando agora', umPorPessoa(pares.filter(function(p){return p[0].vivo_rodando})), true, dono,
-             'ninguém rodando neste minuto', true, 'b_rodando');
-    const parados=umPorPessoa(pares.filter(function(p){return p[0].vivo_onde && !p[0].vivo_rodando}));
-    if(parados.length)h+=bloco('📵 Aplicativo ligado, mas parado', parados, true, dono, '', true, 'b_parados');
-    h+=bloco('⚪ Escalado e sem sinal', umPorPessoa(pares.filter(function(p){return !p[0].vivo_onde && p[0].na_escala})), false, dono,
-             'todo mundo da escala está com o aplicativo ligado 🎉', false, 'b_semsinal');
-    const sobra=pares.filter(function(p){return !p[0].vivo_onde && !p[0].na_escala});
-    if(sobra.length)h+=bloco('📝 Anotado pelo balcão, fora da escala', sobra, false, dono, '');
-  }
-  h+='</div></div>';
+  h+=resumoSimples(dono)+listaSimples(dono);
   if(!dono){
     h+='<div class="aviso">Anote a hora que <b>você viu</b> a pessoa entrar — é só para comparar com o GPS. Quem decide garantido e rango é o sistema (pátio ou fila); depois de anotar, aparece o que ele decidiu.</div>';
   }
