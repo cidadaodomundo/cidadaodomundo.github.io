@@ -455,12 +455,20 @@ function roboBarra(){
   var vivo=!!D.ao_vivo, pior=0, bur=0, ult='', n=0;
   n=Infinity;
   R.forEach(function(r){ pior=Math.max(pior, r.min_atras||0); bur=Math.max(bur, r.buraco_max_min||0); n=Math.min(n, r.leituras||0); if((r.ultima_txt||'')>ult) ult=r.ultima_txt; });
+  /* 10/11/2026 (chat-chegada-gps-decide-10-11), pedido do Fabio: "use o robo que le de segundos em segundos; a API fica de reserva".
+     Agua Verde tambem vem do leitor do site (BENTOIK), de 10 em 10 s. Se ele parar, a API de 1 em 1 min continua cobrindo. */
+  var site='';
+  R.forEach(function(r){ if(!r.site_leituras) return;
+    if(!vivo) site+='<span>'+esc(r.unidade)+' também pelo leitor rápido: <b>'+r.site_leituras+'</b> leituras no dia</span>';
+    else if(r.site_seg_atras!=null && r.site_seg_atras<=120) site+='<span>⚡ '+esc(r.unidade)+' também pelo leitor rápido, <b>de 10 em 10 s</b> (última '+esc(r.site_ultima_txt||'')+')</span>';
+    else site+='<span style="color:var(--warn)">⚡ leitor rápido da '+esc(r.unidade)+' parado desde '+esc(r.site_ultima_txt||'?')+' — a leitura de 1 em 1 min continua cobrindo</span>';
+  });
   var parado=vivo && pior>3;
   var quem=R.filter(function(r){ return (r.min_atras||0)>3; }).map(function(r){ return esc(r.unidade)+' há '+r.min_atras+' min'; }).join(', ');
   return '<div class="rbt'+(parado?' mal':'')+'"><span>'+
     (parado ? '🤖 <b>O robô está sem ler o TrackEat</b> ('+quem+'). Enquanto ele não lê, ninguém é cortado — avise o Fábio.'
             : '🤖 Robô lendo o TrackEat <b>de minuto em minuto</b>'+(vivo?' · última leitura boa <b>'+esc(ult)+'</b>':''))+
-    '</span><span>'+n+' leituras boas por loja no dia</span><span>maior intervalo sem ler: <b>'+bur+' min</b></span></div>';
+    '</span>'+site+'<span>'+n+' leituras boas por loja no dia</span><span>maior intervalo sem ler: <b>'+bur+' min</b></span></div>';
 }
 function cartaoChegada(l, i, mostraOnde, dono, marcaEscala){
   var hora=horaChegou(l, dono), bt=temBotoes(l, dono);
@@ -524,7 +532,7 @@ function desenha(){
     '<button class="chip'+(UNI==='Ahú'?' on':'')+'" onclick="UNI=&quot;Ahú&quot;;boot()">Ahú</button>'+
     '<button class="chip'+(UNI==='São Braz'?' on':'')+'" onclick="UNI=&quot;São Braz&quot;;boot()">São Braz</button>'+
     '</div>'+
-    '<div class="explica"><b>Como funciona:</b> o robô lê o TrackEat <b>de minuto em minuto</b>. Vale o <b>1º momento no pátio (GPS) ou na fila</b>, comparado com a <b>escala do Jaison</b>. Passou de <b>'+tolMin()+' min</b>: perde o rango do turno e o garantido do dia. Se o robô ficou sem ler nessa hora, ou não há prova, <b>não corta</b> e avisa aqui. A hora do balcão é só para comparar. '+(dono?'Só você muda um botão (com motivo, hoje e ontem). ':'')+'<b>O que ficar marcado aqui é o que o Pagar Motoboys paga.</b></div>'+roboBarra();
+    '<div class="explica"><b>Como funciona:</b> o robô lê o TrackEat <b>de minuto em minuto</b> (Água Verde também de 10 em 10 s). Vale o <b>1º momento no pátio (GPS) ou na fila</b>, comparado com a <b>escala do Jaison</b>. Passou de <b>'+tolMin()+' min</b>: perde o rango do turno e o garantido do dia. Se o robô ficou sem ler nessa hora, ou não há prova, <b>não corta</b> e avisa aqui. A hora do balcão é só para comparar. '+(dono?'Só você muda um botão (com motivo, hoje e ontem). ':'')+'<b>O que ficar marcado aqui é o que o Pagar Motoboys paga.</b></div>'+roboBarra();
 
   /* o mesmo placar de antes, agora em quadros; clicar leva ate a lista */
   var q=function(cls,em,t,v,qs,alvo){
