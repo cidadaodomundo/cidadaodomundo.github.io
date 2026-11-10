@@ -286,7 +286,7 @@ function regraGarantido(l){ return !(l.garantido_perdido || l.direito==='perdeu'
 function regraRango(l){ return l.direito!=='perdeu'; }
 function valeGarantido(l){ return (l.garantido_manual===true||l.garantido_manual===false) ? l.garantido_manual : regraGarantido(l); }
 function valeRango(l){ return (l.rango_manual===true||l.rango_manual===false) ? l.rango_manual : regraRango(l); }
-/* a hora que aparece: o dono ve a do sistema (fila do TrackEat, GPS ou 1a entrega); o balcao ve a que ele anotou */
+/* a hora que aparece: o dono ve a do sistema (1o momento no patio pelo GPS ou na fila do TrackEat; desde 10/11 a 1a entrega nao conta); o balcao ve a que ele anotou */
 function horaChegou(l, dono){ return (dono && l.chegou_txt) ? l.chegou_txt : (l.anotado_txt || ''); }
 /* os botoes so aparecem depois que ele chegou e a regra ja tem veredito */
 function temBotoes(l, dono){
@@ -316,8 +316,11 @@ function mudadoPor(l){
     t.push('✋ rango mudado por <b>'+esc(l.rango_quem||'?')+'</b>: '+esc(l.rango_motivo||''));
   return t.join('<br>');
 }
+/* 10/11/2026 (chat-chegada-gps-decide-10-11), decisao do Fabio: "quem decide vai ser o sistema". Os botoes viram so leitura
+   para a equipe (o banco tambem recusa); so o dono ainda pode mudar, com motivo. */
 function seg(i, campo, vale, sim, nao){
-  var dis=podeMudar()?'':' disabled title="Só dá para mudar hoje e ontem"';
+  var dis=!(D&&D.dono) ? ' disabled title="Quem decide é o sistema: 1º momento no pátio (GPS) ou na fila"'
+        : (podeMudar()?'':' disabled title="Só dá para mudar hoje e ontem"');
   return '<div class="seg">'+
     '<button class="'+(vale?'on-ok':'')+'"'+dis+' onclick="muda('+i+',&quot;'+campo+'&quot;,true)">'+sim+'</button>'+
     '<button class="'+(vale?'':'on-bad')+'"'+dis+' onclick="muda('+i+',&quot;'+campo+'&quot;,false)">'+nao+'</button></div>';
@@ -411,7 +414,7 @@ function desenha(){
     '<button class="chip'+(UNI==='Ahú'?' on':'')+'" onclick="UNI=&quot;Ahú&quot;;boot()">Ahú</button>'+
     '<button class="chip'+(UNI==='São Braz'?' on':'')+'" onclick="UNI=&quot;São Braz&quot;;boot()">São Braz</button>'+
     '</div>'+
-    '<div class="explica">Anote a <b>hora que o motoboy chegou</b>. Os botões de <b>garantido</b> e <b>rango</b> já vêm marcados pela regra (chegou mais de <b>'+tolMin()+' min</b> depois da escala do Jaison perde o rango do turno e o garantido do dia; sem prova do GPS, não se corta) e pelos combinados com o Jaison. Precisa mudar? Clique no outro botão e escreva o motivo. <b>O que ficar marcado aqui é o que o Pagar Motoboys paga</b> (dá para mudar hoje e ontem).'+(vivo?' A tela se atualiza sozinha a cada minuto.':'')+'</div>';
+    '<div class="explica"><b>Quem decide o garantido e o rango é o sistema</b>: vale o <b>1º momento em que o motoboy apareceu no pátio (GPS) ou entrou na fila</b>. Passou de <b>'+tolMin()+' min</b> da escala do Jaison: perde o rango do turno e o garantido do dia (sem prova do GPS, não se corta; combinados com o Jaison continuam valendo). A hora que o balcão anota serve <b>só para comparar</b>. '+(dono?'Só você pode mudar um botão (com motivo, hoje e ontem). ':'')+'<b>O que ficar marcado aqui é o que o Pagar Motoboys paga</b>.'+(vivo?' A tela se atualiza sozinha a cada minuto.':'')+'</div>';
 
   /* o mesmo placar de antes, agora em quadros; clicar leva ate a lista */
   var q=function(cls,em,t,v,qs,alvo){
@@ -471,7 +474,7 @@ function desenha(){
     if(sobra.length)h+=bloco('📝 Anotado pelo balcão, fora da escala', sobra, false, dono, '');
   }
   if(!dono){
-    h+='<div class="aviso">Anote a hora que <b>você viu</b> a pessoa entrar. Não existe resposta certa para copiar aqui — é o seu olho que vale. Depois de anotar, aparecem os botões de garantido e rango.</div>';
+    h+='<div class="aviso">Anote a hora que <b>você viu</b> a pessoa entrar — é só para comparar com o GPS. Quem decide garantido e rango é o sistema (pátio ou fila); depois de anotar, aparece o que ele decidiu.</div>';
   }
   $('app').innerHTML=avisoHtml()+h;
 }
