@@ -269,7 +269,7 @@ function climaPill(c){
   return '<span class="pill pm">Seco</span>';
 }
 
-let VIEW='prev', SUG=[], CLIMA=[], ESC=[], ADER=[], FORA=[], NOMES=[], DATA=null, LOJA='Água Verde', ROWS=[], ABERTO={}, RESUMO=true, ULT=0, ADER_INI=null, ADER_FIM=null, LOJA_ADER='Todas';
+let VIEW='prev', SUG=[], CLIMA=[], ESC=[], ADER=[], FORA=[], NOMES=[], DATA=null, LOJA='Água Verde', ROWS=null, PEND={}, ABERTO={}, RESUMO=true, ULT=0, ADER_INI=null, ADER_FIM=null, LOJA_ADER='Todas';
 const hoje=()=>iso(new Date());
 function dias(n,off){const b=new Date();const a=[];for(let i=(off||0);i<(off||0)+n;i++)a.push(iso(new Date(b.getTime()+i*864e5)));return a}
 
@@ -348,7 +348,7 @@ function viewPrev(){
         h+='</table>'+(esl.length?quadroNomes(esl,rs,d+'|'+l)+barraCobertura(esl):'<div class="hs" style="color:#e0a93a">escala desta loja ainda não foi feita</div>')+'</div>';
       });
       const feito=ESC.filter(e=>e.data===d&&e.unidade===LOJA_PREV).length;
-      h+='<button class="'+(feito?'btnb':'btnr')+'" style="margin-top:12px" onclick="event.stopPropagation();DATA=\''+d+'\';setView(\'mont\')">'+(feito?'👁 VER A ESCALA DESTE DIA →':'✍️ FALTA FAZER A ESCALA — montar agora →')+'</button>';
+      h+='<button class="'+(feito?'btnb':'btnr')+'" style="margin-top:12px" onclick="event.stopPropagation();DATA=\''+d+'\';ROWS=null;PEND={};setView(\'mont\')">'+(feito?'👁 VER A ESCALA DESTE DIA →':'✍️ FALTA FAZER A ESCALA — montar agora →')+'</button>';
       h+='</div>';
     }
     h+='</div>';
@@ -439,6 +439,7 @@ function porBloco(t,e,sa,n){
   else ROWS.push({nome:n,turno:t,entrada:e,saida:sa});
   montBody();
 }
+function tirarDaEscala(t,n){var i=ROWS.findIndex(function(x){return x.turno===t&&x.nome===n});if(i>=0){ROWS.splice(i,1);delete PEND[t+'|'+n]}montBody()}
 function toggleResumo(){RESUMO=!RESUMO;montBody()}
 function resumoDia(){
 var h='<div class="sec"><h2>👁 Resumo do dia</h2>';
@@ -581,6 +582,12 @@ const extras=ROWS.map(r=>r.nome).filter(n=>ATIVOS.indexOf(n)<0);
        '<span class="pill '+(nSel?'pg':'pw')+'">'+nSel+' cobrindo</span></div>';
     const outros=ROWS.filter(r=>cobre(r,t)&&r.turno!==t);
     if(outros.length)h+='<div class="tamb">também cobre este turno: '+outros.map(r=>esc(r.nome.split(' ')[0])+' ('+String(r.entrada).slice(0,2)+'h→'+String(r.saida).slice(0,2)+'h)').join(' · ')+'</div>';
+    /* 10/11/2026, pedido do Fabio ("montar escala ficou dificil, nao da para apagar"): quem ja esta no turno aparece em cima,
+       com o horario e um X para tirar. Antes, quem tinha horario fora dos blocos (ex.: 19h-23h, ou 20h-02h salvo como Jantar)
+       nao aparecia em bloco nenhum e nao dava para tirar. */
+    const meus=ROWS.filter(r=>r.turno===t);
+    h+='<div class="hs" style="margin:10px 0 2px;font-weight:700;color:var(--text2)">'+(meus.length?'Na escala deste turno \u00B7 toque no \u2715 para tirar':'Ningu\u00E9m neste turno ainda \u00B7 toque nos nomes abaixo para colocar')+'</div>';
+    if(meus.length)h+='<div class="chips">'+meus.map(r=>'<span class="chip on" title="'+esc(r.nome)+'" onclick="tirarDaEscala(\''+t+'\',\''+r.nome.replace(/\x27/g,"\\x27")+'\')">'+esc(r.nome.split(' ')[0])+' '+esc(String(r.entrada).slice(0,5))+'\u2192'+esc(String(r.saida).slice(0,5))+' \u2715</span>').join('')+'</div>';
     BLOCOS[t].forEach(bl=>{
       const e=bl[0],sa=bl[1],chave=e+'|'+sa;
       const dentro=ROWS.filter(r=>r.turno===t&&String(r.entrada).slice(0,5)===e&&String(r.saida).slice(0,5)===sa).length;
