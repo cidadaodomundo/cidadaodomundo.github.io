@@ -189,6 +189,64 @@ function toast(m,e){const t=$('toast');t.textContent=m;t.className='toast'+(e?' 
 async function fj(u){const r=await fetch(SB+u,{headers:H});if(!r.ok)throw new Error('HTTP '+r.status+' em '+u);return r.json()}
 async function rpc(fn,args){const r=await fetch(SB+'rpc/'+fn,{method:'POST',headers:HJ,body:JSON.stringify(args||{})});if(!r.ok)throw new Error('HTTP '+r.status+' em '+fn);return r.json()}
 function escRPC(acao,dados){return rpc('escala_consulta',{p_cred:cdmTok(),p_acao:acao,p_dados:dados||{}})}
+// ===== 10/11/2026: salvar com aviso =====
+// Se o que vai ser salvo muda um dia que tem troca avisada no grupo dos motoboys, o banco não grava e devolve a lista; a tela pergunta antes.
+async function escSalvar(acao,dados){
+  const r=await fetch(SB+'rpc/escala_consulta',{method:'POST',headers:HJ,body:JSON.stringify({p_cred:cdmTok(),p_acao:acao,p_dados:dados||{}})});
+  if(r.ok)return {ok:true,res:await r.json()};
+  let j=null;try{j=await r.json()}catch(e){}
+  if(j&&j.hint==='escolha_trocas'){let d={};try{d=JSON.parse(j.details||'{}')||{}}catch(e){d={}}
+    return {ok:false,msg:j.message||'',dias:Array.isArray(d.dias)?d.dias:[],protegidos:Array.isArray(d.protegidos)?d.protegidos:[]}}
+  throw new Error((j&&j.message)||('HTTP '+r.status+' em escala_consulta'));
+}
+// retrato do que está na tela (aba, loja, dia e linhas): serve para saber se a tela mudou enquanto o pedido estava a caminho ou o aviso estava aberto
+function ctxSalvar(tipo){return tipo==='colar'?JSON.stringify([VIEW,LOJA,COLADO]):JSON.stringify([VIEW,LOJA,DATA,ROWS])}
+function diaTxt(d){d=String(d||'');return DOWNS[dowOf(d)]+' '+br(d)}
+var ESCOLHA=null;
+function fecharEscolha(){var o=$('escolhaTrocas');if(o)o.remove();ESCOLHA=null}
+function mostrarEscolha(ped,r){
+  fecharEscolha();ESCOLHA=ped;
+  var colar=ped.tipo==='colar';
+  var lista=function(tit,a){return (a&&a.length)?'<div class="hs" style="margin:8px 0 2px">'+tit+'</div>'+a.map(function(t){return '<div>• '+esc(t)+'</div>'}).join(''):''};
+  var dias=(r.dias||[]).map(function(d){var dt=String(d.data||'');return '<div style="margin:12px 0 0;padding-top:10px;border-top:1px solid var(--line)"><b>'+esc(cap(DOWN[dowOf(dt)])+' '+br(dt))+'</b>'+
+    lista('Troca avisada no grupo:',d.trocas)+lista(colar?'O que a escala colada mudaria neste dia:':'O que muda em relação ao que está salvo:',d.muda)+'</div>'}).join('');
+  var prot=(colar&&r.protegidos&&r.protegidos.length)?'<div class="hs" style="font-size:12.5px;margin:12px 0 0">Dia montado à mão não é trocado pela colagem em nenhum caso: <b>'+esc(r.protegidos.map(diaTxt).join(', '))+'</b>. Para mudar esse dia, use a montagem do dia.</div>':'';
+  var h='<div class="sec" style="max-width:520px;margin:6vh auto 0"><h2>⚠️ Atenção: tem troca avisada no grupo dos motoboys</h2>'+
+    '<div class="hs" style="font-size:13px">'+(colar
+      ?'A escala que você colou muda dia que tem troca registrada ('+esc(ped.loja)+'). Nada foi salvo ainda.'
+      :'Este dia tem troca registrada e o que você montou muda a escala do dia ('+esc(ped.loja)+', '+esc(diaTxt(ped.data))+'). Nada foi salvo ainda.')+'</div>'+
+    (dias||'<div style="margin:10px 0">'+esc(r.msg||'')+'</div>')+prot+
+    (colar
+      ?'<button class="btnv" id="escManter" onclick="escolher(\'manter\')">✅ Manter esses dias como estão e salvar o resto</button>'+
+       '<button class="btnv" id="escSubstituir" style="background:var(--s2);border:1px solid var(--line)" onclick="escolher(\'substituir\')">🔁 Usar a escala colada também nesses dias</button>'
+      :'<button class="btnv" id="escSubstituir" onclick="escolher(\'substituir\')">💾 Salvar do jeito que montei</button>')+
+    '<button class="btnr" id="escCancelar" style="width:100%;margin-top:12px;padding:12px" onclick="fecharEscolha()">Cancelar (não salva nada)</button></div>';
+  var o=document.createElement('div');o.id='escolhaTrocas';o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9999;overflow:auto;padding:12px';o.innerHTML=h;document.body.appendChild(o);
+}
+function escolher(modo){
+  var ped=ESCOLHA;fecharEscolha();if(!ped)return;
+  if(ctxSalvar(ped.tipo)!==ped.ctx){toast('A loja, o dia ou a escala mudou depois do aviso. Nada foi salvo. Confira e salve de novo.',1);return}
+  enviarSalvar(ped,modo);
+}
+// ped = pedido guardado NO CLIQUE (ação, loja, dia, linhas já em texto). Manda sempre esse pedido, nunca o que está na tela agora.
+async function enviarSalvar(ped,modo){
+  var dados=JSON.parse(ped.json);if(modo)dados.trocas=modo;
+  var rs;
+  try{rs=await escSalvar(ped.acao,dados)}catch(e){toast(e.message,1);return}
+  var mudou=ctxSalvar(ped.tipo)!==ped.ctx;
+  if(!rs.ok){
+    if(mudou){toast('A tela mudou enquanto eu salvava. Nada foi salvo. Confira e salve de novo.',1);return}
+    mostrarEscolha(ped,rs);return;
+  }
+  var res=rs.res||{},onde=mudou?' em '+ped.loja:'';
+  if(ped.tipo==='colar'){
+    var ficou=[].concat(res.dias_mantidos||[],res.dias_protegidos||[]).sort();
+    toast('✅ '+(res.gravados!=null?res.gravados:ped.n)+' turnos salvos'+onde+' ('+br(ped.d1)+' a '+br(ped.d2)+')'+(ficou.length?' · ficaram como estavam: '+ficou.map(diaTxt).join(', '):''));
+  }else toast('✅ escala de '+br(ped.data)+onde+' salva ('+ped.n+' motoboys)');
+  try{var d7=dias(8)[7],dm7=iso(new Date(Date.now()-7*864e5));var nova=await escRPC('escala',{de:dm7,ate:d7});ESC=nova}catch(e){toast(e.message,1);return}
+  // só volta para a montagem se a pessoa continua no mesmo lugar em que pediu para salvar; senão não mexe no que ela está fazendo
+  if(ped.tipo==='colar'&&ctxSalvar('colar')===ped.ctx){ROWS=null;PEND={};setView('mont')}
+}
 
 // ícone do tempo pelo código WMO da Open-Meteo
 function wxIcon(code,mm){
@@ -484,11 +542,7 @@ async function salvarColado(){
     var ds=COLADO.map(function(x){return x.data}).sort();
     var d1=ds[0],d2=ds[ds.length-1];
     var body=COLADO.map(function(x){return {nome:x.nome,unidade:LOJA,data:x.data,turno:x.turno,entrada:x.entrada,saida:x.saida,origem:'colado/whatsapp'}});
-    await escRPC('salvar_escala',{de:d1,ate:d2,unidade:LOJA,linhas:body});
-    toast('✅ '+COLADO.length+' turnos salvos ('+br(d1)+' a '+br(d2)+')');
-    var d7=dias(8)[7],dm7=iso(new Date(Date.now()-7*864e5));
-    ESC=await escRPC('escala',{de:dm7,ate:d7});
-    ROWS=null;PEND={};setView('mont');
+    await enviarSalvar(Object.freeze({tipo:'colar',acao:'salvar_escala',loja:LOJA,d1:d1,d2:d2,n:COLADO.length,ctx:ctxSalvar('colar'),json:JSON.stringify({de:d1,ate:d2,unidade:LOJA,linhas:body})}));
   }catch(e){toast(e.message,1)}
 }
 
@@ -575,10 +629,7 @@ async function salvar(){
   try{
     for(const r of ROWS){if(!r.nome||!r.entrada||!r.saida){toast('faltou preencher horário de '+(r.nome||'alguém'),1);return}}
     const body=ROWS.map(r=>({nome:r.nome,unidade:LOJA,data:DATA,turno:r.turno,entrada:r.entrada,saida:r.saida,origem:'jaison'}));
-    await escRPC('salvar_dia',{data:DATA,unidade:LOJA,linhas:body});
-    toast('✅ escala de '+br(DATA)+' salva ('+ROWS.length+' motoboys)');
-    const d7=dias(8)[7],dm7=iso(new Date(Date.now()-7*864e5));
-    ESC=await escRPC('escala',{de:dm7,ate:d7});
+    await enviarSalvar(Object.freeze({tipo:'dia',acao:'salvar_dia',loja:LOJA,data:DATA,n:ROWS.length,ctx:ctxSalvar('dia'),json:JSON.stringify({data:DATA,unidade:LOJA,linhas:body})}));
   }catch(e){toast(e.message,1)}
 }
 
