@@ -80,6 +80,31 @@ table.vv td.sit{width:250px}
 .vv .ot{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .vv .ot .seg{margin:0;min-width:200px}
 .vv td.sit a{color:var(--text2)}
+/* 10/11/2026 (chat-chegada-gps-decide-10-11), pedido do Fabio: "melhore o quadro... botar no cantinho a escala do dia... vamos pagar por aqui".
+   Fatos do turno dentro do cartao, escala do dia no canto e a barra do robo que le o TrackEat. */
+.fts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ft{background:var(--s2);border:1px solid var(--line);border-radius:9px;padding:5px 9px;min-width:0}
+.ft span{display:block;color:var(--muted);font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.02em}
+.ft b{font-size:14px;font-weight:800;white-space:nowrap}
+.ft small{color:var(--muted);font-size:11.5px;font-weight:600}
+.ft.ok b{color:#7fe0aa}.ft.bad b{color:#ff9a9a}.ft.warn b{color:var(--warn)}
+.ft.bad{border-color:rgba(230,103,103,.45)}
+.rbt{display:flex;flex-direction:row;gap:4px 16px;flex-wrap:wrap;align-items:center;justify-content:flex-start;text-align:left;background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:9px 13px;font-size:12.5px;color:var(--text2);margin:0 0 12px}
+.rbt.mal{background:#2a1716;border-color:var(--bad);color:#ffb4b4}
+.rbt b{color:var(--text);display:inline}
+.duo{display:block}
+.duo-b{margin-bottom:14px}
+@media (min-width:1040px){.duo{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}.duo-b{order:2;position:sticky;top:8px;margin:0}}
+.esc{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:12px 13px}
+.esc h3{font-family:'Anton',Impact,sans-serif;font-weight:400;font-size:19px;letter-spacing:.02em;margin:0}
+.esc .sub{color:var(--muted);font-size:11.5px;margin:2px 0 8px}
+.esc .lj{color:var(--warn);font-size:11.5px;font-weight:800;text-transform:uppercase;margin:10px 0 2px}
+.esc .ln{display:grid;grid-template-columns:auto minmax(0,1fr);gap:3px 8px;align-items:baseline;padding:7px 0;border-top:1px solid var(--line);font-size:12.5px}
+.esc .ln .h{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;white-space:nowrap}
+.esc .ln .n{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.esc .ln .x{grid-column:2;color:var(--muted);font-size:11.5px}
+.esc .ln .x .pill{margin-right:4px}
+.esc .semesc{color:var(--muted);font-size:12px;padding:6px 0;border-top:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -303,7 +328,12 @@ function porQue(l, dono){
   if(d==='ok') return l.garantido_perdido ? (quanto?quanto+' · ':'')+'o garantido do dia já caiu em outro turno' : (quanto||'chegou no prazo');
   if(d==='rango_excecao') return (quanto?quanto+' · ':'')+'passou de '+tol+' min, mas tem <b>combinado com o Jaison</b>: fica com o rango';
   if(d==='perdeu') return (quanto||'chegou depois de '+esc(l.limite_txt||''))+' · passou de '+tol+' min';
-  if(d==='sem_prova') return 'sem prova do GPS: não se corta';
+  if(d==='sem_prova'){
+    if(l.motivo_sem_prova==='robo') return '⚠️ <b>o robô ficou sem ler o TrackEat nessa hora</b>: não se corta — confira com o balcão';
+    if(l.motivo_sem_prova==='nome') return 'a fila viu, mas o nome do aplicativo não bate com o da escala: não se corta — confira o nome';
+    if(l.motivo_sem_prova==='balcao') return 'só o balcão viu; o GPS e a fila não: não se corta';
+    return 'sem prova do GPS: não se corta';
+  }
   if(d==='fora') return 'fora da escala: sem horário combinado, não se corta';
   if(d==='no_prazo') return 'dentro do prazo (até '+esc(l.limite_txt||'')+')';
   return '';
@@ -353,6 +383,85 @@ function outrosTurnos(l, dono){
   });
   return h;
 }
+/* 10/11/2026 (chat-chegada-gps-decide-10-11): os fatos do turno, lado a lado, no cartao. */
+function hm(t){ var m=/^(\d\d):(\d\d)/.exec(t||''); return m ? (+m[1])*60+(+m[2]) : null; }
+/* minutos contados a partir da entrada da escala (aguenta a virada da meia-noite) */
+function desde(base, t){ var a=hm(base), b=hm(t); if(a==null||b==null) return null; var d=b-a; if(d<-360) d+=1440; return d; }
+function ft(rot, val, cls){ return '<div class="ft'+(cls?' '+cls:'')+'"><span>'+rot+'</span><b>'+val+'</b></div>'; }
+function escalaTxt(l){ return l.escala_txt ? esc(l.escala_txt)+(l.escala_saida_txt?'–'+esc(l.escala_saida_txt):'') : '—'; }
+function fatos(l, dono){
+  if(!l.na_escala) return '';
+  var tol=(D&&D.tolerancia!=null)?+D.tolerancia:15, vivo=!!(D&&D.ao_vivo), h='';
+  h+=ft('escala do Jaison', escalaTxt(l));
+  if(dono){
+    if(l.chegou_txt){
+      var a=l.atraso_min, fonte=/fila/.test(l.chegou_fonte||'')?'fila':(/GPS/.test(l.chegou_fonte||'')?'GPS pátio':'');
+      h+=ft('chegou (sistema)', esc(l.chegou_txt)+(fonte?' <small>'+fonte+'</small>':''));
+      if(a!=null) h+=ft('atraso', a<=0?'no horário':'+'+a+' min', a>tol?'bad':(a>0?'warn':'ok'));
+    }else if(l.direito==='nao_chegou') h+=ft('chegou (sistema)', 'não chegou', 'bad');
+    else if(l.direito==='no_prazo') h+=ft('chegou (sistema)', 'ainda não <small>até '+esc(l.limite_txt||'')+'</small>');
+    if(l.anotado_txt){
+      var df=l.chegou_txt?desde(l.chegou_txt, l.anotado_txt):null;
+      h+=ft('balcão anotou', esc(l.anotado_txt)+(df?' <small>'+(df>0?'+':'')+df+' min</small>':''), (df!=null&&Math.abs(df)>5)?'warn':'');
+    }
+  }else if(l.anotado_txt) h+=ft('balcão anotou', esc(l.anotado_txt));
+  if(l.entregas_n!=null && (l.entregas_n>0 || l.chegou_txt || l.anotado_txt))
+    h+=ft('entregas', l.entregas_n+(l.ultima_entrega_txt?' <small>última '+esc(l.ultima_entrega_txt)+'</small>':''));
+  if(l.ultimo_sinal_txt){
+    if(vivo && l.sinal_min!=null && l.sinal_min<=3) h+=ft('aplicativo', 'ligado agora', 'ok');
+    else{
+      var s=desde(l.escala_txt, l.ultimo_sinal_txt), f=desde(l.escala_txt, l.escala_saida_txt);
+      var antes=(s!=null && f!=null && s<f-15);
+      h+=ft('último sinal do app', esc(l.ultimo_sinal_txt)+(antes?' <small>antes do fim da escala</small>':''), antes?'warn':'');
+    }
+  }
+  return '<div class="fts">'+h+'</div>';
+}
+/* o selo curto de cada turno, para a escala do dia no canto */
+function selo(l, dono){
+  if(!temBotoes(l, dono)){
+    if(l.direito==='no_prazo') return '<span class="pill p-off">⏳ até '+esc(l.limite_txt||'')+'</span>';
+    if(l.direito==='nao_chegou') return '<span class="pill p-bad">não chegou</span>';
+    if(l.direito==='aguarda_balcao') return '<span class="pill p-warn">falta anotar</span>';
+    return '<span class="pill p-off">—</span>';
+  }
+  var g=valeGarantido(l), r=valeRango(l);
+  if(l.direito==='sem_prova' && g && r) return '<span class="pill p-warn">sem prova · não corta</span>';
+  if(g&&r) return '<span class="pill p-ok">✅ garantido + rango</span>';
+  if(!g&&!r) return '<span class="pill p-bad">❌ perdeu os dois</span>';
+  return '<span class="pill p-warn">'+(r?'só rango':'só garantido')+'</span>';
+}
+function escalaDoDia(dono){
+  var L=((D&&D.linhas)||[]).filter(function(l){ return l.na_escala; });
+  var lojas=UNI?[UNI]:['Água Verde','Ahú','São Braz'], h='';
+  lojas.forEach(function(u){
+    var t=L.filter(function(l){ return l.unidade===u; }).sort(function(a,b){
+      return (a.escala_txt||'').localeCompare(b.escala_txt||'') || a.entregador.localeCompare(b.entregador); });
+    h+='<div class="lj">'+esc(u)+' · '+t.length+' turno(s)</div>';
+    if(!t.length){ h+='<div class="semesc">⚠️ sem escala do Jaison neste dia — sem escala ninguém é julgado</div>'; return; }
+    t.forEach(function(l){
+      var ch=horaChegou(l, dono), a=l.atraso_min, x=[];
+      if(ch) x.push('chegou <b>'+esc(ch)+'</b>'+((dono&&a!=null&&a>0)?' (+'+a+' min)':''));
+      if(l.entregas_n) x.push(l.entregas_n+' entrega(s)'+(l.ultima_entrega_txt?', última '+esc(l.ultima_entrega_txt):''));
+      h+='<div class="ln"><span class="h">'+escalaTxt(l)+'</span><span class="n" title="'+esc(l.entregador)+'">'+esc(l.entregador)+'</span>'+
+         '<span class="x">'+selo(l, dono)+x.join(' · ')+'</span></div>';
+    });
+  });
+  return '<div class="esc"><h3>📋 ESCALA DO DIA</h3><div class="sub">o combinado do Jaison × o que o sistema viu</div>'+h+'</div>';
+}
+/* a barra do robo: de quanto em quanto tempo le e se esta lendo agora */
+function roboBarra(){
+  var R=(D&&D.robo)||[]; if(!R.length) return (D&&D.ao_vivo)?'<div class="rbt mal"><span>🤖 <b>Nenhuma leitura boa do TrackEat hoje.</b> Antes das 10h é normal; em horário de movimento, avise o Fábio.</span></div>':'';
+  var vivo=!!D.ao_vivo, pior=0, bur=0, ult='', n=0;
+  n=Infinity;
+  R.forEach(function(r){ pior=Math.max(pior, r.min_atras||0); bur=Math.max(bur, r.buraco_max_min||0); n=Math.min(n, r.leituras||0); if((r.ultima_txt||'')>ult) ult=r.ultima_txt; });
+  var parado=vivo && pior>3;
+  var quem=R.filter(function(r){ return (r.min_atras||0)>3; }).map(function(r){ return esc(r.unidade)+' há '+r.min_atras+' min'; }).join(', ');
+  return '<div class="rbt'+(parado?' mal':'')+'"><span>'+
+    (parado ? '🤖 <b>O robô está sem ler o TrackEat</b> ('+quem+'). Enquanto ele não lê, ninguém é cortado — avise o Fábio.'
+            : '🤖 Robô lendo o TrackEat <b>de minuto em minuto</b>'+(vivo?' · última leitura boa <b>'+esc(ult)+'</b>':''))+
+    '</span><span>'+n+' leituras boas por loja no dia</span><span>maior intervalo sem ler: <b>'+bur+' min</b></span></div>';
+}
 function cartaoChegada(l, i, mostraOnde, dono, marcaEscala){
   var hora=horaChegou(l, dono), bt=temBotoes(l, dono);
   var g=valeGarantido(l), r=valeRango(l);
@@ -365,7 +474,8 @@ function cartaoChegada(l, i, mostraOnde, dono, marcaEscala){
     '<td><div class="tt">'+esc(l.entregador)+
         (l.n_turno>1?' <span class="pill p-off">'+l.n_turno+'º turno</span>':'')+
         (l.na_escala?(marcaEscala?' <span class="pill p-ok">na escala</span>':''):' <span class="pill p-warn">fora da escala</span>')+'</div>'+
-      '<div class="lj"><b>'+esc(l.unidade)+'</b>'+(l.escala_txt?' · escala '+esc(l.escala_txt):'')+balcao+'</div>'+
+      '<div class="lj"><b>'+esc(l.unidade)+'</b>'+(l.na_escala?'':(balcao||''))+'</div>'+
+      fatos(l, dono)+
       (pq?'<div class="rs">'+pq+'</div>':'')+
       (mud?'<div class="rs mud">'+mud+'</div>':'')+
       outrosTurnos(l, dono)+
@@ -414,7 +524,7 @@ function desenha(){
     '<button class="chip'+(UNI==='Ahú'?' on':'')+'" onclick="UNI=&quot;Ahú&quot;;boot()">Ahú</button>'+
     '<button class="chip'+(UNI==='São Braz'?' on':'')+'" onclick="UNI=&quot;São Braz&quot;;boot()">São Braz</button>'+
     '</div>'+
-    '<div class="explica"><b>Quem decide o garantido e o rango é o sistema</b>: vale o <b>1º momento em que o motoboy apareceu no pátio (GPS) ou entrou na fila</b>. Passou de <b>'+tolMin()+' min</b> da escala do Jaison: perde o rango do turno e o garantido do dia (sem prova do GPS, não se corta; combinados com o Jaison continuam valendo). A hora que o balcão anota serve <b>só para comparar</b>. '+(dono?'Só você pode mudar um botão (com motivo, hoje e ontem). ':'')+'<b>O que ficar marcado aqui é o que o Pagar Motoboys paga</b>.'+(vivo?' A tela se atualiza sozinha a cada minuto.':'')+'</div>';
+    '<div class="explica"><b>Como funciona:</b> o robô lê o TrackEat <b>de minuto em minuto</b>. Vale o <b>1º momento no pátio (GPS) ou na fila</b>, comparado com a <b>escala do Jaison</b>. Passou de <b>'+tolMin()+' min</b>: perde o rango do turno e o garantido do dia. Se o robô ficou sem ler nessa hora, ou não há prova, <b>não corta</b> e avisa aqui. A hora do balcão é só para comparar. '+(dono?'Só você muda um botão (com motivo, hoje e ontem). ':'')+'<b>O que ficar marcado aqui é o que o Pagar Motoboys paga.</b></div>'+roboBarra();
 
   /* o mesmo placar de antes, agora em quadros; clicar leva ate a lista */
   var q=function(cls,em,t,v,qs,alvo){
@@ -461,6 +571,7 @@ function desenha(){
     $('app').innerHTML=h; return;
   }
   const pares=L.map(function(l,i){return [l,i]});
+  h+='<div class="duo"><aside class="duo-b">'+escalaDoDia(dono)+'</aside><div class="duo-a">';
   if(!vivo || gp){
     h+=bloco('📋 A escala do dia', umPorPessoa(pares), false, dono, 'ninguém na escala deste dia', false, 'b_escala');
   }else{
@@ -473,6 +584,7 @@ function desenha(){
     const sobra=pares.filter(function(p){return !p[0].vivo_onde && !p[0].na_escala});
     if(sobra.length)h+=bloco('📝 Anotado pelo balcão, fora da escala', sobra, false, dono, '');
   }
+  h+='</div></div>';
   if(!dono){
     h+='<div class="aviso">Anote a hora que <b>você viu</b> a pessoa entrar — é só para comparar com o GPS. Quem decide garantido e rango é o sistema (pátio ou fila); depois de anotar, aparece o que ele decidiu.</div>';
   }
