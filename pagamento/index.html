@@ -183,7 +183,7 @@ button.b[disabled]{opacity:.4;cursor:not-allowed}
 <body>
 <div class="top">
   <div><h1>Pagar Motoboys</h1><div class="sub">quanto pagar a cada motoboy, maquininha, corrida em dobro e as regras — esta tela é só sua e da Hellen</div></div>
-  <div class="rt"><span class="rel" id="rel"></span><button class="b" onclick="MQ=null;PD=null;PV=null;AC=null;if(!PG_EMBED&&$('t_prova').style.display==='none')provaSonda();setView(VIEW)">🔄 Atualizar</button></div>
+  <div class="rt"><span class="rel" id="rel"></span><button class="b" onclick="MQ=null;PD=null;PV=null;AC=null;PVCH={};NCH=null;NCHL=false;if(!PG_EMBED&&$('t_prova').style.display==='none')provaSonda();setView(VIEW)">🔄 Atualizar</button></div>
 </div>
 
 <div class="per">
@@ -219,7 +219,7 @@ const REGRAS_HTML='<div class="c"><h3 style="margin:0 0 12px;font-size:16px">�
 '<b>Paga-se o maior</b> entre as taxas das entregas e o garantido — nunca a soma.<br><br>'+
 '<b>Garantido, turno por turno que ele rodou:</b> almoço conta se ele chegou antes das 15h; jantar conta se chegou depois das 15h ou fez entrega depois das 19h. Turno que está na escala do Jaison vale <b>as horas da escala × R$ 20</b> (no mínimo o piso do turno). Turno rodado fora da escala, ou dia sem escala com o nome dele, vale <b>o piso do turno da loja</b>: Água Verde e São Braz R$ 120 o turno (almoço curto da Água Verde R$ 80), Ahú R$ 100. Turno da escala em que ele <b>não apareceu</b> não entra.<br><br>'+
 '<b>Fim de semana:</b> R$ 25 a hora <b>só na Água Verde</b> (R$ 150 o turno de 6h). São Braz e Ahú pagam igual ao dia de semana.<br><br>'+
-'<b>Atraso — quem manda é a tela Chegada</b> (decisão do Fábio, 23/10/2026): chegou <b>mais de 15 min</b> depois (até 08/11/2026 eram 30 min; mudou a pedido da Hellen) da escala do Jaison, com carimbo de GPS, fica <b>sem o garantido do dia</b> e <b>sem o lanche daquele turno</b> — igual à planilha da casa. Sem carimbo de GPS nada é cortado. Se a equipe marcar na tela <b>Chegada</b> "com garantido" ou "com rango" (com o motivo), vale o que foi marcado lá, e esta tela obedece na hora.<br><br>'+
+'<b>Atraso — quem manda é a tela Chegada</b> (decisão do Fábio, 23/10/2026): chegou <b>mais de 15 min</b> depois (até 08/11/2026 eram 30 min; mudou a pedido da Hellen) da escala do Jaison, com carimbo de GPS, fica <b>sem o garantido do dia</b> e <b>sem o lanche daquele turno</b> — igual à planilha da casa. Sem carimbo de GPS nada é cortado. Quem decide manualmente "com garantido" ou "com rango" na tela <b>Chegada</b> (com o motivo) é só o dono (Fábio); a equipe apenas registra observações. Vale o que o dono marcou lá, e esta tela obedece na hora.<br><br>'+
 '<b>Lanche:</b> um por turno rodado. Quem rodou almoço e jantar tem direito a dois; quem rodou um turno e pegou dois paga o segundo, pelo preço de cardápio.<br><br>'+
 '<b>Entregas</b> é a contagem que gerou taxa no TrackEat — é o que sustenta o valor a pagar, e <b>não</b> é a medida de quantas entregas a loja fez no dia. Descontos de pedido não achado, refrigerante e acertos de outro dia continuam sendo feitos à mão.</div></div>'+
 '<div class="c"><h3 style="margin:0 0 12px;font-size:16px">📋 O que cada coluna quer dizer</h3><div class="wrap"><table>'+
@@ -495,7 +495,7 @@ async function viewComparar(){
       if(Number(x.lanche_cobrado||0)>0) p.push(pt('<span style="color:#f87171">Pegou lanche sem ter direito: menos '+rs(x.lanche_cobrado)+'.</span>'));
       p.push(pt('Fica <b>'+rs(x.nosso_pagar)+'</b>. A planilha pagou <b>'+rs(x.deles_pagar)+'</b> — <b style="color:'+(d<0?'#fbbf24':'#60a5fa')+'">'+rs(Math.abs(d))+(d<0?' a mais do que devia':' a menos do que devia')+'</b>.'));
     }
-    if(Number(x.refeicoes||0)===0 && Number(x.atraso_min||0)>30) p.push(pt('<span style="color:#f87171">Chegou '+x.atraso_min+' minutos depois da hora combinada: por isso perdeu o almoço e o garantido.</span>'));
+    /* 11/11/2026: sem diagnostico por atraso aqui; quem decide corte e a tela Chegada do dia */
     if(x.hora_exata && Number(x.minutos_a_mais||0)>0.1) p.push(pt('<span style="color:#4ade80">O próprio aplicativo carimbou a chegada dele às <b>'+esc(x.hora_exata)+'</b>. A gente está contando a partir de '+esc(x.chegada)+', ou seja <b>'+String(x.minutos_a_mais).replace('.',',')+' minutos depois</b> — esse tempo ele rodou e não está sendo pago.</span>'));
     if(x.tem_gps===false) p.push(pt('<span style="color:#fbbf24">O GPS não carimbou a chegada dele, então a hora é estimada e nada foi cortado.</span>'));
     return p.join('') || '<span style="color:#4ade80">As duas contas batem.</span>';
@@ -506,7 +506,7 @@ async function viewComparar(){
     let s2='';
     s2+=qli('Loja', esc(sigla(x.unidade)));
     if(x.nome_deles&&x.nome_deles!==x.motoboy) s2+=qli('Na planilha', esc(x.nome_deles));
-    s2+=qli('Escala combinada', x.combinado?('<b>'+esc(x.combinado)+'</b> → chegou '+esc(x.chegada||'—')+(x.atraso_min!=null?' <span style="color:'+(Number(x.atraso_min)>30?'#f87171':'var(--muted)')+'">('+(Number(x.atraso_min)>0?'+':'')+x.atraso_min+' min)</span>':'')):tr);
+    s2+=qli('Escala combinada', x.combinado?('<b>'+esc(x.combinado)+'</b> → chegou '+esc(x.chegada||'—')+(x.atraso_min!=null?' <span style="color:'+'var(--muted)'+'">('+(Number(x.atraso_min)>0?'+':'')+x.atraso_min+' min)</span>':'')):tr);
     s2+=qli('Carimbo do pátio', x.hora_exata?('<b>'+esc(x.hora_exata)+'</b> · carimbo do '+esc(x.fonte_exata||'')+(Number(x.minutos_a_mais||0)>0.1?' <span style="color:#fbbf24">('+String(x.minutos_a_mais).replace('.',',')+' min antes do que a gente conta)</span>':'')):'<span style="color:var(--muted)">sem carimbo exato neste dia</span>');
     s2+=qli('Almoço', x.refeicoes==null?tr:(Number(x.refeicoes)>0?('<span style="color:#4ade80">sim</span>'+(Number(x.refeicoes)>1?' ('+x.refeicoes+')':'')+(x.prato?' · '+esc(x.prato):'')):('<span style="color:#f87171">não</span>'+(Number(x.lanche_cobrado||0)>0?' · pagou '+rs(x.lanche_cobrado):''))));
     s2+=qli('Garantido', x.garantido==null?tr:(Number(x.garantido)>0?rs(x.garantido):('<span style="color:#f87171">não</span>'+(Number(x.garantido_calc||0)>0?' · perdeu '+rs(x.garantido_calc):''))));
@@ -656,6 +656,109 @@ function atrasoTxt(m){
   if(m.atraso_min<0) return m.atraso_min+' min';
   return 'na hora';
 }
+/* CHEGADA-FECHAMENTO-INICIO */
+/* 11/11/2026 (chat-chegada-fechamento-11-11): a Chegada no fechamento e na Prova real.
+   SO LE: turnos_det/garantido_fonte/auto de pagamento_do_dia e as observacoes da tela Chegada (anotacao_ler).
+   Nao calcula direito, nao grava, nao mostra Pix nem valor novo. Ligacao so por loja e nome EXATOS (sem fuzzy). */
+var CHEGADA_TELA='/chegada', CH_LINK='<a href="/chegada/" target="_blank" rel="noopener">Chegada do dia</a>', NCH=null, NCHL=false, PVCH={};
+function tolPag(){return (typeof PD!=='undefined'&&PD&&PD.tolerancia_min!=null)?Number(PD.tolerancia_min):null}
+function chTurnos(m){return Array.isArray(m&&m.turnos_det)?m.turnos_det:[]}
+function turnosFurados(m){return chTurnos(m).filter(function(t){return t.furou===true})}
+function motivoCorte(m){
+  var f=turnosFurados(m)[0];
+  if(f) return 'turno das '+esc(f.combinado||'?')+' passou da tolerância (GPS/fila) · tela Chegada';
+  return (m&&m.editado)?'valor do fechamento editado à mão':'regra da tela Chegada';
+}
+/* mesma chave que a tela Chegada grava: dia | loja | motoboy | escala (HH:MM ou "fora"), cortada em 200 como o banco */
+function chaveChegada(dia,unidade,entregador,escala){return (String(dia).slice(0,10)+' | '+unidade+' | '+entregador+' | '+(escala||'fora')).slice(0,200)}
+function chNota(dia,m,escala){
+  if(!NCH||NCH==='erro') return null;
+  var n=NCH[chaveChegada(dia,m.unidade,m.entregador,escala)];
+  return (n&&n.texto)?n:null;
+}
+function chNotaHtml(n){return n?'<br>&nbsp;&nbsp;📝 '+esc(n.texto)+' <span style="color:var(--muted)">('+esc(n.autor||'?')+')</span>':''}
+function chAvisoNotas(){return NCH==='erro'?'<br><span style="color:#fbbf24">observações da Chegada não carregaram (ausência de nota aqui não prova nada) · <a href="#" onclick="chTenta();return false">tentar de novo</a></span>':''}
+function chDt(iso){var p=String(iso||'').slice(0,10).split('-');return p.length===3?p[2]+'/'+p[1]:''}
+/* decisao do dono (garantido do dia e rango por turno), separada da regra; usa o valor ANTES da edicao do fechamento (auto) */
+function chDecisao(m,T){
+  var out='';
+  if(m.garantido_fonte==='botao'){
+    var dec=(m.auto&&m.auto.garantido!=null)?!!m.auto.garantido:!!m.garantido, regraSem=turnosFurados(m).length>0;
+    out+='<br><b>Decisão do dono · garantido do dia:</b> '+(dec?'COM':'SEM')+' garantido — '+esc(m.garantido_quem||'?')+': '+esc(m.garantido_motivo||'');
+    if(!T.length) out+=' <span style="color:#fbbf24">(sem escala vinculada para comparar com a regra)</span>';
+    else if(dec===regraSem) out+=' <span style="color:#fbbf24">(contraria a regra: '+(regraSem?'passou da tolerância':'não passou da tolerância')+')</span>';
+  }
+  if(m.rango_notas){
+    String(m.rango_notas).split(/ · (?=turno \d+: )/).forEach(function(p){
+      if(p.indexOf('marcado na Chegada por')>=0) out+='<br><b>Decisão do dono · rango:</b> '+esc(p);
+    });
+  }
+  return out;
+}
+function chegadaBloco(m,dia,tol){
+  var T=chTurnos(m), h='<div class="pg-obs"><b>Chegada · regra (GPS/fila)</b>';
+  if(!T.length){
+    h+='<br>sem escala vinculada a este nome; confira na '+CH_LINK;
+    h+=chNotaHtml(chNota(dia,m,'fora'));
+  } else T.forEach(function(t){
+    var v=t.furou===true?'passou da tolerância'+(tol!=null?' de '+esc(tol)+' min':'')
+         :(t.furou===false?'dentro da tolerância':(t.chegada?'sem prova: não corta':'sem GPS/fila: não corta'));
+    /* turnos_det traz so HH:MM e atraso arredondado: o veredito vem de furou; o numero so aparece quando nao e prova de corte */
+    var at=(t.furou!==true&&t.chegada&&t.atraso_min!=null)?' (≈ '+(Number(t.atraso_min)>0?'+':'')+esc(t.atraso_min)+' min)':'';
+    h+='<br>turno '+esc(t.combinado||'?')+' → '+(t.chegada?esc(t.chegada):'sem carimbo')+at+' · '+v;
+    h+=chNotaHtml(chNota(dia,m,t.combinado));
+  });
+  h+=chDecisao(m,T);
+  if(m.editado) h+='<br><span style="color:#fbbf24">fechamento editado à mão: o valor pago é o da edição; acima é a regra e a decisão da Chegada.</span>';
+  return h+chAvisoNotas()+'</div>';
+}
+function pgChegada(m){ return chegadaBloco(m,PD.dia,tolPag()); }
+async function carregaNotasChegada(){
+  if(NCH!==null||NCHL) return;
+  NCHL=true;
+  var res;
+  try{
+    var r=await fetch(SB+'rpc/anotacao_ler',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({p_token:cdmTok(),p_tela:CHEGADA_TELA})});
+    if(!r.ok) throw new Error('notas '+r.status);
+    var j=await r.json(); if(!Array.isArray(j)) throw new Error('notas formato');
+    res={}; j.forEach(function(n){res[n.chave]=n});
+  }catch(e){res='erro'}
+  NCHL=false; NCH=res;
+  if(VIEW==='pagar'||VIEW==='prova') render();
+}
+function chTenta(){
+  NCH=null; NCHL=false; PVCH={};
+  if(VIEW==='prova') viewProva(); else carregaNotasChegada();
+}
+/* Prova real: a Chegada vem AO VIVO de pagamento_do_dia do mesmo dia; o valor lacrado nao muda */
+function prCarregaChegada(dia){
+  if(PVCH[dia]!==undefined) return;
+  PVCH[dia]='carregando'; carregaNotasChegada();
+  portaPagDia(dia).then(function(j){PVCH[dia]=(j&&typeof j==='object'&&Array.isArray(j.linhas))?j:'erro'})
+    .catch(function(){PVCH[dia]='erro'})
+    .then(function(){ if(VIEW==='prova') viewProva(); });
+}
+function prChegada(x){
+  if(x.nosso==null) return '';
+  var C=PVCH[x.dia], box=function(t){return '<div class="pr-why"><div>'+t+'</div></div>'};
+  if(C===undefined||C==='carregando') return box('Chegada do dia: carregando…');
+  if(!C||C==='erro'||!Array.isArray(C.linhas)) return box('<span style="color:#fbbf24">A Chegada de agora não carregou · <a href="#" onclick="chTenta();return false">tentar de novo</a></span>');
+  var lojas=String(x.lojas||'').split('+').map(function(s){return s.trim()}).filter(Boolean), out='';
+  if(!lojas.length) lojas=['?'];
+  var mesmoDia=String(C.dia||'').slice(0,10)===String(x.dia||'').slice(0,10);
+  lojas.forEach(function(loja){
+    var cab='<b>'+esc(loja)+'</b> · '+esc(chDt(x.dia))+' · Chegada de agora (fora do lacre; o valor lacrado não muda)';
+    var ms=mesmoDia?C.linhas.filter(function(m){return m.unidade===loja&&m.entregador===x.pessoa}):[];
+    if(!ms.length){ out+=box(cab+'<div class="pg-obs">Chegada não vinculada com segurança a este nome; confira na '+CH_LINK+'</div>'); return; }
+    ms.forEach(function(m){
+      if(m.escondido){ out+=box(cab+'<div class="pg-obs">oculto durante a prova cega</div>'); return; }
+      out+=box(cab+chegadaBloco(m,C.dia,C.tolerancia_min!=null?Number(C.tolerancia_min):null));
+    });
+  });
+  return out;
+}
+/* CHEGADA-FECHAMENTO-FIM */
 function turnoTxt(m){
   const t=m.turnos||1;
   if(t<2) return '1';
@@ -845,9 +948,9 @@ function pgComanda(m,i){
     h+='<div class="pg-obs">as entregas deram menos que o garantido: vale o garantido</div>';
   }
   /* 23/10/2026 (chat-garantido-chegada-pagamento-23-10): "A Chegada manda" - o garantido e o rango vem da tela Chegada (regra + botoes) */
-  if(m.garantido===false) h+=pgLn('sem garantido','—','menos')+'<div class="pg-obs">'+(m.garantido_fonte==='botao'?'marcado na tela Chegada por '+esc(m.garantido_quem||'?')+': '+esc(m.garantido_motivo||''):'chegou '+num(m.atraso_min)+' min depois do combinado (GPS) · tela Chegada')+'</div>';
-  else if(m.garantido_fonte==='botao') h+='<div class="pg-obs">✋ com garantido marcado na tela Chegada por '+esc(m.garantido_quem||'?')+': '+esc(m.garantido_motivo||'')+'</div>';
-  if(m.rango_notas) h+='<div class="pg-obs">🍔 '+esc(m.rango_notas)+'</div>';
+  if(m.garantido===false) h+=pgLn('sem garantido','—','menos')+'<div class="pg-obs">'+(m.editado?'valor do fechamento editado à mão; decisão da Chegada abaixo':(m.garantido_fonte==='botao'?'decisão do dono na Chegada (detalhe abaixo)':motivoCorte(m)))+'</div>';
+  else if(m.garantido_fonte==='botao') h+='<div class="pg-obs">'+(m.editado?'garantido neste fechamento editado à mão; decisão da Chegada abaixo':'✋ garantido mantido por decisão do dono na Chegada (detalhe abaixo)')+'</div>';
+  h+=pgChegada(m);
   if(ref>0) h+=pgLn('lanche a mais','− '+pgV(ref),'menos')+(m.lanche_produto?'<div class="pg-obs">'+esc(m.lanche_produto)+'</div>':'');
   if(Math.abs(aj)>0.004) h+=pgLn('ajuste',(aj>0?'+ ':'− ')+pgV(Math.abs(aj)),aj<0?'menos':'')+(m.motivos?'<div class="pg-obs">'+esc(m.motivos)+'</div>':'');
   h+='<hr class="pg-corte"><div class="pg-total"><span class="k">A pagar</span><span class="v">'+rs(m.pagar)+'</span></div>';
@@ -862,7 +965,7 @@ function pgComanda(m,i){
   const fg=String(m.fonte_garantido||'');
   if(fg.indexOf('sem escala')>=0) tg.push('<span class="pg-tag aviso" title="O Jaison não mandou escala com o nome dele neste dia: o garantido é o piso do turno que ele rodou.">sem escala do Jaison</span>');
   if(fg.indexOf('faltou')>=0) tg.push('<span class="pg-tag aviso" title="'+esc(fg)+'">faltou a um turno da escala</span>');
-  if(Number(m.atraso_min)>30&&m.tem_gps&&m.garantido!==false) tg.push('<span class="pg-tag" title="Chegou atrasado, mas a tela Chegada liberou o garantido.">chegou '+num(m.atraso_min)+' min depois · liberado na Chegada</span>');
+  if(turnosFurados(m).length&&m.garantido!==false) tg.push(m.garantido_fonte==='botao'&&!m.editado?'<span class="pg-tag" title="Passou da tolerância; o garantido foi mantido por decisão do dono na Chegada.">garantido mantido pelo dono</span>':'<span class="pg-tag aviso" title="Passou da tolerância na Chegada, mas o garantido está mantido neste fechamento (confira a edição).">passou da tolerância · garantido mantido no fechamento</span>');
   if(Number(m.lanche_sem_preco)>0) tg.push('<span class="pg-tag aviso">falta o preço de '+num(m.lanche_sem_preco)+' lanche</span>');
   if(tg.length) h+='<div class="pg-tags">'+tg.join('')+'</div>';
   const d=(DELES&&DELES.tem)?(MAPD||{})[chaveDeles(m.unidade,m.entregador)]:null;
@@ -875,6 +978,7 @@ function pgComanda(m,i){
 function viewPagar(){
   if(!PD||(PDDIA&&PD.dia!==PDDIA)){puxaPagar(PDDIA);return}
   $('kpis').innerHTML='';$('faixa').innerHTML='';
+  carregaNotasChegada();
   const l=soDaLoja(PD.linhas);
   let h='<div class="c"><div class="hs" style="margin:0 0 8px"><b>💵 Quanto pagar a cada motoboy</b> · '+esc(PD.dia_semana)+', '+esc(PD.dia_texto)+' · '+(PD.fim_de_semana?'R$ 25 a hora na Água Verde, R$ 20 em São Braz e no Ahú':'R$ 20 a hora')+'</div>'+
     '<button class="b" onclick="pagDiaPula(-1)">◀ dia anterior</button> '+
@@ -1124,6 +1228,7 @@ function prComanda(x,i){
   h+='<hr class="pg-corte"><div class="pg-total"><span class="k">Diferença</span><span class="v" style="font-size:26px">'+
      (d==null?(prFalta(x)?'falta':'—'):(Math.abs(d)<0.01?'<span class="pr-ok">bate</span>':(d>0?'+':'−')+pgV(Math.abs(d))))+'</span></div>';
   if(d!=null&&Math.abs(d)>=0.01) h+='<div class="pg-obs">'+(d>0?'o sistema pagaria a mais':'o sistema pagaria a menos')+(x.deles!=null?' que a planilha':' que o Pix')+'</div>';
+  h+=prChegada(x);
   const w=prPorque(x);
   if(w.length&&!(d!=null&&Math.abs(d)<0.01&&x.faixa==='centavo'&&!x.mudou_depois)) h+='<div class="pr-why">'+w.map(function(t){return '<div>'+t+'</div>'}).join('')+'</div>';
   if(x.chave_pix) h+='<div class="pg-pix"><button onclick="pgCopiar(this,\''+esc(String(x.chave_pix)).replace(/'/g,'\\\'')+'\')">Copiar a chave Pix</button><div class="ch">'+esc(String(x.chave_pix))+'</div></div>';
@@ -1194,6 +1299,7 @@ function viewProva(){
     h+='<div class="c empty">O primeiro lacre sai hoje às 22h (e de meia em meia hora até 3h30). Amanhã às 9h05 sai o lacre oficial de hoje, e a comparação aparece quando a planilha e o Pix chegarem.</div>';
   } else {
     const l=(porDia[dia]||[]).slice().sort(function(a,b){const da=(prComparavel(a)&&!prBate(a))||prFalta(a)?0:1, db=(prComparavel(b)&&!prBate(b))||prFalta(b)?0:1; return da-db||String(a.pessoa).localeCompare(String(b.pessoa))});
+    prCarregaChegada(dia);
     const lac=(PV.lacres||[]).filter(function(x){return x.dia===dia});
     const ofi=lac.filter(function(x){return x.tipo==='OFICIAL'})[0], pre=lac.filter(function(x){return x.tipo==='PREVIA'})[0];
     const pl=(PV.planilhas||[]).filter(function(x){return x.dia===dia});
