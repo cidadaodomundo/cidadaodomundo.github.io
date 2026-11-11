@@ -215,10 +215,10 @@ const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
 const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
 const $=i=>document.getElementById(i);
 const REGRAS_HTML='<div class="c"><h3 style="margin:0 0 12px;font-size:16px">📜 Como a conta do motoboy é feita</h3>'+
-'<div class="hs" style="margin:0"><b>Regra em vigor desde 15/10/2026</b> (decidida pelo Fábio para a prova real, igual ao que a casa já paga):<br><br>'+
+'<div class="hs" style="margin:0"><b>Regras confirmadas pelo Fábio em 11/11/2026</b>. A correção vale na janela atual, desde 10/11; os fechamentos anteriores e os lacres ficam preservados:<br><br>'+
 '<b>Paga-se o maior</b> entre as taxas das entregas e o garantido — nunca a soma.<br><br>'+
-'<b>Garantido, turno por turno que ele rodou:</b> almoço conta se ele chegou antes das 15h; jantar conta se chegou depois das 15h ou fez entrega depois das 19h. Turno que está na escala do Jaison vale <b>as horas da escala × R$ 20</b> (no mínimo o piso do turno). Turno rodado fora da escala, ou dia sem escala com o nome dele, vale <b>o piso do turno da loja</b>: Água Verde e São Braz R$ 120 o turno (almoço curto da Água Verde R$ 80), Ahú R$ 100. Turno da escala em que ele <b>não apareceu</b> não entra.<br><br>'+
-'<b>Fim de semana:</b> R$ 25 a hora <b>só na Água Verde</b> (R$ 150 o turno de 6h). São Braz e Ahú pagam igual ao dia de semana.<br><br>'+
+'<b>Garantido por turno:</b> vale a duração do turno combinado na escala multiplicada pela tarifa da loja. Turno em que ele não apareceu não entra. Se faltarem escala, identidade ou prova de quem trabalhou, a conta fica <b>para conferir</b>; a prévia não autoriza pagamento.<br><br>'+
+'<b>Água Verde:</b> segunda a sexta, R$ 20/h (4h = R$ 80; 6h = R$ 120). Sábado e domingo, R$ 25/h (4h = R$ 100; 6h = R$ 150).<br><br><b>Ahú:</b> noite, R$ 25/h. De dia, R$ 25/h com um motoboy e R$ 20/h com dois, contando <b>quem realmente trabalhou</b>, inclusive quem ficou disponível esperando. Só estar na escala não conta. Nos turnos habituais de 4h: R$ 100 à noite; de dia R$ 100 com um ou R$ 80 com dois. Falta de prova ou quantidade fora de um ou dois exige conferência.<br><br><b>São Braz:</b> R$ 20/h em todos os dias e turnos (4h = R$ 80; 6h = R$ 120; 5h30 = R$ 110).<br><br>'+
 '<b>Atraso — quem manda é a tela Chegada</b> (decisão do Fábio, 23/10/2026): chegou <b>mais de 15 min</b> depois (até 08/11/2026 eram 30 min; mudou a pedido da Hellen) da escala do Jaison, com carimbo de GPS, fica <b>sem o garantido do dia</b> e <b>sem o lanche daquele turno</b> — igual à planilha da casa. Sem carimbo de GPS nada é cortado. Quem decide manualmente "com garantido" ou "com rango" na tela <b>Chegada</b> (com o motivo) é só o dono (Fábio); a equipe apenas registra observações. Vale o que o dono marcou lá, e esta tela obedece na hora.<br><br>'+
 '<b>Lanche:</b> um por turno rodado. Quem rodou almoço e jantar tem direito a dois; quem rodou um turno e pegou dois paga o segundo, pelo preço de cardápio.<br><br>'+
 '<b>Entregas</b> é a contagem que gerou taxa no TrackEat — é o que sustenta o valor a pagar, e <b>não</b> é a medida de quantas entregas a loja fez no dia. Descontos de pedido não achado, refrigerante e acertos de outro dia continuam sendo feitos à mão.</div></div>'+
@@ -885,7 +885,7 @@ async function apontar(i,unidade,idSale,dia){
 function viewPag(){
   if(!PD){puxaPagDia();return}
   const l=soDaLoja(PD.linhas), t=(LOJA? somaTotais(l) : (PD.totais||{}));
-  let h='<div class="c"><div class="hs" style="margin:0 0 8px"><b>Pagamento do dia '+esc(PD.dia_texto)+'</b> ('+esc(PD.dia_semana)+') · '+(PD.fim_de_semana?'fim de semana, R$ 25 a hora':'dia de semana, R$ 20 a hora')+' · lido '+esc(PD.agora)+'</div>'+
+  let h='<div class="c"><div class="hs" style="margin:0 0 8px"><b>Pagamento do dia '+esc(PD.dia_texto)+'</b> ('+esc(PD.dia_semana)+') · '+'tarifas por loja e turno'+' · lido '+esc(PD.agora)+'</div>'+
     '<button class="b" onclick="pagDiaPula(-1)">◀ dia anterior</button> '+
     '<input type="date" id="pd_dia" value="'+esc(PD.dia)+'" onchange="pagDiaMuda(this.value)"> '+
     '<button class="b" onclick="pagDiaPula(1)">dia seguinte ▶</button> '+
@@ -926,6 +926,11 @@ function pgCopiar(btn,k){
   function ok(){btn.textContent='Pix copiado ✓';clearTimeout(btn._t);btn._t=setTimeout(function(){btn.textContent=btn.dataset.rot},1800)}
   try{navigator.clipboard.writeText(k).then(ok,function(){alert('Copie na mão:\n\n'+k)})}catch(e){alert('Copie na mão:\n\n'+k)}
 }
+function pgRegraConferir(m){
+  if(!PD||PD.dia<'2026-11-10')return false;
+  const f=String(m.fonte_garantido||'');
+  return f.indexOf('CONFERIR REGRA:')>=0||f.indexOf('sem escala')>=0||f.indexOf('sem escala certa')>=0;
+}
 function pgComanda(m,i){
   if(m.escondido){
     // 15/10 prova real (prova cega): o valor do sistema só aparece depois que a planilha da loja chega no grupo
@@ -951,6 +956,8 @@ function pgComanda(m,i){
   if(m.garantido===false) h+=pgLn('sem garantido','—','menos')+'<div class="pg-obs">'+(m.editado?'valor do fechamento editado à mão; decisão da Chegada abaixo':(m.garantido_fonte==='botao'?'decisão do dono na Chegada (detalhe abaixo)':motivoCorte(m)))+'</div>';
   else if(m.garantido_fonte==='botao') h+='<div class="pg-obs">'+(m.editado?'garantido neste fechamento editado à mão; decisão da Chegada abaixo':'✋ garantido mantido por decisão do dono na Chegada (detalhe abaixo)')+'</div>';
   h+=pgChegada(m);
+  if(String(m.fonte_garantido||'').indexOf('REGRA POR LOJA:')>=0) h+='<div class="pg-obs">'+esc(m.fonte_garantido)+'</div>';
+  if(pgRegraConferir(m)) h+='<div class="pg-tag aviso">Conferir regra antes de pagar — valor abaixo é uma prévia</div>';
   if(ref>0) h+=pgLn('lanche a mais','− '+pgV(ref),'menos')+(m.lanche_produto?'<div class="pg-obs">'+esc(m.lanche_produto)+'</div>':'');
   if(Math.abs(aj)>0.004) h+=pgLn('ajuste',(aj>0?'+ ':'− ')+pgV(Math.abs(aj)),aj<0?'menos':'')+(m.motivos?'<div class="pg-obs">'+esc(m.motivos)+'</div>':'');
   h+='<hr class="pg-corte"><div class="pg-total"><span class="k">A pagar</span><span class="v">'+rs(m.pagar)+'</span></div>';
@@ -980,13 +987,15 @@ function viewPagar(){
   $('kpis').innerHTML='';$('faixa').innerHTML='';
   carregaNotasChegada();
   const l=soDaLoja(PD.linhas);
-  let h='<div class="c"><div class="hs" style="margin:0 0 8px"><b>💵 Quanto pagar a cada motoboy</b> · '+esc(PD.dia_semana)+', '+esc(PD.dia_texto)+' · '+(PD.fim_de_semana?'R$ 25 a hora na Água Verde, R$ 20 em São Braz e no Ahú':'R$ 20 a hora')+'</div>'+
+  let h='<div class="c"><div class="hs" style="margin:0 0 8px"><b>💵 Quanto pagar a cada motoboy</b> · '+esc(PD.dia_semana)+', '+esc(PD.dia_texto)+' · '+'tarifas por loja e turno'+'</div>'+
     '<button class="b" onclick="pagDiaPula(-1)">◀ dia anterior</button> '+
     '<input type="date" value="'+esc(PD.dia)+'" max="'+pgHojeOp()+'" onchange="pagDiaMuda(this.value)" aria-label="Escolher o dia"> '+
     '<button class="b" onclick="pagDiaPula(1)"'+(PD.dia>=pgHojeOp()?' disabled title="Este é o dia em andamento"':'')+'>dia seguinte ▶</button></div>'+maqLojas();
   if(PD.dia>pgHojeOp()){$('conteudo').innerHTML=h+'<div class="c empty">Esse dia ainda não chegou. Volte com ◀ dia anterior.</div>';return}
   if(PD.dia===pgHojeOp()) h+='<div class="c" style="border-left:4px solid var(--warn)"><b>⏳ Este dia ainda está em andamento.</b> Os valores abaixo são parciais: pague pelo dia que já fechou.</div>';
   if(!l.length){$('conteudo').innerHTML=h+'<div class="c empty">Ninguém rodou neste dia'+(LOJA?' nesta loja':'')+'. Escolha outro dia nas setas acima.</div>';return}
+  const pendRegra=l.filter(function(m){return !m.escondido&&pgRegraConferir(m)}).length;
+  if(pendRegra) h+='<div class="c" style="border-left:4px solid var(--warn)"><b>Conferir antes de pagar:</b> '+pendRegra+' motoboy(s) com regra ou escala incompleta. O total inclui prévias.</div>';
   let tot=0; l.forEach(function(m){tot+=Number(m.pagar||0)}); tot=Math.round(tot*100)/100;
   const semPix=l.filter(function(m){return !m.chave_pix}).length, nEsc=l.filter(function(m){return m.escondido}).length;
   if(nEsc) h+='<div class="c" style="border-left:4px solid var(--brand)"><b>🧪 Prova real em andamento.</b> O valor do sistema de '+(nEsc===l.length?'todos os motoboys':nEsc+' motoboy(s)')+' fica escondido até a planilha da loja chegar no grupo FECHAMENTO MOTOBOYS. Façam a planilha como sempre: é ela que vai ser comparada com o sistema.</div>';
@@ -1216,6 +1225,10 @@ function prPorque(x){
   if(x.nosso!=null&&x.deles==null&&x.pago==null&&x.pix_status!=='esperando o banco') w.push('só no sistema: não está na planilha nem no Pix deste dia');
   return w;
 }
+function prRegraConferir(x){
+  const f=String(x.n_fonte||'');
+  return f.indexOf('CONFERIR REGRA:')>=0||(f.indexOf('REGRA POR LOJA:')>=0&&f.indexOf('sem escala')>=0);
+}
 function prComanda(x,i){
   const casa=prCasa(x), d=(x.nosso!=null&&casa!=null)?Math.round((Number(x.nosso)-casa)*100)/100:null;
   let h='<div class="pg-tk" style="animation-delay:'+Math.min(i*35,500)+'ms">'+
@@ -1226,9 +1239,10 @@ function prComanda(x,i){
   h+=pgLn('planilha deles',x.deles!=null?pgV(x.deles):'—',x.deles==null?'fraco':'');
   h+=pgLn('Pix que saiu',x.pago!=null?pgV(x.pago):(x.pix_status==='esperando o banco'?'esperando':'—'),x.pago==null?'fraco':'');
   h+='<hr class="pg-corte"><div class="pg-total"><span class="k">Diferença</span><span class="v" style="font-size:26px">'+
-     (d==null?(prFalta(x)?'falta':'—'):(Math.abs(d)<0.01?'<span class="pr-ok">bate</span>':(d>0?'+':'−')+pgV(Math.abs(d))))+'</span></div>';
+     (d==null?(prFalta(x)?'falta':'—'):(Math.abs(d)<0.01?(prRegraConferir(x)?'<span class="pg-tag aviso">conferir regra</span>':'<span class="pr-ok">bate</span>'):(d>0?'+':'−')+pgV(Math.abs(d))))+'</span></div>';
   if(d!=null&&Math.abs(d)>=0.01) h+='<div class="pg-obs">'+(d>0?'o sistema pagaria a mais':'o sistema pagaria a menos')+(x.deles!=null?' que a planilha':' que o Pix')+'</div>';
   h+=prChegada(x);
+  if(prRegraConferir(x)) h+='<div class="pr-why"><b>Conferir regra antes de pagar: este valor lacrado era uma prévia, mesmo quando coincide com a planilha.</b><div>'+esc(x.n_fonte||'')+'</div></div>';
   const w=prPorque(x);
   if(w.length&&!(d!=null&&Math.abs(d)<0.01&&x.faixa==='centavo'&&!x.mudou_depois)) h+='<div class="pr-why">'+w.map(function(t){return '<div>'+t+'</div>'}).join('')+'</div>';
   if(x.chave_pix) h+='<div class="pg-pix"><button onclick="pgCopiar(this,\''+esc(String(x.chave_pix)).replace(/'/g,'\\\'')+'\')">Copiar a chave Pix</button><div class="ch">'+esc(String(x.chave_pix))+'</div></div>';
@@ -1615,7 +1629,7 @@ async function puxaAgora(){
 function viewAgora(){
   if(!AG){puxaAgora();return}
   const l=soDaLoja(AG.linhas), t=(LOJA? somaTotais(l) : (AG.totais||{})), p=soDaLoja(AG.no_patio);
-  let h='<div class="c"><div class="hs" style="margin:0"><b>🔴 AO VIVO — hoje, '+esc(AG.dia_texto)+'</b> ('+esc(AG.dia_semana)+') · '+(AG.fim_de_semana?'R$ 25 a hora':'R$ 20 a hora')+' · atualiza sozinho a cada minuto · lido '+esc(AG.agora)+'</div></div>';
+  let h='<div class="c"><div class="hs" style="margin:0"><b>🔴 AO VIVO — hoje, '+esc(AG.dia_texto)+'</b> ('+esc(AG.dia_semana)+') · '+'tarifas por loja e turno'+' · atualiza sozinho a cada minuto · lido '+esc(AG.agora)+'</div></div>';
   if(p.length){
     h+='<div class="c"><b>🛵 Quem está com o aplicativo ligado neste minuto</b><div class="wrap"><table><tr><th>Loja</th><th>Motoboy</th><th>Onde está</th><th>Distância da loja</th><th>Situação</th><th>Visto</th></tr>';
     p.forEach(function(x){
