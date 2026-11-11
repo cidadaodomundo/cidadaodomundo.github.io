@@ -219,7 +219,7 @@ const REGRAS_HTML='<div class="c"><h3 style="margin:0 0 12px;font-size:16px">�
 '<b>Paga-se o maior</b> entre as taxas das entregas e o garantido — nunca a soma.<br><br>'+
 '<b>Garantido por turno:</b> vale a duração do turno combinado na escala multiplicada pela tarifa da loja. Turno em que ele não apareceu não entra. Se faltarem escala, identidade ou prova de quem trabalhou, a conta fica <b>para conferir</b>; a prévia não autoriza pagamento.<br><br>'+
 '<b>Água Verde:</b> segunda a sexta, R$ 20/h (4h = R$ 80; 6h = R$ 120). Sábado e domingo, R$ 25/h (4h = R$ 100; 6h = R$ 150).<br><br><b>Ahú:</b> noite, R$ 25/h. De dia, R$ 25/h com um motoboy e R$ 20/h com dois, contando <b>quem realmente trabalhou</b>, inclusive quem ficou disponível esperando. Só estar na escala não conta. Nos turnos habituais de 4h: R$ 100 à noite; de dia R$ 100 com um ou R$ 80 com dois. Falta de prova ou quantidade fora de um ou dois exige conferência.<br><br><b>São Braz:</b> R$ 20/h em todos os dias e turnos (4h = R$ 80; 6h = R$ 120; 5h30 = R$ 110).<br><br>'+
-'<b>Atraso — quem manda é a tela Chegada</b> (decisão do Fábio, 23/10/2026): chegou <b>mais de 15 min</b> depois (até 08/11/2026 eram 30 min; mudou a pedido da Hellen) da escala do Jaison, com carimbo de GPS, fica <b>sem o garantido do dia</b> e <b>sem o lanche daquele turno</b> — igual à planilha da casa. Sem carimbo de GPS nada é cortado. Quem decide manualmente "com garantido" ou "com rango" na tela <b>Chegada</b> (com o motivo) é só o dono (Fábio); a equipe apenas registra observações. Vale o que o dono marcou lá, e esta tela obedece na hora.<br><br>'+
+'<b>Desde 11/11: média do leitor de segundos (API como reserva) e da chegada do balcão</b>. A média só gera corte quando as fontes estão conferidas; divergência acima de 3 minutos, fontes em lados diferentes da tolerância, ausência de fonte ou falha de coleta ficam para conferência, sem corte automático. O histórico até 10/11 conserva a regra e os lacres originais.<br><br><b>Regra histórica de atraso — tela Chegada</b> (decisão do Fábio, 23/10/2026): chegou <b>mais de 15 min</b> depois (até 08/11/2026 eram 30 min; mudou a pedido da Hellen) da escala do Jaison, com carimbo de GPS, fica <b>sem o garantido do dia</b> e <b>sem o lanche daquele turno</b> — igual à planilha da casa. Sem carimbo de GPS nada é cortado. Quem decide manualmente "com garantido" ou "com rango" na tela <b>Chegada</b> (com o motivo) é só o dono (Fábio); a equipe apenas registra observações. Vale o que o dono marcou lá, e esta tela obedece na hora.<br><br>'+
 '<b>Lanche:</b> um por turno rodado. Quem rodou almoço e jantar tem direito a dois; quem rodou um turno e pegou dois paga o segundo, pelo preço de cardápio.<br><br>'+
 '<b>Entregas</b> é a contagem que gerou taxa no TrackEat — é o que sustenta o valor a pagar, e <b>não</b> é a medida de quantas entregas a loja fez no dia. Descontos de pedido não achado, refrigerante e acertos de outro dia continuam sendo feitos à mão.</div></div>'+
 '<div class="c"><h3 style="margin:0 0 12px;font-size:16px">📋 O que cada coluna quer dizer</h3><div class="wrap"><table>'+
@@ -695,6 +695,27 @@ function chDecisao(m,T){
   }
   return out;
 }
+
+/* Fabio, 11/11/2026: coleta oficial + chegada do balcao, fontes e media auditaveis. */
+function medHora(v){
+ if(!v)return '—';
+ var d=new Date(v);return isNaN(d.getTime())?'—':new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d);
+}
+function medComparacao(m,emVigor){
+ if(!m)return '';
+ var rot={"conferido":"Fontes conferidas. A média é usada desde 11/11.","sem_coleta":"Sem registro automático: conferir, sem corte automático.","sem_balcao":"Falta a chegada anotada pelo balcão: sem média e sem corte automático.","divergencia_balcao":"Fontes diferem mais de 3 minutos: conferir, sem corte automático.","divergencia_coletores":"Leitor de segundos e API divergem mais de 3 minutos: conferir, sem corte automático.","limite_divergente":"As fontes discordam sobre a tolerância: conferir, sem corte automático.","falha_coleta":"Houve falha de coleta no início do turno: conferir, sem corte automático.","fora_escala":"Sem turno vinculado: conferir escala, sem corte automático."}, msg=rot[m.status]||'Conferir as fontes.';
+ var linha=function(t,v){return '<div style="display:flex;gap:12px;justify-content:space-between"><span>'+esc(t)+'</span><b>'+esc(v)+'</b></div>';};
+ return '<div style="margin:10px 0;padding:10px;border:1px solid currentColor;border-radius:8px;font-size:12px;line-height:1.6">'+
+ '<b>Conferência de chegada · segundos</b>'+
+ linha('Leitor de segundos',medHora(m.site))+linha('API de reserva',medHora(m.api))+
+ linha('Chegada do balcão',medHora(m.balcao)+(m.quem?' · '+m.quem:''))+
+ linha('Fonte oficial usada',m.fonte_oficial||'ausente')+
+ linha('Diferença oficial × balcão',m.diferenca_seg==null?'—':Number(m.diferenca_seg).toLocaleString('pt-BR',{maximumFractionDigits:1})+' s')+
+ linha('Média oficial + balcão',medHora(m.media))+
+ '<div style="margin-top:6px">'+esc(emVigor?msg:'Comparação histórica: média apenas para análise; fechamento e lacre preservados.')+'</div>'+
+ '<div style="opacity:.8">Média = oficial + metade da diferença até o balcão. Sem duas fontes, não há média. A API cobre a ausência do leitor de segundos.</div></div>';
+}
+
 function chegadaBloco(m,dia,tol){
   var T=chTurnos(m), h='<div class="pg-obs"><b>Chegada · regra (GPS/fila)</b>';
   if(!T.length){
@@ -706,6 +727,7 @@ function chegadaBloco(m,dia,tol){
     /* turnos_det traz so HH:MM e atraso arredondado: o veredito vem de furou; o numero so aparece quando nao e prova de corte */
     var at=(t.furou!==true&&t.chegada&&t.atraso_min!=null)?' (≈ '+(Number(t.atraso_min)>0?'+':'')+esc(t.atraso_min)+' min)':'';
     h+='<br>turno '+esc(t.combinado||'?')+' → '+(t.chegada?esc(t.chegada):'sem carimbo')+at+' · '+v;
+    h+=medComparacao(t.medicao,t.media_em_vigor);
     h+=chNotaHtml(chNota(dia,m,t.combinado));
   });
   h+=chDecisao(m,T);
@@ -739,6 +761,18 @@ function prCarregaChegada(dia){
     .catch(function(){PVCH[dia]='erro'})
     .then(function(){ if(VIEW==='prova') viewProva(); });
 }
+
+function prAuditoriaDesconto(x){
+ if(x.nosso==null)return '';
+ var taxas=Number(x.n_taxas||0), lanche=Number(x.n_lanche||0), ajustes=Number(x.n_ajustes||0);
+ var complemento=Math.round((Number(x.nosso)-taxas+lanche-ajustes)*100)/100;
+ var h='<div class="pr-why"><b>Conta do fechamento lacrado</b><div>Taxas '+rs(taxas)+' + complemento de garantia '+rs(complemento)+' − lanches '+rs(lanche)+' + ajustes '+rs(ajustes)+' = <b>'+rs(Number(x.nosso))+'</b>.</div>';
+ if(lanche>0)h+='<div>O lanche foi cobrado por perda de direito ou consumo excedente. Confira o motivo guardado no lacre: '+esc(x.n_aviso||'motivo não informado')+'.</div>';
+ if(Number(x.c_garantido||0)<-0.01)h+='<div>A planilha incluiu '+rs(Number(x.d_garantido||0))+' de complemento; o sistema incluiu '+rs(complemento)+'. Essa diferença exige conferir o piso e a escala; não comprova desconto por atraso.</div>';
+ if(x.pago==null)h+='<div><b>Pagamento bancário ainda não conciliado:</b> diferença de cálculo não comprova desconto efetivamente pago.</div>';
+ return h+'</div>';
+}
+
 function prChegada(x){
   if(x.nosso==null) return '';
   var C=PVCH[x.dia], box=function(t){return '<div class="pr-why"><div>'+t+'</div></div>'};
@@ -1244,6 +1278,7 @@ function prComanda(x,i){
   h+='<hr class="pg-corte"><div class="pg-total"><span class="k">Diferença</span><span class="v" style="font-size:26px">'+
      (d==null?(prFalta(x)?'falta':'—'):(Math.abs(d)<0.01?(prRegraConferir(x)?'<span class="pg-tag aviso">conferir regra</span>':'<span class="pr-ok">bate</span>'):(d>0?'+':'−')+pgV(Math.abs(d))))+'</span></div>';
   if(d!=null&&Math.abs(d)>=0.01) h+='<div class="pg-obs">'+(d>0?'o sistema pagaria a mais':'o sistema pagaria a menos')+(x.deles!=null?' que a planilha':' que o Pix')+'</div>';
+  h+=prAuditoriaDesconto(x);
   h+=prChegada(x);
   if(prRegraConferir(x)) h+='<div class="pr-why"><b>Conferir regra antes de pagar: este valor lacrado era uma prévia, mesmo quando coincide com a planilha.</b><div>'+esc(pgFonteLabel(x.n_fonte||''))+'</div></div>';
   const w=prPorque(x);

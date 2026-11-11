@@ -428,6 +428,27 @@ function hm(t){ var m=/^(\d\d):(\d\d)/.exec(t||''); return m ? (+m[1])*60+(+m[2]
 function desde(base, t){ var a=hm(base), b=hm(t); if(a==null||b==null) return null; var d=b-a; if(d<-360) d+=1440; return d; }
 function ft(rot, val, cls){ return '<div class="ft'+(cls?' '+cls:'')+'"><span>'+rot+'</span><b>'+val+'</b></div>'; }
 function escalaTxt(l){ return l.escala_txt ? esc(l.escala_txt)+(l.escala_saida_txt?'–'+esc(l.escala_saida_txt):'') : '—'; }
+
+/* Fabio, 11/11/2026: coleta oficial + chegada do balcao, fontes e media auditaveis. */
+function medHora(v){
+ if(!v)return '—';
+ var d=new Date(v);return isNaN(d.getTime())?'—':new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d);
+}
+function medComparacao(m,emVigor){
+ if(!m)return '';
+ var rot={"conferido":"Fontes conferidas. A média é usada desde 11/11.","sem_coleta":"Sem registro automático: conferir, sem corte automático.","sem_balcao":"Falta a chegada anotada pelo balcão: sem média e sem corte automático.","divergencia_balcao":"Fontes diferem mais de 3 minutos: conferir, sem corte automático.","divergencia_coletores":"Leitor de segundos e API divergem mais de 3 minutos: conferir, sem corte automático.","limite_divergente":"As fontes discordam sobre a tolerância: conferir, sem corte automático.","falha_coleta":"Houve falha de coleta no início do turno: conferir, sem corte automático.","fora_escala":"Sem turno vinculado: conferir escala, sem corte automático."}, msg=rot[m.status]||'Conferir as fontes.';
+ var linha=function(t,v){return '<div style="display:flex;gap:12px;justify-content:space-between"><span>'+esc(t)+'</span><b>'+esc(v)+'</b></div>';};
+ return '<div style="margin:10px 0;padding:10px;border:1px solid currentColor;border-radius:8px;font-size:12px;line-height:1.6">'+
+ '<b>Conferência de chegada · segundos</b>'+
+ linha('Leitor de segundos',medHora(m.site))+linha('API de reserva',medHora(m.api))+
+ linha('Chegada do balcão',medHora(m.balcao)+(m.quem?' · '+m.quem:''))+
+ linha('Fonte oficial usada',m.fonte_oficial||'ausente')+
+ linha('Diferença oficial × balcão',m.diferenca_seg==null?'—':Number(m.diferenca_seg).toLocaleString('pt-BR',{maximumFractionDigits:1})+' s')+
+ linha('Média oficial + balcão',medHora(m.media))+
+ '<div style="margin-top:6px">'+esc(emVigor?msg:'Comparação histórica: média apenas para análise; fechamento e lacre preservados.')+'</div>'+
+ '<div style="opacity:.8">Média = oficial + metade da diferença até o balcão. Sem duas fontes, não há média. A API cobre a ausência do leitor de segundos.</div></div>';
+}
+
 function fatos(l, dono){
   if(!l.na_escala) return '';
   var tol=(D&&D.tolerancia!=null)?+D.tolerancia:15, vivo=!!(D&&D.ao_vivo), h='';
@@ -522,7 +543,7 @@ function cartaoChegada(l, i, mostraOnde, dono, marcaEscala){
         (l.n_turno>1?' <span class="pill p-off">'+l.n_turno+'º turno</span>':'')+
         (l.na_escala?(marcaEscala?' <span class="pill p-ok">na escala</span>':''):' <span class="pill p-warn">fora da escala</span>')+'</div>'+
       '<div class="lj"><b>'+esc(l.unidade)+'</b>'+(l.na_escala?'':(balcao||''))+'</div>'+
-      fatos(l, dono)+
+      fatos(l, dono)+(dono?medComparacao(l.medicao,l.media_em_vigor):'')+
       (pq?'<div class="rs">'+pq+'</div>':'')+
       (mud?'<div class="rs mud">'+mud+'</div>':'')+
       outrosTurnos(l, dono)+
@@ -568,6 +589,9 @@ var ABERTO={};
 function chaveL(l){ return l.unidade+'|'+l.entregador+'|'+l.n_turno; }
 function abre(i){ var l=linhaDe(i); if(!l) return; var k=chaveL(l); ABERTO[k]=!ABERTO[k]; desenha(); }
 function comoFunciona(dono){
+  return '<details class="como"><summary>Como funciona</summary><div>Desde 11/11, comparamos o <b>leitor de segundos</b> (API como reserva) com a <b>chegada anotada no balcão</b>. A média das duas horas é comparada à escala, com <b>'+tolMin()+' minutos</b> de tolerância. Mais de 3 minutos de diferença, fontes em lados diferentes da tolerância, falha de coleta ou fonte ausente: <b>conferir, sem corte automático</b>. O histórico mantém a regra e o lacre da época. Só o dono muda garantido/rango com motivo.</div></details>';
+}
+function comoFuncionaAnterior(dono){
   return '<details class="como"><summary>Como funciona</summary><div>Vale o <b>1º momento no pátio (GPS) ou na fila</b> do TrackEat, comparado com a <b>escala do Jaison</b>. Passou de <b>'+tolMin()+' min</b>: perde o rango do turno e o garantido do dia. Se o robô ficou sem ler nessa hora, ou não há prova, <b>não corta</b> e avisa. A hora do balcão é só para comparar. '+(dono?'Só você muda um botão (com motivo, hoje e ontem). ':'')+'<b>O que ficar marcado aqui é o que o Pagar Motoboys paga.</b></div></details>';
 }
 function situacao(l, dono){   /* ok | perdeu | parte | semprova | espera | faltou | anotar | fora */
@@ -581,7 +605,7 @@ function resumoSimples(dono){
   var T=((D&&D.linhas)||[]).filter(function(l){return l.na_escala}), c={ok:0,perdeu:0,parte:0,semprova:0,espera:0,faltou:0,anotar:0};
   T.forEach(function(l){ c[situacao(l,dono)]++; });
   var n=function(v,t,cls){ return '<div class="nm'+(cls&&v?' '+cls:'')+'"><b>'+v+'</b><span>'+t+'</span></div>'; };
-  return '<div class="nms">'+n(T.length,'turnos na escala')+n(c.ok+c.semprova,'no horário','ok')+n(c.perdeu+c.parte,'atrasados','bad')+
+  return '<div class="nms">'+n(T.length,'turnos na escala')+n(c.ok,'no horário','ok')+n(c.semprova,'para conferir','am')+n(c.perdeu+c.parte,'atrasados','bad')+
     n(c.espera+c.anotar,dono?'ainda não chegaram':'faltam chegar ou anotar')+(c.faltou?n(c.faltou,'não vieram','bad'):'')+'</div>';
 }
 function saidaTxt(l){
@@ -594,11 +618,12 @@ function linhaSimples(l, i, dono){
   var st=situacao(l,dono), ch=horaChegou(l,dono), a=l.atraso_min, tol=(D&&D.tolerancia!=null)?+D.tolerancia:15, k=chaveL(l), ab=!!ABERTO[k];
   var cheg = ch ? '<b>'+esc(ch)+'</b>'+((dono&&a!=null)?(a>0?' <small class="'+(a>tol?'vm':'am')+'">+'+a+' min</small>':' <small class="vd">'+((l.n_turno>1&&a<=-30)?'já estava na loja':'no horário')+'</small>'):'')
            : (st==='faltou' ? '<span class="vm">não veio</span>' : (st==='anotar' ? '<span class="am">falta anotar</span>' : '<span class="apg">até '+esc(l.limite_txt||'—')+'</span>'));
+  var medmini=(dono&&l.medicao)?'<small style="display:block;line-height:1.6">oficial '+esc(medHora(l.medicao.oficial))+'<br>balcão '+esc(medHora(l.medicao.balcao))+'<br>média '+esc(medHora(l.medicao.media))+'</small>':'';
   var R={ok:['vd','✓ garantido + rango'],perdeu:['vm','✕ perdeu os dois'],parte:['am',(valeRango(l)?'só rango':'só garantido')],semprova:['am','sem prova · não corta'],espera:['apg','aguardando'],faltou:['vm','não veio'],anotar:['am','anote a hora'],fora:['apg','fora da escala']}[st];
   var bot = (!dono && !l.anotado_txt && l.na_escala) ? '<button class="mini" onclick="event.stopPropagation();chegou('+i+')">Chegou agora</button>' : '';
   return '<div class="ls'+(ab?' ab':'')+'" onclick="abre('+i+')">'+
       '<div class="n">'+esc(l.entregador)+(l.na_escala?'':' <small>'+esc(l.unidade)+'</small>')+'</div>'+
-      '<div class="c1"><span class="rt">chegou</span>'+cheg+'</div>'+
+      '<div class="c1"><span class="rt">chegou</span>'+cheg+medmini+'</div>'+
       '<div class="c2"><span class="rt">saiu</span>'+saidaTxt(l)+'</div>'+
       '<div class="r '+R[0]+'">'+R[1]+bot+'</div>'+
       /* observacao da equipe no fim da linha: a caixa vem do portal.js (anotacao gravada com o nome de quem escreveu); a chave leva o DIA */
