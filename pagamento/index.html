@@ -220,7 +220,7 @@ const REGRAS_HTML='<div class="c"><h3 style="margin:0 0 12px;font-size:16px">�
 '<b>Garantido por turno:</b> vale a duração do turno combinado na escala multiplicada pela tarifa da loja. Turno em que ele não apareceu não entra. Se faltarem escala, identidade ou prova de quem trabalhou, a conta fica <b>para conferir</b>; a prévia não autoriza pagamento.<br><br>'+
 '<b>Água Verde:</b> segunda a sexta, R$ 20/h (4h = R$ 80; 6h = R$ 120). Sábado e domingo, R$ 25/h (4h = R$ 100; 6h = R$ 150).<br><br><b>Ahú:</b> noite, R$ 25/h. De dia, R$ 25/h com um motoboy e R$ 20/h com dois, contando <b>quem realmente trabalhou</b>, inclusive quem ficou disponível esperando. Só estar na escala não conta. Nos turnos habituais de 4h: R$ 100 à noite; de dia R$ 100 com um ou R$ 80 com dois. Falta de prova ou quantidade fora de um ou dois exige conferência.<br><br><b>São Braz:</b> R$ 20/h em todos os dias e turnos (4h = R$ 80; 6h = R$ 120; 5h30 = R$ 110).<br><br>'+
 '<b>Desde 11/11: média do leitor de segundos (API como reserva) e da chegada do balcão</b>. A média só gera corte quando as fontes estão conferidas; divergência acima de 3 minutos, fontes em lados diferentes da tolerância, ausência de fonte ou falha de coleta ficam para conferência, sem corte automático. O histórico até 10/11 conserva a regra e os lacres originais.<br><br><b>Regra histórica de atraso — tela Chegada</b> (decisão do Fábio, 23/10/2026): chegou <b>mais de 15 min</b> depois (até 08/11/2026 eram 30 min; mudou a pedido da Hellen) da escala do Jaison, com carimbo de GPS, fica <b>sem o garantido do dia</b> e <b>sem o lanche daquele turno</b> — igual à planilha da casa. Sem carimbo de GPS nada é cortado. Quem decide manualmente "com garantido" ou "com rango" na tela <b>Chegada</b> (com o motivo) é só o dono (Fábio); a equipe apenas registra observações. Vale o que o dono marcou lá, e esta tela obedece na hora.<br><br>'+
-'<b>Lanche:</b> um por turno rodado. Quem rodou almoço e jantar tem direito a dois; quem rodou um turno e pegou dois paga o segundo, pelo preço de cardápio.<br><br>'+
+'<b>Lanche:</b> um por turno rodado. Quem rodou almoço e jantar tem direito a dois; quem rodou um turno e pegou dois paga o segundo, por um valor fixo de R$ 24,50 por refeição (desde 11/11; antes era o preço de cardápio).<br><br>'+
 '<b>Entregas</b> é a contagem que gerou taxa no TrackEat — é o que sustenta o valor a pagar, e <b>não</b> é a medida de quantas entregas a loja fez no dia. Descontos de pedido não achado, refrigerante e acertos de outro dia continuam sendo feitos à mão.</div></div>'+
 '<div class="c"><h3 style="margin:0 0 12px;font-size:16px">📋 O que cada coluna quer dizer</h3><div class="wrap"><table>'+
 '<tr><th>Coluna</th><th>O que é</th></tr>'+
@@ -1309,6 +1309,21 @@ function prJornadaLacrada(x){
  }).join('');
 }
 
+/* Fabio, 11/11/2026 (chat-hellen-refeicao-fixa-prova-real-11-11): na Prova real, quantas corridas e quanto valem.
+   Sistema = TrackEat guardado no lacre (n_entregas/n_taxas de prova_cruzar); planilha = o que a loja anotou. Sem conta nova. */
+function prCorridas(x){
+ var temN=x.n_entregas!=null, temD=x.d_entregas!=null;
+ if(!temN&&!temD)return '';
+ var h='<div class="pr-why"><b>Corridas do dia</b>';
+ if(temN){
+  h+=pgLn('corridas no sistema',num(x.n_entregas),'forte');
+  h+=pgLn('valor das corridas',x.n_taxas!=null?rs(Number(x.n_taxas)):'não informado','forte');
+ } else h+=pgLn('corridas no sistema','—','fraco');
+ if(temD) h+=pgLn('planilha deles',num(x.d_entregas)+' · '+(x.d_taxas!=null?rs(Number(x.d_taxas)):'—'),'');
+ h+='<div style="margin-top:6px;opacity:.8">Valor das corridas = soma das taxas de entrega, antes do garantido e do lanche.</div></div>';
+ return h;
+}
+
 function prComanda(x,i){
   const casa=prCasa(x), d=(x.nosso!=null&&casa!=null)?Math.round((Number(x.nosso)-casa)*100)/100:null;
   let h='<div class="pg-tk" style="animation-delay:'+Math.min(i*35,500)+'ms">'+
@@ -1321,6 +1336,7 @@ function prComanda(x,i){
   h+='<hr class="pg-corte"><div class="pg-total"><span class="k">Diferença</span><span class="v" style="font-size:26px">'+
      (d==null?(prFalta(x)?'falta':'—'):(Math.abs(d)<0.01?(prRegraConferir(x)?'<span class="pg-tag aviso">conferir regra</span>':'<span class="pr-ok">bate</span>'):(d>0?'+':'−')+pgV(Math.abs(d))))+'</span></div>';
   if(d!=null&&Math.abs(d)>=0.01) h+='<div class="pg-obs">'+(d>0?'o sistema pagaria a mais':'o sistema pagaria a menos')+(x.deles!=null?' que a planilha':' que o Pix')+'</div>';
+  h+=prCorridas(x);
   h+=prJornadaLacrada(x);
   h+=prAuditoriaDesconto(x);
   h+=prChegada(x);
