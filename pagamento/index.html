@@ -1266,6 +1266,49 @@ function prRegraConferir(x){
   const f=String(x.n_fonte||'');
   return f.indexOf('CONFERIR REGRA:')>=0||(f.indexOf('REGRA POR LOJA:')>=0&&f.indexOf('sem escala')>=0);
 }
+
+/* Fabio, 11/11/2026: jornada do lacre sempre visivel na Prova Real da Hellen; sem recalculo financeiro. */
+function prDuracaoMin(minutos){
+ if(minutos==null||!Number.isFinite(Number(minutos)))return 'não informado';
+ var n=Math.max(0,Math.round(Number(minutos)));
+ return Math.floor(n/60)+'h'+String(n%60).padStart(2,'0');
+}
+function prTempoJornada(j){
+ function seg(v){var m=/^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(v||'');return m?Number(m[1])*3600+Number(m[2])*60+Number(m[3]||0):null;}
+ var a=seg(j.chegada),b=seg(j.ultima_entrega);
+ if(a!=null&&b!=null){var d=b-a;if(d<0)d+=86400;return prDuracaoMin(d/60);}
+ return j.horas==null?'não informado':prDuracaoMin(Number(j.horas)*60);
+}
+function prJornadaLacrada(x){
+ var J=Array.isArray(x.jornadas_lacradas)?x.jornadas_lacradas:[];
+ if(!J.length)return '<div class="pr-why"><b>Horas e chegada</b><div>Sem dados de jornada neste lacre. Conferir antes de concluir garantido e rango.</div></div>';
+ return J.map(function(j){
+   var h='<div class="pr-why"><b>Horas e chegada · guardadas no lacre</b><div>'+esc(j.unidade||'')+'</div>';
+   h+=pgLn('tempo entre registros',prTempoJornada(j),'forte');
+   h+=pgLn('chegou',esc(j.chegada||'não informado'),'');
+   h+=pgLn('última entrega',esc(j.ultima_entrega||'não informada'),'');
+   h+=pgLn('horas da escala',j.horas_escala==null?'não informadas':prDuracaoMin(Number(j.horas_escala)*60),'');
+   h+=pgLn('garantido no fechamento',j.garantido===true?'com garantido':(j.garantido===false?'sem garantido':'não informado'),'');
+   if(j.garantido_calculado!=null)h+=pgLn('piso calculado',rs(Number(j.garantido_calculado)),'');
+   if(j.valor_hora!=null)h+=pgLn('valor por hora',rs(Number(j.valor_hora)),'');
+   h+=pgLn('rango de direito',j.direito_refeicoes==null?'não informado':String(j.direito_refeicoes)+' refeição(ões)','');
+   if(j.cobrar_refeicao!=null)h+=pgLn('lanche cobrado',rs(Number(j.cobrar_refeicao)),'');
+   var T=Array.isArray(j.turnos_det)?j.turnos_det:[];
+   if(T.length)h+='<div style="margin-top:8px"><b>Chegada por turno</b>'+T.map(function(t){
+     var combinado=t.hora_combinada?String(t.hora_combinada).slice(0,5):'não informada';
+     var chegada=t.chegada?medHora(t.chegada):'sem registro';
+     var regra=t.furou_tolerancia===true?'passou da tolerância':(t.furou_tolerancia===false?'dentro da tolerância':'sem prova suficiente para corte automático');
+     return '<div>Escala '+esc(combinado)+' → chegou '+esc(chegada)+' · '+esc(regra)+'</div>';
+   }).join('')+'</div>';
+   else h+='<div>Escala de entrada: '+esc(j.combinado||'não informada')+'.</div>';
+   if(j.aviso)h+='<div style="margin-top:6px"><b>Motivo registrado:</b> '+esc(j.aviso)+'</div>';
+   if(j.fonte_garantido)h+='<div>'+esc(j.fonte_garantido)+'</div>';
+   if(j.tem_gps===false)h+='<div>Chegada estimada, sem carimbo de GPS.</div>';
+   h+='<div style="margin-top:6px;opacity:.8">Tempo entre chegada e última entrega; pode incluir pausas entre turnos. A garantia usa a regra da escala. Os dados atuais da Chegada aparecem separados abaixo.</div></div>';
+   return h;
+ }).join('');
+}
+
 function prComanda(x,i){
   const casa=prCasa(x), d=(x.nosso!=null&&casa!=null)?Math.round((Number(x.nosso)-casa)*100)/100:null;
   let h='<div class="pg-tk" style="animation-delay:'+Math.min(i*35,500)+'ms">'+
@@ -1278,6 +1321,7 @@ function prComanda(x,i){
   h+='<hr class="pg-corte"><div class="pg-total"><span class="k">Diferença</span><span class="v" style="font-size:26px">'+
      (d==null?(prFalta(x)?'falta':'—'):(Math.abs(d)<0.01?(prRegraConferir(x)?'<span class="pg-tag aviso">conferir regra</span>':'<span class="pr-ok">bate</span>'):(d>0?'+':'−')+pgV(Math.abs(d))))+'</span></div>';
   if(d!=null&&Math.abs(d)>=0.01) h+='<div class="pg-obs">'+(d>0?'o sistema pagaria a mais':'o sistema pagaria a menos')+(x.deles!=null?' que a planilha':' que o Pix')+'</div>';
+  h+=prJornadaLacrada(x);
   h+=prAuditoriaDesconto(x);
   h+=prChegada(x);
   if(prRegraConferir(x)) h+='<div class="pr-why"><b>Conferir regra antes de pagar: este valor lacrado era uma prévia, mesmo quando coincide com a planilha.</b><div>'+esc(pgFonteLabel(x.n_fonte||''))+'</div></div>';
