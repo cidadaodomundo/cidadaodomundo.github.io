@@ -21,7 +21,7 @@ assert.ok(ctx.saidaDetalhada({ultimo_sinal_txt:'17:00'}).includes('Não registra
 assert.ok(ctx.saidaDetalhada({saida_registrada_txt:'17:03:00'}).includes('saída registrada por QR'));
 assert.ok(ctx.direitosVisiveis({...l,na_escala:false},'garantido').includes('A conferir'));
 assert.ok(ctx.direitosVisiveis({...l,direito:'sem_prova'},'rango').includes('sem corte automático'));
-assert.ok(ctx.direitosVisiveis({...l,rango_manual:false},'rango').includes('SEM direito'));
+assert.ok(ctx.direitosVisiveis({...l,rango_manual:false},'rango').includes('Não'));
 assert.ok(ctx.tempoRegistrado({}).includes('Não informado'));
 assert.ok(!ctx.linhaSimples({...l,entregador:'<script>falha</script>'},0,true).includes('<script>falha</script>'));
 ctx.D.somente_consulta=true;
@@ -32,3 +32,18 @@ assert.ok(src.includes("'hellen_chegada'")&&src.includes('D.consulta_detalhada')
 assert.ok(hellen.includes('href="/chegada/"'),'Atalho da Hellen ausente');
 assert.ok(src.includes('@media(max-width:1100px)'),'Layout movel do contrato ausente');
 console.log('Contrato da Chegada validado: campos permanentes, saida identificada e consulta Hellen.');
+
+assert.ok(ctx.direitosVisiveis({...l,direito:'ok'},'garantido').includes('class="vd">Sim'));
+assert.ok(ctx.direitosVisiveis({...l,direito:'sem_prova'},'rango').includes('class="vd">Sim'));
+assert.ok(ctx.direitosVisiveis({...l,rango_manual:false},'rango').includes('class="vm">Não'));
+assert.ok(ctx.linhaSimples({...l,chegada_fila_txt:'10:07:42'},0,true).includes('10:07:42'));
+vm.runInContext(src.slice(src.indexOf('function listaSimples('),src.indexOf('function desenha(){')),ctx);
+ctx.UNI='Loja';ctx.D={linhas:[l,{...l,entregador:'Outro',na_escala:false}]};
+assert.ok(!ctx.listaSimples(true).includes('lj2">Fora da escala'));
+assert.ok(ctx.listaSimples(true).includes('fora da escala'));
+ctx.UNI='Loja';
+assert.equal((ctx.listaSimples(true).match(/class="lst"/g)||[]).length,1);
+assert.ok(src.includes("setTimeout(function(){puxa(true)},10000)"));
+assert.ok(!src.includes('atualiza a cada minuto'));
+assert.ok(!src.includes('h+=resumoSimples'));
+assert.ok(src.includes('Motoboys rodando no dia'));
