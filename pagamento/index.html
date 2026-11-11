@@ -926,6 +926,9 @@ function pgCopiar(btn,k){
   function ok(){btn.textContent='Pix copiado ✓';clearTimeout(btn._t);btn._t=setTimeout(function(){btn.textContent=btn.dataset.rot},1800)}
   try{navigator.clipboard.writeText(k).then(ok,function(){alert('Copie na mão:\n\n'+k)})}catch(e){alert('Copie na mão:\n\n'+k)}
 }
+function pgFonteLabel(s){
+  return String(s||'').replace(/(\d+\.\d+)h\b/g,function(_,n){return Number(n).toLocaleString('pt-BR',{maximumFractionDigits:2})+'h'});
+}
 function pgRegraConferir(m){
   if(!PD||PD.dia<'2026-11-10')return false;
   const f=String(m.fonte_garantido||'');
@@ -956,7 +959,7 @@ function pgComanda(m,i){
   if(m.garantido===false) h+=pgLn('sem garantido','—','menos')+'<div class="pg-obs">'+(m.editado?'valor do fechamento editado à mão; decisão da Chegada abaixo':(m.garantido_fonte==='botao'?'decisão do dono na Chegada (detalhe abaixo)':motivoCorte(m)))+'</div>';
   else if(m.garantido_fonte==='botao') h+='<div class="pg-obs">'+(m.editado?'garantido neste fechamento editado à mão; decisão da Chegada abaixo':'✋ garantido mantido por decisão do dono na Chegada (detalhe abaixo)')+'</div>';
   h+=pgChegada(m);
-  if(String(m.fonte_garantido||'').indexOf('REGRA POR LOJA:')>=0) h+='<div class="pg-obs">'+esc(m.fonte_garantido)+'</div>';
+  if(String(m.fonte_garantido||'').indexOf('REGRA POR LOJA:')>=0) h+='<div class="pg-obs">'+esc(pgFonteLabel(m.fonte_garantido))+'</div>';
   if(pgRegraConferir(m)) h+='<div class="pg-tag aviso">Conferir regra antes de pagar — valor abaixo é uma prévia</div>';
   if(ref>0) h+=pgLn('lanche a mais','− '+pgV(ref),'menos')+(m.lanche_produto?'<div class="pg-obs">'+esc(m.lanche_produto)+'</div>':'');
   if(Math.abs(aj)>0.004) h+=pgLn('ajuste',(aj>0?'+ ':'− ')+pgV(Math.abs(aj)),aj<0?'menos':'')+(m.motivos?'<div class="pg-obs">'+esc(m.motivos)+'</div>':'');
@@ -1211,7 +1214,7 @@ function prPorque(x){
     if(dif(x.c_entregas)) w.push('taxas das entregas: o sistema somou '+rs(Math.abs(x.c_entregas))+(x.c_entregas>0?' a mais':' a menos')+' que a planilha (sistema '+rs(x.n_taxas)+' em '+num(x.n_entregas)+' entregas, planilha '+rs(x.d_taxas)+' em '+num(x.d_entregas)+')'+(ne===de?' · mesmo número de entregas: a diferença está no valor das taxas':' · número de entregas diferente: a planilha tem '+num(Math.abs(de-ne))+(de>ne?' a mais':' a menos')+' que o sistema'));
     const md=prMadr(x.madr,de-ne);
     if(md) w.push(md);
-    if(dif(x.c_garantido)) w.push('garantido: o sistema deu '+rs(Math.abs(x.c_garantido))+(x.c_garantido>0?' a mais':' a menos')+' que a planilha'+(x.n_fonte?' · '+esc(x.n_fonte):''));
+    if(dif(x.c_garantido)) w.push('garantido: o sistema deu '+rs(Math.abs(x.c_garantido))+(x.c_garantido>0?' a mais':' a menos')+' que a planilha'+(x.n_fonte?' · '+esc(pgFonteLabel(x.n_fonte)):''));
     if(dif(x.c_lanche)) w.push('lanche cobrado pelo sistema: '+rs(Math.abs(x.c_lanche)));
     if(dif(x.c_ajustes)) w.push('ajuste lançado no sistema: '+rs(x.c_ajustes));
     if(dif(x.c_desconto)) w.push('a planilha descontou '+rs(x.c_desconto)+' (refrigerante, pedido não achado ou corrida em dobro)');
@@ -1242,7 +1245,7 @@ function prComanda(x,i){
      (d==null?(prFalta(x)?'falta':'—'):(Math.abs(d)<0.01?(prRegraConferir(x)?'<span class="pg-tag aviso">conferir regra</span>':'<span class="pr-ok">bate</span>'):(d>0?'+':'−')+pgV(Math.abs(d))))+'</span></div>';
   if(d!=null&&Math.abs(d)>=0.01) h+='<div class="pg-obs">'+(d>0?'o sistema pagaria a mais':'o sistema pagaria a menos')+(x.deles!=null?' que a planilha':' que o Pix')+'</div>';
   h+=prChegada(x);
-  if(prRegraConferir(x)) h+='<div class="pr-why"><b>Conferir regra antes de pagar: este valor lacrado era uma prévia, mesmo quando coincide com a planilha.</b><div>'+esc(x.n_fonte||'')+'</div></div>';
+  if(prRegraConferir(x)) h+='<div class="pr-why"><b>Conferir regra antes de pagar: este valor lacrado era uma prévia, mesmo quando coincide com a planilha.</b><div>'+esc(pgFonteLabel(x.n_fonte||''))+'</div></div>';
   const w=prPorque(x);
   if(w.length&&!(d!=null&&Math.abs(d)<0.01&&x.faixa==='centavo'&&!x.mudou_depois)) h+='<div class="pr-why">'+w.map(function(t){return '<div>'+t+'</div>'}).join('')+'</div>';
   if(x.chave_pix) h+='<div class="pg-pix"><button onclick="pgCopiar(this,\''+esc(String(x.chave_pix)).replace(/'/g,'\\\'')+'\')">Copiar a chave Pix</button><div class="ch">'+esc(String(x.chave_pix))+'</div></div>';
