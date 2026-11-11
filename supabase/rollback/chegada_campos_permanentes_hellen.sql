@@ -1,5 +1,4 @@
--- Restaurar somente se houver necessidade; preservar lacres.
-CREATE OR REPLACE VIEW public.vw_motoboy_turno_gps AS SELECT * FROM cdm_interno.chegada_turno_anterior;
+-- Retorna ao estado anterior a ativacao de consulta Hellen, preservando a lista de segundos.
 CREATE OR REPLACE FUNCTION public.chegada_conferir(p_token text, p_dados jsonb DEFAULT '{}'::jsonb)
  RETURNS json
  LANGUAGE plpgsql
@@ -51,11 +50,52 @@ begin
 
   -- 11/09/2026, decisao do Fabio: a hora que o SISTEMA viu, a diferenca e a coluna "bate?"
   -- sao SO DO DONO. Com a hora do sistema na tela, o balcao copia em vez de olhar o relogio.
+
+  -- Fabio 11/11: chegada da fila com segundos; somente consulta, sem mudar regra de pagamento.
+  with t as (
+   select v.*,lead(v.combinado_em) over w as proximo,
+    lag((v.dia_operacional+v.hora_saida+case when v.hora_saida<v.hora_combinada then interval '1 day' else interval '0' end)
+       at time zone 'America/Sao_Paulo') over w as fim_anterior
+   from public.vw_motoboy_turno_gps v where v.dia_operacional=v_dia
+   window w as(partition by v.unidade,v.entregador order by v.n_turno)
+  ), dados as (
+   select x.e,x.ord,t.chegada,t.hora_saida,
+    fila.chegada_fila,qr.saida_qr
+   from jsonb_array_elements(v_todas) with ordinality x(e,ord)
+   left join t on t.unidade=x.e->>'unidade' and t.entregador=x.e->>'entregador' and t.n_turno=(x.e->>'n_turno')::int
+   left join lateral (
+    select min(k.chegou_em) as chegada_fila from public.trackeat_chegada k
+    where k.dia_operacional=v_dia and k.unidade=x.e->>'unidade' and k.origem='api'
+    and lower(extensions.unaccent(public.motoboy_nome_padrao(k.unidade,k.entregador)))
+        =lower(extensions.unaccent(public.motoboy_nome_padrao(x.e->>'unidade',x.e->>'entregador')))
+    and k.chegou_em>=coalesce(greatest(t.combinado_em-interval '2 hours',t.fim_anterior),(v_dia+time '05:00') at time zone 'America/Sao_Paulo')
+    and k.chegou_em<coalesce(least(t.combinado_em+interval '4 hours',t.proximo),(v_dia+1+time '05:00') at time zone 'America/Sao_Paulo')
+   ) fila on true
+   left join lateral (
+    select max(q.ultima_saida) as saida_qr from public.foody_vw_horas_qr q
+    where q.dia_operacional=v_dia and q.unidade=x.e->>'unidade' and q.completo and q.sem_batida_saida=0
+     and lower(extensions.unaccent(q.nome))=lower(extensions.unaccent(x.e->>'entregador'))
+     and t.combinado_em is not null and q.ultima_saida>=t.combinado_em
+     and q.ultima_saida<least(coalesce(t.proximo,'infinity'::timestamptz),
+       ((v_dia+t.hora_saida+case when t.hora_saida<t.hora_combinada then interval '1 day' else interval '0' end)
+          at time zone 'America/Sao_Paulo')+interval '2 hours')
+   ) qr on true
+  )
+  select coalesce(jsonb_agg(d.e||jsonb_build_object(
+   'escala_saida_txt',to_char(d.hora_saida,'HH24:MI'),
+   'chegada_fila_txt',to_char(d.chegada_fila at time zone 'America/Sao_Paulo','HH24:MI:SS'),
+   'chegada_fila_em',d.chegada_fila,
+   'saida_registrada_txt',to_char(d.saida_qr at time zone 'America/Sao_Paulo','HH24:MI:SS'),
+   'tempo_registrado_min',case when d.saida_qr>=coalesce(d.chegada_fila,d.chegada)
+     then round(extract(epoch from(d.saida_qr-coalesce(d.chegada_fila,d.chegada)))/60)::int end,
+   'tempo_fonte',case when d.saida_qr is not null then 'intervalo até saída QR' end
+  ) order by d.ord),'[]'::jsonb) into v_todas from dados d;
+
   if v_dono then
     v_linhas := v_todas;
   else
     select coalesce(jsonb_agg(
-             (e - 'sistema_txt' - 'fonte' - 'diferenca_min' - 'trava_txt' - 'chegou_txt' - 'chegou_fonte' - 'atraso_min')
+             (e - 'chegada_fila_txt' - 'chegada_fila_em' - 'sistema_txt' - 'fonte' - 'diferenca_min' - 'trava_txt' - 'chegou_txt' - 'chegou_fonte' - 'atraso_min')
              || jsonb_build_object('situacao',
                   case when e->>'anotado_txt' is not null then 'anotado' else 'esperando o balcao' end)
              -- 15/10/2026 (revisao do supervisor): sem anotacao do balcao, o veredito fica escondido; senao a troca de
@@ -112,7 +152,7 @@ begin
 
   return json_build_object(
     'dia', v_dia, 'hoje', v_op,
-    'agora', to_char(now() at time zone 'America/Sao_Paulo','HH24:MI'),
+    'agora', to_char(now() at time zone 'America/Sao_Paulo','HH24:MI:SS'),
     'dono', v_dono, 'ao_vivo', v_hoje,
     /* 04/10/2026 (chat-cartoes-operacao-04-10), pedido do Fabio: "essa aqui nao esta atualizada".
        O GPS do TrackEat (foody_presenca) parou em 25/09 e a tela dizia "o sistema nao viu" para todos.
