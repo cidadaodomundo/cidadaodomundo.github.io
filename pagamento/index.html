@@ -841,9 +841,9 @@ function linhaMoto(m,i,vivo){
 }
 function setLoja(u){LOJA=u;render()}
 function lojasDe(D2){
-  const s=new Set(); (D2.linhas||[]).forEach(x=>s.add(x.unidade));
-  (D2.lanches_sem_dono||[]).forEach(x=>s.add(x.unidade));
-  return [...s].sort();
+  const s=new Set(PR_LOJAS); (D2.linhas||[]).forEach(x=>{const i=lojaId(x.unidade)||x.unidade; if(i)s.add(i)});
+  (D2.lanches_sem_dono||[]).forEach(x=>{const i=lojaId(x.unidade)||x.unidade; if(i)s.add(i)});
+  return [...s];
 }
 function botoesLoja(D2){
   const ls=lojasDe(D2);
@@ -851,12 +851,12 @@ function botoesLoja(D2){
   let h='<div class="c" style="padding:9px 12px"><b style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">Loja</b> ';
   h+='<button class="b'+(LOJA===''?' on':'')+'" onclick="setLoja(\'\')" style="'+(LOJA===''?'background:var(--brand);color:var(--brand-ink);border-color:var(--brand)':'')+'">todas</button> ';
   ls.forEach(function(u){
-    const sel = LOJA===u;
-    h+='<button class="b" onclick="setLoja(\''+esc(u).replace(/'/g,"\\'")+'\')" style="'+(sel?'background:var(--brand);color:var(--brand-ink);border-color:var(--brand)':'')+'">'+esc(u)+'</button> ';
+    const sel = lojaId(LOJA)===u;
+    h+='<button class="b" onclick="setLoja(\''+esc(u).replace(/'/g,"\\'")+'\')" style="'+(sel?'background:var(--brand);color:var(--brand-ink);border-color:var(--brand)':'')+'">'+esc(lojaRotulo(u))+'</button> ';
   });
   return h+'</div>';
 }
-function soDaLoja(lista){ return LOJA ? (lista||[]).filter(x=>x.unidade===LOJA) : (lista||[]) }
+function soDaLoja(lista){ return LOJA ? (lista||[]).filter(x=>lojaId(x.unidade)===lojaId(LOJA)) : (lista||[]) }
 function somaTotais(l){
   const t={gente:l.length, pagar:0, almocos:0, sem_almoco:0, dobrados:0, sem_gps:0, sem_pix:0,
            cobrados:0, cobrado_total:0, sem_preco:0, entregas:0, horas:0, rodando_agora:0};
@@ -1081,7 +1081,7 @@ function acDatas(){const a=$('ac_de').value, b=$('ac_ate').value; if(!a||!b)retu
 function acLoja(u){AC_LOJA=u; viewAcerto()}
 function acAbre(k){AC_ABRE[k]=!AC_ABRE[k]; viewAcerto()}
 // a loja da linha: a do sistema/planilha; quando só existe o Pix, a da conta que pagou
-function acLojas(x){if(x.lojas)return String(x.lojas).split('+');const p=(x.pix||[])[0];return p&&AC_CONTA[p.conta]?[AC_CONTA[p.conta]]:[]}
+function acLojas(x){if(x.lojas)return String(x.lojas).split(/[+,]/).map(function(s){return s.trim()}).filter(Boolean);const p=(x.pix||[])[0];return p&&AC_CONTA[p.conta]?[AC_CONTA[p.conta]]:[]}
 function acSoma(L){
   const P={};
   L.forEach(function(x){
@@ -1122,7 +1122,7 @@ function acLacre(x){
 function acPixTxt(x){return (x.pix||[]).map(function(p){return rs(p.valor)+' <span style="color:var(--muted)">em '+prDt(p.data)+'</span>'}).join('<br>')}
 function acCopia(){
   if(!AC)return;
-  const P=acSoma((AC.linhas||[]).filter(function(x){return !AC_LOJA||acLojas(x).indexOf(AC_LOJA)>=0}));
+  const P=acSoma((AC.linhas||[]).filter(function(x){return !AC_LOJA||acLojas(x).some(function(u){return lojaId(u)===lojaId(AC_LOJA)})}));
   const f=function(v){return Number(v||0).toFixed(2).replace('.',',')};
   const t=['Entregador\tLoja\tDias\tEntregas\tValor entregas\tGarantido\tConsumo\tAjustes\tA pagar (sistema)\tPlanilha deles\tPago no Pix'].concat(P.map(function(p){
     return [p.pessoa,Object.keys(p.lojas).join(' + '),p.dias,p.ent,f(p.tax),f(p.gar),f(p.lan),f(p.aju),f(p.nosso),p.temDeles?f(p.deles):'',p.temPago?f(p.pago):''].join('\t')})).join('\n');
@@ -1138,7 +1138,7 @@ function viewAcerto(){
       .catch(function(e){$('conteudo').innerHTML='<div class="c">'+(e&&e.code==='42501'?'Só o Fábio e a Hellen veem o acerto.':'Não deu para carregar o acerto. Entre no portal de novo e tente outra vez.')+'</div>'});
     return;
   }
-  const L=(AC.linhas||[]).filter(function(x){return !AC_LOJA||acLojas(x).indexOf(AC_LOJA)>=0});
+  const L=(AC.linhas||[]).filter(function(x){return !AC_LOJA||acLojas(x).some(function(u){return lojaId(u)===lojaId(AC_LOJA)})});
   const P=acSoma(L);
   const T={ent:0,tax:0,gar:0,lan:0,aju:0,nosso:0,deles:0,pago:0,difS:0,difP:0,espera:0,semPix:0,dias:0,calib:0,previa:0};
   P.forEach(function(p){['ent','tax','gar','lan','aju','nosso','deles','pago','difS','difP','espera','semPix','dias','calib','previa'].forEach(function(c){T[c]+=p[c]})});
@@ -1348,26 +1348,79 @@ function prComanda(x,i){
   if(x.pix&&x.pix.length) h+='<details class="pg-det"><summary>ver o Pix</summary><div>'+x.pix.map(function(p){return esc(prDt(p.data))+' · '+esc(p.nome)+' · '+rs(p.valor)+' · '+esc(p.conta)}).join('<br>')+'</div></details>';
   return h+'</div>';
 }
+// Seletor de loja da Prova Real: usa o mesmo LOJA das outras abas; filtra só no desenho (nada guardado por loja => sem dado velho)
+/*LOJA-HELPERS-BEGIN*/
+// IDs canônicos (sem acento, como no backend) e rótulos separados
+const PR_LOJAS=['Agua Verde','Ahú','Sao Braz'];
+const PR_ROTULO={'Agua Verde':'Água Verde','Ahú':'Ahú','Sao Braz':'São Braz'};
+function lojaId(s){
+  var k=String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+  if(k==='agua verde'||k==='av')return 'Agua Verde';
+  if(k==='sao braz'||k==='braz'||k==='sb')return 'Sao Braz';
+  if(k==='ahu'||k==='ah')return 'Ahú';
+  return '';
+}
+function lojaRotulo(id){return PR_ROTULO[lojaId(id)]||String(id||'')}
+// lojas de uma linha: campo lojas (separado por + ou vírgula), unidade e jornadas lacradas
+function prLojasDe(x){
+  var t=String((x&&x.lojas)||'').split(/[+,]/); if(x&&x.unidade)t.push(x.unidade);
+  ((x&&x.jornadas_lacradas)||[]).forEach(function(j){if(j&&j.unidade)t.push(j.unidade)});
+  var s=[]; t.forEach(function(u){var i=lojaId(u); if(i&&s.indexOf(i)<0)s.push(i)});
+  return s;
+}
+// 'lista' = linhas exclusivas da loja (ou todas); 'multi' = várias lojas (total consolidado); 'sem' = sem identificação
+function prParticiona(L,loja){
+  var o={lista:[],multi:[],sem:[]}, alvo=lojaId(loja);
+  (L||[]).forEach(function(x){
+    if(!alvo){o.lista.push(x);return}
+    var ids=prLojasDe(x);
+    if(!ids.length)o.sem.push(x); else if(ids.length>1)o.multi.push(x); else if(ids[0]===alvo)o.lista.push(x);
+  });
+  return o;
+}
+function prMesmaLoja(x,y){return prLojasDe(x).sort().join('+')===prLojasDe(y).sort().join('+')}
+function prLimpaAcerto(L){(L||[]).forEach(function(x){delete x._acerto})}
+function prSomaNosso(L){return (L||[]).reduce(function(a,x){return a+(Number(x.nosso)||0)},0)}
+/*LOJA-HELPERS-END*/
+const PR_REGRA={
+ 'Agua Verde':'Segunda a sexta, R$ 20/h (4h = R$ 80; 6h = R$ 120). Sábado e domingo, R$ 25/h (4h = R$ 100; 6h = R$ 150).',
+ 'Ahú':'Noite, R$ 25/h. De dia, R$ 25/h com um motoboy e R$ 20/h com dois, contando quem realmente trabalhou, inclusive quem ficou disponível esperando. Só estar na escala não conta. Falta de prova ou quantidade fora de um ou dois exige conferência.',
+ 'Sao Braz':'R$ 20/h em todos os dias e turnos (4h = R$ 80; 6h = R$ 120; 5h30 = R$ 110).'
+};
+function prSeletorLoja(todas,part){
+  var h='<div class="c" style="padding:9px 12px"><b style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">Loja</b> ';
+  var alvo=lojaId(LOJA);
+  [['','todas ('+todas.length+')']].concat(PR_LOJAS.map(function(u){return [u,lojaRotulo(u)+' ('+prParticiona(todas,u).lista.length+')']})).forEach(function(u){
+    h+='<button class="b'+(alvo===u[0]?' on':'')+'" onclick="setLoja(\''+u[0]+'\')" style="'+(alvo===u[0]?'background:var(--brand);color:var(--brand-ink);border-color:var(--brand)':'')+'">'+esc(u[1])+'</button> ';
+  });
+  var rs_=alvo?[alvo]:PR_LOJAS;
+  h+='<div class="m" style="margin-top:8px">'+rs_.map(function(u){return '<b>'+esc(lojaRotulo(u))+':</b> '+esc(PR_REGRA[u])}).join('<br>')+'<br>Regra vigente para consulta; os valores de cada lacre continuam os guardados no lacre.</div>';
+  if(alvo) h+='<div class="m" style="margin-top:6px">Fora dos totais desta loja, só em “todas” ou na seção abaixo: '+part.multi.length+' linha(s) de várias lojas (valor consolidado) e '+part.sem.length+' sem loja identificada. Calibração, alertas e corrente são de <b>todas as lojas</b>, não da loja filtrada.</div>';
+  return h+'</div>';
+}
+var PVREQ=0;
 function viewProva(){
   if(!PV){
     $('conteudo').innerHTML='<div class="empty">Carregando a prova real…</div>';
-    portaProva().then(function(j){PV=j;try{$('t_prova').style.display=''}catch(e){}if(VIEW==='prova')viewProva()})
-      .catch(function(e){$('conteudo').innerHTML='<div class="c">'+(e&&e.code==='42501'?'Só o Fábio e a Hellen veem a prova real.':'Não deu para carregar a prova real. Entre no portal de novo e tente outra vez.')+'</div>'});
+    var rq=++PVREQ;
+    portaProva().then(function(j){if(rq!==PVREQ||VIEW!=='prova')return;PV=j;try{$('t_prova').style.display=''}catch(e){}viewProva()})
+      .catch(function(e){if(rq!==PVREQ||VIEW!=='prova')return;$('conteudo').innerHTML='<div class="c">'+(e&&e.code==='42501'?'Só o Fábio e a Hellen veem a prova real.':'Não deu para carregar a prova real. Entre no portal de novo e tente outra vez.')+'</div>'});
     return;
   }
   $('kpis').innerHTML='';$('faixa').innerHTML='';
-  const J=PV.janela||{}, L=PV.linhas||[], hoje=PV.hoje;
+  const J=PV.janela||{}, PART=prParticiona(PV.linhas||[],LOJA), L=PART.lista, hoje=PV.hoje;
   const porDia={}; L.forEach(function(x){(porDia[x.dia]=porDia[x.dia]||[]).push(x)});
-  // acerto entre dias: mesma pessoa, diferença do mesmo valor ao contrário em até 3 dias
+  // acerto entre dias: mesma pessoa e mesma loja, diferença do mesmo valor ao contrário em até 3 dias (recalculado a cada desenho)
+  prLimpaAcerto(PV.linhas);
   L.forEach(function(x){
     if(!prComparavel(x)||prBate(x))return; const d=Number(x.nosso)-prCasa(x);
-    L.forEach(function(y){ if(y===x||y.pessoa!==x.pessoa||!prComparavel(y))return;
+    L.forEach(function(y){ if(y===x||y.pessoa!==x.pessoa||!prMesmaLoja(x,y)||!prComparavel(y))return;
       const dd=Math.abs((new Date(y.dia+'T12:00:00')-new Date(x.dia+'T12:00:00'))/864e5);
       if(dd>=1&&dd<=3&&Math.abs(d+(Number(y.nosso)-prCasa(y)))<0.02) x._acerto=y.dia; });
   });
   const nDia=Number(J.dia_n||0);
   const cab=J.terminou?'terminou em '+esc(J.ate_texto):(nDia<1?'começa hoje':'dia '+Math.min(nDia+1,J.dias_total)+' de '+esc(J.dias_total));
-  let h='<div class="pr-cab"><div class="t">🧪 Prova real</div><div class="d">'+cab+' · '+esc(J.de_texto)+' a '+esc(J.ate_texto)+'</div></div>'+
+  let h=prSeletorLoja(PV.linhas||[],PART)+'<div class="pr-cab"><div class="t">🧪 Prova real</div><div class="d">'+cab+' · '+esc(J.de_texto)+' a '+esc(J.ate_texto)+'</div></div>'+
     '<div class="pr-txt" style="margin-bottom:14px">Todo dia o sistema calcula sozinho quanto pagar a cada motoboy e <b>lacra esse número</b>: de meia em meia hora durante a noite, antes da planilha dos atendentes chegar no grupo, e de novo às 9h da manhã seguinte, já com tudo que entrou de madrugada. O lacre leva um código encadeado: ninguém consegue mexer depois. A Hellen paga como sempre, e aqui aparecem lado a lado <b>o que o sistema disse</b>, <b>o que a planilha anotou</b> e <b>o Pix que saiu</b>. Se o número da manhã for diferente do da noite, a comanda mostra os dois. Se nas duas semanas bater, dá para pagar pelo sistema.</div>';
   const A=PV.alertas||[];
   if(A.length) h+='<div class="pr-trava"><b>⚠️ O que está travando a prova agora:</b><br>· '+A.map(function(a){return esc(a.texto)}).join('<br>· ')+'</div>';
@@ -1414,7 +1467,7 @@ function viewProva(){
     prCarregaChegada(dia);
     const lac=(PV.lacres||[]).filter(function(x){return x.dia===dia});
     const ofi=lac.filter(function(x){return x.tipo==='OFICIAL'})[0], pre=lac.filter(function(x){return x.tipo==='PREVIA'})[0];
-    const pl=(PV.planilhas||[]).filter(function(x){return x.dia===dia});
+    const pl=(PV.planilhas||[]).filter(function(x){return x.dia===dia&&(!LOJA||lojaId(x.unidade)===lojaId(LOJA))});
     const mud=l.filter(function(x){return x.mudou_depois}).length;
     h+='<div class="pr-dia"><b>'+esc(prSem(dia))+', '+prDt(dia)+'</b><span>'+l.length+' motoboy(s)'+(mud?' · '+mud+' com número que mudou depois da planilha':'')+'</span></div>';
     let mini='';
@@ -1426,7 +1479,14 @@ function viewProva(){
     h+='<div class="pr-mini">'+mini+'</div><div class="pg-grid">';
     l.forEach(function(x,i){h+=prComanda(x,i)});
     h+='</div>';
+    const fora=PART.multi.concat(PART.sem).filter(function(x){return x.dia===dia});
+    if(LOJA&&fora.length){
+      h+='<div class="pr-trava"><b>Fora dos totais de '+esc(lojaRotulo(LOJA))+':</b> '+PART.multi.filter(function(x){return x.dia===dia}).length+' linha(s) de várias lojas, com valor <b>consolidado</b> (não pertence só a esta loja), e '+PART.sem.filter(function(x){return x.dia===dia}).length+' sem loja identificada (pendência). Não entram nos KPIs acima.</div><div class="pg-grid">';
+      fora.forEach(function(x,i){h+=prComanda(x,i)});
+      h+='</div>';
+    }
   }
+  if(LOJA) h+='<div class="pr-crit"><b>Todas as lojas:</b> os blocos de alertas, calibração e corrente abaixo/acima não são filtrados por loja.</div>';
   const cd=PV.cadeia||{};
   h+='<div class="pr-honesto"><b>Como esta prova é honesta.</b> O cálculo do sistema não lê a planilha nem o Pix (só o TrackEat, a escala do Jaison, o GPS e os lanches do Saipos). Cada lacre guarda o número de cada motoboy e um código ligado ao lacre anterior: se alguém mexer num número já lacrado, a corrente quebra e aparece aqui. Durante a prova os atendentes não veem a conta do sistema até a planilha da loja ser lida. '+
      'Corrente hoje: '+(cd.ok?'<b style="color:#4ade80">✔ inteira</b>':'<b style="color:#f87171">✖ quebrada</b>')+' · '+esc(cd.na_prova||0)+' lacres da prova'+(cd.calibracao?' (+'+esc(cd.calibracao)+' do teste com os dias de antes)':'')+' · último código '+esc(cd.ultimo_codigo||'—')+' · lido '+esc(PV.agora||'')+'</div>';
@@ -1686,8 +1746,8 @@ function extBloco(){
 
 function maqLojas(){
   let h='<div class="c" style="padding:9px 12px"><b style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">Loja</b> ';
-  [['','todas'],['Água Verde','Água Verde'],['São Braz','São Braz'],['Ahú','Ahú']].forEach(function(u){
-    h+='<button class="b" onclick="setLoja(\''+u[0]+'\')" style="'+(LOJA===u[0]?'background:var(--brand);color:var(--brand-ink);border-color:var(--brand)':'')+'">'+u[1]+'</button> ';
+  [['','todas'],['Agua Verde','Água Verde'],['Sao Braz','São Braz'],['Ahú','Ahú']].forEach(function(u){
+    h+='<button class="b" onclick="setLoja(\''+u[0]+'\')" style="'+(lojaId(LOJA)===u[0]?'background:var(--brand);color:var(--brand-ink);border-color:var(--brand)':'')+'">'+u[1]+'</button> ';
   });
   return h+'</div>';
 }
