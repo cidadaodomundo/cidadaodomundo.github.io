@@ -160,6 +160,8 @@ table.vv td.sit{width:250px}
 .lj2{margin-top:18px}.rbt{margin-bottom:12px}.ls .ob .apg{font-size:10px}
 @media(max-width:1100px){.ls{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.ls .n{grid-column:1/-1}.ls .ob{grid-column:3;grid-row:auto}.ls .garantido,.ls .refeicao{border:0;padding:0}.ls .rt{display:block}}
 @media(max-width:480px){.ls{grid-template-columns:repeat(2,minmax(0,1fr))}.ls .ob{grid-column:1/-1}}
+/* Chegada GPS (1a aparicao no patio no dia): coluna fixa apos Chegada; so dono/consulta_detalhada (.sg = sem GPS, grade de 8 colunas) */
+@media(min-width:1101px){.ls{grid-template-columns:minmax(155px,1.6fr) minmax(80px,.8fr) minmax(90px,.9fr) minmax(110px,.9fr) minmax(95px,.9fr) minmax(80px,.8fr) minmax(85px,.7fr) minmax(85px,.7fr) 48px}.ls.sg{grid-template-columns:minmax(155px,1.6fr) minmax(80px,.8fr) minmax(90px,.9fr) minmax(95px,.9fr) minmax(80px,.8fr) minmax(85px,.7fr) minmax(85px,.7fr) 48px}}
 </style>
 </head>
 <body>
@@ -647,16 +649,25 @@ function tempoRegistrado(l){
  v=Math.max(0,Math.round(Number(v)));
  return '<b>'+Math.floor(v/60)+'h'+String(v%60).padStart(2,'0')+'</b>';
 }
+/* Chegada GPS: 1a aparicao no patio no DIA OPERACIONAL (GPS real). Nao e a chegada do turno: repete em todos os turnos da pessoa.
+   Campo ausente = backend sem a coluna; null/vazio = sem registro GPS no dia. */
+function chegadaGps(l){
+ if(!l||!('chegada_gps_dia_txt' in l))return '<span class="apg">GPS indisponível</span>';
+ var t=l.chegada_gps_dia_txt;
+ if(!t)return '<span class="apg">Sem registro GPS</span>';
+ return '<b>'+esc(t)+'</b><small class="linha-nota">1ª aparição no pátio no dia</small>';
+}
 function linhaSimples(l, i, dono){
  var st=situacao(l,dono),ch=horaChegou(l,dono),k=chaveL(l),ab=!!ABERTO[k];
  var cheg=ch?'<b>'+esc(ch)+'</b>':'<span class="apg">Sem registro</span>';
  if(dono&&l.chegada_fila_txt)cheg='<b>'+esc(l.chegada_fila_txt)+'</b><small class="linha-nota">fila do Track</small>';
  var obs=D&&D.somente_consulta?'<span class="apg">Consulta da Hellen</span>':
   '<table data-cdm-livre><tr data-cdm-chave="'+esc((D.dia||'')+' | '+l.unidade+' | '+l.entregador+' | '+(l.escala_txt||'fora'))+'"><td></td><td></td></tr></table>';
- return '<div class="ls'+(ab?' ab':'')+'" onclick="abre('+i+')">'+
+ return '<div class="ls'+(dono?'':' sg')+(ab?' ab':'')+'" onclick="abre('+i+')">'+
   '<div class="n">'+esc(l.entregador)+'<small class="linha-nota">'+esc(l.unidade)+(l.na_escala?'':' · fora da escala')+'</small></div>'+
   '<div class="entrada"><span class="rt">entrada / escala</span><b>'+esc(l.escala_txt||'Não informada')+'</b><small class="linha-nota">até '+esc(l.escala_saida_txt||'não informado')+'</small></div>'+
   '<div class="c1"><span class="rt">chegada</span>'+cheg+'</div>'+
+  (dono?'<div class="gps"><span class="rt">chegada GPS</span>'+chegadaGps(l)+'</div>':'')+
   '<div class="c2"><span class="rt">saída</span>'+saidaDetalhada(l)+'</div>'+
   '<div class="tempo"><span class="rt">tempo registrado</span>'+tempoRegistrado(l)+'</div>'+
   '<div class="garantido"><span class="rt">garantido</span>'+direitosVisiveis(l,'garantido')+'</div>'+
@@ -667,7 +678,7 @@ function linhaSimples(l, i, dono){
 function listaSimples(dono){
  var P=((D&&D.linhas)||[]).map(function(l,i){return [l,i]});
  var lojas=UNI?[UNI]:['Água Verde','Ahú','São Braz'],h='';
- var cab='<div class="ls cab"><div>Motoboy</div><div>Escala</div><div>Chegada</div><div>Saída</div><div>Tempo registrado</div><div>Garantido</div><div>Refeição</div><div></div></div>';
+ var cab='<div class="ls cab'+(dono?'':' sg')+'"><div>Motoboy</div><div>Escala</div><div>Chegada</div>'+(dono?'<div>Chegada GPS</div>':'')+'<div>Saída</div><div>Tempo registrado</div><div>Garantido</div><div>Refeição</div><div></div></div>';
  lojas.forEach(function(u){
   var t=P.filter(function(p){return p[0].unidade===u}).sort(function(a,b){
    return (a[0].escala_txt||'99:99').localeCompare(b[0].escala_txt||'99:99')||a[0].entregador.localeCompare(b[0].entregador);
