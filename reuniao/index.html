@@ -70,21 +70,45 @@ button.b[disabled]{opacity:.4;cursor:default}
 button.bx{background:#2a1a1a;border-color:#5a2f2f;color:#f0a0a0}
 .ptvazio{background:var(--s1);border:1px dashed var(--line);border-radius:13px;padding:24px;text-align:center;color:var(--text2)}
 @media print{.ptf,.ptnav button,.ptvazio button{display:none}}
+/* ---------- combinados e folha da equipe (13/11/2026) ---------- */
+.cbi{display:flex;gap:10px;align-items:flex-start;background:var(--s1);border:1px solid var(--line);border-left:3px solid var(--ok);border-radius:10px;padding:10px 12px;margin:6px 0;font-size:13.5px;color:var(--text2)}
+.cbi b{color:var(--text)}
+.cbi input[type=checkbox]{margin-top:3px;width:17px;height:17px;accent-color:var(--ok);cursor:pointer}
+.cbi .cbx{font-size:16px;line-height:1.2}
+.cbi .fo{color:var(--muted);font-size:11.5px;margin-top:3px}
+.cbi.venc{border-left-color:var(--bad)}
+.cbi.venc .fo{color:var(--bad)}
+.tw{overflow-x:auto;border-radius:13px}
+.tw table{min-width:520px}
+.linhas{margin-top:16px;background:var(--s1);border:1px solid var(--line);border-radius:13px;padding:14px}
+.linhas .k{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.linhas .ln{border-bottom:1px solid var(--line);height:30px}
+@media print{
+  :root{--s0:#fff;--s1:#fff;--s2:#f2f2f2;--line:#bbb;--text:#000;--text2:#222;--muted:#555}
+  .top .rt,.cbform,.cbi button{display:none}
+  body{padding:0;font-size:13px}
+  h2{margin-top:16px}
+  .foco{background:#fff}
+  .aviso{background:#fff;color:#000;border-color:#bbb}
+  .selo,.selo.critico,.selo.atencao,.selo.decidido{background:#fff;color:#000;border-color:#999}
+  .c,.q,.cbi,table{break-inside:avoid}
+}
 </style>
 </head>
 <body>
 
 <div class="top">
-  <div><h1>📊 Reunião Semanal</h1><div class="sub" id="periodo">carregando…</div></div>
+  <div><h1 id="titulo">📊 Reunião Semanal</h1><div class="sub" id="periodo">carregando…</div></div>
   <div class="rt">
     <span id="lojas"></span>
     <select id="semana" onchange="render()"></select>
+    <button class="b" id="bmodo" onclick="trocaModo()">📄 Folha da equipe</button>
     <button class="b" onclick="location.reload()">↻ Atualizar</button>
     <button class="b" onclick="window.print()">🖨 Imprimir</button>
   </div>
 </div>
-<div id="pauta"><div class="load">Carregando a pauta…</div></div>
 <div id="app"><div class="load">Carregando os dados da semana…</div></div>
+<div id="pauta"><div class="load">Carregando a pauta…</div></div>
 
 <script>
 const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
@@ -112,7 +136,7 @@ async function cdmGuarda(){
   if(!j||!j.usuario){cdmSaia('Entre no portal para acessar esta tela');return false}
   const ms=Array.isArray(j.modulos)?j.modulos:[];
   try{sessionStorage.setItem('cdm_nome',j.nome||'');sessionStorage.setItem('cdm_admin',j.admin?'1':'0');sessionStorage.setItem('cdm_modulos',JSON.stringify(ms))}catch(e){}
-  if(!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
+  if(!j.admin&&!ms.some(function(m){return m&&CDMMODS.indexOf(m.id)>=0})){cdmSaia('Você não tem acesso a este módulo');return false}
   return true;
 }
 
@@ -205,99 +229,260 @@ function classifica(rows){
     CATS.forEach(c=>{if(c.re.test(t)){m[c.id].n++;if(m[c.id].ex.length<3)m[c.id].ex.push(r)}})});
   return Object.values(m).sort((a,b)=>b.n-a.n)}
 
-function render(){
-  const i=+$('semana').value||0, S=SEM[i], P=SEM[i+1]||null;
-  $('lojas').innerHTML=['Todas'].concat(TODAS).map(function(u){var on=(LOJA===u);return '<button class="b" style="'+(on?'background:#e8590c;color:#fff;font-weight:700':'')+'" onclick="setLoja('+String.fromCharCode(39)+u+String.fromCharCode(39)+')">'+(u==='Todas'?'🏪 Todas':u)+'</button>';}).join('');
+/* ---------- porta da semana: números por loja + data de cada fonte (13/11/2026) ---------- */
+let RS={},CB={},MODO='gerentes',CMSG='';
+const TEMAS=[['iFood','Cliente / iFood'],['Delivery','Tempo e entrega'],['RH','Equipe'],['Salão','Salão'],['Google','Google'],['Financeiro','Dinheiro'],['Outro','Outro']];
+const temaNome=t=>{const x=TEMAS.find(a=>a[0]===t);return x?x[1]:(t||'Outro')};
+/* área que cuida de cada assunto de reclamação — leitura do Claude em 13/11/2026, o Fábio pode corrigir */
+const AREA={frio:'Expedição / entrega',ponto:'Chapa',sabor:'Cozinha',falta:'Expedição',valid:'Cozinha',porcao:'Cozinha',embal:'Expedição',demora:'Cozinha / entrega',atend:'Atendimento'};
+const hojeLocal=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const semRS=t=>String(t||'').replace(/R\$\s?\d[\d.,]*/gi,'R$ —');
+async function rpc(fn,body){
+  const r=await fetch(SB+'rpc/'+fn,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},H),body:JSON.stringify(body)});
+  let j=null;try{j=await r.json()}catch(e){}
+  if(!r.ok){
+    if(j&&j.code==='28000'){cdmSaia('Sua sessão venceu. Entre de novo no portal.');throw new Error('Sessão vencida.')}
+    throw new Error((j&&j.message)||('erro '+r.status));
+  }
+  return j;
+}
+async function semDados(ini){
+  if(RS[ini])return RS[ini];
+  try{const j=await rpc('reuniao_semana',{p_token:cdmTok(),p_dados:{semana:ini}});if(j&&j.lojas){RS[ini]=j;return j}return {erro:'resposta vazia',lojas:[],fontes:{}}}
+  catch(e){return {erro:e.message,lojas:[],fontes:{}}}
+}
+const getOuNull=(t,q)=>fetch(SB+t+'?'+q,{headers:H}).then(r=>r.ok?r.json():null).catch(()=>null);
+async function combLoad(ini){
+  const prox=maisDias(ini,7);
+  const pt=await getOuNull('reuniao_pauta','select=id,semana,categoria,titulo,detalhe&fonte=eq.combinado&semana=in.('+ini+','+prox+')&order=id.asc&limit=300');
+  if(!pt)return {erro:true,ant:[],novos:[]};
+  const ids=pt.map(r=>r.id);
+  const dc=ids.length?await getOuNull('reuniao_decisao','select=id,pauta_id,responsavel,prazo,concluido&pauta_id=in.('+ids.join(',')+')&limit=300'):[];
+  if(!dc)return {erro:true,ant:[],novos:[]};
+  const all=pt.map(p=>{const d=dc.find(x=>x.pauta_id===p.id)||{};return {pid:p.id,did:d.id||null,semana:p.semana,tema:p.categoria,texto:p.titulo,loja:p.detalhe||'Todas',dono:d.responsavel||'',prazo:d.prazo||'',feito:!!d.concluido}});
+  CB[ini]={ant:all.filter(c=>c.semana===ini),novos:all.filter(c=>c.semana===prox)};
+  return CB[ini];
+}
+/* cobertura de uma fonte na semana: ok = cobre a semana inteira · parcial = só parte · sem = nada da semana · ? = data não lida */
+const fonteAte=(X,k)=>(X&&X.fontes&&X.fontes[k])||null;
+function cobre(X,k,S){const u=fonteAte(X,k);if(!u)return '?';return u>=S.fim?'ok':u>=S.ini?'parcial':'sem'}
+const vale=(X,k,S)=>cobre(X,k,S)!=='sem';
+function carimbo(X,k,S){const u=fonteAte(X,k),c=cobre(X,k,S);
+  if(c==='?')return '<span class="selo atencao">data da fonte não lida</span>';
+  if(c==='sem')return '<span class="selo critico">parado desde '+brs(u)+'</span>';
+  if(c==='parcial')return '<span class="selo atencao">só tem dado até '+brs(u)+'</span>';
+  return '<span class="selo">dado até '+brs(u)+'</span>'}
+const tz=v=>(v===null||v===undefined)?'<span class="fl">—</span>':v;
+const dl=(a,b)=>(a===null||a===undefined)?'':delta(+a,(b===null||b===undefined)?null:+b);
+const dli=(a,b)=>(a===null||a===undefined)?'':deltaInv(+a,(b===null||b===undefined)?null:+b);
+const pct1=(a,b)=>b?(a/b*100).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%':'—';
+const varp=v=>(v===null||v===undefined||isNaN(v))?'<span class="fl">—</span>':'<span class="'+(v>0?'up':v<0?'dn':'fl')+'">'+(v>0?'▲ +':v<0?'▼ ':'')+v+'%</span>';
+/* dinheiro: só chega da porta para o dono; nunca passa pelo delta() */
+const rolavel=h=>h.replace(/<table/g,'<div class="tw"><table').replace(/<\/table>/g,'</table></div>');
+const rs=v=>(v===null||v===undefined)?'—':'R$ '+Math.round(+v).toLocaleString('pt-BR');
+
+function trocaModo(){
+  MODO=(MODO==='equipe')?'gerentes':'equipe';
+  if(MODO==='equipe'&&LOJA==='Todas'){LOJA=TODAS[0];UNI=[LOJA]}
+  render();
+}
+function combItem(c,o){
+  const venc=!c.feito&&c.prazo&&c.prazo<hojeLocal();
+  let h='<div class="cbi'+(venc?' venc':'')+'">';
+  h+=(o.check&&c.did)?'<input type="checkbox" '+(c.feito?'checked':'')+' onchange="combFeito('+c.did+',this.checked,this)" title="Marcar como feito">'
+    :'<span class="cbx">'+(o.status?(c.feito?'✅':'⬜'):'▢')+'</span>';
+  h+='<div style="flex:1"><b>'+pEsc(c.texto)+'</b><div class="fo">'+pEsc(c.loja==='Todas'?'todas as lojas':c.loja)+' · '+pEsc(temaNome(c.tema))
+    +' · '+(c.dono?'👤 '+pEsc(c.dono):'sem dono')+' · '+(c.prazo?'📅 até '+brs(c.prazo)+(venc?' · vencido':''):'sem prazo')
+    +((o.status||o.check)?(c.feito?' · feito':' · não feito'):'')+'</div>'+(o.ind?'<div class="fo">'+o.ind+'</div>':'')+'</div>';
+  if(o.del)h+='<button class="b bx" onclick="combApagar('+c.pid+',this)" title="Apagar este combinado">🗑</button>';
+  return h+'</div>';
+}
+async function combAcao(el,acao,dados){
+  const S=SEM[+$('semana').value||0];
+  if(el)el.disabled=true;
+  try{await rpc('reuniao_combinado',{p_token:cdmTok(),p_acao:acao,p_dados:dados});CMSG='';delete CB[S.ini]}
+  catch(e){CMSG='Não deu para gravar: '+e.message}
+  render();
+}
+function combCriar(b){
+  const S=SEM[+$('semana').value||0],t=($('cbtx').value||'').trim();
+  if(!t){CMSG='Escreva o combinado antes de gravar.';render();return}
+  combAcao(b,'criar',{semana:maisDias(S.ini,7),unidade:$('cblj').value,tema:$('cbtm').value,combinado:t,dono:($('cbdn').value||'').trim()||null,prazo:$('cbpz').value||null});
+}
+function combFeito(did,v,el){combAcao(el,'feito',{decisao_id:did,feito:v})}
+function combApagar(pid,b){if(confirm('Apagar este combinado?'))combAcao(b,'apagar',{pauta_id:pid})}
+
+async function render(){
+  const i=+$('semana').value||0, S=SEM[i], P=SEM[i+1]||null, eq=(MODO==='equipe');
+  const lojasBt=(eq?[]:['Todas']).concat(TODAS);
+  $('lojas').innerHTML=lojasBt.map(function(u){var on=(LOJA===u);return '<button class="b" style="'+(on?'background:#e8590c;color:#fff;font-weight:700':'')+'" onclick="setLoja('+String.fromCharCode(39)+u+String.fromCharCode(39)+')">'+(u==='Todas'?'🏪 Todas':u)+'</button>';}).join('');
+  $('bmodo').textContent=eq?'← Reunião dos gerentes':'📄 Folha da equipe';
+  $('titulo').textContent=eq?'📄 Folha da equipe · '+LOJA:'📊 Reunião Semanal';
+  $('pauta').style.display=eq?'none':'';
   $('periodo').textContent='Semana de '+S.rot+' · comparada com '+(P?P.rot:'—')+'  ·  '+(LOJA==='Todas'?'unidades: Água Verde, Ahú e São Braz':'unidade: '+LOJA);
+  const X=await semDados(S.ini);
+  const cb=CB[S.ini]||await combLoad(S.ini);
+  if((+$('semana').value||0)!==i||eq!==(MODO==='equipe'))return;   /* mudou a escolha enquanto carregava */
+  const XL=u=>(X.lojas||[]).find(l=>l.unidade===u)||{};
+  const somaX=k=>{let s=null;UNI.forEach(u=>{const v=XL(u)[k];if(v!==null&&v!==undefined)s=(s||0)+ +v});return s};
+  const daLoja=c=>LOJA==='Todas'||c.loja==='Todas'||c.loja===LOJA;
+
   const A=naSemana(D.av,'data_avaliacao',S), Ap=P?naSemana(D.av,'data_avaliacao',P):[];
-  const C=naSemana(D.ca,'data',S), Cp=P?naSemana(D.ca,'data',P):[];
+  const C=naSemana(D.ca,'data',S);
   const N=naSemana(D.ne,'data',S), Np=P?naSemana(D.ne,'data',P):[];
   const med=x=>x.length?(x.reduce((s,r)=>s+(+r.nota||0),0)/x.length):null;
   const ruins=A.filter(r=>+r.nota<=3), ruinsP=Ap.filter(r=>+r.nota<=3);
   const cat=classifica(ruins), catP=classifica(ruinsP);
   const mapP={};catP.forEach(c=>mapP[c.id]=c.n);
-  const ped=D.qp.filter(q=>q.periodo_inicio===S.ini&&UNI.includes(LOJAS[q.id_loja])).reduce((s,q)=>s+(+q.pedidos_totais||0),0);
-
-  let h='';
-  /* --- placar --- */
-  h+='<h2>🏁 O placar da semana</h2><div class="cards">';
-  h+=card('Nota média no iFood', med(A)?med(A).toFixed(2):'—', delta(+(med(A)||0).toFixed(2),Ap.length?+med(Ap).toFixed(2):null)+' vs semana anterior');
-  h+=card('Avaliações recebidas', A.length, delta(A.length,P?Ap.length:null));
-  h+=card('Clientes insatisfeitos', ruins.length, (A.length?((ruins.length/A.length*100).toFixed(1)+'% das avaliações · '):'')+deltaInv(ruins.length,P?ruinsP.length:null));
-  h+=card('Chamados abertos', N.length, deltaInv(N.length,P?Np.length:null));
-  h+=card('Pedidos cancelados', C.length, deltaInv(C.length,P?Cp.length:null));
-  if(ped)h+=card('Pedidos na semana', ped.toLocaleString('pt-BR'),'dado oficial do iFood');
-  h+='</div>';
-
-  /* --- focos --- */
-  const piores=cat.filter(c=>c.n>0).map(c=>({...c,dif:c.n-(mapP[c.id]||0)})).sort((a,b)=>(b.dif-a.dif)||(b.n-a.n)).slice(0,3);
-  if(piores.length){h+='<h2>🎯 Os 3 focos desta semana <span class="hint">o que mais cresceu ou mais pesou</span></h2><div class="foco"><ol>';
-    piores.forEach(c=>{h+=`<li><b>${c.ic} ${c.nome}</b> — ${c.n} reclamaç${c.n===1?'ão':'ões'} ${c.dif>0?'<span class="dn">(+'+c.dif+' vs semana passada)</span>':c.dif<0?'<span class="up">('+c.dif+' vs semana passada)</span>':''}</li>`});
-    h+='</ol></div>'}
-
-  /* --- por unidade --- */
-  h+='<h2>🏪 Como foi cada unidade</h2><table><tr><th>Unidade</th><th class="n">Nota</th><th class="n">Avaliações</th><th class="n">Insatisfeitos</th><th class="n">Chamados</th><th class="n">Cancelados</th></tr>';
-  UNI.forEach(u=>{const a=A.filter(r=>LOJAS[r.id_loja]===u);const m=med(a);
-    const ap=Ap.filter(r=>LOJAS[r.id_loja]===u);
-    h+=`<tr><td><b>${u}</b></td><td class="n">${m?m.toFixed(2):'—'} ${ap.length?delta(+(m||0).toFixed(2),+med(ap).toFixed(2)):''}</td><td class="n">${a.length}</td><td class="n">${a.filter(r=>+r.nota<=3).length}</td><td class="n">${N.filter(r=>LOJAS[r.id_loja]===u).length}</td><td class="n">${C.filter(r=>LOJAS[r.id_loja]===u).length}</td></tr>`});
-  h+='</table>';
-
-  /* --- reclamações --- */
-  h+='<h2>🗣 O que os clientes reclamaram <span class="hint">classificado pelo texto das avaliações de 1 a 3 estrelas</span></h2>';
-  const maxn=Math.max(1,...cat.map(c=>c.n));
-  h+='<table><tr><th>Assunto</th><th class="n">Semana</th><th class="n">Anterior</th><th style="width:34%">Peso</th></tr>';
-  cat.forEach(c=>{if(!c.n&&!mapP[c.id])return;
-    h+=`<tr><td>${c.ic} ${c.nome}</td><td class="n"><b>${c.n}</b></td><td class="n">${mapP[c.id]||0} ${deltaInv(c.n,mapP[c.id]||0)}</td><td><div class="bar"><i style="width:${c.n/maxn*100}%"></i></div></td></tr>`});
-  h+='</table>';
-
-  const exs=cat.filter(c=>c.ex.length).slice(0,4);
-  if(exs.length){h+='<h2>💬 Nas palavras do cliente</h2>';
-    exs.forEach(c=>{c.ex.forEach(r=>{h+=`<div class="q"><b>${c.ic} ${c.nome}</b> — “${(r.comentario||'').slice(0,220)}”<div class="m">${LOJAS[r.id_loja]||'—'} · ${'★'.repeat(+r.nota)}${'☆'.repeat(5-+r.nota)} · ${brs(r.data_avaliacao)}</div></div>`})})}
-
-  /* --- elogios --- */
   const bons=A.filter(r=>+r.nota>=5);
   const tags={};bons.forEach(r=>(r.tags||[]).forEach(t=>tags[t]=(tags[t]||0)+1));
   const topTags=Object.entries(tags).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  h+='<h2>🏆 O que a equipe acertou</h2><div class="cards"><div class="c"><div class="k">Avaliações 5 estrelas</div><div class="v" style="color:var(--ok)">'+bons.length+'</div><div class="d">'+(A.length?(bons.length/A.length*100).toFixed(0)+'% de tudo que recebemos':'—')+'</div></div>';
-  h+='<div class="c" style="grid-column:span 2"><div class="k">Elogios mais repetidos</div><div style="margin-top:6px">'+(topTags.length?topTags.map(t=>`<span class="pill">${t[0]} · ${t[1]}</span>`).join(''):'<span class="fl">sem dados</span>')+'</div></div></div>';
-  const elogio=bons.filter(r=>(r.comentario||'').length>25).slice(0,2);
-  elogio.forEach(r=>{h+=`<div class="q good">“${r.comentario.slice(0,220)}”<div class="m">${LOJAS[r.id_loja]||'—'} · ★★★★★ · ${brs(r.data_avaliacao)}</div></div>`});
-
-  /* --- causas dos problemas --- */
-  const causas={};[...C.map(r=>({...r,t:'Cancelamento'})),...N.map(r=>({...r,t:'Chamado'}))].forEach(r=>{const k=resp(r.motivo);causas[k]=(causas[k]||0)+1});
-  const ordc=Object.entries(causas).sort((a,b)=>b[1]-a[1]);
-  if(ordc.length){h+='<h2>🔎 De quem foi o problema <span class="hint">cancelamentos e chamados agrupados por origem</span></h2><table><tr><th>Origem</th><th class="n">Ocorrências</th><th style="width:40%">Peso</th></tr>';
-    const mx=ordc[0][1];
-    ordc.forEach(([k,v])=>{h+=`<tr><td>${k}</td><td class="n"><b>${v}</b></td><td><div class="bar"><i style="width:${v/mx*100}%;background:${/Cliente|pagamento/.test(k)?'var(--muted)':'var(--brand)'}"></i></div></td></tr>`});
-    h+='</table><div class="aviso">As linhas em cinza são problemas do cliente ou de endereço — não dependem da cozinha nem do salão.</div>'}
-
-  /* --- selo super --- */
-  /* cada import do iFood grava um novo ciclo; ficamos só com o mais recente de cada tipo por loja (D.ss já vem ordenado por referencia desc) */
-  const ssAtual={},ssProx={};
-  D.ss.forEach(s=>{if(!UNI.includes(LOJAS[s.id_loja]))return;
-    if(s.tipo==='nivel_atual'&&!ssAtual[s.id_loja])ssAtual[s.id_loja]=s;
-    if(s.tipo==='proxima_avaliacao'&&!ssProx[s.id_loja])ssProx[s.id_loja]=s});
-  const ss=Object.values(ssAtual).sort((a,b)=>(LOJAS[a.id_loja]||'').localeCompare(LOJAS[b.id_loja]||''));
-  const fmtPct=v=>v==null?'—':(v*100).toLocaleString('pt-BR',{maximumFractionDigits:2})+'%';
-  const ssPill=x=>!x?'<span class="fl">—</span>':x.e_super?'<b style="color:var(--gold)">🏆 SUPER</b>':(x.nivel!=null?'Nível '+x.nivel:(x.status||'—'));
-  if(ss.length){h+='<h2>⭐ Selo Super <span class="hint">status oficial do iFood por loja · ciclo atual</span></h2><table><tr><th>Loja</th><th>Status</th><th>Próx. ciclo</th><th class="n">Nota</th><th class="n">% cancel.</th><th class="n">% chamados</th></tr>';
-    ss.forEach(s=>{const p=ssProx[s.id_loja];
-      const seta=p&&s.nivel!=null&&p.nivel!=null?(p.nivel>s.nivel?' <span class="up">▲</span>':p.nivel<s.nivel?' <span class="dn">▼</span>':''):'';
-      h+=`<tr><td>${s.nome||'—'}<div class="m" style="color:var(--muted);font-size:11px">${LOJAS[s.id_loja]||''}</div></td><td>${ssPill(s)}</td><td>${ssPill(p)}${seta}</td><td class="n">${s.media_avaliacoes??'—'}</td><td class="n">${fmtPct(s.pct_cancelamento)}</td><td class="n">${fmtPct(s.pct_chamados)}</td></tr>`});
-    h+='</table>'}
-
-  /* --- google --- */
-  const gU={};D.go.forEach(g=>{(gU[g.unidade]=gU[g.unidade]||[]).push(g)});
-  const gl=Object.keys(gU).filter(u=>UNI.includes(u));
-  if(gl.length){h+='<h2>🗺 Reputação no Google</h2><table><tr><th>Unidade</th><th class="n">Nota</th><th class="n">Avaliações</th><th>Última coleta</th></tr>';
-    gl.forEach(u=>{const a=gU[u][0],b=gU[u][1];
-      h+=`<tr><td><b>${u}</b></td><td class="n">${a.nota} ${b?delta(+a.nota,+b.nota):''}</td><td class="n">${(a.num_avaliacoes||0).toLocaleString('pt-BR')} ${b?delta(a.num_avaliacoes,b.num_avaliacoes):''}</td><td>${brs(a.data_coleta)}</td></tr>`});
-    h+='</table>'}
-
-  /* --- RH agregado --- */
   const E=D.es.filter(r=>r.data>=S.ini&&r.data<=S.fim&&UNI.includes(r.unidade));
+  const Ep=P?D.es.filter(r=>r.data>=P.ini&&r.data<=P.fim&&UNI.includes(r.unidade)):[];
   const V=D.ev.filter(r=>r.data>=S.ini&&r.data<=S.fim&&UNI.includes(r.unidade));
-  h+='<h2>👥 Equipe na semana <span class="hint">números do grupo, sem citar pessoas</span></h2>';
+  const temAval=vale(X,'avaliacao',S), temApi=vale(X,'ifood_api',S)&&somaX('pedidos')!==null;
+  const ped=somaX('pedidos'), canc=somaX('cancelados');
+
+  /* número da loja no tema do combinado: semana escolhida × anterior */
+  function indic(c){
+    if(!P)return '';
+    const lj=c.loja==='Todas'?TODAS:[c.loja];
+    const f=(arr,campo,s)=>arr.filter(r=>r[campo]>=s.ini&&r[campo]<=s.fim&&lj.includes(LOJAS[r.id_loja]||r.unidade));
+    if(c.tema==='iFood'&&temAval){
+      const a=f(D.av,'data_avaliacao',S).filter(r=>+r.nota<=3).length,b=f(D.av,'data_avaliacao',P).filter(r=>+r.nota<=3).length;
+      return 'clientes insatisfeitos nesta semana: '+b+' → <b>'+a+'</b> '+deltaInv(a,b);
+    }
+    if(c.tema==='RH'&&vale(X,'ponto',S)){
+      const a=f(D.es,'data',S).filter(r=>r.nivel==='ACAO').length,b=f(D.es,'data',P).filter(r=>r.nivel==='ACAO').length;
+      return 'registros de ponto que exigem ação: '+b+' → <b>'+a+'</b> '+deltaInv(a,b);
+    }
+    if(c.tema==='Delivery'&&c.loja!=='Todas'&&vale(X,'preparo',S)){
+      const l=XL(c.loja);
+      if(l.preparo_min!=null&&l.preparo_min_ant!=null)return 'tempo de preparo: '+l.preparo_min_ant+' → <b>'+l.preparo_min+'</b> min '+deltaInv(+l.preparo_min,+l.preparo_min_ant);
+    }
+    return '';
+  }
+
+  let h='';
+  if(X.erro)h+='<div class="aviso">Não consegui ler os números por loja nem a data das fontes ('+pEsc(X.erro)+'). Os blocos de vendas, pedidos, preparo, cobrança e manutenção ficam com traço até a leitura voltar.</div>';
+  if(cb.erro)h+='<div class="aviso">Não consegui ler os combinados agora. Atualize a tela antes de concluir que não há nenhum.</div>';
+
+  /* ======================= FOLHA DA EQUIPE (reunião 2) ======================= */
+  if(eq){
+    const L=XL(LOJA);
+    h+='<div class="aviso">Folha para o gerente conversar com a equipe. Não mostra valor em dinheiro nem nome de quem errou. Confira os comentários dos clientes antes de imprimir: o cliente pode ter citado o nome de alguém.</div>';
+    h+='<h2>✅ O que combinamos para esta semana</h2>';
+    const nv=cb.novos.filter(daLoja);
+    h+=nv.length?nv.map(c=>combItem(c,{})).join(''):'<div class="ptvazio">Nenhum combinado registrado para esta loja na reunião dos gerentes.</div>';
+    const an=cb.ant.filter(daLoja);
+    if(an.length){h+='<h2>🔁 O que tínhamos combinado na semana passada</h2>'+an.map(c=>combItem(c,{status:true})).join('')}
+
+    h+='<h2>🔎 Onde erramos <span class="hint">quantidades da loja na semana</span></h2><div class="cards">';
+    h+=card('Clientes insatisfeitos',temAval?ruins.length:'—',temAval?('de '+A.length+' avaliações · '+dli(ruins.length,P?ruinsP.length:null)):carimbo(X,'avaliacao',S));
+    h+=card('Pedidos cancelados no iFood',temApi?tz(L.cancelados):'—',temApi?('de '+tz(L.pedidos)+' pedidos · '+dli(L.cancelados,L.cancelados_ant)):carimbo(X,'ifood_api',S));
+    h+=card('Cobrança na porta',vale(X,'cobranca',S)&&!X.erro?(L.cobranca||0):'—',vale(X,'cobranca',S)&&!X.erro?('casos na semana · '+dli(L.cobranca||0,L.cobranca_ant||0)):carimbo(X,'cobranca',S));
+    h+=card('Tempo de preparo',(vale(X,'preparo',S)&&L.preparo_min!=null)?(String(L.preparo_min).replace('.',',')+' min'):'—',(vale(X,'preparo',S)&&L.preparo_min!=null)?('média da cozinha · '+dli(L.preparo_min,L.preparo_min_ant)):carimbo(X,'preparo',S));
+    h+=card('Ponto que exige ação',vale(X,'ponto',S)?E.filter(r=>r.nivel==='ACAO').length:'—',vale(X,'ponto',S)?('registros na semana · '+dli(E.filter(r=>r.nivel==='ACAO').length,P?Ep.filter(r=>r.nivel==='ACAO').length:null)):carimbo(X,'ponto',S));
+    h+='</div>';
+    const cq=cat.filter(c=>c.n>0);
+    if(temAval&&cq.length){
+      h+='<table style="margin-top:12px"><tr><th>O cliente reclamou de</th><th>Área provável</th><th class="n">Semana</th><th class="n">Anterior</th></tr>';
+      cq.forEach(c=>{h+='<tr><td>'+c.ic+' '+c.nome+'</td><td>'+(AREA[c.id]||'—')+'</td><td class="n"><b>'+c.n+'</b></td><td class="n">'+(mapP[c.id]||0)+' '+deltaInv(c.n,mapP[c.id]||0)+'</td></tr>'});
+      h+='</table>';
+    }
+    const exq=[];cat.filter(c=>c.ex.length).forEach(c=>c.ex.forEach(r=>{if(exq.length<3&&!exq.some(x=>x.r===r))exq.push({c:c,r:r})}));
+    if(temAval&&exq.length){h+='<h2>💬 O que o cliente falou</h2>';
+      exq.forEach(x=>{h+='<div class="q"><b>'+x.c.ic+' '+x.c.nome+'</b> — “'+pEsc(semRS(x.r.comentario).slice(0,220))+'”<div class="m">'+'★'.repeat(+x.r.nota)+'☆'.repeat(5-+x.r.nota)+' · '+brs(x.r.data_avaliacao)+'</div></div>'})}
+    h+='<h2>🏆 O que acertamos</h2>';
+    if(temAval){
+      h+='<div class="cards"><div class="c"><div class="k">Avaliações 5 estrelas</div><div class="v" style="color:var(--ok)">'+bons.length+'</div><div class="d">'+(A.length?(bons.length/A.length*100).toFixed(0)+'% das '+A.length+' avaliações da semana':'—')+'</div></div>';
+      h+='<div class="c" style="grid-column:span 2"><div class="k">Elogios mais repetidos</div><div style="margin-top:6px">'+(topTags.length?topTags.map(t=>'<span class="pill">'+pEsc(t[0])+' · '+t[1]+'</span>').join(''):'<span class="fl">sem elogio com etiqueta nesta semana</span>')+'</div></div></div>';
+      bons.filter(r=>(r.comentario||'').length>25).slice(0,2).forEach(r=>{h+='<div class="q good">“'+pEsc(semRS(r.comentario).slice(0,220))+'”<div class="m">★★★★★ · '+brs(r.data_avaliacao)+'</div></div>'});
+    }else h+='<div class="aviso">Avaliações do iFood: '+carimbo(X,'avaliacao',S)+'</div>';
+    h+='<div class="linhas"><div class="k">Destaque da semana (o gerente escreve o nome de quem mandou bem)</div><div class="ln"></div><div class="ln"></div></div>';
+    h+='<div class="sub" style="margin-top:14px">Fontes: avaliações do iFood '+carimbo(X,'avaliacao',S)+' pedidos do iFood '+carimbo(X,'ifood_api',S)+' cozinha '+carimbo(X,'preparo',S)+' ponto '+carimbo(X,'ponto',S)+' cobrança '+carimbo(X,'cobranca',S)+(X.lido_em?' · lido em '+pEsc(X.lido_em):'')+'</div>';
+    $('app').innerHTML=rolavel(h);return;
+  }
+
+  /* ======================= REUNIÃO DOS GERENTES (reunião 1) ======================= */
+  /* --- 1. combinados da semana passada --- */
+  h+='<h2>1 · 🔁 Combinados da semana passada <span class="hint">o que ficou combinado na reunião anterior: foi feito?</span></h2>';
+  const an=cb.ant.filter(daLoja);
+  if(an.length){
+    const ft=an.filter(c=>c.feito).length;
+    h+='<div class="cards">'+card('Combinados',an.length,'da reunião da semana de '+brs(S.ini))+card('Feitos',ft,an.length?pct1(ft,an.length)+' do combinado':'')+card('Não feitos',an.length-ft,an.filter(c=>!c.feito&&c.prazo&&c.prazo<hojeLocal()).length+' com prazo vencido')+'</div>';
+    h+=an.map(c=>combItem(c,{check:true,ind:indic(c)})).join('');
+  }else if(!cb.erro)h+='<div class="ptvazio">Nenhum combinado foi registrado na reunião da semana de '+brs(S.ini)+'.</div>';
+
+  /* --- 2. placar --- */
+  h+='<h2>2 · 🏁 O placar da semana</h2><div class="cards">';
+  h+=card('Nota média no iFood', temAval&&med(A)?med(A).toFixed(2):'—', temAval?delta(+(med(A)||0).toFixed(2),Ap.length?+med(Ap).toFixed(2):null)+' vs semana anterior':carimbo(X,'avaliacao',S));
+  h+=card('Avaliações recebidas', temAval?A.length:'—', temAval?delta(A.length,P?Ap.length:null):'');
+  h+=card('Pedidos no iFood', temApi?ped.toLocaleString('pt-BR'):'—', temApi?dl(ped,somaX('pedidos_ant'))+' '+carimbo(X,'ifood_api',S):carimbo(X,'ifood_api',S));
+  h+=card('Vendas no Saipos', somaX('vendas')!==null&&vale(X,'vendas',S)?somaX('vendas').toLocaleString('pt-BR'):'—', somaX('vendas')!==null&&vale(X,'vendas',S)?dl(somaX('vendas'),somaX('vendas_ant'))+' '+carimbo(X,'vendas',S):carimbo(X,'vendas',S));
+  if(X.dono){const f=somaX('fat'),fa=somaX('fat_ant');
+    h+=card('Faturamento (Saipos)', rs(f), (f!==null&&fa)?varp(Math.round((f-fa)/fa*100))+' vs semana anterior · só o dono vê o valor':'só o dono vê o valor')}
+  h+='</div>';
+  h+='<table style="margin-top:12px"><tr><th>Unidade</th><th class="n">Nota iFood</th><th class="n">Avaliações</th><th class="n">Pedidos iFood</th><th class="n">Vendas Saipos</th><th class="n">Faturamento</th></tr>';
+  UNI.forEach(u=>{const a=A.filter(r=>LOJAS[r.id_loja]===u),m=med(a),ap=Ap.filter(r=>LOJAS[r.id_loja]===u),l=XL(u);
+    h+='<tr><td><b>'+u+'</b></td><td class="n">'+(temAval&&m?m.toFixed(2):'—')+' '+(temAval&&ap.length&&m?delta(+m.toFixed(2),+med(ap).toFixed(2)):'')+'</td><td class="n">'+(temAval?a.length:'—')+'</td>'
+      +'<td class="n">'+(temApi?tz(l.pedidos)+' '+dl(l.pedidos,l.pedidos_ant):'—')+'</td>'
+      +'<td class="n">'+(vale(X,'vendas',S)?tz(l.vendas)+' '+dl(l.vendas,l.vendas_ant):'—')+'</td>'
+      +'<td class="n">'+(X.dono?rs(l.fat)+' ':'')+varp(l.fat_var_pct)+'</td></tr>'});
+  h+='</table>';
+  if(!X.dono&&!X.erro)h+='<div class="sub" style="margin-top:6px">Faturamento: só a variação contra a semana anterior. O valor em reais aparece apenas para o dono.</div>';
+
+  /* --- 3. onde erramos com o cliente --- */
+  h+='<h2>3 · 🔎 Onde erramos com o cliente</h2><div class="cards">';
+  h+=card('Clientes insatisfeitos', temAval?ruins.length:'—', temAval?((A.length?((ruins.length/A.length*100).toFixed(1)+'% das avaliações · '):'')+deltaInv(ruins.length,P?ruinsP.length:null)):carimbo(X,'avaliacao',S));
+  h+=card('Pedidos cancelados no iFood', temApi?canc:'—', temApi?(pct1(canc,ped)+' dos pedidos · '+dli(canc,somaX('cancelados_ant'))+' '+carimbo(X,'ifood_api',S)):carimbo(X,'ifood_api',S));
+  h+=card('Cobrança na porta', vale(X,'cobranca',S)&&!X.erro?(somaX('cobranca')||0):'—', vale(X,'cobranca',S)&&!X.erro?('casos na semana · '+dli(somaX('cobranca')||0,somaX('cobranca_ant')||0)+' '+carimbo(X,'cobranca',S)):carimbo(X,'cobranca',S));
+  h+=card('Chamados no iFood', vale(X,'chamados',S)&&!X.erro?N.length:'—', vale(X,'chamados',S)&&!X.erro?deltaInv(N.length,P?Np.length:null)+' '+carimbo(X,'chamados',S):carimbo(X,'chamados',S));
+  h+='</div>';
+  h+='<table style="margin-top:12px"><tr><th>Unidade</th><th class="n">Insatisfeitos</th><th class="n">Cancelados iFood</th><th class="n">% dos pedidos</th><th class="n">Cobrança na porta</th></tr>';
+  UNI.forEach(u=>{const a=A.filter(r=>LOJAS[r.id_loja]===u),l=XL(u);
+    h+='<tr><td><b>'+u+'</b></td><td class="n">'+(temAval?a.filter(r=>+r.nota<=3).length:'—')+'</td><td class="n">'+(temApi?tz(l.cancelados)+' '+dli(l.cancelados,l.cancelados_ant):'—')+'</td><td class="n">'+(temApi&&l.pedidos?pct1(l.cancelados||0,l.pedidos):'—')+'</td><td class="n">'+(vale(X,'cobranca',S)&&!X.erro?(l.cobranca||0)+' '+dli(l.cobranca||0,l.cobranca_ant||0):'—')+'</td></tr>'});
+  h+='</table>';
+  if(temAval){
+    h+='<h2 style="font-size:13.5px">🗣 O que os clientes reclamaram <span class="hint">classificado pelo texto das avaliações de 1 a 3 estrelas</span></h2>';
+    const maxn=Math.max(1,...cat.map(c=>c.n));
+    h+='<table><tr><th>Assunto</th><th>Área provável</th><th class="n">Semana</th><th class="n">Anterior</th><th style="width:28%">Peso</th></tr>';
+    cat.forEach(c=>{if(!c.n&&!mapP[c.id])return;
+      h+='<tr><td>'+c.ic+' '+c.nome+'</td><td>'+(AREA[c.id]||'—')+'</td><td class="n"><b>'+c.n+'</b></td><td class="n">'+(mapP[c.id]||0)+' '+deltaInv(c.n,mapP[c.id]||0)+'</td><td><div class="bar"><i style="width:'+(c.n/maxn*100)+'%"></i></div></td></tr>'});
+    h+='</table>';
+    const exs=cat.filter(c=>c.ex.length).slice(0,4);
+    if(exs.length){h+='<h2 style="font-size:13.5px">💬 Nas palavras do cliente</h2>';
+      exs.forEach(c=>{c.ex.forEach(r=>{h+='<div class="q"><b>'+c.ic+' '+c.nome+'</b> — “'+pEsc(semRS(r.comentario).slice(0,220))+'”<div class="m">'+(LOJAS[r.id_loja]||'—')+' · '+'★'.repeat(+r.nota)+'☆'.repeat(5-+r.nota)+' · '+brs(r.data_avaliacao)+'</div></div>'})})}
+  }
+  /* de quem foi o problema: só quando a fonte do motivo tem dado da semana */
+  const temMot=(vale(X,'cancel_motivo',S)||vale(X,'chamados',S))&&!X.erro;
+  const causas={};[...C,...N].forEach(r=>{const k=resp(r.motivo);causas[k]=(causas[k]||0)+1});
+  const ordc=Object.entries(causas).sort((a,b)=>b[1]-a[1]);
+  if(temMot&&ordc.length){h+='<h2 style="font-size:13.5px">De quem foi o problema <span class="hint">cancelamentos e chamados agrupados por origem</span> '+carimbo(X,'cancel_motivo',S)+'</h2><table><tr><th>Origem</th><th class="n">Ocorrências</th><th style="width:40%">Peso</th></tr>';
+    const mx=ordc[0][1];
+    ordc.forEach(([k,v])=>{h+='<tr><td>'+k+'</td><td class="n"><b>'+v+'</b></td><td><div class="bar"><i style="width:'+(v/mx*100)+'%;background:'+(/Cliente|pagamento/.test(k)?'var(--muted)':'var(--brand)')+'"></i></div></td></tr>'});
+    h+='</table>'}
+  else h+='<div class="aviso">Motivo dos cancelamentos '+carimbo(X,'cancel_motivo',S)+' · chamados do iFood '+carimbo(X,'chamados',S)+' — sem essas duas fontes não dá para dizer de quem foi o problema nesta semana.</div>';
+
+  /* --- 4. tempo --- */
+  h+='<h2>4 · ⏱ Tempo de preparo '+carimbo(X,'preparo',S)+'</h2>';
+  if(vale(X,'preparo',S)&&!X.erro){
+    h+='<table><tr><th>Unidade</th><th class="n">Preparo médio</th><th class="n">Semana anterior</th><th class="n">Diferença</th></tr>';
+    UNI.forEach(u=>{const l=XL(u);h+='<tr><td><b>'+u+'</b></td><td class="n">'+(l.preparo_min!=null?String(l.preparo_min).replace('.',',')+' min':'—')+'</td><td class="n">'+(l.preparo_min_ant!=null?String(l.preparo_min_ant).replace('.',',')+' min':'—')+'</td><td class="n">'+dli(l.preparo_min,l.preparo_min_ant)+'</td></tr>'});
+    h+='</table>';
+  }
+  h+='<div class="aviso">Atraso de entrega por motoboy: '+carimbo(X,'atraso',S)+'</div>';
+
+  /* --- 5. dinheiro jogado fora --- */
+  h+='<h2>5 · 🗑 Dinheiro jogado fora</h2>';
+  if(vale(X,'desperdicio',S)&&!X.erro){
+    h+='<table><tr><th>Unidade</th><th class="n">Lançamentos de desperdício</th><th class="n">Semana anterior</th></tr>';
+    UNI.forEach(u=>{const l=XL(u);h+='<tr><td><b>'+u+'</b></td><td class="n">'+(l.desperdicio_lanc||0)+'</td><td class="n">'+(l.desperdicio_lanc_ant||0)+'</td></tr>'});
+    h+='</table>';
+  }else h+='<div class="aviso">Desperdício: '+carimbo(X,'desperdicio',S)+(cobre(X,'desperdicio',S)==='sem'?' — a tabela de desperdício do portal não tem lançamento desta semana.':'')+'</div>';
+
+  /* --- 6. equipe --- */
+  h+='<h2>6 · 👥 Equipe na semana <span class="hint">números do grupo, sem citar pessoas</span> '+carimbo(X,'ponto',S)+'</h2>';
   if(!E.length&&!V.length){h+='<div class="aviso">Ainda não há registro de ponto carregado para esta semana.</div>'}
   else{
     const acao=E.filter(r=>r.nivel==='ACAO').length, conf=E.filter(r=>r.nivel==='CONFERIR').length, ok=E.filter(r=>r.nivel==='OK').length;
@@ -305,21 +490,73 @@ function render(){
     h+=card('Dias-funcionário analisados',E.length,'em '+new Set(E.map(r=>r.data)).size+' dia(s) com registro');
     h+=card('Tudo certo',ok,E.length?(ok/E.length*100).toFixed(0)+'% dos registros':'');
     h+=card('Precisa conferir',conf,'escala ou horário divergente');
-    h+=card('Exige ação',acao,'intervalo, hora extra ou marcação faltando');
+    h+=card('Exige ação',acao,'intervalo, hora extra ou marcação faltando · '+deltaInv(acao,P?Ep.filter(r=>r.nivel==='ACAO').length:null));
     const at=V.filter(r=>r.tipo==='ATESTADO').length, ad=V.filter(r=>r.tipo==='ADVERTENCIA').length;
     h+=card('Atestados',at,'entregues na semana');
-    h+=card('Advertências',ad,ad?'formalizadas':'nenhuma — ótimo sinal');
+    h+=card('Advertências',ad,ad?'formalizadas':'nenhuma registrada');
     h+='</div>';
     h+='<table style="margin-top:12px"><tr><th>Unidade</th><th class="n">Registros</th><th class="n">Conferir</th><th class="n">Ação</th></tr>';
     UNI.forEach(u=>{const e=E.filter(r=>r.unidade===u);
-      h+=`<tr><td><b>${u}</b></td><td class="n">${e.length}</td><td class="n">${e.filter(r=>r.nivel==='CONFERIR').length}</td><td class="n">${e.filter(r=>r.nivel==='ACAO').length}</td></tr>`});
+      h+='<tr><td><b>'+u+'</b></td><td class="n">'+e.length+'</td><td class="n">'+e.filter(r=>r.nivel==='CONFERIR').length+'</td><td class="n">'+e.filter(r=>r.nivel==='ACAO').length+'</td></tr>'});
     h+='</table>';
     const dias=new Set(E.map(r=>r.data)).size;
     if(dias<7)h+='<div class="aviso">Cobertura parcial: só '+dias+' de 7 dias desta semana têm ponto carregado. Os números de equipe são um retrato incompleto.</div>';
   }
 
-  h+='<div class="aviso" style="margin-top:24px">Faturamento, ticket médio e vendas do salão não aparecem aqui — esses dados estão no Saipos, que ainda não é lido automaticamente.</div>';
-  $('app').innerHTML=h;
+  /* --- 7. casa --- */
+  h+='<h2>7 · 🔧 Casa: manutenção <span class="hint">último chamado aberto em '+(fonteAte(X,'manutencao')?brs(fonteAte(X,'manutencao')):'—')+'</span></h2>';
+  if(!X.erro){
+    h+='<table><tr><th>Unidade</th><th class="n">Abertos hoje</th><th class="n">Abertos na semana</th><th class="n">Resolvidos na semana</th></tr>';
+    UNI.forEach(u=>{const l=XL(u);h+='<tr><td><b>'+u+'</b></td><td class="n"><b>'+(l.manut_abertos||0)+'</b></td><td class="n">'+(l.manut_novos||0)+'</td><td class="n">'+(l.manut_resolvidos||0)+'</td></tr>'});
+    h+='</table>';
+  }
+
+  /* --- 8. acertos --- */
+  h+='<h2>8 · 🏆 O que a equipe acertou</h2>';
+  if(temAval){
+    h+='<div class="cards"><div class="c"><div class="k">Avaliações 5 estrelas</div><div class="v" style="color:var(--ok)">'+bons.length+'</div><div class="d">'+(A.length?(bons.length/A.length*100).toFixed(0)+'% de tudo que recebemos':'—')+'</div></div>';
+    h+='<div class="c" style="grid-column:span 2"><div class="k">Elogios mais repetidos</div><div style="margin-top:6px">'+(topTags.length?topTags.map(t=>'<span class="pill">'+pEsc(t[0])+' · '+t[1]+'</span>').join(''):'<span class="fl">sem dados</span>')+'</div></div></div>';
+    bons.filter(r=>(r.comentario||'').length>25).slice(0,2).forEach(r=>{h+='<div class="q good">“'+pEsc(semRS(r.comentario).slice(0,220))+'”<div class="m">'+(LOJAS[r.id_loja]||'—')+' · ★★★★★ · '+brs(r.data_avaliacao)+'</div></div>'});
+  }else h+='<div class="aviso">Avaliações do iFood: '+carimbo(X,'avaliacao',S)+'</div>';
+
+  /* --- 9. focos e combinados --- */
+  h+='<h2>9 · 🎯 Focos e combinados desta reunião <span class="hint">cada combinado com dono e prazo · eles abrem a reunião da semana que vem</span></h2>';
+  const piores=cat.filter(c=>c.n>0).map(c=>({...c,dif:c.n-(mapP[c.id]||0)})).sort((a,b)=>(b.dif-a.dif)||(b.n-a.n)).slice(0,3);
+  if(temAval&&piores.length){h+='<div class="foco"><div class="k" style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Sugestão dos dados: as 3 reclamações que mais cresceram ou mais pesaram</div><ol>';
+    piores.forEach(c=>{h+='<li><b>'+c.ic+' '+c.nome+'</b> — '+c.n+' reclamaç'+(c.n===1?'ão':'ões')+' '+(c.dif>0?'<span class="dn">(+'+c.dif+' vs semana passada)</span>':c.dif<0?'<span class="up">('+c.dif+' vs semana passada)</span>':'')+' <span class="fl">· '+(AREA[c.id]||'')+'</span></li>'});
+    h+='</ol></div>'}
+  const nv=cb.novos.filter(daLoja);
+  h+='<div style="margin-top:12px">'+(nv.length?nv.map(c=>combItem(c,{del:true})).join(''):(cb.erro?'':'<div class="ptvazio">Nenhum combinado registrado ainda nesta reunião.</div>'))+'</div>';
+  if(CMSG)h+='<div class="aviso">'+pEsc(CMSG)+'</div>';
+  h+='<div class="pti cbform"><div class="ptf"><select id="cblj" title="Loja">'+['Todas'].concat(TODAS).map(u=>'<option value="'+u+'"'+(u===LOJA?' selected':'')+'>'+(u==='Todas'?'Todas as lojas':u)+'</option>').join('')+'</select>'
+    +'<select id="cbtm" title="Tema">'+TEMAS.map(t=>'<option value="'+t[0]+'">'+t[1]+'</option>').join('')+'</select>'
+    +'<input class="g" id="cbtx" placeholder="O que fica combinado…" maxlength="300"></div>'
+    +'<div class="ptf"><input id="cbdn" placeholder="Dono (quem responde)" style="width:190px" maxlength="60"><input type="date" id="cbpz" title="Prazo">'
+    +'<button class="b" onclick="combCriar(this)">✔ Gravar combinado</button></div></div>';
+
+  /* --- anexos --- */
+  const gU={};D.go.forEach(g=>{(gU[g.unidade]=gU[g.unidade]||[]).push(g)});
+  const gl=Object.keys(gU).filter(u=>UNI.includes(u));
+  if(gl.length){h+='<h2>🗺 Reputação no Google</h2><table><tr><th>Unidade</th><th class="n">Nota</th><th class="n">Avaliações</th><th>Última coleta</th></tr>';
+    gl.forEach(u=>{const a=gU[u][0],b=gU[u][1];
+      h+='<tr><td><b>'+u+'</b></td><td class="n">'+a.nota+' '+(b?delta(+a.nota,+b.nota):'')+'</td><td class="n">'+(a.num_avaliacoes||0).toLocaleString('pt-BR')+' '+(b?delta(a.num_avaliacoes,b.num_avaliacoes):'')+'</td><td>'+brs(a.data_coleta)+'</td></tr>'});
+    h+='</table>'}
+  /* selo super: cada import do iFood grava um novo ciclo; ficamos só com o mais recente de cada tipo por loja (D.ss já vem ordenado por referencia desc) */
+  const ssAtual={},ssProx={};
+  D.ss.forEach(s=>{if(!UNI.includes(LOJAS[s.id_loja]))return;
+    if(s.tipo==='nivel_atual'&&!ssAtual[s.id_loja])ssAtual[s.id_loja]=s;
+    if(s.tipo==='proxima_avaliacao'&&!ssProx[s.id_loja])ssProx[s.id_loja]=s});
+  const ss=Object.values(ssAtual).sort((a,b)=>(LOJAS[a.id_loja]||'').localeCompare(LOJAS[b.id_loja]||''));
+  const fmtPct=v=>v==null?'—':(v*100).toLocaleString('pt-BR',{maximumFractionDigits:2})+'%';
+  const ssPill=x=>!x?'<span class="fl">—</span>':x.e_super?'<b style="color:var(--gold)">🏆 SUPER</b>':(x.nivel!=null?'Nível '+x.nivel:(x.status||'—'));
+  if(ss.length){const us=fonteAte(X,'selo');
+    h+='<h2>⭐ Selo Super <span class="hint">status oficial do iFood por loja</span> '+(us?'<span class="selo '+(us<S.ini?'critico':'')+'">última foto do selo: '+brs(us)+'</span>':'<span class="selo atencao">data da fonte não lida</span>')+'</h2><table><tr><th>Loja</th><th>Status</th><th>Próx. ciclo</th><th class="n">Nota</th><th class="n">% cancel.</th><th class="n">% chamados</th></tr>';
+    ss.forEach(s=>{const p=ssProx[s.id_loja];
+      const seta=p&&s.nivel!=null&&p.nivel!=null?(p.nivel>s.nivel?' <span class="up">▲</span>':p.nivel<s.nivel?' <span class="dn">▼</span>':''):'';
+      h+='<tr><td>'+(s.nome||'—')+'<div class="m" style="color:var(--muted);font-size:11px">'+(LOJAS[s.id_loja]||'')+'</div></td><td>'+ssPill(s)+'</td><td>'+ssPill(p)+seta+'</td><td class="n">'+(s.media_avaliacoes??'—')+'</td><td class="n">'+fmtPct(s.pct_cancelamento)+'</td><td class="n">'+fmtPct(s.pct_chamados)+'</td></tr>'});
+    h+='</table>'}
+  if(X.lido_em)h+='<div class="sub" style="margin-top:18px">Números por loja lidos do banco em '+pEsc(X.lido_em)+'.</div>';
+  $('app').innerHTML=rolavel(h);
 }
 /* ---------- pauta da semana ---------- */
 const PWK='cdm_reuniao_pw';
@@ -337,6 +574,7 @@ function pautaBoot(){PSEM=semAtual();pautaLoad()}
 async function pautaLoad(){
   PMSG='';
   PT=await get('reuniao_pauta','select=id,semana,ordem,origem,categoria,titulo,detalhe,fonte,gravidade,status&semana=eq.'+PSEM+'&order=ordem.asc&limit=500');
+  PT=PT.filter(r=>r.fonte!=='combinado');   /* combinados aparecem nos blocos 1 e 9 */
   const ids=PT.map(r=>r.id);
   PD=ids.length?await get('reuniao_decisao','select=id,pauta_id,decisao,responsavel,prazo,concluido&pauta_id=in.('+ids.join(',')+')&order=id.asc&limit=500'):[];
   pautaRender();
@@ -346,7 +584,7 @@ function pautaRender(){
   const abertos=PT.filter(i=>i.status==='aberto').length;
   const crits=PT.filter(i=>i.gravidade==='critico').length;
   const venc=PD.filter(d=>!d.concluido&&d.prazo&&d.prazo<hj).length;
-  let h=`<h2>🗒 Pauta da semana <span class="hint">o que vamos discutir · o placar abaixo é o pano de fundo</span></h2>`;
+  let h=`<h2>🗒 Pauta detalhada da semana <span class="hint">itens automáticos e escritos à mão · apoio da reunião dos gerentes</span></h2>`;
   h+=`<div class="ptnav"><button class="b" onclick="pSem(-1)">‹ semana anterior</button>`
    +`<span class="lbl">${brs(PSEM)} a ${brs(fim)}${PSEM===atual?' · semana corrente':''}</span>`
    +`<button class="b" onclick="pSem(1)"${PSEM>=atual?' disabled':''}>próxima semana ›</button>`
