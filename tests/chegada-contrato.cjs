@@ -29,7 +29,11 @@ const consulta=ctx.linhaSimples(l,0,true);
 assert.ok(!consulta.includes('data-cdm-livre'),'Consulta nao deve oferecer edicao de anotacao');
 assert.ok(consulta.includes('Consulta da Hellen'));
 assert.ok(src.includes("'hellen_chegada'")&&src.includes('D.consulta_detalhada'));
-assert.ok(hellen.includes('href="/chegada/"'),'Atalho da Hellen ausente');
+/* 13/11/2026, ordem do Fabio ("tira de la de dentro e coloca fora"): o atalho da Hellen e o item do menu no grupo Hellen
+   (modulo hellen_chegada); o botao de dentro da tela Taxas · ponto por QR saiu e nao deve voltar. */
+const menuSql=fs.readFileSync(path.join(root,'supabase/changes/chegada_campos_permanentes_hellen.sql'),'utf8');
+assert.ok(menuSql.includes("VALUES('hellen_chegada','Chegada · garantido e refeição','Hellen','⏱','chegada/',7,true)"),'Atalho da Hellen ausente');
+assert.ok(!hellen.includes('href="/chegada/"'),'Atalho da Chegada voltou para dentro da tela Taxas');
 assert.ok(src.includes('@media(max-width:1100px)'),'Layout movel do contrato ausente');
 console.log('Contrato da Chegada validado: campos permanentes, saida identificada e consulta Hellen.');
 
