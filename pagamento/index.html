@@ -414,6 +414,7 @@ async function viewDup(){
   var R=(j&&j.resumo)||{}, L=(j&&j.linhas)||[];
   DUP_L=L;
   var nAb=L.filter(dupAberto).length;
+  var dupNum=function(v){return v==null?'—':v}, dupDm=function(d){d=String(d||'');return d.slice(8,10)+'/'+d.slice(5,7)};
   var h='<style>.dst{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700;margin-left:4px;white-space:nowrap}</style>';
   h+='<div class="m" style="margin:0 0 8px">🔎 <b>Corrida em dobro</b> — duas corridas pagas na mesma porta, ou o mesmo pedido saindo duas vezes, em até 3 horas. O GPS diz se o motoboy foi lá de novo.'+(j&&j.inicio?(' · <b>conta a partir de '+escDup(String(j.inicio).slice(8,10)+'/'+String(j.inicio).slice(5,7))+', sem retroativo</b>'):'')+(j&&j.cache_em?(' · lista refeita <b>'+escDup(dupQuando(j.cache_em))+'</b> (de hora em hora)'):'')+'</div>';
   h+='<div class="c" style="margin:0 0 10px;font-size:12.5px;line-height:1.5"><b>Como ler cada linha:</b> '+
@@ -422,8 +423,19 @@ async function viewDup(){
      '<span class="dst" style="background:#8882;color:var(--muted)">Foody · sem aprovação</span> o Foody não tem aprovação, só o botão daqui barra.'+
      '<br>Já saem da lista sozinhos: pedido <b>cancelado</b>, corrida <b>reprovada</b> no TrackEat (conferidas no quadro de baixo) e a mesma corrida repetida.'+
      '<br><b>🤖 Robô do Pix</b> (10h15, 14h15, 18h15): quando o Pix do dia já saiu, ele decide sozinho pelo que foi pago de verdade — sem lançar desconto. O que ele não consegue saber fica para vocês.'+
+     '<br><b>🏠 Mesmo apto/casa</b> (regra do Fábio, 13/11): mesmo endereço e mesmo apartamento ou casa é <b>uma entrega só</b>, mesmo com pedidos de pessoas diferentes; apartamento ou casa diferente são entregas diferentes. Quando o endereço permite afirmar, a porta é comparada pela mesma regra de endereço do KDS da Expedição; se os dois pedidos escreveram o endereço diferente, a coluna Onde mostra os dois.'+
+     (j&&j.contagem_desde?('<br><b>📣 Aviso da manhã</b>: as repetidas sem decisão vão todo dia para o grupo do delivery, contando a partir de '+dupDm(j.contagem_desde)+' (sai às 10h20, depois do robô do Pix).'):'')+
      '<br><b>🚫 Não pagar a 2ª</b> lança um desconto na conta do motoboy daquele dia — só o que a corrida realmente somou (se o piso por hora já cobria, o desconto é zero). Se depois alguém reprovar a mesma corrida no TrackEat, o desconto sai sozinho.</div>';
   if(DUP_MSG){ h+='<div class="c" style="margin:0 0 10px;border-left:3px solid #2fae6a">✔ '+escDup(DUP_MSG)+'</div>'; DUP_MSG=''; }
+  /* 13/11/2026 pedido do Fabio: registradas, devem pagar, nao pagar, mesmo apto/casa (chave do KDS) e repetidas pagas */
+  var nNao=(R.reprovadas==null||R.nao_pagar_fora_track==null)?null:(Number(R.reprovadas)+Number(R.nao_pagar_fora_track));
+  h+='<div class="kpis">';
+  h+=dupCard('Corridas registradas', dupNum(R.registradas), 'no TrackEat, no período'+(Number(R.pendentes_track)>0?(' · ainda pendentes lá: '+R.pendentes_track):''));
+  h+=dupCard('🟢 Devem pagar', dupNum(R.devem_pagar), 'registradas menos as que não se paga'+(nAb>0?(' · '+nAb+' ainda sem decisão estão aqui dentro'):''), 'g');
+  h+=dupCard('🚫 Não pagar', dupNum(nNao), 'reprovadas no TrackEat: '+dupNum(R.reprovadas)+' · barradas aqui (Não pagar a 2ª): '+dupNum(R.nao_pagar_fora_track));
+  h+=dupCard('Mesma porta, pedidos diferentes', dupNum(R.mesma_porta), 'mesmo endereço e mesmo apto/casa (ou sem complemento) · pagar uma só: '+dupNum(R.mesma_porta_uma)+' · pagar as duas (duas idas ou folga de tempo): '+dupNum(R.mesma_porta_duas)+' · conferir: '+dupNum(R.mesma_porta_conferir));
+  if(j&&j.contagem_desde) h+=dupCard('Repetidas pagas desde '+dupDm(j.contagem_desde), dupNum(R.pagas_repetidas), 'já saíram no Pix', Number(R.pagas_repetidas)>0?'w':'');
+  h+='</div>';
   h+='<div class="kpis">';
   h+=dupCard('🔴 Falta decidir', nAb, 'pagar uma só ou conferir, sem decisão ainda', 'w');
   h+=dupCard('Ainda dá para barrar', (R.ainda_da||0)+' · '+rs(R.valor_ainda_em_jogo||0), 'pagar uma só, pendentes no TrackEat ('+(R.pendente_no_track||0)+') ou do Foody ('+(R.sem_status||0)+')');
