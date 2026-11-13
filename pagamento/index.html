@@ -205,7 +205,7 @@ button.b[disabled]{opacity:.4;cursor:not-allowed}
 <body>
 <div class="top">
   <div><h1>Pagar Motoboys</h1><div class="sub">quanto pagar a cada motoboy, maquininha, corrida em dobro e as regras — esta tela é só sua e da Hellen</div></div>
-  <div class="rt"><span class="rel" id="rel"></span><button class="b" onclick="MQ=null;PD=null;PV=null;AC=null;PVCH={};NCH=null;NCHL=false;if(!PG_EMBED&&$('t_prova').style.display==='none')provaSonda();setView(VIEW)">🔄 Atualizar</button></div>
+  <div class="rt"><span class="rel" id="rel"></span><button class="b" onclick="MQ=null;PD=null;PV=null;AC=null;PVCH={};PVESC={};NCH=null;NCHL=false;if(!PG_EMBED&&$('t_prova').style.display==='none')provaSonda();setView(VIEW)">🔄 Atualizar</button></div>
 </div>
 
 <div class="per">
@@ -1317,28 +1317,35 @@ function prCarregaEscala(dia){
 }
 function prHM(v){var m=/^(\d{1,2}):(\d{2})/.exec(String(v||''));return m?('0'+m[1]).slice(-2)+':'+m[2]:''}
 function prNomeIgual(a,b){
- var n=function(t){return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim().toLowerCase()};
+ var n=function(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toLowerCase()};
  return !!n(a)&&n(a)===n(b);
 }
 /* so a exibicao: "4.0000000000000000h" vira "4h" */
 function prFonteLimpa(t){return String(t||'').replace(/(\d+)\.(\d+)(?=h)/g,function(_,i,d){d=d.replace(/0+$/,'');return i+(d?','+d:'')})}
-/* turnos da escala: do lacre quando ele guardou entrada E saida; senao a escala lida agora na Chegada (loja igual e nome igual) */
+/* turnos da escala: do lacre quando ele guardou entrada E saida; senao a escala lida agora na Chegada (loja igual e nome igual).
+   A origem vai escrita no proprio bloco (rotulo); a entrada do lacre continua visivel na nota. */
 function prEscalaTurnos(x,j){
  var T=Array.isArray(j.turnos_det)?j.turnos_det:[];
  var doLacre=T.filter(function(t){return prHM(t.hora_combinada)}).map(function(t){return {n:t.n_turno,ent:prHM(t.hora_combinada),sai:prHM(t.hora_saida)}});
- if(doLacre.length&&doLacre.every(function(t){return t.sai}))return {turnos:doLacre,nota:'horários guardados no lacre'};
- var ent=prHM(j.combinado), base=doLacre.length?doLacre:(ent?[{n:null,ent:ent,sai:''}]:[]), E=PVESC[x.dia];
- if(E===undefined||E==='carregando')return {turnos:base,nota:'fim da escala: carregando…'};
- if(!E||E==='erro'||!Array.isArray(E.linhas))return {turnos:base,nota:'o fim da escala não carregou agora; confira na '+CH_LINK};
+ if(doLacre.length&&doLacre.every(function(t){return t.sai}))return {turnos:doLacre,rotulo:'guardada no lacre',semFim:'fim não informado',nota:''};
+ var ent=prHM(j.combinado)||String(j.combinado||'').trim(), base=doLacre.length?doLacre:(ent?[{n:null,ent:ent,sai:''}]:[]), E=PVESC[x.dia];
+ var R='entrada guardada no lacre';
+ if(E===undefined||E==='carregando')return {turnos:base,rotulo:R,semFim:'fim: carregando…',nota:''};
+ if(!E||E==='erro'||!Array.isArray(E.linhas))return {turnos:base,rotulo:R,semFim:'fim não carregou',nota:'A leitura da escala na Chegada não carregou; use Atualizar ou confira na '+CH_LINK+'.'};
  var visto={}, agora=E.linhas.filter(function(l){
    return l.na_escala!==false&&l.unidade===j.unidade&&prHM(l.escala_txt)&&(prNomeIgual(l.entregador,j.entregador)||prNomeIgual(l.entregador,x.pessoa));
  }).sort(function(p,q){return Number(p.n_turno||0)-Number(q.n_turno||0)}).filter(function(l){
    var k=prHM(l.escala_txt);if(visto[k])return false;visto[k]=1;return true;
  }).map(function(l){return {n:l.n_turno,ent:prHM(l.escala_txt),sai:prHM(l.escala_saida_txt)}});
- if(!agora.length)return {turnos:base,nota:'fim da escala não vinculado a este nome; confira na '+CH_LINK};
- var nota='escala lida agora na Chegada (fora do lacre)';
- if(ent)nota+=agora.some(function(t){return t.ent===ent})?' · no lacre: entrada '+ent:' · <b>difere do lacre (entrada '+ent+'): conferir</b>';
- return {turnos:agora,nota:nota};
+ if(!agora.length)return {turnos:base,rotulo:R,semFim:'fim não vinculado',nota:'A escala da Chegada não foi vinculada a este nome; confira na '+CH_LINK+'.'};
+ var min=function(v){var m=/^(\d{2}):(\d{2})$/.exec(v);return m?Number(m[1])*60+Number(m[2]):null};
+ var soma=0, completa=agora.every(function(t){var e=min(t.ent),f=min(t.sai);if(e==null||f==null)return false;soma+=((f-e)%1440+1440)%1440;return true});
+ var noLacre=[];
+ if(ent)noLacre.push('entrada '+esc(ent));
+ if(j.horas_escala!=null)noLacre.push(esc(prDuracaoMin(Number(j.horas_escala)*60))+' de escala');
+ var difere=(ent&&!agora.some(function(t){return t.ent===ent}))||(completa&&j.horas_escala!=null&&Math.abs(soma-Math.round(Number(j.horas_escala)*60))>1);
+ return {turnos:agora,rotulo:'lida agora na Chegada · fora do lacre',semFim:'fim não informado',
+   nota:(noLacre.length?'No lacre: '+noLacre.join(' · ')+'.':'')+(difere?' <b>A escala de agora difere do lacre: conferir.</b>':'')};
 }
 function prJT(rot,val,nota){return '<div><span class="rt">'+rot+'</span>'+val+(nota?'<small>'+nota+'</small>':'')+'</div>'}
 function prJornadaLacrada(x){
@@ -1346,14 +1353,14 @@ function prJornadaLacrada(x){
  if(!J.length)return '<div class="pr-why"><b>Horas e chegada</b><div>Sem dados de jornada neste lacre. Conferir antes de concluir garantido e rango.</div></div>';
  return J.map(function(j){
    var S=prEscalaTurnos(x,j), T=Array.isArray(j.turnos_det)?j.turnos_det:[];
-   var h='<div class="pr-j"><div class="pr-j-t">Horas e chegada<span>'+esc(j.unidade||'')+' · guardadas no lacre</span></div>';
-   h+='<div class="pr-j-esc"><span class="rt">Escala do dia</span>';
+   var h='<div class="pr-j"><div class="pr-j-t">Horas e chegada<span>'+esc(j.unidade||'')+' · chegada, horas e direitos guardados no lacre</span></div>';
+   h+='<div class="pr-j-esc"><span class="rt">Escala do dia · '+S.rotulo+'</span>';
    if(S.turnos.length)h+=S.turnos.map(function(t,i){
      return '<div class="pr-j-turno"><small>'+(t.n!=null?'turno '+esc(t.n):(S.turnos.length>1?'turno '+(i+1):'entrada'))+'</small><b>'+esc(t.ent)+'</b>'+
-       (t.sai?'<i>até</i><b>'+esc(t.sai)+'</b>':'<i>fim não informado</i>')+'</div>';
+       (t.sai?'<i>até</i><b>'+esc(t.sai)+'</b>':'<i>'+S.semFim+'</i>')+'</div>';
    }).join('');
    else h+='<div class="pr-j-turno"><i>não informada</i></div>';
-   h+='<div class="pr-j-nota">'+S.nota+'</div></div>';
+   h+=(S.nota?'<div class="pr-j-nota">'+S.nota+'</div>':'')+'</div>';
    var gar=j.garantido===true?'<b class="vd">Sim</b>':(j.garantido===false?'<b class="vm">Não</b>':'<b class="vn">A conferir</b>');
    var piso=[];
    if(j.garantido_calculado!=null)piso.push('piso calculado '+rs(Number(j.garantido_calculado)));
@@ -1380,7 +1387,7 @@ function prJornadaLacrada(x){
    }).join('')+'</div>';
    if(j.aviso)h+='<div class="pr-j-m"><b>Motivo registrado</b>'+String(j.aviso).split(' · ').map(function(p){return '<div>'+esc(p)+'</div>'}).join('')+'</div>';
    if(j.fonte_garantido)h+='<div class="pr-j-m"><b>Regra do piso</b><div>'+esc(prFonteLimpa(j.fonte_garantido))+'</div></div>';
-   h+='<div class="pr-j-fim">Tempo entre chegada e última entrega; pode incluir pausas entre turnos. A garantia usa a regra da escala. Os dados atuais da Chegada aparecem separados abaixo.</div></div>';
+   h+='<div class="pr-j-fim">Tempo entre chegada e última entrega; pode incluir pausas entre turnos. A garantia usa a regra da escala. Chegada, horas e direitos deste quadro são do lacre; a escala traz a origem escrita nela. A Chegada de agora aparece separada abaixo.</div></div>';
    return h;
  }).join('');
 }
