@@ -1434,14 +1434,15 @@ function prComanda(x,i){
   if(prRegraConferir(x)) h+='<div class="pr-why"><b>Conferir regra antes de pagar: este valor lacrado era uma prévia, mesmo quando coincide com a planilha.</b><div>'+esc(pgFonteLabel(x.n_fonte||''))+'</div></div>';
   if(x.chave_pix) h+='<div class="pg-pix"><button onclick="pgCopiar(this,\''+esc(String(x.chave_pix)).replace(/'/g,'\\\'')+'\')">Copiar a chave Pix</button><div class="ch">'+esc(String(x.chave_pix))+'</div></div>';
   else h+='<div class="pg-sempix">Sem chave Pix cadastrada</div>';
-  h+='<div class="pr-letras"><div class="pr-letras-t">Explicações e conferência</div>';
+  const prAbre='<div class="pr-letras"><div class="pr-letras-t">Explicações e conferência</div>'; h+=prAbre;
   h+=prJornadaLacrada(x,'notas');
   h+=prAuditoriaDesconto(x);
   h+=prChegada(x);
   const w=prPorque(x);
   if(w.length&&!(d!=null&&Math.abs(d)<0.01&&x.faixa==='centavo'&&!x.mudou_depois)) h+='<div class="pr-why">'+w.map(function(t){return '<div>'+t+'</div>'}).join('')+'</div>';
   if(x.pix&&x.pix.length) h+='<details class="pg-det"><summary>ver o Pix</summary><div>'+x.pix.map(function(p){return esc(prDt(p.data))+' · '+esc(p.nome)+' · '+rs(p.valor)+' · '+esc(p.conta)}).join('<br>')+'</div></details>';
-  h+='</div>';
+  /* sem nenhuma explicacao, o titulo da secao nao aparece sozinho */
+  if(h.slice(-prAbre.length)===prAbre) h=h.slice(0,-prAbre.length); else h+='</div>';
   return h+'</div>';
 }
 // Seletor de loja da Prova Real: usa o mesmo LOJA das outras abas; filtra só no desenho (nada guardado por loja => sem dado velho)
