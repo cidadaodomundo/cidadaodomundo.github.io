@@ -40,12 +40,19 @@ as $fn$
   end
 $fn$;
 
+-- Sem grant novo: igual as vizinhas (motoboy_refeicao_do_dia), so postgres e service_role executam.
+revoke all on function public.motoboy_refeicao_preco(text, text, date, numeric) from public, anon, authenticated;
+
 -- Troca, na view e na funcao do dia, SO o trecho do preco (CASE ... END AS preco_refeicao) pela chamada acima.
 do $do$
 declare
   v_def text; v_ini int; v_fim int; v_novo text;
   c_fim constant text := 'END AS preco_refeicao';
   c_call constant text := 'motoboy_refeicao_preco(k.unidade, k.id_sale, k.dia_operacional, pr.valor) AS preco_refeicao';
+  -- Desempate fixo: a ordem antiga (pr.valor DESC) ja dava o lanche mais caro como o de direito e cobrava o mais barato.
+  -- Com dois precos (24,50 / 29,90) o empate de cardapio precisa de ordem certa: o de 29,90 conta como direito, cobra-se o de 24,50; depois id_sale.
+  c_ord_de constant text := 'ORDER BY pr.valor DESC)';
+  c_ord_para constant text := 'ORDER BY pr.valor DESC, (motoboy_refeicao_preco(k.unidade, k.id_sale, k.dia_operacional, pr.valor)) DESC, k.id_sale)';
 begin
   -- view
   v_def := pg_get_viewdef('public.vw_motoboy_refeicao'::regclass);
@@ -58,6 +65,8 @@ begin
     v_ini := length(left(v_def, position('to_char(' in v_def))) - position('ESAC' in reverse(left(v_def, position('to_char(' in v_def)))) - 2;
     if substr(v_def, v_ini, 4) <> 'CASE' then raise exception 'vw_motoboy_refeicao: inicio do CASE nao achado'; end if;
     v_novo := left(v_def, v_ini - 1) || c_call || substr(v_def, v_fim);
+    if (length(v_novo) - length(replace(v_novo, c_ord_de, ''))) / length(c_ord_de) <> 1 then raise exception 'vw_motoboy_refeicao: ancora da ordem nao e unica'; end if;
+    v_novo := replace(v_novo, c_ord_de, c_ord_para);
     execute 'create or replace view public.vw_motoboy_refeicao as ' || v_novo;
   end if;
 
@@ -72,6 +81,8 @@ begin
     v_ini := length(left(v_def, position('to_char(' in v_def))) - position('ESAC' in reverse(left(v_def, position('to_char(' in v_def)))) - 2;
     if substr(v_def, v_ini, 4) <> 'CASE' then raise exception 'motoboy_refeicao_do_dia: inicio do CASE nao achado'; end if;
     v_novo := left(v_def, v_ini - 1) || c_call || substr(v_def, v_fim);
+    if (length(v_novo) - length(replace(v_novo, c_ord_de, ''))) / length(c_ord_de) <> 1 then raise exception 'motoboy_refeicao_do_dia: ancora da ordem nao e unica'; end if;
+    v_novo := replace(v_novo, c_ord_de, c_ord_para);
     execute v_novo;
   end if;
 end
