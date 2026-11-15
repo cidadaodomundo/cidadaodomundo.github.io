@@ -233,6 +233,7 @@ button.b:hover{border-color:var(--text2)}
 .rs .pr .p{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;letter-spacing:.02em;min-width:46px;line-height:1}
 .rs .pr .ch{color:var(--text2);font-weight:700;white-space:nowrap}
 .rs .pr .mb{color:var(--muted);font-size:12px}
+.rs .pr .jt{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11.5px;font-weight:800;background:rgba(255,213,79,.16);color:#ffd54f}   /* 15/11: mesmo endereco */
 .rs .fora{border-top:1px solid var(--line);padding:9px 0 2px;color:var(--text2);font-size:13.5px;line-height:1.5}
 .rs .leg{margin-top:8px}
 .rs-mk{border-radius:7px;padding:0 5px;font:800 11.5px/17px Barlow,sans-serif;color:#111;white-space:nowrap;border:2px solid #111;box-shadow:0 1px 4px rgba(0,0,0,.7)}
@@ -1353,6 +1354,21 @@ function rsHav(a,b){ var R=6371000, r=Math.PI/180, dLa=(b.lat-a.lat)*r, dLo=(b.l
 function rsMin(s){ var m=/^(\d{1,2}):(\d{2})$/.exec(String(s||'')); return m?(+m[1])*60+(+m[2]):null; }
 function rsHora(t){ t=((Math.round(t)%1440)+1440)%1440; var h=Math.floor(t/60), m=t%60; return (h<10?'0':'')+h+':'+(m<10?'0':'')+m; }
 function rsNum(x){ return (x===null||x===undefined||x==='')?NaN:+x; }
+/* 15/11/2026: chave do endereco para juntar entregas no mesmo lugar. Copia da sacola_end_chave do banco (12/11, aviso
+   "mesmo endereco" da Sacola), lendo o endereco do TrackEat ("Rua X, 123 - Bairro - Compl: Apto 4"). Devolve null
+   quando nao da para afirmar: sem rua ou numero, ou complemento de predio sem numero (portaria, hotel, "apartamento"...). */
+function rsEndChave(e){
+  e=String(e||''); var v=e.indexOf(','); if(v<0) return null;
+  var sa=function(t){ return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); };
+  var rua=sa(e.slice(0,v)).trim(), resto=e.slice(v+1), num=resto.split(' - ')[0].replace(/\D/g,'');
+  var mc=/Compl:\s*(.*)$/i.exec(resto), c0=sa(mc?mc[1]:'');
+  if(!rua||!num) return null;
+  if(!/\d/.test(c0)&&/(portaria|hotel|recep|apart|apto|\bapt?\b|predio|edif|condom|bloco|torre|sala|loja|hospital|clinica)/.test(c0)) return null;
+  rua=rua.replace(/^(rua|r|avenida|av|alameda|al|travessa|tv|trav|praca|pc|rodovia|rod|estrada|est)\b\.?\s*/,'').replace(/[^a-z0-9]/g,'');
+  var fora={casa:1,cs:1,sobrado:1,apartamento:1,apto:1,apt:1,ap:1,ape:1,bloco:1,bl:1,torre:1,n:1,numero:1,no:1,de:1,da:1,do:1};
+  var tk=(c0.match(/[a-z]+|[0-9]+/g)||[]).map(function(t){ return t.replace(/^0+(?=\d)/,''); }).filter(function(t){ return !fora[t]; }).sort();
+  return rua+'|'+num+'|'+tk.join(' ');
+}
 function rsCalc(d){
   var r={rotas:[],sobra:[],semPonto:[],preparo:0,prontos:0,avisos:[],erro:null,cap:null,agoraTxt:d.agora};
   var loja=Array.isArray(d.na_loja)?d.na_loja:[];
@@ -1360,8 +1376,21 @@ function rsCalc(d){
   /* pedido repetido na leitura: vale o primeiro registro (a conta, a caixa e o mapa usam o mesmo) */
   var jaVi={}, prontos=loja.filter(function(p){ if(p.onde!=='pronto') return false; var k=String(p.pedido); if(jaVi[k]) return false; jaVi[k]=1; return true; });
   r.prontos=prontos.length;
-  r.semPonto=prontos.filter(function(p){return p.lat==null||p.lng==null;});
-  var ps=prontos.filter(function(p){return p.lat!=null&&p.lng!=null;});
+  /* 15/11/2026 (chat-rota-mesmo-endereco-15-11), pedido do Fabio: "as entregas que sao no mesmo endereco ... sairem juntas".
+     MESMA regra do aviso "mesmo endereco" da Sacola (12/11, sacola_end_chave no banco): rua + numero + apto/casa; sem rua ou
+     numero, ou predio sem numero do apto, nao junta. Os prontos com a mesma chave viram UMA parada so na conta (o primeiro
+     com ponto no mapa da o lugar; o prazo e o do mais apertado; conta 1 no maximo por rota) e saem juntos na mesma rota. */
+  var jMemb={}, jRep={}, jGr={}, jCh={};
+  prontos.forEach(function(p){ var k=rsEndChave(p.end); if(k){ jCh[String(p.pedido)]=k; (jGr[k]=jGr[k]||[]).push(p); } });
+  Object.keys(jGr).forEach(function(k){ var g=jGr[k]; if(g.length<2) return;
+    var rep=g.filter(function(p){return p.lat!=null&&p.lng!=null;})[0]; if(!rep) return;
+    jMemb[String(rep.pedido)]=[rep].concat(g.filter(function(p){return p!==rep;}));
+    g.forEach(function(p){ jRep[String(p.pedido)]=String(rep.pedido); }); });
+  /* em preparo no mesmo endereco de um pronto: a caixa avisa (ainda nao entra na conta) */
+  var jPrep={}; loja.forEach(function(p){ if(p.onde!=='preparo') return; var k=rsEndChave(p.end); if(k&&jGr[k]) (jPrep[k]=jPrep[k]||[]).push(String(p.pedido)); });
+  var membros=function(id){ return jMemb[id]||[porId[id]]; };
+  r.semPonto=prontos.filter(function(p){return (p.lat==null||p.lng==null)&&!jRep[String(p.pedido)];});
+  var ps=prontos.filter(function(p){ var id=String(p.pedido); return p.lat!=null&&p.lng!=null&&(!jRep[id]||jRep[id]===id); });
   var M=d.rota_modelo||{}, agora=rsMin(d.agora);
   var cp=rsNum(M.rota_max_padrao);
   r.cap=RS_CAP||((cp>=2&&cp<=6&&cp===Math.round(cp))?cp:null);
@@ -1417,13 +1446,18 @@ function rsCalc(d){
   r.slots=slots;
   /* tempo em segundos a partir da hora da leitura; prazo = minutos que faltam para a hora prometida */
   var porId={};
-  var ped=ps.map(function(p){ var id=String(p.pedido), f=rsNum(p.falta_prom); porId[id]=p;
+  var jFalta={};   /* prazo da parada = o do pedido mais apertado do mesmo endereco */
+  var ped=ps.map(function(p){ var id=String(p.pedido), f=NaN; porId[id]=p;
+    (jMemb[id]||[p]).forEach(function(q){ var x=rsNum(q.falta_prom); if(isFinite(x)&&!(x>=f)) f=x; });
+    jFalta[id]=isFinite(f)?f:1e9;
     return {id:id,lat:+p.lat,lng:+p.lng,prom:isFinite(f)?f*60:null,pronto:-Infinity,visto:-Infinity}; });
   var svc=r.svc, sPorM=r.mk*60/1000;
   var opts={cap:r.cap,tolS:r.tol,travel:function(a,b){ return svc+sPorM*rsHav(a,b); }};
   /* plano de partida: as rotas que o TrackEat ja montou com estes pedidos, a mais urgente na primeira saida */
-  var gr={}; ps.forEach(function(p){ if(p.grupo!=null&&p.grupo!=='') (gr[p.grupo]=gr[p.grupo]||[]).push(String(p.pedido)); });
-  var urg=function(id){ var f=rsNum(porId[id].falta_prom); return isFinite(f)?f:1e9; };
+  /* mesmo endereco: cada pedido conta pela sua parada (uma vez so, na 1a rota do TrackEat em que aparece) */
+  var gr={}, grVi={}; prontos.forEach(function(p){ var id=String(p.pedido), rp=jRep[id]||id;
+    if(!porId[rp]||grVi[rp]||p.grupo==null||p.grupo==='') return; grVi[rp]=1; (gr[p.grupo]=gr[p.grupo]||[]).push(rp); });
+  var urg=function(id){ return jFalta[id]; };
   var gl=Object.keys(gr).map(function(g){return gr[g];}).filter(function(l){return l.length<=r.cap;});
   gl.sort(function(a,b){ return Math.min.apply(null,a.map(urg))-Math.min.apply(null,b.map(urg)); });
   opts.inicial=slots.map(function(s,i){ return gl[i]?gl[i].slice():[]; });
@@ -1518,21 +1552,26 @@ function rsCalc(d){
     var a=av[s], n=r.rotas.length;
     if(!a||!a.ids||!a.ids.length) return;
     var fg=null; a.prazos.forEach(function(pz,j){ if(pz!=null){ var x=Math.floor((pz-a.chegadas[j])/60); if(fg===null||x<fg) fg=x; } });
-    r.rotas.push({letra:String.fromCharCode(65+n%26),cor:RS_COR[n%RS_COR.length],slot:slots[s],sai:a.sai,
-      km:a.metros/1000,atrasados:a.atrasados,igual:!!temTE[chave(a.ids.map(String))],abaixo:a.ids.length<r.alvo,folga:fg,
-      paradas:a.ids.map(String).map(function(id,i){ var p=porId[id], ch=a.chegadas[i], f=rsNum(p.falta_prom);
+    /* mesmo endereco: a parada volta a ser os pedidos dela (mesmo numero de parada, mesma chegada) */
+    var exp=[]; a.ids.map(String).forEach(function(id,i){ var g=membros(id);
+      g.forEach(function(p){ exp.push({p:p,i:i,junto:g.length>1?g.filter(function(q){return q!==p;}).map(function(q){return String(q.pedido);}):[],
+        espera:(g.length>1||jCh[String(p.pedido)])?(jPrep[jCh[String(p.pedido)]]||[]):[]}); }); });
+    var atJ=0; exp.forEach(function(e){ var f=rsNum(e.p.falta_prom); if(isFinite(f)&&a.chegadas[e.i]-f*60>r.tol) atJ++; });
+    r.rotas.push({letra:String.fromCharCode(65+n%26),cor:RS_COR[n%RS_COR.length],slot:slots[s],sai:a.sai,nParadas:a.ids.length,
+      km:a.metros/1000,atrasados:atJ,igual:!!temTE[chave(exp.map(function(e){return String(e.p.pedido);}))],abaixo:a.ids.length<r.alvo,folga:fg,
+      paradas:exp.map(function(e){ var p=e.p, ch=a.chegadas[e.i], f=rsNum(p.falta_prom);
         var ps2=(isFinite(f)&&ch-f*60>r.tol)?Math.ceil((ch-f*60)/60):0, pm=rsMin(p.prometido), dm=(pm===null)?0:((Math.round(agora+ch/60)-pm)%1440+1440)%1440;
         var perto=isFinite(f)&&ch>f*60-120;   /* a hora mostrada so conta quando a conta tambem esta perto do prazo */
         /* "passa N min" com o mesmo N que a diferenca entre a hora mostrada e a prometida */
         if(ps2&&perto&&dm>0&&dm<=720) ps2=dm;
         /* "no limite": chega depois da hora prometida mas dentro da tolerancia, ou a hora mostrada ja passa a prometida */
-        return {p:p,chega:rsHora(agora+ch/60),passa:ps2,
+        return {p:p,n:e.i+1,junto:e.junto,espera:e.espera,chega:rsHora(agora+ch/60),passa:ps2,
           justo:!ps2&&((isFinite(f)&&ch>f*60)||(perto&&dm>0&&dm<=720))}; })});
   });
   /* o calculador separa quem ficou de fora por falta de vaga (sobra) de quem tem endereco sem ponto no mapa (semLocal) */
-  var semL={}; (plano.semLocal||[]).forEach(function(id){ semL[String(id)]=1; if(porId[String(id)]) r.semPonto.push(porId[String(id)]); });
-  r.sobra=(plano.sobra||[]).filter(function(id){return !semL[String(id)];}).map(function(id){return porId[String(id)];}).filter(Boolean);
-  r.nOk=ps.length-Object.keys(semL).length;   /* prontos com ponto no mapa (os que podem ir em rota) */
+  var semL={}; (plano.semLocal||[]).forEach(function(id){ semL[String(id)]=1; if(porId[String(id)]) membros(String(id)).forEach(function(p){ r.semPonto.push(p); }); });
+  r.sobra=[]; (plano.sobra||[]).forEach(function(id){ if(!semL[String(id)]&&porId[String(id)]) membros(String(id)).forEach(function(p){ r.sobra.push(p); }); });
+  r.nOk=ps.reduce(function(t,p){ var id=String(p.pedido); return t+(semL[id]?0:membros(id).length); },0);   /* prontos com ponto no mapa (os que podem ir em rota) */
   return r;
 }
 /* a conta so refaz quando chega leitura nova ou muda o maximo (esconder/mostrar a sugestao e redesenhar nao refazem) */
@@ -1575,17 +1614,19 @@ function rsBloco(r){
     '<small style="color:var(--muted);font-weight:600">'+prep+'</small></div>';
   r.rotas.forEach(function(rt){
     h+='<div class="rt"><div class="tt"><span class="lt" style="background:'+rt.cor+'">'+rt.letra+'</span>'+rsSaida(rt)+
-      ' <small>'+rt.paradas.length+' entrega'+(rt.paradas.length===1?'':'s')+' · '+rt.km.toFixed(1).replace('.',',')+' km em linha reta</small>'+
+      ' <small>'+rt.paradas.length+' entrega'+(rt.paradas.length===1?'':'s')+(rt.nParadas&&rt.nParadas<rt.paradas.length?' em '+rt.nParadas+' parada'+(rt.nParadas===1?'':'s'):'')+' · '+rt.km.toFixed(1).replace('.',',')+' km em linha reta</small>'+
       (rt.atrasados?'<span class="mal">⚠ '+rt.atrasados+' atrasa'+(rt.atrasados===1?'':'m')+'</span>':'<span class="ok">✓</span>')+
       (rt.abaixo?'<span class="ab">'+rsAbaixo(r,rt)+'</span>':'')+
       (rt.igual?'<span class="ig" title="o TrackEat já montou uma rota com exatamente estes pedidos">igual ao TrackEat</span>':'')+'</div>';
     rt.paradas.forEach(function(x,i){ var p=x.p;
-      h+='<div class="pr"><span class="n" style="background:'+rt.cor+'">'+(i+1)+'</span>'+
+      h+='<div class="pr"><span class="n" style="background:'+rt.cor+'">'+(x.n||i+1)+'</span>'+
         '<span class="p" data-ped="'+esc(p.pedido)+'" title="número do Saipos — toque para ver os itens">'+esc(p.pedido)+'</span>'+
         (quad(p.grupo)||'')+'<span class="ch">chega ~'+esc(x.chega)+'</span>'+
         (!p.prometido||p.falta_prom==null?'<span class="pz sem">sem hora prometida</span>'
           :'<span class="pz'+(x.passa?' passou':'')+'">até '+esc(p.prometido)+(x.passa?' · <b>passa '+x.passa+' min</b>':(x.justo?' · no limite':''))+'</span>')+
         (p.motoboy?'<span class="mb">no TrackEat com '+esc(p.motoboy)+'</span>':'')+
+        (x.junto&&x.junto.length?'<span class="jt">📍 mesmo endereço · junto com '+x.junto.map(esc).join(' e ')+'</span>':'')+
+        (x.espera&&x.espera.length&&(i===0||rt.paradas[i-1].n!==x.n)?'<span class="jt">📍 mesmo endereço do '+x.espera.map(esc).join(' e ')+', ainda em preparo</span>':'')+
         vm(p,false)+'</div>';
     });
     h+='</div>';
@@ -1627,7 +1668,7 @@ function rsMapa(mp,d){
     rt.paradas.forEach(function(x,i){
       var rsLig=!!(window.TG&&TG.on&&TG.aba==='rota');   /* rota inteligente do mapa grande: etiqueta por cima do numero preto e mais afastada */
       L.marker([+x.p.lat,+x.p.lng],{interactive:false,opacity:op,zIndexOffset:rsLig?1800:300,
-        icon:L.divIcon({className:'',html:'<div class="rs-mk" style="background:'+rt.cor+'">'+rt.letra+(i+1)+'</div>',iconSize:null,iconAnchor:rsLig?[-18,32]:[-10,26]})}).addTo(mp);
+        icon:L.divIcon({className:'',html:'<div class="rs-mk" style="background:'+rt.cor+'">'+rt.letra+(x.n||i+1)+'</div>',iconSize:null,iconAnchor:rsLig?[-18,32]:[-10,26]})}).addTo(mp);
     });
   });
 }
@@ -2675,7 +2716,7 @@ function rsNumeros(r,loja){
     var ap=(TG.rsSo&&TG.rsSo!==rt.letra)?' apaga':'', unica=r.rotas.length>1;
     h+='<div class="rsc-rt'+ap+'"'+(unica?' data-tgro="'+(TG.rsSo===rt.letra?'':esc(rt.letra))+'" title="'+(TG.rsSo===rt.letra?'voltar a mostrar todas as rotas':'mostrar só a rota '+esc(rt.letra)+' no mapa')+'"':'')+'><span class="lt" style="background:'+rt.cor+'">'+rt.letra+'</span><span class="rsc-sai">'+sai+'</span>'+
        (rt.atrasados?'<span class="rsc-at">⚠ '+rt.atrasados+'</span>':'')+'</div><div class="rsc-nums'+ap+'">'+
-       rt.paradas.map(function(x,i){ return (i?'<i class="rsc-seta">›</i>':'')+chip(x.p,'pron'+(x.passa?' passa':'')); }).join('')+'</div>';
+       rt.paradas.map(function(x,i){ return (i?(x.n&&rt.paradas[i-1].n===x.n?'<i class="rsc-seta" title="mesmo endereço: mesma parada">+</i>':'<i class="rsc-seta">›</i>'):'')+chip(x.p,'pron'+(x.passa?' passa':'')); }).join('')+'</div>';
   });
   if(r.sobra.length) h+='<div class="rsc-tit">Sem motoboy na conta</div><div class="rsc-nums">'+r.sobra.map(function(p){return chip(p,'pron');}).join('')+'</div>';
   if(r.semPonto.length) h+='<div class="rsc-tit">Sem endereço no mapa</div><div class="rsc-nums">'+r.semPonto.map(function(p){return chip(p,'pron');}).join('')+'</div>';
