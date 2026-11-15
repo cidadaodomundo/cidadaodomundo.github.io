@@ -182,6 +182,33 @@ button.b[disabled]{opacity:.4;cursor:not-allowed}
 .pg-li .pc.quebra{display:none}
 .pg-li .dup{display:inline-block;margin-left:8px;font-size:11.5px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:0 7px;cursor:pointer}
 .pg-li .dup.ab{color:var(--bad);border-color:var(--bad)}
+.vr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;padding:4px 0 14px;align-items:start}
+.vr-a{display:grid;gap:10px;min-width:0}
+.vr-v{display:flex;align-items:baseline;gap:12px}
+.vr-v .k{color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.vr-v b{font-family:'Anton',Impact,sans-serif;font-weight:400;font-size:44px;line-height:1;color:var(--brand)}
+.vr-p{font-size:15px;line-height:1.45;color:var(--text2)}
+.vr-p b{color:var(--text)}
+.vr .pix{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.vr .pix button{background:var(--brand);color:var(--brand-ink);border:0;border-radius:10px;padding:9px 14px;font:700 13.5px 'Barlow',system-ui,sans-serif;cursor:pointer}
+.vr .pix button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.vr .pix code{color:var(--muted);font-size:11.5px;word-break:break-all}
+.chk{list-style:none;margin:0;padding:0;display:grid;gap:8px;min-width:0}
+.chk li{padding-left:26px;position:relative;color:var(--text2);line-height:1.4;font-size:14px}
+.chk li b{color:var(--text);font-weight:700}
+.chk li a{color:var(--brand)}
+.chk li::before{position:absolute;left:0;top:0;font-weight:800;width:20px;text-align:center}
+.chk li.ok::before{content:'✓';color:#7fe0aa}
+.chk li.alerta::before{content:'⚠';color:var(--warn)}
+.chk li.alerta b{color:var(--warn)}
+.chk li.esp::before{content:'…';color:var(--muted)}
+.chk li.esp b{color:var(--muted)}
+.vr-mais{margin:0 0 14px}
+.vr-mais>summary{cursor:pointer;color:var(--muted);font-size:12.5px;font-weight:600;list-style:none;display:inline-block}
+.vr-mais>summary::after{content:' ›'}
+.vr-mais[open]>summary::after{content:' ⌄'}
+.vr-mais .pg-li-det{padding-top:12px}
+@media (max-width:640px){.vr{grid-template-columns:minmax(0,1fr);gap:14px}.vr-v b{font-size:36px}}
 .pg-li-det{padding:0 0 16px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start}
 .pg-li-det>*{max-width:380px;flex:1 1 300px;min-width:0}
 @media (max-width:640px){.pg-li-det>*{flex-basis:100%;max-width:100%}.pg-lista{padding:2px 12px}}
@@ -1181,6 +1208,68 @@ function pgOrdenar(lu){
     if(va==null&&vb==null)return 0; if(va==null)return 1; if(vb==null)return -1;
     return (typeof va==='string'?va.localeCompare(vb):va-vb)*PG_ORD.dir});
 }
+/* 15/11/2026, Fábio escolheu "A · Veredito" para o que abre na linha: "mais funcional e assertivo".
+   Só junta o que a porta já devolve (pagamento_do_dia e prova_painel); a conta completa fica guardada em "ver a conta completa". */
+function pgVeredito(m,x){
+  const it=[]; function add(c,t){it.push('<li class="'+c+'">'+t+'</li>')}
+  if(m.escondido){
+    let h='<div class="vr"><div class="vr-a"><div class="vr-v"><span class="k">Pagar</span><b>escondido</b></div>'+
+      '<div class="vr-p">🧪 Prova real: o valor do sistema aparece depois que a planilha desta loja for lida no grupo FECHAMENTO MOTOBOYS.</div></div><ul class="chk">';
+    h+='<li class="esp">Chegou <b>'+esc(m.chegada||'—')+'</b> · última entrega <b>'+esc(m.ultima_entrega||'—')+'</b></li></ul></div>';
+    return h;
+  }
+  const taxas=Number(m.taxas||0), ref=Number(m.cobrar_refeicao||0), aj=Number(m.ajustes||0);
+  const base=Math.round((Number(m.pagar||0)-aj+ref)*100)/100, vale_gar=base>taxas+0.01;
+  let por;
+  if(m.editado){
+    por='Valor do <b>fechamento editado à mão</b>. No sistema: '+num(m.entregas)+' entregas = '+rs(taxas)+'.';
+  } else if(vale_gar){
+    const hx=Number(m.horas_escala)*Number(m.valor_hora), confere=Number(m.horas_escala)>0&&Math.abs(hx-base)<0.01;
+    por='Vale o <b>garantido</b>'+(confere?': '+num(m.horas_escala)+'h × '+rs(m.valor_hora)+' = '+rs(base):' do turno: '+rs(base))+'. As '+num(m.entregas)+' entregas deram '+rs(taxas)+', menos que o garantido.';
+  } else {
+    por='Valem as <b>entregas</b>: '+num(m.entregas)+' entregas = '+rs(taxas)+'.';
+    if(m.garantido===false) por+=' Sem garantido neste dia.';
+  }
+  if(!m.editado&&ref>0) por+=' Menos o lanche a mais: '+rs(ref)+(m.lanche_produto?' ('+esc(m.lanche_produto)+')':'')+'.';
+  if(!m.editado&&Math.abs(aj)>0.004) por+=' Ajuste: '+(aj>0?'+ ':'− ')+rs(Math.abs(aj))+(m.motivos?' ('+esc(m.motivos)+')':'')+'.';
+  /* lista de conferência */
+  const T=chTurnos(m), tol=tolPag();
+  if(m.editado) add('alerta','<b>Fechamento editado à mão</b>: o valor pago é o da edição');
+  if(!T.length) add('alerta','Sem escala do Jaison com este nome: <b>confira na Chegada do dia</b>');
+  T.forEach(function(t){
+    const at=(t.furou!==true&&t.chegada&&t.atraso_min!=null)?' (≈ '+(Number(t.atraso_min)>0?'+':'')+esc(t.atraso_min)+' min)':'';
+    if(t.furou===true) add('alerta','Turno das '+esc(t.combinado||'?')+': chegou <b>'+esc(t.chegada||'—')+'</b>, <b>passou da tolerância</b>'+(tol!=null?' de '+esc(tol)+' min':'')+(m.garantido!==false?' · garantido mantido no fechamento':''));
+    else if(t.furou===false) add('ok','Turno das '+esc(t.combinado||'?')+': chegou <b>'+esc(t.chegada)+at+', dentro da tolerância</b>');
+    else add('alerta','Turno das '+esc(t.combinado||'?')+': <b>'+(t.chegada?'sem prova da chegada':'sem GPS/fila')+'</b>, não corta');
+  });
+  if(m.garantido===true) add('ok','Garantido: <b>tem direito</b>'+(m.garantido_fonte==='botao'?' (decisão do dono na Chegada)':''));
+  else if(m.garantido===false) add('alerta','Garantido: <b>sem direito</b> · '+(m.garantido_fonte==='botao'?'decisão do dono na Chegada':motivoCorte(m)));
+  else add('alerta','Garantido: <b>a conferir</b>');
+  const nr=m.direito_refeicoes, nt=Number(m.turnos||0);
+  if(nr!=null&&nr!==''){
+    if(Number(nr)>0) add(nt>Number(nr)?'alerta':'ok','Refeição: <b>'+(nt>1?num(nr)+' de '+num(nt)+' turnos':'tem direito')+'</b>');
+    else add(ref>0?'alerta':'ok','Refeição: <b>sem direito</b>'+(ref>0?' · lanche cobrado '+rs(ref):''));
+  }
+  if(Number(m.lanche_sem_preco)>0) add('alerta','Falta o preço de <b>'+num(m.lanche_sem_preco)+' lanche</b>: não foi cobrado');
+  if(pgRegraConferir(m)) add('alerta','<b>Conferir a regra antes de pagar</b>: o valor é uma prévia');
+  const dp=dupDoMotoboy(PD.dia,m.unidade,m.entregador).filter(function(r){return r.decisao!=='nao_pagar'});
+  if(dp.length) add('alerta','<b>'+dp.length+' corrida(s) em dobro</b> sem decisão ('+rs(dp.reduce(function(a,r){return a+(Number(r.valor_2)||0)},0))+') · <a href="#" onclick="setView(\'dup\');return false">decidir</a>');
+  if(x){
+    const d=pgDif(m,x);
+    if(x.deles!=null) add(d.t==='bate'?'ok':'alerta','Planilha da loja: <b>'+rs(x.deles)+(d.t==='bate'?', bate':(d.t==='conferir'?', bate, mas conferir a regra':(d.v!=null?', diferença '+d.t:'')))+'</b>');
+    else add('esp','Planilha da loja: <b>ainda não chegou</b>');
+    if(x.n_entregas!=null&&x.d_entregas!=null) add(Number(x.n_entregas)===Number(x.d_entregas)?'ok':'alerta','Corridas: <b>'+num(x.n_entregas)+' no sistema, '+num(x.d_entregas)+' na planilha</b>');
+    if(x.pago!=null) add('ok','Pix: <b>saiu '+rs(x.pago)+'</b>');
+    else add(x.pix_status==='esperando o banco'?'esp':'alerta','Pix: <b>'+(x.pix_status==='esperando o banco'?'esperando o banco':'sem Pix achado')+'</b>');
+    if(x.nosso!=null&&Math.abs(Number(x.nosso)-Number(m.pagar||0))>=0.01) add('alerta','O lacre da Prova real guardou <b>'+rs(x.nosso)+'</b>: o valor mudou depois');
+  }
+  let pix='';
+  if(PD.ve_pix!==false){
+    if(m.chave_pix){const k=String(m.chave_pix);pix='<div class="pix"><button type="button" onclick="pgCopiar(this,\''+esc(k).replace(/'/g,'\\\'')+'\')">Copiar a chave Pix</button><code>'+esc(k)+'</code></div>'}
+    else pix='<div class="pix"><span class="vm">Sem chave Pix: peça antes de pagar</span></div>';
+  }
+  return '<div class="vr"><div class="vr-a"><div class="vr-v"><span class="k">Pagar</span><b>'+rs(m.pagar)+'</b></div><div class="vr-p">'+por+'</div>'+pix+'</div><ul class="chk">'+it.join('')+'</ul></div>';
+}
 function pgLinha(m,i){
   const k=String(m.unidade||'')+'|'+String(m.entregador||''), x=pgProvaDe(m), d=pgDif(m,x);
   const al=!m.escondido&&(pgRegraConferir(m)||(PD.ve_pix!==false&&!m.chave_pix)||m.garantido===false);
@@ -1201,7 +1290,7 @@ function pgLinha(m,i){
     '<span class="pc r" data-l="planilha">'+(x&&x.deles!=null?pgV(x.deles):'—')+'</span>'+
     '<span class="pc r" data-l="Pix">'+(x?(x.pago!=null?pgV(x.pago):(x.pix_status==='esperando o banco'?'esperando':'—')):'—')+'</span>'+
     '<span class="pc r dfc'+d.cl+'" data-l="diferença"'+(lacreDif?' title="Diferença do lacre da Prova real: o lacre guardou '+esc(pgV(x.nosso))+'"':'')+'>'+d.t+(lacreDif?'<small class="linha-nota">lacre '+pgV(x.nosso)+'</small>':'')+'</span>'+
-    '</summary><div class="pg-li-det">'+pgComanda(m,i)+(x&&!m.escondido?'<div style="margin-top:14px">'+prComanda(x,i)+'</div>':'')+'</div></details>';
+    '</summary>'+pgVeredito(m,x)+'<details class="vr-mais"><summary>ver a conta completa</summary><div class="pg-li-det">'+pgComanda(m,i)+(x&&!m.escondido?'<div style="margin-top:14px">'+prComanda(x,i)+'</div>':'')+'</div></details></details>';
 }
 function viewPagar(){
   if(!PD||(PDDIA&&PD.dia!==PDDIA)){puxaPagar(PDDIA);return}
