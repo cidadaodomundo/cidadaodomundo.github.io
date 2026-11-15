@@ -152,31 +152,39 @@ tr.aviso td{color:#e8bb62}
 button.b[disabled]{opacity:.4;cursor:not-allowed}
 @media (max-width:640px){.pg-fita .tot{font-size:36px}.pg-grid{grid-template-columns:minmax(0,1fr)}}
 /* 15/11/2026 (Fábio escolheu a opção B): Pagar motoboys em LINHAS — uma por motoboy; clicando abre a comanda com a conta */
-.pg-lista{margin:0 0 6px;overflow-x:auto}
+.pg-lista{margin:0 0 8px;overflow-x:auto;background:var(--s1);border-radius:18px;padding:2px 18px}
 .pg-lista>*{min-width:var(--minw,0)}
 .pg-cab,.pg-li>summary{display:grid;grid-template-columns:var(--cols);gap:14px;align-items:center}
-.pg-cab{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:0 6px 6px}
+.pg-cab{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:11px 0 9px}
+.pg-cab .ord{all:unset;cursor:pointer;color:inherit;font:inherit;letter-spacing:inherit;text-transform:inherit;white-space:nowrap}
+.pg-cab .ord:hover,.pg-cab .ord.on{color:var(--text)}
+.pg-cab .ord:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.pg-cab .ord.r{text-align:right}
+.pg-li .vd{color:#7fe0aa}.pg-li .vm{color:#ff8a8a}.pg-li .am{color:var(--warn)}.pg-li .apg{color:var(--muted);font-weight:500}
+.pg-li .linha-nota{display:block;font-size:11px;font-weight:400;color:var(--muted)}
 .pg-cab .r,.pg-li .pc.r{text-align:right}
 .pg-li{border-top:1px solid var(--line)}
-.pg-li:last-child{border-bottom:1px solid var(--line)}
-.pg-li>summary{list-style:none;padding:11px 6px;cursor:pointer}
+.pg-li>summary{list-style:none;padding:14px 0;cursor:pointer;font-size:14.5px}
 .pg-li>summary::-webkit-details-marker{display:none}
 .pg-li>summary::after{content:'▸';color:var(--muted)}
 .pg-li[open]>summary::after{content:'▾'}
-.pg-li>summary:hover{background:var(--s1)}
+.pg-li>summary:hover .nm{color:#fff}
 .pg-li>summary:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 .pg-li .pc{color:var(--text2);font-variant-numeric:tabular-nums;white-space:nowrap;min-width:0}
-.pg-li .pc.nm{color:var(--text);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:normal}
+.pg-li .pc.nm{color:var(--text);font-weight:600;font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:normal}
 .pg-li .pc.nm small{display:block;font-weight:400;font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
 .pg-li .pc.nm .al{color:var(--warn);font-size:12px;font-weight:700;margin-left:8px}
-.pg-li .pc.vl{color:var(--text);font-weight:800}
+.pg-li .pc.vl{color:var(--text);font-weight:700;font-size:16px}
+.pg-li .pc.dfc{font-weight:700}
 .pg-li .pc.fds{color:var(--brand);font-weight:800}
 .pg-li .pc.ok{color:var(--ok);font-weight:700}
 .pg-li .pc.dif{color:var(--warn);font-weight:700}
 .pg-li .pc.quebra{display:none}
 .pg-li .dup{display:inline-block;margin-left:8px;font-size:11.5px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:0 7px;cursor:pointer}
 .pg-li .dup.ab{color:var(--bad);border-color:var(--bad)}
-.pg-li-det{padding:4px 6px 18px;max-width:380px}
+.pg-li-det{padding:0 0 16px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start}
+.pg-li-det>*{max-width:380px;flex:1 1 300px;min-width:0}
+@media (max-width:640px){.pg-li-det>*{flex-basis:100%;max-width:100%}.pg-lista{padding:2px 12px}}
 .pg-li-det .pg-tk{animation:none}
 .pg-li-det .pg-tk>.pg-nome,.pg-li-det .pg-tk>.pg-hora{display:none}
 .pg-li-det .pg-tk>.pg-corte:first-of-type{display:none}
@@ -1114,22 +1122,86 @@ function pgComanda(m,i){
 }
 const PG_ABERTO={}; // lembra as linhas abertas quando a tela se redesenha (ex.: as notas da Chegada chegam depois)
 function pgTog(el){PG_ABERTO[el.getAttribute('data-k')]=el.open}
-const PG_COLS='minmax(150px,1.6fr) 118px 62px 74px 78px 104px 16px';
+/* 15/11/2026, Fábio: "nao precisa ter duas telas... ja vamos resolver tudo na tela quanto pagar"; "colocar horario de chegada horario de saida garantido refeição";
+   "clicar nas colunas e ela ja se organizar"; "o mesmo design da tela chegada do dia". Da Prova real ficam planilha, Pix e diferença (escolha dele no cartão). */
+const PG_COLS='minmax(150px,1.5fr) 62px 62px 56px 62px 70px 70px 66px 92px 82px 82px 88px 14px';
+let PG_ORD={k:'',dir:1}, PV_TENT=false;
 function pgFds(){const d=new Date(String(PD&&PD.dia)+'T12:00:00').getDay();return d===0||d===6}
-function pgCab(t){return '<div class="pg-cab">'+t.map(function(c){return '<span'+(c[1]?' class="r"':'')+'>'+c[0]+'</span>'}).join('')+'<span></span></div>'}
+function pgCab(t){return '<div class="pg-cab">'+t.map(function(c){
+  if(!c[2])return '<span'+(c[1]?' class="r"':'')+'>'+c[0]+'</span>';
+  const on=PG_ORD.k===c[2];
+  return '<button type="button" class="ord'+(c[1]?' r':'')+(on?' on':'')+'" onclick="pgOrdena(\''+c[2]+'\')" title="Ordenar por esta coluna">'+c[0]+(on?(PG_ORD.dir>0?' ▲':' ▼'):'')+'</button>';
+}).join('')+'<span></span></div>'}
+function pgOrdena(k){if(PG_ORD.k===k)PG_ORD.dir=-PG_ORD.dir;else{PG_ORD.k=k;PG_ORD.dir=(k==='nome'||k==='chegada'||k==='saida')?1:-1}viewPagar()}
+function pgHoraNum(t){const m=String(t||'').match(/(\d{1,2}):(\d{2})/);if(!m)return null;let h=Number(m[1]);if(h<6)h+=24;return h*60+Number(m[2])}
+/* a linha da Prova real (lacre + planilha + Pix) do mesmo motoboy, mesmo dia, mesma loja */
+function pgProvaDe(m){
+  if(!PV||!Array.isArray(PV.linhas))return null;
+  const n=dupNorm(m.entregador), lj=lojaId(m.unidade);
+  return PV.linhas.filter(function(x){if(String(x.dia||'').slice(0,10)!==PD.dia||dupNorm(String(x.pessoa||'').replace(/^sem dono: /,''))!==n)return false;
+    const ids=prLojasDe(x);return !ids.length||!lj||ids.indexOf(lj)>=0})[0]||null;
+}
+function pgDif(m,x){
+  if(!x||m.escondido)return {t:'—',cl:'',v:null};
+  const casa=prCasa(x), d=(x.nosso!=null&&casa!=null)?Math.round((Number(x.nosso)-casa)*100)/100:null;
+  if(d==null)return prFalta(x)?{t:'falta',cl:' dif',v:null}:{t:'—',cl:'',v:null};
+  if(Math.abs(d)<0.01)return prRegraConferir(x)?{t:'conferir',cl:' dif',v:0}:{t:'bate',cl:' ok',v:0};
+  return {t:(d>0?'+ ':'− ')+pgV(Math.abs(d)),cl:' dif',v:d};
+}
+function pgGar(m){return m.garantido===true?'<b class="vd">Sim</b>':(m.garantido===false?'<b class="vm">Não</b>':'<span class="apg">a conferir</span>')}
+function pgRef(m){
+  const nr=m.direito_refeicoes, nt=Number(m.turnos||0); let h;
+  if(nr==null||nr==='')h='<span class="apg">a conferir</span>';
+  else if(Number(nr)>0)h='<b class="'+(nt>Number(nr)?'am':'vd')+'">'+(nt>1?num(nr)+' de '+num(nt):'Sim')+'</b>';
+  else h='<b class="vm">Não</b>';
+  if(Number(m.cobrar_refeicao)>0)h+='<small class="linha-nota">cobra '+rs(m.cobrar_refeicao)+'</small>';
+  return h;
+}
+function pgChave(m,k){
+  const x=pgProvaDe(m);
+  switch(k){
+    case 'nome':return dupNorm(m.entregador);
+    case 'chegada':return pgHoraNum(m.chegada);
+    case 'saida':return pgHoraNum(m.ultima_entrega);
+    case 'horas':return m.escondido?null:Number(m.horas);
+    case 'entregas':return m.escondido?null:Number(m.entregas);
+    case 'vh':return m.valor_hora==null||m.valor_hora===''?null:Number(m.valor_hora);
+    case 'gar':return m.garantido===true?1:(m.garantido===false?0:null);
+    case 'ref':return m.direito_refeicoes==null||m.direito_refeicoes===''?null:Number(m.direito_refeicoes);
+    case 'pagar':return m.escondido?null:Number(m.pagar);
+    case 'plan':return x&&x.deles!=null?Number(x.deles):null;
+    case 'pix':return x&&x.pago!=null?Number(x.pago):null;
+    case 'dif':{const d=pgDif(m,x);return d.v==null?null:Math.abs(d.v)}
+  }
+  return null;
+}
+function pgOrdenar(lu){
+  if(!PG_ORD.k)return lu;
+  return lu.slice().sort(function(a,b){const va=pgChave(a,PG_ORD.k), vb=pgChave(b,PG_ORD.k);
+    if(va==null&&vb==null)return 0; if(va==null)return 1; if(vb==null)return -1;
+    return (typeof va==='string'?va.localeCompare(vb):va-vb)*PG_ORD.dir});
+}
 function pgLinha(m,i){
-  const k=String(m.unidade||'')+'|'+String(m.entregador||'');
+  const k=String(m.unidade||'')+'|'+String(m.entregador||''), x=pgProvaDe(m), d=pgDif(m,x);
   const al=!m.escondido&&(pgRegraConferir(m)||(PD.ve_pix!==false&&!m.chave_pix)||m.garantido===false);
   const vh=m.valor_hora!=null&&m.valor_hora!==''?rs(m.valor_hora):'—';
+  const lacreDif=x&&x.nosso!=null&&!m.escondido&&Math.abs(Number(x.nosso)-Number(m.pagar||0))>=0.01;
   return '<details class="pg-li" data-k="'+esc(k)+'" ontoggle="pgTog(this)"'+(PG_ABERTO[k]?' open':'')+'><summary>'+
-    '<span class="pc nm">'+esc(m.entregador)+(al?'<span class="al" title="Tem aviso: abra a linha antes de pagar">⚠ conferir</span>':'')+dupSelo(dupDoMotoboy(PD.dia,m.unidade,m.entregador))+'</span>'+
+    '<span class="pc nm">'+esc(m.entregador)+(al?'<span class="al" title="Tem aviso: abra a linha antes de pagar">⚠ conferir</span>':'')+dupSelo(dupDoMotoboy(PD.dia,m.unidade,m.entregador))+
+      (Number(m.turnos)>1?'<small>'+num(m.turnos)+' turnos</small>':'')+'</span>'+
     '<span class="pc quebra"></span>'+
-    '<span class="pc" data-l="🕒">'+esc(m.chegada||'—')+' → '+esc(m.ultima_entrega||'—')+'</span>'+
+    '<span class="pc" data-l="chegada">'+esc(m.chegada||'—')+'</span>'+
+    '<span class="pc" data-l="saída">'+esc(m.ultima_entrega||'—')+'</span>'+
     '<span class="pc r" data-l="horas">'+(m.escondido?'—':hhmm(m.horas))+'</span>'+
     '<span class="pc r" data-l="entregas">'+(m.escondido?'—':num(m.entregas))+'</span>'+
     '<span class="pc r'+(pgFds()&&!m.escondido?' fds':'')+'" data-l="por hora"'+(pgFds()?' title="Fim de semana"':'')+'>'+(m.escondido?'—':vh)+'</span>'+
-    '<span class="pc r vl">'+(m.escondido?'escondido':rs(m.pagar))+'</span>'+
-    '</summary><div class="pg-li-det">'+pgComanda(m,i)+'</div></details>';
+    '<span class="pc" data-l="garantido">'+(m.escondido?'—':pgGar(m))+'</span>'+
+    '<span class="pc" data-l="refeição">'+(m.escondido?'—':pgRef(m))+'</span>'+
+    '<span class="pc r vl" data-l="a pagar">'+(m.escondido?'escondido':rs(m.pagar))+'</span>'+
+    '<span class="pc r" data-l="planilha">'+(x&&x.deles!=null?pgV(x.deles):'—')+'</span>'+
+    '<span class="pc r" data-l="Pix">'+(x?(x.pago!=null?pgV(x.pago):(x.pix_status==='esperando o banco'?'esperando':'—')):'—')+'</span>'+
+    '<span class="pc r dfc'+d.cl+'" data-l="diferença"'+(lacreDif?' title="Diferença do lacre da Prova real: o lacre guardou '+esc(pgV(x.nosso))+'"':'')+'>'+d.t+(lacreDif?'<small class="linha-nota">lacre '+pgV(x.nosso)+'</small>':'')+'</span>'+
+    '</summary><div class="pg-li-det">'+pgComanda(m,i)+(x&&!m.escondido?'<div style="margin-top:14px">'+prComanda(x,i)+'</div>':'')+'</div></details>';
 }
 function viewPagar(){
   if(!PD||(PDDIA&&PD.dia!==PDDIA)){puxaPagar(PDDIA);return}
@@ -1137,6 +1209,7 @@ function viewPagar(){
   carregaNotasChegada();
   const l=soDaLoja(PD.linhas);
   dupCarrega(PD.dia,function(){if(VIEW==='pagar'&&PD)viewPagar()});
+  if(!PV&&!PV_TENT){PV_TENT=true;portaProva().then(function(j){PV=j;if(VIEW==='pagar'&&PD)viewPagar()}).catch(function(){})}
   const dupFalhou=DUPDIA[PD.dia]&&DUPDIA[PD.dia].ok===false;
   let h='<div class="c"><div class="hs" style="margin:0 0 8px"><b>💵 Quanto pagar a cada motoboy</b> · '+esc(PD.dia_semana)+', '+esc(PD.dia_texto)+' · '+'tarifas por loja e turno'+'</div>'+
     '<button class="b" onclick="pagDiaPula(-1)">◀ dia anterior</button> '+
@@ -1160,14 +1233,14 @@ function viewPagar(){
     const lu=l.filter(function(m){return m.unidade===u});
     let st=0; lu.forEach(function(m){st+=Number(m.pagar||0)});
     const luEsc=lu.some(function(m){return m.escondido});
-    h+='<div class="pg-loja"><b>'+esc(u)+'</b><span>'+lu.length+' motoboy(s) · <em>'+(luEsc?'valor escondido':rs(Math.round(st*100)/100))+'</em></span></div><div class="pg-lista" style="--cols:'+PG_COLS+';--minw:640px">'+
-      pgCab([['Motoboy'],['Horário'],['Horas',1],['Entregas',1],['R$ por hora'+(pgFds()?' · fim de semana':''),1],['A pagar',1]]);
-    lu.forEach(function(m){h+=pgLinha(m,i++)});
+    h+='<div class="pg-loja"><b>'+esc(u)+'</b><span>'+lu.length+' motoboy(s) · <em>'+(luEsc?'valor escondido':rs(Math.round(st*100)/100))+'</em></span></div><div class="pg-lista" style="--cols:'+PG_COLS+';--minw:1080px">'+
+      pgCab([['Motoboy',0,'nome'],['Chegada',0,'chegada'],['Saída',0,'saida'],['Horas',1,'horas'],['Entregas',1,'entregas'],['R$/hora',1,'vh'],['Garantido',0,'gar'],['Refeição',0,'ref'],['A pagar',1,'pagar'],['Planilha',1,'plan'],['Pix',1,'pix'],['Diferença',1,'dif']]);
+    pgOrdenar(lu).forEach(function(m){h+=pgLinha(m,i++)});
     h+='</div>';
   });
   if(PD.pode_apontar) h+='<div style="margin-top:22px">'+semDono(PD,false)+'</div>';
   h+=PG_EMBED?'<details class="c" style="margin-top:14px"><summary style="cursor:pointer"><b>📜 Como a conta é feita</b></summary>'+REGRAS_HTML+'</details>'
-    :'<div class="hs">A conta inteira está explicada na aba <a href="#" onclick="setView(\'reg\');return false" style="color:var(--brand)">📜 As regras</a>. Quando houver, “ver detalhe” explica o caso daquele motoboy. Quem decide é você.</div>';
+    :(PV?'<div class="hs">Planilha, Pix e diferença vêm da Prova real (lacre do sistema × planilha da loja). O placar da prova, os lacres e a calibração estão em <a href="#" onclick="setView(\'prova\');return false" style="color:var(--brand)">🧪 placar da prova real</a>.</div>':'')+'<div class="hs">A conta inteira está explicada na aba <a href="#" onclick="setView(\'reg\');return false" style="color:var(--brand)">📜 As regras</a>. Quando houver, “ver detalhe” explica o caso daquele motoboy. Quem decide é você.</div>';
   $('conteudo').innerHTML=h;
 }
 
@@ -1323,7 +1396,7 @@ async function portaProva(){
   return await r.json();
 }
 // só o dono e a Hellen recebem resposta; para os outros a aba nem aparece
-async function provaSonda(){try{PV=await portaProva();$('t_prova').style.display='';$('t_acerto').style.display=''}catch(e){PV=null}}
+async function provaSonda(){try{PV=await portaProva();$('t_acerto').style.display='';if(VIEW==='pagar'&&PD)viewPagar()}catch(e){PV=null}} /* 15/11: a Prova real entrou no Quanto pagar; a aba some, o placar fica pelo link */
 const PR_SEM=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
 function prDt(iso){const p=String(iso||'').slice(0,10).split('-');return p.length===3?p[2]+'/'+p[1]:''}
 function prSem(iso){const d=new Date(String(iso).slice(0,10)+'T12:00:00');return PR_SEM[d.getDay()]||''}
@@ -1619,7 +1692,7 @@ function viewProva(){
   if(!PV){
     $('conteudo').innerHTML='<div class="empty">Carregando a prova real…</div>';
     var rq=++PVREQ;
-    portaProva().then(function(j){if(rq!==PVREQ||VIEW!=='prova')return;PV=j;try{$('t_prova').style.display=''}catch(e){}viewProva()})
+    portaProva().then(function(j){if(rq!==PVREQ||VIEW!=='prova')return;PV=j;viewProva()})
       .catch(function(e){if(rq!==PVREQ||VIEW!=='prova')return;$('conteudo').innerHTML='<div class="c">'+(e&&e.code==='42501'?'Só o Fábio e a Hellen veem a prova real.':'Não deu para carregar a prova real. Entre no portal de novo e tente outra vez.')+'</div>'});
     return;
   }
