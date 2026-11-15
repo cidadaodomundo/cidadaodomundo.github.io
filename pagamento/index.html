@@ -414,6 +414,7 @@ async function viewDup(){
   var R=(j&&j.resumo)||{}, L=(j&&j.linhas)||[];
   DUP_L=L;
   var nAb=L.filter(dupAberto).length;
+  var nJuntos=L.filter(function(r){return r.juntos==='podia'}).length;
   var h='<style>.dst{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700;margin-left:4px;white-space:nowrap}</style>';
   h+='<div class="m" style="margin:0 0 8px">🔎 <b>Corrida em dobro</b> — duas corridas pagas na mesma porta, ou o mesmo pedido saindo duas vezes, em até 3 horas. O GPS diz se o motoboy foi lá de novo.'+(j&&j.inicio?(' · <b>conta a partir de '+escDup(String(j.inicio).slice(8,10)+'/'+String(j.inicio).slice(5,7))+', sem retroativo</b>'):'')+(j&&j.cache_em?(' · lista refeita <b>'+escDup(dupQuando(j.cache_em))+'</b> (de hora em hora)'):'')+'</div>';
   h+='<div class="c" style="margin:0 0 10px;font-size:12.5px;line-height:1.5"><b>Como ler cada linha:</b> '+
@@ -428,7 +429,7 @@ async function viewDup(){
   h+=dupCard('🔴 Falta decidir', nAb, 'pagar uma só ou conferir, sem decisão ainda', 'w');
   h+=dupCard('Ainda dá para barrar', (R.ainda_da||0)+' · '+rs(R.valor_ainda_em_jogo||0), 'pagar uma só, pendentes no TrackEat ('+(R.pendente_no_track||0)+') ou do Foody ('+(R.sem_status||0)+')');
   h+=dupCard('Já aprovadas no TrackEat', (R.aprovado_no_track||0), 'pagar uma só que alguém já aprovou — essas já foram pagas');
-  h+=dupCard('🟢 Paga as duas', (R.pagar_duas||0), 'o GPS mostra duas idas: '+(R.pagar_duas_gps||0)+' · pedidos diferentes com folga: '+(R.pagar_duas_folga||0), 'g');
+  h+=dupCard('🟢 Paga as duas', (R.pagar_duas||0), 'o GPS mostra duas idas: '+(R.pagar_duas_gps||0)+' · pedidos diferentes com folga: '+(R.pagar_duas_folga||0)+(nJuntos?(' · ⚠️ 2º marcado pronto antes de pegarem o 1º: '+nJuntos):''), 'g');
   h+=dupCard('Decididas', (R.decididos||0), 'não pagar a 2ª: '+(R.nao_pagar||0));
   h+='</div>';
   h+='<div style="margin:0 0 8px;display:flex;gap:6px;flex-wrap:wrap">'+
@@ -445,13 +446,15 @@ async function viewDup(){
       +'<div style="color:var(--muted);font-size:11.5px">'+(r.minutos_entre==null?'':r.minutos_entre+' min depois')+'</div>';
     var vtxt=String(r.veredito||''), k=vtxt.indexOf('—');
     var ver='<span style="display:inline-block;border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:800;background:'+cor+'22;color:'+cor+'">'+escDup(k>0?vtxt.slice(0,k).trim():vtxt)+'</span>'+(k>0?'<div style="color:var(--muted);font-size:11.5px;margin-top:3px">'+escDup(vtxt.slice(k+1).trim())+'</div>':'');
+    /* 15/11/2026, pedido do Fabio: todo "pagar as duas" diz o porque. O texto vem pronto da porta (corrida_dupla_motivo), so com fatos. */
+    if(r.motivo) ver+='<div style="font-size:12px;line-height:1.4;margin-top:5px;max-width:320px'+(r.juntos==='podia'?';color:#c98500':'')+'"><b>'+(r.juntos==='podia'?'⚠️ ':'')+'Por quê:</b> '+escDup(r.motivo)+'</div>';
     rows+='<tr data-cdm-chave="'+escDup('dup|'+r.unidade+'|'+r.dia_operacional+'|'+r.pedido_2+'|'+(r.saiu_2||''))+'" style="border-top:1px solid #8883;vertical-align:top"><td>'+escDup(String(r.dia_operacional||'').slice(8,10)+'/'+String(r.dia_operacional||'').slice(5,7))+'</td><td>'+escDup(r.unidade)+'</td>'
       +'<td>'+escDup(r.porta_txt||'—')+'<div style="color:var(--muted);font-size:11.5px">cliente '+escDup(r.cliente_1||'?')+(r.cliente_2&&r.cliente_2!==r.cliente_1?(' e '+escDup(r.cliente_2)):'')+'</div></td>'
       +'<td>'+corridas+'</td><td>'+gps+'</td><td>'+ver+'</td><td>'+dupAcao(r,i)+'</td></tr>';
   });
   var rp=dupReprov(j&&j.reprovadas,j);
   if(!n){ el.innerHTML=h+'<div class="c"><div class="empty">'+(DUP_FIL==='abertos'?'Nada esperando decisão no período. 👍':'Nada para conferir no período.')+'</div></div>'+rp; return }
-  h+='<div class="c"><div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th>Dia</th><th>Loja</th><th>Onde</th><th>As duas corridas</th><th>O que o GPS diz</th><th>Veredito</th><th>Decisão</th></tr>'+rows+'</table></div></div>'+rp;
+  h+='<div class="c"><div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th>Dia</th><th>Loja</th><th>Onde</th><th>As duas corridas</th><th>O que o GPS diz</th><th style="min-width:220px">Veredito · por quê</th><th>Decisão</th></tr>'+rows+'</table></div></div>'+rp;
   el.innerHTML=h;
 }
 function viewRegras(){$('kpis').innerHTML='';$('faixa').innerHTML='';$('conteudo').innerHTML=REGRAS_HTML}
