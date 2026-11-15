@@ -274,6 +274,8 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
 .tg-vz{color:var(--muted);font-size:13px;padding:4px 6px 8px}
 .tg-av{color:var(--warn);font-size:12.5px;font-weight:700;padding:8px 6px;line-height:1.4}
 .tg-mbc{display:flex;align-items:center;gap:8px;padding:8px 6px 4px;font-size:13px;color:var(--text2);font-weight:700;cursor:pointer}
+.tg-res{margin:2px 6px 10px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--s2);font-size:13px;line-height:1.5;color:var(--text)}
+.tg-res b{color:var(--text2)}.tg-res .mal{color:#ffb0b0;font-weight:800}.tg-res small{display:block;margin-top:4px;color:var(--muted);font-size:11px}
 .tg-mbc .sw{width:12px;height:12px;border-radius:3px;flex:0 0 auto}
 .tg-mbc b{color:var(--text);font-size:14px}
 .tg-mbc span{margin-left:auto;color:var(--muted);font-weight:600;font-size:12px}
@@ -2498,6 +2500,7 @@ function tgDesenha(d){
       });
       h+='<div class="tg-gr"><i class="bola" style="background:var(--text2)"></i><h3>Na rua</h3><span class="n">'+nOk+'</span></div>'+(hr||'<div class="tg-vz">Nenhum agora.</div>');
     }
+    if(TG.foco) h+=tgResumoMb(TG.foco);
     if(TG.selCard&&!TG.selUsado&&TG.selConta>0&&TG.selIdx){ TG.selIdx=0; return tgDesenha(d); }   /* a linha repetida tocada sumiu: vale a primeira */
     if(TG.selCard&&!TG.selUsado) h=h.slice(0,iniLista)+TG.selCard+h.slice(iniLista);
     TG.selCard='';
@@ -2695,8 +2698,32 @@ function tgVerLinha(ln,cel){
   if(!mv) return;
   if(cel) window.scrollBy(0,mv); else lst.scrollTop+=mv;
 }
+/* 15/11/2026 (Fabio): tocar no motoboy mostra, abaixo das entregas, a escala de hoje, as corridas do dia e a corrida em
+   dobro para reprovar no TrackEat. Porta so de leitura fila_motoboy_resumo (a corrida em dobro so vem para quem ja ve a
+   aba do Pagar Motoboys). Le de novo a cada toque e, com o motoboy escolhido, no maximo 1 vez por minuto. */
+var TG_RES={};
+function tgResumoLe(n){
+  var c=TG_RES[n]; if(c&&(c.lendo||Date.now()-c.t<60000)) return;
+  TG_RES[n]={lendo:true,t:Date.now(),d:c&&c.d};
+  rpc('fila_motoboy_resumo',{p_token:cdmTok(),p_unidade:UNI,p_motoboy:n}).then(function(d){
+    TG_RES[n]={t:Date.now(),d:d,erro:!d}; if(TG.foco===n) tgDesenha(window.ULT_D); });
+}
+function tgResumoMb(n){
+  tgResumoLe(n);
+  var c=TG_RES[n]||{}, d=c.d, h='<div class="tg-gr"><i class="bola" style="background:var(--brand)"></i><h3>Resumo de '+esc(primeiroNome(n))+' hoje</h3></div><div class="tg-res">';
+  if(!d) return h+(c.erro?'Não consegui ler o resumo agora.':'Lendo…')+'</div>';
+  var esc0=Array.isArray(d.escala)?d.escala:[];
+  h+='<div><b>Escala:</b> '+(esc0.length?esc0.map(function(e){ return esc(e.turno||'')+' '+esc(e.de)+'–'+esc(e.ate); }).join(' · '):'não está na escala de hoje')+'</div>';
+  h+='<div><b>Corridas:</b> '+esc(d.entregues)+' entrega'+(+d.entregues===1?'':'s')+' em '+esc(d.rotas)+' rota'+(+d.rotas===1?'':'s')+
+     (d.ultima_entrega?' · última entregue às '+esc(d.ultima_entrega):'')+'</div>';
+  if(d.dobro){ var rp=d.dobro.reprovar||[], cf=d.dobro.conferir||[];
+    h+='<div><b>Corrida em dobro:</b> '+(rp.length?'<span class="mal">reprovar no TrackEat: '+rp.map(esc).join(', ')+'</span>':'nenhuma para reprovar')+
+       (cf.length?' · conferir: '+cf.map(esc).join(', '):'')+'</div>';
+  }
+  return h+'<small>Escala da loja · TrackEat lido às '+esc(d.trackeat_lido||'—')+(d.dobro?' · corrida em dobro calculada às '+esc(d.dobro.calculado_em||'—'):'')+' · resumo das '+esc(d.lido_em)+'</small></div>';
+}
 function tgFoco(n){
-  TG.foco=(TG.foco===n)?null:n; TG.sel=null; if(TG.foco&&TG.aba==='rota') TG.aba='ped'; tgDesenha(window.ULT_D);
+  TG.foco=(TG.foco===n)?null:n; TG.sel=null; if(TG.foco&&TG_RES[TG.foco]) TG_RES[TG.foco].t=0; if(TG.foco&&TG.aba==='rota') TG.aba='ped'; tgDesenha(window.ULT_D);
   if(!TG.foco||!TG.mp) return;
   var b=[]; Object.keys(TG.mk).forEach(function(k){ var mk=TG.mk[k]; if(mk.options.opacity>=1) b.push(mk.getLatLng()); });
   TG.cam.eachLayer(function(l){ if(l.getLatLng&&l.options&&l.options.zIndexOffset===1500&&l.options.opacity>=1) b.push(l.getLatLng()); });
