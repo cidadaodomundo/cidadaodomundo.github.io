@@ -195,7 +195,11 @@ function menu(){
      (modulo com grupo "_topo"), e abre em tela inteira (ver abrir). Ainda em 31/10 ele pediu o Mapa dentro do grupo Delivery:
      hoje nenhum modulo usa o _topo (fica pronto para um item fixo abaixo do Inicio, se ele pedir de novo). */
   let h='<div class="mi'+(ATUAL===null?' on':'')+'" onclick="inicio()"><div class="ic">🏠</div><div><div class="t">Início</div></div></div>'+
-    mods().filter(m=>m.grupo==='_topo').map(mi).join('')+'<div class="gsep"></div>';
+    mods().filter(m=>m.grupo==='_topo').map(mi).join('')+
+    /* 15/11/2026 (chat-rota-fixa-topo-15-11), pedido do Fabio: a rota inteligente (dentro do Mapa de Pedidos) fixada logo abaixo do Inicio.
+       So aparece para quem ja tem o Mapa de Pedidos (modulo fila); o Mapa continua tambem no grupo Delivery. */
+    (MODULOS.some(m=>m.id==='fila')?'<div class="mi" onclick="abrirRota()"><div class="ic">🧭</div><div><div class="t">Rota inteligente</div><div class="d">Água Verde: sugere as saídas dos prontos para ninguém atrasar</div></div></div>':'')+
+    '<div class="gsep"></div>';
   GRUPOS.forEach((g,i)=>{const l=mods().filter(m=>m.grupo===g);if(!l.length)return;
     const ab=ABERTO===g, tem=l.some(m=>m.id===ATUAL);
     h+='<div class="grp'+(ab?' aberto':'')+(tem?' tem':'')+'" onclick="grp('+i+')"><span>'+esc(g)+'</span><span class="gq">'+l.length+'</span><span class="gs">▸</span></div>';
@@ -256,6 +260,7 @@ async function carimboFontes(){try{
 /* 31/10/2026, pedido do Fabio: "coloque ele dentro da aba do delivery". O Mapa de Pedidos (modulo fila) foi para o grupo
    Delivery (portal_modulo) e continua abrindo em tela inteira: modulo desta lista abre a tela sozinha, fora do quadro do portal. */
 const TELA_CHEIA={fila:1};
+function abrirRota(){try{history.replaceState(null,'',location.pathname)}catch(e){}location.assign('/fila/?rota=1')}
 function abrir(id){const m=MODULOS.find(x=>x.id===id);if(!m)return;
   /* 31/10/2026, pedido do Fabio: "qdo clicar nele some as opcoes do lado e fica somente essa parte na tela inteira, assim como
      no foody". Modulo do grupo _topo abre a tela sozinha, sem o menu e sem o cabecalho do portal (mesma aba, a sessao continua);
