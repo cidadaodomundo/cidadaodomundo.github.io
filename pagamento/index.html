@@ -166,7 +166,7 @@ button.b[disabled]{opacity:.4;cursor:not-allowed}
 .pg-li>summary:hover{background:var(--s1)}
 .pg-li>summary:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 .pg-li .pc{color:var(--text2);font-variant-numeric:tabular-nums;white-space:nowrap;min-width:0}
-.pg-li .pc.nm{color:var(--text);font-weight:700;overflow:hidden;text-overflow:ellipsis}
+.pg-li .pc.nm{color:var(--text);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:normal}
 .pg-li .pc.nm small{display:block;font-weight:400;font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
 .pg-li .pc.nm .al{color:var(--warn);font-size:12px;font-weight:700;margin-left:8px}
 .pg-li .pc.vl{color:var(--text);font-weight:800}
@@ -174,6 +174,8 @@ button.b[disabled]{opacity:.4;cursor:not-allowed}
 .pg-li .pc.ok{color:var(--ok);font-weight:700}
 .pg-li .pc.dif{color:var(--warn);font-weight:700}
 .pg-li .pc.quebra{display:none}
+.pg-li .dup{display:inline-block;margin-left:8px;font-size:11.5px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:0 7px;cursor:pointer}
+.pg-li .dup.ab{color:var(--bad);border-color:var(--bad)}
 .pg-li-det{padding:4px 6px 18px;max-width:380px}
 .pg-li-det .pg-tk{animation:none}
 .pg-li-det .pg-tk>.pg-nome,.pg-li-det .pg-tk>.pg-hora{display:none}
@@ -262,10 +264,10 @@ button.b[disabled]{opacity:.4;cursor:not-allowed}
 
 <div class="tabs">
   <span class="tab on" id="t_pagar" onclick="setView('pagar')">💵 Quanto pagar</span>
+  <span class="tab" id="t_prova" onclick="setView('prova')" style="display:none">🧪 Prova real</span>
   <span class="tab" id="t_maq" onclick="setView('maq')">🧾 Maquininha do dia</span>
   <span class="tab" id="t_dup" onclick="setView('dup')">🔎 Corrida em dobro</span>
   <span class="tab" id="t_acerto" onclick="setView('acerto')" style="display:none">📒 Acerto</span>
-  <span class="tab" id="t_prova" onclick="setView('prova')" style="display:none">🧪 Prova real</span>
   <span class="tab" id="t_reg" onclick="setView('reg')">📜 As regras</span>
 </div>
 
@@ -356,7 +358,7 @@ function kpis(){
 }
 function kpi(k,c,v,d){return '<div class="kpi '+(c||'')+'"><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="d">'+d+'</div></div>'}
 
-function setView(v){if(v==='cmp'||v==='pag')v='pagar'; VIEW=v;
+function setView(v){if(v==='cmp'||v==='pag')v='pagar'; VIEW=v; try{for(var _k in DUPDIA)delete DUPDIA[_k]}catch(e){} /* decisões da aba Corrida em dobro valem na hora */
   try{$('t_pagar').className='tab'+(v==='pagar'?' on':'')}catch(e){}
   $('t_maq').className='tab'+(v==='maq'?' on':'');
   try{$('t_dup').className='tab'+(v==='dup'?' on':'')}catch(e){}
@@ -379,6 +381,31 @@ function dupSt(s,f){
   if(s==='Pendente') return '<span class="dst" style="background:#c9850022;color:#c98500">⏳ pendente no TrackEat</span>';
   if(s==='Reprovado') return '<span class="dst" style="background:#e6676722;color:#e66767">⛔ reprovada no TrackEat</span>';
   return '<span class="dst" style="background:#8882;color:var(--muted)">'+escDup(s||'sem status')+'</span>';
+}
+/* 15/11/2026, Fábio: corrida em dobro que não foi cancelada aparece no Quanto pagar e na Prova real.
+   Regra combinada com a frente "Barrar corridas duplicadas": veredito 'PAGAR UMA…', TrackEat não reprovou e ninguém decidiu 'pagar_duas'.
+   Mesma porta da aba Corrida em dobro (pagamento_dupla_consulta), um dia por vez, guardada por dia. */
+const DUPDIA={}, DUPCARR={};
+function dupNorm(t){return String(t==null?'':t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim()}
+function dupCarrega(dia,depois){
+  if(!dia||DUPDIA[dia]||DUPCARR[dia])return; DUPCARR[dia]=1;
+  fetch(SB+'rpc/pagamento_dupla_consulta',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({p_token:cdmTok(),p_dados:{de:dia,ate:dia}})})
+   .then(function(r){if(!r.ok)throw new Error('porta '+r.status);return r.json()})
+   .then(function(j){DUPDIA[dia]={ok:true,l:((j&&j.linhas)||[]).filter(function(r){return String(r.veredito||'').indexOf('PAGAR UMA')===0&&r.status_2!=='Reprovado'&&r.decisao!=='pagar_duas'})}})
+   .catch(function(){DUPDIA[dia]={ok:false,l:[]}})
+   .then(function(){delete DUPCARR[dia];try{depois()}catch(e){}});
+}
+function dupDoMotoboy(dia,loja,nome){
+  const D=DUPDIA[dia]; if(!D||!D.l.length)return [];
+  const n=dupNorm(nome), lj=lojaId(loja);
+  return D.l.filter(function(r){return String(r.dia_operacional||'').slice(0,10)===dia&&dupNorm(r.entregador_2)===n&&(!lj||!lojaId(r.unidade)||lojaId(r.unidade)===lj)});
+}
+function dupSelo(L){
+  if(!L.length)return '';
+  const ab=L.filter(function(r){return r.decisao!=='nao_pagar'}), tot=ab.reduce(function(a,r){return a+(Number(r.valor_2)||0)},0);
+  if(!ab.length)return '<span class="dup" title="Corrida em dobro: o desconto da 2ª já foi lançado na aba Corrida em dobro" onclick="event.preventDefault();event.stopPropagation();setView(\'dup\')">🔁 em dobro · desconto lançado</span>';
+  return '<span class="dup ab" title="'+ab.length+' corrida(s) em dobro sem decisão ('+rs(tot)+'). Decida na aba Corrida em dobro antes de pagar." onclick="event.preventDefault();event.stopPropagation();setView(\'dup\')">🔁 '+ab.length+' em dobro · '+rs(tot)+'</span>';
 }
 function dupAberto(r){ return !r.decisao && String(r.veredito||'').indexOf('PAGAR AS DUAS')!==0 }
 function dupAcao(r,i){
@@ -1095,7 +1122,7 @@ function pgLinha(m,i){
   const al=!m.escondido&&(pgRegraConferir(m)||(PD.ve_pix!==false&&!m.chave_pix)||m.garantido===false);
   const vh=m.valor_hora!=null&&m.valor_hora!==''?rs(m.valor_hora):'—';
   return '<details class="pg-li" data-k="'+esc(k)+'" ontoggle="pgTog(this)"'+(PG_ABERTO[k]?' open':'')+'><summary>'+
-    '<span class="pc nm">'+esc(m.entregador)+(al?'<span class="al" title="Tem aviso: abra a linha antes de pagar">⚠ conferir</span>':'')+'</span>'+
+    '<span class="pc nm">'+esc(m.entregador)+(al?'<span class="al" title="Tem aviso: abra a linha antes de pagar">⚠ conferir</span>':'')+dupSelo(dupDoMotoboy(PD.dia,m.unidade,m.entregador))+'</span>'+
     '<span class="pc quebra"></span>'+
     '<span class="pc" data-l="🕒">'+esc(m.chegada||'—')+' → '+esc(m.ultima_entrega||'—')+'</span>'+
     '<span class="pc r" data-l="horas">'+(m.escondido?'—':hhmm(m.horas))+'</span>'+
@@ -1109,6 +1136,8 @@ function viewPagar(){
   $('kpis').innerHTML='';$('faixa').innerHTML='';
   carregaNotasChegada();
   const l=soDaLoja(PD.linhas);
+  dupCarrega(PD.dia,function(){if(VIEW==='pagar'&&PD)viewPagar()});
+  const dupFalhou=DUPDIA[PD.dia]&&DUPDIA[PD.dia].ok===false;
   let h='<div class="c"><div class="hs" style="margin:0 0 8px"><b>💵 Quanto pagar a cada motoboy</b> · '+esc(PD.dia_semana)+', '+esc(PD.dia_texto)+' · '+'tarifas por loja e turno'+'</div>'+
     '<button class="b" onclick="pagDiaPula(-1)">◀ dia anterior</button> '+
     '<input type="date" value="'+esc(PD.dia)+'" max="'+pgHojeOp()+'" onchange="pagDiaMuda(this.value)" aria-label="Escolher o dia"> '+
@@ -1117,6 +1146,7 @@ function viewPagar(){
   if(PD.dia===pgHojeOp()) h+='<div class="c" style="border-left:4px solid var(--warn)"><b>⏳ Este dia ainda está em andamento.</b> Os valores abaixo são parciais: pague pelo dia que já fechou.</div>';
   if(!l.length){$('conteudo').innerHTML=h+'<div class="c empty">Ninguém rodou neste dia'+(LOJA?' nesta loja':'')+'. Escolha outro dia nas setas acima.</div>';return}
   const pendRegra=l.filter(function(m){return !m.escondido&&pgRegraConferir(m)}).length;
+  if(dupFalhou) h+='<div class="c" style="border-left:4px solid var(--warn)">A conferência de <b>corrida em dobro</b> não carregou: confira na aba 🔎 Corrida em dobro antes de pagar.</div>';
   if(pendRegra) h+='<div class="c" style="border-left:4px solid var(--warn)"><b>Conferir antes de pagar:</b> '+pendRegra+' motoboy(s) com regra ou escala incompleta. O total inclui prévias.</div>';
   let tot=0; l.forEach(function(m){tot+=Number(m.pagar||0)}); tot=Math.round(tot*100)/100;
   const semPix=l.filter(function(m){return !m.chave_pix}).length, nEsc=l.filter(function(m){return m.escondido}).length;
@@ -1492,7 +1522,7 @@ function prLinha(x,i){
   else{dif=(d>0?'+ ':'− ')+pgV(Math.abs(d));cl=' dif'}
   const ent=x.n_entregas!=null?num(x.n_entregas):'—';
   return '<details class="pg-li" data-k="'+esc(k)+'" ontoggle="pgTog(this)"'+(PG_ABERTO[k]?' open':'')+'><summary>'+
-    '<span class="pc nm">'+esc(String(x.pessoa||'').replace(/^sem dono: /,'❓ '))+(prRegraConferir(x)?'<span class="al" title="Valor lacrado era uma prévia: conferir a regra">⚠ conferir</span>':'')+(x.lojas?'<small>'+esc(x.lojas)+'</small>':'')+'</span>'+
+    '<span class="pc nm">'+esc(String(x.pessoa||'').replace(/^sem dono: /,'❓ '))+(prRegraConferir(x)?'<span class="al" title="Valor lacrado era uma prévia: conferir a regra">⚠ conferir</span>':'')+dupSelo(dupDoMotoboy(x.dia,(prLojasDe(x).length===1?prLojasDe(x)[0]:''),x.pessoa))+(x.lojas?'<small>'+esc(x.lojas)+'</small>':'')+'</span>'+
     '<span class="pc quebra"></span>'+
     '<span class="pc" data-l="🕒">'+jn.hr+'</span>'+
     '<span class="pc r" data-l="horas">'+jn.horas+'</span>'+
@@ -1650,7 +1680,7 @@ function viewProva(){
     h+='<div class="c empty">O primeiro lacre sai hoje às 22h (e de meia em meia hora até 3h30). Amanhã às 9h05 sai o lacre oficial de hoje, e a comparação aparece quando a planilha e o Pix chegarem.</div>';
   } else {
     const l=(porDia[dia]||[]).slice().sort(function(a,b){const da=(prComparavel(a)&&!prBate(a))||prFalta(a)?0:1, db=(prComparavel(b)&&!prBate(b))||prFalta(b)?0:1; return da-db||String(a.pessoa).localeCompare(String(b.pessoa))});
-    prCarregaChegada(dia); prCarregaEscala(dia);
+    prCarregaChegada(dia); prCarregaEscala(dia); dupCarrega(dia,function(){if(VIEW==='prova'&&PV)viewProva()});
     const lac=(PV.lacres||[]).filter(function(x){return x.dia===dia});
     const ofi=lac.filter(function(x){return x.tipo==='OFICIAL'})[0], pre=lac.filter(function(x){return x.tipo==='PREVIA'})[0];
     const pl=(PV.planilhas||[]).filter(function(x){return x.dia===dia&&(!LOJA||lojaId(x.unidade)===lojaId(LOJA))});
