@@ -203,6 +203,9 @@ button.b[disabled]{opacity:.4;cursor:not-allowed}
 .chk li.alerta b{color:var(--warn)}
 .chk li.esp::before{content:'…';color:var(--muted)}
 .chk li.esp b{color:var(--muted)}
+.chk li .fo,.vr .fo{display:block;font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.35;font-weight:400}
+.chk li .fo::before,.vr .fo::before{content:'fonte: ';font-weight:700}
+.vr .fo.lido::before{content:''}
 .vr-mais{margin:0 0 14px}
 .vr-mais>summary{cursor:pointer;color:var(--muted);font-size:12.5px;font-weight:600;list-style:none;display:inline-block}
 .vr-mais>summary::after{content:' ›'}
@@ -1211,64 +1214,78 @@ function pgOrdenar(lu){
 /* 15/11/2026, Fábio escolheu "A · Veredito" para o que abre na linha: "mais funcional e assertivo".
    Só junta o que a porta já devolve (pagamento_do_dia e prova_painel); a conta completa fica guardada em "ver a conta completa". */
 function pgVeredito(m,x){
-  const it=[]; function add(c,t){it.push('<li class="'+c+'">'+t+'</li>')}
+  const it=[]; function add(c,t,f){it.push('<li class="'+c+'">'+t+(f?'<span class="fo">'+f+'</span>':'')+'</li>')}
+  /* 15/11: de onde vem cada informação (robô ou leitura). Horários dos robôs = agenda do cron, em horário de Brasília. */
+  const F_ENT='TrackEat, robô trackeat-api-entregas (de 5 em 5 min, das 9h às 3h56)',
+        F_CHEG='GPS do pátio pelo Foody + fila e 1ª entrega do TrackEat + escala do Jaison',
+        F_ESC='escala do Jaison (robôs escala-jaison, de 1 a 10 min, ou colada pelo WhatsApp)',
+        F_REF='Saipos, comanda "Z Motoboys" (robô saipos-itens-sync, de 10 em 10 min das 10h às 3h57, e rodadas extras de manhã) ou lanche apontado à mão',
+        F_DUP='TrackEat + pedidos do Foody e do Saipos + GPS, lista renovada de hora em hora (robô reentrega-real-cache) e no fim de cada turno (16h e 1h) · decisão na aba Corrida em dobro',
+        F_PLAN='foto da planilha no grupo FECHAMENTO MOTOBOYS, lida pelo robô fechamento-foto (de 10 em 10 min)',
+        F_PIX='Organizze (extrato do banco), robô prova-pix-sync (7h50, 12h50, 16h50 e 20h50), registrado pelo robô prova-ver-fontes (de 10 em 10 min)'+(PV&&PV.pix_ate_texto?' · extrato lido até '+esc(PV.pix_ate_texto):''),
+        F_LACRE='lacre da Prova real (prévias de 22h02 a 3h32, oficial às 9h05, 9h25 e 9h45)';
   if(m.escondido){
     let h='<div class="vr"><div class="vr-a"><div class="vr-v"><span class="k">Pagar</span><b>escondido</b></div>'+
       '<div class="vr-p">🧪 Prova real: o valor do sistema aparece depois que a planilha desta loja for lida no grupo FECHAMENTO MOTOBOYS.</div></div><ul class="chk">';
-    h+='<li class="esp">Chegou <b>'+esc(m.chegada||'—')+'</b> · última entrega <b>'+esc(m.ultima_entrega||'—')+'</b></li></ul></div>';
+    h+='<li class="esp">Chegou <b>'+esc(m.chegada||'—')+'</b> · última entrega <b>'+esc(m.ultima_entrega||'—')+'</b><span class="fo">'+F_CHEG+' · entregas: '+F_ENT+'</span></li></ul></div>';
     return h;
   }
   const taxas=Number(m.taxas||0), ref=Number(m.cobrar_refeicao||0), aj=Number(m.ajustes||0);
   const base=Math.round((Number(m.pagar||0)-aj+ref)*100)/100, vale_gar=base>taxas+0.01;
-  let por;
+  let por, pf=[];
   if(m.editado){
     por='Valor do <b>fechamento editado à mão</b>. No sistema: '+num(m.entregas)+' entregas = '+rs(taxas)+'.';
+    pf.push('valor: edição à mão no fechamento','entregas: '+F_ENT);
   } else if(vale_gar){
     const hx=Number(m.horas_escala)*Number(m.valor_hora), confere=Number(m.horas_escala)>0&&Math.abs(hx-base)<0.01;
     por='Vale o <b>garantido</b>'+(confere?': '+num(m.horas_escala)+'h × '+rs(m.valor_hora)+' = '+rs(base):' do turno: '+rs(base))+'. As '+num(m.entregas)+' entregas deram '+rs(taxas)+', menos que o garantido.';
+    pf.push('horas: '+F_ESC,'R$ por hora: valor guardado no banco (no Ahú, tarifa por turno), explicado na aba As regras','entregas: '+F_ENT);
   } else {
     por='Valem as <b>entregas</b>: '+num(m.entregas)+' entregas = '+rs(taxas)+'.';
     if(m.garantido===false) por+=' Sem garantido neste dia.';
+    pf.push('entregas: '+F_ENT);
   }
-  if(!m.editado&&ref>0) por+=' Menos o lanche a mais: '+rs(ref)+(m.lanche_produto?' ('+esc(m.lanche_produto)+')':'')+'.';
-  if(!m.editado&&Math.abs(aj)>0.004) por+=' Ajuste: '+(aj>0?'+ ':'− ')+rs(Math.abs(aj))+(m.motivos?' ('+esc(m.motivos)+')':'')+'.';
+  if(!m.editado&&ref>0){ por+=' Menos o lanche a mais: '+rs(ref)+(m.lanche_produto?' ('+esc(m.lanche_produto)+')':'')+'.'; pf.push('lanche: '+F_REF); }
+  if(!m.editado&&Math.abs(aj)>0.004){ por+=' Ajuste: '+(aj>0?'+ ':'− ')+rs(Math.abs(aj))+(m.motivos?' ('+esc(m.motivos)+')':'')+'.'; pf.push('ajuste: lançado à mão (ajustes do motoboy)'); }
   /* lista de conferência */
   const T=chTurnos(m), tol=tolPag();
-  if(m.editado) add('alerta','<b>Fechamento editado à mão</b>: o valor pago é o da edição');
-  if(!T.length) add('alerta','Sem escala do Jaison com este nome: <b>confira na Chegada do dia</b>');
+  if(m.editado) add('alerta','<b>Fechamento editado à mão</b>: o valor pago é o da edição','edição feita à mão no fechamento');
+  if(!T.length) add('alerta','Sem escala do Jaison com este nome: <b>confira na Chegada do dia</b>',F_ESC);
   T.forEach(function(t){
     const at=(t.furou!==true&&t.chegada&&t.atraso_min!=null)?' (≈ '+(Number(t.atraso_min)>0?'+':'')+esc(t.atraso_min)+' min)':'';
-    if(t.furou===true) add('alerta','Turno das '+esc(t.combinado||'?')+': chegou <b>'+esc(t.chegada||'—')+'</b>, <b>passou da tolerância</b>'+(tol!=null?' de '+esc(tol)+' min':'')+(m.garantido!==false?' · garantido mantido no fechamento':''));
-    else if(t.furou===false) add('ok','Turno das '+esc(t.combinado||'?')+': chegou <b>'+esc(t.chegada)+at+', dentro da tolerância</b>');
-    else add('alerta','Turno das '+esc(t.combinado||'?')+': <b>'+(t.chegada?'sem prova da chegada':'sem GPS/fila')+'</b>, não corta');
+    if(t.furou===true) add('alerta','Turno das '+esc(t.combinado||'?')+': chegou <b>'+esc(t.chegada||'—')+'</b>, <b>passou da tolerância</b>'+(tol!=null?' de '+esc(tol)+' min':'')+(m.garantido!==false?' · garantido mantido no fechamento':''),F_CHEG);
+    else if(t.furou===false) add('ok','Turno das '+esc(t.combinado||'?')+': chegou <b>'+esc(t.chegada)+at+', dentro da tolerância</b>',F_CHEG);
+    else add('alerta','Turno das '+esc(t.combinado||'?')+': <b>'+(t.chegada?'sem prova da chegada':'sem GPS/fila')+'</b>, não corta',F_CHEG);
   });
-  if(m.garantido===true) add('ok','Garantido: <b>tem direito</b>'+(m.garantido_fonte==='botao'?' (decisão do dono na Chegada)':''));
-  else if(m.garantido===false) add('alerta','Garantido: <b>sem direito</b> · '+(m.garantido_fonte==='botao'?'decisão do dono na Chegada':motivoCorte(m)));
-  else add('alerta','Garantido: <b>a conferir</b>');
+  const fg=m.garantido_fonte==='botao'?'botão do dono na tela Chegada do dia':m.garantido_fonte==='excecao'?'cadastro de exceções (combinado sem garantido)':'regra da tela Chegada: '+F_CHEG;
+  if(m.garantido===true) add('ok','Garantido: <b>tem direito</b>'+(m.garantido_fonte==='botao'?' (decisão do dono na Chegada)':''),fg);
+  else if(m.garantido===false) add('alerta','Garantido: <b>sem direito</b> · '+(m.garantido_fonte==='botao'?'decisão do dono na Chegada':motivoCorte(m)),fg);
+  else add('alerta','Garantido: <b>a conferir</b>',fg);
   const nr=m.direito_refeicoes, nt=Number(m.turnos||0);
   if(nr!=null&&nr!==''){
-    if(Number(nr)>0) add(nt>Number(nr)?'alerta':'ok','Refeição: <b>'+(nt>1?num(nr)+' de '+num(nt)+' turnos':'tem direito')+'</b>');
-    else add(ref>0?'alerta':'ok','Refeição: <b>sem direito</b>'+(ref>0?' · lanche cobrado '+rs(ref):''));
+    if(Number(nr)>0) add(nt>Number(nr)?'alerta':'ok','Refeição: <b>'+(nt>1?num(nr)+' de '+num(nt)+' turnos':'tem direito')+'</b>','direito: regra da Chegada · lanches: '+F_REF);
+    else add(ref>0?'alerta':'ok','Refeição: <b>sem direito</b>'+(ref>0?' · lanche cobrado '+rs(ref):''),'direito: regra da Chegada · lanches: '+F_REF);
   }
-  if(Number(m.lanche_sem_preco)>0) add('alerta','Falta o preço de <b>'+num(m.lanche_sem_preco)+' lanche</b>: não foi cobrado');
-  if(pgRegraConferir(m)) add('alerta','<b>Conferir a regra antes de pagar</b>: o valor é uma prévia');
+  if(Number(m.lanche_sem_preco)>0) add('alerta','Falta o preço de <b>'+num(m.lanche_sem_preco)+' lanche</b>: não foi cobrado',F_REF+' · preço: tabela de preço da refeição');
+  if(pgRegraConferir(m)) add('alerta','<b>Conferir a regra antes de pagar</b>: o valor é uma prévia','tela As regras');
   const dp=dupDoMotoboy(PD.dia,m.unidade,m.entregador).filter(function(r){return r.decisao!=='nao_pagar'});
-  if(dp.length) add('alerta','<b>'+dp.length+' corrida(s) em dobro</b> sem decisão ('+rs(dp.reduce(function(a,r){return a+(Number(r.valor_2)||0)},0))+') · <a href="#" onclick="setView(\'dup\');return false">decidir</a>');
+  if(dp.length) add('alerta','<b>'+dp.length+' corrida(s) em dobro</b> sem decisão ('+rs(dp.reduce(function(a,r){return a+(Number(r.valor_2)||0)},0))+') · <a href="#" onclick="setView(\'dup\');return false">decidir</a>',F_DUP);
   if(x){
     const d=pgDif(m,x);
-    if(x.deles!=null) add(d.t==='bate'?'ok':'alerta','Planilha da loja: <b>'+rs(x.deles)+(d.t==='bate'?', bate':(d.t==='conferir'?', bate, mas conferir a regra':(d.v!=null?', diferença '+d.t:'')))+'</b>');
-    else add('esp','Planilha da loja: <b>ainda não chegou</b>');
-    if(x.n_entregas!=null&&x.d_entregas!=null) add(Number(x.n_entregas)===Number(x.d_entregas)?'ok':'alerta','Corridas: <b>'+num(x.n_entregas)+' no sistema, '+num(x.d_entregas)+' na planilha</b>');
-    if(x.pago!=null) add('ok','Pix: <b>saiu '+rs(x.pago)+'</b>');
-    else add(x.pix_status==='esperando o banco'?'esp':'alerta','Pix: <b>'+(x.pix_status==='esperando o banco'?'esperando o banco':'sem Pix achado')+'</b>');
-    if(x.nosso!=null&&Math.abs(Number(x.nosso)-Number(m.pagar||0))>=0.01) add('alerta','O lacre da Prova real guardou <b>'+rs(x.nosso)+'</b>: o valor mudou depois');
+    if(x.deles!=null) add(d.t==='bate'?'ok':'alerta','Planilha da loja: <b>'+rs(x.deles)+(d.t==='bate'?', bate':(d.t==='conferir'?', bate, mas conferir a regra':(d.v!=null?', diferença '+d.t:'')))+'</b>',F_PLAN);
+    else add('esp','Planilha da loja: <b>ainda não chegou</b>',F_PLAN);
+    if(x.n_entregas!=null&&x.d_entregas!=null) add(Number(x.n_entregas)===Number(x.d_entregas)?'ok':'alerta','Corridas: <b>'+num(x.n_entregas)+' no sistema, '+num(x.d_entregas)+' na planilha</b>','sistema: '+F_ENT+' · planilha: foto no grupo FECHAMENTO MOTOBOYS');
+    if(x.pago!=null) add('ok','Pix: <b>saiu '+rs(x.pago)+'</b>',F_PIX);
+    else add(x.pix_status==='esperando o banco'?'esp':'alerta','Pix: <b>'+(x.pix_status==='esperando o banco'?'esperando o banco':'sem Pix achado')+'</b>',F_PIX);
+    if(x.nosso!=null&&Math.abs(Number(x.nosso)-Number(m.pagar||0))>=0.01) add('alerta','O lacre da Prova real guardou <b>'+rs(x.nosso)+'</b>: o valor mudou depois',F_LACRE);
   }
   let pix='';
   if(PD.ve_pix!==false){
-    if(m.chave_pix){const k=String(m.chave_pix);pix='<div class="pix"><button type="button" onclick="pgCopiar(this,\''+esc(k).replace(/'/g,'\\\'')+'\')">Copiar a chave Pix</button><code>'+esc(k)+'</code></div>'}
-    else pix='<div class="pix"><span class="vm">Sem chave Pix: peça antes de pagar</span></div>';
+    if(m.chave_pix){const k=String(m.chave_pix);pix='<div class="pix"><button type="button" onclick="pgCopiar(this,\''+esc(k).replace(/'/g,'\\\'')+'\')">Copiar a chave Pix</button><code>'+esc(k)+'</code></div><span class="fo">chave: cadastro do motoboy</span>'}
+    else pix='<div class="pix"><span class="vm">Sem chave Pix: peça antes de pagar</span></div><span class="fo">cadastro do motoboy</span>';
   }
-  return '<div class="vr"><div class="vr-a"><div class="vr-v"><span class="k">Pagar</span><b>'+rs(m.pagar)+'</b></div><div class="vr-p">'+por+'</div>'+pix+'</div><ul class="chk">'+it.join('')+'</ul></div>';
+  const lido='<span class="fo lido">tela lida às '+esc(PD.agora||'—')+(PV&&PV.agora?' · Prova real lida às '+esc(PV.agora):'')+'</span>';
+  return '<div class="vr"><div class="vr-a"><div class="vr-v"><span class="k">Pagar</span><b>'+rs(m.pagar)+'</b></div><div class="vr-p">'+por+'<span class="fo">'+pf.join(' · ')+'</span></div>'+pix+lido+'</div><ul class="chk">'+it.join('')+'</ul></div>';
 }
 function pgLinha(m,i){
   const k=String(m.unidade||'')+'|'+String(m.entregador||''), x=pgProvaDe(m), d=pgDif(m,x);
