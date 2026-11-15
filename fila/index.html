@@ -409,6 +409,8 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
 .tg-novo{position:absolute;left:0;top:0;transform:translate(-50%,-50%);padding:0 6px;border-radius:999px;border:2px solid #ea1d2c;background:#fff;color:#c4111d;font:800 12px/17px 'Barlow Condensed',Barlow,sans-serif;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.45);cursor:pointer}
 .tg-moto{position:absolute;left:0;top:0;transform:translate(-50%,-50%);display:flex;align-items:center;gap:4px;padding:1px 8px 1px 5px;border-radius:999px;border:2px solid #111;color:#111;font:800 12px/17px Barlow,sans-serif;white-space:nowrap;box-shadow:0 2px 7px rgba(0,0,0,.5);cursor:pointer}
 .tg-loja{position:absolute;left:0;top:0;transform:translate(-50%,-50%);display:flex;align-items:center;gap:6px;padding:3px 9px 3px 6px;border-radius:10px;background:var(--brand);border:2px solid #111;color:#111;font:800 12.5px/16px Barlow,sans-serif;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.tg-loja{padding:0;width:18px;height:18px;justify-content:center;gap:0;border-radius:50%;border-width:1.5px;font-size:10px;line-height:18px}   /* 15/11 Fabio: loja bem pequena, sem cobrir os pedidos */
+.mm-lj{font-size:12px;line-height:16px}
 .tg-loja .fila{background:#111;color:var(--brand);border-radius:999px;padding:1px 7px;font-size:11.5px}
 .tg-aro{position:absolute;transform:translate(-50%,-50%);font:700 11px Barlow,sans-serif;color:#5b5545;background:rgba(255,255,255,.85);border-radius:6px;padding:0 5px;white-space:nowrap}
 .tg-mapa.escuro .tg-aro{background:rgba(26,26,25,.85);color:#b9b6a8}
@@ -1346,8 +1348,10 @@ function czBloco(){
    sugestao nunca tem mais pedidos atrasados que elas na conta. Os numeros da conta (segundos por entrega, minutos por km em linha reta,
    tolerancia, maximo que a tela abre, horario do almoco) vem do banco (motoboy_param, chaves rota_*, campo rota_modelo
    de fila_pedidos) e nunca sao escritos aqui: sem eles a caixa diz que nao da para sugerir. */
-var RS_CAP=null, RS_MAPA=true, RS_ULT=null;
-try{ var _rc=+localStorage.getItem('cdm_fila_cap'); if(_rc>=2&&_rc<=6&&_rc===Math.round(_rc)) RS_CAP=_rc; if(localStorage.getItem('cdm_fila_rsmapa')==='0') RS_MAPA=false; }catch(e){}
+/* 15/11/2026 (Fabio): "quando nao tem rota inteligente ... deixar o mapa mais limpo": a sugestao (A1, B2 e o pontilhado) so
+   aparece quando alguem liga a rota inteligente; ao abrir a tela ela comeca escondida. */
+var RS_CAP=null, RS_MAPA=false, RS_ULT=null;
+try{ var _rc=+localStorage.getItem('cdm_fila_cap'); if(_rc>=2&&_rc<=6&&_rc===Math.round(_rc)) RS_CAP=_rc; }catch(e){}
 var RS_COR=['#4FC3F7','#FFB74D','#81C784','#F48FB1','#CE93D8','#FFF176','#80CBC4','#BCAAA4'];
 function rsHav(a,b){ var R=6371000, r=Math.PI/180, dLa=(b.lat-a.lat)*r, dLo=(b.lng-a.lng)*r;
   var x=Math.pow(Math.sin(dLa/2),2)+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.pow(Math.sin(dLo/2),2); return 2*R*Math.asin(Math.sqrt(x)); }
@@ -1659,6 +1663,7 @@ function rsMapaTroca(){
 /* no mapa: linha pontilhada da loja ate cada entrega, na ordem sugerida, e etiqueta A1, A2... ao lado do pedido */
 function rsMapa(mp,d){
   if(!RS_MAPA||!RS_ULT||!RS_ULT.rotas.length||!d.loja||d.loja.lat==null) return;
+  if(window.TG&&TG.on&&TG.aba!=='rota') return;   /* 15/11: no mapa grande, so na aba da rota inteligente */
   var lj=[+d.loja.lat,+d.loja.lng];
   var so=(window.TG&&TG.on&&TG.aba==='rota'&&TG.rsSo)||null;   /* 01/11/2026: rota escolhida sozinha esconde as outras */
   RS_ULT.rotas.forEach(function(rt){
@@ -1970,7 +1975,7 @@ function minimapas(d){
     L.tileLayer(MAPA_FUNDO,{maxZoom:19,className:'mm-fundo',attribution:MAPA_ATRIB}).addTo(mp);
     var todos=[], foco=[];
     if(d.loja&&d.loja.lat!=null&&d.loja.lng!=null){ var lj=[+d.loja.lat,+d.loja.lng]; todos.push(lj); foco.push(lj);
-      L.marker(lj,{icon:mmIcone('🏠','mm-e',null,26),zIndexOffset:2000,interactive:false}).addTo(mp); }
+      L.marker(lj,{icon:mmIcone('🏠','mm-e mm-lj',null,16),zIndexOffset:2000,interactive:false}).addTo(mp); }
     rua.forEach(function(m){
       var ps=pontosRota(m); if(!ps.length) return;
       var apaga=!!DEST&&DEST!==m.motoboy, cor=(ps[0].grupo&&COR[Number(ps[0].grupo)])||'#E0A81C';
@@ -2298,7 +2303,7 @@ var TG={on:true, mp:null, cam:null, base:null, fitUni:null, baseUni:null, extra:
 try{ TG.on=(localStorage.getItem('cdm_fila_vista')||'mapa')!=='lista'; }catch(e){}
 /* 15/11/2026 (chat-rota-fixa-topo-15-11), pedido do Fabio: "deixa isso fixado ali em cima". O item fixo do menu abre
    /fila/?rota=1: Agua Verde, vista Mapa e a aba Rota sugerida ja ligada. So muda esta abertura; nada fica guardado. */
-try{ if(/[?&]rota=1(&|$)/.test(location.search)){ UNI='Água Verde'; TG.on=true; TG.aba='rota'; } }catch(e){}
+try{ if(/[?&]rota=1(&|$)/.test(location.search)){ UNI='Água Verde'; TG.on=true; TG.aba='rota'; RS_MAPA=true; } }catch(e){}
 try{ TG.escuro=localStorage.getItem('cdm_fila_escuro')==='1'; }catch(e){}
 /* 01/11/2026: so os numeros e o padrao; "ver detalhes" volta aos cartoes (fica guardado neste aparelho). rsSo = rota sugerida mostrada sozinha */
 TG.det=false; TG.rsSo=null; TG.rsIds=null;
@@ -2561,7 +2566,7 @@ function tgDesenha(d){
   var pts=[], lj=(d.loja&&d.loja.lat!=null)?[+d.loja.lat,+d.loja.lng]:null;
   if(lj) pts.push(lj);
   var naLoja=mbs.filter(function(m){return m.no_patio;}).map(function(m){return primeiroNome(m.motoboy);});
-  if(lj) L.marker(lj,{zIndexOffset:2000,keyboard:false,icon:L.divIcon({className:'',iconSize:[0,0],html:'<div class="tg-loja">🏠 Loja'+(naLoja.length?'<span class="fila">'+naLoja.length+' na loja</span>':'')+'</div>'})})
+  if(lj) L.marker(lj,{zIndexOffset:2000,keyboard:false,icon:L.divIcon({className:'',iconSize:[0,0],html:'<div class="tg-loja" title="Loja'+(naLoja.length?' · '+naLoja.length+' na loja':'')+'">🏠</div>'})})
     .bindTooltip('<b>'+esc(UNI)+'</b><br>'+(naLoja.length?'Na loja: '+naLoja.map(esc).join(', '):'Nenhum motoboy no pátio agora'),{direction:'top',offset:[0,-14],className:'mm-dica'}).addTo(cam);
   var mkPed=function(id,ll,html,dica,z,dim){
     var mk=L.marker(ll,{zIndexOffset:z,keyboard:false,opacity:dim?.25:1,icon:L.divIcon({className:'',iconSize:[0,0],html:html})})
@@ -2759,7 +2764,7 @@ document.addEventListener('click',function(e){
     tgDesenha(window.ULT_D); tgRsZoom(); return; }
   var dt=t.closest('[data-tgdet]'); if(dt){ TG.det=dt.getAttribute('data-tgdet')==='1'; try{ localStorage.setItem('cdm_fila_det',TG.det?'1':'0'); }catch(x){} tgDesenha(window.ULT_D); return; }
   if(t.closest('[data-tgsx]')){ TG.sel=null; tgDesenha(window.ULT_D); return; }
-  var a=t.closest('[data-tga]'); if(a){ TG.aba=a.getAttribute('data-tga'); tgDesenha(window.ULT_D); if(!tgCel()) tgMostraSel(false); return; }
+  var a=t.closest('[data-tga]'); if(a){ TG.aba=a.getAttribute('data-tga'); if(TG.aba==='rota') RS_MAPA=true; tgDesenha(window.ULT_D); if(!tgCel()) tgMostraSel(false); return; }
   var f=t.closest('[data-tgf]'); if(f){ TG.filtro=f.getAttribute('data-tgf'); tgDesenha(window.ULT_D); if(!tgCel()) tgMostraSel(false); return; }
   if(t.closest('[data-tgx]')){ tgTodos(); return; }
   if(t.closest('[data-tgz]')){ TG.mbsFechado=!TG.mbsFechado; tgDesenha(window.ULT_D); return; }
