@@ -109,7 +109,7 @@ const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
 /* PZD = resposta da porta pausados_consulta (somente leitura) */
 let PZD=null, UNI='', ABA='ifood', PZF='PRECISA', TBF='TODOS', PZG=[];
-try{ var a0=new URLSearchParams(location.search).get('aba')||localStorage.getItem('cdm_pausados_aba'); if(['salao','ifood','accon'].indexOf(a0)>=0) ABA=a0; }catch(e){}
+try{ var a0=new URLSearchParams(location.search).get('aba')||localStorage.getItem('cdm_pausados_aba'); if(['salao','ifood','accon','compara'].indexOf(a0)>=0) ABA=a0; }catch(e){}
 /* 07/10/2026, pedido do Fábio: o Diego vê só o São Braz (menu São Braz > Pausados · São Braz abre esta tela com ?loja=sb).
    Com ?loja= a loja fica fixa e os botões das outras lojas somem. É recorte de VISÃO, não cadeado. */
 let FIXA='';
@@ -333,6 +333,35 @@ function painelAccon(){
 }
 
 /* ================= QUADROS E TELA ================= */
+/* 16/11/2026, pedido do Fábio: "iFood x Site" igual ao portal novo. O iFood é a referência: o site (Accon) deve ficar igual.
+   Compara pelo nome do item, por loja. Só o que está pausado agora; complemento do iFood não entra. Sem consulta nova: usa o que já veio. */
+function nomeCmp(t){ return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim(); }
+function comparaGrupos(){
+  var m={}, out=[];
+  pzGrupos().forEach(function(g){ if(!g.aberta||g.compl) return; var k=g.unidade+'|'+nomeCmp(g.item);
+    if(!m[k]){ m[k]={unidade:g.unidade,item:g.item,ifood:true,site:false}; out.push(m[k]); } else m[k].ifood=true; });
+  canalGrupos('accon').forEach(function(g){ var k=g.unidade+'|'+nomeCmp(g.item);
+    if(!m[k]){ m[k]={unidade:g.unidade,item:g.item,ifood:false,site:true}; out.push(m[k]); } else m[k].site=true; });
+  out.forEach(function(x){ x.sit = x.ifood&&x.site ? 'DOIS' : x.site ? 'SITE' : 'IFOOD'; });
+  var ord={SITE:0,IFOOD:1,DOIS:2};
+  out.sort(function(a,b){ return (ord[a.sit]-ord[b.sit]) || a.unidade.localeCompare(b.unidade) || a.item.localeCompare(b.item); });
+  return out;
+}
+function contaCmp(l){ var c={DOIS:0,SITE:0,IFOOD:0}; l.forEach(function(x){ c[x.sit]++; }); return c; }
+function painelCompara(){
+  if(!acconAtivo()) return '<div class="parado"><b>A leitura do site (Accon) está parada'+(PZD.accon_lido?' desde '+esc(PZD.accon_lido):'')+'.</b> Sem ela não dá para comparar.</div>';
+  var l=comparaGrupos(), c=contaCmp(l), rot={DOIS:'Pausado nos dois',SITE:'Só no site',IFOOD:'Só no iFood'};
+  var h='<div class="nota">O iFood é a referência: o site deve ficar igual a ele. Leitura do iFood '+esc(PZD.lido_em||'?')+' · leitura do site '+esc(PZD.accon_lido||'?')+
+    '. Compara pelo nome do item; complemento do iFood não entra.</div>'+
+    '<div class="cards"><div class="card '+(c.SITE?'mal':'bem')+'"><div class="t">Só no site</div><div class="v">'+c.SITE+'</div><div class="qs">pausado no site e vendendo no iFood</div></div>'+
+    '<div class="card '+(c.IFOOD?'mal':'bem')+'"><div class="t">Só no iFood</div><div class="v">'+c.IFOOD+'</div><div class="qs">pausado no iFood e vendendo no site</div></div>'+
+    '<div class="card bem"><div class="t">Nos dois</div><div class="v">'+c.DOIS+'</div><div class="qs">já batem</div></div></div>';
+  if(!l.length) return h+'<div class="nota">Nada pausado em nenhum dos dois.</div>';
+  h+='<table style="width:100%;border-collapse:collapse;margin-top:10px"><tr style="text-align:left"><th>Loja</th><th>Item</th><th>Situação</th><th>iFood</th><th>Site</th></tr>';
+  l.forEach(function(x){ h+='<tr style="border-top:1px solid rgba(255,255,255,.08)'+(x.sit==='DOIS'?';opacity:.6':'')+'"><td>'+esc(x.unidade)+'</td><td>'+esc(x.item)+'</td><td>'+rot[x.sit]+
+    '</td><td>'+(x.ifood?'pausado':'vendendo')+'</td><td>'+(x.site?'pausado':'vendendo')+'</td></tr>'; });
+  return h+'</table>';
+}
 function cardAba(id,ic,rot,n,sub,tipo){
   return '<div class="card '+tipo+(ABA===id?' on':'')+'" onclick="abre(&quot;'+id+'&quot;)" title="Abrir">'+
     '<div class="t">'+ic+' '+rot+'</div><div class="v">'+n+'</div>'+sub+'</div>';
@@ -357,9 +386,11 @@ function desenha(){
               '<div class="qs" style="color:'+(ac.PRECISA?'#ff9a9a':'#7fe0aa')+'">'+(ac.PRECISA?'itens esperando a loja':'todos respondidos')+'</div>', ac.PRECISA?'mal':'bem')
           : cardAba('accon','🌐','Accon · site próprio', '—',
               '<div class="qs" style="color:#ff9a9a">sem leitura'+(PZD.accon_lido?' desde '+esc(PZD.accon_lido):'')+'</div>', 'sd'))+
+      (ac ? (function(){ var cc=contaCmp(comparaGrupos()), n=cc.SITE+cc.IFOOD; return cardAba('compara','🔁','iFood x Site', n,
+              '<div class="qs" style="color:'+(n?'#ff9a9a':'#7fe0aa')+'">'+(n?'não bate':'tudo igual')+'</div><div class="qs">'+cc.DOIS+' pausados nos dois</div>', n?'mal':'bem'); })() : '')+
     '</div>';
-  var tit={salao:'🍽 Salão · tablets da mesa',ifood:'🛵 Delivery · iFood',accon:'🌐 Accon · site próprio'}[ABA];
-  var corpo= ABA==='salao'?painelSalao() : ABA==='accon'?painelAccon() : painelIfood();
+  var tit={salao:'🍽 Salão · tablets da mesa',ifood:'🛵 Delivery · iFood',accon:'🌐 Accon · site próprio',compara:'🔁 iFood x Site (Accon)'}[ABA];
+  var corpo= ABA==='salao'?painelSalao() : ABA==='accon'?painelAccon() : ABA==='compara'?painelCompara() : painelIfood();
   h+='<div class="painel"><div class="ph"><h3>'+tit+'</h3></div>'+corpo+'</div>';
   $('app').innerHTML=h;
 }
