@@ -2458,6 +2458,8 @@ function tgDesenha(d){
   }else{
     var foco=function(p){ return !TG.foco||p.motoboy===TG.foco; };
     var so=!TG.det;   /* 01/11/2026: so os numeros (padrao) */
+    /* 16/11 (Fabio): com um motoboy tocado, a lista e os numeros mostram SO os pedidos dele; avisa para nao parecer que sumiu tudo */
+    if(TG.foco) h+='<div class="tg-av" style="color:var(--brand)">Mostrando só os pedidos de '+esc(primeiroNome(TG.foco))+'. Os avisos do topo são da loja toda. <button class="b" data-tgx="1">ver todos</button></div>';
     var sec=function(chave,tit,bola,lista,fn,fnN){
       if(TG.filtro!=='todos'&&TG.filtro!==chave) return;
       h+='<div class="tg-gr"><i class="bola" style="background:'+bola+'"></i><h3>'+tit+'</h3><span class="n">'+lista.length+'</span></div>';
@@ -2726,7 +2728,8 @@ function tgResumoMb(n){
   /* 15/11 (Fabio): chegada, ultima entrega, garantido, refeicao e quanto pagar, da MESMA conta do Pagar Motoboys (so vem
      para quem ve aquela tela). Valor do momento: muda ate o fim do dia. */
   var pg=c.pg;
-  if(pg){ var brl=function(x){ return 'R$ '+(+x||0).toFixed(2).replace('.',','); };
+  if(pg&&pg.sem_linha) h+='<div><b>A pagar:</b> ainda não aparece no Pagar Motoboys (sem entrega hoje)</div>';
+  else if(pg){ var brl=function(x){ return 'R$ '+(+x||0).toFixed(2).replace('.',','); };
     h+='<div><b>Chegou:</b> '+esc(pg.chegada||'—')+(pg.combinado?' (combinado '+esc(pg.combinado)+')':'')+
        ' · <b>Saída:</b> '+(pg.ligado_agora?'ainda com o app ligado':'última entrega '+esc(pg.ultima_entrega||'—'))+'</div>';
     h+='<div><b>Garantido:</b> '+(pg.garantido?'sim, '+brl(pg.garantido_valido):'não')+
