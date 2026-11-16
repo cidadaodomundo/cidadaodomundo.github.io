@@ -381,11 +381,19 @@ async function boot(quieto){
   desenha();
   if(quieto) window.scrollTo(0,y);
 }
-setInterval(function(){
+/* Timer de rede de 120 s: desligado com clearInterval quando a aba fica escondida (visibilitychange) e ao sair da pagina (pagehide);
+   religado com uma releitura quando a aba volta. */
+var TMR=null;
+function vivoTic(){
   var f=document.activeElement; /* nao redesenha no meio de uma resposta (lista de motivo ou campo aberto) */
   if(f && $('app').contains(f) && /^(SELECT|INPUT|TEXTAREA)$/.test(f.tagName)) return;
-  if(!document.hidden && PZD && !PZD.erro) boot(true);
-}, 120000);
+  if(PZD && !PZD.erro) boot(true);
+}
+function vivoLiga(){ if(TMR) clearInterval(TMR); TMR=setInterval(vivoTic,120000); }
+function vivoDesliga(){ if(TMR){ clearInterval(TMR); TMR=null; } }
+document.addEventListener('visibilitychange',function(){ if(document.hidden) vivoDesliga(); else { vivoTic(); vivoLiga(); } });
+window.addEventListener('pagehide',vivoDesliga);
+vivoLiga();
 /* ===== porta unica do portal ===== */
 const CDMMODS=['pausados','sbpausados','ahupausados','pausadosgestao'];
 function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
