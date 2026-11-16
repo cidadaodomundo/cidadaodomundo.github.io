@@ -32,6 +32,15 @@ button.b:hover{border-color:var(--text2)}
 .card .v{font-family:'Anton',Impact,sans-serif;font-weight:400;font-size:42px;line-height:1.05;margin:0}
 .card .qs{color:var(--muted);font-size:12px;font-weight:700;line-height:1.35}
 .card.mal{border-left:4px solid var(--bad)}
+.sinc{display:flex;align-items:center;gap:14px;background:var(--s1);border:2px solid var(--line);border-radius:18px;padding:16px 18px;margin:0 0 12px;cursor:pointer}
+.sinc .sv{font-size:38px;line-height:1}
+.sinc .st{font-family:'Anton',Impact,sans-serif;font-size:26px;letter-spacing:.5px;line-height:1.1}
+.sinc .sq{font-size:14px;font-weight:700;color:var(--text2);margin-top:3px}
+.sinc.mal{border-color:var(--bad)}
+.sinc.mal .st{color:#ff8a8a}
+.sinc.bem{border-color:#2f7a52}
+.sinc.bem .st{color:#7fe0aa}
+.sinc.on{box-shadow:0 0 0 3px rgba(255,255,255,.12)}
 .card.mal .v{color:#ff8a8a}
 .card.bem .v{color:#7fe0aa}
 .card.sd{border-style:dashed}
@@ -131,6 +140,8 @@ ACCON_VIS = true; // 16/11 Fábio: Delivery mostra iFood + Accon
 if(GESTAO && FIXA!=='Ahú') SALAO=true;
 if(!SALAO&&ABA==='salao') ABA='ifood';
 if(!ACCON_VIS&&ABA==='accon') ABA='ifood';
+/* 16/11/2026, pedido do Fábio: no menu Delivery (sem ?ver e sem ?aba), a tela abre direto na sincronia iFood x Site. */
+try{ if(!GESTAO && !SALAO && !new URLSearchParams(location.search).get('aba')) ABA='compara'; }catch(e){}
 
 async function porta(nome,dados){
   const r=await fetch(SB+'rpc/'+nome,{method:'POST',
@@ -373,7 +384,14 @@ function desenha(){
   var ci=contaIfood(pzGrupos());
   var tb=tabLinhas(), tbc=contaC(tb), tbp=tb.filter(function(x){return x.estado==='pausado'&&x.sit!=='RESP'}).length;
   var ac=acconAtivo()?contaC(canalGrupos('accon')):null;
-  var h='<div class="lojas"><span class="rot">LOJA</span>'+(FIXA?lj(FIXA):lj('','Todas')+lj('Água Verde')+lj('Ahú')+lj('São Braz'))+'</div>'+
+  /* 16/11/2026, pedido do Fábio: botão da sincronia grande, em destaque, no alto. */
+  var sinc='';
+  if(ac){ var cc=contaCmp(comparaGrupos()), nn=cc.SITE+cc.IFOOD;
+    sinc='<div class="sinc'+(nn?' mal':' bem')+(ABA==='compara'?' on':'')+'" onclick="abre(&quot;compara&quot;)" title="Abrir a sincronia">'+
+      '<div class="sv">🔁</div><div><div class="st">SINCRONIA iFood x Site</div><div class="sq">'+
+      (nn?'<b>'+nn+'</b> não bate'+(nn>1?'m':'')+' · '+cc.SITE+' só no site · '+cc.IFOOD+' só no iFood':'tudo igual nos dois')+' · '+cc.DOIS+' pausados nos dois</div></div></div>'; }
+  else if(ACCON_VIS) sinc='<div class="sinc sd"><div class="sv">🔁</div><div><div class="st">SINCRONIA iFood x Site</div><div class="sq">leitura do site parada'+(PZD.accon_lido?' desde '+esc(PZD.accon_lido):'')+'</div></div></div>';
+  var h=sinc+'<div class="lojas"><span class="rot">LOJA</span>'+(FIXA?lj(FIXA):lj('','Todas')+lj('Água Verde')+lj('Ahú')+lj('São Braz'))+'</div>'+
     '<div class="cards">'+((FIXA==='Ahú'||!SALAO)?'':
       cardAba('salao','🍽','Salão · tablets', tbc.PRECISA,
         '<div class="qs" style="color:'+(tbc.PRECISA?'#ff9a9a':'#7fe0aa')+'">'+(tbc.PRECISA?'itens esperando a loja':'todos respondidos')+'</div>'+
@@ -386,8 +404,6 @@ function desenha(){
               '<div class="qs" style="color:'+(ac.PRECISA?'#ff9a9a':'#7fe0aa')+'">'+(ac.PRECISA?'itens esperando a loja':'todos respondidos')+'</div>', ac.PRECISA?'mal':'bem')
           : cardAba('accon','🌐','Accon · site próprio', '—',
               '<div class="qs" style="color:#ff9a9a">sem leitura'+(PZD.accon_lido?' desde '+esc(PZD.accon_lido):'')+'</div>', 'sd'))+
-      (ac ? (function(){ var cc=contaCmp(comparaGrupos()), n=cc.SITE+cc.IFOOD; return cardAba('compara','🔁','iFood x Site', n,
-              '<div class="qs" style="color:'+(n?'#ff9a9a':'#7fe0aa')+'">'+(n?'não bate':'tudo igual')+'</div><div class="qs">'+cc.DOIS+' pausados nos dois</div>', n?'mal':'bem'); })() : '')+
     '</div>';
   var tit={salao:'🍽 Salão · tablets da mesa',ifood:'🛵 Delivery · iFood',accon:'🌐 Accon · site próprio',compara:'🔁 iFood x Site (Accon)'}[ABA];
   var corpo= ABA==='salao'?painelSalao() : ABA==='accon'?painelAccon() : ABA==='compara'?painelCompara() : painelIfood();
