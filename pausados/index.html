@@ -121,7 +121,16 @@ if(FIXA==='Ahú'&&ABA==='salao') ABA='ifood';
    Para o resto, o tablet da mesa fica na Central Salão > Cardápio. */
 let SALAO=false;
 try{ SALAO=new URLSearchParams(location.search).get('aba')==='salao'; }catch(e){}
+/* 16/11/2026 (chat-pausados-sao-braz-16-11), pedido do Fábio: "o produtos pausados que aparece para a Rita da gestão
+   tem que ter tudo: iFood, Accon e Goomer. No do salão só Goomer e no do delivery só iFood".
+   ?ver=gestao (menu Gestão > Produtos pausados) = os três canais. Sem ?ver nem ?aba=salao (menu Delivery e Ahú) = iFood + Accon.
+   ?aba=salao (Pausados · São Braz do Diego) continua como estava. */
+let GESTAO=false, ACCON_VIS=false;
+try{ GESTAO=new URLSearchParams(location.search).get('ver')==='gestao'; }catch(e){}
+ACCON_VIS = true; // 16/11 Fábio: Delivery mostra iFood + Accon
+if(GESTAO && FIXA!=='Ahú') SALAO=true;
 if(!SALAO&&ABA==='salao') ABA='ifood';
+if(!ACCON_VIS&&ABA==='accon') ABA='ifood';
 
 async function porta(nome,dados){
   const r=await fetch(SB+'rpc/'+nome,{method:'POST',
@@ -344,7 +353,7 @@ function desenha(){
       cardAba('ifood','🛵','Delivery · iFood', ci.PRECISA,
         '<div class="qs" style="color:'+(ci.PRECISA?'#ff9a9a':'#7fe0aa')+'">'+(ci.PRECISA?'itens esperando a loja':'todos respondidos')+'</div>'+
         (ci.RESP?'<div class="qs">'+ci.RESP+' já respondidos (fora da lista)</div>':''), ci.PRECISA?'mal':'bem')+
-      (ac ? cardAba('accon','🌐','Accon · site próprio', ac.PRECISA,
+      (!ACCON_VIS ? '' : ac ? cardAba('accon','🌐','Accon · site próprio', ac.PRECISA,
               '<div class="qs" style="color:'+(ac.PRECISA?'#ff9a9a':'#7fe0aa')+'">'+(ac.PRECISA?'itens esperando a loja':'todos respondidos')+'</div>', ac.PRECISA?'mal':'bem')
           : cardAba('accon','🌐','Accon · site próprio', '—',
               '<div class="qs" style="color:#ff9a9a">sem leitura'+(PZD.accon_lido?' desde '+esc(PZD.accon_lido):'')+'</div>', 'sd'))+
@@ -355,20 +364,36 @@ function desenha(){
   $('app').innerHTML=h;
 }
 function placar(h){ var p=$('placar'); if(p) p.innerHTML=h; }
-async function boot(){
-  placar('<span class="pl">carregando…</span>');
-  PZD=null; desenha();
-  try{ PZD=await porta('pausados_consulta',{}); }
-  catch(e){ PZD={erro:(e&&e.message)||'erro'}; placar('<span class="pl" style="border-color:rgba(230,103,103,.5);color:#ff9a9a">'+esc(PZD.erro)+'</span>'); desenha(); return }
-  PZD=PZD||{};
+async function boot(quieto){
+  /* 16/11/2026: quieto = releitura automatica de 2 em 2 minutos (tela ao vivo), sem piscar "Carregando" e sem perder o que esta na tela se falhar */
+  if(!quieto){ placar('<span class="pl">carregando…</span>'); PZD=null; desenha(); }
+  var novo;
+  try{ novo=await porta('pausados_consulta',{}); }
+  catch(e){ if(quieto) return; PZD={erro:(e&&e.message)||'erro'}; placar('<span class="pl" style="border-color:rgba(230,103,103,.5);color:#ff9a9a">'+esc(PZD.erro)+'</span>'); desenha(); return }
+  var y=window.scrollY;
+  PZD=novo||{};
   placar('<span class="pl"'+((PZD.lido_min==null||PZD.lido_min>20)?' style="border-color:rgba(230,103,103,.5)"':'')+'>iFood lido <b>'+esc(PZD.lido_em||'há mais de 2 dias')+'</b></span>'+
     (SALAO&&(PZD.tablet_lido||[]).filter(daLoja).length?'<span class="pl">tablet lido <b>'+(PZD.tablet_lido||[]).filter(daLoja).map(function(l){return esc(l.lido)}).filter(function(v,i,a){return a.indexOf(v)===i}).join(' / ')+'</b></span>':'')+
-    (acconAtivo()?'<span class="pl">Accon lido <b>'+esc(PZD.accon_lido)+'</b></span>'
+    (!ACCON_VIS?'':acconAtivo()?'<span class="pl">Accon lido <b>'+esc(PZD.accon_lido)+'</b></span>'
       :'<span class="pl" style="border-color:rgba(230,103,103,.5)">Accon <b style="color:#ff9a9a">parado'+(PZD.accon_lido?' desde '+esc(PZD.accon_lido):'')+'</b></span>')+
     /* 15/10/2026 (chat-menu-faxina-pausados-15-10): item pausado ha 8 dias ou mais sai da lista; aqui so o numero */
     (+PZD.mais7d>0?'<span class="pl" title="Pausados há mais de 7 dias: já avisados no grupo da loja, não aparecem mais na lista">💤 <b>'+(+PZD.mais7d)+'</b> há mais de 7 dias, fora da lista</span>':''));
   desenha();
+  if(quieto) window.scrollTo(0,y);
 }
+/* Timer de rede de 120 s: desligado com clearInterval quando a aba fica escondida (visibilitychange) e ao sair da pagina (pagehide);
+   religado com uma releitura quando a aba volta. */
+var TMR=null;
+function vivoTic(){
+  var f=document.activeElement; /* nao redesenha no meio de uma resposta (lista de motivo ou campo aberto) */
+  if(f && $('app').contains(f) && /^(SELECT|INPUT|TEXTAREA)$/.test(f.tagName)) return;
+  if(PZD && !PZD.erro) boot(true);
+}
+function vivoLiga(){ if(TMR) clearInterval(TMR); TMR=setInterval(vivoTic,120000); }
+function vivoDesliga(){ if(TMR){ clearInterval(TMR); TMR=null; } }
+document.addEventListener('visibilitychange',function(){ if(document.hidden) vivoDesliga(); else { vivoTic(); vivoLiga(); } });
+window.addEventListener('pagehide',vivoDesliga);
+vivoLiga();
 /* ===== porta unica do portal ===== */
 const CDMMODS=['pausados','sbpausados','ahupausados','pausadosgestao'];
 function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}
