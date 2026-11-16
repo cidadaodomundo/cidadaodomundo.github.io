@@ -2704,9 +2704,16 @@ function tgVerLinha(ln,cel){
 var TG_RES={};
 function tgResumoLe(n){
   var c=TG_RES[n]; if(c&&(c.lendo||Date.now()-c.t<60000)) return;
-  TG_RES[n]={lendo:true,t:Date.now(),d:c&&c.d};
+  TG_RES[n]={lendo:true,t:Date.now(),d:c&&c.d,pg:c&&c.pg};
   rpc('fila_motoboy_resumo',{p_token:cdmTok(),p_unidade:UNI,p_motoboy:n}).then(function(d){
-    TG_RES[n]={t:Date.now(),d:d,erro:!d}; if(TG.foco===n) tgDesenha(window.ULT_D); });
+    var r=TG_RES[n]; r.d=d||r.d; r.erro=!d&&!r.d; r.t=Date.now(); if(TG.foco===n) tgDesenha(window.ULT_D);
+    /* 16/11: o valor a pagar vem numa leitura separada (a conta leva ~2,7 s); se falhar, fica o ultimo valor e tenta de novo */
+    var lePg=function(tent){ rpc('fila_motoboy_pagamento',{p_token:cdmTok(),p_unidade:UNI,p_motoboy:n}).then(function(pg){
+      var r2=TG_RES[n]; if(!r2) return;
+      if(pg){ r2.pg=pg; r2.lendo=false; if(TG.foco===n) tgDesenha(window.ULT_D); }
+      else if(tent<2&&TG.foco===n) setTimeout(function(){ lePg(tent+1); },4000);
+      else r2.lendo=false; }); };
+    lePg(1); });
 }
 function tgResumoMb(n){
   tgResumoLe(n);
@@ -2718,7 +2725,7 @@ function tgResumoMb(n){
      (d.ultima_entrega?' · última entregue às '+esc(d.ultima_entrega):'')+'</div>';
   /* 15/11 (Fabio): chegada, ultima entrega, garantido, refeicao e quanto pagar, da MESMA conta do Pagar Motoboys (so vem
      para quem ve aquela tela). Valor do momento: muda ate o fim do dia. */
-  var pg=d.pagamento;
+  var pg=c.pg;
   if(pg){ var brl=function(x){ return 'R$ '+(+x||0).toFixed(2).replace('.',','); };
     h+='<div><b>Chegou:</b> '+esc(pg.chegada||'—')+(pg.combinado?' (combinado '+esc(pg.combinado)+')':'')+
        ' · <b>Saída:</b> '+(pg.ligado_agora?'ainda com o app ligado':'última entrega '+esc(pg.ultima_entrega||'—'))+'</div>';
