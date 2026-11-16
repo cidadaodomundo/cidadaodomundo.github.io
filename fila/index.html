@@ -275,7 +275,7 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
 .tg-av{color:var(--warn);font-size:12.5px;font-weight:700;padding:8px 6px;line-height:1.4}
 .tg-mbc{display:flex;align-items:center;gap:8px;padding:8px 6px 4px;font-size:13px;color:var(--text2);font-weight:700;cursor:pointer}
 .tg-res{margin:2px 6px 10px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--s2);font-size:13px;line-height:1.5;color:var(--text)}
-.tg-res b{color:var(--text2)}.tg-res .mal{color:#ffb0b0;font-weight:800}.tg-res small{display:block;margin-top:4px;color:var(--muted);font-size:11px}
+.tg-res b{color:var(--text2)}.tg-res .pg{font-weight:800;color:#8fe3b4}.tg-res .mal{color:#ffb0b0;font-weight:800}.tg-res small{display:block;margin-top:4px;color:var(--muted);font-size:11px}
 .tg-mbc .sw{width:12px;height:12px;border-radius:3px;flex:0 0 auto}
 .tg-mbc b{color:var(--text);font-size:14px}
 .tg-mbc span{margin-left:auto;color:var(--muted);font-weight:600;font-size:12px}
@@ -2716,6 +2716,18 @@ function tgResumoMb(n){
   h+='<div><b>Escala:</b> '+(esc0.length?esc0.map(function(e){ return esc(e.turno||'')+' '+esc(e.de)+'–'+esc(e.ate); }).join(' · '):'não está na escala de hoje')+'</div>';
   h+='<div><b>Corridas:</b> '+esc(d.entregues)+' entrega'+(+d.entregues===1?'':'s')+' em '+esc(d.rotas)+' rota'+(+d.rotas===1?'':'s')+
      (d.ultima_entrega?' · última entregue às '+esc(d.ultima_entrega):'')+'</div>';
+  /* 15/11 (Fabio): chegada, ultima entrega, garantido, refeicao e quanto pagar, da MESMA conta do Pagar Motoboys (so vem
+     para quem ve aquela tela). Valor do momento: muda ate o fim do dia. */
+  var pg=d.pagamento;
+  if(pg){ var brl=function(x){ return 'R$ '+(+x||0).toFixed(2).replace('.',','); };
+    h+='<div><b>Chegou:</b> '+esc(pg.chegada||'—')+(pg.combinado?' (combinado '+esc(pg.combinado)+')':'')+
+       ' · <b>Saída:</b> '+(pg.ligado_agora?'ainda com o app ligado':'última entrega '+esc(pg.ultima_entrega||'—'))+'</div>';
+    h+='<div><b>Garantido:</b> '+(pg.garantido?'sim, '+brl(pg.garantido_valido):'não')+
+       ' · <b>Refeição:</b> '+(+pg.direito_refeicoes>0?'tem direito ('+esc(pg.direito_refeicoes)+')':'não tem')+(+pg.lanches>0?', pegou '+esc(pg.lanches):'')+
+       (+pg.cobrar_refeicao>0?', cobrar '+brl(pg.cobrar_refeicao):'')+'</div>';
+    h+='<div><b>A pagar até agora:</b> <span class="pg">'+brl(pg.pagar)+'</span> <small style="display:inline">(taxas '+brl(pg.taxas)+
+       (+pg.ajustes?' · ajustes '+brl(pg.ajustes):'')+'; mesma conta do Pagar Motoboys, às '+esc(pg.calculado_em||'—')+')</small></div>';
+  }
   if(d.dobro){ var rp=d.dobro.reprovar||[], cf=d.dobro.conferir||[];
     h+='<div><b>Corrida em dobro:</b> '+(rp.length?'<span class="mal">reprovar no TrackEat: '+rp.map(esc).join(', ')+'</span>':'nenhuma para reprovar')+
        (cf.length?' · conferir: '+cf.map(esc).join(', '):'')+'</div>';
