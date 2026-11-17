@@ -318,7 +318,12 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
 .tg-rsres{font:700 12px/1.3 Barlow,sans-serif;color:var(--text2);max-width:230px}
 .tg-rsres .ok{color:#8fe3b4}.tg-rsres .mal{color:#ffb0b0}
 .tg-leg .rsl{width:22px;height:0;border-top:4px dotted var(--brand,#E0A81C)}
-@media (max-width:760px){.tg-ctl .tg-rscap button{width:38px;height:38px}.tg-ctl.rs-on > button{display:none}}
+@media (max-width:760px){.tg-ctl .tg-rscap button{width:38px;height:38px}.tg-ctl.rs-on > button:not(.tg-ctlx){display:none}}
+/* 17/11/2026, pedido do Fabio: "opcao de minimizar aquele quadro das rotas inteligentes" -- botao Recolher/Opcoes, lembra a escolha no aparelho */
+.tg-ctl .tg-ctlx{align-self:flex-end;padding:3px 9px;font-size:12px;border-radius:8px;color:var(--muted)}
+.tg-ctl.fechado{padding:5px}
+.tg-ctl.fechado > :not(.tg-ctlx){display:none}
+.tg-ctl.fechado .tg-ctlx{align-self:auto;padding:7px 11px;font-size:13px;color:var(--text2)}
 .mm-l.tg-rsnum{background:#111;color:#fff;border:3px solid #fff;font-size:15px;line-height:20px;padding:0 8px;box-shadow:0 0 0 2px #111,0 2px 6px rgba(0,0,0,.6)}
 .rsc-rt{display:flex;align-items:center;gap:8px;padding:10px 4px 4px;font-weight:700;font-size:13.5px;color:var(--text2)}
 .rsc-rt .lt{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:7px;color:#111;font:800 14px Barlow,sans-serif}
@@ -430,6 +435,18 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
   .tg-mbs,.tg-leg{display:none}
   .vista{margin-left:0;flex:0 0 auto}   /* no celular a fila de botoes de loja rola para o lado (regra de 640px acima) */
 }
+/* 17/11/2026, pedido do Fabio: "uma versao pra que de pra ver deitada com o mapa full no celular".
+   Celular deitado (tela baixa) na vista Mapa: some o cabecalho e a lista, o mapa ocupa a tela inteira.
+   Para trocar de loja ou ver a lista, e so desvirar o celular. */
+@media (orientation:landscape) and (max-height:520px){
+  body.tgon{height:auto;padding:0}
+  body.tgon .top,body.tgon .lojas{display:none}
+  body.tgon #tg{position:fixed;inset:0;z-index:50;display:block;border:0;border-radius:0;margin:0}
+  body.tgon .tg-lado{display:none}
+  body.tgon .tg-mapa{position:absolute;inset:0;height:auto}
+  body.tgon .tg-leg{display:none}
+  body.tgon .tg-mbs{display:flex;max-height:calc(100% - 20px)}
+}
 </style>
 </head>
 <body>
@@ -453,7 +470,7 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
   <aside class="tg-lado" id="tg_lado" aria-label="Pedidos"><div class="tg-vz" style="padding:14px">Carregando…</div></aside>
   <section class="tg-mapa" id="tg_mapa_w" aria-label="Mapa dos pedidos">
     <div id="tg_map"></div>
-    <div class="tg-fl tg-ctl"><div id="tg_rs_ctl" class="tg-rsctl"></div><button onclick="tgTodos()" title="voltar a mostrar todos os pedidos e motoboys">Ver todos</button><button id="tg_tema" onclick="tgTema()">Escurecer mapa</button></div>
+    <div class="tg-fl tg-ctl"><button class="tg-ctlx" id="tg_ctlx" data-tgctl="1" title="esconde ou mostra este quadro">▲ Recolher</button><div id="tg_rs_ctl" class="tg-rsctl"></div><button onclick="tgTodos()" title="voltar a mostrar todos os pedidos e motoboys">Ver todos</button><button id="tg_tema" onclick="tgTema()">Escurecer mapa</button></div>
     <div class="tg-fl tg-mbs" id="tg_mbs"></div>
     <div class="tg-fl tg-leg" aria-label="Legenda">
       <div><i class="pl" style="background:var(--bad)"></i>Na cozinha</div>
@@ -2797,8 +2814,17 @@ function tgTema(){
   var w=$('tg_mapa_w'); if(w) w.classList.toggle('escuro',TG.escuro);
   var b=$('tg_tema'); if(b) b.textContent=TG.escuro?'Clarear mapa':'Escurecer mapa';
 }
+/* 17/11/2026: quadro do canto do mapa (Criar rota inteligente / Ver todos / Escurecer) recolhido ou aberto; a escolha fica guardada no aparelho */
+function tgCtl(fechar){
+  TG.ctlFechado=!!fechar; try{ localStorage.setItem('cdm_fila_ctl',TG.ctlFechado?'1':'0'); }catch(e){}
+  var q=document.querySelector('.tg-ctl'); if(q) q.classList.toggle('fechado',TG.ctlFechado);
+  var b=$('tg_ctlx'); if(b) b.textContent=TG.ctlFechado?'☰ Opções do mapa':'▲ Recolher';
+}
+/* virar o celular muda o tamanho do mapa: avisa o mapa para redesenhar (so tela, sem rede) */
+window.addEventListener('resize',function(){ if(TG.mp) setTimeout(function(){ try{TG.mp.invalidateSize();}catch(e){} },150); });
 document.addEventListener('click',function(e){
   var t=e.target&&e.target.closest?e.target:null; if(!t||!t.closest('#tg')) return;
+  if(t.closest('[data-tgctl]')){ tgCtl(!TG.ctlFechado); return; }   /* 17/11/2026: recolher / abrir o quadro do canto do mapa */
   if(t.closest('[data-ped]')) return;   /* numero do Saipos: abre os itens (porta fila_pedido_itens), como na lista */
   var dd=t.closest('[data-tgrd]'); if(dd){ TG.rsDet=dd.getAttribute('data-tgrd')==='1'; tgDesenha(window.ULT_D); return; }
   if(t.closest('[data-tgrs]')){   /* botao "Criar rota inteligente" do mapa: liga a aba e as linhas da sugestao no mapa */
@@ -2839,7 +2865,8 @@ document.body.classList.toggle('tgon',TG.on);
    Dentro de outra tela (iframe) o botao fica escondido. */
 try{ if(window.top===window){ var tgPb=$('tg_portal'); if(tgPb) tgPb.style.display=''; } }catch(e){}
 (function(){ var a=$('vb_mapa'), b=$('vb_lista'); if(a) a.classList.toggle('on',TG.on); if(b) b.classList.toggle('on',!TG.on);
-  var w=$('tg_mapa_w'); if(w) w.classList.toggle('escuro',TG.escuro); var c=$('tg_tema'); if(c) c.textContent=TG.escuro?'Clarear mapa':'Escurecer mapa'; })();
+  var w=$('tg_mapa_w'); if(w) w.classList.toggle('escuro',TG.escuro); var c=$('tg_tema'); if(c) c.textContent=TG.escuro?'Clarear mapa':'Escurecer mapa';
+  var cf=false; try{ cf=localStorage.getItem('cdm_fila_ctl')==='1'; }catch(e){} tgCtl(cf); })();
 </script>
 <script src="/assets/portal.js?v=3"></script>
 </body>
