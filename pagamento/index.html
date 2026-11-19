@@ -260,6 +260,10 @@ button.b[disabled]{opacity:.4;cursor:not-allowed}
 .pr-j-esc{margin-top:8px;background:var(--tinta);color:var(--papel);border-radius:8px;padding:8px 10px}
 .pr-j-esc .rt{color:#CFC6AE}
 .pr-j-turno{display:flex;align-items:baseline;gap:6px;margin-top:3px;font-variant-numeric:tabular-nums}
+.vr-esc{margin:10px 0 12px;padding:10px 12px;border:1px solid rgba(255,255,255,.12);border-radius:10px;font-variant-numeric:tabular-nums}
+.vr-esc .k{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#CFC6AE;margin-bottom:4px}
+.vr-esc .ln{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:2px 0}
+.vr-esc .ln.tot{border-top:1px dashed rgba(255,255,255,.18);margin-top:3px;padding-top:4px}
 .pr-j-turno small{flex:0 0 52px;font-size:11px;color:#CFC6AE}
 .pr-j-turno b{font-size:20px;line-height:1.15}
 .pr-j-turno i{font-style:normal;font-size:12px;color:#CFC6AE}
@@ -1213,6 +1217,39 @@ function pgOrdenar(lu){
 }
 /* 15/11/2026, Fábio escolheu "A · Veredito" para o que abre na linha: "mais funcional e assertivo".
    Só junta o que a porta já devolve (pagamento_do_dia e prova_painel); a conta completa fica guardada em "ver a conta completa". */
+/* 19/11/2026 (Hellen/Fabio): quadro do motoboy mostra a escala combinada do Jaison por turno e as entregas somadas.
+   m.escala e m.gar_alm/m.gar_jan vem de pagamento_do_dia. Turno de almoco = entrada antes das 15h (mesma regra do banco). */
+function pgEscH(t){if(!t.entrada||!t.saida)return null;const a=t.entrada.split(':'),b=t.saida.split(':');let h=(+b[0]+b[1]/60)-(+a[0]+a[1]/60);if(h<=0)h+=24;return Math.round(h*100)/100}
+function pgEscTurnos(m){
+  const E=Array.isArray(m&&m.escala)?m.escala:[];
+  const alm=E.filter(function(t){return t.entrada&&t.entrada<'15:00'}), jan=E.filter(function(t){return !(t.entrada&&t.entrada<'15:00')});
+  return E.map(function(t){
+    const eAlm=t.entrada&&t.entrada<'15:00', grupo=eAlm?alm:jan, g=eAlm?m.gar_alm:m.gar_jan, h=pgEscH(t);
+    const gar=(grupo.length===1&&g!=null&&Number(g)>0)?Number(g):null;
+    const vh=(gar!=null&&h)?Math.round(gar/h*100)/100:null;
+    return {nome:eAlm?'Almoço':'Jantar',turno:t.turno,entrada:t.entrada,saida:t.saida,h:h,gar:gar,vh:vh};
+  });
+}
+function pgVh(m){
+  const v=[];pgEscTurnos(m).forEach(function(t){if(t.vh!=null&&v.indexOf(t.vh)<0)v.push(t.vh)});
+  if(v.length) return v.map(function(x){return rs(x)}).join(' / ');
+  return m.valor_hora!=null&&m.valor_hora!==''?rs(m.valor_hora):'—';
+}
+function pgEscBox(m){
+  if(!m||!('escala' in m))return ''; /* banco ainda sem a escala por linha */
+  const T=pgEscTurnos(m);
+  let h='<div class="vr-esc"><div class="k">Horário combinado · escala do Jaison</div>';
+  if(!T.length) h+='<div class="ln"><span class="vm">sem escala com o nome dele neste dia</span></div>';
+  T.forEach(function(t){
+    h+='<div class="ln"><span>'+t.nome+' <b>'+esc(t.entrada||'?')+' → '+esc(t.saida||'sem hora de saída')+'</b></span><span>'+
+      (t.h?hhmm(t.h):'')+(t.gar!=null&&t.vh!=null?' × '+rs(t.vh)+' = <b>'+rs(t.gar)+'</b>':'')+'</span></div>';
+  });
+  const gs=T.reduce(function(a,t){return a+(t.gar||0)},0);
+  if(T.length>1&&T.every(function(t){return t.gar!=null})) h+='<div class="ln tot"><span>Garantido pela escala</span><span><b>'+rs(gs)+'</b></span></div>';
+  h+='<div class="k" style="margin-top:8px">Entregas somadas</div><div class="ln tot"><span>'+num(m.entregas)+' entregas</span><span><b>'+rs(m.taxas)+'</b></span></div>';
+  h+='<span class="fo">escala: robôs escala-jaison ou colada pelo WhatsApp · entregas: TrackEat, robô trackeat-api-entregas</span></div>';
+  return h;
+}
 function pgVeredito(m,x){
   const it=[]; function add(c,t,f){it.push('<li class="'+c+'">'+t+(f?'<span class="fo">'+f+'</span>':'')+'</li>')}
   /* 15/11: de onde vem cada informação (robô ou leitura). Horários dos robôs = agenda do cron, em horário de Brasília. */
@@ -1285,12 +1322,12 @@ function pgVeredito(m,x){
     else pix='<div class="pix"><span class="vm">Sem chave Pix: peça antes de pagar</span></div><span class="fo">cadastro do motoboy</span>';
   }
   const lido='<span class="fo lido">tela lida às '+esc(PD.agora||'—')+(PV&&PV.agora?' · Prova real lida às '+esc(PV.agora):'')+'</span>';
-  return '<div class="vr"><div class="vr-a"><div class="vr-v"><span class="k">Pagar</span><b>'+rs(m.pagar)+'</b></div><div class="vr-p">'+por+'<span class="fo">'+pf.join(' · ')+'</span></div>'+pix+lido+'</div><ul class="chk">'+it.join('')+'</ul></div>';
+  return '<div class="vr"><div class="vr-a"><div class="vr-v"><span class="k">Pagar</span><b>'+rs(m.pagar)+'</b></div><div class="vr-p">'+por+'<span class="fo">'+pf.join(' · ')+'</span></div>'+pgEscBox(m)+pix+lido+'</div><ul class="chk">'+it.join('')+'</ul></div>';
 }
 function pgLinha(m,i){
   const k=String(m.unidade||'')+'|'+String(m.entregador||''), x=pgProvaDe(m), d=pgDif(m,x);
   const al=!m.escondido&&(pgRegraConferir(m)||(PD.ve_pix!==false&&!m.chave_pix)||m.garantido===false);
-  const vh=m.valor_hora!=null&&m.valor_hora!==''?rs(m.valor_hora):'—';
+  const vh=pgVh(m);
   const lacreDif=x&&x.nosso!=null&&!m.escondido&&Math.abs(Number(x.nosso)-Number(m.pagar||0))>=0.01;
   return '<details class="pg-li" data-k="'+esc(k)+'" ontoggle="pgTog(this)"'+(PG_ABERTO[k]?' open':'')+'><summary>'+
     '<span class="pc nm">'+esc(m.entregador)+(al?'<span class="al" title="Tem aviso: abra a linha antes de pagar">⚠ conferir</span>':'')+dupSelo(dupDoMotoboy(PD.dia,m.unidade,m.entregador))+
