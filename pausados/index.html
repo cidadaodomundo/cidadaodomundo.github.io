@@ -32,6 +32,15 @@ button.b:hover{border-color:var(--text2)}
 .card .v{font-family:'Anton',Impact,sans-serif;font-weight:400;font-size:42px;line-height:1.05;margin:0}
 .card .qs{color:var(--muted);font-size:12px;font-weight:700;line-height:1.35}
 .card.mal{border-left:4px solid var(--bad)}
+.sinc{display:flex;align-items:center;gap:14px;background:var(--s1);border:2px solid var(--line);border-radius:18px;padding:16px 18px;margin:0 0 12px;cursor:pointer}
+.sinc .sv{font-size:38px;line-height:1}
+.sinc .st{font-family:'Anton',Impact,sans-serif;font-size:26px;letter-spacing:.5px;line-height:1.1}
+.sinc .sq{font-size:14px;font-weight:700;color:var(--text2);margin-top:3px}
+.sinc.mal{border-color:var(--bad)}
+.sinc.mal .st{color:#ff8a8a}
+.sinc.bem{border-color:#2f7a52}
+.sinc.bem .st{color:#7fe0aa}
+.sinc.on{box-shadow:0 0 0 3px rgba(255,255,255,.12)}
 .card.mal .v{color:#ff8a8a}
 .card.bem .v{color:#7fe0aa}
 .card.sd{border-style:dashed}
@@ -109,7 +118,7 @@ const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 const tok=()=>{try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}};
 /* PZD = resposta da porta pausados_consulta (somente leitura) */
 let PZD=null, UNI='', ABA='ifood', PZF='PRECISA', TBF='TODOS', PZG=[];
-try{ var a0=new URLSearchParams(location.search).get('aba')||localStorage.getItem('cdm_pausados_aba'); if(['salao','ifood','accon'].indexOf(a0)>=0) ABA=a0; }catch(e){}
+try{ var a0=new URLSearchParams(location.search).get('aba')||localStorage.getItem('cdm_pausados_aba'); if(['salao','ifood','accon','compara'].indexOf(a0)>=0) ABA=a0; }catch(e){}
 /* 07/10/2026, pedido do Fábio: o Diego vê só o São Braz (menu São Braz > Pausados · São Braz abre esta tela com ?loja=sb).
    Com ?loja= a loja fica fixa e os botões das outras lojas somem. É recorte de VISÃO, não cadeado. */
 let FIXA='';
@@ -121,7 +130,18 @@ if(FIXA==='Ahú'&&ABA==='salao') ABA='ifood';
    Para o resto, o tablet da mesa fica na Central Salão > Cardápio. */
 let SALAO=false;
 try{ SALAO=new URLSearchParams(location.search).get('aba')==='salao'; }catch(e){}
+/* 16/11/2026 (chat-pausados-sao-braz-16-11), pedido do Fábio: "o produtos pausados que aparece para a Rita da gestão
+   tem que ter tudo: iFood, Accon e Goomer. No do salão só Goomer e no do delivery só iFood".
+   ?ver=gestao (menu Gestão > Produtos pausados) = os três canais. Sem ?ver nem ?aba=salao (menu Delivery e Ahú) = iFood + Accon.
+   ?aba=salao (Pausados · São Braz do Diego) continua como estava. */
+let GESTAO=false, ACCON_VIS=false;
+try{ GESTAO=new URLSearchParams(location.search).get('ver')==='gestao'; }catch(e){}
+ACCON_VIS = true; // 16/11 Fábio: Delivery mostra iFood + Accon
+if(GESTAO && FIXA!=='Ahú') SALAO=true;
 if(!SALAO&&ABA==='salao') ABA='ifood';
+if(!ACCON_VIS&&ABA==='accon') ABA='ifood';
+/* 16/11/2026, pedido do Fábio: no menu Delivery (sem ?ver e sem ?aba), a tela abre direto na sincronia iFood x Site. */
+try{ if(!GESTAO && !SALAO && !new URLSearchParams(location.search).get('aba')) ABA='compara'; }catch(e){}
 
 async function porta(nome,dados){
   const r=await fetch(SB+'rpc/'+nome,{method:'POST',
@@ -324,6 +344,35 @@ function painelAccon(){
 }
 
 /* ================= QUADROS E TELA ================= */
+/* 16/11/2026, pedido do Fábio: "iFood x Site" igual ao portal novo. O iFood é a referência: o site (Accon) deve ficar igual.
+   Compara pelo nome do item, por loja. Só o que está pausado agora; complemento do iFood não entra. Sem consulta nova: usa o que já veio. */
+function nomeCmp(t){ return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim(); }
+function comparaGrupos(){
+  var m={}, out=[];
+  pzGrupos().forEach(function(g){ if(!g.aberta||g.compl) return; var k=g.unidade+'|'+nomeCmp(g.item);
+    if(!m[k]){ m[k]={unidade:g.unidade,item:g.item,ifood:true,site:false}; out.push(m[k]); } else m[k].ifood=true; });
+  canalGrupos('accon').forEach(function(g){ var k=g.unidade+'|'+nomeCmp(g.item);
+    if(!m[k]){ m[k]={unidade:g.unidade,item:g.item,ifood:false,site:true}; out.push(m[k]); } else m[k].site=true; });
+  out.forEach(function(x){ x.sit = x.ifood&&x.site ? 'DOIS' : x.site ? 'SITE' : 'IFOOD'; });
+  var ord={SITE:0,IFOOD:1,DOIS:2};
+  out.sort(function(a,b){ return (ord[a.sit]-ord[b.sit]) || a.unidade.localeCompare(b.unidade) || a.item.localeCompare(b.item); });
+  return out;
+}
+function contaCmp(l){ var c={DOIS:0,SITE:0,IFOOD:0}; l.forEach(function(x){ c[x.sit]++; }); return c; }
+function painelCompara(){
+  if(!acconAtivo()) return '<div class="parado"><b>A leitura do site (Accon) está parada'+(PZD.accon_lido?' desde '+esc(PZD.accon_lido):'')+'.</b> Sem ela não dá para comparar.</div>';
+  var l=comparaGrupos(), c=contaCmp(l), rot={DOIS:'Pausado nos dois',SITE:'Só no site',IFOOD:'Só no iFood'};
+  var h='<div class="nota">O iFood é a referência: o site deve ficar igual a ele. Leitura do iFood '+esc(PZD.lido_em||'?')+' · leitura do site '+esc(PZD.accon_lido||'?')+
+    '. Compara pelo nome do item; complemento do iFood não entra.</div>'+
+    '<div class="cards"><div class="card '+(c.SITE?'mal':'bem')+'"><div class="t">Só no site</div><div class="v">'+c.SITE+'</div><div class="qs">pausado no site e vendendo no iFood</div></div>'+
+    '<div class="card '+(c.IFOOD?'mal':'bem')+'"><div class="t">Só no iFood</div><div class="v">'+c.IFOOD+'</div><div class="qs">pausado no iFood e vendendo no site</div></div>'+
+    '<div class="card bem"><div class="t">Nos dois</div><div class="v">'+c.DOIS+'</div><div class="qs">já batem</div></div></div>';
+  if(!l.length) return h+'<div class="nota">Nada pausado em nenhum dos dois.</div>';
+  h+='<table style="width:100%;border-collapse:collapse;margin-top:10px"><tr style="text-align:left"><th>Loja</th><th>Item</th><th>Situação</th><th>iFood</th><th>Site</th></tr>';
+  l.forEach(function(x){ h+='<tr style="border-top:1px solid rgba(255,255,255,.08)'+(x.sit==='DOIS'?';opacity:.6':'')+'"><td>'+esc(x.unidade)+'</td><td>'+esc(x.item)+'</td><td>'+rot[x.sit]+
+    '</td><td>'+(x.ifood?'pausado':'vendendo')+'</td><td>'+(x.site?'pausado':'vendendo')+'</td></tr>'; });
+  return h+'</table>';
+}
 function cardAba(id,ic,rot,n,sub,tipo){
   return '<div class="card '+tipo+(ABA===id?' on':'')+'" onclick="abre(&quot;'+id+'&quot;)" title="Abrir">'+
     '<div class="t">'+ic+' '+rot+'</div><div class="v">'+n+'</div>'+sub+'</div>';
@@ -335,7 +384,14 @@ function desenha(){
   var ci=contaIfood(pzGrupos());
   var tb=tabLinhas(), tbc=contaC(tb), tbp=tb.filter(function(x){return x.estado==='pausado'&&x.sit!=='RESP'}).length;
   var ac=acconAtivo()?contaC(canalGrupos('accon')):null;
-  var h='<div class="lojas"><span class="rot">LOJA</span>'+(FIXA?lj(FIXA):lj('','Todas')+lj('Água Verde')+lj('Ahú')+lj('São Braz'))+'</div>'+
+  /* 16/11/2026, pedido do Fábio: botão da sincronia grande, em destaque, no alto. */
+  var sinc='';
+  if(ac){ var cc=contaCmp(comparaGrupos()), nn=cc.SITE+cc.IFOOD;
+    sinc='<div class="sinc'+(nn?' mal':' bem')+(ABA==='compara'?' on':'')+'" onclick="abre(&quot;compara&quot;)" title="Abrir a sincronia">'+
+      '<div class="sv">🔁</div><div><div class="st">SINCRONIA iFood x Site</div><div class="sq">'+
+      (nn?'<b>'+nn+'</b> não bate'+(nn>1?'m':'')+' · '+cc.SITE+' só no site · '+cc.IFOOD+' só no iFood':'tudo igual nos dois')+' · '+cc.DOIS+' pausados nos dois</div></div></div>'; }
+  else if(ACCON_VIS) sinc='<div class="sinc sd"><div class="sv">🔁</div><div><div class="st">SINCRONIA iFood x Site</div><div class="sq">leitura do site parada'+(PZD.accon_lido?' desde '+esc(PZD.accon_lido):'')+'</div></div></div>';
+  var h=sinc+'<div class="lojas"><span class="rot">LOJA</span>'+(FIXA?lj(FIXA):lj('','Todas')+lj('Água Verde')+lj('Ahú')+lj('São Braz'))+'</div>'+
     '<div class="cards">'+((FIXA==='Ahú'||!SALAO)?'':
       cardAba('salao','🍽','Salão · tablets', tbc.PRECISA,
         '<div class="qs" style="color:'+(tbc.PRECISA?'#ff9a9a':'#7fe0aa')+'">'+(tbc.PRECISA?'itens esperando a loja':'todos respondidos')+'</div>'+
@@ -344,31 +400,47 @@ function desenha(){
       cardAba('ifood','🛵','Delivery · iFood', ci.PRECISA,
         '<div class="qs" style="color:'+(ci.PRECISA?'#ff9a9a':'#7fe0aa')+'">'+(ci.PRECISA?'itens esperando a loja':'todos respondidos')+'</div>'+
         (ci.RESP?'<div class="qs">'+ci.RESP+' já respondidos (fora da lista)</div>':''), ci.PRECISA?'mal':'bem')+
-      (ac ? cardAba('accon','🌐','Accon · site próprio', ac.PRECISA,
+      (!ACCON_VIS ? '' : ac ? cardAba('accon','🌐','Accon · site próprio', ac.PRECISA,
               '<div class="qs" style="color:'+(ac.PRECISA?'#ff9a9a':'#7fe0aa')+'">'+(ac.PRECISA?'itens esperando a loja':'todos respondidos')+'</div>', ac.PRECISA?'mal':'bem')
           : cardAba('accon','🌐','Accon · site próprio', '—',
               '<div class="qs" style="color:#ff9a9a">sem leitura'+(PZD.accon_lido?' desde '+esc(PZD.accon_lido):'')+'</div>', 'sd'))+
     '</div>';
-  var tit={salao:'🍽 Salão · tablets da mesa',ifood:'🛵 Delivery · iFood',accon:'🌐 Accon · site próprio'}[ABA];
-  var corpo= ABA==='salao'?painelSalao() : ABA==='accon'?painelAccon() : painelIfood();
+  var tit={salao:'🍽 Salão · tablets da mesa',ifood:'🛵 Delivery · iFood',accon:'🌐 Accon · site próprio',compara:'🔁 iFood x Site (Accon)'}[ABA];
+  var corpo= ABA==='salao'?painelSalao() : ABA==='accon'?painelAccon() : ABA==='compara'?painelCompara() : painelIfood();
   h+='<div class="painel"><div class="ph"><h3>'+tit+'</h3></div>'+corpo+'</div>';
   $('app').innerHTML=h;
 }
 function placar(h){ var p=$('placar'); if(p) p.innerHTML=h; }
-async function boot(){
-  placar('<span class="pl">carregando…</span>');
-  PZD=null; desenha();
-  try{ PZD=await porta('pausados_consulta',{}); }
-  catch(e){ PZD={erro:(e&&e.message)||'erro'}; placar('<span class="pl" style="border-color:rgba(230,103,103,.5);color:#ff9a9a">'+esc(PZD.erro)+'</span>'); desenha(); return }
-  PZD=PZD||{};
+async function boot(quieto){
+  /* 16/11/2026: quieto = releitura automatica de 2 em 2 minutos (tela ao vivo), sem piscar "Carregando" e sem perder o que esta na tela se falhar */
+  if(!quieto){ placar('<span class="pl">carregando…</span>'); PZD=null; desenha(); }
+  var novo;
+  try{ novo=await porta('pausados_consulta',{}); }
+  catch(e){ if(quieto) return; PZD={erro:(e&&e.message)||'erro'}; placar('<span class="pl" style="border-color:rgba(230,103,103,.5);color:#ff9a9a">'+esc(PZD.erro)+'</span>'); desenha(); return }
+  var y=window.scrollY;
+  PZD=novo||{};
   placar('<span class="pl"'+((PZD.lido_min==null||PZD.lido_min>20)?' style="border-color:rgba(230,103,103,.5)"':'')+'>iFood lido <b>'+esc(PZD.lido_em||'há mais de 2 dias')+'</b></span>'+
     (SALAO&&(PZD.tablet_lido||[]).filter(daLoja).length?'<span class="pl">tablet lido <b>'+(PZD.tablet_lido||[]).filter(daLoja).map(function(l){return esc(l.lido)}).filter(function(v,i,a){return a.indexOf(v)===i}).join(' / ')+'</b></span>':'')+
-    (acconAtivo()?'<span class="pl">Accon lido <b>'+esc(PZD.accon_lido)+'</b></span>'
+    (!ACCON_VIS?'':acconAtivo()?'<span class="pl">Accon lido <b>'+esc(PZD.accon_lido)+'</b></span>'
       :'<span class="pl" style="border-color:rgba(230,103,103,.5)">Accon <b style="color:#ff9a9a">parado'+(PZD.accon_lido?' desde '+esc(PZD.accon_lido):'')+'</b></span>')+
     /* 15/10/2026 (chat-menu-faxina-pausados-15-10): item pausado ha 8 dias ou mais sai da lista; aqui so o numero */
     (+PZD.mais7d>0?'<span class="pl" title="Pausados há mais de 7 dias: já avisados no grupo da loja, não aparecem mais na lista">💤 <b>'+(+PZD.mais7d)+'</b> há mais de 7 dias, fora da lista</span>':''));
   desenha();
+  if(quieto) window.scrollTo(0,y);
 }
+/* Timer de rede de 120 s: desligado com clearInterval quando a aba fica escondida (visibilitychange) e ao sair da pagina (pagehide);
+   religado com uma releitura quando a aba volta. */
+var TMR=null;
+function vivoTic(){
+  var f=document.activeElement; /* nao redesenha no meio de uma resposta (lista de motivo ou campo aberto) */
+  if(f && $('app').contains(f) && /^(SELECT|INPUT|TEXTAREA)$/.test(f.tagName)) return;
+  if(PZD && !PZD.erro) boot(true);
+}
+function vivoLiga(){ if(TMR) clearInterval(TMR); TMR=setInterval(vivoTic,120000); }
+function vivoDesliga(){ if(TMR){ clearInterval(TMR); TMR=null; } }
+document.addEventListener('visibilitychange',function(){ if(document.hidden) vivoDesliga(); else { vivoTic(); vivoLiga(); } });
+window.addEventListener('pagehide',vivoDesliga);
+vivoLiga();
 /* ===== porta unica do portal ===== */
 const CDMMODS=['pausados','sbpausados','ahupausados','pausadosgestao'];
 function cdmTok(){try{return sessionStorage.getItem('cdm_token')||''}catch(e){return ''}}

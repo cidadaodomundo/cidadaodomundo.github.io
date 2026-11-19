@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saúde dos Robôs · Cidadão do Mundo</title>
+<meta name="theme-color" content="#E0A81C">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/cdm-ui.css?v=1">
+<style>
+/* 14/11/2026 (chat-saude-robos-14-11). Pedido do Fabio: "crie no painel antigo um campo onde tem uma aba somente com a saude dos robos".
+   Le pela porta robos_saude(p_token) - so o dono. A conta junta o vigia (saude_dos_robos), o catalogo (robo_catalogo)
+   e o placar de frescor (fato_frescor); fica guardada 5 min no banco. Sem timer: so le quando abre ou no botao Atualizar. */
+.sub{color:var(--muted);font-size:13px;margin-top:6px;max-width:760px;line-height:1.45}
+.res{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 10px}
+.res .chip{cursor:pointer}
+.res .chip.on{border-color:var(--brand);background:var(--s2)}
+.bx{width:100%;max-width:420px;background:var(--s1);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:10px 12px;font-size:14px;font-family:inherit;margin-bottom:12px}
+.gh{font-weight:800;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 8px}
+.lst{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.rb{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.rb.problema{border-color:#6e2626}
+.rb .nm{font-weight:700;font-size:14.5px;word-break:break-word}
+.rb .ln{font-size:12.5px;color:var(--text2);line-height:1.4;word-break:break-word}
+.rb .mu{font-size:12px;color:var(--muted);line-height:1.4;word-break:break-word}
+.rb .er{font-size:12px;color:#ffb4b4;background:#2a1414;border-radius:8px;padding:6px 8px;word-break:break-word}
+.tg{display:inline-block;border-radius:999px;padding:2px 9px;font-weight:800;font-size:11.5px;white-space:nowrap}
+.tg.problema{background:#3a1515;color:#ff9a9a}
+.tg.ok{background:#16351f;color:#7ce28f}
+.tg.novo{background:#33280f;color:#f2c94c}
+.tg.sem_vigia{background:var(--s3);color:var(--text2)}
+.tg.desligado{background:var(--s2);color:var(--muted)}
+table.fx{border-collapse:collapse;width:100%;max-width:820px;font-size:13px}
+table.fx td,table.fx th{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
+table.fx th{color:var(--muted);font-weight:700;font-size:12px}
+.msg{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:14px;color:var(--text2)}
+.msg.err{border-color:#6e2626;color:#ffd6d6}
+.fonte{color:var(--muted);font-size:12px;margin-top:20px;line-height:1.5;max-width:820px}
+.btn-at{background:var(--s2);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:7px 14px;font-weight:700;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><h1>🤖 Saúde dos Robôs</h1><div class="sub">Todos os robôs do catálogo e os que o vigia acompanha, num lugar só. Nos robôs que o vigia acompanha: no banco ele mede o ritmo dos últimos 7 dias; no PC usa o ritmo anotado. E marca quando o robô atrasa, para ou falha.</div></div>
+    <div class="rt"><button class="btn-at" id="btnAt" type="button">↻ Atualizar</button></div>
+  </div>
+  <div id="conteudo"><div class="msg">Conferindo o acesso…</div></div>
+  <div class="fonte" id="rodape"></div>
+</div>
+<script>
+(function(){
+const SB = "https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/";
+const KEY = "sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV";
+const MODS = ["robos"];
+const el = document.getElementById("conteudo");
+const GR = {problema:"⚠️ Precisa olhar", novo:"🆕 Ritmo ainda desconhecido", sem_vigia:"❔ Sem vigia automático", ok:"✅ Em dia", desligado:"⏹ Desligado"};
+const ORD = ["problema","novo","sem_vigia","ok","desligado"];
+let D = null, FILTRO = "ativos", BUSCA = "";
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function tok(){ try{ return sessionStorage.getItem("cdm_token") || ""; }catch(e){ return ""; } }
+function saia(m){
+  try{ sessionStorage.setItem("cdm_aviso", m || ""); }catch(e){}
+  try{ var w = (window.top && window.top !== window) ? window.top : window; w.location.replace("/index.html"); }catch(e){ location.replace("/index.html"); }
+}
+async function rpc(nome, corpo){
+  const r = await fetch(SB + "rpc/" + nome, { method: "POST",
+    headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
+  const j = await r.json().catch(() => null);
+  if (!r.ok){ const e = new Error((j && (j.message || j.erro)) || ("erro " + r.status)); e.code = (j && j.code) || ""; throw e; }
+  return j;
+}
+async function guarda(){
+  const t = tok();
+  if (!t){ saia("Entre no portal para acessar esta tela"); return false; }
+  let j = null;
+  try{ j = await rpc("portal_eu", { p_token: t, p_tela: "robos" }); }catch(e){ j = null; }
+  if (!j || !j.usuario){ saia("Entre no portal para acessar esta tela"); return false; }
+  const ms = Array.isArray(j.modulos) ? j.modulos : [];
+  if (!ms.some(m => m && MODS.indexOf(m.id) >= 0)){ saia("Você não tem acesso a este módulo"); return false; }
+  return true;
+}
+function z(n){ return (n < 10 ? "0" : "") + n; }
+function hora(iso){
+  if (!iso) return "";
+  const d = new Date(iso); if (isNaN(d)) return "";
+  return z(d.getDate()) + "/" + z(d.getMonth() + 1) + " " + z(d.getHours()) + ":" + z(d.getMinutes());
+}
+function dur(min){
+  if (min == null || min === "") return "";
+  const m = Number(min); if (!isFinite(m)) return "";
+  if (m < 60) return Math.round(m) + " min";
+  if (m < 1440) return String(Math.round(m / 6) / 10).replace(".", ",") + " h";
+  return String(Math.round(m / 144) / 10).replace(".", ",") + " dias";
+}
+function dia(s){ return s ? String(s).split("-").reverse().slice(0, 2).join("/") : "nunca"; }
+function cartao(r){
+  let h = '<div class="rb ' + esc(r.g) + '"><div><span class="tg ' + esc(r.g) + '">' + esc(GR[r.g] || r.g) + '</span></div>';
+  h += '<div class="nm">' + esc(r.n) + '</div>';
+  if ((r.g === "problema" || r.g === "novo") && r.st) h += '<div class="ln"><b>' + esc(r.st) + '</b></div>';
+  const ult = r.u ? ("última vez " + hora(r.u) + (r.pm != null ? " (há " + dur(r.pm) + ")" : "")) : (r.g === "desligado" ? "" : "sem registro nos últimos 7 dias");
+  const rit = r.r ? (r.rd ? "deveria rodar a cada " + dur(r.r) + " (ritmo anotado)" : "costuma rodar a cada " + dur(r.r) + " (medido em 7 dias)") : "";
+  const l1 = [ult, rit].filter(Boolean).join(" · ");
+  if (l1) h += '<div class="ln">' + esc(l1) + '</div>';
+  if (r.q) h += '<div class="mu">⏰ ' + esc(r.q) + '</div>';
+  if (r.on) h += '<div class="mu">📍 ' + esc(r.on) + '</div>';
+  if (r.f) h += '<div class="mu">' + esc(r.f) + '</div>';
+  if (r.a) h += '<div class="mu">➜ alimenta: ' + esc(r.a) + '</div>';
+  if (r.e && r.g !== "ok" && r.g !== "desligado") h += '<div class="er">' + esc(r.e) + '</div>';
+  return h + '</div>';
+}
+function desenhar(){
+  if (!D) return;
+  const rs = Array.isArray(D.robos) ? D.robos : [];
+  const n = {}; ORD.forEach(g => { n[g] = 0; }); rs.forEach(r => { n[r.g] = (n[r.g] || 0) + 1; });
+  const ativos = rs.length - (n.desligado || 0);
+  let h = '<div class="res">';
+  h += '<span class="chip' + (FILTRO === "ativos" ? " on" : "") + '" data-f="ativos">Todos os ligados <span class="ct">' + ativos + '</span></span>';
+  ORD.forEach(g => { h += '<span class="chip' + (FILTRO === g ? " on" : "") + '" data-f="' + g + '">' + esc(GR[g]) + ' <span class="ct">' + (n[g] || 0) + '</span></span>'; });
+  h += '</div><input class="bx" id="busca" placeholder="Procurar robô ou tela (ex.: ponto, iFood, Pagar Motoboys)" value="' + esc(BUSCA) + '">';
+  const b = BUSCA.toLowerCase();
+  const vis = rs.filter(r => (FILTRO === "ativos" ? r.g !== "desligado" : r.g === FILTRO)
+    && (!b || [r.n, r.a, r.f, r.on].join(" ").toLowerCase().indexOf(b) >= 0));
+  if (!vis.length) h += '<div class="msg">Nenhum robô neste filtro.</div>';
+  ORD.forEach(g => {
+    const l = vis.filter(r => r.g === g); if (!l.length) return;
+    h += '<div class="gh">' + esc(GR[g]) + ' · ' + l.length + '</div><div class="lst">' + l.map(cartao).join("") + '</div>';
+  });
+  const fs = Array.isArray(D.fontes) ? D.fontes : [];
+  if (fs.length){
+    h += '<div class="gh">📦 Fontes de dados — até que dia o dado chegou</div><table class="fx"><tr><th>Fonte</th><th>Dado até</th><th>Situação</th></tr>';
+    h += fs.map(f => '<tr><td>' + esc(f.rotulo) + '</td><td>' + esc(dia(f.ultimo_dia)) + '</td><td>'
+      + (f.farol === "OK" ? '<span class="tg ok">em dia</span>' : '<span class="tg problema">' + esc(f.farol) + '</span>') + '</td></tr>').join("") + '</table>';
+  }
+  el.innerHTML = h;
+  el.querySelectorAll(".chip[data-f]").forEach(c => c.addEventListener("click", () => { FILTRO = c.getAttribute("data-f"); desenhar(); }));
+  const bx = document.getElementById("busca");
+  bx.addEventListener("input", () => { BUSCA = bx.value; const p = bx.selectionStart; desenhar(); const nb = document.getElementById("busca"); nb.focus(); try{ nb.setSelectionRange(p, p); }catch(e){} });
+  document.getElementById("rodape").innerHTML = 'De onde vem esta tela: o <b>vigia</b> do banco (o mesmo que manda o aviso de robô parado), o <b>catálogo de robôs</b> (o que cada robô faz e o que alimenta) e o <b>placar de frescor</b> das fontes. "Sem vigia automático" = o vigia do banco não acompanha este robô, então a tela não sabe dizer se ele está rodando; quando o robô anota no diário, aparece a última vez. Conferido às ' + esc(hora(D.gerado_em)) + ' (a conta fica guardada 5 minutos).';
+}
+async function carregar(){
+  el.innerHTML = '<div class="msg">Carregando… (pode levar alguns segundos)</div>';
+  try{
+    D = await rpc("robos_saude", { p_token: tok() });
+    if (!D || !Array.isArray(D.robos)) throw new Error("resposta vazia");
+    desenhar();
+  }catch(e){
+    if (e.code === "28000"){ saia("Sua sessão expirou. Entre de novo."); return; }
+    el.innerHTML = '<div class="msg err">Não consegui carregar a saúde dos robôs (' + esc(e.message) + '). Aperte ↻ Atualizar.</div>';
+  }
+}
+document.getElementById("btnAt").addEventListener("click", carregar);
+guarda().then(ok => { if (ok) carregar(); });
+})();
+</script>
+<script src="/assets/portal.js?v=3"></script>
+</body>
+</html>

@@ -166,14 +166,14 @@ var MOT_GER=['Resolvido com o cliente','Ja estava certo','Nao era problema nosso
 var FAM='TODOS';
 var ESQ=false, PAG=false;
 function soUm(q){
-  var era={ESQ:ESQ,PAU:PAU,CHG:CHG,DUPO:DUPO,FDA:FDA,PZ:PZ,PAG:PAG}[q];
-  ESQ=false;PAU=false;CHG=false;DUPO=false;FDA=false;PZ=false;PAG=false;TIPO='';
-  if(q==='ESQ')ESQ=!era; if(q==='PAU')PAU=!era; if(q==='CHG')CHG=!era; if(q==='DUPO')DUPO=!era; if(q==='FDA')FDA=!era; if(q==='PZ')PZ=!era; if(q==='PAG')PAG=!era;
+  var era={ESQ:ESQ,PAU:PAU,DUPO:DUPO,FDA:FDA,PZ:PZ,PAG:PAG}[q];
+  ESQ=false;PAU=false;DUPO=false;FDA=false;PZ=false;PAG=false;TIPO='';
+  if(q==='ESQ')ESQ=!era; if(q==='PAU')PAU=!era; if(q==='DUPO')DUPO=!era; if(q==='FDA')FDA=!era; if(q==='PZ')PZ=!era; if(q==='PAG')PAG=!era;
   desenha(); rolaPainel();
 }
 function rolaPainel(){ var p=document.getElementById('painel'); if(p&&p.scrollIntoView) p.scrollIntoView({behavior:'smooth',block:'nearest'}); }
-function fechaTudo(){ ESQ=false;PAU=false;CHG=false;DUPO=false;FDA=false;PZ=false;PAG=false;TIPO=''; desenha(); }
-var TIT_Q={PAG:'💵 Quanto pagar a cada motoboy',ESQ:'🛍️ Errado no pedido',PAU:'⏸️ Parou de vender',FDA:'📵 Fora do ar no delivery',CHG:'🛵 Chegada não sinalizada',DUPO:'🚘 Corrida em dobro',PZ:'⏸️ Cardápio pausado'};
+function fechaTudo(){ ESQ=false;PAU=false;DUPO=false;FDA=false;PZ=false;PAG=false;TIPO=''; desenha(); }
+var TIT_Q={PAG:'💵 Quanto pagar a cada motoboy',ESQ:'🛍️ Errado no pedido',PAU:'⏸️ Parou de vender',FDA:'📵 Fora do ar no delivery',DUPO:'🚘 Corrida em dobro',PZ:'⏸️ Cardápio pausado'};
 function painelQ(q,corpo){
   if(!corpo) return '';
   return '<div class="painel" id="painel"><div class="ph"><h3>'+TIT_Q[q]+'</h3><button class="b fecha" onclick="fechaTudo()">fechar ✕</button></div>'+corpo+'</div>';
@@ -182,7 +182,7 @@ function painelQ(q,corpo){
 var PRIMEIRA=true;
 function abrePrimeiro(){
   if(!PRIMEIRA||!D) return; PRIMEIRA=false;
-  if(TIPO||ESQ||PAU||CHG||DUPO||FDA||PZ||PAG) return;
+  if(TIPO||ESQ||PAU||DUPO||FDA||PZ||PAG) return;
   var es=D.esquecidos||[], it=D.itens||[];
   if(es.some(function(e){return e.pendente})){ ESQ=true; return; }
   var ord=['reentrega','cancelamento','parcial','chat','maquininha','negociacao'];
@@ -190,9 +190,8 @@ function abrePrimeiro(){
 }
 var PAU=false;
 var FDA=false;
-var CHG=false;
 
-/* 30/09/2026, pedido do Fabio (telas honestas): Reentrega, Chegada nao sinalizada e Corrida em dobro dependem
+/* 30/09/2026, pedido do Fabio (telas honestas): Reentrega e Corrida em dobro dependem
    do TrackEat. Quando ele parou, o cartao nao pode mostrar 0 como se estivesse tudo certo: fica cinza e diz desde quando.
    Quem sabe desde quando e o medidor de frescor (fato_frescor, aberto para leitura), lido 1x por abertura. */
 var FR=null;
@@ -391,26 +390,7 @@ function pausados(){
     'Ultima leitura do cardapio do delivery: '+(lidos||'nenhuma')+'. O tablet do salao nao entra.</div></div>';
 }
 
-function cardCheg(){
-  var cs=((D&&D.chegada)||{}).linhas||[];
-  if(!cs.length) return cardSemDado('Chegada nao sinalizada','&#128757;')||cardF0('Chegada nao sinalizada','&#128757;');
-  return '<div class="card mal'+(CHG?' on':'')+'" onclick="soUm(&quot;CHG&quot;)" title="Clique para abrir ou fechar">'+
-    '<div class="t">&#128757; Chegada nao sinalizada</div>'+
-    '<div class="v">'+cs.length+'</div></div>';
-}
-
-function chegada(){
-  var C=(D&&D.chegada)||{}, cs=C.linhas||[];
-  if(!cs.length || !CHG) return '';
-  return '<div style="border:1px solid var(--line);border-left:4px solid var(--bad);background:var(--s1);border-radius:16px;padding:12px 14px;margin:0">'+
-    '<div style="color:var(--bad);font-size:11px;font-weight:800;margin-bottom:7px">A EQUIPE NAO SINALIZOU A CHEGADA DO ENTREGADOR</div>'+
-    '<div style="max-height:150px;overflow:auto">'+cs.map(function(c){
-      return '<div style="padding:3px 0;font-size:12px;line-height:1.35">'+
-        '<span style="color:var(--muted)">'+esc(c.diac||'')+' '+esc(c.hora||'')+' &#183; '+esc(c.unidade||'')+'</span> '+
-        '<b>'+esc(c.quem||'')+'</b> <span style="color:var(--muted)">(quem viu foi o '+esc(c.fonte||'')+')</span></div>';
-    }).join('')+'</div>'+
-    '<div class="m" style="margin-top:7px">O entregador chegou e ninguem marcou a chegada na tela. Dia '+esc(C.dia||'')+', conferido em '+esc(C.em||'')+'.</div></div>';
-}
+/* 15/11/2026, ordem do Fabio: o quadro Chegada nao sinalizada saiu daqui; a chegada do motoboy fica na tela Chegada (TrackEat). */
 
 var DUPO=false;
 function cardDup(){
@@ -622,7 +602,7 @@ async function reabrir(i){
 
 function filtra(tp, ver){
   if(TIPO === tp){ TIPO=''; desenha(); return }
-  ESQ=false;PAU=false;CHG=false;DUPO=false;FDA=false;PZ=false;PAG=false;
+  ESQ=false;PAU=false;DUPO=false;FDA=false;PZ=false;PAG=false;
   TIPO = tp;
   if(ver){ VER = ver }
   desenha(); rolaPainel();
@@ -885,7 +865,6 @@ function desenha(){
     cardTot(R,'chat','Cliente sem resposta','💬')+
     '<div style="grid-column:span 2;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">'+cardMaq(R)+cardPag()+'</div>'+
     cardTot(R,'negociacao','Negociação do iFood','🤝')+
-    cardCheg()+
     cardDup()+
     cardPz()+
   '</div>';
@@ -893,8 +872,6 @@ function desenha(){
   h+=painelQ('ESQ',esquecidos());
 
   h+=painelQ('PZ',pausasPz());
-
-  h+=painelQ('CHG',chegada());
 
   h+=painelQ('DUPO',duplaPainel());
 
@@ -914,7 +891,7 @@ function desenha(){
          '. Elas ficam na lista até alguém resolver, mesmo sendo de outro dia.</div></div>';
     }
     h+='</div>';
-  }else if(!(ESQ||PAU||CHG||DUPO||FDA||PZ||PAG)){
+  }else if(!(ESQ||PAU||DUPO||FDA||PZ||PAG)){
     h+='<div class="nota">👆 Toque num quadro para ver a lista dele.</div>';
   }
 
