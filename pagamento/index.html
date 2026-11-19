@@ -263,6 +263,11 @@ button.b[disabled]{opacity:.4;cursor:not-allowed}
 .vr-esc{margin:10px 0 12px;padding:10px 12px;border:1px solid rgba(255,255,255,.12);border-radius:10px;font-variant-numeric:tabular-nums}
 .vr-esc .k{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#CFC6AE;margin-bottom:4px}
 .vr-esc .ln{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:2px 0}
+.vr-esc .ln.pausa{color:#fbbf24;font-weight:600}
+.vr-esc .ln.vazio{color:#CFC6AE;font-size:13px;padding-left:12px}
+.vr-esc .vr-cor{margin-top:6px;font-size:13px}
+.vr-esc .vr-cor summary{cursor:pointer;color:var(--brand)}
+.vr-esc .ln.rep{text-decoration:line-through;opacity:.6}
 .vr-esc .ln.tot{border-top:1px dashed rgba(255,255,255,.18);margin-top:3px;padding-top:4px}
 .pr-j-turno small{flex:0 0 52px;font-size:11px;color:#CFC6AE}
 .pr-j-turno b{font-size:20px;line-height:1.15}
@@ -1250,6 +1255,36 @@ function pgEscBox(m){
   h+='<span class="fo">escala: robôs escala-jaison ou colada pelo WhatsApp · entregas: TrackEat, robô trackeat-api-entregas</span></div>';
   return h;
 }
+/* 19/11/2026 (Hellen): corridas do dia por periodo ligado (GPS) e pausas, para ver se ele emendou a tarde.
+   m.corridas [{h,p,v,s}] (TrackEat) e m.ligado [{de,ate}] (GPS, sessoes com intervalo maior que 20 min) vem de pagamento_do_dia. */
+function pgMin(h){if(!h)return null;const a=h.split(':');let x=+a[0]*60+(+a[1]);if(x<300)x+=1440;return x}
+function pgDur(a,b){const d=pgMin(b)-pgMin(a);return d>=60?Math.floor(d/60)+'h'+('0'+d%60).slice(-2):d+' min'}
+function pgCorridasBox(m){
+  if(!m||!('corridas' in m))return '';
+  const C=(Array.isArray(m.corridas)?m.corridas:[]).filter(function(c){return c.s!=='Reprovado'});
+  const L=Array.isArray(m.ligado)?m.ligado:[];
+  const G=L.map(function(l){return {de:l.de,ate:l.ate,c:[]}}), fora={de:null,ate:null,c:[]};
+  C.forEach(function(c){const x=pgMin(c.h);const g=G.find(function(g){return x>=pgMin(g.de)-2&&x<=pgMin(g.ate)+2});(g||fora).c.push(c)});
+  if(fora.c.length){fora.de=fora.c[0].h;fora.ate=fora.c[fora.c.length-1].h;fora.semgps=true;G.push(fora);G.sort(function(a,b){return pgMin(a.de)-pgMin(b.de)})}
+  const soma=function(a){return a.reduce(function(t,c){return t+Number(c.v||0)},0)};
+  let h='<div class="vr-esc"><div class="k">Corridas do dia · horário ligado</div>';
+  if(!C.length&&!G.length) h+='<div class="ln"><span class="vm">sem corridas e sem GPS neste dia</span></div>';
+  G.forEach(function(g,i){
+    if(i>0&&!g.semgps&&!G[i-1].semgps) h+='<div class="ln pausa"><span>desligado '+esc(G[i-1].ate)+' → '+esc(g.de)+'</span><span>'+pgDur(G[i-1].ate,g.de)+'</span></div>';
+    h+='<div class="ln"><span>'+(g.semgps?'Sem GPS':'Ligado')+' <b>'+esc(g.de)+' → '+esc(g.ate)+'</b>'+(g.semgps?'':' ('+pgDur(g.de,g.ate)+')')+'</span><span>'+num(g.c.length)+' corrida'+(g.c.length===1?'':'s')+' = <b>'+rs(soma(g.c))+'</b></span></div>';
+    const pts=[g.de].concat(g.c.map(function(c){return c.h})).concat([g.ate]);
+    for(let k=1;k<pts.length;k++){const d=pgMin(pts[k])-pgMin(pts[k-1]);if(d>=40)h+='<div class="ln vazio"><span>sem corrida '+esc(pts[k-1])+' → '+esc(pts[k])+'</span><span>'+pgDur(pts[k-1],pts[k])+'</span></div>'}
+  });
+  if(G.length>1) h+='<div class="ln tot"><span>Total do dia: '+num(C.length)+' corridas</span><span><b>'+rs(soma(C))+'</b></span></div>';
+  const T=Array.isArray(m.corridas)?m.corridas:[];
+  if(T.length){
+    h+='<details class="vr-cor"><summary>ver corrida por corrida</summary>';
+    T.forEach(function(c){h+='<div class="ln'+(c.s==='Reprovado'?' rep':'')+'"><span>'+esc(c.h)+' · pedido '+esc(c.p||'—')+(c.s&&c.s!=='Aprovado'?' · '+esc(c.s.toLowerCase()):'')+'</span><span>'+rs(c.v)+'</span></div>'});
+    h+='</details>';
+  }
+  h+='<span class="fo">corridas: TrackEat (hora da entrega) · ligado: GPS do aplicativo (pausa = mais de 20 min sem sinal) · "sem corrida" = 40 min ou mais sem entrega</span></div>';
+  return h;
+}
 function pgVeredito(m,x){
   const it=[]; function add(c,t,f){it.push('<li class="'+c+'">'+t+(f?'<span class="fo">'+f+'</span>':'')+'</li>')}
   /* 15/11: de onde vem cada informação (robô ou leitura). Horários dos robôs = agenda do cron, em horário de Brasília. */
@@ -1322,7 +1357,7 @@ function pgVeredito(m,x){
     else pix='<div class="pix"><span class="vm">Sem chave Pix: peça antes de pagar</span></div><span class="fo">cadastro do motoboy</span>';
   }
   const lido='<span class="fo lido">tela lida às '+esc(PD.agora||'—')+(PV&&PV.agora?' · Prova real lida às '+esc(PV.agora):'')+'</span>';
-  return '<div class="vr"><div class="vr-a"><div class="vr-v"><span class="k">Pagar</span><b>'+rs(m.pagar)+'</b></div><div class="vr-p">'+por+'<span class="fo">'+pf.join(' · ')+'</span></div>'+pgEscBox(m)+pix+lido+'</div><ul class="chk">'+it.join('')+'</ul></div>';
+  return '<div class="vr"><div class="vr-a"><div class="vr-v"><span class="k">Pagar</span><b>'+rs(m.pagar)+'</b></div><div class="vr-p">'+por+'<span class="fo">'+pf.join(' · ')+'</span></div>'+pgEscBox(m)+pgCorridasBox(m)+pix+lido+'</div><ul class="chk">'+it.join('')+'</ul></div>';
 }
 function pgLinha(m,i){
   const k=String(m.unidade||'')+'|'+String(m.entregador||''), x=pgProvaDe(m), d=pgDif(m,x);
