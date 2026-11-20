@@ -207,6 +207,11 @@ body.modo-carro #slides{display:flex;flex-direction:column;flex:1;min-height:0;p
 .sl-dias .dd .dt{font-size:1.2em;color:var(--muted)}
 .sl-fr{font-size:2.6em;font-weight:800;line-height:1.15}
 .sl-fr.nao{color:var(--bad)}.sl-fr.ok{color:var(--ok)}
+/* 20/11: tela Lembretes da semana */
+.lb-pl{display:flex;gap:1.4em;font-size:2em;font-weight:700;margin:.2em 0 .5em}
+.lb{display:grid;grid-template-columns:1fr 1fr;gap:.8em;align-content:start}
+.lb-i{display:flex;gap:.6em;align-items:flex-start;background:var(--s1);border:1px solid var(--line);border-radius:.5em;padding:.6em .8em}
+.lb-i .ic{font-size:3em;line-height:1}.lb-i .tt{font-size:1.9em;font-weight:800;line-height:1.15}.lb-i .ds{font-size:1.35em;color:var(--muted);margin-top:.2em}
 .sl-ant{font-size:1.6em;color:var(--muted);margin-top:.2em}
 .sl-dias.goo{margin-top:-.2em}.sl-dias .dd.g{padding:.1em}.sl-dias .dd.g .nn{font-size:2.6em}
 .sl-gfr .gfr{font-size:1.9em;margin:0 0 .3em}
@@ -1097,7 +1102,7 @@ setInterval(function(){ if(CARRO.length>1){ CARRO_I++; carroMostra(); } },8000);
    Erro novo: volta na hora para "Erros de hoje". */
 let MODO_CARRO=!PORTAL;
 try{ if(PORTAL) MODO_CARRO=localStorage.getItem('cdm_tv_carro')==='1'; }catch(e){}
-const SL_ORDEM=['erros','meta','fotos','pz','cli','notas','voz','mel'];   /* 31/10: 'voz' = O que o cliente diz da comida */
+const SL_ORDEM=['erros','meta','lembra','fotos','pz','cli','notas','voz','mel'];   /* 20/11: 'lembra' = Lembretes da semana */   /* 31/10: 'voz' = O que o cliente diz da comida */
 let SL_I=-1, SL_T=null, SL_FOTO=0, SL_CLI=0, SL_ATUAL='';
 function slErros(){
   const j=DADO; if(!j) return null;
@@ -1245,7 +1250,29 @@ function slVoz(){
     +(f&&f.texto?'<div class="sl-vfr"><span class="st">'+'★'.repeat(nt)+'☆'.repeat(5-nt)+'</span> <small>'+esc(marcaLoja(f.marca))+' · '+esc(f.dia||'')+'</small> “'+esc(f.texto)+'”</div>':''),
     dur:16};
 }
-const SL_FAZ={erros:slErros, meta:slMeta, fotos:slFotos, pz:slPz, cli:slCli, notas:slNotas, voz:slVoz, mel:slMel};
+/* 20/11/2026 (obra 124, thread-qualidade-cozinhas-20-11) Fabio: "criar uma tela e colocar na televisao da cozinha pra entrar
+   no carrosel da tv". Lembretes da semana: o placar curto da meta desta loja (mesma conta da tela da Meta) e o que mais
+   derrubou a meta na semana de 14 a 19/11 (Agua Verde: 14 de 22 erros foram item esquecido na sacola, 5 deles bebida;
+   1 lanche vegano saiu com bacon). Nenhuma chamada de rede nova. Sem placar (loja sem meta): mostra so os lembretes. */
+function slLembra(){
+  const m=DADO&&DADO.semana; let pl='';
+  if(m&&m.dias&&Number(m.teto_semana)){
+    const teto=Number(m.teto_semana); let tot=0;
+    m.dias.forEach(function(d){ if(d.quando!=='falta'&&d.conta!==false) tot+=Number(d.erros)||0; });
+    const G=gooCalc(m), passou=tot>teto;
+    pl='<div class="lb-pl"><span>🍖 Esta semana: <b style="color:'+(passou?'var(--bad)':'var(--ok)')+'">'+tot+' de '+esc(teto)+'</b> erros</span>'
+      +(G?'<span>⭐ Google: <b style="color:'+(G.falta?'var(--warn)':'var(--ok)')+'">'+esc(G.y)+' de '+esc(G.alvo)+'</b> novas</span>':'')+'</div>';
+  }
+  const it=[
+    ['🛍','Antes de fechar a sacola, confira item por item com a comanda','Bebida, batata, sobremesa, molho. Esquecer item foi o erro que mais derrubou a meta.'],
+    ['🥤','Bebida esquecida é erro grave','Sempre conte as bebidas da comanda antes de entregar ao motoboy.'],
+    ['🌱','Vegano: nada de bacon','Confira o lanche vegano antes de fechar. Chapa, espátula e luva separadas.'],
+    ['⭐','Salão: peça avaliação no Google','Cliente satisfeito? Peça a avaliação. Ela conta para o churrasco.']
+  ];
+  return {html:'<div class="sl-tit">📣 Lembretes da semana <small>o que faz a gente bater a meta</small></div>'+pl
+    +'<div class="lb">'+it.map(function(x){ return '<div class="lb-i"><div class="ic">'+x[0]+'</div><div><div class="tt">'+esc(x[1])+'</div><div class="ds">'+esc(x[2])+'</div></div></div>'; }).join('')+'</div>', dur:14};
+}
+const SL_FAZ={erros:slErros, meta:slMeta, lembra:slLembra, fotos:slFotos, pz:slPz, cli:slCli, notas:slNotas, voz:slVoz, mel:slMel};
 function slPontos(nome){
   const vivos=SL_ORDEM.filter(function(k){ try{ return k===nome || !!SL_FAZ[k](); }catch(e){ return false; } });
   $('sl-pontos').innerHTML=vivos.map(function(k){ return '<i'+(k===nome?' class="on"':'')+'></i>'; }).join('');
