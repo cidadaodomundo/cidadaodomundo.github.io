@@ -264,6 +264,14 @@ button.b[disabled]{opacity:.4;cursor:not-allowed}
 .vr-esc .k{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#CFC6AE;margin-bottom:4px}
 .vr-esc .ln{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:2px 0}
 .vr-esc .ln.tot{border-top:1px dashed rgba(255,255,255,.18);margin-top:3px;padding-top:4px}
+.vr-tn{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px}
+.vr-tn button{background:transparent;color:var(--text2);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:5px 12px;font:700 12.5px 'Barlow',system-ui,sans-serif;cursor:pointer}
+.vr-tn button.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.vr-tn button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.vr-esc .ln .si{color:#7fe0aa}.vr-esc .ln .no{color:#ff8a8a}.vr-esc .ln .tal{color:var(--warn)}
+.vr-esc .ln.pg b{color:var(--brand)}
+.vr-esc .av{margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(201,133,0,.14);color:var(--text2);font-size:13px;line-height:1.45}
+.vr-esc .av.ok{background:rgba(47,174,106,.14)}
 .pr-j-turno small{flex:0 0 52px;font-size:11px;color:#CFC6AE}
 .pr-j-turno b{font-size:20px;line-height:1.15}
 .pr-j-turno i{font-style:normal;font-size:12px;color:#CFC6AE}
@@ -1250,6 +1258,56 @@ function pgEscBox(m){
   h+='<span class="fo">escala: robôs escala-jaison ou colada pelo WhatsApp · entregas: TrackEat, robô trackeat-api-entregas</span></div>';
   return h;
 }
+/* 20/11/2026 (Hellen): com 2 turnos, a ficha separa 1º turno, 2º turno e Total, para ver quando ele perde o garantido
+   e a refeição de um turno e ganha no outro. SÓ MOSTRA: o valor pago continua o da linha (m.pagar).
+   Corridas de cada turno vêm de pagamento_do_dia (turnos_tx): entregues antes da entrada do 2º turno da escala contam no 1º. */
+const PG_TV={}, PG_TVM={};
+function pgTurnosAba(el,a){const box=el.closest('[data-tv]');if(!box)return;const k=box.getAttribute('data-tv');PG_TV[k]=a;if(PG_TVM[k])box.outerHTML=pgTurnosBox(PG_TVM[k])}
+function pgTurnosConta(m){
+  const T=pgEscTurnos(m), D=chTurnos(m), tx=m&&m.turnos_tx;
+  if(T.length!==2||!tx||m.escondido)return null;
+  const vh=Number(m.valor_hora)||null, semDia=m.garantido===false;
+  const tu=T.map(function(t,i){
+    const d=D.find(function(z){return z.combinado===t.entrada})||D[i]||{};
+    const n=Number(i?tx.n2:tx.n1)||0, v=Number(i?tx.tx2:tx.tx1)||0;
+    let g=t.gar; if(g==null&&t.h&&vh)g=Math.round(t.h*vh*100)/100;
+    const perde=semDia||d.furou===true;
+    const paga=(perde||g==null)?v:Math.max(v,g);
+    return {nome:t.nome,ent:t.entrada,sai:t.saida,h:t.h,d:d,n:n,v:v,g:g,perde:perde,paga:paga,vale:(!perde&&g!=null&&g>v)?'gar':'cor'};
+  });
+  const ref=Number(m.cobrar_refeicao||0), aj=Number(m.ajustes||0);
+  const total=Math.round((tu[0].paga+tu[1].paga-ref+aj)*100)/100;
+  return {tu:tu,corte:tx.corte,ref:ref,aj:aj,total:total,bate:Math.abs(Number(tx.tx1)+Number(tx.tx2)-Number(m.taxas||0))<0.01};
+}
+function pgTurnosBox(m){
+  const C=pgTurnosConta(m); if(!C)return pgEscBox(m);
+  const k=String(m.unidade||'')+'|'+String(m.entregador||''), a=PG_TV[k]||'tot', tol=tolPag();
+  PG_TVM[k]=m;
+  const bt=function(id,t){return '<button type="button" class="'+(a===id?'on':'')+'" onclick="pgTurnosAba(this,\''+id+'\')">'+t+'</button>'};
+  let h='<div class="vr-esc" data-tv="'+esc(k)+'"><div class="k">Conta separada por turno</div><div class="vr-tn">'+bt('t0','1º turno')+bt('t1','2º turno')+bt('tot','Total')+'</div>';
+  if(a==='t0'||a==='t1'){
+    const i=a==='t0'?0:1, t=C.tu[i], d=t.d;
+    h+='<div class="ln"><span>Combinado ('+t.nome.toLowerCase()+')</span><span><b>'+esc(t.ent||'?')+' → '+esc(t.sai||'sem hora de saída')+'</b>'+(t.h?' · '+hhmm(t.h):'')+'</span></div>';
+    const at=d.atraso_min!=null&&d.atraso_min!==''?(Number(d.atraso_min)>0?Number(d.atraso_min)+' min depois':Math.abs(Number(d.atraso_min))+' min antes'):'';
+    h+='<div class="ln"><span>Chegou</span><span>'+(d.chegada?'<b>'+esc(d.chegada)+'</b>'+(at?' · '+at:''):'—')+' · '+
+      (d.furou===true?'<span class="no">passou da tolerância'+(tol!=null?' de '+tol+' min':'')+'</span>':d.furou===false?'<span class="si">dentro da tolerância</span>':'<span class="tal">sem prova, não corta</span>')+'</span></div>';
+    h+='<div class="ln"><span>Garantido do turno</span><span>'+(t.g==null?'<span class="tal">sem valor na escala</span>':(t.perde?'<span class="no">perdeu</span> ('+rs(t.g)+')':'<span class="si">ganhou</span> '+rs(t.g)))+'</span></div>';
+    h+='<div class="ln"><span>Refeição do turno</span><span>'+(d.furou===true?'<span class="no">sem direito</span>':'<span class="si">tem direito</span>')+'</span></div>';
+    h+='<div class="ln"><span>Corridas '+(i?'a partir das ':'antes das ')+esc(C.corte)+'</span><span>'+num(t.n)+' = <b>'+rs(t.v)+'</b></span></div>';
+    h+='<div class="ln tot pg"><span>Este turno paga</span><span><b>'+rs(t.paga)+'</b> '+(t.vale==='gar'?'(o garantido)':'(as corridas)')+'</span></div>';
+  } else {
+    C.tu.forEach(function(t,i){h+='<div class="ln"><span>'+(i?'2º':'1º')+' turno · '+(t.vale==='gar'?'garantido':'corridas')+(t.perde?' <span class="no">(perdeu o garantido)</span>':'')+'</span><span>'+rs(t.paga)+'</span></div>'});
+    if(C.ref>0) h+='<div class="ln"><span>Lanche além do direito</span><span>− '+rs(C.ref)+'</span></div>';
+    if(Math.abs(C.aj)>0.004) h+='<div class="ln"><span>Ajuste'+(m.motivos?' ('+esc(m.motivos)+')':'')+'</span><span>'+(C.aj>0?'+ ':'− ')+rs(Math.abs(C.aj))+'</span></div>';
+    h+='<div class="ln tot pg"><span>Total pela conta por turno</span><span><b>'+rs(C.total)+'</b></span></div>';
+    if(m.editado) h+='<div class="av">O valor desta linha foi <b>editado à mão</b> no fechamento: vale a edição ('+rs(m.pagar)+').</div>';
+    else if(Math.abs(C.total-Number(m.pagar||0))>=0.01) h+='<div class="av">⚠ A tela hoje paga <b>'+rs(m.pagar)+'</b>, pela conta do dia inteiro. Pela conta por turno daria <b>'+rs(C.total)+'</b> (diferença de '+rs(Math.abs(C.total-Number(m.pagar||0)))+'). <b>O valor pago não mudou</b>: mudar a regra é decisão de vocês.</div>';
+    else h+='<div class="av ok">✓ Bate com o valor que a tela paga ('+rs(m.pagar)+').</div>';
+  }
+  if(!C.bate) h+='<div class="av">⚠ A soma das corridas dos dois turnos não bate com o total das entregas ('+rs(m.taxas)+'): confira antes de pagar.</div>';
+  h+='<span class="fo">escala: robôs escala-jaison · chegada: GPS do pátio, fila e 1ª entrega do TrackEat · corridas: TrackEat (robô trackeat-api-entregas); as entregues antes das '+esc(C.corte)+' contam no 1º turno · lanche: Saipos, comanda "Z Motoboys"</span></div>';
+  return h;
+}
 function pgVeredito(m,x){
   const it=[]; function add(c,t,f){it.push('<li class="'+c+'">'+t+(f?'<span class="fo">'+f+'</span>':'')+'</li>')}
   /* 15/11: de onde vem cada informação (robô ou leitura). Horários dos robôs = agenda do cron, em horário de Brasília. */
@@ -1322,7 +1380,7 @@ function pgVeredito(m,x){
     else pix='<div class="pix"><span class="vm">Sem chave Pix: peça antes de pagar</span></div><span class="fo">cadastro do motoboy</span>';
   }
   const lido='<span class="fo lido">tela lida às '+esc(PD.agora||'—')+(PV&&PV.agora?' · Prova real lida às '+esc(PV.agora):'')+'</span>';
-  return '<div class="vr"><div class="vr-a"><div class="vr-v"><span class="k">Pagar</span><b>'+rs(m.pagar)+'</b></div><div class="vr-p">'+por+'<span class="fo">'+pf.join(' · ')+'</span></div>'+pgEscBox(m)+pix+lido+'</div><ul class="chk">'+it.join('')+'</ul></div>';
+  return '<div class="vr"><div class="vr-a"><div class="vr-v"><span class="k">Pagar</span><b>'+rs(m.pagar)+'</b></div><div class="vr-p">'+por+'<span class="fo">'+pf.join(' · ')+'</span></div>'+pgTurnosBox(m)+pix+lido+'</div><ul class="chk">'+it.join('')+'</ul></div>';
 }
 function pgLinha(m,i){
   const k=String(m.unidade||'')+'|'+String(m.entregador||''), x=pgProvaDe(m), d=pgDif(m,x);
