@@ -2356,7 +2356,10 @@ try{ TG.det=localStorage.getItem('cdm_fila_det')==='1'; }catch(e){}
 function mbIdade(v){
   var m=/^(\d{2}):(\d{2})$/.exec(String(v||'')); if(!m) return null;
   var a=new Date().toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour12:false,hour:'2-digit',minute:'2-digit'}).split(':');
-  return ((+a[0]*60+ +a[1])-(+m[1]*60+ +m[2])+1440)%1440;
+  var d=((+a[0]*60+ +a[1])-(+m[1]*60+ +m[2])+1440)%1440;
+  /* 22/11/2026: GPS 1-2 min "no futuro" (relogio do computador da loja um pouco atrasado) dava 1439 min
+     ("sem GPS ha 1439 min") e escondia motoboy online. Ate 60 min a frente conta como agora (0). */
+  return d>1380?0:d;
 }
 function tgPassou(p){ return p.falta_prom!=null&&+p.falta_prom<0; }   /* 01/11/2026: pisca so quem passou da hora prometida (o "demorando" nao) */
 /* fim da linha: a hora prometida e quanto falta; passou da hora fica vermelho (o anel do numero pisca) */
