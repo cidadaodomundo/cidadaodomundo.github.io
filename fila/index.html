@@ -408,6 +408,8 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
 .tg-mbs.fechado ol,.tg-mbs.fechado .prox{display:none}
 .tg-leg{left:10px;bottom:22px;padding:7px 10px;display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--text2)}
 .tg-leg i{display:inline-block;vertical-align:middle;margin-right:7px}
+.tg-legx{align-self:flex-end;background:none;border:0;color:var(--text2);font:inherit;font-size:11px;cursor:pointer;padding:0 0 2px}
+.tg-leg.fechado>div{display:none}
 .tg-leg .pl{width:24px;height:14px;border-radius:999px;border:2px solid #111}
 .tg-leg .ci{width:16px;height:16px;border-radius:50%;border:2px solid #111;background:#4FC3F7}
 .tg-leg .an{width:16px;height:16px;border-radius:50%;border:3px solid var(--bad);background:#fff}
@@ -495,7 +497,8 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
     <div id="tg_map"></div>
     <div class="tg-fl tg-ctl"><button class="tg-ctlx" id="tg_ctlx" data-tgctl="1" title="esconde ou mostra este quadro">▲ Recolher</button><div id="tg_rs_ctl" class="tg-rsctl"></div><button onclick="tgTodos()" title="voltar a mostrar todos os pedidos e motoboys">Ver todos</button><button id="tg_tema" onclick="tgTema()">Escurecer mapa</button></div>
     <div class="tg-fl tg-mbs" id="tg_mbs"></div>
-    <div class="tg-fl tg-leg" aria-label="Legenda">
+    <div class="tg-fl tg-leg" id="tg_leg" aria-label="Legenda">
+      <button class="tg-legx" id="tg_legx" onclick="tgLegTroca()" title="esconde ou mostra a legenda">▼ Recolher legenda</button>
       <div><i class="pl" style="background:var(--bad)"></i>Na cozinha</div>
       <div><i class="pl" style="background:var(--roxo)"></i>Pronto, esperando motoboy</div>
       <div><i class="nv"></i>Acabou de entrar no iFood</div>
@@ -2392,6 +2395,15 @@ function roboHtml(){
   h+='<div style="opacity:.6;font-size:.85em">Lido às '+esc(R.agora||'')+'. Esta aba só mostra o que o robô anota; não manda nada para ele.</div></div>';
   return h;
 }
+/* 22/11/2026, pedido do Fabio: todo quadro dentro do mapa tem que poder recolher. A legenda fica recolhida ou aberta
+   neste aparelho (localStorage). */
+function tgLegTroca(forca){
+  var el=document.getElementById('tg_leg'), bt=document.getElementById('tg_legx'); if(!el||!bt) return;
+  var fechar=(forca===undefined)?!el.classList.contains('fechado'):forca;
+  el.classList.toggle('fechado',fechar); bt.textContent=fechar?'▲ Legenda':'▼ Recolher legenda';
+  if(forca===undefined){ try{ localStorage.setItem('cdm_fila_leg_fechada',fechar?'1':'0'); }catch(e){} }
+}
+try{ if(localStorage.getItem('cdm_fila_leg_fechada')==='1') document.addEventListener('DOMContentLoaded',function(){ tgLegTroca(true); }); }catch(e){}
 function mbIdade(v){
   var m=/^(\d{2}):(\d{2})$/.exec(String(v||'')); if(!m) return null;
   var a=new Date().toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour12:false,hour:'2-digit',minute:'2-digit'}).split(':');
