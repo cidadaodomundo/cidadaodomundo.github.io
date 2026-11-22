@@ -2353,6 +2353,45 @@ TG.det=false; TG.rsSo=null; TG.rsIds=null;
 function tgRsIds(rt){ var o={}; (rt.paradas||[]).forEach(function(x){ o[String(x.p.pedido)]=1; }); return o; }
 try{ TG.det=localStorage.getItem('cdm_fila_det')==='1'; }catch(e){}
 /* minutos desde o ultimo GPS ("HH:MI", hora de Curitiba); null se nao der para saber */
+/* 22/11/2026, pedido do Fabio: "tinha que ter um painel onde voce vai botando tudo que voce ta fazendo".
+   Aba 🤖 Robo (so Agua Verde): le o diario do robo de rotas (rota_robo_evento, banco pessoal) pela funcao rota_robo_painel.
+   So leitura: a tela nao manda nada para o robo nem para o TrackEat. Atualiza de 20 em 20 s enquanto a aba esta aberta. */
+var ROBO=null, ROBO_T=null;
+function roboCarrega(){
+  if(!ROBO_T) ROBO_T=setInterval(function(){ if(TG.aba==='robo'&&!document.hidden) roboCarrega(); },20000);
+  rpc('rota_robo_painel',{p_token:cdmTok(),p_unidade:UNI}).then(function(d){ ROBO=d||{erro:'o banco não respondeu (falha de rede ou leitura ainda não criada)'}; })
+    .catch(function(e){ ROBO={erro:String((e&&e.message)||e)}; })
+    .then(function(){ if(TG.aba==='robo'&&window.ULT_D) tgDesenha(window.ULT_D); });
+}
+function roboHtml(){
+  var R=ROBO;
+  if(!R){ if(!ROBO_T) setTimeout(roboCarrega,0); return '<div class="tg-av">Lendo o diário do robô…</div>'; }
+  if(R.erro) return '<div class="tg-av">⚠ Não consegui ler o diário do robô: '+esc(R.erro)+'</div>';
+  var h='<div class="tg-robo" style="padding:6px 2px;display:grid;gap:8px">';
+  var b=R.batida, seg=b?+b.ha_s:null;
+  if(!b) h+='<div class="tg-av">⚪ O robô ainda não deu sinal hoje.</div>';
+  else if(!b.ligado) h+='<div class="tg-av">⏸ Robô DESLIGADO (último sinal às '+esc(b.hora)+').</div>';
+  else if(seg>180) h+='<div class="tg-av">🔴 Robô sem sinal desde '+esc(b.hora)+' (há '+Math.round(seg/60)+' min). Pode ter parado.</div>';
+  else h+='<div style="color:var(--ok,#3c9)">🟢 Robô ligado · último sinal há '+seg+' s</div>';
+  if(b&&b.resumo) h+='<div><b>Agora:</b> '+esc(b.resumo)+(b.proximo_volta_min!=null?' · próximo motoboy volta em ~'+esc(String(b.proximo_volta_min))+' min':'')+(b.na_loja_gps!=null?' · '+esc(String(b.na_loja_gps))+' na loja pelo GPS':'')+'</div>';
+  /* o robo anota 2 vezes a mesma rota: quando monta (sem medida) e quando ela sai (com motoboy e espera). Fica so a mais nova de cada. */
+  var vistos={}, rs=(R.rotas||[]).filter(function(r){ var k=(r.pedidos||[]).slice().sort().join(','); if(vistos[k]) return false; vistos[k]=1; return true; }).slice(0,12);
+  h+='<div><b>Hoje:</b> '+(R.n_rotas||0)+' rota'+(R.n_rotas===1?'':'s')+' montada'+(R.n_rotas===1?'':'s')+' pelo robô'+(R.espera_media!=null?' · espera média até sair '+esc(String(R.espera_media))+' min':'')+'</div>';
+  (R.alertas||[]).forEach(function(a){ h+='<div class="tg-av">⚠ '+esc(a.hora)+' · '+esc(a.texto||'')+'</div>'; });
+  if(rs.length){
+    h+='<div style="font-weight:700;margin-top:4px">Últimas rotas</div><ol style="list-style:none;margin:0;padding:0;display:grid;gap:6px">';
+    rs.forEach(function(r){
+      h+='<li style="border:1px solid var(--line,#333);border-radius:8px;padding:6px 8px">'+
+        '<div><b>'+esc(r.hora)+'</b> · '+(r.motoboy?esc(r.motoboy):'<span style="color:var(--warn)">montada, esperando sair</span>')+(r.grupo?' · rota '+esc(String(r.grupo)):'')+'</div>'+
+        '<div>Pedidos: <b>'+esc((r.pedidos||[]).join(', '))+'</b>'+(r.espera_min!=null?' · esperou '+esc(String(r.espera_min))+' min':'')+'</div>'+
+        (r.motivo?'<div style="opacity:.8">Por quê: '+esc(r.motivo)+'</div>':'')+
+        ((r.trocas||[]).length?'<div style="opacity:.8">'+r.trocas.map(esc).join('<br>')+'</div>':'')+'</li>';
+    });
+    h+='</ol>';
+  }
+  h+='<div style="opacity:.6;font-size:.85em">Lido às '+esc(R.agora||'')+'. Esta aba só mostra o que o robô anota; não manda nada para ele.</div></div>';
+  return h;
+}
 function mbIdade(v){
   var m=/^(\d{2}):(\d{2})$/.exec(String(v||'')); if(!m) return null;
   var a=new Date().toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour12:false,hour:'2-digit',minute:'2-digit'}).split(':');
@@ -2475,7 +2514,7 @@ function tgDesenha(d){
   rua.forEach(function(m){ if(!TG.foco||m.motoboy===TG.foco) vRua=vRua.concat((m.pedidos||[]).filter(tgOk)); });
   var vPass=vPrep.concat(vPron,vNov,vRua).filter(tgPassou).length;
   var h='<div class="tg-ferr">'+
-    (temRs?'<div class="tg-abas"><button class="'+(TG.aba==='ped'?'on':'')+'" data-tga="ped">Pedidos</button><button class="'+(TG.aba==='rota'?'on':'')+'" data-tga="rota">🧭 Rota sugerida</button></div>':'')+
+    (temRs?'<div class="tg-abas"><button class="'+(TG.aba==='ped'?'on':'')+'" data-tga="ped">Pedidos</button><button class="'+(TG.aba==='rota'?'on':'')+'" data-tga="rota">🧭 Rota sugerida</button><button class="'+(TG.aba==='robo'?'on':'')+'" data-tga="robo" title="o que o robô de rotas está fazendo no TrackEat">🤖 Robô</button></div>':'')+
     (TG.aba==='ped'
       ?'<div class="tg-fab">'+[['todos','Todos',vPrep.length+vNov.length+vPron.length+vRua.length,''],['cozinha','Cozinha',vPrep.length+vNov.length,'t-c'],['prontos','Prontos',vPron.length,'t-p'],['rua','Na rua',vRua.length,'']].map(function(f){
           return '<button class="'+(TG.filtro===f[0]?'on ':'')+f[3]+'" data-tgf="'+f[0]+'" title="mostrar '+(f[0]==='todos'?'todos os pedidos':'só '+f[1].toLowerCase())+'">'+f[1]+'<b>'+(TEP?'—':f[2])+'</b></button>'; }).join('')+'</div>'+
@@ -2498,6 +2537,8 @@ function tgDesenha(d){
        '<button class="b" data-tgrd="'+(TG.rsDet?'0':'1')+'">'+(TG.rsDet?'só os números':'ver horários')+'</button></div>'+
        (TG.rsDet?rsBloco(RS_ULT).replace('id="rs_velho"','id="tg_rs_velho"').replace('id="sec_rs"','id="tg_sec_rs"')
                 :'<div id="tg_sec_rs"><div class="tg-av" id="tg_rs_velho" style="display:none"></div>'+rsNumeros(RS_ULT,loja)+'</div>')+'</div>';
+  }else if(TG.aba==='robo'&&temRs){
+    h+=roboHtml();
   }else{
     var foco=function(p){ return !TG.foco||p.motoboy===TG.foco; };
     var so=!TG.det;   /* 01/11/2026: so os numeros (padrao) */
@@ -2867,7 +2908,7 @@ document.addEventListener('click',function(e){
     tgDesenha(window.ULT_D); tgRsZoom(); return; }
   var dt=t.closest('[data-tgdet]'); if(dt){ TG.det=dt.getAttribute('data-tgdet')==='1'; try{ localStorage.setItem('cdm_fila_det',TG.det?'1':'0'); }catch(x){} tgDesenha(window.ULT_D); return; }
   if(t.closest('[data-tgsx]')){ TG.sel=null; tgDesenha(window.ULT_D); return; }
-  var a=t.closest('[data-tga]'); if(a){ TG.aba=a.getAttribute('data-tga'); if(TG.aba==='rota') RS_MAPA=true; tgDesenha(window.ULT_D); if(!tgCel()) tgMostraSel(false); return; }
+  var a=t.closest('[data-tga]'); if(a){ TG.aba=a.getAttribute('data-tga'); if(TG.aba==='rota') RS_MAPA=true; if(TG.aba==='robo') roboCarrega(); tgDesenha(window.ULT_D); if(!tgCel()) tgMostraSel(false); return; }
   var f=t.closest('[data-tgf]'); if(f){ TG.filtro=f.getAttribute('data-tgf'); tgDesenha(window.ULT_D); if(!tgCel()) tgMostraSel(false); return; }
   if(t.closest('[data-tgx]')){ tgTodos(); return; }
   if(t.closest('[data-tgz]')){ TG.mbsFechado=!TG.mbsFechado; tgDesenha(window.ULT_D); return; }
