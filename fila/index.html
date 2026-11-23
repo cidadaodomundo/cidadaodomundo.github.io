@@ -2404,6 +2404,29 @@ function tgLegTroca(forca){
   if(forca===undefined){ try{ localStorage.setItem('cdm_fila_leg_fechada',fechar?'1':'0'); }catch(e){} }
 }
 try{ if(localStorage.getItem('cdm_fila_leg_fechada')==='1') document.addEventListener('DOMContentLoaded',function(){ tgLegTroca(true); }); }catch(e){}
+/* 22/11/2026, pedido do Fabio: ao lado de cada motoboy, quanto falta para o garantido do dia (R$ e corridas).
+   Mesma conta do Pagar Motoboys (vw_motoboy_pagamento_gps: garantido_valido - r_entregas) pela porta fila_motoboy_garantido,
+   que so responde para quem ve o Pagar Motoboys. Corridas = falta / media do valor por corrida dele hoje (estimativa). */
+var GAR=null, GAR_T=0;
+function garLe(){
+  if(Date.now()-GAR_T<55000) return; GAR_T=Date.now();
+  rpc('fila_motoboy_garantido',{p_token:cdmTok(),p_unidade:UNI}).then(function(g){ GAR=g||null; if(window.ULT_D&&window.TG&&TG.on) tgDesenha(window.ULT_D); });
+}
+function garSelo(n){
+  if(!GAR||!GAR.motoboys) return '';
+  var k=String(n||'').trim().toLowerCase(), g=GAR.motoboys[k];
+  var st='display:block;font-size:11px;font-weight:600;margin-top:2px;';
+  if(!g) return '<small style="'+st+'opacity:.7">garantido: não sei</small>';
+  /* 22/11 (Fabio): selo verde = tem direito; vermelho = perdeu (atraso ou corte no Pagar Motoboys) */
+  var chip=function(ok,txt,tit){ return '<span title="'+tit+'" style="display:inline-block;padding:0 5px;margin-right:4px;border-radius:999px;font-size:10px;color:#fff;background:'+(ok?'#2e9d5b':'#c8102e')+'">'+(ok?'':'sem ')+txt+'</span>'; };
+  var h=chip(g.tem_garantido,'G',g.tem_garantido?'tem garantido hoje':(g.atrasou?'perdeu o garantido: atrasou':'sem garantido hoje (cortado ou sem escala)'))+
+        chip(g.tem_refeicao,'R',g.tem_refeicao?'tem refeição hoje':'sem refeição hoje');
+  if(g.tem_garantido){
+    if(+g.falta<=0) h+='<span style="color:var(--ok,#3c9)">✓ garantido batido</span>';
+    else h+='<span style="color:var(--warn)">falta R$ '+(+g.falta).toFixed(2).replace('.',',')+(g.corridas_falta!=null?' · ~'+g.corridas_falta+' corrida'+(g.corridas_falta===1?'':'s'):'')+'</span>';
+  }
+  return '<small style="'+st+'">'+h+'</small>';
+}
 function mbIdade(v){
   var m=/^(\d{2}):(\d{2})$/.exec(String(v||'')); if(!m) return null;
   var a=new Date().toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour12:false,hour:'2-digit',minute:'2-digit'}).split(':');
@@ -2623,6 +2646,7 @@ function tgDesenha(d){
   /* 02/11/2026, pedido do Fabio: "onde tem os motoboys deixar a lista somente dos que estao online no momento".
      Online = o aplicativo mandou GPS nos ultimos 5 min (o GPS chega de 1 em 1 min; medido 01/11 AV: 99% em ate 2 min).
      Quem esta com entrega na mao continua na lista mesmo sem GPS, com o aviso "sem GPS ha X min". */
+  garLe();
   var mbsTudo=Array.isArray(d.motoboys)?d.motoboys:[];
   var mbs=mbsTudo.filter(function(m){ var x=mbIdade(m.visto); return (x!=null&&x<=5)||rua.some(function(r){return r.motoboy===m.motoboy;}); });
   var mbsFora=mbsTudo.length-mbs.length;
@@ -2633,9 +2657,10 @@ function tgDesenha(d){
     (livre?'<div class="prox">'+(livre.livre==='agora'?'Livre agora: ':'Próximo livre ~'+esc(livre.livre)+': ')+esc(primeiroNome(livre.motoboy))+'</div>':'')+
     '<ol>'+(mbs.length?mbs.map(function(m){
       return '<li><button class="tg-mb'+(TG.foco===m.motoboy?' sel':'')+(TG.foco&&TG.foco!==m.motoboy?' apaga':'')+'" data-tgm="'+esc(m.motoboy)+'">'+
-        '<i class="sw" style="background:'+tgCorMb(m.motoboy,d)+'"></i><b>'+esc(m.motoboy)+'</b><span class="q">'+(m.faltam>0?esc(String(m.faltam)):'')+'</span>'+
+        '<i class="sw" style="background:'+tgCorMb(m.motoboy,d)+'"></i><b>'+esc(m.motoboy)+'</b>'+garSelo(m.motoboy)+'<span class="q">'+(m.faltam>0?esc(String(m.faltam)):'')+'</span>'+
         '<span class="st">'+(function(x){ return x!=null&&x>5?'<span style="color:var(--warn)">sem GPS há '+x+' min</span> · ':''; })(mbIdade(m.visto))+(m.no_patio?'na loja':esc(m.onde||''))+(m.situacao&&m.situacao!==m.onde?' · '+esc(m.situacao):'')+(m.livre==='agora'?' · livre agora':(m.livre?' · livre ~'+esc(m.livre):''))+'</span></button></li>';
     }).join(''):'<li class="tg-vz" style="padding:8px">'+(d.motoboys==null?'Não consegui ler os motoboys neste minuto.':'Nenhum motoboy online agora.')+'</li>')+'</ol>'+
+    (GAR&&GAR.motoboys&&!TG.mbsFechado?'<div class="tg-vz" style="padding:4px 8px 0;font-size:11px"><b style="color:#2e9d5b">G</b> garantido · <b style="color:#2e9d5b">R</b> refeição · verde tem, vermelho perdeu · falta = quanto falta p/ o garantido (conta do Pagar Motoboys, às '+esc(GAR.calculado_em||'—')+')</div>':'')+
     (mbsFora?'<div class="tg-vz" style="padding:4px 8px 8px">'+mbsFora+' com o aplicativo parado há mais de 5 min não aparece'+(mbsFora===1?'':'m')+'.</div>':'');
 
   /* --- botao "Criar rota inteligente" no canto do mapa (so Agua Verde): liga a aba Rota sugerida, apaga o resto do mapa
