@@ -253,12 +253,12 @@ body.modo-carro #slides{display:flex;flex-direction:column;flex:1;min-height:0;p
 .sl-aviso{background:var(--brand);color:#111;font-weight:800;font-size:2.4em;line-height:1.2;border-radius:.6em;padding:.45em .9em;margin-bottom:.6em}
 .sl-dica{background:var(--s1);border:2px solid var(--line);border-radius:.6em;padding:.35em 1em;font-size:1.65em;font-weight:800;color:var(--brand);line-height:1.2}
 .sl-nota{font-size:1.25em;color:var(--muted);margin-top:auto;padding-top:.3em}
-.sl-mt{display:grid;grid-template-columns:1fr 1fr;gap:.7em;margin-bottom:.6em}
-.sl-mt .bx{background:var(--s1);border:2px solid var(--line);border-radius:.6em;padding:.35em 1em}
-.sl-mt .ar{font-size:1.6em;color:var(--text2)}
-.sl-mt .nm{font-size:2.6em;font-weight:800;line-height:1.15}
-.sl-mt .tf{font-size:2.4em;color:var(--brand);line-height:1.15}
-.sl-mt .vz{color:var(--muted);font-weight:600}
+.sl-mt{display:grid;grid-template-columns:1fr 1fr;gap:.45em .7em;margin-bottom:.5em}
+.sl-mt .bx{background:var(--s1);border:2px solid var(--line);border-radius:.6em;padding:.2em .8em}
+.sl-mt .ar{font-size:1.35em;color:var(--text2)}
+.sl-mt .ln{display:flex;justify-content:space-between;gap:.6em;align-items:baseline;line-height:1.2}
+.sl-mt .nm{font-size:1.75em;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.sl-mt .tf{font-size:1.75em;color:var(--brand);font-weight:700;white-space:nowrap}
 .sl-cd{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1em;min-height:0;flex:1}
 .sl-cd .sl-cx{margin:0}
 .sl-cd .q{font-size:1.8em;line-height:1.2;border-top:1px solid var(--line);padding:.25em 0}
@@ -1138,7 +1138,7 @@ setInterval(function(){ if(CARRO.length>1){ CARRO_I++; carroMostra(); } },8000);
    Erro novo: volta na hora para "Erros de hoje". */
 let MODO_CARRO=!PORTAL;
 try{ if(PORTAL) MODO_CARRO=localStorage.getItem('cdm_tv_carro')==='1'; }catch(e){}
-const TV_VERSAO='2026-11-24b';   /* tem que ser igual ao tv/versao.txt publicado junto */
+const TV_VERSAO='2026-11-24c';   /* tem que ser igual ao tv/versao.txt publicado junto */
 const SL_ORDEM=['erros','recado','meta','fotos','pz','goomer','cli','notas','voz','manut','mel'];   /* 31/10: 'voz' = O que o cliente diz da comida · 24/11: 'goomer' (Salao) e 'manut' (Manutencao) */
 let SL_I=-1, SL_T=null, SL_FOTO=0, SL_CLI=0, SL_ATUAL='';
 function slErros(){
@@ -1240,21 +1240,22 @@ function slRecado(){
   return {html:'<div class="sl-tit">📣 Recado'+(de?' do '+esc(de):'')+' <small>'+esc(r.quando||'')+(R.length>1?' · '+((SL_RC%R.length)+1)+' de '+R.length:'')+'</small></div>'
     +'<div class="sl-rc">“'+esc(r.texto)+'”'+(de?'<div class="as">— '+esc(de)+'</div>':'')+'</div>', dur:22, depois:function(){ SL_RC++; }};
 }
-/* 24/11: Manutencao - quem chamar. Nomes e telefones a Rita vai passar (perguntado a ela em 24/11 18h09): preencher aqui e publicar.
-   Contato vazio aparece como "a definir"; nenhum numero e inventado. */
+/* contatos de trabalho dos prestadores: tabela prestador do portal antigo (lida em 24/11) */
 const MANUT=[
-  {ar:'❄️ Refrigeração (câmaras e freezer)', nome:'', tel:''},
-  {ar:'⚡ Elétrica', nome:'', tel:''},
-  {ar:'🔥 Gás, chapa e fogão', nome:'', tel:''},
-  {ar:'🚰 Hidráulica e exaustão', nome:'', tel:''}
+  {ar:'❄️ Refrigeração e câmara fria', c:[['JL Refrigeração · Negote','41 98811-4039'],['Ruan · câmara fria','41 99593-2112']]},
+  {ar:'⚡ Elétrica', c:[['Franciel Gomes','41 99720-1607'],['Israel · vai depois das 22h','41 99667-9466']]},
+  {ar:'🔥 Fogão, chapa e broiler', c:[['Kazuo','41 99181-6368']]},
+  {ar:'🍟 Fritadeira a gás', c:[['CWB Técnica · Eduardo','41 99975-7205']]},
+  {ar:'💨 Coifa', c:[['Técnico IFAS','41 99713-5553']]},
+  {ar:'🚰 Pia, torneira e consertos', c:[['Israel','41 99667-9466']]},
+  {ar:'🥣 Banho-maria, pão, UFO, moedor', c:[['Eder Manutenção','41 99149-0210']]},
+  {ar:'📦 Seladora', c:[['RCM Seladora Técnica','41 99228-9857']]}
 ];
 function slManut(){
-  const falta=MANUT.filter(m=>!m.nome).length;
   return {html:'<div class="sl-tit">🔧 Manutenção <small>quem chamar</small></div>'
     +'<div class="sl-mt">'+MANUT.map(function(m){ return '<div class="bx"><div class="ar">'+esc(m.ar)+'</div>'
-      +(m.nome?'<div class="nm">'+esc(m.nome)+'</div><div class="tf">'+esc(m.tel||'')+'</div>':'<div class="nm vz">contato a definir</div><div class="tf vz">telefone a definir</div>')+'</div>'; }).join('')+'</div>'
-    +'<div class="sl-dica">Quebrou ou parou de funcionar? Avise a gerência na hora, com foto, no grupo da loja.</div>'
-    +(falta?'<div class="sl-nota">Contatos ainda não cadastrados.</div>':''), dur:12};
+      +m.c.map(function(x){ return '<div class="ln"><span class="nm">'+esc(x[0])+'</span><span class="tf">'+esc(x[1])+'</span></div>'; }).join('')+'</div>'; }).join('')+'</div>'
+    +'<div class="sl-dica">Quebrou ou parou de funcionar? Avise a gerência na hora, com foto, no grupo da loja.</div>', dur:16};
 }
 function slCli(){
   const av=CLI; if(!av) return null;
