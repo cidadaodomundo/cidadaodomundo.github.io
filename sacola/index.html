@@ -3100,5 +3100,46 @@ async function cdmGuarda(){
   if(c.length===8){ COD=c; busca(); } else pedeCodigo();
 })();
 </script>
+<!-- ALERTA DIARIO 10H (pedido do Fabio, 24/11/2026). Sem rede: so le o relogio do PC. Some no botao Feito e volta no dia seguinte. -->
+<style>
+#cdmA10{position:fixed;left:50%;top:12px;transform:translateX(-50%);width:min(94vw,980px);z-index:2147483000;display:none;background:#b00020;color:#fff;border:8px solid #ffd600;border-radius:18px;padding:22px 28px;box-shadow:0 10px 40px rgba(0,0,0,.6);font-family:system-ui,Segoe UI,Arial,sans-serif;animation:cdmA10pisca 1s steps(2,start) infinite}
+#cdmA10 li{border:0;color:#fff}
+#cdmA10 li.forte{color:#000}
+#cdmA10 h2{color:#fff;font-family:inherit;letter-spacing:normal;text-transform:none;margin:0 0 12px;font-size:clamp(28px,4.2vw,52px);line-height:1.1}
+#cdmA10 ol{margin:0 0 18px 1.2em;padding:0;font-size:clamp(24px,3.4vw,42px);line-height:1.35;font-weight:700}
+#cdmA10 li.forte{background:#ffd600;color:#000;border-radius:8px;padding:2px 10px;margin-left:-10px}
+#cdmA10 button{font-size:clamp(24px,3vw,38px);font-weight:800;background:#00c853;color:#000;border:0;border-radius:12px;padding:12px 36px;cursor:pointer}
+#cdmA10 li.forte::marker{color:#fff}
+@keyframes cdmA10pisca{0%{background:#b00020;border-color:#ffd600}100%{background:#e65100;border-color:#fff}}
+</style>
+<div id="cdmA10" role="alert">
+<h2>⏰ 10h · CHECKLIST DO DIA</h2>
+<ol>
+<li>Olhar a geladeira</li>
+<li>Olhar os computadores</li>
+<li>Verificar com as cozinhas os produtos pausados</li>
+<li class="forte">Pista quente LIGADA na boqueta · SEMPRE! (pedido não pode esfriar esperando o motoboy)</li>
+</ol>
+<button type="button" id="cdmA10ok">✔ Feito</button>
+</div>
+<script>
+(function(){
+  var CH='cdm_alerta10_feito', HORA=10;
+  function hoje(){var d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();}
+  function feito(){try{return localStorage.getItem(CH)===hoje();}catch(e){return false;}}
+  var caixa=document.getElementById('cdmA10');
+  function olha(){
+    var d=new Date();
+    caixa.style.display=(d.getHours()>=HORA && !feito())?'block':'none';
+  }
+  document.getElementById('cdmA10ok').addEventListener('click',function(){
+    try{localStorage.setItem(CH,hoje());}catch(e){}
+    caixa.style.display='none';
+  });
+  olha();
+  var t=setInterval(olha,30000);
+  window.addEventListener('pagehide',function(){clearInterval(t);});
+})();
+</script>
 </body>
 </html>
