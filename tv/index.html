@@ -907,7 +907,7 @@ function montaLojas(){
     LOJA=l; try{ localStorage.setItem('cdm_tv_loja',l); }catch(e){}
     [].forEach.call(d.querySelectorAll('button[data-l]'),function(x){ x.classList.toggle('on', x.getAttribute('data-l')===l); });
     DADO=null; VISTOS=null; $('loja').textContent=l; $('st').textContent='carregando…';
-    SL_FOTO=0; SL_CLI=0; if(MODO_CARRO){ clearTimeout(SL_T); SL_T=null; $('sl').innerHTML=''; }
+    SL_FOTO=0; SL_CLI=0; RC_VISTOS=null; if(MODO_CARRO){ clearTimeout(SL_T); SL_T=null; $('sl').innerHTML=''; }
     if(BUSCANDO) DE_NOVO=true; else busca(true);
   });
 }
@@ -1143,6 +1143,7 @@ setInterval(function(){ if(CARRO.length>1){ CARRO_I++; carroMostra(); } },8000);
    Erro novo: volta na hora para "Erros de hoje". */
 let MODO_CARRO=!PORTAL;
 try{ if(PORTAL) MODO_CARRO=localStorage.getItem('cdm_tv_carro')==='1'; }catch(e){}
+const TV_VERSAO='2026-11-24c';   /* tem que ser igual ao tv/versao.txt publicado junto */
 const SL_ORDEM=['erros','recado','meta','lembra','fotos','pz','goomer','cli','notas','voz','manut','mel'];   /* 31/10: 'voz' = O que o cliente diz da comida · 24/11: 'goomer' (Salao) e 'manut' (Manutencao) */   /* 20/11: 'lembra' = Lembretes da semana */
 let SL_I=-1, SL_T=null, SL_FOTO=0, SL_CLI=0, SL_ATUAL='';
 function slErros(){
@@ -1230,10 +1231,19 @@ function slGoomer(){
 /* 24/11/2026 RECADO DO FABIO para a cozinha e o delivery. Texto aprovado por ele no chat ("pode colocar na tela por favor").
    Para tirar: RECADO.texto=''. Para trocar: mudar o texto e publicar. */
 const RECADO={de:'Fábio', dia:'24/11', texto:'Pessoal, preciso falar com vocês de coração. Faz tempo que a gente não bate as metas, e isso me deixa triste, porque eu sei do que essa equipe é capaz. Não é falta de gente boa. Então eu pergunto de verdade: o que está faltando? Se é material, processo ou ajuda, me falem, que a gente resolve junto. Atenção em cada pedido, conferir antes de fechar a sacola, um cobrindo o outro. A gente consegue, e eu quero comemorar essa meta com vocês. Bora! 💪'};
+/* 24/11 (2a parte) Fabio: "quero transformar aquela TV como uma TV de recados" e "que as coisas que a gente coloque cheguem
+   imediatamente". Os recados vem do banco (tabela cozinha_tv_recado, chave 'recados' da porta), na mesma leitura de 60 s: sem rede nova.
+   Recado novo pula na hora para a tela de recado (30 s). A constante RECADO acima so vale se a porta nao mandar a chave. */
+let SL_RC=0, RC_VISTOS=null;
+function recadosLista(){
+  if(DADO&&Array.isArray(DADO.recados)) return DADO.recados.filter(r=>r&&r.texto);
+  return RECADO.texto?[{id:'fixo', texto:RECADO.texto, de:RECADO.de, quando:RECADO.dia}]:[];
+}
 function slRecado(){
-  if(!RECADO.texto) return null;
-  return {html:'<div class="sl-tit">📣 Recado do '+esc(RECADO.de)+' <small>'+esc(RECADO.dia)+' · para a cozinha e o delivery</small></div>'
-    +'<div class="sl-rc">“'+esc(RECADO.texto)+'”<div class="as">— '+esc(RECADO.de)+'</div></div>', dur:22};
+  const R=recadosLista(); if(!R.length) return null;
+  const r=R[SL_RC%R.length], de=r.de||'';
+  return {html:'<div class="sl-tit">📣 Recado'+(de?' do '+esc(de):'')+' <small>'+esc(r.quando||'')+(R.length>1?' · '+((SL_RC%R.length)+1)+' de '+R.length:'')+'</small></div>'
+    +'<div class="sl-rc">“'+esc(r.texto)+'”'+(de?'<div class="as">— '+esc(de)+'</div>':'')+'</div>', dur:22, depois:function(){ SL_RC++; }};
 }
 /* 24/11: Manutencao - quem chamar. Nomes e telefones a Rita vai passar (perguntado a ela em 24/11 18h09): preencher aqui e publicar.
    Contato vazio aparece como "a definir"; nenhum numero e inventado. */
@@ -1372,7 +1382,9 @@ function slMostra(nome, durMin){
 /* leitura nova: so redesenha na hora a tela de erros ou da meta (as outras esperam a vez delas) */
 function slAtualiza(novos){
   if(!MODO_CARRO) return;
+  const rcIds=recadosLista().map(r=>String(r.id)), rcNovo=RC_VISTOS!==null&&rcIds.some(i=>RC_VISTOS.indexOf(i)<0); RC_VISTOS=rcIds;   /* 24/11: recado novo */
   if(novos&&novos.length){ slMostra('erros', 30); return; }   /* 14/10: erro novo fica 30 s na tela, com o alarme */
+  if(rcNovo){ SL_RC=0; slMostra('recado', 30); return; }
   if(!SL_T){ slMostra('erros'); return; }
   if(SL_ATUAL==='erros'||SL_ATUAL==='meta'){ const r=SL_FAZ[SL_ATUAL](); if(r){ $('sl').innerHTML=r.html; slPontos(SL_ATUAL); } }
 }
@@ -1397,6 +1409,15 @@ function telaCheia(){ try{ if(document.fullscreenElement) document.exitFullscree
   setInterval(function(){ if(CLI){ CLI_I++; try{ cliMostra(); }catch(e){} } },15000);  /* troca a avaliacao; a faixa tem altura fixa */
   /* pega versao nova da tela a cada 6 h, so com internet e leitura boa (senao a TV ficaria presa na pagina de erro) */
   setInterval(function(){ if(performance.now()>6*3600*1000 && navigator.onLine!==false && Date.now()-ULT_OK<5*60000) location.reload(); }, 10*60000);
+  /* 24/11/2026 (thread-rita-tv-quadros-24-11) Fabio: "atualize voce sozinho ela". Versao nova sem F5: a cada 10 min le o arquivo
+     minusculo tv/versao.txt (GitHub Pages, nao e o banco) e, se o numero for diferente do TV_VERSAO desta pagina, recarrega.
+     So recarrega com internet e leitura boa, igual a regra das 6 h. Ao publicar mudanca na TV: subir TV_VERSAO e versao.txt juntos. */
+  const TV_VT=setInterval(function(){
+    if(document.hidden || navigator.onLine===false || Date.now()-ULT_OK>5*60000) return;   /* aba escondida: nao le nada */
+    fetch('/tv/versao.txt?cb='+Date.now(),{cache:'no-store'}).then(function(r){ return r.ok?r.text():''; })
+      .then(function(t){ t=String(t||'').trim(); if(t && /^[0-9a-z-]{4,40}$/i.test(t) && t!==TV_VERSAO) location.reload(); }).catch(function(){});
+  }, 10*60000);
+  addEventListener('pagehide',function(){ clearInterval(TV_VT); });   /* saiu da pagina: o timer morre junto */
   if(PORTAL){
     $('loja').textContent=LOJA; $('st').textContent='conferindo o login…';
     try{ const ps=document.createElement('script'); ps.src='/assets/portal.js?v=3'; document.body.appendChild(ps); }catch(e){}
