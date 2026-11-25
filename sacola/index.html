@@ -142,6 +142,8 @@ h2{font-family:var(--cond);font-weight:700;font-size:16px;letter-spacing:.12em;t
 @keyframes jntPisca{from{background:#ffd23f}to{background:#fff}}
 .selo.jnt{background:#ffd23f;border-color:#ffd23f;color:#111}
 body.exp .b-tag.jnt,body.exp .b-n small.jnt{color:#ffd23f}
+/* 25/11 pedidos do SITE DA LOJA (Accon via Saipos): selo azul */
+body.exp .b-tag.site,body.exp .b-n small.site{color:#4fc3f7}
 .selo{font-family:var(--cond);font-weight:700;font-size:14px;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:6px;border:1px solid var(--fg);color:var(--fg)}
 .tempo{text-align:right;font-size:14px;color:var(--mut);white-space:nowrap}
 .tempo b{display:block;font-family:var(--display);font-weight:400;font-size:22px;color:var(--fg)}
@@ -845,13 +847,13 @@ const nGde=x=>nSai(x)||nIfo(x);
 function juntoNums(p){ if(!p||p.cancelado||!Array.isArray(p.junto)) return []; return p.junto.map(acha).filter(o=>o&&!o.cancelado).map(o=>nGde(o)).filter(Boolean); }
 function juntoTxt(p){ const n=juntoNums(p); return n.length?'\uD83D\uDCCD Mesmo endereço · mandar junto com '+n.map(esc).join(' e '):''; }
 const seloH=s=>'<span class="selo'+(s.indexOf('Mesmo endereço')>=0?' jnt':'')+'">'+s+'</span>';
-const nIf=x=>nSai(x)?'iFood '+nIfo(x):'iFood';
+const nIf=x=>x&&x.site?'':(nSai(x)?'iFood '+nIfo(x):'iFood');   /* 25/11: pedido do site nao tem numero do iFood */
 /* numero da lista (cabecalho da rota, faixa SAIU, "so o lanche"): grande + o do iFood pequeno embaixo */
 const nPilha=x=>'<span class="n-st"><span class="b-nn">'+esc(nGde(x))+'</span><small class="n-if">'+esc(nIf(x))+'</small></span>';
 /* numero no meio de um texto ("esperando 3330", "ja pegou 3329"): grande + o do iFood pequeno ao lado */
 const nLinha=x=>esc(nGde(x))+'<small class="n-in">'+esc(nIf(x))+'</small>';
 /* nos avisos: "#3076 (iFood 1694)" ou "#1694 (iFood)" */
-const nRot=x=>'#'+nGde(x)+' ('+nIf(x)+')';
+const nRot=x=>'#'+nGde(x)+(x&&x.site?' (site)':' ('+nIf(x)+')');
 
 let COD='', DADO=null, TIMER=null, TIMER_MS=0, BUSCANDO=false, DE_NOVO=false, ULT_OK=0, FALHAS=0, TV=false;
 let VISTOS_P=null, VISTOS_A=null, VISTOS_R=null, ALERTAS_TODOS=false;
@@ -980,6 +982,8 @@ function modoTV(){
 }
 function intervaloMs(){ const s=Number(DADO&&DADO.intervalo_s); return Math.max(10,Math.min(15,isFinite(s)&&s>0?s:12))*1000; }
 
+const SITE_ON=true;
+const SITE_MSG='Pedido do SITE DA LOJA: confira pela comanda do Saipos (na TV ainda não marca).';
 async function busca(){
   if(!COD) return;
   if(BUSCANDO){ DE_NOVO=true; return; }
@@ -987,6 +991,8 @@ async function busca(){
   try{
     const j=PORTAL? await rpc('sacola_tela_portal',{p_token:PTOK,p_loja:LOJA_PORTAL}) : await rpc('sacola_tela',{p_chave:COD});
     if(!j||typeof j!=='object') throw {msg:'resposta vazia'};
+    /* 25/11 pedidos do SITE DA LOJA (banco: sacola_site) entram na fila como os do iFood; so aparecem (sem conferir na TV) */
+    if(SITE_ON&&Array.isArray(j.site)&&j.site.length) j.pedidos=(Array.isArray(j.pedidos)?j.pedidos:[]).concat(j.site);
     $('cod').classList.remove('on'); guarda(COD);
     { const ta=Date.parse(j.agora); if(!isNaN(ta)) OFS=ta-Date.now(); }
     /* tela pausada pelo dono: mostra o aviso, guarda o codigo e continua perguntando */
@@ -1086,6 +1092,7 @@ function marcado(p,l){ if(eConferido(p)) return true; const o=OVR.get(p.id+'|'+l
 function acha(id){ const ps=(DADO&&Array.isArray(DADO.pedidos))?DADO.pedidos:[]; for(const p of ps) if(String(p.id)===String(id)) return p; return null; }
 function toque(id,chave){
   const p=acha(id); if(!p||p.cancelado||eConferido(p)) return;
+  if(p.site){ aviso(SITE_MSG); return; }
   const l=(p.linhas||[]).find(x=>String(x.chave)===String(chave)); if(!l) return;
   const k=p.id+'|'+l.chave, on=!marcado(p,l), v=++VER;
   OVR.set(k,{on:on,v:v,fase:'fila',ack:0});
@@ -1127,6 +1134,7 @@ async function envia(){
 /* ---------- CONFERIDO (clique no cartao ou teclado numero + Enter) ---------- */
 async function conferir(id,on,porTecla){
   const p=acha(id); if(!p||p.cancelado) return;
+  if(p.site){ aviso(SITE_MSG); return; }
   const k='c:'+id; if(OCUPADO.has(k)) return;
   const sid=String(p.id), num=p.numero!=null?p.numero:'—', rot=EXP?nRot(p):'#'+num;   /* 02/11: na TV da expedicao "#3076 (iFood 1694)" */
   if(BOQ_ON&&FOCO) FOCO.ate=Math.max(FOCO.ate,Date.now()+FOCO_MS);   /* conferindo o escolhido na fila: a tela nao volta no meio */
@@ -2189,7 +2197,7 @@ function bPed(p,s,e){
   if(p.agendado_para) tags.push('<span class="b-tag">agendado '+esc(hhmm(p.agendado_para))+'</span>');
   if(p.tipo==='TAKEOUT') tags.push('<span class="b-tag">retirada</span>');
   { const jn=juntoNums(p); if(jn.length) tags.push('<span class="b-tag jnt">\uD83D\uDCCD mesmo endereço · junto com '+jn.map(esc).join(' e ')+'</span>'); }
-  if(mc) tags.push('<span class="b-tag">'+esc(mc)+'</span>');
+  if(mc) tags.push(p.site?'<span class="b-tag site">\uD83C\uDF10 site da loja</span>':'<span class="b-tag">'+esc(mc)+'</span>');
   tags.unshift('<span class="b-tag n-if">'+esc(nIf(p))+'</span>');   /* 02/11: o numero do iFood pequeno ("iFood 1694") */
   let h='<div class="b-ped'+(conf?' conf':'')+(canc?' canc':'')+(coz?' coz':'')+(late?' late':'')+(sel?' sel':'')+'" data-ped="'+esc(p.id)+'">'
     +'<div class="b-num">'+(conf?'<i class="b-ok">✓</i>':'')+'<span class="b-nn">'+esc(nGde(p))+'</span>'+tags.join('')+'</div>';
@@ -2212,7 +2220,7 @@ function bPeds(ps){
   if(so.length) h+='<div class="b-so'+(so.some(x=>x.p.agendado_para||x.p.tipo==='TAKEOUT'||outraMarca(x.p.marca)||juntoNums(x.p).length)?' b-tg':'')+'"><span class="b-rot">'+esc(soRot(so.map(x=>x.s)))+':</span>'+so.map(function(x){
     const p=x.p, e=x.e, coz=e==='cozinha'&&temCoz(x.s.coz), late=atrasoMin(p,e), mc=outraMarca(p.marca), jn=juntoNums(p);
     const ex=(late?'<small class="mau">'+late+' min</small>':'')+(coz?'<small>cozinha</small>':'')+(p.agendado_para?'<small>'+esc(hhmm(p.agendado_para))+'</small>':'')
-      +(p.tipo==='TAKEOUT'?'<small>retirada</small>':'')+(mc?'<small>'+esc(mc)+'</small>':'')+(jn.length?'<small class="jnt">\uD83D\uDCCD junto com '+jn.map(esc).join(' e ')+'</small>':''), tg=!!(p.agendado_para||p.tipo==='TAKEOUT'||mc||jn.length);
+      +(p.tipo==='TAKEOUT'?'<small>retirada</small>':'')+(mc?(p.site?'<small class="site">\uD83C\uDF10 site</small>':'<small>'+esc(mc)+'</small>'):'')+(jn.length?'<small class="jnt">\uD83D\uDCCD junto com '+jn.map(esc).join(' e ')+'</small>':''), tg=!!(p.agendado_para||p.tipo==='TAKEOUT'||mc||jn.length);
     return '<span class="b-n'+(e==='conf'?' conf':'')+(coz?' coz':'')+(late?' late':'')+(tg?' b-tg':'')+'" data-ped="'+esc(p.id)+'">'+(e==='conf'?'<i class="b-ok">✓</i>':'')+nPilha(p)+ex+'</span>';
   }).join('')+'</div>';
   return h;
@@ -2782,7 +2790,7 @@ function qPed(p){
   if(p.agendado_para) tags.push('<span class="b-tag">agendado '+esc(hhmm(p.agendado_para))+'</span>');
   if(p.tipo==='TAKEOUT') tags.push('<span class="b-tag">retirada</span>');
   { const jn=juntoNums(p); if(jn.length) tags.push('<span class="b-tag jnt">\uD83D\uDCCD mesmo endereço · junto com '+jn.map(esc).join(' e ')+'</span>'); }
-  if(mc) tags.push('<span class="b-tag">'+esc(mc)+'</span>');
+  if(mc) tags.push(p.site?'<span class="b-tag site">\uD83C\uDF10 site da loja</span>':'<span class="b-tag">'+esc(mc)+'</span>');
   tags.unshift('<span class="b-tag n-if">'+esc(nIf(p))+'</span>');   /* 02/11: o numero do iFood pequeno ao lado ("iFood 1694") */
   /* 03/11 VOZ: 🔊 = ouvir de novo o que lembrar deste pedido (so quando tem o que lembrar e o navegador fala) */
   let h='<div class="q-ped'+(conf?' conf':'')+(canc?' canc':'')+(coz?' coz':'')+(late?' late':'')+(sel?' sel':'')+'" data-ped="'+esc(p.id)+'">'
