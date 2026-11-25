@@ -1062,6 +1062,7 @@ async function busca(){
       if(!BOQ) somRotas(novasS.length?2500:0); }
     else if(novasR.length){ toca('rota'); fala(novasR.map(r=>String(r.entregador||'Motoboy').split(' ')[0]+' saiu para rota').join('. ')); }
     else if(novosP && !TV) toca('novo');   /* na TV: so a rota e o alarme fazem som (pedido novo chega toda hora) */
+    if(EXP&&JANE_VOZ_ON){ janeVoz(); voltaVoz(); }   /* 25/11 voz da Jane: iFood da Jane chegando + motoboy voltando */
   }catch(e){
     if(!(e&&e.recusado)){ FALHAS++; if(FALHAS>=2||!DADO) falha(e&&e.status?'Não consegui ler agora (código '+e.status+'). Tento de novo em 12 s.':e&&e.tempo?'O banco não respondeu em 10 s — tentando de novo.':'SEM INTERNET — tentando de novo a cada 12 s.'); }
   }finally{
@@ -2197,6 +2198,7 @@ function bPed(p,s,e){
   if(p.agendado_para) tags.push('<span class="b-tag">agendado '+esc(hhmm(p.agendado_para))+'</span>');
   if(p.tipo==='TAKEOUT') tags.push('<span class="b-tag">retirada</span>');
   { const jn=juntoNums(p); if(jn.length) tags.push('<span class="b-tag jnt">\uD83D\uDCCD mesmo endereço · junto com '+jn.map(esc).join(' e ')+'</span>'); }
+  if(p.ifood_moto&&p.ifood_moto.escalado) tags.push('<span class="b-tag jnt">🛵 iFood '+(p.ifood_moto.chegou?'chegou':'a caminho')+'</span>');
   if(mc) tags.push(p.site?'<span class="b-tag site">\uD83C\uDF10 site da loja</span>':'<span class="b-tag">'+esc(mc)+'</span>');
   tags.unshift('<span class="b-tag n-if">'+esc(nIf(p))+'</span>');   /* 02/11: o numero do iFood pequeno ("iFood 1694") */
   let h='<div class="b-ped'+(conf?' conf':'')+(canc?' canc':'')+(coz?' coz':'')+(late?' late':'')+(sel?' sel':'')+'" data-ped="'+esc(p.id)+'">'
@@ -2331,6 +2333,60 @@ function somRotas(espera){
   if(!fila.length||!somLigado()) return;
   if(SOM_T) clearTimeout(SOM_T);
   SOM_T=setTimeout(function(){ SOM_T=null; somToca(fila); },espera||0);
+}
+/* 25/11 VOZ DA JANE (Fabio: "coloque a voz da Jane tambem"). Pedido que sai com motoboy do iFood (Marmita da Jane)
+   nunca entra numa rota nossa, entao a voz da chegada nao fala dele. O banco manda p.ifood_moto.escalado = hora em que o
+   iFood escalou o motoboy (mediana ~6 min antes dele chegar; ensaio 7 dias Jane). Na 1a leitura depois disso a TV toca o
+   "plim" e fala 1 vez: "Motoboy do iFood a caminho: Marmita da Jane. Pedido 3112: bebida, ...". TV ligada agora: o que ja
+   estava escalado nao fala. Desligar: JANE_VOZ_ON=false. */
+const JANE_VOZ_ON=true; let JANE_VISTO=null;
+function janeVoz(){
+  const ps=(DADO&&Array.isArray(DADO.pedidos)?DADO.pedidos:[]).filter(p=>p&&!p.cancelado&&p.ifood_moto&&p.ifood_moto.escalado);
+  if(!JANE_VISTO){ JANE_VISTO=new Set(ps.map(p=>String(p.id))); return; }
+  const novos=ps.filter(p=>!JANE_VISTO.has(String(p.id)));
+  novos.forEach(p=>JANE_VISTO.add(String(p.id)));
+  if(JANE_VISTO.size>500) JANE_VISTO=new Set(ps.map(p=>String(p.id)));
+  /* 25/11 VERSAO G (Fabio: "pode aplicar essas"): voz clonada da Jane (ela gravou as falas do KDS), frase curta e
+     inteira: "Gente, iFood da Jane chegando! Nove mil seiscentos e dezesseis, tem bebida!". A funcao voz-jane grava cada
+     frase 1 vez e guarda para sempre (kds-sons/jane/cache); a TV so manda numero e itens. Falhou = voz do computador. */
+  novos.filter(p=>!eConferido(p)&&/jane/i.test(String(p.marca||''))).slice(0,3).forEach(function(p){
+    const num=String(nSai(p)||nIfo(p)||'').replace(/\D/g,'');
+    let f='';
+    separa(p).lista.forEach(function(it){ const c={bebida:'b',sobremesa:'s',pote:'k',talher:'t'}[it.kind]; if(c&&f.indexOf(c)<0) f+=c; });
+    janeFala('tipo=ifood&n='+encodeURIComponent(num)+'&f='+f, function(){ toca('chegou'); fala('Motoboy do iFood a caminho: '+String(p.marca||'iFood')+'. '+(vozPedido(p)||vozNum(p)+'.')); }, !num);
+  });
+}
+const VOZ_JANE_URL='https://kqvoatdprjwxyadhvtdd.supabase.co/functions/v1/voz-jane?';
+let JANE_FILA=[], JANE_TOCANDO=false;
+function janeFala(q,senao,pula){
+  if(!somLigado()) return;
+  if(pula){ if(senao) senao(); return; }
+  fetch(VOZ_JANE_URL+q).then(r=>r.ok?r.json():Promise.reject(r.status)).then(function(o){
+    if(!o||!o.url) throw 0; JANE_FILA.push(o.url); janeToca();
+  }).catch(function(){ if(senao) senao(); });
+}
+function janeToca(){
+  if(JANE_TOCANDO||!JANE_FILA.length) return; JANE_TOCANDO=true;
+  const fim=function(){ JANE_TOCANDO=false; setTimeout(janeToca,600); };
+  try{ const a=new Audio(JANE_FILA.shift()); a.volume=1; a.onended=a.onerror=fim;
+    const pr=a.play(); if(pr&&pr.catch) pr.catch(function(){ fim(); aviso('Som travado: toque na tela 1 vez para a voz da Jane tocar.'); });
+  }catch(e){ fim(); }
+}
+/* 25/11 Fabio: voz da Jane tambem na faixa VOLTANDO: "Erick voltando, tres minutinhos!" 1 vez por volta do motoboy
+   (de novo so depois de 20 min). TV ligada agora: quem ja estava voltando nao fala. */
+let VOLTA_VISTO=null;
+function voltaVoz(){
+  if(!VOLTA_ON||!DADO||!Array.isArray(DADO.voltando)) return;
+  const ag=Date.now(), vs=DADO.voltando.filter(v=>v&&v.moto);
+  const k=v=>semAcento(primeiroNome(v.moto)).toLowerCase();
+  if(!VOLTA_VISTO){ VOLTA_VISTO=new Map(); vs.forEach(v=>VOLTA_VISTO.set(k(v),ag)); return; }
+  vs.forEach(function(v){
+    const kk=k(v), t=VOLTA_VISTO.get(kk); VOLTA_VISTO.set(kk,ag);
+    if(t&&ag-t<20*60e3) return;
+    const nome=(String(v.moto).trim().split(/\s+/).find(w=>/^[A-Za-zÀ-ÿ]{2,20}$/.test(w))||'');
+    const m=Math.max(1,Math.min(15,Math.round(Number(v.eta_min)||0)));
+    if(nome&&Number(v.eta_min)>0) janeFala('tipo=volta&nome='+encodeURIComponent(nome)+'&m='+m,null,false);
+  });
 }
 function somToca(fila){
   if(!fila.length) return;
@@ -2790,6 +2846,7 @@ function qPed(p){
   if(p.agendado_para) tags.push('<span class="b-tag">agendado '+esc(hhmm(p.agendado_para))+'</span>');
   if(p.tipo==='TAKEOUT') tags.push('<span class="b-tag">retirada</span>');
   { const jn=juntoNums(p); if(jn.length) tags.push('<span class="b-tag jnt">\uD83D\uDCCD mesmo endereço · junto com '+jn.map(esc).join(' e ')+'</span>'); }
+  if(p.ifood_moto&&p.ifood_moto.escalado) tags.push('<span class="b-tag jnt">🛵 iFood '+(p.ifood_moto.chegou?'chegou':'a caminho')+'</span>');
   if(mc) tags.push(p.site?'<span class="b-tag site">\uD83C\uDF10 site da loja</span>':'<span class="b-tag">'+esc(mc)+'</span>');
   tags.unshift('<span class="b-tag n-if">'+esc(nIf(p))+'</span>');   /* 02/11: o numero do iFood pequeno ao lado ("iFood 1694") */
   /* 03/11 VOZ: 🔊 = ouvir de novo o que lembrar deste pedido (so quando tem o que lembrar e o navegador fala) */
