@@ -566,6 +566,14 @@ body.exp.rola #bancada{overflow:visible}
    JS) com piso --f (tamanho da tela: 1 numa TV de 1920). */
 body.exp.boq #bancada{--z:1;--f:1;--cols:1;gap:0}
 body.exp.boq #bancada *{--u:calc(var(--z)*1px)}
+/* 25/11/2026 VOLTANDO (GPS): faixa verde do motoboy que esta voltando para a loja */
+body.exp.boq .q-volta{flex:0 0 auto;display:flex;align-items:center;gap:calc(22*var(--u));margin-bottom:calc(10*var(--u));padding:calc(12*var(--u)) calc(22*var(--u));background:#0f3d2a;border:calc(4*var(--u)) solid #2ecc71;border-radius:calc(14*var(--u));animation:vtPisca 1.2s steps(2,start) infinite}
+@keyframes vtPisca{50%{border-color:#7dffb0}}
+body.exp.boq .q-volta .vt-b{font-family:'Anton',Impact,sans-serif;font-size:calc(46*var(--u));color:#7dffb0;white-space:nowrap}
+body.exp.boq .q-volta .vt-t{font-size:calc(28*var(--u));line-height:1.25}
+body.exp.boq .q-volta .vt-t small{font-size:calc(22*var(--u));color:#9fdcb8}
+body.exp.boq .q-volta .vt-fl{color:#f5b301;text-transform:uppercase}
+body.exp.boq .q-volta .vt-min{margin-left:auto;font-family:'Anton',Impact,sans-serif;font-size:calc(70*var(--u));color:#fff;white-space:nowrap}
 body.exp.boq .q-palco{flex:1 0 auto;display:flex;flex-direction:column;min-width:0;background:var(--tile);border:2px solid var(--line);border-radius:calc(14*var(--u));overflow:hidden}
 body.exp.boq .q-palco.loja,body.exp.boq .q-palco.q-saiu{border-color:var(--fg)}
 body.exp.boq .q-cab{display:flex;flex-wrap:wrap;align-items:baseline;gap:calc(4*var(--u)) calc(18*var(--u));padding:calc(10*var(--u)) calc(20*var(--u)) calc(12*var(--u))}
@@ -2950,6 +2958,29 @@ function fitBoqMede(M,b,P,n,set,f0,grande,rola){
   set('--cols',best.c); set('--z',best.z);
   EXP_H=M.clientHeight;
 }
+/* 25/11/2026 VOLTANDO (Fabio, cartao "Faz e me mostra antes"; pedido do Alejo): o banco manda 'voltando' (sacola_voltando:
+   GPS do TrackEat, quem chegou 300 m+ mais perto nos ultimos 3 min, a ate 3,5 km, fora do patio; eta em minutos).
+   A faixa mostra o 1o (menor eta) e, se ele tem rota montada no TrackEat, os pedidos dela e as bandeiras douradas para
+   separar ja. Sem rede nova (vem na mesma leitura). Janela: leituras dos ultimos 6 min, comparando o minuto atual com 3 min antes. */
+const VOLTA_ON=true;   /* 25/11 01h28 UTC: Fabio escolheu "Ja para a equipe" (cartao): liga para todos */
+function voltaHTML(L){
+  if(!VOLTA_ON||!DADO||!Array.isArray(DADO.voltando)||!DADO.voltando.length) return '';
+  const pn=x=>semAcento(primeiroNome(x));
+  const naLoja=L.loja.map(l=>pn(l.r&&l.r.moto));
+  const rotas=L.lista.filter(e=>e.tipo==='rota'&&e.banda!=='loja');
+  const vs=DADO.voltando.filter(v=>v&&v.moto&&naLoja.indexOf(pn(v.moto))<0)
+    .map(v=>({v:v,e:rotas.find(r=>r.r&&pn(r.r.moto)===pn(v.moto))||null}));
+  if(!vs.length) return '';
+  const x=vs[0], km=(Number(x.v.dist_m)/1000).toFixed(1).replace('.',',');
+  let sep='';
+  if(x.e){ const ps=x.e.ps.filter(p=>!p.cancelado&&!eConferido(p)), t={};
+    ps.forEach(function(p){ const s=soltos(p); Object.keys(s).forEach(function(k){ t[k]=(t[k]||0)+s[k]; }); });
+    const fl=flagKs(t).map(flagTxt).join(' · ');
+    if(ps.length) sep='separe já: <b>'+ps.map(p=>'#'+esc(nGde(p))).join(' · ')+'</b>'+(fl?' · <b class="vt-fl">'+esc(fl)+'</b>':''); }
+  const outros=vs.slice(1).map(o=>esc(o.v.moto)+' ~'+esc(o.v.eta_min)+' min').join(' · ');
+  return '<section class="q-volta"><b class="vt-b">🛵 VOLTANDO</b><span class="vt-t"><b>'+esc(x.v.moto)+'</b> a '+km+' km da loja'
+    +(sep?'<br>'+sep:'')+(outros?'<br><small>também voltando: '+outros+'</small>':'')+'</span><b class="vt-min">~'+esc(x.v.eta_min)+' min</b></section>';
+}
 function desenhaBoq(){
   garanteExp();
   const b=document.body; ['c1','c2','c3','c4','c5'].forEach(c=>b.classList.remove(c));
@@ -2961,7 +2992,7 @@ function desenhaBoq(){
      Conserto 02/11 (revisor): dois pedidos com o mesmo numero (um so na tela) continuam escolhidos OS DOIS: assim o ENTER
      nao confere nenhum (antes a escolha encolhia para o da tela e o 2o Enter conferia esse, talvez o errado). */
   if(SEL&&!SEL.ids.some(id=>BOQ_MOSTRA_IDS.indexOf(id)>=0)){ SEL=null; if(T_SEL){ clearTimeout(T_SEL); T_SEL=null; } setTimeout(mostraTecla,0); }
-  $('bancada').innerHTML=Q.saiu?boqSaiuHTML(Q.saiu):boqPalcoHTML(Q);
+  $('bancada').innerHTML=voltaHTML(L)+(Q.saiu?boqSaiuHTML(Q.saiu):boqPalcoHTML(Q));
   EXP_BAN=bannerExp(); $('saiu').innerHTML=EXP_BAN;
   boqFila(L,Q);
   fitBoq();
