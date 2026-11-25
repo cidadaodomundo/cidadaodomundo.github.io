@@ -55,6 +55,19 @@ body{background:var(--s0);color:var(--text);font-family:'Barlow','Segoe UI',syst
 .pedbt{margin-top:.25em;font-size:.95em;padding:.2em .6em}.pedbt b{color:var(--brand)}
 .onde{display:block;margin-top:.3em;font-size:.78em;font-weight:700;color:var(--text2);white-space:nowrap;cursor:help}
 .ondef{display:flex;flex-wrap:wrap;gap:.4em;align-items:center;margin:.6em 0 .3em}.ondef .bt b{margin-left:.4em}
+.camw .camd{display:none}.camw.on .camd{display:block}.cambt{font-size:.75em;padding:.2em .6em;margin-top:.35em}
+.camd{background:var(--s2);border:1px dashed var(--line);border-radius:.5em;padding:.5em .7em;margin-top:.35em;font-size:.8em;line-height:1.5;font-style:normal}.camd b{color:var(--brand)}.camd small{color:var(--muted)}
+tr.expl{cursor:pointer}tr.expl:hover{background:#1f1d14}.dica{font-size:.72em;color:var(--brand);margin-top:.25em}
+.expb{background:var(--s1);border:1px solid var(--line);border-radius:1em;padding:1.2em 1.5em;max-width:70em;width:100%;font-size:.95em;color:var(--text)}
+.expb h2{font-family:'Anton',Impact,sans-serif;font-weight:400;margin:0 0 .2em}.expb .sub{color:var(--text2);font-size:.9em;margin:0 0 .8em}
+.expb .caixa{background:#2a2410;border-left:5px solid var(--brand);border-radius:.5em;padding:.7em 1em;margin-bottom:1em;line-height:1.5}.expb .caixa>b:first-child{color:var(--brand)}
+.expb .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:1.4em}@media(max-width:800px){.expb .cols{grid-template-columns:minmax(0,1fr)}}
+.expb h3{font-size:.85em;text-transform:uppercase;color:var(--muted);letter-spacing:.05em;margin:0 0 .5em}
+.expb .tl div{border-left:3px solid var(--line);padding:.2em 0 .2em .7em;font-size:.9em}.expb .tl .ruim{border-left-color:var(--bad);color:#f6b3b3}
+.expb .msg{max-width:88%;padding:.4em .7em;border-radius:.6em;margin:.3em 0;line-height:1.35;font-size:.9em}.expb .msg small{display:block;font-size:.75em;color:var(--muted)}
+.expb .m-cli{background:#3a2a1c;border:1px solid #6a4a2a}.expb .m-loja{background:#1d3326;border:1px solid #2f6b45;margin-left:auto}
+.expb .m-sis{background:var(--s2);color:var(--text2)}.expb .m-prob{background:#4a1c1c;border:1px solid var(--bad)}
+.expb .chat .auto{display:none}.expb .chat.tudo .auto{display:block;opacity:.7}
 .pdi{border-bottom:1px solid var(--line);padding:.45em 0}.pdi .qn{color:var(--brand);font-weight:800;margin-right:.35em}
 .pdi .es{color:var(--text2);font-size:.9em;margin-left:1.4em}.pdi .ob{color:var(--warn);font-size:.85em;margin-left:1.4em}
 .pdi .cz{float:right;margin-left:.6em;font-size:.75em;font-weight:800;color:var(--muted);text-transform:uppercase}
@@ -445,19 +458,6 @@ async function camPede(L){
     return true;
   }catch(err){ return false; }
 }
-function camLinha(e){
-  if(!DONO||!e||!e.pedido) return '';
-  const x=CAM[camK(e)]; if(!x) return '';
-  if(!x.achou) return '<div class="cam">🎥 Não achei este pedido no iFood perto desse horário, então não sei a hora em que saiu.</div>';
-  const cams=(x.cams||[]).map(c=>esc(c.camera)+' <small>('+esc(c.gravador)+')</small>').join(' · ');
-  const quem=x.quem||'motoboy', hs=['entrou '+x.entrou];
-  if(x.pronto) hs.push('marcado pronto '+x.pronto);
-  if(x.chegou) hs.push(quem+' chegou '+x.chegou);
-  if(x.saiu) hs.push((x.chegou?'pegou ':quem+' pegou ')+x.saiu);
-  return '<div class="cam">🎥 '+(cams||'câmera desta loja ainda não cadastrada')
-    +' · olhe '+(x.ate?'de <b>'+esc(x.entrou)+'</b> a <b>'+esc(x.ate)+'</b>':'a partir de <b>'+esc(x.entrou)+'</b> (a saída ainda não foi marcada)')
-    +'<br><small>'+esc(hs.join(' · '))+'</small></div>';
-}
 /* 02/11/2026 (chat-tv-pedido-inteiro-02-11), dois pedidos do Fabio na tabela de erros do dia (so na versao do dono):
    "qdo clicar em cima do pedido ja abri o que foi pedido inteiro" e "um botao de separacao pra ver qual setor esta errando:
    cozinha 1, cozinha 2 pratos, delivery". Porta cozinha_tv_pedidos: os itens do pedido no Saipos (sem preco, sem nome de
@@ -536,6 +536,142 @@ function verPedidoTV(k){
   document.body.appendChild(cx);
 }
 
+/* 25/11/2026 (thread "Mostrar explicação completa do erro ao clicar", projeto Qualidade). Fabio: "quando clica em cima do erro,
+   devia aparecer a explicacao completa ... tem que mostrar o chat do cliente, mostra so um trecho ... aparece aqueles codigos ali,
+   nao e facil de identificar"; "as cameras so pro portal do proprietario ... um iconezinho escrito camera, ai quando eu clicar que
+   vai aparecer"; e no pedido 9653: "quero todo o historico do pedido e as conversas e tb o horario em que ele foi confeccionado".
+   SO NA VERSAO DO DONO. A linha da camera virou o botao "Camera" (nomes faceis, abre ao clicar). Clicar na linha do erro abre o
+   painel: o que aconteceu em palavras simples, a linha do tempo (iFood/TrackEat + chat), quando a cozinha fez, o pedido inteiro
+   (Saipos), a conversa inteira do chat iFood (porta so-leitura cozinha_tv_explica; mensagens automaticas escondidas) e a camera. */
+const CAM_NOME={'06 PACOTE BURGER':'Câmera 6 — bancada dos sacos, vista de cima','9 DELIVERY EXPEDICAO':'Câmera 9 — expedição do delivery',
+  '9 CZ PCT':'Câmera 9 — montagem vista de cima (vê a impressora da comanda)','7 MONTAGEM BURGUERS':'Câmera 7 — montagem dos burgers',
+  '11 MONTAGEM PRATOS':'Câmera 11 — montagem dos pratos e marmitas','8 MOTOBOYS':'Câmera 8 — motoboys',
+  '9 COZINHA - MONTAGEM':'Câmera 9 — montagem da cozinha','5 DELIVERY - DESPACHO ESTUFA':'Câmera 5 — despacho / estufa do delivery',
+  '8 COZINHA - FOGAO CHAPA FRITADEIRA':'Câmera 8 — fogão, chapa e fritadeira','3 DELIVERY - PATIO MOTOBOY 1':'Câmera 3 — pátio dos motoboys'};
+const GRAV_NOME={'CIDADAO AUDIO NOVAS':'gravador novo','CIDADAO 32':'gravador antigo','CIDADAO AHU':'gravador do Ahú'};
+function camNome(c){ const n=String(c&&c.camera||'').trim(); if(CAM_NOME[n]) return CAM_NOME[n];
+  const m=n.match(/^0*(\d+)\s*-?\s*(.*)$/); return m?'Câmera '+m[1]+' — '+m[2].toLowerCase():n.toLowerCase(); }
+function gravNome(g){ g=String(g||'').trim(); return GRAV_NOME[g]||g.toLowerCase(); }
+function camDetalhe(x){
+  if(!x) return '<div class="camd">A câmera deste pedido ainda está carregando.</div>';
+  if(!x.achou) return '<div class="camd">Não achei este pedido no iFood perto desse horário, então não sei a hora para olhar.</div>';
+  const cams=(x.cams||[]);
+  return '<div class="camd"><b>Onde olhar no gravador</b> · '+(x.ate?'de <b>'+esc(x.entrou)+'</b> a <b>'+esc(x.ate)+'</b>':'a partir de <b>'+esc(x.entrou)+'</b> (a saída ainda não foi marcada)')
+    +(cams.length?cams.map(c=>'<br>• '+esc(camNome(c))+' <small>('+esc(gravNome(c.gravador))+')</small>').join(''):'<br>Câmera desta loja ainda não cadastrada.')+'</div>';
+}
+function camBotao(e){
+  if(!DONO||!e||!e.pedido) return '';
+  const x=CAM[camK(e)]; if(!x) return '';
+  return '<div class="camw"><button class="bt cambt" onclick="event.stopPropagation();this.parentNode.classList.toggle(\'on\')">🎥 Câmera</button>'+camDetalhe(x)+'</div>';
+}
+const EXP={}, EXP_CHAT={};
+function expAuto(m){   /* mensagem automatica do iFood que nao explica nada: fica escondida */
+  if(m.papel!=='sistema') return false;
+  const t=String(m.texto||'');
+  if(/^Cliente informou problema:?\s*$/i.test(t.trim())) return true;
+  return !/informou problema|loja escreveu|prefere o reembolso|prefere|discorda|aceitou|recusou|cancel|nova previs|motivo do atraso|reembols|devolu|arbitr/i.test(t) && !(m.tipo==='foto') && !m.problema;
+}
+function limpaHtml(t){ return String(t||'').replace(/<br\s*\/?>/gi,' ').replace(/<[^>]+>/g,'').replace(/\*/g,'').replace(/\s+/g,' ').trim(); }
+function hm2min(h){ const m=String(h||'').match(/(\d{1,2}):(\d{2})/); return m?Number(m[1])*60+Number(m[2]):null; }
+function difMin(a,b){ const x=hm2min(a), y=hm2min(b); if(x==null||y==null) return null; let d=y-x; if(d<-600) d+=1440; return d; }
+async function expPede(e){
+  const k=camK(e); if(EXP_CHAT[k]) return EXP_CHAT[k];
+  try{
+    const r=await fetch(SB+'rpc/cozinha_tv_explica',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({p_token:PTOK,p_dados:{loja:LOJA,pedido:String(e.pedido||''),dia:String(e.dia||DIA_ISO||''),hora:String(e.hora||'')}})});
+    if(!r.ok) return {erro:'Não consegui ler a conversa agora (código '+r.status+').'};
+    const j=await r.json(); EXP_CHAT[k]=j; return j;
+  }catch(err){ return {erro:'Sem internet para ler a conversa.'}; }
+}
+function expResumo(e,c,p,ch){
+  const msgs=(ch&&Array.isArray(ch.msgs))?ch.msgs:[];
+  const prob=msgs.filter(m=>m.problema).map(m=>limpaHtml(m.texto)).filter(Boolean);
+  const cli=msgs.filter(m=>m.papel==='cliente').map(m=>limpaHtml(m.texto)).filter(Boolean);
+  const lojaResp=msgs.map(m=>{ const t=limpaHtml(m.texto), q=t.match(/loja escreveu:\s*"([^"]+)"/i); return q?{h:m.h,t:q[1]}:null; }).filter(Boolean)[0];
+  const quer=msgs.map(m=>limpaHtml(m.texto)).filter(t=>/^Cliente prefere/i.test(t))[0];
+  const l=[];
+  l.push('O erro foi marcado como <b>'+esc(e.titulo||'')+'</b>'+(e.item?' ('+esc(e.item)+')':'')+'.');
+  if(e.disse) l.push('Frase que entrou na lista: “'+esc(e.disse)+'”.');
+  if(prob.length) l.push('O que o cliente explicou no iFood: <b>“'+prob.map(esc).join(' · ')+'”</b>.');
+  else if(cli.length) l.push('O cliente escreveu no chat: <b>“'+cli.slice(-3).map(esc).join(' · ')+'”</b>.');
+  else if(ch&&!ch.erro) l.push('Não achei conversa deste pedido no chat do iFood (a reclamação pode ter vindo pelo Gestor Web ou pela negociação).');
+  if(c&&c.achou&&c.pronto){ const d=difMin(c.entrou,c.pronto); if(d!=null) l.push('A cozinha fez entre <b>'+esc(c.entrou)+'</b> e <b>'+esc(c.pronto)+'</b> ('+d+' min).'); }
+  if(c&&c.achou&&c.pronto&&c.saiu){ const d=difMin(c.pronto,c.saiu); if(d!=null&&d>=15) l.push('Depois de pronto ficou <b>'+d+' min parado</b> até '+esc(c.quem||'o motoboy')+' pegar ('+esc(c.saiu)+').'); }
+  if(quer) l.push('O cliente '+esc(quer.split('.')[0].replace(/^Cliente\s+/i,''))+'.');
+  if(lojaResp) l.push('A loja respondeu às '+esc(lojaResp.h)+': “'+esc(lojaResp.t)+'”.');
+  if(e.resolveu&&!/^SEM REGISTRO/i.test(e.resolveu)) l.push('Resultado: <b>'+esc(e.resolveu)+'</b>.');
+  return l.join('<br>');
+}
+function expTempo(e,c,ch){
+  const ev=[];
+  if(c&&c.achou){
+    ev.push([c.entrou,'pedido entrou']);
+    if(c.pronto) ev.push([c.pronto,'cozinha marcou pronto'+(difMin(c.entrou,c.pronto)!=null?' ('+difMin(c.entrou,c.pronto)+' min de preparo)':'')]);
+    if(c.chegou) ev.push([c.chegou,(c.quem||'motoboy')+' chegou'+(c.pronto&&difMin(c.pronto,c.chegou)>=15?' — '+difMin(c.pronto,c.chegou)+' min depois do pronto':''),c.pronto&&difMin(c.pronto,c.chegou)>=15]);
+    if(c.saiu) ev.push([c.saiu,(c.quem||'motoboy')+' pegou e saiu']);
+  }
+  ((ch&&ch.msgs)||[]).forEach(m=>{
+    const t=limpaHtml(m.texto);
+    if(m.papel==='cliente') ev.push([m.h,'cliente: “'+t+'”',true]);
+    else if(m.papel==='loja') ev.push([m.h,'loja: “'+t+'”']);
+    else if(m.problema) ev.push([m.h,'cliente informou problema: '+t,true]);
+    else if(/loja escreveu/i.test(t)) ev.push([m.h,'loja respondeu a reclamação']);
+    else if(/aceitou a nova previs/i.test(t)) ev.push([m.h,'cliente aceitou nova previsão']);
+    else if(/prefere o reembolso/i.test(t)) ev.push([m.h,'cliente pediu reembolso',true]);
+  });
+  if(!ev.length) return '<p style="color:var(--muted)">Sem horários deste pedido.</p>';
+  ev.sort((a,b)=>{ const x=hm2min(a[0]), y=hm2min(b[0]); return ((x<360?x+1440:x)||0)-((y<360?y+1440:y)||0); });
+  return '<div class="tl">'+ev.map(v=>'<div'+(v[2]?' class="ruim"':'')+'><b>'+esc(v[0]||'')+'</b> · '+esc(v[1])+'</div>').join('')+'</div>';
+}
+function expChat(ch){
+  if(!ch) return '<p>carregando a conversa…</p>';
+  if(ch.erro) return '<p class="alerta">⚠️ '+esc(ch.erro)+'</p>';
+  const ms=Array.isArray(ch.msgs)?ch.msgs:[];
+  if(!ms.length) return '<p style="color:var(--muted)">Nenhuma conversa deste pedido no chat do iFood'+(ch.lido_em?' (chat lido até '+esc(ch.lido_em)+')':'')+'.</p>';
+  const auto=ms.filter(expAuto).length;
+  const um=m=>{ const a=expAuto(m), cl=m.papel==='cliente'?'m-cli':m.papel==='loja'?'m-loja':m.problema?'m-prob':'m-sis';
+    const quem=m.papel==='cliente'?'Cliente':m.papel==='loja'?'Loja':m.problema?'Problema informado pelo cliente':'iFood';
+    return '<div class="msg '+cl+(a?' auto':'')+'"><small>'+quem+' · '+esc(m.h||'')+'</small>'+(m.tipo==='foto'?'📷 foto':esc(limpaHtml(m.texto)))+'</div>'; };
+  return '<div class="chat">'+ms.map(um).join('')+'</div>'
+    +(auto?'<button class="bt" style="margin-top:.5em;font-size:.75em" onclick="this.previousElementSibling.classList.toggle(\'tudo\');this.textContent=this.previousElementSibling.classList.contains(\'tudo\')?\'esconder as automáticas\':\'+ '+auto+' mensagens automáticas do iFood · mostrar\'">+ '+auto+' mensagens automáticas do iFood · mostrar</button>':'')
+    +(ch.conversas>1?'<p style="font-size:.75em;color:var(--muted)">Este pedido teve '+ch.conversas+' conversas; todas aparecem juntas.</p>':'');
+}
+function expPedido(p){
+  if(!p||!p.achou) return '<p style="color:var(--muted)">Os itens deste pedido ainda não chegaram do Saipos.</p>';
+  const it=Array.isArray(p.itens)?p.itens:[];
+  if(!it.length) return '<p>'+(p.cancelada?'Pedido cancelado: o Saipos não tem nenhum item ativo nele.':'Sem itens.')+'</p>';
+  return it.map(function(i){ const q=Number(i.q), qt=isFinite(q)?(q%1===0?String(q):String(q).replace('.',','))+'×':'';
+    return '<div class="pdi"><span class="qn">'+esc(qt)+'</span>'+esc(i.nome||'')+(i.obs?'<div class="ob">obs: '+esc(i.obs)+'</div>':'')
+      +(Array.isArray(i.escolhas)?i.escolhas:[]).map(c=>'<div class="es">+ '+esc(c.nome||'')+'</div>').join('')+'</div>'; }).join('');
+}
+async function abreExplica(k){
+  const e=EXP[k]; if(!e) return;
+  let cx=document.getElementById('__exp'); if(cx) cx.remove();
+  cx=document.createElement('div'); cx.id='__exp';
+  cx.style.cssText='position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.8);overflow:auto;padding:16px;display:flex;align-items:flex-start;justify-content:center';
+  const fecha=function(){ cx.remove(); document.removeEventListener('keydown',tecla,true); };
+  const tecla=function(ev){ if(ev.key==='Escape'){ ev.stopPropagation(); fecha(); } };
+  document.addEventListener('keydown',tecla,true);
+  cx.onclick=function(ev){ if(ev.target===cx) fecha(); };
+  document.body.appendChild(cx);
+  const pinta=function(ch){
+    const c=CAM[k], p=PED[k], mc=marcaLoja(e.marca);
+    cx.innerHTML='<div class="expb"><button class="bt" data-fecha="1" style="float:right">✕ Fechar</button>'
+      +'<h2>Pedido '+esc(e.pedido||'')+(mc?' · '+esc(mc):'')+'</h2>'
+      +'<p class="sub">'+esc(e.hora||'')+' · '+esc(e.titulo||'')+(ondeDe(e)?' · '+esc(ONDE_TX[ondeDe(e)]||''):'')+(p&&p.venda?' · Saipos nº '+esc(p.venda):'')+'</p>'
+      +'<div class="caixa"><b>O que aconteceu, em palavras simples</b><br>'+expResumo(e,c,p,ch)+'</div>'
+      +'<div class="cols"><div><h3>Histórico do pedido</h3>'+expTempo(e,c,ch)
+      +'<h3 style="margin-top:1em">O pedido inteiro</h3>'+expPedido(p)
+      +(c?'<div class="camw" style="margin-top:1em"><button class="bt cambt" onclick="this.parentNode.classList.toggle(\'on\')">🎥 Câmera</button>'+camDetalhe(c)+'</div>':'')
+      +'</div><div><h3>Conversa inteira do chat iFood</h3>'+expChat(ch)+'</div></div>'
+      +'<p style="font-size:.75em;color:var(--muted);margin-top:1em">Horários: iFood e TrackEat. Itens: Saipos. Conversa: chat do iFood'+(ch&&ch.lido_em?', lido até '+esc(ch.lido_em):'')+'. O nome do cliente não aparece.</p></div>';
+    cx.querySelector('[data-fecha]').onclick=fecha;
+  };
+  pinta(null);
+  const ch=await expPede(e);
+  if(document.body.contains(cx)) pinta(ch);
+}
+
 function desenha(novos){
   const j=DADO; if(!j) return;
   novos=novos||[];
@@ -568,7 +704,7 @@ function desenha(novos){
         +'<div class="tt">'+esc(e.titulo)+(nv?' <span class="pl p-novo">novo</span>':'')+' <span class="pl '+pc+'">'+esc(e.setor)+'</span></div>'
         +'<div class="lj">'+(marcaLoja(e.marca)?'<span class="mc">'+esc(marcaLoja(e.marca))+'</span>':'<span class="mc sem">marca não informada</span>')+' · '+(e.pedido?'pedido <b>'+esc(e.pedido)+'</b>':'sem nº de pedido')+(e.item?' · '+esc(e.item):'')+'</div>'
         +(e.disse?'<div class="ds">“'+esc(e.disse)+'”</div>':'')
-        +camLinha(e)
+        +camBotao(e)
         +'</div></div>';
     }).join('');
     /* so os cartoes que cabem inteiros na tela; o resto vira "+ N mais cedo" (a linha do "+ N" ja ocupa lugar antes de medir) */
@@ -1016,12 +1152,12 @@ async function abreDia(dm){
     return 'pedido <b>'+esc(e.pedido)+'</b>'; };
   const mp=e=>{ const mc=marcaLoja(e.marca);
     return (mc?'<span class="mc" style="font-size:1em">'+esc(mc)+'</span>':'<span style="color:var(--muted)">marca não informada</span>')+'<br>'+pedTx(e)+foto(e); };
-  const linha=e=>'<tr'+ondeTr(e)+'><td class="hr">'+esc(e.hora)+'</td><td><span class="pl '+(e.setor==='cozinha'?'p-coz':e.setor==='montagem'?'p-mon':'p-exp')+'">'+esc(e.setor)+'</span>'
+  const linha=e=>{ if(DONO&&e.pedido) EXP[camK(e)]=e; return '<tr'+ondeTr(e)+(DONO&&e.pedido?' class="expl" data-ek="'+esc(camK(e))+'" onclick="if(!event.target.closest(\'button\'))abreExplica(this.getAttribute(\'data-ek\'))"':'')+'><td class="hr">'+esc(e.hora)+'</td><td><span class="pl '+(e.setor==='cozinha'?'p-coz':e.setor==='montagem'?'p-mon':'p-exp')+'">'+esc(e.setor)+'</span>'
           +(e.qual?'<br><small style="color:'+(e.na_meta?'var(--bad)':'var(--muted)')+'">'+(e.na_meta?'conta na meta':'não conta na meta')+'</small>':'')+ondeLinha(e)+'</td>'
-          +'<td><b>'+esc(e.titulo)+'</b>'+(e.item?'<br><small style="color:var(--text2)">'+esc(e.item)+'</small>':'')+'</td>'
-          +'<td>'+mp(e)+camLinha(e)+'</td>'
+          +'<td><b>'+esc(e.titulo)+'</b>'+(e.item?'<br><small style="color:var(--text2)">'+esc(e.item)+'</small>':'')+(DONO&&e.pedido?'<div class="dica">👆 toque para ver tudo</div>':'')+'</td>'
+          +'<td>'+mp(e)+camBotao(e)+'</td>'
           +'<td class="ds">'+(e.disse?'“'+esc(e.disse)+'”':'—')+(e.fontes?'<br><small style="font-style:normal;color:var(--muted)">'+esc(e.fontes)+'</small>':'')+'</td>'
-          +'<td>'+resolveu(e.resolveu)+'</td></tr>';
+          +'<td>'+resolveu(e.resolveu)+'</td></tr>'; };
   const est=v=>{ const k=Math.max(0,Math.min(5,Number(v)|0)); return '★'.repeat(k)+'☆'.repeat(5-k); };
   const linhaAv=r=>'<tr'+ondeTr(r)+'><td class="hr">'+esc(r.hora||'')+'</td><td><span class="pl p-coz">avaliação</span><br><small style="color:var(--muted)">não conta na meta</small>'+ondeLinha(r)+'</td>'
           +'<td><b style="color:var(--brand)">'+est(r.nota)+'</b> nota '+esc(r.nota)+(Array.isArray(r.tags)&&r.tags.length?'<br><small style="color:var(--text2)">o cliente marcou: '+esc(r.tags.join(', '))+'</small>':'')+'</td>'
