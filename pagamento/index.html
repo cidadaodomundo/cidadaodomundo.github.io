@@ -298,7 +298,7 @@ button.b[disabled]{opacity:.4;cursor:not-allowed}
 <body>
 <div class="top">
   <div><h1>Pagar Motoboys</h1><div class="sub">quanto pagar a cada motoboy, maquininha, corrida em dobro e as regras — esta tela é só sua e da Hellen</div></div>
-  <div class="rt"><span class="rel" id="rel"></span><button class="b" onclick="ESCDIA={};MQ=null;PD=null;PV=null;AC=null;PVCH={};PVESC={};NCH=null;NCHL=false;if(!PG_EMBED&&$('t_prova').style.display==='none')provaSonda();setView(VIEW)">🔄 Atualizar</button></div>
+  <div class="rt"><span class="rel" id="rel"></span><button class="b" onclick="ESCDIA={};PIXPL={};MQ=null;PD=null;PV=null;AC=null;PVCH={};PVESC={};NCH=null;NCHL=false;if(!PG_EMBED&&$('t_prova').style.display==='none')provaSonda();setView(VIEW)">🔄 Atualizar</button></div>
 </div>
 
 <div class="per">
@@ -1210,7 +1210,7 @@ const PG_ABERTO={}; // lembra as linhas abertas quando a tela se redesenha (ex.:
 function pgTog(el){PG_ABERTO[el.getAttribute('data-k')]=el.open}
 /* 15/11/2026, Fábio: "nao precisa ter duas telas... ja vamos resolver tudo na tela quanto pagar"; "colocar horario de chegada horario de saida garantido refeição";
    "clicar nas colunas e ela ja se organizar"; "o mesmo design da tela chegada do dia". Da Prova real ficam planilha, Pix e diferença (escolha dele no cartão). */
-const PG_COLS='minmax(150px,1.5fr) 62px 62px 56px 62px 70px 70px 66px 92px 82px 82px 88px 14px';
+const PG_COLS='minmax(150px,1.5fr) 62px 62px 56px 62px 70px 70px 66px 92px 82px minmax(140px,1.2fr) 88px 14px';
 let PG_ORD={k:'',dir:1}, PV_TENT=false;
 function pgFds(){const d=new Date(String(PD&&PD.dia)+'T12:00:00').getDay();return d===0||d===6}
 function pgCab(t){return '<div class="pg-cab">'+t.map(function(c){
@@ -1426,6 +1426,23 @@ function pgVeredito(m,x){
   const lido='<span class="fo lido">tela lida às '+esc(PD.agora||'—')+(PV&&PV.agora?' · Prova real lida às '+esc(PV.agora):'')+'</span>';
   return '<div class="vr"><div class="vr-a"><div class="vr-v"><span class="k">Pagar</span><b>'+rs(m.pagar)+'</b></div><div class="vr-p">'+por+'<span class="fo">'+pf.join(' · ')+'</span></div>'+pgTurnosBox(m)+pix+lido+'</div><ul class="chk">'+it.join('')+'</ul></div>';
 }
+/* 26/11/2026 (pedido da Hellen): chave Pix da planilha das lojas na coluna Pix. Clique copia. */
+var PIXPL={};
+function pixNorm(t){return String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim()}
+function pixDe(m){
+  var d=PD&&PD.dia;if(!d)return null;var L=PIXPL[d];
+  if(!L){PIXPL[d]='carregando';fetch(SB+'rpc/pix_planilha_do_dia',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:cdmTok(),p_dia:d})})
+    .then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){PIXPL[d]=j||[];if(VIEW==='pagar'&&PD)viewPagar()}).catch(function(){PIXPL[d]='erro'});return null}
+  if(typeof L==='string')return null;
+  var nm=' '+pixNorm(m.entregador)+' ',best=null,bs=0;
+  L.forEach(function(r){if(r.unidade!==m.unidade)return;var sc=0;pixNorm(r.motoboy).split(' ').forEach(function(w){if(w.length>2&&nm.indexOf(' '+w+' ')>=0)sc++});if(sc>bs){bs=sc;best=r}});
+  return best;
+}
+function pixCel(m){
+  var r=pixDe(m);
+  if(!r)return '<span class="rel">—</span>';
+  return '<span title="Chave Pix da planilha da loja ('+esc(String(r.dia).slice(8,10)+'/'+String(r.dia).slice(5,7))+', '+esc(r.motoboy)+'). Clique para copiar." style="cursor:copy;word-break:break-all" onclick="event.preventDefault();event.stopPropagation();try{navigator.clipboard.writeText(this.textContent);this.style.color=\'#4ade80\'}catch(e){}">'+esc(r.chave_pix)+'</span>'+(r.dia!==PD.dia?'<small class="linha-nota">planilha de '+esc(String(r.dia).slice(8,10)+'/'+String(r.dia).slice(5,7))+'</small>':'');
+}
 function pgLinha(m,i){
   const k=String(m.unidade||'')+'|'+String(m.entregador||''), x=pgProvaDe(m), d=pgDif(m,x);
   const al=!m.escondido&&(pgRegraConferir(m)||(PD.ve_pix!==false&&!m.chave_pix)||m.garantido===false);
@@ -1444,7 +1461,7 @@ function pgLinha(m,i){
     '<span class="pc" data-l="refeição">'+(m.escondido?'—':pgRef(m))+'</span>'+
     '<span class="pc r vl" data-l="a pagar">'+(m.escondido?'escondido':rs(m.pagar))+'</span>'+
     '<span class="pc r" data-l="planilha">'+(x&&x.deles!=null?pgV(x.deles):'—')+'</span>'+
-    '<span class="pc r" data-l="Pix">'+(x?(x.pago!=null?pgV(x.pago):(x.pix_status==='esperando o banco'?'esperando':'—')):'—')+'</span>'+
+    '<span class="pc r" data-l="Pix">'+pixCel(m)+'<small class="linha-nota">'+(x?(x.pago!=null?'pago '+pgV(x.pago):(x.pix_status==='esperando o banco'?'esperando':'')):'')+'</small></span>'+
     '<span class="pc r dfc'+d.cl+'" data-l="diferença"'+(lacreDif?' title="Diferença do lacre da Prova real: o lacre guardou '+esc(pgV(x.nosso))+'"':'')+'>'+d.t+(lacreDif?'<small class="linha-nota">lacre '+pgV(x.nosso)+'</small>':'')+'</span>'+
     '</summary>'+pgVeredito(m,x)+'<details class="vr-mais"><summary>ver a conta completa</summary><div class="pg-li-det">'+pgComanda(m,i)+(x&&!m.escondido?'<div style="margin-top:14px">'+prComanda(x,i)+'</div>':'')+'</div></details></details>';
 }
