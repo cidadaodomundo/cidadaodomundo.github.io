@@ -314,6 +314,12 @@ body.modo-carro #slides{display:flex;flex-direction:column;flex:1;min-height:0;p
 .sl-vfr small{font-style:normal;color:var(--muted);font-size:.75em}
 @media (max-width:900px){html,body{height:auto}body{overflow:auto}.corpo{grid-template-columns:1fr}.topo{flex-wrap:wrap}
   .melhor,.cli{height:auto;grid-template-columns:1fr}.ins .ac,.ins .ev,.cli .q1{white-space:normal}}
+.setx{display:flex;gap:12px;margin:10px 0}.setx .sx{flex:1;background:rgba(255,255,255,.06);border-radius:12px;padding:10px 12px;border:2px solid transparent}
+.setx .sx.nao{border-color:var(--bad)}.setx .sx.ok{border-color:var(--ok)}
+.sx-l{display:flex;justify-content:space-between;align-items:baseline;font-weight:800}.sx-c b{font-size:1.6em}
+.sx-b{height:12px;background:rgba(255,255,255,.12);border-radius:6px;overflow:hidden;margin:6px 0}.sx-b i{display:block;height:100%;background:var(--ok)}
+.sx.nao .sx-b i{background:var(--bad)}.sx-f{font-size:.9em}.sx-f small{opacity:.65}
+.setx.tv{gap:24px;margin:14px 0}.setx.tv .sx{padding:18px 22px}.setx.tv .sx-l{font-size:2.2em}.setx.tv .sx-b{height:22px}.setx.tv .sx-f{font-size:1.4em}
 </style>
 </head>
 <body>
@@ -686,6 +692,23 @@ function pxLinha(px){
     +(px.teto!=null?'até '+esc(px.teto)+' erros na semana':'dia verde = até '+esc(px.verde_ate)+' erros')
     +(px.google_meta!=null?' E pelo menos '+esc(px.google_meta)+' avaliações novas no Google':'')+' = churrasco</div>';
 }
+/* 21/11/2026 (thread "Criar metas por setor na Água Verde", obra 124) Fabio: "separar no agua verde por setores, cada setor uma
+   meta e a recompensa churrasco" + "esquecimento de bebidas e sobremesas, talheres e sache sao responsabilidade do delivery".
+   Escolheu Cozinha ate 9 e Delivery ate 5; Google (50) continua da loja toda. O banco manda semana.setores.lista
+   (cozinha_tv_setores); sem ela, a tela segue igual a de antes. Cada setor ganha o seu churrasco se ficar no limite dele
+   e a loja bater o Google. */
+function setLista(m){ return m&&m.setores&&Array.isArray(m.setores.lista)&&m.setores.lista.length?m.setores.lista:null; }
+function setHtml(L, G, sobram, tv){
+  return '<div class="setx'+(tv?' tv':'')+'">'+L.map(function(s){
+    const t=Number(s.teto)||0, n=Number(s.total)||0, passou=n>t, resta=t-n, pct=t?Math.min(100,Math.round(n*100/t)):100;
+    const fr=passou?'Passou de '+t+': esta semana não dá mais'
+      :(!sobram?(G&&G.falta?'Dentro da meta, falta o Google':'🎉 Ganhou o churrasco!'):(resta===0?'Nenhum erro a mais até sexta!':'Sobra'+(resta>1?'m ':' ')+resta+' até sexta'));
+    return '<div class="sx '+(passou?'nao':(!sobram&&!(G&&G.falta)?'ok':''))+'"><div class="sx-l"><span class="sx-n">'+esc(s.icone||'')+' '+esc(s.nome)+'</span>'
+      +'<span class="sx-c"><b>'+n+'</b> de '+esc(t)+'</span></div>'
+      +'<div class="sx-b"><i style="width:'+pct+'%"></i></div>'
+      +'<div class="sx-f">'+esc(fr)+(s.o_que?' <small>· '+esc(s.o_que)+'</small>':'')+'</div></div>';
+  }).join('')+'</div>';
+}
 function meta(m, px){
   const el=$('meta'); if(!m||!m.dias){ el.style.display='none'; return; } el.style.display='';
   const lim=m.verde_ate, alvo=m.meta_dias;
@@ -708,6 +731,14 @@ function meta(m, px){
   if(teto){
     let tot=0, sobram=0;
     m.dias.forEach(function(d){ if(d.quando!=='falta'&&d.conta!==false) tot+=Number(d.erros)||0; if(d.quando!=='passou') sobram++; });
+    const SL=setLista(m);
+    if(SL){
+      el.innerHTML='<h2>🍖 Meta do churrasco <small>cada setor com a sua meta'+(PORTAL?' · toque no dia':'')+'</small></h2><div class="rg">'
+        +SL.map(function(x){return esc(x.nome)+' até '+esc(x.teto);}).join(' · ')+' erros de sáb a sex'+(G?' + '+esc(G.alvo)+' avaliações no Google da loja':'')+' = churrasco</div>'
+        +'<div class="dias">'+cx+'</div>'+gH+setHtml(SL, G, sobram, false)
+        +'<div class="ant">Loja toda na semana: '+tot+' erros</div>'+pxLinha(px);
+      return;
+    }
     const resta=teto-tot;
     let fr2, cf2='';
     if(tot>teto){ fr2='Passou de '+teto+': esta semana não dá mais ('+tot+' erros). Sábado começa outra.'; cf2='nao'; }
@@ -1171,7 +1202,13 @@ function slMeta(){
     return '<div class="dd '+cl+'"><div class="sm">'+(d.quando==='hoje'?'HOJE':esc(d.sem))+'</div><div class="nn">'+esc(nn)+'</div><div class="dt">'+esc(d.dia)+'</div></div>';
   }).join('');
   if(!teto) return null;
-  const passou=tot>teto, resta=teto-tot, a=m.anterior, G=gooCalc(m);   /* 24/10: meta do Google do salao, quando a loja tem */
+  const passou=tot>teto, resta=teto-tot, a=m.anterior, G=gooCalc(m);
+  const SL=setLista(m);
+  if(SL) return {html:'<div class="sl-tit">🍖 Meta do churrasco <small>cada setor com a sua meta, de sábado a sexta'+(G?' + '+esc(G.alvo)+' no Google':'')+'</small></div>'
+    +setHtml(SL, G, sobram, true)
+    +'<div class="sl-dias dias">'+cx+'</div>'
+    +(G?'<div class="sl-dias dias goo">'+G.cx+'</div><div class="sl-gfr">'+G.fr+'</div>':'')
+    +'<div class="sl-ant">Loja toda: '+tot+' erros na semana'+(a&&a.total!=null?' · semana passada: '+esc(a.total):'')+'</div>', dur:14};   /* 24/10: meta do Google do salao, quando a loja tem */
   const fr=passou?'Passou de '+teto+': esta semana não dá mais. Sábado começa outra.'
     :(!sobram&&G&&G.falta?'Erros dentro da meta, mas falta'+(G.falta>1?'m ':' ')+G.falta+' avaliações no Google':!sobram?'🎉 Meta batida: churrasco no sábado!':(resta===0?'Nenhum erro a mais até sexta!':'Sobra'+(resta>1?'m ':' ')+resta+' erro'+(resta>1?'s':'')+' até sexta'));
   return {html:'<div class="sl-tit">🍖 Meta do churrasco <small>até '+esc(teto)+' erros de sábado a sexta'+(G?' + '+esc(G.alvo)+' no Google':' · guia: até '+esc(lim)+' por dia')+'</small></div>'
