@@ -298,7 +298,7 @@ button.b[disabled]{opacity:.4;cursor:not-allowed}
 <body>
 <div class="top">
   <div><h1>Pagar Motoboys</h1><div class="sub">quanto pagar a cada motoboy, maquininha, corrida em dobro e as regras — esta tela é só sua e da Hellen</div></div>
-  <div class="rt"><span class="rel" id="rel"></span><button class="b" onclick="MQ=null;PD=null;PV=null;AC=null;PVCH={};PVESC={};NCH=null;NCHL=false;if(!PG_EMBED&&$('t_prova').style.display==='none')provaSonda();setView(VIEW)">🔄 Atualizar</button></div>
+  <div class="rt"><span class="rel" id="rel"></span><button class="b" onclick="ESCDIA={};MQ=null;PD=null;PV=null;AC=null;PVCH={};PVESC={};NCH=null;NCHL=false;if(!PG_EMBED&&$('t_prova').style.display==='none')provaSonda();setView(VIEW)">🔄 Atualizar</button></div>
 </div>
 
 <div class="per">
@@ -1448,6 +1448,19 @@ function pgLinha(m,i){
     '<span class="pc r dfc'+d.cl+'" data-l="diferença"'+(lacreDif?' title="Diferença do lacre da Prova real: o lacre guardou '+esc(pgV(x.nosso))+'"':'')+'>'+d.t+(lacreDif?'<small class="linha-nota">lacre '+pgV(x.nosso)+'</small>':'')+'</span>'+
     '</summary>'+pgVeredito(m,x)+'<details class="vr-mais"><summary>ver a conta completa</summary><div class="pg-li-det">'+pgComanda(m,i)+(x&&!m.escondido?'<div style="margin-top:14px">'+prComanda(x,i)+'</div>':'')+'</div></details></details>';
 }
+/* 26/11/2026 (pedido da Hellen): horários da escala do dia acima da lista de cada loja. Só mostra. */
+var ESCDIA={};
+function escDoDia(u,dia){
+  var ini=escSeg(dia), w=ESCDIA[ini];
+  if(!w){ESCDIA[ini]='carregando';fetch(SB+'rpc/escala_motoboy_semana',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:cdmTok(),p_ini:ini})})
+    .then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){ESCDIA[ini]=j;if(VIEW==='pagar'&&PD)viewPagar()}).catch(function(){ESCDIA[ini]='erro'});return ''}
+  if(typeof w==='string')return '';
+  var ls=(w.linhas||[]).filter(function(r){return r.unidade===u&&r.data===dia});
+  if(!ls.length)return '<div class="c" style="margin:6px 0;padding:8px 12px;border-left:4px solid #e66767">📅 <b>Escala do dia:</b> <span style="color:#e66767">nenhuma escala do Jaison para esta loja neste dia.</span></div>';
+  var g=[];ls.forEach(function(r){var k=(r.entrada||'?')+'–'+(r.saida||'fechar');var x=g.find(function(y){return y.k===k});if(!x){x={k:k,t:r.turno,n:[]};g.push(x)}x.n.push(r.nome)});
+  return '<div class="c" style="margin:6px 0;padding:8px 12px">📅 <b>Escala do dia</b> <span class="rel">(do Jaison)</span><div style="display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:4px">'+
+    g.map(function(x){return '<div><b>'+esc(x.k)+'</b> <span class="rel">'+esc(x.t||'')+'</span> · '+x.n.map(esc).join(', ')+'</div>'}).join('')+'</div></div>';
+}
 function viewPagar(){
   if(!PD||(PDDIA&&PD.dia!==PDDIA)){puxaPagar(PDDIA);return}
   $('kpis').innerHTML='';$('faixa').innerHTML='';
@@ -1478,7 +1491,7 @@ function viewPagar(){
     const lu=l.filter(function(m){return m.unidade===u});
     let st=0; lu.forEach(function(m){st+=Number(m.pagar||0)});
     const luEsc=lu.some(function(m){return m.escondido});
-    h+='<div class="pg-loja"><b>'+esc(u)+'</b><span>'+lu.length+' motoboy(s) · <em>'+(luEsc?'valor escondido':rs(Math.round(st*100)/100))+'</em></span></div><div class="pg-lista" style="--cols:'+PG_COLS+';--minw:1080px">'+
+    h+='<div class="pg-loja"><b>'+esc(u)+'</b><span>'+lu.length+' motoboy(s) · <em>'+(luEsc?'valor escondido':rs(Math.round(st*100)/100))+'</em></span></div>'+escDoDia(u,PD.dia)+'<div class="pg-lista" style="--cols:'+PG_COLS+';--minw:1080px">'+
       pgCab([['Motoboy',0,'nome'],['Chegada',0,'chegada'],['Saída',0,'saida'],['Horas',1,'horas'],['Entregas',1,'entregas'],['R$/hora',1,'vh'],['Garantido',0,'gar'],['Refeição',0,'ref'],['A pagar',1,'pagar'],['Planilha',1,'plan'],['Pix',1,'pix'],['Diferença',1,'dif']]);
     pgOrdenar(lu).forEach(function(m){h+=pgLinha(m,i++)});
     h+='</div>';
