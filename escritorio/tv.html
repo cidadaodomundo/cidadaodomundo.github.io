@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TV do RH · Escritório · Cidadão do Mundo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* 06/11/2026 chat-lista-pedidos-06-11 (obra 178) — TV do escritório na LG, estilo "TV de padaria".
+   Fábio: "vai mostrando assim as coisas como novidade ... novidades do Claude ... ponto ... erros da cozinha ... câmeras".
+   Lê a porta escritorio_tv_ler(p_chave) (mesmo código da TV do RH, ?k=). Telas passam sozinhas, 15 s cada;
+   as câmeras continuam no revezamento do PC (reveza-rh.ps1). Nenhum valor em R$, nenhum CPF, nenhum salário.
+   NUNCA aparece na tela HDMI (autoatendimento) — essa janela é outra e não se mexe. */
+:root{--brand:#E0A81C;--bg:#0b0e14;--surface:#141922;--line:#242d3d;--text:#e8edf4;--muted:#8b95a5;
+--ok:#37b46c;--warn:#e8833a;--dang:#e05252;--blue:#4a90d9;--roxo:#8e6bc9}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:'Barlow',-apple-system,'Segoe UI',sans-serif;height:100%;overflow:hidden}
+body{padding:1.6vw 2vw;display:flex;flex-direction:column;gap:1.2vw}
+header{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:.25vw solid var(--brand);padding-bottom:.8vw}
+h1{font-family:'Anton',Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:3.4vw;line-height:1}
+.sub{color:var(--muted);font-size:1.15vw;margin-top:.4vw}
+.pontos{display:flex;gap:.6vw}.pontos i{width:1vw;height:1vw;border-radius:50%;background:var(--line)}.pontos i.on{background:var(--brand)}
+main{flex:1;overflow:hidden;position:relative}
+.tela{position:absolute;inset:0;opacity:0;transition:opacity .8s;display:flex;flex-direction:column;gap:1vw}
+.tela.on{opacity:1}
+.grade{display:grid;grid-template-columns:repeat(var(--cols,3),1fr);gap:1vw;align-content:start;overflow:hidden}
+.card{background:var(--surface);border:1px solid var(--line);border-left:.45vw solid var(--cc,var(--brand));border-radius:.8vw;padding:1vw 1.2vw}
+.card h3{font-size:2.1vw;line-height:1.15;font-weight:700}
+.card p{font-size:1.45vw;color:#b6c2d4;margin-top:.4vw;line-height:1.35}
+.card .serve{color:var(--brand);font-weight:700}
+.card .peq{font-size:.95vw;color:var(--muted);margin-top:.4vw}
+.col{background:var(--surface);border:1px solid var(--line);border-top:.4vw solid var(--cc);border-radius:.8vw;padding:1vw 1.2vw;overflow:hidden}
+.col h2{font-family:'Anton',Impact,sans-serif;font-weight:400;font-size:2vw;text-transform:uppercase;display:flex;justify-content:space-between}
+.col h2 b{color:var(--cc)}
+.col li{list-style:none;font-size:1.9vw;padding:.5vw 0;border-bottom:1px solid var(--line)}
+.col li small{color:var(--muted);font-size:1.25vw}
+.nada{color:var(--ok);font-weight:700;font-size:1.8vw;padding:.5vw 0}
+.vazio{text-align:center;padding:8vw 0;font-size:2.6vw;color:var(--ok);font-weight:700}
+.tag{display:inline-block;background:var(--cc);color:#fff;border-radius:.5vw;padding:.2vw .6vw;font-size:.9vw;font-weight:800;margin-right:.5vw}
+footer{display:flex;justify-content:space-between;color:var(--muted);font-size:.95vw}
+#erro{color:var(--dang)}
+</style></head><body>
+<header><div><h1 id="titulo">Cidadão do Mundo</h1><div class="sub" id="sub">carregando…</div></div><div class="pontos" id="pontos"></div></header>
+<main id="main"></main>
+<footer><span id="rodape">TV do escritório · Água Verde · São Braz · Ahú</span><span id="erro"></span></footer>
+<script>
+const SB='https://kqvoatdprjwxyadhvtdd.supabase.co/rest/v1/';
+const KEY='sb_publishable_tp_dgwYNsZZOC3uNYTuybw_mUDNHEmV';
+const H={apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'};
+const SEG=15000;
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function chave(){let k=new URLSearchParams(location.search).get('k');
+  try{if(k)localStorage.setItem('cdm_rh_tv',k);else k=localStorage.getItem('cdm_rh_tv');}catch(e){} return k||'';}
+function curto(n){const s=String(n||'').trim();const p=s.split(/\s+/);return p.length<=2?s:p[0]+' '+p[p.length-1];}
+function lista(t,cor,itens,fmt,vazio){
+  return '<div class="col" style="--cc:'+cor+'"><h2>'+esc(t)+' <b>'+itens.length+'</b></h2>'+
+   (itens.length?'<ul>'+itens.slice(0,9).map(fmt).join('')+(itens.length>9?'<li><small>+ '+(itens.length-9)+' no portal</small></li>':'')+'</ul>':'<div class="nada">✅ '+esc(vazio)+'</div>')+'</div>';}
+const TELAS=[
+ {t:'✨ Novidades do Claude',f:d=>{const N=d.novidades||[];
+   if(!N.length)return '<div class="vazio">O agente de novidades roda toda semana.<br>As primeiras aparecem aqui logo.</div>';
+   return '<div class="grade" style="--cols:2">'+N.slice(0,4).map(n=>'<div class="card"><h3>'+esc(n.titulo)+'</h3>'+
+     (n.resumo?'<p>'+esc(n.resumo)+'</p>':'')+(n.serve_para?'<p class="serve">→ '+esc(n.serve_para)+'</p>':'')+
+     '<div class="peq">'+esc(n.fonte||'')+' · semana de '+esc(n.semana)+'</div></div>').join('')+'</div>';},
+  s:d=>'O que saiu de novo e o que pode servir para a gente'},
+ {t:'🕐 Ponto do dia',f:d=>{const P=d.ponto||{};const n=x=>'<li>'+esc(curto(x.nome))+' <small>'+esc(x.loja)+(x.entrada?' · entrou '+esc(x.entrada):'')+(x.o_que?' · '+esc(x.o_que):'')+'</small></li>';
+   return '<div class="grade" style="--cols:4">'+lista('Atrasos','var(--warn)',P.atrasos||[],n,'Ninguém atrasou')+lista('Faltas','var(--dang)',P.faltas||[],n,'Nenhuma falta')+
+     lista('Sem refeição','var(--roxo)',P.refeicao||[],n,'Todos pegaram')+lista('Arrumar no Flash','var(--blue)',P.flash||[],n,'Nada para arrumar')+'</div>';},
+  s:d=>{const P=d.ponto||{};return 'Ponto de '+(P.dia||'—')+' · carregado do Flash em '+(P.atualizado||'—');}},
+ {t:'📌 Lembretes do escritório',f:d=>{const L=d.lembretes||{};const C=L.contas||[];
+   return '<div class="grade" style="--cols:2">'+lista('Contas que vencem hoje','var(--brand)',C,c=>'<li>'+esc(c.o_que)+' <small>'+esc(c.loja||'')+(c.categoria?' · '+esc(c.categoria):'')+'</small></li>','Nenhuma conta vence hoje')+
+     '<div class="col" style="--cc:var(--blue)"><h2>Pagamentos da equipe hoje <b>'+(L.pagamentos_equipe||0)+'</b></h2><div class="nada" style="color:var(--text)">Detalhe na tela Contas a Pagar do portal.</div></div></div>';},
+  s:d=>'Para não esquecer nada hoje · '+d.agora},
+ {t:'🍔 Erros da cozinha',f:d=>{const E=(d.erros||{}).itens||[];
+   if(!E.length)return '<div class="vazio">✅ Nenhum erro hoje. Continuem assim!</div>';
+   return '<div class="grade" style="--cols:3">'+E.slice(0,9).map(e=>'<div class="card" style="--cc:'+(e.grave?'var(--dang)':'var(--warn)')+'"><h3>'+esc(e.titulo||'Erro')+'</h3>'+
+     '<p>'+esc(e.loja||'')+' · pedido '+esc(e.pedido||'')+' · '+esc(e.hora||'')+(e.setor?' · '+esc(e.setor):'')+'</p>'+
+     (e.disse?'<p>"'+esc(String(e.disse).slice(0,140))+'"</p>':'')+'</div>').join('')+'</div>';},
+  s:d=>{const E=d.erros||{};return 'Dia '+(E.dia||'—')+' · '+(E.total||0)+' erro(s) · item faltando, bebida, marmita, pedido errado';}},
+ {t:'📥 RH — esperando decisão',f:d=>{const R=(d.rh||{}).itens||[];
+   if(!R.length)return '<div class="vazio">✅ Nada esperando na Caixa do RH</div>';
+   return '<div class="grade" style="--cols:3">'+R.slice(0,9).map(i=>'<div class="card"><h3>'+esc(curto(i.nome))+'</h3><p><span class="tag" style="--cc:var(--blue)">'+esc(i.tipo)+'</span>'+esc(i.loja)+' · '+esc(i.desde)+'</p>'+(i.texto?'<p class="peq">'+esc(String(i.texto).slice(0,120))+'</p>':'')+'</div>').join('')+'</div>';},
+  s:d=>{const R=d.rh||{};return (R.total||0)+' item(ns) na Caixa do RH · decida no portal';}}
+];
+let D=null,atual=0,timer=null;
+function mostra(i){if(!D)return;atual=i%TELAS.length;const T=TELAS[atual];
+  document.getElementById('titulo').textContent=T.t;document.getElementById('sub').textContent=T.s(D);
+  const m=document.getElementById('main');let html='';try{html=T.f(D);}catch(x){html='<div class="vazio">—</div>';}
+  m.innerHTML='<div class="tela">'+html+'</div>';requestAnimationFrame(()=>m.firstChild.classList.add('on'));
+  document.getElementById('pontos').innerHTML=TELAS.map((_,k)=>'<i class="'+(k===atual?'on':'')+'"></i>').join('');}
+function roda(){clearInterval(timer);mostra(0);timer=setInterval(()=>mostra(atual+1),SEG);}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)roda();});
+async function carregar(){const e=document.getElementById('erro');const k=chave();
+  if(!k){e.textContent='Falta o código da TV no endereço (?k=...)';return;}
+  try{const r=await fetch(SB+'rpc/escritorio_tv_ler',{method:'POST',headers:H,body:JSON.stringify({p_chave:k})});
+    if(!r.ok){e.textContent=r.status===401||r.status===403?'Código da TV recusado':'Sem resposta do banco ('+r.status+') — tentando de novo';return;}
+    const prim=!D;D=await r.json();e.textContent='';if(prim)roda();
+  }catch(x){e.textContent='Sem internet — tentando de novo';}}
+carregar();setInterval(carregar,60000);setTimeout(()=>location.reload(),6*3600*1000);
+</script>
+</body></html>
