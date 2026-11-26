@@ -142,6 +142,8 @@ h2{font-family:var(--cond);font-weight:700;font-size:16px;letter-spacing:.12em;t
 @keyframes jntPisca{from{background:#ffd23f}to{background:#fff}}
 .selo.jnt{background:#ffd23f;border-color:#ffd23f;color:#111}
 body.exp .b-tag.jnt,body.exp .b-n small.jnt{color:#ffd23f}
+/* 25/11 pedidos do SITE DA LOJA (Accon via Saipos): selo azul */
+body.exp .b-tag.site,body.exp .b-n small.site{color:#4fc3f7}
 .selo{font-family:var(--cond);font-weight:700;font-size:14px;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:6px;border:1px solid var(--fg);color:var(--fg)}
 .tempo{text-align:right;font-size:14px;color:var(--mut);white-space:nowrap}
 .tempo b{display:block;font-family:var(--display);font-weight:400;font-size:22px;color:var(--fg)}
@@ -566,6 +568,14 @@ body.exp.rola #bancada{overflow:visible}
    JS) com piso --f (tamanho da tela: 1 numa TV de 1920). */
 body.exp.boq #bancada{--z:1;--f:1;--cols:1;gap:0}
 body.exp.boq #bancada *{--u:calc(var(--z)*1px)}
+/* 25/11/2026 VOLTANDO (GPS): faixa verde do motoboy que esta voltando para a loja */
+body.exp.boq .q-volta{flex:0 0 auto;display:flex;align-items:center;gap:calc(22*var(--u));margin-bottom:calc(10*var(--u));padding:calc(12*var(--u)) calc(22*var(--u));background:#0f3d2a;border:calc(4*var(--u)) solid #2ecc71;border-radius:calc(14*var(--u));animation:vtPisca 1.2s steps(2,start) infinite}
+@keyframes vtPisca{50%{border-color:#7dffb0}}
+body.exp.boq .q-volta .vt-b{font-family:'Anton',Impact,sans-serif;font-size:calc(46*var(--u));color:#7dffb0;white-space:nowrap}
+body.exp.boq .q-volta .vt-t{font-size:calc(28*var(--u));line-height:1.25}
+body.exp.boq .q-volta .vt-t small{font-size:calc(22*var(--u));color:#9fdcb8}
+body.exp.boq .q-volta .vt-fl{color:#f5b301;text-transform:uppercase}
+body.exp.boq .q-volta .vt-min{margin-left:auto;font-family:'Anton',Impact,sans-serif;font-size:calc(70*var(--u));color:#fff;white-space:nowrap}
 body.exp.boq .q-palco{flex:1 0 auto;display:flex;flex-direction:column;min-width:0;background:var(--tile);border:2px solid var(--line);border-radius:calc(14*var(--u));overflow:hidden}
 body.exp.boq .q-palco.loja,body.exp.boq .q-palco.q-saiu{border-color:var(--fg)}
 body.exp.boq .q-cab{display:flex;flex-wrap:wrap;align-items:baseline;gap:calc(4*var(--u)) calc(18*var(--u));padding:calc(10*var(--u)) calc(20*var(--u)) calc(12*var(--u))}
@@ -837,13 +847,13 @@ const nGde=x=>nSai(x)||nIfo(x);
 function juntoNums(p){ if(!p||p.cancelado||!Array.isArray(p.junto)) return []; return p.junto.map(acha).filter(o=>o&&!o.cancelado).map(o=>nGde(o)).filter(Boolean); }
 function juntoTxt(p){ const n=juntoNums(p); return n.length?'\uD83D\uDCCD Mesmo endereço · mandar junto com '+n.map(esc).join(' e '):''; }
 const seloH=s=>'<span class="selo'+(s.indexOf('Mesmo endereço')>=0?' jnt':'')+'">'+s+'</span>';
-const nIf=x=>nSai(x)?'iFood '+nIfo(x):'iFood';
+const nIf=x=>x&&x.site?'':(nSai(x)?'iFood '+nIfo(x):'iFood');   /* 25/11: pedido do site nao tem numero do iFood */
 /* numero da lista (cabecalho da rota, faixa SAIU, "so o lanche"): grande + o do iFood pequeno embaixo */
 const nPilha=x=>'<span class="n-st"><span class="b-nn">'+esc(nGde(x))+'</span><small class="n-if">'+esc(nIf(x))+'</small></span>';
 /* numero no meio de um texto ("esperando 3330", "ja pegou 3329"): grande + o do iFood pequeno ao lado */
 const nLinha=x=>esc(nGde(x))+'<small class="n-in">'+esc(nIf(x))+'</small>';
 /* nos avisos: "#3076 (iFood 1694)" ou "#1694 (iFood)" */
-const nRot=x=>'#'+nGde(x)+' ('+nIf(x)+')';
+const nRot=x=>'#'+nGde(x)+(x&&x.site?' (site)':' ('+nIf(x)+')');
 
 let COD='', DADO=null, TIMER=null, TIMER_MS=0, BUSCANDO=false, DE_NOVO=false, ULT_OK=0, FALHAS=0, TV=false;
 let VISTOS_P=null, VISTOS_A=null, VISTOS_R=null, ALERTAS_TODOS=false;
@@ -972,6 +982,8 @@ function modoTV(){
 }
 function intervaloMs(){ const s=Number(DADO&&DADO.intervalo_s); return Math.max(10,Math.min(15,isFinite(s)&&s>0?s:12))*1000; }
 
+const SITE_ON=true;
+const SITE_MSG='Pedido do SITE DA LOJA: confira pela comanda do Saipos (na TV ainda não marca).';
 async function busca(){
   if(!COD) return;
   if(BUSCANDO){ DE_NOVO=true; return; }
@@ -979,6 +991,8 @@ async function busca(){
   try{
     const j=PORTAL? await rpc('sacola_tela_portal',{p_token:PTOK,p_loja:LOJA_PORTAL}) : await rpc('sacola_tela',{p_chave:COD});
     if(!j||typeof j!=='object') throw {msg:'resposta vazia'};
+    /* 25/11 pedidos do SITE DA LOJA (banco: sacola_site) entram na fila como os do iFood; so aparecem (sem conferir na TV) */
+    if(SITE_ON&&Array.isArray(j.site)&&j.site.length) j.pedidos=(Array.isArray(j.pedidos)?j.pedidos:[]).concat(j.site);
     $('cod').classList.remove('on'); guarda(COD);
     { const ta=Date.parse(j.agora); if(!isNaN(ta)) OFS=ta-Date.now(); }
     /* tela pausada pelo dono: mostra o aviso, guarda o codigo e continua perguntando */
@@ -1048,6 +1062,7 @@ async function busca(){
       if(!BOQ) somRotas(novasS.length?2500:0); }
     else if(novasR.length){ toca('rota'); fala(novasR.map(r=>String(r.entregador||'Motoboy').split(' ')[0]+' saiu para rota').join('. ')); }
     else if(novosP && !TV) toca('novo');   /* na TV: so a rota e o alarme fazem som (pedido novo chega toda hora) */
+    if(EXP&&JANE_VOZ_ON){ janeVoz(); voltaVoz(); }   /* 25/11 voz da Jane: iFood da Jane chegando + motoboy voltando */
   }catch(e){
     if(!(e&&e.recusado)){ FALHAS++; if(FALHAS>=2||!DADO) falha(e&&e.status?'Não consegui ler agora (código '+e.status+'). Tento de novo em 12 s.':e&&e.tempo?'O banco não respondeu em 10 s — tentando de novo.':'SEM INTERNET — tentando de novo a cada 12 s.'); }
   }finally{
@@ -1078,6 +1093,7 @@ function marcado(p,l){ if(eConferido(p)) return true; const o=OVR.get(p.id+'|'+l
 function acha(id){ const ps=(DADO&&Array.isArray(DADO.pedidos))?DADO.pedidos:[]; for(const p of ps) if(String(p.id)===String(id)) return p; return null; }
 function toque(id,chave){
   const p=acha(id); if(!p||p.cancelado||eConferido(p)) return;
+  if(p.site){ aviso(SITE_MSG); return; }
   const l=(p.linhas||[]).find(x=>String(x.chave)===String(chave)); if(!l) return;
   const k=p.id+'|'+l.chave, on=!marcado(p,l), v=++VER;
   OVR.set(k,{on:on,v:v,fase:'fila',ack:0});
@@ -1119,6 +1135,7 @@ async function envia(){
 /* ---------- CONFERIDO (clique no cartao ou teclado numero + Enter) ---------- */
 async function conferir(id,on,porTecla){
   const p=acha(id); if(!p||p.cancelado) return;
+  if(p.site){ aviso(SITE_MSG); return; }
   const k='c:'+id; if(OCUPADO.has(k)) return;
   const sid=String(p.id), num=p.numero!=null?p.numero:'—', rot=EXP?nRot(p):'#'+num;   /* 02/11: na TV da expedicao "#3076 (iFood 1694)" */
   if(BOQ_ON&&FOCO) FOCO.ate=Math.max(FOCO.ate,Date.now()+FOCO_MS);   /* conferindo o escolhido na fila: a tela nao volta no meio */
@@ -2181,7 +2198,8 @@ function bPed(p,s,e){
   if(p.agendado_para) tags.push('<span class="b-tag">agendado '+esc(hhmm(p.agendado_para))+'</span>');
   if(p.tipo==='TAKEOUT') tags.push('<span class="b-tag">retirada</span>');
   { const jn=juntoNums(p); if(jn.length) tags.push('<span class="b-tag jnt">\uD83D\uDCCD mesmo endereço · junto com '+jn.map(esc).join(' e ')+'</span>'); }
-  if(mc) tags.push('<span class="b-tag">'+esc(mc)+'</span>');
+  if(p.ifood_moto&&p.ifood_moto.escalado) tags.push('<span class="b-tag jnt">🛵 iFood '+(p.ifood_moto.chegou?'chegou':'a caminho')+'</span>');
+  if(mc) tags.push(p.site?'<span class="b-tag site">\uD83C\uDF10 site da loja</span>':'<span class="b-tag">'+esc(mc)+'</span>');
   tags.unshift('<span class="b-tag n-if">'+esc(nIf(p))+'</span>');   /* 02/11: o numero do iFood pequeno ("iFood 1694") */
   let h='<div class="b-ped'+(conf?' conf':'')+(canc?' canc':'')+(coz?' coz':'')+(late?' late':'')+(sel?' sel':'')+'" data-ped="'+esc(p.id)+'">'
     +'<div class="b-num">'+(conf?'<i class="b-ok">✓</i>':'')+'<span class="b-nn">'+esc(nGde(p))+'</span>'+tags.join('')+'</div>';
@@ -2204,7 +2222,7 @@ function bPeds(ps){
   if(so.length) h+='<div class="b-so'+(so.some(x=>x.p.agendado_para||x.p.tipo==='TAKEOUT'||outraMarca(x.p.marca)||juntoNums(x.p).length)?' b-tg':'')+'"><span class="b-rot">'+esc(soRot(so.map(x=>x.s)))+':</span>'+so.map(function(x){
     const p=x.p, e=x.e, coz=e==='cozinha'&&temCoz(x.s.coz), late=atrasoMin(p,e), mc=outraMarca(p.marca), jn=juntoNums(p);
     const ex=(late?'<small class="mau">'+late+' min</small>':'')+(coz?'<small>cozinha</small>':'')+(p.agendado_para?'<small>'+esc(hhmm(p.agendado_para))+'</small>':'')
-      +(p.tipo==='TAKEOUT'?'<small>retirada</small>':'')+(mc?'<small>'+esc(mc)+'</small>':'')+(jn.length?'<small class="jnt">\uD83D\uDCCD junto com '+jn.map(esc).join(' e ')+'</small>':''), tg=!!(p.agendado_para||p.tipo==='TAKEOUT'||mc||jn.length);
+      +(p.tipo==='TAKEOUT'?'<small>retirada</small>':'')+(mc?(p.site?'<small class="site">\uD83C\uDF10 site</small>':'<small>'+esc(mc)+'</small>'):'')+(jn.length?'<small class="jnt">\uD83D\uDCCD junto com '+jn.map(esc).join(' e ')+'</small>':''), tg=!!(p.agendado_para||p.tipo==='TAKEOUT'||mc||jn.length);
     return '<span class="b-n'+(e==='conf'?' conf':'')+(coz?' coz':'')+(late?' late':'')+(tg?' b-tg':'')+'" data-ped="'+esc(p.id)+'">'+(e==='conf'?'<i class="b-ok">✓</i>':'')+nPilha(p)+ex+'</span>';
   }).join('')+'</div>';
   return h;
@@ -2315,6 +2333,60 @@ function somRotas(espera){
   if(!fila.length||!somLigado()) return;
   if(SOM_T) clearTimeout(SOM_T);
   SOM_T=setTimeout(function(){ SOM_T=null; somToca(fila); },espera||0);
+}
+/* 25/11 VOZ DA JANE (Fabio: "coloque a voz da Jane tambem"). Pedido que sai com motoboy do iFood (Marmita da Jane)
+   nunca entra numa rota nossa, entao a voz da chegada nao fala dele. O banco manda p.ifood_moto.escalado = hora em que o
+   iFood escalou o motoboy (mediana ~6 min antes dele chegar; ensaio 7 dias Jane). Na 1a leitura depois disso a TV toca o
+   "plim" e fala 1 vez: "Motoboy do iFood a caminho: Marmita da Jane. Pedido 3112: bebida, ...". TV ligada agora: o que ja
+   estava escalado nao fala. Desligar: JANE_VOZ_ON=false. */
+const JANE_VOZ_ON=true; let JANE_VISTO=null;
+function janeVoz(){
+  const ps=(DADO&&Array.isArray(DADO.pedidos)?DADO.pedidos:[]).filter(p=>p&&!p.cancelado&&p.ifood_moto&&p.ifood_moto.escalado);
+  if(!JANE_VISTO){ JANE_VISTO=new Set(ps.map(p=>String(p.id))); return; }
+  const novos=ps.filter(p=>!JANE_VISTO.has(String(p.id)));
+  novos.forEach(p=>JANE_VISTO.add(String(p.id)));
+  if(JANE_VISTO.size>500) JANE_VISTO=new Set(ps.map(p=>String(p.id)));
+  /* 25/11 VERSAO G (Fabio: "pode aplicar essas"): voz clonada da Jane (ela gravou as falas do KDS), frase curta e
+     inteira: "Gente, iFood da Jane chegando! Nove mil seiscentos e dezesseis, tem bebida!". A funcao voz-jane grava cada
+     frase 1 vez e guarda para sempre (kds-sons/jane/cache); a TV so manda numero e itens. Falhou = voz do computador. */
+  novos.filter(p=>!eConferido(p)&&/jane/i.test(String(p.marca||''))).slice(0,3).forEach(function(p){
+    const num=String(nSai(p)||nIfo(p)||'').replace(/\D/g,'');
+    let f='';
+    separa(p).lista.forEach(function(it){ const c={bebida:'b',sobremesa:'s',pote:'k',talher:'t'}[it.kind]; if(c&&f.indexOf(c)<0) f+=c; });
+    janeFala('tipo=ifood&n='+encodeURIComponent(num)+'&f='+f, function(){ toca('chegou'); fala('Motoboy do iFood a caminho: '+String(p.marca||'iFood')+'. '+(vozPedido(p)||vozNum(p)+'.')); }, !num);
+  });
+}
+const VOZ_JANE_URL='https://kqvoatdprjwxyadhvtdd.supabase.co/functions/v1/voz-jane?';
+let JANE_FILA=[], JANE_TOCANDO=false;
+function janeFala(q,senao,pula){
+  if(!somLigado()) return;
+  if(pula){ if(senao) senao(); return; }
+  fetch(VOZ_JANE_URL+q).then(r=>r.ok?r.json():Promise.reject(r.status)).then(function(o){
+    if(!o||!o.url) throw 0; JANE_FILA.push(o.url); janeToca();
+  }).catch(function(){ if(senao) senao(); });
+}
+function janeToca(){
+  if(JANE_TOCANDO||!JANE_FILA.length) return; JANE_TOCANDO=true;
+  const fim=function(){ JANE_TOCANDO=false; setTimeout(janeToca,600); };
+  try{ const a=new Audio(JANE_FILA.shift()); a.volume=1; a.onended=a.onerror=fim;
+    const pr=a.play(); if(pr&&pr.catch) pr.catch(function(){ fim(); aviso('Som travado: toque na tela 1 vez para a voz da Jane tocar.'); });
+  }catch(e){ fim(); }
+}
+/* 25/11 Fabio: voz da Jane tambem na faixa VOLTANDO: "Erick voltando, tres minutinhos!" 1 vez por volta do motoboy
+   (de novo so depois de 20 min). TV ligada agora: quem ja estava voltando nao fala. */
+let VOLTA_VISTO=null;
+function voltaVoz(){
+  if(!VOLTA_ON||!DADO||!Array.isArray(DADO.voltando)) return;
+  const ag=Date.now(), vs=DADO.voltando.filter(v=>v&&v.moto);
+  const k=v=>semAcento(primeiroNome(v.moto)).toLowerCase();
+  if(!VOLTA_VISTO){ VOLTA_VISTO=new Map(); vs.forEach(v=>VOLTA_VISTO.set(k(v),ag)); return; }
+  vs.forEach(function(v){
+    const kk=k(v), t=VOLTA_VISTO.get(kk); VOLTA_VISTO.set(kk,ag);
+    if(t&&ag-t<20*60e3) return;
+    const nome=(String(v.moto).trim().split(/\s+/).find(w=>/^[A-Za-zÀ-ÿ]{2,20}$/.test(w))||'');
+    const m=Math.max(1,Math.min(15,Math.round(Number(v.eta_min)||0)));
+    if(nome&&Number(v.eta_min)>0) janeFala('tipo=volta&nome='+encodeURIComponent(nome)+'&m='+m,null,false);
+  });
 }
 function somToca(fila){
   if(!fila.length) return;
@@ -2774,7 +2846,8 @@ function qPed(p){
   if(p.agendado_para) tags.push('<span class="b-tag">agendado '+esc(hhmm(p.agendado_para))+'</span>');
   if(p.tipo==='TAKEOUT') tags.push('<span class="b-tag">retirada</span>');
   { const jn=juntoNums(p); if(jn.length) tags.push('<span class="b-tag jnt">\uD83D\uDCCD mesmo endereço · junto com '+jn.map(esc).join(' e ')+'</span>'); }
-  if(mc) tags.push('<span class="b-tag">'+esc(mc)+'</span>');
+  if(p.ifood_moto&&p.ifood_moto.escalado) tags.push('<span class="b-tag jnt">🛵 iFood '+(p.ifood_moto.chegou?'chegou':'a caminho')+'</span>');
+  if(mc) tags.push(p.site?'<span class="b-tag site">\uD83C\uDF10 site da loja</span>':'<span class="b-tag">'+esc(mc)+'</span>');
   tags.unshift('<span class="b-tag n-if">'+esc(nIf(p))+'</span>');   /* 02/11: o numero do iFood pequeno ao lado ("iFood 1694") */
   /* 03/11 VOZ: 🔊 = ouvir de novo o que lembrar deste pedido (so quando tem o que lembrar e o navegador fala) */
   let h='<div class="q-ped'+(conf?' conf':'')+(canc?' canc':'')+(coz?' coz':'')+(late?' late':'')+(sel?' sel':'')+'" data-ped="'+esc(p.id)+'">'
@@ -2853,7 +2926,9 @@ function boqSaiuHTML(B){
   }).join('');
   return '<section class="q-palco q-saiu" role="alert">'+head+'<div class="q-peds">'+cards+'</div></section>';
 }
-/* a fila: um botao por motoboy/area (o da tela grande nao aparece) */
+/* a fila: um botao por motoboy/area (o da tela grande nao aparece)
+   24/11/2026 (Fabio liberou, pedido do SAC AV): "sem TrackEat" (motoboy do iFood, ex.: Marmita da Jane) tambem mostra as
+   bandeiras douradas na fila, as mesmas da voz (bebida, sobremesa, pote, adicional, talher, outro item). Antes so as rotas. */
 function qChip(e){
   const ag=Date.now(), vale=e.ps.filter(p=>!p.cancelado), n=e.tipo==='canc'?e.ps.length:vale.length+e.te.length+(e.pegos||[]).length, t={};
   vale.forEach(function(p){ if(eConferido(p)) return; const s=soltos(p); Object.keys(s).forEach(function(k){ t[k]=(t[k]||0)+s[k]; }); });
@@ -2867,7 +2942,7 @@ function qChip(e){
     :e.tipo==='sem'?[e.np?'<b>'+e.np+'</b> '+(e.np>1?'prontos':'pronto'):'',e.nc?'<b>'+e.nc+'</b> na cozinha':''].filter(Boolean).join(' · ')
     :'<b>'+n+'</b> '+(n===1?'pedido':'pedidos');
   return '<button type="button" class="q-it'+(e.tipo==='rota'&&e.banda==='loja'?' loja':'')+(e.tipo==='canc'?' mau':'')+((BOQ_TAMBEM.get(e.k)||0)>ag?' pisca':'')+'" data-q="'+esc(e.k)+'" title="Mostrar na tela grande por 1 min">'
-    +rot+(fl&&e.tipo==='rota'?'<span class="q-fl">'+esc(fl)+'</span>':'')+(esp?'<span class="q-esp">'+esp+'</span>':'')+'</button>';
+    +rot+(fl&&(e.tipo==='rota'||e.tipo==='fora')?'<span class="q-fl">'+esc(fl)+'</span>':'')+(esp?'<span class="q-esp">'+esp+'</span>':'')+'</button>';
 }
 function boqFila(L,Q){
   const pe=$('pe'); if(!pe) return;
@@ -2948,6 +3023,29 @@ function fitBoqMede(M,b,P,n,set,f0,grande,rola){
   set('--cols',best.c); set('--z',best.z);
   EXP_H=M.clientHeight;
 }
+/* 25/11/2026 VOLTANDO (Fabio, cartao "Faz e me mostra antes"; pedido do Alejo): o banco manda 'voltando' (sacola_voltando:
+   GPS do TrackEat, quem chegou 300 m+ mais perto nos ultimos 3 min, a ate 3,5 km, fora do patio; eta em minutos).
+   A faixa mostra o 1o (menor eta) e, se ele tem rota montada no TrackEat, os pedidos dela e as bandeiras douradas para
+   separar ja. Sem rede nova (vem na mesma leitura). Janela: leituras dos ultimos 6 min, comparando o minuto atual com 3 min antes. */
+const VOLTA_ON=true;   /* 25/11 01h28 UTC: Fabio escolheu "Ja para a equipe" (cartao): liga para todos */
+function voltaHTML(L){
+  if(!VOLTA_ON||!DADO||!Array.isArray(DADO.voltando)||!DADO.voltando.length) return '';
+  const pn=x=>semAcento(primeiroNome(x));
+  const naLoja=L.loja.map(l=>pn(l.r&&l.r.moto));
+  const rotas=L.lista.filter(e=>e.tipo==='rota'&&e.banda!=='loja');
+  const vs=DADO.voltando.filter(v=>v&&v.moto&&naLoja.indexOf(pn(v.moto))<0)
+    .map(v=>({v:v,e:rotas.find(r=>r.r&&pn(r.r.moto)===pn(v.moto))||null}));
+  if(!vs.length) return '';
+  const x=vs[0], km=(Number(x.v.dist_m)/1000).toFixed(1).replace('.',',');
+  let sep='';
+  if(x.e){ const ps=x.e.ps.filter(p=>!p.cancelado&&!eConferido(p)), t={};
+    ps.forEach(function(p){ const s=soltos(p); Object.keys(s).forEach(function(k){ t[k]=(t[k]||0)+s[k]; }); });
+    const fl=flagKs(t).map(flagTxt).join(' · ');
+    if(ps.length) sep='separe já: <b>'+ps.map(p=>'#'+esc(nGde(p))).join(' · ')+'</b>'+(fl?' · <b class="vt-fl">'+esc(fl)+'</b>':''); }
+  const outros=vs.slice(1).map(o=>esc(o.v.moto)+' ~'+esc(o.v.eta_min)+' min').join(' · ');
+  return '<section class="q-volta"><b class="vt-b">🛵 VOLTANDO</b><span class="vt-t"><b>'+esc(x.v.moto)+'</b> a '+km+' km da loja'
+    +(sep?'<br>'+sep:'')+(outros?'<br><small>também voltando: '+outros+'</small>':'')+'</span><b class="vt-min">~'+esc(x.v.eta_min)+' min</b></section>';
+}
 function desenhaBoq(){
   garanteExp();
   const b=document.body; ['c1','c2','c3','c4','c5'].forEach(c=>b.classList.remove(c));
@@ -2959,7 +3057,7 @@ function desenhaBoq(){
      Conserto 02/11 (revisor): dois pedidos com o mesmo numero (um so na tela) continuam escolhidos OS DOIS: assim o ENTER
      nao confere nenhum (antes a escolha encolhia para o da tela e o 2o Enter conferia esse, talvez o errado). */
   if(SEL&&!SEL.ids.some(id=>BOQ_MOSTRA_IDS.indexOf(id)>=0)){ SEL=null; if(T_SEL){ clearTimeout(T_SEL); T_SEL=null; } setTimeout(mostraTecla,0); }
-  $('bancada').innerHTML=Q.saiu?boqSaiuHTML(Q.saiu):boqPalcoHTML(Q);
+  $('bancada').innerHTML=voltaHTML(L)+(Q.saiu?boqSaiuHTML(Q.saiu):boqPalcoHTML(Q));
   EXP_BAN=bannerExp(); $('saiu').innerHTML=EXP_BAN;
   boqFila(L,Q);
   fitBoq();
@@ -3096,6 +3194,47 @@ async function cdmGuarda(){
   let c=''; try{ c=limpa(decodeURIComponent((location.hash||'').replace(/^#(k=)?/i,''))); }catch(e){ c=''; }
   if(c.length!==8){ try{ c=limpa(localStorage.getItem('cdm_sacola_codigo')); }catch(e){ c=''; } }
   if(c.length===8){ COD=c; busca(); } else pedeCodigo();
+})();
+</script>
+<!-- ALERTA DIARIO 10H (pedido do Fabio, 24/11/2026). Sem rede: so le o relogio do PC. Some no botao Feito e volta no dia seguinte. -->
+<style>
+#cdmA10{position:fixed;left:50%;top:12px;transform:translateX(-50%);width:min(94vw,980px);z-index:2147483000;display:none;background:#b00020;color:#fff;border:8px solid #ffd600;border-radius:18px;padding:22px 28px;box-shadow:0 10px 40px rgba(0,0,0,.6);font-family:system-ui,Segoe UI,Arial,sans-serif;animation:cdmA10pisca 1s steps(2,start) infinite}
+#cdmA10 li{border:0;color:#fff}
+#cdmA10 li.forte{color:#000}
+#cdmA10 h2{color:#fff;font-family:inherit;letter-spacing:normal;text-transform:none;margin:0 0 12px;font-size:clamp(28px,4.2vw,52px);line-height:1.1}
+#cdmA10 ol{margin:0 0 18px 1.2em;padding:0;font-size:clamp(24px,3.4vw,42px);line-height:1.35;font-weight:700}
+#cdmA10 li.forte{background:#ffd600;color:#000;border-radius:8px;padding:2px 10px;margin-left:-10px}
+#cdmA10 button{font-size:clamp(24px,3vw,38px);font-weight:800;background:#00c853;color:#000;border:0;border-radius:12px;padding:12px 36px;cursor:pointer}
+#cdmA10 li.forte::marker{color:#fff}
+@keyframes cdmA10pisca{0%{background:#b00020;border-color:#ffd600}100%{background:#e65100;border-color:#fff}}
+</style>
+<div id="cdmA10" role="alert">
+<h2>⏰ 10h · CHECKLIST DO DIA</h2>
+<ol>
+<li>Olhar a geladeira</li>
+<li>Olhar os computadores</li>
+<li>Verificar com as cozinhas os produtos pausados</li>
+<li class="forte">Pista quente LIGADA na boqueta · SEMPRE! (pedido não pode esfriar esperando o motoboy)</li>
+</ol>
+<button type="button" id="cdmA10ok">✔ Feito</button>
+</div>
+<script>
+(function(){
+  var CH='cdm_alerta10_feito', HORA=10;
+  function hoje(){var d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();}
+  function feito(){try{return localStorage.getItem(CH)===hoje();}catch(e){return false;}}
+  var caixa=document.getElementById('cdmA10');
+  function olha(){
+    var d=new Date();
+    caixa.style.display=(d.getHours()>=HORA && !feito())?'block':'none';
+  }
+  document.getElementById('cdmA10ok').addEventListener('click',function(){
+    try{localStorage.setItem(CH,hoje());}catch(e){}
+    caixa.style.display='none';
+  });
+  olha();
+  var t=setInterval(olha,30000);
+  window.addEventListener('pagehide',function(){clearInterval(t);});
 })();
 </script>
 </body>

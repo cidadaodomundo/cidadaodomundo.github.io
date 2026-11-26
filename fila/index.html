@@ -408,6 +408,8 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
 .tg-mbs.fechado ol,.tg-mbs.fechado .prox{display:none}
 .tg-leg{left:10px;bottom:22px;padding:7px 10px;display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--text2)}
 .tg-leg i{display:inline-block;vertical-align:middle;margin-right:7px}
+.tg-legx{align-self:flex-end;background:none;border:0;color:var(--text2);font:inherit;font-size:11px;cursor:pointer;padding:0 0 2px}
+.tg-leg.fechado>div{display:none}
 .tg-leg .pl{width:24px;height:14px;border-radius:999px;border:2px solid #111}
 .tg-leg .ci{width:16px;height:16px;border-radius:50%;border:2px solid #111;background:#4FC3F7}
 .tg-leg .an{width:16px;height:16px;border-radius:50%;border:3px solid var(--bad);background:#fff}
@@ -495,7 +497,8 @@ body.tgon #tg{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr;b
     <div id="tg_map"></div>
     <div class="tg-fl tg-ctl"><button class="tg-ctlx" id="tg_ctlx" data-tgctl="1" title="esconde ou mostra este quadro">▲ Recolher</button><div id="tg_rs_ctl" class="tg-rsctl"></div><button onclick="tgTodos()" title="voltar a mostrar todos os pedidos e motoboys">Ver todos</button><button id="tg_tema" onclick="tgTema()">Escurecer mapa</button></div>
     <div class="tg-fl tg-mbs" id="tg_mbs"></div>
-    <div class="tg-fl tg-leg" aria-label="Legenda">
+    <div class="tg-fl tg-leg" id="tg_leg" aria-label="Legenda">
+      <button class="tg-legx" id="tg_legx" onclick="tgLegTroca()" title="esconde ou mostra a legenda">▼ Recolher legenda</button>
       <div><i class="pl" style="background:var(--bad)"></i>Na cozinha</div>
       <div><i class="pl" style="background:var(--roxo)"></i>Pronto, esperando motoboy</div>
       <div><i class="nv"></i>Acabou de entrar no iFood</div>
@@ -2353,10 +2356,84 @@ TG.det=false; TG.rsSo=null; TG.rsIds=null;
 function tgRsIds(rt){ var o={}; (rt.paradas||[]).forEach(function(x){ o[String(x.p.pedido)]=1; }); return o; }
 try{ TG.det=localStorage.getItem('cdm_fila_det')==='1'; }catch(e){}
 /* minutos desde o ultimo GPS ("HH:MI", hora de Curitiba); null se nao der para saber */
+/* 22/11/2026, pedido do Fabio: "tinha que ter um painel onde voce vai botando tudo que voce ta fazendo".
+   Aba 🤖 Robo (so Agua Verde): le o diario do robo de rotas (rota_robo_evento, banco pessoal) pela funcao rota_robo_painel.
+   So leitura: a tela nao manda nada para o robo nem para o TrackEat. Atualiza de 20 em 20 s enquanto a aba esta aberta. */
+var ROBO=null, ROBO_T=null;
+function roboCarrega(){
+  if(!ROBO_T) ROBO_T=setInterval(function(){ if(TG.aba==='robo'&&!document.hidden) roboCarrega(); },20000);
+  rpc('rota_robo_painel',{p_token:cdmTok(),p_unidade:UNI}).then(function(d){ ROBO=d||{erro:'o banco não respondeu (falha de rede ou leitura ainda não criada)'}; })
+    .catch(function(e){ ROBO={erro:String((e&&e.message)||e)}; })
+    .then(function(){ if(TG.aba==='robo'&&window.ULT_D) tgDesenha(window.ULT_D); });
+}
+function roboHtml(){
+  var R=ROBO;
+  if(!R){ if(!ROBO_T) setTimeout(roboCarrega,0); return '<div class="tg-av">Lendo o diário do robô…</div>'; }
+  if(R.erro) return '<div class="tg-av">⚠ Não consegui ler o diário do robô: '+esc(R.erro)+'</div>';
+  var h='<div class="tg-robo" style="padding:6px 2px;display:grid;gap:8px">';
+  var b=R.batida, seg=b?+b.ha_s:null;
+  if(!b) h+='<div class="tg-av">⚪ O robô ainda não deu sinal hoje.</div>';
+  else if(!b.ligado) h+='<div class="tg-av">⏸ Robô DESLIGADO (último sinal às '+esc(b.hora)+').</div>';
+  else if(seg>180) h+='<div class="tg-av">🔴 Robô sem sinal desde '+esc(b.hora)+' (há '+Math.round(seg/60)+' min). Pode ter parado.</div>';
+  else h+='<div style="color:var(--ok,#3c9)">🟢 Robô ligado · último sinal há '+seg+' s</div>';
+  if(b&&b.resumo) h+='<div><b>Agora:</b> '+esc(b.resumo)+(b.proximo_volta_min!=null?' · próximo motoboy volta em ~'+esc(String(b.proximo_volta_min))+' min':'')+(b.na_loja_gps!=null?' · '+esc(String(b.na_loja_gps))+' na loja pelo GPS':'')+'</div>';
+  /* o robo anota 2 vezes a mesma rota: quando monta (sem medida) e quando ela sai (com motoboy e espera). Fica so a mais nova de cada. */
+  var vistos={}, rs=(R.rotas||[]).filter(function(r){ var k=(r.pedidos||[]).slice().sort().join(','); if(vistos[k]) return false; vistos[k]=1; return true; }).slice(0,12);
+  h+='<div><b>Hoje:</b> '+(R.n_rotas||0)+' rota'+(R.n_rotas===1?'':'s')+' montada'+(R.n_rotas===1?'':'s')+' pelo robô'+(R.espera_media!=null?' · espera média até sair '+esc(String(R.espera_media))+' min':'')+'</div>';
+  (R.alertas||[]).forEach(function(a){ h+='<div class="tg-av">⚠ '+esc(a.hora)+' · '+esc(a.texto||'')+'</div>'; });
+  if(rs.length){
+    h+='<div style="font-weight:700;margin-top:4px">Últimas rotas</div><ol style="list-style:none;margin:0;padding:0;display:grid;gap:6px">';
+    rs.forEach(function(r){
+      h+='<li style="border:1px solid var(--line,#333);border-radius:8px;padding:6px 8px">'+
+        '<div><b>'+esc(r.hora)+'</b> · '+(r.motoboy?esc(r.motoboy):'<span style="color:var(--warn)">montada, esperando sair</span>')+(r.grupo?' · rota '+esc(String(r.grupo)):'')+'</div>'+
+        '<div>Pedidos: <b>'+esc((r.pedidos||[]).join(', '))+'</b>'+(r.espera_min!=null?' · esperou '+esc(String(r.espera_min))+' min':'')+'</div>'+
+        (r.motivo?'<div style="opacity:.8">Por quê: '+esc(r.motivo)+'</div>':'')+
+        ((r.trocas||[]).length?'<div style="opacity:.8">'+r.trocas.map(esc).join('<br>')+'</div>':'')+'</li>';
+    });
+    h+='</ol>';
+  }
+  h+='<div style="opacity:.6;font-size:.85em">Lido às '+esc(R.agora||'')+'. Esta aba só mostra o que o robô anota; não manda nada para ele.</div></div>';
+  return h;
+}
+/* 22/11/2026, pedido do Fabio: todo quadro dentro do mapa tem que poder recolher. A legenda fica recolhida ou aberta
+   neste aparelho (localStorage). */
+function tgLegTroca(forca){
+  var el=document.getElementById('tg_leg'), bt=document.getElementById('tg_legx'); if(!el||!bt) return;
+  var fechar=(forca===undefined)?!el.classList.contains('fechado'):forca;
+  el.classList.toggle('fechado',fechar); bt.textContent=fechar?'▲ Legenda':'▼ Recolher legenda';
+  if(forca===undefined){ try{ localStorage.setItem('cdm_fila_leg_fechada',fechar?'1':'0'); }catch(e){} }
+}
+try{ if(localStorage.getItem('cdm_fila_leg_fechada')==='1') document.addEventListener('DOMContentLoaded',function(){ tgLegTroca(true); }); }catch(e){}
+/* 22/11/2026, pedido do Fabio: ao lado de cada motoboy, quanto falta para o garantido do dia (R$ e corridas).
+   Mesma conta do Pagar Motoboys (vw_motoboy_pagamento_gps: garantido_valido - r_entregas) pela porta fila_motoboy_garantido,
+   que so responde para quem ve o Pagar Motoboys. Corridas = falta / media do valor por corrida dele hoje (estimativa). */
+var GAR=null, GAR_T=0;
+function garLe(){
+  if(Date.now()-GAR_T<55000) return; GAR_T=Date.now();
+  rpc('fila_motoboy_garantido',{p_token:cdmTok(),p_unidade:UNI}).then(function(g){ GAR=g||null; if(window.ULT_D&&window.TG&&TG.on) tgDesenha(window.ULT_D); });
+}
+function garSelo(n){
+  if(!GAR||!GAR.motoboys) return '';
+  var k=String(n||'').trim().toLowerCase(), g=GAR.motoboys[k];
+  var st='display:block;font-size:11px;font-weight:600;margin-top:2px;';
+  if(!g) return '<small style="'+st+'opacity:.7">garantido: não sei</small>';
+  /* 22/11 (Fabio): selo verde = tem direito; vermelho = perdeu (atraso ou corte no Pagar Motoboys) */
+  var chip=function(ok,txt,tit){ return '<span title="'+tit+'" style="display:inline-block;padding:0 5px;margin-right:4px;border-radius:999px;font-size:10px;color:#fff;background:'+(ok?'#2e9d5b':'#c8102e')+'">'+(ok?'':'sem ')+txt+'</span>'; };
+  var h=chip(g.tem_garantido,'G',g.tem_garantido?'tem garantido hoje':(g.atrasou?'perdeu o garantido: atrasou':'sem garantido hoje (cortado ou sem escala)'))+
+        chip(g.tem_refeicao,'R',g.tem_refeicao?'tem refeição hoje':'sem refeição hoje');
+  if(g.tem_garantido){
+    if(+g.falta<=0) h+='<span style="color:var(--ok,#3c9)">✓ garantido batido</span>';
+    else h+='<span style="color:var(--warn)">falta R$ '+(+g.falta).toFixed(2).replace('.',',')+(g.corridas_falta!=null?' · ~'+g.corridas_falta+' corrida'+(g.corridas_falta===1?'':'s'):'')+'</span>';
+  }
+  return '<small style="'+st+'">'+h+'</small>';
+}
 function mbIdade(v){
   var m=/^(\d{2}):(\d{2})$/.exec(String(v||'')); if(!m) return null;
   var a=new Date().toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour12:false,hour:'2-digit',minute:'2-digit'}).split(':');
-  return ((+a[0]*60+ +a[1])-(+m[1]*60+ +m[2])+1440)%1440;
+  var d=((+a[0]*60+ +a[1])-(+m[1]*60+ +m[2])+1440)%1440;
+  /* 22/11/2026: GPS 1-2 min "no futuro" (relogio do computador da loja um pouco atrasado) dava 1439 min
+     ("sem GPS ha 1439 min") e escondia motoboy online. Ate 60 min a frente conta como agora (0). */
+  return d>1380?0:d;
 }
 function tgPassou(p){ return p.falta_prom!=null&&+p.falta_prom<0; }   /* 01/11/2026: pisca so quem passou da hora prometida (o "demorando" nao) */
 /* fim da linha: a hora prometida e quanto falta; passou da hora fica vermelho (o anel do numero pisca) */
@@ -2472,7 +2549,7 @@ function tgDesenha(d){
   rua.forEach(function(m){ if(!TG.foco||m.motoboy===TG.foco) vRua=vRua.concat((m.pedidos||[]).filter(tgOk)); });
   var vPass=vPrep.concat(vPron,vNov,vRua).filter(tgPassou).length;
   var h='<div class="tg-ferr">'+
-    (temRs?'<div class="tg-abas"><button class="'+(TG.aba==='ped'?'on':'')+'" data-tga="ped">Pedidos</button><button class="'+(TG.aba==='rota'?'on':'')+'" data-tga="rota">🧭 Rota sugerida</button></div>':'')+
+    (temRs?'<div class="tg-abas"><button class="'+(TG.aba==='ped'?'on':'')+'" data-tga="ped">Pedidos</button><button class="'+(TG.aba==='rota'?'on':'')+'" data-tga="rota">🧭 Rota sugerida</button><button class="'+(TG.aba==='robo'?'on':'')+'" data-tga="robo" title="o que o robô de rotas está fazendo no TrackEat">🤖 Robô</button></div>':'')+
     (TG.aba==='ped'
       ?'<div class="tg-fab">'+[['todos','Todos',vPrep.length+vNov.length+vPron.length+vRua.length,''],['cozinha','Cozinha',vPrep.length+vNov.length,'t-c'],['prontos','Prontos',vPron.length,'t-p'],['rua','Na rua',vRua.length,'']].map(function(f){
           return '<button class="'+(TG.filtro===f[0]?'on ':'')+f[3]+'" data-tgf="'+f[0]+'" title="mostrar '+(f[0]==='todos'?'todos os pedidos':'só '+f[1].toLowerCase())+'">'+f[1]+'<b>'+(TEP?'—':f[2])+'</b></button>'; }).join('')+'</div>'+
@@ -2495,6 +2572,8 @@ function tgDesenha(d){
        '<button class="b" data-tgrd="'+(TG.rsDet?'0':'1')+'">'+(TG.rsDet?'só os números':'ver horários')+'</button></div>'+
        (TG.rsDet?rsBloco(RS_ULT).replace('id="rs_velho"','id="tg_rs_velho"').replace('id="sec_rs"','id="tg_sec_rs"')
                 :'<div id="tg_sec_rs"><div class="tg-av" id="tg_rs_velho" style="display:none"></div>'+rsNumeros(RS_ULT,loja)+'</div>')+'</div>';
+  }else if(TG.aba==='robo'&&temRs){
+    h+=roboHtml();
   }else{
     var foco=function(p){ return !TG.foco||p.motoboy===TG.foco; };
     var so=!TG.det;   /* 01/11/2026: so os numeros (padrao) */
@@ -2567,6 +2646,7 @@ function tgDesenha(d){
   /* 02/11/2026, pedido do Fabio: "onde tem os motoboys deixar a lista somente dos que estao online no momento".
      Online = o aplicativo mandou GPS nos ultimos 5 min (o GPS chega de 1 em 1 min; medido 01/11 AV: 99% em ate 2 min).
      Quem esta com entrega na mao continua na lista mesmo sem GPS, com o aviso "sem GPS ha X min". */
+  garLe();
   var mbsTudo=Array.isArray(d.motoboys)?d.motoboys:[];
   var mbs=mbsTudo.filter(function(m){ var x=mbIdade(m.visto); return (x!=null&&x<=5)||rua.some(function(r){return r.motoboy===m.motoboy;}); });
   var mbsFora=mbsTudo.length-mbs.length;
@@ -2577,9 +2657,10 @@ function tgDesenha(d){
     (livre?'<div class="prox">'+(livre.livre==='agora'?'Livre agora: ':'Próximo livre ~'+esc(livre.livre)+': ')+esc(primeiroNome(livre.motoboy))+'</div>':'')+
     '<ol>'+(mbs.length?mbs.map(function(m){
       return '<li><button class="tg-mb'+(TG.foco===m.motoboy?' sel':'')+(TG.foco&&TG.foco!==m.motoboy?' apaga':'')+'" data-tgm="'+esc(m.motoboy)+'">'+
-        '<i class="sw" style="background:'+tgCorMb(m.motoboy,d)+'"></i><b>'+esc(m.motoboy)+'</b><span class="q">'+(m.faltam>0?esc(String(m.faltam)):'')+'</span>'+
+        '<i class="sw" style="background:'+tgCorMb(m.motoboy,d)+'"></i><b>'+esc(m.motoboy)+'</b>'+garSelo(m.motoboy)+'<span class="q">'+(m.faltam>0?esc(String(m.faltam)):'')+'</span>'+
         '<span class="st">'+(function(x){ return x!=null&&x>5?'<span style="color:var(--warn)">sem GPS há '+x+' min</span> · ':''; })(mbIdade(m.visto))+(m.no_patio?'na loja':esc(m.onde||''))+(m.situacao&&m.situacao!==m.onde?' · '+esc(m.situacao):'')+(m.livre==='agora'?' · livre agora':(m.livre?' · livre ~'+esc(m.livre):''))+'</span></button></li>';
     }).join(''):'<li class="tg-vz" style="padding:8px">'+(d.motoboys==null?'Não consegui ler os motoboys neste minuto.':'Nenhum motoboy online agora.')+'</li>')+'</ol>'+
+    (GAR&&GAR.motoboys&&!TG.mbsFechado?'<div class="tg-vz" style="padding:4px 8px 0;font-size:11px"><b style="color:#2e9d5b">G</b> garantido · <b style="color:#2e9d5b">R</b> refeição · verde tem, vermelho perdeu · falta = quanto falta p/ o garantido (conta do Pagar Motoboys, às '+esc(GAR.calculado_em||'—')+')</div>':'')+
     (mbsFora?'<div class="tg-vz" style="padding:4px 8px 8px">'+mbsFora+' com o aplicativo parado há mais de 5 min não aparece'+(mbsFora===1?'':'m')+'.</div>':'');
 
   /* --- botao "Criar rota inteligente" no canto do mapa (so Agua Verde): liga a aba Rota sugerida, apaga o resto do mapa
@@ -2864,7 +2945,7 @@ document.addEventListener('click',function(e){
     tgDesenha(window.ULT_D); tgRsZoom(); return; }
   var dt=t.closest('[data-tgdet]'); if(dt){ TG.det=dt.getAttribute('data-tgdet')==='1'; try{ localStorage.setItem('cdm_fila_det',TG.det?'1':'0'); }catch(x){} tgDesenha(window.ULT_D); return; }
   if(t.closest('[data-tgsx]')){ TG.sel=null; tgDesenha(window.ULT_D); return; }
-  var a=t.closest('[data-tga]'); if(a){ TG.aba=a.getAttribute('data-tga'); if(TG.aba==='rota') RS_MAPA=true; tgDesenha(window.ULT_D); if(!tgCel()) tgMostraSel(false); return; }
+  var a=t.closest('[data-tga]'); if(a){ TG.aba=a.getAttribute('data-tga'); if(TG.aba==='rota') RS_MAPA=true; if(TG.aba==='robo') roboCarrega(); tgDesenha(window.ULT_D); if(!tgCel()) tgMostraSel(false); return; }
   var f=t.closest('[data-tgf]'); if(f){ TG.filtro=f.getAttribute('data-tgf'); tgDesenha(window.ULT_D); if(!tgCel()) tgMostraSel(false); return; }
   if(t.closest('[data-tgx]')){ tgTodos(); return; }
   if(t.closest('[data-tgz]')){ TG.mbsFechado=!TG.mbsFechado; tgDesenha(window.ULT_D); return; }
