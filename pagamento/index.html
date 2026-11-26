@@ -317,6 +317,7 @@ button.b[disabled]{opacity:.4;cursor:not-allowed}
   <span class="tab" id="t_prova" onclick="setView('prova')" style="display:none">🧪 Prova real</span>
   <span class="tab" id="t_maq" onclick="setView('maq')">🧾 Maquininha do dia</span>
   <span class="tab" id="t_dup" onclick="setView('dup')">🔎 Corrida em dobro</span>
+  <span class="tab" id="t_esc" onclick="setView('esc')">📅 Escalas motoboy</span>
   <span class="tab" id="t_acerto" onclick="setView('acerto')" style="display:none">📒 Acerto</span>
   <span class="tab" id="t_reg" onclick="setView('reg')">📜 As regras</span>
 </div>
@@ -415,6 +416,7 @@ function setView(v){if(v==='cmp'||v==='pag')v='pagar'; VIEW=v; try{for(var _k in
   try{$('t_prova').className='tab'+(v==='prova'?' on':'')}catch(e){}
   try{$('t_acerto').className='tab'+(v==='acerto'?' on':'');if(v!=='acerto'&&$('faixa').querySelector('[data-ac]'))$('faixa').innerHTML=''}catch(e){}
   $('t_reg').className='tab'+(v==='reg'?' on':'');
+  try{$('t_esc').className='tab'+(v==='esc'?' on':'')}catch(e){}
   if(v!=='ag'&&AGT){clearInterval(AGT);AGT=null}
   if(v!=='maq'&&MAQ_TIMER){clearInterval(MAQ_TIMER);MAQ_TIMER=null}
   render()}
@@ -570,7 +572,49 @@ async function viewDup(){
   el.innerHTML=h;
 }
 function viewRegras(){$('kpis').innerHTML='';$('faixa').innerHTML='';$('conteudo').innerHTML=REGRAS_HTML}
-function render(){if(VIEW==='pagar'){viewPagar();return}if(VIEW==='prova'){viewProva();return}if(VIEW==='acerto'){viewAcerto();return}if(VIEW==='dup'){viewDup();return}if(VIEW==='cob'){viewCob();return}if(VIEW==='ag'){viewAgora();return}if(VIEW==='maq'){viewMaq();return}if(VIEW==='reg'){viewRegras();return}viewMaq()}
+function render(){if(VIEW==='pagar'){viewPagar();return}if(VIEW==='prova'){viewProva();return}if(VIEW==='acerto'){viewAcerto();return}if(VIEW==='dup'){viewDup();return}if(VIEW==='cob'){viewCob();return}if(VIEW==='ag'){viewAgora();return}if(VIEW==='maq'){viewMaq();return}if(VIEW==='reg'){viewRegras();return}if(VIEW==='esc'){viewEsc();return}viewMaq()}
+/* Aba Escalas motoboy (pedido de 26/11/2026): mostra a escala que o Jaison manda no grupo MOTOBOYS CIDADÃO JAISON. Só mostra; não muda nenhum valor. */
+var ESCINI=null, ESCD=null;
+function escIso(d){var p=function(x){return (x<10?'0':'')+x};return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())}
+function escSeg(iso){var d=iso?new Date(iso+'T12:00:00'):new Date();var w=(d.getDay()+6)%7;d.setDate(d.getDate()-w);return escIso(d)}
+function escPula(n){var d=new Date(ESCINI+'T12:00:00');d.setDate(d.getDate()+7*n);ESCINI=escIso(d);ESCD=null;viewEsc()}
+async function viewEsc(){
+  $('kpis').innerHTML='';$('faixa').innerHTML='';
+  if(!ESCINI)ESCINI=escSeg();
+  if(!ESCD||ESCD.ini!==ESCINI){
+    $('conteudo').innerHTML='<div class="empty">Abrindo a escala…</div>';
+    try{const r=await fetch(SB+'rpc/escala_motoboy_semana',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_token:cdmTok(),p_ini:ESCINI})});
+      if(!r.ok)throw new Error('porta '+r.status);ESCD=await r.json();ESCD.ini=ESCINI}
+    catch(e){$('conteudo').innerHTML='<div class="c">Não consegui abrir a escala. Saia e entre de novo no portal, e tente outra vez.</div>';return}
+  }
+  if(VIEW!=='esc')return;
+  var dias=[],nomes=['seg','ter','qua','qui','sex','sáb','dom'],hoje=escIso(new Date());
+  for(var i=0;i<7;i++){var d=new Date(ESCINI+'T12:00:00');d.setDate(d.getDate()+i);dias.push(escIso(d))}
+  var fmt=function(iso){return iso.slice(8,10)+'/'+iso.slice(5,7)};
+  var at=ESCD.atualizado?new Date(ESCD.atualizado):null;
+  var h='<div class="c"><div class="hs" style="margin:0 0 8px"><b>Escala dos motoboys</b> · semana de '+fmt(dias[0])+' a '+fmt(dias[6])+' · vem da escala que o Jaison manda no grupo MOTOBOYS CIDADÃO JAISON'+(at?' · última mudança '+at.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'')+'</div>'+
+    '<button class="b" onclick="escPula(-1)">◀ semana anterior</button> <button class="b" onclick="ESCINI=escSeg();ESCD=null;viewEsc()">esta semana</button> <button class="b" onclick="escPula(1)">semana seguinte ▶</button></div>';
+  var L=ESCD.linhas||[],lojas=['Água Verde','São Braz','Ahú'];
+  L.forEach(function(r){if(lojas.indexOf(r.unidade)<0)lojas.push(r.unidade)});
+  var avisoNome=0;
+  lojas.forEach(function(loja){
+    var rs_=L.filter(function(r){return r.unidade===loja});
+    var pes=[];rs_.forEach(function(r){if(pes.indexOf(r.nome)<0)pes.push(r.nome)});pes.sort(function(a,b){return a.localeCompare(b,'pt-BR')});
+    h+='<div class="c"><div class="hs" style="margin:0 0 6px"><b style="font-size:15px">'+esc(loja)+'</b> · '+pes.length+' motoboy(s) na semana</div><div style="overflow-x:auto"><table><tr><th>Motoboy</th>';
+    dias.forEach(function(d,i){var vazio=!rs_.some(function(r){return r.data===d});h+='<th style="'+(d===hoje?'color:var(--brand);':'')+'">'+nomes[i]+' '+fmt(d)+(vazio?'<div style="color:#e66767;text-transform:none">⚠ sem escala</div>':'')+'</th>'});
+    h+='</tr>';
+    pes.forEach(function(n){
+      var casa=rs_.some(function(r){return r.nome===n&&r.nome_casa});if(!casa)avisoNome++;
+      h+='<tr><td><b>'+esc(n)+'</b>'+(casa?'':'<div style="color:#e66767;font-size:11.5px">⚠ nome não bate com o TrackEat</div>')+'</td>';
+      dias.forEach(function(d){
+        var t=rs_.filter(function(r){return r.nome===n&&r.data===d});
+        h+='<td style="'+(d===hoje?'background:rgba(255,200,0,.08);':'')+'">'+(t.length?t.map(function(r){return '<div style="white-space:nowrap"><span class="rel">'+esc(r.turno||'')+'</span> '+esc(r.entrada||'?')+'–'+(r.saida?esc(r.saida):'<span title="sem hora de saída: conta até fechar">fechar</span>')+'</div>'}).join(''):'<span class="rel">—</span>')+'</td>'});
+      h+='</tr>'});
+    if(!pes.length)h+='<tr><td colspan="8" style="color:#e66767">⚠ Nenhuma escala desta loja nesta semana.</td></tr>';
+    h+='</table></div></div>'});
+  h+='<div class="hs">“fechar” = escala sem hora de saída: a conta vai até o fechamento da loja.'+(avisoNome?' “nome não bate com o TrackEat” = o nome na escala está diferente do nome no aplicativo nos últimos 30 dias; nesse caso a tela pode achar que a pessoa estava sem escala.':'')+' Esta aba só mostra. Não muda nenhum valor a pagar.</div>';
+  $('conteudo').innerHTML=h;
+}
 async function viewComparar(){
   $('faixa').innerHTML='';
   if(!PD){ $('conteudo').innerHTML='<div class="empty">Carregando…</div>'; await puxaPagDia(); }
